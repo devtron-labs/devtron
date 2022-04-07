@@ -562,6 +562,8 @@ components:
           type: string
         mountCodeToContainer:
           type: boolean
+        mountCodeToContainerPath:
+          type: string
         configureMountPath:
           type: boolean
         cotainerImagePath:
@@ -675,8 +677,10 @@ components:
       properties:
         command:
           type: string
-        arg:
-          type: string
+        args:
+          type: array
+          items:
+            type: string
     PortMap:
       type: object
       properties:

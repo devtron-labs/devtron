@@ -53,22 +53,23 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_pipeline_script;
 -- Table Definition
 CREATE TABLE "public"."plugin_pipeline_script"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_pipeline_script'::regclass),
-    "script"                      text,
-    "type"                        varchar(255),   -- SHELL, DOCKERFILE, CONTAINER_IMAGE etc
-    "store_script_at"             text,
-    "dockerfile_exists"           bool,
-    "mount_path"                  text,
-    "mount_code_to_container"     bool,
-    "configure_mount_path"        bool,
-    "container_image_path"        text,
-    "image_pull_secret_type"      varchar(255),   -- CONTAINER_REGISTRY or SECRET_PATH
-    "image_pull_secret"           text,
-    "deleted"                     bool,
-    "created_on"                  timestamptz,
-    "created_by"                  int4,
-    "updated_on"                  timestamptz,
-    "updated_by"                  int4,
+    "id"                           integer NOT NULL DEFAULT nextval('id_seq_plugin_pipeline_script'::regclass),
+    "script"                       text,
+    "type"                         varchar(255),   -- SHELL, DOCKERFILE, CONTAINER_IMAGE etc
+    "store_script_at"              text,
+    "dockerfile_exists"            bool,
+    "mount_path"                   text,
+    "mount_code_to_container"      bool,
+    "mount_code_to_container_path" text,
+    "configure_mount_path"         bool,
+    "container_image_path"         text,
+    "image_pull_secret_type"       varchar(255),   -- CONTAINER_REGISTRY or SECRET_PATH
+    "image_pull_secret"            text,
+    "deleted"                      bool,
+    "created_on"                   timestamptz,
+    "created_by"                   int4,
+    "updated_on"                   timestamptz,
+    "updated_by"                   int4,
     PRIMARY KEY ("id")
 );
 
@@ -82,7 +83,7 @@ CREATE TABLE "public"."script_path_arg_port_mapping"
     "file_path_on_disk"           text,
     "file_path_on_container"      text,
     "command"                     text,
-    "arg"                         text,
+    "args"                        text,             --marshaled array of strings(multiple args)
     "port_on_local"               integer,
     "port_on_container"           integer,
     "script_id"                   integer,

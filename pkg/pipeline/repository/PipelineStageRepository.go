@@ -62,19 +62,20 @@ type PipelineStageStep struct {
 // Below two tables are used at plugin-steps level too
 
 type PluginPipelineScript struct {
-	tableName            struct{}                             `sql:"plugin_pipeline_script" pg:",discard_unknown_columns"`
-	Id                   int                                  `sql:"id,pk"`
-	Script               string                               `sql:"name"`
-	StoreScriptAt        string                               `sql:"store_script_at"`
-	Type                 repository.ScriptType                `sql:"type"`
-	DockerfileExists     bool                                 `sql:"dockerfile_exists, notnull"`
-	MountPath            string                               `sql:"mount_path"`
-	MountCodeToContainer bool                                 `sql:"mount_code_to_container,notnull"`
-	ConfigureMountPath   bool                                 `sql:"configure_mount_path,notnull"`
-	ContainerImagePath   string                               `sql:"container_image_path"`
-	ImagePullSecretType  repository.ScriptImagePullSecretType `sql:"image_pull_secret_type"`
-	ImagePullSecret      string                               `sql:"image_pull_secret"`
-	Deleted              bool                                 `sql:"deleted, notnull"`
+	tableName                struct{}                             `sql:"plugin_pipeline_script" pg:",discard_unknown_columns"`
+	Id                       int                                  `sql:"id,pk"`
+	Script                   string                               `sql:"name"`
+	StoreScriptAt            string                               `sql:"store_script_at"`
+	Type                     repository.ScriptType                `sql:"type"`
+	DockerfileExists         bool                                 `sql:"dockerfile_exists, notnull"`
+	MountPath                string                               `sql:"mount_path"`
+	MountCodeToContainer     bool                                 `sql:"mount_code_to_container,notnull"`
+	MountCodeToContainerPath string                               `sql:"mount_code_to_container_path"`
+	ConfigureMountPath       bool                                 `sql:"configure_mount_path,notnull"`
+	ContainerImagePath       string                               `sql:"container_image_path"`
+	ImagePullSecretType      repository.ScriptImagePullSecretType `sql:"image_pull_secret_type"`
+	ImagePullSecret          string                               `sql:"image_pull_secret"`
+	Deleted                  bool                                 `sql:"deleted, notnull"`
 	sql.AuditLog
 }
 
@@ -85,7 +86,7 @@ type ScriptPathArgPortMapping struct {
 	FilePathOnDisk      string                       `sql:"file_path_on_disk"`
 	FilePathOnContainer string                       `sql:"file_path_on_container"`
 	Command             string                       `sql:"command"`
-	Arg                 string                       `sql:"arg"`
+	Args                string                       `sql:"args"`
 	PortOnLocal         int                          `sql:"port_on_local"`
 	PortOnContainer     int                          `sql:"port_on_container"`
 	ScriptId            int                          `sql:"script_id"`

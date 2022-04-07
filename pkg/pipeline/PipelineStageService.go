@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -423,17 +424,18 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 
 func (impl *PipelineStageServiceImpl) CreateScriptAndMappingForInlineStep(inlineStepDetail *bean.InlineStepDetailDto, userId int32) (scriptId int, err error) {
 	scriptEntry := &repository.PluginPipelineScript{
-		Script:               inlineStepDetail.Script,
-		Type:                 inlineStepDetail.ScriptType,
-		StoreScriptAt:        inlineStepDetail.StoreScriptAt,
-		DockerfileExists:     inlineStepDetail.DockerfileExists,
-		MountPath:            inlineStepDetail.MountPath,
-		MountCodeToContainer: inlineStepDetail.MountCodeToContainer,
-		ConfigureMountPath:   inlineStepDetail.ConfigureMountPath,
-		ContainerImagePath:   inlineStepDetail.ContainerImagePath,
-		ImagePullSecretType:  inlineStepDetail.ImagePullSecretType,
-		ImagePullSecret:      inlineStepDetail.ImagePullSecret,
-		Deleted:              false,
+		Script:                   inlineStepDetail.Script,
+		Type:                     inlineStepDetail.ScriptType,
+		StoreScriptAt:            inlineStepDetail.StoreScriptAt,
+		DockerfileExists:         inlineStepDetail.DockerfileExists,
+		MountPath:                inlineStepDetail.MountPath,
+		MountCodeToContainer:     inlineStepDetail.MountCodeToContainer,
+		MountCodeToContainerPath: inlineStepDetail.MountCodeToContainerPath,
+		ConfigureMountPath:       inlineStepDetail.ConfigureMountPath,
+		ContainerImagePath:       inlineStepDetail.ContainerImagePath,
+		ImagePullSecretType:      inlineStepDetail.ImagePullSecretType,
+		ImagePullSecret:          inlineStepDetail.ImagePullSecret,
+		Deleted:                  false,
 		AuditLog: sql.AuditLog{
 			CreatedOn: time.Now(),
 			CreatedBy: userId,
@@ -464,10 +466,15 @@ func (impl *PipelineStageServiceImpl) CreateScriptAndMappingForInlineStep(inline
 		scriptMap = append(scriptMap, repositoryEntry)
 	}
 	for _, commandArgMap := range inlineStepDetail.CommandArgsMap {
+		argsByte, err := json.Marshal(commandArgMap.Args)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling docker args", "err", err)
+			return 0, err
+		}
 		repositoryEntry := repository.ScriptPathArgPortMapping{
 			TypeOfMapping: repository2.SCRIPT_MAPPING_TYPE_DOCKER_ARG,
 			Command:       commandArgMap.Command,
-			Arg:           commandArgMap.Arg,
+			Args:          string(argsByte),
 			ScriptId:      scriptEntry.Id,
 			Deleted:       false,
 			AuditLog: sql.AuditLog{
@@ -505,18 +512,19 @@ func (impl *PipelineStageServiceImpl) CreateScriptAndMappingForInlineStep(inline
 
 func (impl *PipelineStageServiceImpl) UpdateScriptAndMappingForInlineStep(inlineStepDetail *bean.InlineStepDetailDto, scriptId int, userId int32) (err error) {
 	scriptEntry := &repository.PluginPipelineScript{
-		Id:                   scriptId,
-		Script:               inlineStepDetail.Script,
-		StoreScriptAt:        inlineStepDetail.StoreScriptAt,
-		Type:                 inlineStepDetail.ScriptType,
-		DockerfileExists:     inlineStepDetail.DockerfileExists,
-		MountPath:            inlineStepDetail.MountPath,
-		MountCodeToContainer: inlineStepDetail.MountCodeToContainer,
-		ConfigureMountPath:   inlineStepDetail.ConfigureMountPath,
-		ContainerImagePath:   inlineStepDetail.ContainerImagePath,
-		ImagePullSecretType:  inlineStepDetail.ImagePullSecretType,
-		ImagePullSecret:      inlineStepDetail.ImagePullSecret,
-		Deleted:              false,
+		Id:                       scriptId,
+		Script:                   inlineStepDetail.Script,
+		StoreScriptAt:            inlineStepDetail.StoreScriptAt,
+		Type:                     inlineStepDetail.ScriptType,
+		DockerfileExists:         inlineStepDetail.DockerfileExists,
+		MountPath:                inlineStepDetail.MountPath,
+		MountCodeToContainer:     inlineStepDetail.MountCodeToContainer,
+		MountCodeToContainerPath: inlineStepDetail.MountCodeToContainerPath,
+		ConfigureMountPath:       inlineStepDetail.ConfigureMountPath,
+		ContainerImagePath:       inlineStepDetail.ContainerImagePath,
+		ImagePullSecretType:      inlineStepDetail.ImagePullSecretType,
+		ImagePullSecret:          inlineStepDetail.ImagePullSecret,
+		Deleted:                  false,
 		AuditLog: sql.AuditLog{
 			UpdatedOn: time.Now(),
 			UpdatedBy: userId,
@@ -552,10 +560,15 @@ func (impl *PipelineStageServiceImpl) UpdateScriptAndMappingForInlineStep(inline
 		scriptMap = append(scriptMap, repositoryEntry)
 	}
 	for _, commandArgMap := range inlineStepDetail.CommandArgsMap {
+		argsByte, err := json.Marshal(commandArgMap.Args)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling docker args", "err", err)
+			return err
+		}
 		repositoryEntry := repository.ScriptPathArgPortMapping{
 			TypeOfMapping: repository2.SCRIPT_MAPPING_TYPE_DOCKER_ARG,
 			Command:       commandArgMap.Command,
-			Arg:           commandArgMap.Arg,
+			Args:          string(argsByte),
 			ScriptId:      scriptEntry.Id,
 			Deleted:       false,
 			AuditLog: sql.AuditLog{
@@ -866,15 +879,16 @@ func (impl *PipelineStageServiceImpl) BuildInlineStepData(step *repository.Pipel
 		return nil, err
 	}
 	inlineStepDetail := &bean.InlineStepDetailDto{
-		ScriptType:           scriptDetail.Type,
-		Script:               scriptDetail.Script,
-		DockerfileExists:     scriptDetail.DockerfileExists,
-		MountPath:            scriptDetail.MountPath,
-		MountCodeToContainer: scriptDetail.MountCodeToContainer,
-		ConfigureMountPath:   scriptDetail.ConfigureMountPath,
-		ContainerImagePath:   scriptDetail.ContainerImagePath,
-		ImagePullSecretType:  scriptDetail.ImagePullSecretType,
-		ImagePullSecret:      scriptDetail.ImagePullSecret,
+		ScriptType:               scriptDetail.Type,
+		Script:                   scriptDetail.Script,
+		DockerfileExists:         scriptDetail.DockerfileExists,
+		MountPath:                scriptDetail.MountPath,
+		MountCodeToContainer:     scriptDetail.MountCodeToContainer,
+		MountCodeToContainerPath: scriptDetail.MountCodeToContainerPath,
+		ConfigureMountPath:       scriptDetail.ConfigureMountPath,
+		ContainerImagePath:       scriptDetail.ContainerImagePath,
+		ImagePullSecretType:      scriptDetail.ImagePullSecretType,
+		ImagePullSecret:          scriptDetail.ImagePullSecret,
 	}
 	//getting script mapping details
 	scriptMappings, err := impl.pipelineStageRepository.GetScriptMappingDetailByScriptId(step.ScriptId)
@@ -882,8 +896,9 @@ func (impl *PipelineStageServiceImpl) BuildInlineStepData(step *repository.Pipel
 		impl.logger.Errorw("error in getting script mapping by scriptId", "err", err, "scriptId", step.ScriptId)
 		return nil, err
 	}
-	//only getting mount path map, because port mapping and docker args are not supported yet(CONTAINER_IMAGE type step)
 	var mountPathMap []*bean.MountPathMap
+	var commandArgsMap []*bean.CommandArgsMap
+	var portMap []*bean.PortMap
 	for _, scriptMapping := range scriptMappings {
 		if scriptMapping.TypeOfMapping == repository2.SCRIPT_MAPPING_TYPE_FILE_PATH {
 			mapEntry := &bean.MountPathMap{
@@ -891,9 +906,29 @@ func (impl *PipelineStageServiceImpl) BuildInlineStepData(step *repository.Pipel
 				FilePathOnContainer: scriptMapping.FilePathOnContainer,
 			}
 			mountPathMap = append(mountPathMap, mapEntry)
+		} else if scriptMapping.TypeOfMapping == repository2.SCRIPT_MAPPING_TYPE_DOCKER_ARG {
+			var args []string
+			err = json.Unmarshal([]byte(scriptMapping.Args), &args)
+			if err != nil {
+				impl.logger.Errorw("error in un-marshaling docker args", "err", err)
+				return nil, err
+			}
+			mapEntry := &bean.CommandArgsMap{
+				Command: scriptMapping.Command,
+				Args:    args,
+			}
+			commandArgsMap = append(commandArgsMap, mapEntry)
+		} else if scriptMapping.TypeOfMapping == repository2.SCRIPT_MAPPING_TYPE_PORT {
+			mapEntry := &bean.PortMap{
+				PortOnLocal:     scriptMapping.PortOnLocal,
+				PortOnContainer: scriptMapping.PortOnContainer,
+			}
+			portMap = append(portMap, mapEntry)
 		}
 	}
 	inlineStepDetail.MountPathMap = mountPathMap
+	inlineStepDetail.CommandArgsMap = commandArgsMap
+	inlineStepDetail.PortMap = portMap
 	inputVariablesDto, outputVariablesDto, conditionsDto, err := impl.BuildVariableAndConditionDataByStepId(step.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting variables and conditions data by stepId", "err", err, "stepId", step.Id)
