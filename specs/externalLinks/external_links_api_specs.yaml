@@ -31,7 +31,8 @@ paths:
             application/json:
               schema:
                 type: array
-                $ref: "#/components/schemas/ExternalLinks"
+                items:
+                  $ref: "#/components/schemas/ExternalLinks"
   
   /orchestrator/external-links:
     get:
@@ -51,7 +52,8 @@ paths:
             application/json:
               schema:
                 type: array
-                $ref: "#/components/schemas/ClusterSpecificLink"
+                items:
+                  $ref: "#/components/schemas/ClusterSpecificLink"
 
   /orchestrator/external-links:
     get:
@@ -63,7 +65,8 @@ paths:
             application/json:
               schema:
                 type: array
-                $ref: "#/components/schemas/MonitoringTools"
+                items:
+                  $ref: "#/components/schemas/MonitoringTools"
 
   /orchestrator/external-links:
     put:
