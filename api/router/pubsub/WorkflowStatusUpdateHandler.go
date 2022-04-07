@@ -87,6 +87,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error on wf status update", "err", err, "msg", string(msg.Data))
 			return
 		}
+		impl.logger.Infow("onexit3 testing", "wfstatus", wfStatus) //need to be removed
 		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
