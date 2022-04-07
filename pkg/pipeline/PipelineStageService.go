@@ -425,6 +425,7 @@ func (impl *PipelineStageServiceImpl) CreateScriptAndMappingForInlineStep(inline
 	scriptEntry := &repository.PluginPipelineScript{
 		Script:               inlineStepDetail.Script,
 		Type:                 inlineStepDetail.ScriptType,
+		StoreScriptAt:        inlineStepDetail.StoreScriptAt,
 		DockerfileExists:     inlineStepDetail.DockerfileExists,
 		MountPath:            inlineStepDetail.MountPath,
 		MountCodeToContainer: inlineStepDetail.MountCodeToContainer,
@@ -445,7 +446,7 @@ func (impl *PipelineStageServiceImpl) CreateScriptAndMappingForInlineStep(inline
 		impl.logger.Errorw("error in creating script entry for inline step", "err", err, "scriptEntry", scriptEntry)
 		return 0, err
 	}
-	var mountPathMap []repository.ScriptPathArgPortMapping
+	var scriptMap []repository.ScriptPathArgPortMapping
 	for _, mountPath := range inlineStepDetail.MountPathMap {
 		repositoryEntry := repository.ScriptPathArgPortMapping{
 			TypeOfMapping:       repository2.SCRIPT_MAPPING_TYPE_FILE_PATH,
@@ -460,11 +461,43 @@ func (impl *PipelineStageServiceImpl) CreateScriptAndMappingForInlineStep(inline
 				UpdatedBy: userId,
 			},
 		}
-		mountPathMap = append(mountPathMap, repositoryEntry)
+		scriptMap = append(scriptMap, repositoryEntry)
 	}
-	err = impl.pipelineStageRepository.CreateScriptMapping(mountPathMap)
+	for _, commandArgMap := range inlineStepDetail.CommandArgsMap {
+		repositoryEntry := repository.ScriptPathArgPortMapping{
+			TypeOfMapping: repository2.SCRIPT_MAPPING_TYPE_DOCKER_ARG,
+			Command:       commandArgMap.Command,
+			Arg:           commandArgMap.Arg,
+			ScriptId:      scriptEntry.Id,
+			Deleted:       false,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		scriptMap = append(scriptMap, repositoryEntry)
+	}
+	for _, portMap := range inlineStepDetail.PortMap {
+		repositoryEntry := repository.ScriptPathArgPortMapping{
+			TypeOfMapping:   repository2.SCRIPT_MAPPING_TYPE_PORT,
+			PortOnLocal:     portMap.PortOnLocal,
+			PortOnContainer: portMap.PortOnContainer,
+			ScriptId:        scriptEntry.Id,
+			Deleted:         false,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		scriptMap = append(scriptMap, repositoryEntry)
+	}
+	err = impl.pipelineStageRepository.CreateScriptMapping(scriptMap)
 	if err != nil {
-		impl.logger.Errorw("error in creating script mappings", "err", err, "scriptMappings", mountPathMap)
+		impl.logger.Errorw("error in creating script mappings", "err", err, "scriptMappings", scriptMap)
 		return 0, err
 	}
 	return scriptEntry.Id, nil
@@ -474,6 +507,7 @@ func (impl *PipelineStageServiceImpl) UpdateScriptAndMappingForInlineStep(inline
 	scriptEntry := &repository.PluginPipelineScript{
 		Id:                   scriptId,
 		Script:               inlineStepDetail.Script,
+		StoreScriptAt:        inlineStepDetail.StoreScriptAt,
 		Type:                 inlineStepDetail.ScriptType,
 		DockerfileExists:     inlineStepDetail.DockerfileExists,
 		MountPath:            inlineStepDetail.MountPath,
@@ -493,35 +527,65 @@ func (impl *PipelineStageServiceImpl) UpdateScriptAndMappingForInlineStep(inline
 		impl.logger.Errorw("error in updating script entry for inline step", "err", err, "scriptEntry", scriptEntry)
 		return err
 	}
-	var mountPathMap []repository.ScriptPathArgPortMapping
-	for _, mountPath := range inlineStepDetail.MountPathMap {
-		ifMappingExists, err := impl.pipelineStageRepository.CheckIfFilePathMappingExists(mountPath.FilePathOnDisk, mountPath.FilePathOnContainer, scriptId)
-		if err != nil {
-			impl.logger.Errorw("error in checking if file path mapping exists or not", "err", err)
-			return err
-		}
-		if !ifMappingExists {
-			//creating only if mapping already do not exist
-			repositoryEntry := repository.ScriptPathArgPortMapping{
-				TypeOfMapping:       repository2.SCRIPT_MAPPING_TYPE_FILE_PATH,
-				FilePathOnDisk:      mountPath.FilePathOnDisk,
-				FilePathOnContainer: mountPath.FilePathOnContainer,
-				ScriptId:            scriptId,
-				Deleted:             false,
-				AuditLog: sql.AuditLog{
-					CreatedOn: time.Now(),
-					CreatedBy: userId,
-					UpdatedOn: time.Now(),
-					UpdatedBy: userId,
-				},
-			}
-			mountPathMap = append(mountPathMap, repositoryEntry)
-		}
-	}
-	//creating mapping which do not exist already
-	err = impl.pipelineStageRepository.CreateScriptMapping(mountPathMap)
+	//marking all old scripts deleted
+	err = impl.pipelineStageRepository.MarkScriptMappingDeletedByScriptId(scriptId)
 	if err != nil {
-		impl.logger.Errorw("error in creating script mappings", "err", err, "scriptMappings", mountPathMap)
+		impl.logger.Errorw("error in marking script mappings deleted by scriptId", "err", err, "scriptId", scriptId)
+		return err
+	}
+	//creating new mappings
+	var scriptMap []repository.ScriptPathArgPortMapping
+	for _, mountPath := range inlineStepDetail.MountPathMap {
+		repositoryEntry := repository.ScriptPathArgPortMapping{
+			TypeOfMapping:       repository2.SCRIPT_MAPPING_TYPE_FILE_PATH,
+			FilePathOnDisk:      mountPath.FilePathOnDisk,
+			FilePathOnContainer: mountPath.FilePathOnContainer,
+			ScriptId:            scriptEntry.Id,
+			Deleted:             false,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		scriptMap = append(scriptMap, repositoryEntry)
+	}
+	for _, commandArgMap := range inlineStepDetail.CommandArgsMap {
+		repositoryEntry := repository.ScriptPathArgPortMapping{
+			TypeOfMapping: repository2.SCRIPT_MAPPING_TYPE_DOCKER_ARG,
+			Command:       commandArgMap.Command,
+			Arg:           commandArgMap.Arg,
+			ScriptId:      scriptEntry.Id,
+			Deleted:       false,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		scriptMap = append(scriptMap, repositoryEntry)
+	}
+	for _, portMap := range inlineStepDetail.PortMap {
+		repositoryEntry := repository.ScriptPathArgPortMapping{
+			TypeOfMapping:   repository2.SCRIPT_MAPPING_TYPE_PORT,
+			PortOnLocal:     portMap.PortOnLocal,
+			PortOnContainer: portMap.PortOnContainer,
+			ScriptId:        scriptEntry.Id,
+			Deleted:         false,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		scriptMap = append(scriptMap, repositoryEntry)
+	}
+	err = impl.pipelineStageRepository.CreateScriptMapping(scriptMap)
+	if err != nil {
+		impl.logger.Errorw("error in creating script mappings", "err", err, "scriptMappings", scriptMap)
 		return err
 	}
 	return nil

@@ -65,6 +65,7 @@ type PluginPipelineScript struct {
 	tableName            struct{}                             `sql:"plugin_pipeline_script" pg:",discard_unknown_columns"`
 	Id                   int                                  `sql:"id,pk"`
 	Script               string                               `sql:"name"`
+	StoreScriptAt        string                               `sql:"store_script_at"`
 	Type                 repository.ScriptType                `sql:"type"`
 	DockerfileExists     bool                                 `sql:"dockerfile_exists, notnull"`
 	MountPath            string                               `sql:"mount_path"`
@@ -149,6 +150,8 @@ type PipelineStageRepository interface {
 	MarkPipelineScriptMappingsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error
 	GetScriptMappingDetailByScriptId(scriptId int) ([]*ScriptPathArgPortMapping, error)
 	CheckIfFilePathMappingExists(filePathOnDisk string, filePathOnContainer string, scriptId int) (bool, error)
+	CheckIfCommandArgMappingExists(command string, arg string, scriptId int) (bool, error)
+	CheckIfPortMappingExists(portOnLocal int, portOnContainer int, scriptId int) (bool, error)
 
 	CreatePipelineStageStepVariables([]PipelineStageStepVariable) ([]PipelineStageStepVariable, error)
 	UpdatePipelineStageStepVariables(variables []PipelineStageStepVariable) ([]PipelineStageStepVariable, error)
@@ -420,6 +423,30 @@ func (impl *PipelineStageRepositoryImpl) CheckIfFilePathMappingExists(filePathOn
 		Where("script_id = ?", scriptId).Where("deleted = ?", false).Exists()
 	if err != nil {
 		impl.logger.Errorw("err in checking if file path mapping exists or not", "err", err, "scriptId", scriptId)
+		return false, err
+	}
+	return ifExists, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) CheckIfCommandArgMappingExists(command string, arg string, scriptId int) (bool, error) {
+	var scriptMappingDetail ScriptPathArgPortMapping
+	ifExists, err := impl.dbConnection.Model(&scriptMappingDetail).
+		Where("command = ?", command).Where("arg = ?", arg).
+		Where("script_id = ?", scriptId).Where("deleted = ?", false).Exists()
+	if err != nil {
+		impl.logger.Errorw("err in checking if docker arg mapping exists or not", "err", err, "scriptId", scriptId)
+		return false, err
+	}
+	return ifExists, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) CheckIfPortMappingExists(portOnLocal int, portOnContainer int, scriptId int) (bool, error) {
+	var scriptMappingDetail ScriptPathArgPortMapping
+	ifExists, err := impl.dbConnection.Model(&scriptMappingDetail).
+		Where("port_on_local = ?", portOnLocal).Where("port_on_container = ?", portOnContainer).
+		Where("script_id = ?", scriptId).Where("deleted = ?", false).Exists()
+	if err != nil {
+		impl.logger.Errorw("err in checking if port mapping exists or not", "err", err, "scriptId", scriptId)
 		return false, err
 	}
 	return ifExists, nil

@@ -363,7 +363,7 @@ components:
           type: boolean
         RefVariableType:
           type: string
-          oneOf:
+          example:
             - "GLOBAL"
             - "FROM_PREVIOUS_STEP"
         RefVariableStepIndex:
@@ -387,7 +387,7 @@ components:
           type: string
         pluginType:
           type: string
-          oneOf:
+          example:
             - "PRESET"
             - "SHARED"
     PluginFilterOptions:
@@ -534,7 +534,7 @@ components:
           type: string
         stepType:
           type: string
-          oneOf:
+          example:
             - "INLINE"
             - "REF_PLUGIN"
         reportDirectoryPath:
@@ -551,7 +551,10 @@ components:
           example:
             - "SHELL"
             - "DOCKERFILE"
+            - "CONTAINER_IMAGE"
         script:
+          type: string
+        storeScriptAt:
           type: string
         dockerFileExists:
           type: boolean
@@ -561,13 +564,27 @@ components:
           type: boolean
         configureMountPath:
           type: boolean
+        cotainerImagePath:
+          type: string
+        imagePullSecretType:
+          type: string
+          example:
+            - "CONTAINER_REGISTRY"
+            - "SECRET_PATH"
+        imagePullSecret:
+          type: string
         mountPathMap:
-          type: object
-          properties:
-            filePathOnDisk:
-              type: string
-            filePathOnContainer:
-              type: string
+          type: array
+          items:
+            $ref: '#/components/schemas/MountPathMap'
+        commandArgsMap:
+          type: array
+          items:
+            $ref: '#/components/schemas/CommandArgMap'
+        portMap:
+          type: array
+          items:
+            $ref: '#/components/schemas/PortMap'
         inputVariables:
           type: array
           items:
@@ -619,7 +636,7 @@ components:
           type: boolean
         RefVariableType:
           type: string
-          oneOf:
+          example:
             - "GLOBAL"
             - "FROM_PREVIOUS_STEP"
             - "NEW"
@@ -639,13 +656,34 @@ components:
           type: string
         ConditionType:
           type: string
-          oneOf:
+          example:
             - "SKIP"
             - "TRIGGER"
             - "SUCCESS"
             - "FAIL"
         ConditionalValue:
           type: string
+    MountPathMap:
+      type: object
+      properties:
+        filePathOnDisk:
+          type: string
+        filePathOnContainer:
+          type: string
+    CommandArgMap:
+      type: object
+      properties:
+        command:
+          type: string
+        arg:
+          type: string
+    PortMap:
+      type: object
+      properties:
+        portOnLocal:
+          type: integer
+        portOnContainer:
+          type: integer
     Error:
       title: Error
       type: object

@@ -27,6 +27,7 @@ type PipelineStageStepDto struct {
 type InlineStepDetailDto struct {
 	ScriptType           repository2.ScriptType                `json:"scriptType"`
 	Script               string                                `json:"script"`
+	StoreScriptAt        string                                `json:"storeScriptAt"`
 	DockerfileExists     bool                                  `json:"dockerfileExists,omitempty"`
 	MountPath            string                                `json:"mountPath,omitempty"`
 	MountCodeToContainer bool                                  `json:"mountCodeToContainer,omitempty"`
@@ -35,6 +36,8 @@ type InlineStepDetailDto struct {
 	ImagePullSecretType  repository2.ScriptImagePullSecretType `json:"imagePullSecretType,omitempty"`
 	ImagePullSecret      string                                `json:"imagePullSecret,omitempty"`
 	MountPathMap         []*MountPathMap                       `json:"mountPathMap,omitempty"`
+	CommandArgsMap       []*CommandArgsMap                     `json:"commandArgsMap,omitempty"`
+	PortMap              []*PortMap                            `json:"portMap,omitempty"`
 	InputVariables       []*StepVariableDto                    `json:"inputVariables"`
 	OutputVariables      []*StepVariableDto                    `json:"outputVariables"`
 	ConditionDetails     []*ConditionDetailDto                 `json:"conditionDetails"`
@@ -72,4 +75,14 @@ type ConditionDetailDto struct {
 type MountPathMap struct {
 	FilePathOnDisk      string `json:"filePathOnDisk"`
 	FilePathOnContainer string `json:"filePathOnContainer"`
+}
+
+type CommandArgsMap struct {
+	Command string `json:"command"`
+	Arg     string `json:"arg"`
+}
+
+type PortMap struct {
+	PortOnLocal     int `json:"portOnLocal"`
+	PortOnContainer int `json:"portOnContainer"`
 }

@@ -56,6 +56,7 @@ CREATE TABLE "public"."plugin_pipeline_script"
     "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_pipeline_script'::regclass),
     "script"                      text,
     "type"                        varchar(255),   -- SHELL, DOCKERFILE, CONTAINER_IMAGE etc
+    "store_script_at"             text,
     "dockerfile_exists"           bool,
     "mount_path"                  text,
     "mount_code_to_container"     bool,
