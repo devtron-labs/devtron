@@ -5,7 +5,7 @@ info:
 paths:
   /orchestrator/global/external-links:
     post:
-      description: Save newly created linkout 
+      description: Save newly created external link 
       requestBody:
         required: true
         content:
@@ -73,8 +73,6 @@ paths:
   /orchestrator/global/external-links/{id}:
     delete:
       description: Change the is_active status of selected link to false
-      requestBody:
-        required: false
         
       responses:
         "200":
