@@ -24,7 +24,7 @@ Note:
 * Copy the HTTPS/SSH url of the repository
 * Please make sure that you've added your [dockerfile](https://docs.docker.com/engine/reference/builder/) in the repo. 
 
-![](../../user-guide/creating-application/images/git_repo.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/git-repo-1.jpg)
 
 
 ## 3. Checkout Path
@@ -33,7 +33,7 @@ After clicking on checkbox, git checkout path field appears. The git checkout pa
 
 This field is optional in case of a single git repository application and you can leave the path as default. Devtron assigns a directory by itself when the field is left blank. The default value of this field is `./`
 
-![](../../user-guide/creating-application/images/save_git_repo.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/git-material/save-git-repo.jpg)
 
 If you want to go with a multi-git approach, then you need to specify a separate path for each of your repositories. The first repository can be checked out at the default `./` path as explained above. But, for all the rest of the repositories, you need to ensure that you provide unique checkout paths. In failing to do so, you may cause Devtron to checkout multiple repositories in one directory and overwriting files from different repositories on each other.
 
