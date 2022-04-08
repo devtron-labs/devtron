@@ -338,7 +338,7 @@ func (impl *PipelineStageRepositoryImpl) UpdatePipelineScript(pipelineScript *Pl
 func (impl *PipelineStageRepositoryImpl) GetScriptIdsByStageId(stageId int) ([]int, error) {
 	var ids []int
 	query := "SELECT pps.id from plugin_pipeline_script pps INNER JOIN pipeline_stage_step pss ON pss.script_id = pps.id " +
-		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id" +
+		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id " +
 		"WHERE ps.id = ? and pps.deleted=false;"
 	_, err := impl.dbConnection.Query(&ids, query, stageId)
 	if err != nil {
@@ -354,7 +354,7 @@ func (impl *PipelineStageRepositoryImpl) MarkPipelineScriptsDeletedByIds(ids []i
 		Set("deleted = ?", true).
 		Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", updatedBy).
-		Where("ids in (?)", pg.In(ids)).Update()
+		Where("id in (?)", pg.In(ids)).Update()
 	if err != nil {
 		impl.logger.Errorw("error in marking scripts deleted by ids", "err", err, "ids", ids)
 		return err
@@ -408,8 +408,8 @@ func (impl *PipelineStageRepositoryImpl) CreateScriptMapping(mappings []ScriptPa
 func (impl *PipelineStageRepositoryImpl) GetScriptMappingIdsByStageId(stageId int) ([]int, error) {
 	var ids []int
 	query := "SELECT spapm.id from script_path_arg_port_mapping spapm INNER JOIN plugin_pipeline_script pps ON pps.id = spapm.script_id " +
-		"INNER JOIN pipeline_stage_step pss ON pss.script_id = pps.id" +
-		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id" +
+		"INNER JOIN pipeline_stage_step pss ON pss.script_id = pps.id " +
+		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id " +
 		"WHERE ps.id = ? and spapm.deleted=false;"
 	_, err := impl.dbConnection.Query(&ids, query, stageId)
 	if err != nil {
@@ -502,7 +502,7 @@ func (impl *PipelineStageRepositoryImpl) UpdatePipelineStageStepVariables(variab
 func (impl *PipelineStageRepositoryImpl) GetVariableIdsByStageId(stageId int) ([]int, error) {
 	var ids []int
 	query := "SELECT pssv.id from pipeline_stage_step_variable pssv INNER JOIN pipeline_stage_step pss ON pss.id = pssv.pipeline_stage_step_id " +
-		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id" +
+		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id " +
 		"WHERE ps.id = ? and pssv.deleted=false;"
 	_, err := impl.dbConnection.Query(&ids, query, stageId)
 	if err != nil {
@@ -518,7 +518,7 @@ func (impl *PipelineStageRepositoryImpl) MarkPipelineStageStepVariablesDeletedBy
 		Set("deleted = ?", true).
 		Set("updated_on = ?", time.Now()).
 		Set("updated_by = ?", updatedBy).
-		Where("ids in (?)", pg.In(ids)).Update()
+		Where("id in (?)", pg.In(ids)).Update()
 	if err != nil {
 		impl.logger.Errorw("error in marking pipeline stage step variables deleted by ids", "err", err, "ids", ids)
 		return err
@@ -540,7 +540,7 @@ func (impl *PipelineStageRepositoryImpl) GetVariablesByStepId(stepId int) ([]*Pi
 
 func (impl *PipelineStageRepositoryImpl) GetVariableIdsByStepId(stepId int) ([]int, error) {
 	var ids []int
-	query := "SELECT pssv.id from pipeline_stage_step_variable pssv where pssv.pipeline_stage_step_id = ? and pssv.deleted = false"
+	query := "SELECT pssv.id from pipeline_stage_step_variable pssv where pssv.pipeline_stage_step_id = ? and pssv.deleted = false;"
 	_, err := impl.dbConnection.Query(&ids, query, stepId)
 	if err != nil {
 		impl.logger.Errorw("err in getting variableIds by stepId", "err", err, "stepId", stepId)
@@ -582,7 +582,7 @@ func (impl *PipelineStageRepositoryImpl) UpdatePipelineStageStepConditions(condi
 func (impl *PipelineStageRepositoryImpl) GetConditionIdsByStageId(stageId int) ([]int, error) {
 	var ids []int
 	query := "SELECT pssc.id from pipeline_stage_step_condition pssc INNER JOIN pipeline_stage_step pss ON pss.id = pssc.pipeline_stage_step_id " +
-		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id" +
+		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id " +
 		"WHERE ps.id = ? and pssc.deleted=false;"
 	_, err := impl.dbConnection.Query(&ids, query, stageId)
 	if err != nil {
@@ -620,7 +620,7 @@ func (impl *PipelineStageRepositoryImpl) GetConditionsByVariableId(variableId in
 
 func (impl *PipelineStageRepositoryImpl) GetConditionIdsByStepId(stepId int) ([]int, error) {
 	var ids []int
-	query := "SELECT pssc.id from pipeline_stage_step_condition pssc where pssc.pipeline_stage_step_id = ? and pssc.deleted = false"
+	query := "SELECT pssc.id from pipeline_stage_step_condition pssc where pssc.pipeline_stage_step_id = ? and pssc.deleted = false;"
 	_, err := impl.dbConnection.Query(&ids, query, stepId)
 	if err != nil {
 		impl.logger.Errorw("err in getting conditionIds by stepId", "err", err, "stepId", stepId)
