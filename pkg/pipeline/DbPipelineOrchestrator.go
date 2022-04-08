@@ -431,22 +431,6 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			impl.logger.Errorw("error in saving pipeline", "ciPipelineObject", ciPipelineObject, "err", err)
 			return nil, err
 		}
-		if ciPipeline.PreBuildStage != nil && len(ciPipeline.PreBuildStage.Steps) > 0 {
-			//creating pre stage
-			err = impl.pipelineStageService.CreateCiStage(ciPipeline.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, ciPipeline.Id, createRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in creating pre stage", "err", err, "preBuildStage", ciPipeline.PreBuildStage, "ciPipelineId", ciPipeline.Id)
-				return nil, err
-			}
-		}
-		if ciPipeline.PostBuildStage != nil && len(ciPipeline.PostBuildStage.Steps) > 0 {
-			//creating post stage
-			err = impl.pipelineStageService.CreateCiStage(ciPipeline.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, ciPipeline.Id, createRequest.UserId)
-			if err != nil {
-				impl.logger.Errorw("error in creating post stage", "err", err, "postBuildStage", ciPipeline.PostBuildStage, "ciPipelineId", ciPipeline.Id)
-				return nil, err
-			}
-		}
 		var pipelineMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, r := range ciPipeline.CiMaterial {
 			material := &pipelineConfig.CiPipelineMaterial{
@@ -516,6 +500,23 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 		err = tx.Commit()
 		if err != nil {
 			return nil, err
+		}
+		//creating ci stages after tx commit due to FK constraints
+		if ciPipeline.PreBuildStage != nil && len(ciPipeline.PreBuildStage.Steps) > 0 {
+			//creating pre stage
+			err = impl.pipelineStageService.CreateCiStage(ciPipeline.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, ciPipeline.Id, createRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in creating pre stage", "err", err, "preBuildStage", ciPipeline.PreBuildStage, "ciPipelineId", ciPipeline.Id)
+				return nil, err
+			}
+		}
+		if ciPipeline.PostBuildStage != nil && len(ciPipeline.PostBuildStage.Steps) > 0 {
+			//creating post stage
+			err = impl.pipelineStageService.CreateCiStage(ciPipeline.PostBuildStage, repository5.PIPELINE_STAGE_TYPE_POST_CI, ciPipeline.Id, createRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in creating post stage", "err", err, "postBuildStage", ciPipeline.PostBuildStage, "ciPipelineId", ciPipeline.Id)
+				return nil, err
+			}
 		}
 		for _, r := range ciPipeline.CiMaterial {
 			ciMaterial, err := impl.CiPipelineMaterialRepository.GetById(r.Id)
