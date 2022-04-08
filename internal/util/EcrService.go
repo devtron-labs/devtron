@@ -32,7 +32,9 @@ import (
 //FIXME: this code is temp
 func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey string) error {
 	region := reg
+	fmt.Printf("repoName %s, reg %s, accessKey %s, secretKey %s\n", repoName, reg, accessKey, secretKey)
 	if len(accessKey) == 0 || len(secretKey) == 0 {
+		fmt.Println("empty accessKey or secretKey")
 		sess, err := session.NewSession()
 		if err != nil {
 			log.Println(err)
