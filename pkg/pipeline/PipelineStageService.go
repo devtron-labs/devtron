@@ -138,29 +138,61 @@ func (impl *PipelineStageServiceImpl) DeleteCiStage(stageReq *bean.PipelineStage
 		impl.logger.Errorw("error in marking ci stage steps deleted by stageId", "err", err, "ciStageId", stageReq.Id)
 		return err
 	}
-	//marking all scripts deleted
-	err = impl.pipelineStageRepository.MarkPipelineScriptsDeletedByStageId(stageReq.Id, userId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in marking pipeline stage scripts deleted by stageId", "err", err, "ciStageId", stageReq.Id)
+	//getting scriptIds by stageId
+	scriptIds, err := impl.pipelineStageRepository.GetScriptIdsByStageId(stageReq.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting scriptIds by stageId", "err", err, "stageId", stageReq.Id)
 		return err
 	}
-	//marking all script mappings deleted
-	err = impl.pipelineStageRepository.MarkPipelineScriptMappingsDeletedByStageId(stageReq.Id, userId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in marking pipeline script mapping deleted by stageId", "err", err, "ciStageId", stageReq.Id)
+	if len(scriptIds) > 0 {
+		//marking all scripts deleted
+		err = impl.pipelineStageRepository.MarkPipelineScriptsDeletedByIds(scriptIds, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in marking pipeline stage scripts deleted by scriptIds", "err", err, "scriptIds", scriptIds)
+			return err
+		}
+	}
+	//getting scriptMappingIds by stageId
+	scriptMappingIds, err := impl.pipelineStageRepository.GetScriptMappingIdsByStageId(stageReq.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting scriptMappingIds by stageId", "err", err, "stageId", stageReq.Id)
 		return err
 	}
-	//marking all variables deleted
-	err = impl.pipelineStageRepository.MarkPipelineStageStepVariablesDeletedByStageId(stageReq.Id, userId, tx)
+	if len(scriptMappingIds) > 0 {
+		//marking all script mappings deleted
+		err = impl.pipelineStageRepository.MarkPipelineScriptMappingsDeletedByIds(scriptMappingIds, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in marking pipeline script mapping deleted by scriptMappingIds", "err", err, "scriptMappingIds", scriptMappingIds)
+			return err
+		}
+	}
+	//getting variableIds by stageId
+	variableIds, err := impl.pipelineStageRepository.GetVariableIdsByStageId(stageReq.Id)
 	if err != nil {
-		impl.logger.Errorw("error in marking ci stage step variables deleted by stageId", "err", err, "ciStageId", stageReq.Id)
+		impl.logger.Errorw("error in getting variableIds by stageId", "err", err, "stageId", stageReq.Id)
 		return err
 	}
-	//marking all conditions deleted
-	err = impl.pipelineStageRepository.MarkPipelineStageStepConditionDeletedByStageId(stageReq.Id, userId, tx)
+	if len(variableIds) > 0 {
+		//marking all variables deleted
+		err = impl.pipelineStageRepository.MarkPipelineStageStepVariablesDeletedByIds(variableIds, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in marking ci stage step variables deleted by variableIds", "err", err, "variableIds", variableIds)
+			return err
+		}
+	}
+	//getting conditionIds by stageId
+	conditionIds, err := impl.pipelineStageRepository.GetConditionIdsByStageId(stageReq.Id)
 	if err != nil {
-		impl.logger.Errorw("error in marking ci stage step conditions deleted by stageId", "err", err, "ciStageId", stageReq.Id)
+		impl.logger.Errorw("error in getting conditionIds by stageId", "err", err, "stageId", stageReq.Id)
 		return err
+	}
+	if len(conditionIds) > 0 {
+		//marking all conditions deleted
+		err = impl.pipelineStageRepository.MarkPipelineStageStepConditionDeletedByIds(conditionIds, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in marking ci stage step conditions deleted by conditionIds", "err", err, "conditionIds", conditionIds)
+			return err
+		}
 	}
 	return nil
 }

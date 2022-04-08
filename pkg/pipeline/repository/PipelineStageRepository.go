@@ -143,13 +143,15 @@ type PipelineStageRepository interface {
 
 	CreatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error)
 	UpdatePipelineScript(pipelineScript *PluginPipelineScript) (*PluginPipelineScript, error)
-	MarkPipelineScriptsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error
+	GetScriptIdsByStageId(stageId int) ([]int, error)
+	MarkPipelineScriptsDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
 	GetScriptDetailById(id int) (*PluginPipelineScript, error)
 	MarkScriptDeletedById(scriptId int) error
 
 	MarkScriptMappingDeletedByScriptId(scriptId int) error
 	CreateScriptMapping(mappings []ScriptPathArgPortMapping) error
-	MarkPipelineScriptMappingsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error
+	GetScriptMappingIdsByStageId(stageId int) ([]int, error)
+	MarkPipelineScriptMappingsDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
 	GetScriptMappingDetailByScriptId(scriptId int) ([]*ScriptPathArgPortMapping, error)
 	CheckIfFilePathMappingExists(filePathOnDisk string, filePathOnContainer string, scriptId int) (bool, error)
 	CheckIfCommandArgMappingExists(command string, arg string, scriptId int) (bool, error)
@@ -157,14 +159,16 @@ type PipelineStageRepository interface {
 
 	CreatePipelineStageStepVariables([]PipelineStageStepVariable) ([]PipelineStageStepVariable, error)
 	UpdatePipelineStageStepVariables(variables []PipelineStageStepVariable) ([]PipelineStageStepVariable, error)
-	MarkPipelineStageStepVariablesDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error
+	GetVariableIdsByStageId(stageId int) ([]int, error)
+	MarkPipelineStageStepVariablesDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
 	GetVariablesByStepId(stepId int) ([]*PipelineStageStepVariable, error)
 	GetVariableIdsByStepId(stepId int) ([]int, error)
 	MarkVariablesDeletedExcludingActiveVariablesInUpdateReq(activeVariableIdsPresentInReq []int, stepId int) error
 
 	CreatePipelineStageStepConditions([]PipelineStageStepCondition) ([]PipelineStageStepCondition, error)
 	UpdatePipelineStageStepConditions(conditions []PipelineStageStepCondition) ([]PipelineStageStepCondition, error)
-	MarkPipelineStageStepConditionDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error
+	GetConditionIdsByStageId(stageId int) ([]int, error)
+	MarkPipelineStageStepConditionDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error
 	GetConditionsByVariableId(variableId int) ([]*PipelineStageStepCondition, error)
 	GetConditionIdsByStepId(stepId int) ([]int, error)
 	MarkConditionsDeletedExcludingActiveVariablesInUpdateReq(activeConditionIdsPresentInReq []int, stepId int) error
@@ -331,17 +335,28 @@ func (impl *PipelineStageRepositoryImpl) UpdatePipelineScript(pipelineScript *Pl
 	return pipelineScript, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) MarkPipelineScriptsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error {
+func (impl *PipelineStageRepositoryImpl) GetScriptIdsByStageId(stageId int) ([]int, error) {
+	var ids []int
+	query := "SELECT pps.id from plugin_pipeline_script pps INNER JOIN pipeline_stage_step pss ON pss.script_id = pps.id " +
+		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id" +
+		"WHERE ps.id = ? and pps.deleted=false;"
+	_, err := impl.dbConnection.Query(&ids, query, stageId)
+	if err != nil {
+		impl.logger.Errorw("err in getting scriptIds by stageId", "err", err, "ids", ids)
+		return nil, err
+	}
+	return ids, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) MarkPipelineScriptsDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error {
 	var script PluginPipelineScript
 	_, err := tx.Model(&script).
-		Join("INNER JOIN pipeline_stage_step pss ON pss.script_id = plugin_pipeline_script.id").
-		Join("INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id").
-		Set("plugin_pipeline_script.deleted = ?", true).
-		Set("plugin_pipeline_script.updated_on = ?", time.Now()).
-		Set("plugin_pipeline_script.updated_by = ?", updatedBy).
-		Where("ps.id = ?", ciStageId).Update()
+		Set("deleted = ?", true).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", updatedBy).
+		Where("ids in (?)", pg.In(ids)).Update()
 	if err != nil {
-		impl.logger.Errorw("error in marking scripts deleted by stageId", "err", err, "ciStageId", ciStageId)
+		impl.logger.Errorw("error in marking scripts deleted by ids", "err", err, "ids", ids)
 		return err
 	}
 	return nil
@@ -390,18 +405,29 @@ func (impl *PipelineStageRepositoryImpl) CreateScriptMapping(mappings []ScriptPa
 	return nil
 }
 
-func (impl *PipelineStageRepositoryImpl) MarkPipelineScriptMappingsDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error {
+func (impl *PipelineStageRepositoryImpl) GetScriptMappingIdsByStageId(stageId int) ([]int, error) {
+	var ids []int
+	query := "SELECT spapm.id from script_path_arg_port_mapping spapm INNER JOIN plugin_pipeline_script pps ON pps.id = spapm.script_id " +
+		"INNER JOIN pipeline_stage_step pss ON pss.script_id = pps.id" +
+		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id" +
+		"WHERE ps.id = ? and spapm.deleted=false;"
+	_, err := impl.dbConnection.Query(&ids, query, stageId)
+	if err != nil {
+		impl.logger.Errorw("err in getting scriptMappingIds by stageId", "err", err, "ids", ids)
+		return nil, err
+	}
+	return ids, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) MarkPipelineScriptMappingsDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error {
 	var mapping ScriptPathArgPortMapping
 	_, err := tx.Model(&mapping).
-		Join("INNER JOIN plugin_pipeline_script pps ON pps.id = script_path_arg_port_mapping.script_id").
-		Join("INNER JOIN pipeline_stage_step pss ON pss.script_id = pps.id").
-		Join("INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id").
-		Set("script_path_arg_port_mapping.deleted = ?", true).
-		Set("script_path_arg_port_mapping.updated_on = ?", time.Now()).
-		Set("script_path_arg_port_mapping.updated_by = ?", updatedBy).
-		Where("ps.id = ?", ciStageId).Update()
+		Set("deleted = ?", true).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", updatedBy).
+		Where("id in (?)", pg.In(ids)).Update()
 	if err != nil {
-		impl.logger.Errorw("error in marking script mappings deleted by stageId", "err", err, "ciStageId", ciStageId)
+		impl.logger.Errorw("error in marking script mappings deleted by ids", "err", err, "ids", ids)
 		return err
 	}
 	return nil
@@ -473,17 +499,28 @@ func (impl *PipelineStageRepositoryImpl) UpdatePipelineStageStepVariables(variab
 	return variables, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) MarkPipelineStageStepVariablesDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error {
+func (impl *PipelineStageRepositoryImpl) GetVariableIdsByStageId(stageId int) ([]int, error) {
+	var ids []int
+	query := "SELECT pssv.id from pipeline_stage_step_variable pssv INNER JOIN pipeline_stage_step pss ON pss.id = pssv.pipeline_stage_step_id " +
+		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id" +
+		"WHERE ps.id = ? and pssv.deleted=false;"
+	_, err := impl.dbConnection.Query(&ids, query, stageId)
+	if err != nil {
+		impl.logger.Errorw("err in getting variableIds by stageId", "err", err, "stageId", stageId)
+		return nil, err
+	}
+	return ids, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) MarkPipelineStageStepVariablesDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error {
 	var variable PipelineStageStepVariable
 	_, err := tx.Model(&variable).
-		Join("INNER JOIN pipeline_stage_step pss ON pss.id = pipeline_stage_step_variable.pipeline_stage_step_id").
-		Join("INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id").
-		Set("pipeline_stage_step_variable.deleted = ?", true).
-		Set("pipeline_stage_step_variable.updated_on = ?", time.Now()).
-		Set("pipeline_stage_step_variable.updated_by = ?", updatedBy).
-		Where("ps.id = ?", ciStageId).Update()
+		Set("deleted = ?", true).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", updatedBy).
+		Where("ids in (?)", pg.In(ids)).Update()
 	if err != nil {
-		impl.logger.Errorw("error in marking pipeline stage step variables deleted by stageId", "err", err, "ciStageId", ciStageId)
+		impl.logger.Errorw("error in marking pipeline stage step variables deleted by ids", "err", err, "ids", ids)
 		return err
 	}
 	return nil
@@ -542,17 +579,28 @@ func (impl *PipelineStageRepositoryImpl) UpdatePipelineStageStepConditions(condi
 	return conditions, nil
 }
 
-func (impl *PipelineStageRepositoryImpl) MarkPipelineStageStepConditionDeletedByStageId(ciStageId int, updatedBy int32, tx *pg.Tx) error {
+func (impl *PipelineStageRepositoryImpl) GetConditionIdsByStageId(stageId int) ([]int, error) {
+	var ids []int
+	query := "SELECT pssc.id from pipeline_stage_step_condition pssc INNER JOIN pipeline_stage_step pss ON pss.id = pssc.pipeline_stage_step_id " +
+		"INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id" +
+		"WHERE ps.id = ? and pssc.deleted=false;"
+	_, err := impl.dbConnection.Query(&ids, query, stageId)
+	if err != nil {
+		impl.logger.Errorw("err in getting conditionIds by stageId", "err", err, "stageId", stageId)
+		return nil, err
+	}
+	return ids, nil
+}
+
+func (impl *PipelineStageRepositoryImpl) MarkPipelineStageStepConditionDeletedByIds(ids []int, updatedBy int32, tx *pg.Tx) error {
 	var condition PipelineStageStepCondition
 	_, err := tx.Model(&condition).
-		Join("INNER JOIN pipeline_stage_step pss ON pss.id = pipeline_stage_step_condition.pipeline_stage_step_id").
-		Join("INNER JOIN pipeline_stage ps ON ps.id = pss.pipeline_stage_id").
-		Set("pipeline_stage_step_condition.deleted = ?", true).
-		Set("pipeline_stage_step_condition.updated_on = ?", time.Now()).
-		Set("pipeline_stage_step_condition.updated_by = ?", updatedBy).
-		Where("ps.id = ?", ciStageId).Update()
+		Set("deleted = ?", true).
+		Set("updated_on = ?", time.Now()).
+		Set("updated_by = ?", updatedBy).
+		Where("id in (?)", pg.In(ids)).Update()
 	if err != nil {
-		impl.logger.Errorw("error in marking pipeline stage step conditions deleted by stageId", "err", err, "ciStageId", ciStageId)
+		impl.logger.Errorw("error in marking pipeline stage step conditions deleted by ids", "err", err, "ids", ids)
 		return err
 	}
 	return nil
