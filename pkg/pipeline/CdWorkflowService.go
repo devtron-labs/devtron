@@ -444,7 +444,6 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			ObjectMeta: v1.ObjectMeta{
 				GenerateName: workflowRequest.WorkflowNamePrefix + "-",
 				Annotations:  map[string]string{"workflows.argoproj.io/controller-instanceid": impl.cdConfig.WfControllerInstanceID},
-				Labels:       map[string]string{"github.com/workflow/purpose": "cd"},
 			},
 			Spec: v1alpha1.WorkflowSpec{
 				ServiceAccountName:      impl.cdConfig.WorkflowServiceAccount,
