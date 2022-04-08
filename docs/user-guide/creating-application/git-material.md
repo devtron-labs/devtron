@@ -59,7 +59,7 @@ Few other examples, where you may want to have multiple repositories for your ap
 * Common Library extracted out in different repo so that it can be used via multiple other projects.
 * Due to security reasons you are keeping configuration files in different access restricted git repositories.
 
-## **How Devtron's 'Checkout Path' works**
+## **How Devtron's 'Checkout Path' Works**
 
 The checkout path is used by Devtron to assign a directory to each of your git repositories. Once you provide different checkout paths for your repositories, Devtron will clone your code at those locations and these checkout paths can be referenced in the docker file to create docker image for the application.
 Whenever a change is pushed to any the configured repositories, the CI will be triggered and a new docker image file will be built based on the latest commits of the configured repositories and pushed to the container registry.
