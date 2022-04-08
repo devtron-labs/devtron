@@ -311,16 +311,18 @@ func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineSta
 			impl.logger.Errorw("error in updating output variables", "err", err)
 			return err
 		}
-		//combining both maps
-		varNameIdMap := inputVarNameIdMap
-		for k, v := range outputVarNameIdMap {
-			varNameIdMap[k] = v
-		}
-		//updating conditions
-		_, err = impl.UpdatePipelineStageStepConditions(step.Id, conditionDetails, varNameIdMap, userId)
-		if err != nil {
-			impl.logger.Errorw("error in updating step conditions", "err", err)
-			return err
+		if len(conditionDetails) > 0 {
+			//combining both maps
+			varNameIdMap := inputVarNameIdMap
+			for k, v := range outputVarNameIdMap {
+				varNameIdMap[k] = v
+			}
+			//updating conditions
+			_, err = impl.UpdatePipelineStageStepConditions(step.Id, conditionDetails, varNameIdMap, userId)
+			if err != nil {
+				impl.logger.Errorw("error in updating step conditions", "err", err)
+				return err
+			}
 		}
 	}
 	return nil
@@ -405,20 +407,23 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 			impl.logger.Errorw("error in creating output variables for step", "err", err, "stepId", stepId, "stepType", step.StepType)
 			return err
 		}
-		variableNameIdMap := make(map[string]int)
-		for _, inVar := range inputVariablesRepo {
-			variableNameIdMap[inVar.Name] = inVar.Id
-		}
-		for _, outVar := range outputVariablesRepo {
-			variableNameIdMap[outVar.Name] = outVar.Id
-		}
-		//creating conditions
-		_, err = impl.CreateConditionsEntryInDb(stepId, conditionDetails, variableNameIdMap, userId)
-		if err != nil {
-			impl.logger.Errorw("error in creating conditions for step", "err", err, "stepId", stepId, "stepType", step.StepType)
-			return err
+		if len(conditionDetails) > 0 {
+			variableNameIdMap := make(map[string]int)
+			for _, inVar := range inputVariablesRepo {
+				variableNameIdMap[inVar.Name] = inVar.Id
+			}
+			for _, outVar := range outputVariablesRepo {
+				variableNameIdMap[outVar.Name] = outVar.Id
+			}
+			//creating conditions
+			_, err = impl.CreateConditionsEntryInDb(stepId, conditionDetails, variableNameIdMap, userId)
+			if err != nil {
+				impl.logger.Errorw("error in creating conditions for step", "err", err, "stepId", stepId, "stepType", step.StepType)
+				return err
+			}
 		}
 	}
+
 	return nil
 }
 
@@ -503,10 +508,12 @@ func (impl *PipelineStageServiceImpl) CreateScriptAndMappingForInlineStep(inline
 		}
 		scriptMap = append(scriptMap, repositoryEntry)
 	}
-	err = impl.pipelineStageRepository.CreateScriptMapping(scriptMap)
-	if err != nil {
-		impl.logger.Errorw("error in creating script mappings", "err", err, "scriptMappings", scriptMap)
-		return 0, err
+	if len(scriptMap) > 0 {
+		err = impl.pipelineStageRepository.CreateScriptMapping(scriptMap)
+		if err != nil {
+			impl.logger.Errorw("error in creating script mappings", "err", err, "scriptMappings", scriptMap)
+			return 0, err
+		}
 	}
 	return scriptEntry.Id, nil
 }
@@ -598,10 +605,12 @@ func (impl *PipelineStageServiceImpl) UpdateScriptAndMappingForInlineStep(inline
 		}
 		scriptMap = append(scriptMap, repositoryEntry)
 	}
-	err = impl.pipelineStageRepository.CreateScriptMapping(scriptMap)
-	if err != nil {
-		impl.logger.Errorw("error in creating script mappings", "err", err, "scriptMappings", scriptMap)
-		return err
+	if len(scriptMap) > 0 {
+		err = impl.pipelineStageRepository.CreateScriptMapping(scriptMap)
+		if err != nil {
+			impl.logger.Errorw("error in creating script mappings", "err", err, "scriptMappings", scriptMap)
+			return err
+		}
 	}
 	return nil
 }
@@ -633,11 +642,13 @@ func (impl *PipelineStageServiceImpl) CreateVariablesEntryInDb(stepId int, varia
 		}
 		variablesRepo = append(variablesRepo, inVarRepo)
 	}
-	//saving variables
-	variablesRepo, err = impl.pipelineStageRepository.CreatePipelineStageStepVariables(variablesRepo)
-	if err != nil {
-		impl.logger.Errorw("error in creating variables for pipeline stage steps", "err", err, "variables", variablesRepo)
-		return nil, err
+	if len(variablesRepo) > 0 {
+		//saving variables
+		variablesRepo, err = impl.pipelineStageRepository.CreatePipelineStageStepVariables(variablesRepo)
+		if err != nil {
+			impl.logger.Errorw("error in creating variables for pipeline stage steps", "err", err, "variables", variablesRepo)
+			return nil, err
+		}
 	}
 	return variablesRepo, nil
 }
@@ -680,14 +691,15 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepVariables(stepId in
 		impl.logger.Errorw("error in marking all variables deleted excluding active variables in update req", "err", err, "activeVariableIdsPresentInReq", activeVariableIdsPresentInReq)
 		return nil, err
 	}
-
-	//creating new variables
-	newVariables, err := impl.CreateVariablesEntryInDb(stepId, variablesToBeCreated, variableType, userId)
-	if err != nil {
-		impl.logger.Errorw("error in creating variables", "err", err, "stepId", stepId)
-		return nil, err
+	var newVariables []repository.PipelineStageStepVariable
+	if len(variablesToBeCreated) > 0 {
+		//creating new variables
+		newVariables, err = impl.CreateVariablesEntryInDb(stepId, variablesToBeCreated, variableType, userId)
+		if err != nil {
+			impl.logger.Errorw("error in creating variables", "err", err, "stepId", stepId)
+			return nil, err
+		}
 	}
-
 	variableNameIdMap := make(map[string]int)
 	for _, inVar := range newVariables {
 		variableNameIdMap[inVar.Name] = inVar.Id
@@ -719,10 +731,12 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepVariables(stepId in
 		}
 		variablesRepo = append(variablesRepo, inVarRepo)
 	}
-	variablesRepo, err = impl.pipelineStageRepository.UpdatePipelineStageStepVariables(variablesRepo)
-	if err != nil {
-		impl.logger.Errorw("error in updating variables for pipeline stage steps", "err", err, "variables", variablesRepo)
-		return nil, err
+	if len(variablesRepo) > 0 {
+		variablesRepo, err = impl.pipelineStageRepository.UpdatePipelineStageStepVariables(variablesRepo)
+		if err != nil {
+			impl.logger.Errorw("error in updating variables for pipeline stage steps", "err", err, "variables", variablesRepo)
+			return nil, err
+		}
 	}
 	return variableNameIdMap, nil
 }
@@ -748,11 +762,13 @@ func (impl *PipelineStageServiceImpl) CreateConditionsEntryInDb(stepId int, cond
 		}
 		conditionsRepo = append(conditionsRepo, conditionRepo)
 	}
-	//saving conditions
-	conditionsRepo, err = impl.pipelineStageRepository.CreatePipelineStageStepConditions(conditionsRepo)
-	if err != nil {
-		impl.logger.Errorw("error in creating pipeline stage step conditions", "err", err, "conditionsRepo", conditionsRepo)
-		return nil, err
+	if len(conditionsRepo) > 0 {
+		//saving conditions
+		conditionsRepo, err = impl.pipelineStageRepository.CreatePipelineStageStepConditions(conditionsRepo)
+		if err != nil {
+			impl.logger.Errorw("error in creating pipeline stage step conditions", "err", err, "conditionsRepo", conditionsRepo)
+			return nil, err
+		}
 	}
 	return conditionsRepo, nil
 }
