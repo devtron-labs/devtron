@@ -631,6 +631,10 @@ components:
           type: string
           description: description of the helm chart
           example: description of the helm chart
+        notes:
+          type: string
+          description: Contains the rendered templates/NOTES.txt
+          example: notes of the chart
     HelmAppDeploymentDetail:
       type: object
       properties:
