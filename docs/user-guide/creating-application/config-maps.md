@@ -5,7 +5,7 @@ The ConfigMap API resource holds key-value pairs of the  configuration data that
 Click on `Add ConfigMap` to add a config map to your application.
 
 
-![](../../user-guide/creating-application/images/config-maps.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/config-map.jpg)
 
 ## Configure the ConfigMap
 
@@ -93,11 +93,11 @@ For multiple files mount at the same location you need to check sub path bool fi
 Sub Path feature is not applicable in case of external configmap.
 
 ## File Permission
-File permission will be provide at the configmap level not on the each key of the configmap. it will take 3 digit standard permission for the file.
+File permission will be provide at the configmap level not on the each key of the configmap. It will take 3 digit standard permission for the file.
 
 ### \(B\) Kubernetes External ConfigMap
 
-You can select `Kubernetes External ConfigMap` in the `data type` field if you have created a ConfigMap using the Kubectl command.
+You can select `Kubernetes External ConfigMap` in the `data type` field if you have created a ConfigMap using the kubectl command.
 
 By default, the data type is set to `Kubernetes ConfigMap`.
 
