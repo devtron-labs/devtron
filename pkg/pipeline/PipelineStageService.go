@@ -120,6 +120,7 @@ func (impl *PipelineStageServiceImpl) UpdateCiStage(stageReq *bean.PipelineStage
 		err = impl.FilterAndActOnStepsInCiStageUpdateRequest(stageReq, userId)
 		if err != nil {
 			impl.logger.Errorw("error in filtering and performing actions on steps in ci stage update request", "err", err, "stageReq", stageReq)
+			return err
 		}
 	}
 	return nil
@@ -230,25 +231,36 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInCiStageUpdateRequest(
 			stepsToBeCreated = append(stepsToBeCreated, step)
 		}
 	}
-	// deleting all steps which are currently active but not present in update request
-	err = impl.pipelineStageRepository.MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq, stageReq.Id)
-	if err != nil {
-		impl.logger.Errorw("error in marking all steps deleted excluding active steps in update req", "err", err, "activeStepIdsPresentInReq", activeStepIdsPresentInReq)
-		return err
+	if len(activeStepIdsPresentInReq) > 0 {
+		// deleting all steps which are currently active but not present in update request
+		err = impl.pipelineStageRepository.MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq, stageReq.Id)
+		if err != nil {
+			impl.logger.Errorw("error in marking all steps deleted excluding active steps in update req", "err", err, "activeStepIdsPresentInReq", activeStepIdsPresentInReq)
+			return err
+		}
+	} else {
+		//deleting all current steps since no step is present in update request
+		err = impl.pipelineStageRepository.MarkStepsDeletedByStageId(stageReq.Id)
+		if err != nil {
+			impl.logger.Errorw("error in marking all steps deleted by stageId", "err", err, "stageId", stageReq.Id)
+			return err
+		}
 	}
-
-	//creating new steps
-	err = impl.CreateStageSteps(stepsToBeCreated, stageReq.Id, userId)
-	if err != nil {
-		impl.logger.Errorw("error in creating stage steps for ci stage", "err", err, "stageId", stageReq.Id)
-		return err
+	if len(stepsToBeCreated) > 0 {
+		//creating new steps
+		err = impl.CreateStageSteps(stepsToBeCreated, stageReq.Id, userId)
+		if err != nil {
+			impl.logger.Errorw("error in creating stage steps for ci stage", "err", err, "stageId", stageReq.Id)
+			return err
+		}
 	}
-
-	//updating steps
-	err = impl.UpdateStageSteps(stepsToBeUpdated, userId)
-	if err != nil {
-		impl.logger.Errorw("error in updating stage steps for ci stage", "err", err)
-		return err
+	if len(stepsToBeUpdated) > 0 {
+		//updating steps
+		err = impl.UpdateStageSteps(stepsToBeUpdated, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating stage steps for ci stage", "err", err)
+			return err
+		}
 	}
 	return nil
 }
@@ -688,7 +700,7 @@ func (impl *PipelineStageServiceImpl) CreateVariablesEntryInDb(stepId int, varia
 
 func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepVariables(stepId int, variables []*bean.StepVariableDto, variableType repository.PipelineStageStepVariableType, userId int32) (map[string]int, error) {
 	//getting ids of all current active variables
-	variableIds, err := impl.pipelineStageRepository.GetVariableIdsByStepId(stepId)
+	variableIds, err := impl.pipelineStageRepository.GetVariableIdsByStepIdAndVariableType(stepId, variableType)
 	if err != nil {
 		impl.logger.Errorw("error in getting variablesIds by stepId", "err", err, "stepId", stepId)
 		return nil, err
@@ -717,12 +729,20 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepVariables(stepId in
 			variablesToBeCreated = append(variablesToBeCreated, variable)
 		}
 	}
-
-	// deleting all variables which are currently active but not present in update request
-	err = impl.pipelineStageRepository.MarkVariablesDeletedExcludingActiveVariablesInUpdateReq(activeVariableIdsPresentInReq, stepId)
-	if err != nil {
-		impl.logger.Errorw("error in marking all variables deleted excluding active variables in update req", "err", err, "activeVariableIdsPresentInReq", activeVariableIdsPresentInReq)
-		return nil, err
+	if len(activeVariableIdsPresentInReq) > 0 {
+		// deleting all variables which are currently active but not present in update request
+		err = impl.pipelineStageRepository.MarkVariablesDeletedExcludingActiveVariablesInUpdateReq(activeVariableIdsPresentInReq, stepId, variableType)
+		if err != nil {
+			impl.logger.Errorw("error in marking all variables deleted excluding active variables in update req", "err", err, "activeVariableIdsPresentInReq", activeVariableIdsPresentInReq)
+			return nil, err
+		}
+	} else {
+		//deleting all variables by stepId, since no variable is present in update request
+		err = impl.pipelineStageRepository.MarkVariablesDeletedByStepIdAndVariableType(stepId, variableType)
+		if err != nil {
+			impl.logger.Errorw("error in marking all variables deleted by stepId", "err", err, "stepId", stepId)
+			return nil, err
+		}
 	}
 	var newVariables []repository.PipelineStageStepVariable
 	if len(variablesToBeCreated) > 0 {
@@ -837,14 +857,21 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepConditions(stepId i
 			conditionsToBeCreated = append(conditionsToBeCreated, condition)
 		}
 	}
-
-	// deleting all conditions which are currently active but not present in update request
-	err = impl.pipelineStageRepository.MarkConditionsDeletedExcludingActiveVariablesInUpdateReq(activeConditionIdsPresentInReq, stepId)
-	if err != nil {
-		impl.logger.Errorw("error in marking all conditions deleted excluding active conditions in update req", "err", err, "activeConditionIdsPresentInReq", activeConditionIdsPresentInReq)
-		return nil, err
+	if len(activeConditionIdsPresentInReq) > 0 {
+		// deleting all conditions which are currently active but not present in update request
+		err = impl.pipelineStageRepository.MarkConditionsDeletedExcludingActiveVariablesInUpdateReq(activeConditionIdsPresentInReq, stepId)
+		if err != nil {
+			impl.logger.Errorw("error in marking all conditions deleted excluding active conditions in update req", "err", err, "activeConditionIdsPresentInReq", activeConditionIdsPresentInReq)
+			return nil, err
+		}
+	} else {
+		// deleting all current conditions, since no condition is present in update request
+		err = impl.pipelineStageRepository.MarkConditionsDeletedByStepId(stepId)
+		if err != nil {
+			impl.logger.Errorw("error in marking all conditions deleted by stepId", "err", err, "stepId", stepId)
+			return nil, err
+		}
 	}
-
 	//creating new conditions
 	_, err = impl.CreateConditionsEntryInDb(stepId, conditionsToBeCreated, variableNameIdMap, userId)
 	if err != nil {
