@@ -884,6 +884,7 @@ func (impl *PipelineStageServiceImpl) BuildCiStageData(ciStage *repository.Pipel
 			}
 			stepDto.RefPluginStepDetail = refPluginStepDetail
 		}
+		stepsDto = append(stepsDto, stepDto)
 	}
 	stageData.Steps = stepsDto
 	return stageData, nil
