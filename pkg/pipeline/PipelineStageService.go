@@ -199,7 +199,7 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInCiStageUpdateRequest(
 		}
 	}
 	// deleting all steps which are currently active but not present in update request
-	err = impl.pipelineStageRepository.MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq)
+	err = impl.pipelineStageRepository.MarkStepsDeletedExcludingActiveStepsInUpdateReq(activeStepIdsPresentInReq, stageReq.Id)
 	if err != nil {
 		impl.logger.Errorw("error in marking all steps deleted excluding active steps in update req", "err", err, "activeStepIdsPresentInReq", activeStepIdsPresentInReq)
 		return err
@@ -236,6 +236,7 @@ func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineSta
 			Index:               step.Index,
 			StepType:            step.StepType,
 			ReportDirectoryPath: step.ReportDirectoryPath,
+			Deleted:             false,
 			AuditLog: sql.AuditLog{
 				CreatedOn: savedStep.CreatedOn,
 				CreatedBy: savedStep.CreatedBy,
@@ -686,7 +687,7 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepVariables(stepId in
 	}
 
 	// deleting all variables which are currently active but not present in update request
-	err = impl.pipelineStageRepository.MarkVariablesDeletedExcludingActiveVariablesInUpdateReq(activeVariableIdsPresentInReq)
+	err = impl.pipelineStageRepository.MarkVariablesDeletedExcludingActiveVariablesInUpdateReq(activeVariableIdsPresentInReq, stepId)
 	if err != nil {
 		impl.logger.Errorw("error in marking all variables deleted excluding active variables in update req", "err", err, "activeVariableIdsPresentInReq", activeVariableIdsPresentInReq)
 		return nil, err
@@ -806,7 +807,7 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepConditions(stepId i
 	}
 
 	// deleting all conditions which are currently active but not present in update request
-	err = impl.pipelineStageRepository.MarkConditionsDeletedExcludingActiveVariablesInUpdateReq(activeConditionIdsPresentInReq)
+	err = impl.pipelineStageRepository.MarkConditionsDeletedExcludingActiveVariablesInUpdateReq(activeConditionIdsPresentInReq, stepId)
 	if err != nil {
 		impl.logger.Errorw("error in marking all conditions deleted excluding active conditions in update req", "err", err, "activeConditionIdsPresentInReq", activeConditionIdsPresentInReq)
 		return nil, err
