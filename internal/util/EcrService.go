@@ -22,14 +22,31 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/juju/errors"
+	"log"
 )
 
 //FIXME: this code is temp
 func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey string) error {
 	region := reg
+	if len(accessKey) == 0 || len(secretKey) == 0 {
+		sess, err := session.NewSession()
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		appsCreds := ec2rolecreds.NewCredentials(sess)
+		val, err := appsCreds.Get()
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		accessKey, secretKey = val.AccessKeyID, val.SecretAccessKey
+		log.Printf("accessKey: %s, secretKey: %s\n", accessKey, secretKey)
+	}
 	credentials := credentials.NewStaticCredentials(accessKey, secretKey, "")
 	svc := ecr.New(session.New(&aws.Config{
 		Region:      &region,
