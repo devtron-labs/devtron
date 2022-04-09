@@ -70,7 +70,7 @@ type ConditionDetailDto struct {
 	Id                  int                                       `json:"id"`
 	ConditionOnVariable string                                    `json:"conditionOnVariable"` //name of variable on which condition is written
 	ConditionType       repository.PipelineStageStepConditionType `json:"conditionType"`       //SKIP, TRIGGER, SUCCESS, FAIL
-	ConditionalOperator string                                    `json:"conditionalOperator"`
+	ConditionalOperator string                                    `json:"conditionOperator"`
 	ConditionalValue    string                                    `json:"conditionalValue"`
 }
 
