@@ -782,6 +782,12 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepVariables(stepId in
 				UpdatedBy: userId,
 			},
 		}
+		//below is handling when previousStepIndex is null value, which is a bug for bulk update in current version of go-pg that is being used
+		if v.PreviousStepIndex > 0 {
+			inVarRepo.PreviousStepIndex = v.PreviousStepIndex
+		} else {
+			inVarRepo.PreviousStepIndex = 0
+		}
 		variablesRepo = append(variablesRepo, inVarRepo)
 	}
 	if len(variablesRepo) > 0 {
