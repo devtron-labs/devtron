@@ -108,7 +108,7 @@ type PipelineStageStepVariable struct {
 	Value                 string                             `sql:"value"`
 	VariableType          PipelineStageStepVariableType      `sql:"variable_type"`
 	ValueType             PipelineStageStepVariableValueType `sql:"value_type"`
-	PreviousStepIndex     int                                `sql:"previous_step_index,type:integer"`
+	PreviousStepIndex     int                                `sql:"previous_step_index"`
 	ReferenceVariableName string                             `sql:"reference_variable_name"`
 	Deleted               bool                               `sql:"deleted,notnull"`
 	sql.AuditLog
@@ -505,7 +505,7 @@ func (impl *PipelineStageRepositoryImpl) CreatePipelineStageStepVariables(variab
 }
 
 func (impl *PipelineStageRepositoryImpl) UpdatePipelineStageStepVariables(variables []PipelineStageStepVariable) ([]PipelineStageStepVariable, error) {
-	_, err := impl.dbConnection.Model(&variables).Update()
+	_, err := impl.dbConnection.Model(&variables).UpdateNotNull()
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline stage step variables", "err", err, "variables", variables)
 		return variables, err
