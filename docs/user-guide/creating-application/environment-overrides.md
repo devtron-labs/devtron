@@ -2,7 +2,7 @@
 
 You will see all your environments associated with an application under the `Environment Overrides` section.
 
-![](../../user-guide/creating-application/images/environment-override.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/environment-overrides/environment-override.jpg)
 
 
 You can customize your `Deployment template, ConfigMap, Secrets` in Environment Overrides section to add separate customizations for different environments such as dev, test, integration, prod, etc.
