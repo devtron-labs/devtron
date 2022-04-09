@@ -57,7 +57,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetry)
+	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
@@ -142,7 +142,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	return clusters, users, k8sServerVersion
 }
 
-func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
+func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)

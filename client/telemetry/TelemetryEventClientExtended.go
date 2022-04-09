@@ -24,7 +24,7 @@ type TelemetryEventClientImplExtended struct {
 	*TelemetryEventClientImpl
 }
 
-func (impl *TelemetryEventClientImplExtended) NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
+func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,

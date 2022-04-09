@@ -597,8 +597,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.TelemetryRestHandler), new(*restHandler.TelemetryRestHandlerImpl)),
 		telemetry.NewPosthogClient,
 
-		telemetry.NewTelemetryEventClientImpl,
-		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImpl)),
+		telemetry.NewTelemetryEventClientImplExtended,
+		wire.Bind(new(telemetry.TelemetryEventClient), new(*telemetry.TelemetryEventClientImplExtended)),
 
 		router.NewBulkUpdateRouterImpl,
 		wire.Bind(new(router.BulkUpdateRouter), new(*router.BulkUpdateRouterImpl)),
