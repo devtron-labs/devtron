@@ -256,7 +256,7 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInCiStageUpdateRequest(
 	}
 	if len(stepsToBeUpdated) > 0 {
 		//updating steps
-		err = impl.UpdateStageSteps(stepsToBeUpdated, userId)
+		err = impl.UpdateStageSteps(stepsToBeUpdated, userId, stageReq.Id)
 		if err != nil {
 			impl.logger.Errorw("error in updating stage steps for ci stage", "err", err)
 			return err
@@ -265,7 +265,7 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInCiStageUpdateRequest(
 	return nil
 }
 
-func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineStageStepDto, userId int32) error {
+func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineStageStepDto, userId int32, stageId int) error {
 	for _, step := range steps {
 		//getting saved step from db
 		savedStep, err := impl.pipelineStageRepository.GetStepById(step.Id)
@@ -275,6 +275,7 @@ func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineSta
 		}
 		stepUpdateReq := &repository.PipelineStageStep{
 			Id:                  step.Id,
+			PipelineStageId:     stageId,
 			Name:                step.Name,
 			Description:         step.Description,
 			Index:               step.Index,
