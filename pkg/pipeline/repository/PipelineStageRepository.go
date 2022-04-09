@@ -108,7 +108,7 @@ type PipelineStageStepVariable struct {
 	Value                 string                             `sql:"value"`
 	VariableType          PipelineStageStepVariableType      `sql:"variable_type"`
 	ValueType             PipelineStageStepVariableValueType `sql:"value_type"`
-	PreviousStepIndex     int                                `sql:"previous_step_index"`
+	PreviousStepIndex     int                                `sql:"previous_step_index,notnull"`
 	ReferenceVariableName string                             `sql:"reference_variable_name"`
 	Deleted               bool                               `sql:"deleted,notnull"`
 	sql.AuditLog
