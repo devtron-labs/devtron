@@ -9,6 +9,18 @@ import (
 )
 
 type GlobalVariables struct {
+	GitRepository       string `env:""`
+	GitBranch           string
+	GitHash             string
+	GitTag              string
+	LatestCommitAuthor  string
+	DockerImageTag      string
+	DockerRepository    string
+	DockerRegistryUrl   string
+	DockerImage         string
+	AppName             string
+	PipelineName        string
+	TriggerByAuthorName string
 }
 
 type GlobalPluginService interface {
@@ -49,20 +61,46 @@ func (impl *GlobalPluginServiceImpl) ListAllPlugins() ([]*PluginMetadataDto, err
 		impl.logger.Errorw("error in getting plugins", "err", err)
 		return nil, err
 	}
-	for _, pluginMetadata := range pluginsMetadata {
-		//getting tags for this pluginId
-		tags, err := impl.globalPluginRepository.GetTagsByPluginId(pluginMetadata.Id)
-		if err != nil && err != pg.ErrNoRows {
-			//only logging err, not returning err for tags
-			impl.logger.Errorw("error in getting tags by pluginId", "err", err, "pluginId", pluginMetadata.Id)
+	//getting all plugin tags
+	pluginTags, err := impl.globalPluginRepository.GetAllPluginTags()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting all plugin tags", "err", err)
+		return nil, err
+	}
+	tagIdNameMap := make(map[int]string)
+	for _, tag := range pluginTags {
+		tagIdNameMap[tag.Id] = tag.Name
+	}
+	//getting plugin-tag relations
+	relations, err := impl.globalPluginRepository.GetAllPluginTagRelations()
+	if err != nil {
+		impl.logger.Errorw("error in getting all plugin-tag relations", "err", err)
+		return nil, err
+	}
+	pluginIdTagsMap := make(map[int][]string)
+	for _, relation := range relations {
+		tag, ok := tagIdNameMap[relation.TagId]
+		if ok {
+			tags, ok2 := pluginIdTagsMap[relation.PluginId]
+			if ok2 {
+				tags = append(tags, tag)
+			} else {
+				tags = []string{tag}
+			}
+			pluginIdTagsMap[relation.PluginId] = tags
 		}
+	}
+	for _, pluginMetadata := range pluginsMetadata {
 		plugin := &PluginMetadataDto{
 			Id:          pluginMetadata.Id,
 			Name:        pluginMetadata.Name,
 			Type:        string(pluginMetadata.Type),
 			Description: pluginMetadata.Description,
 			Icon:        pluginMetadata.Icon,
-			Tags:        tags,
+		}
+		tags, ok := pluginIdTagsMap[pluginMetadata.Id]
+		if ok {
+			plugin.Tags = tags
 		}
 		plugins = append(plugins, plugin)
 	}

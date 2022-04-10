@@ -160,7 +160,12 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	if err != nil {
 		return nil, err
 	}
-
+	// marking old scripts inactive
+	err = impl.ciPipelineRepository.MarkCiPipelineScriptsInactiveByCiPipelineId(createRequest.Id, tx)
+	if err != nil {
+		impl.logger.Errorw("error in marking ciPipelineScripts inactive", "err", err, "ciPipelineId", createRequest.Id)
+		return nil, err
+	}
 	if createRequest.PreBuildStage != nil {
 		//updating pre stage
 		err = impl.pipelineStageService.UpdateCiStage(createRequest.PreBuildStage, repository5.PIPELINE_STAGE_TYPE_PRE_CI, createRequest.Id, userId)
@@ -290,71 +295,6 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	}
 
 	return createRequest, nil
-}
-
-// below function is not usable after plugin integration
-func (impl DbPipelineOrchestratorImpl) patchCiScripts(userId int32, pipeline *bean.CiPipeline, existingCiScriptMap map[int]bool, existingCiScriptModelMap map[int]*pipelineConfig.CiPipelineScript, tx *pg.Tx) error {
-	for _, ciScript := range pipeline.BeforeDockerBuildScripts {
-		ciPipelineScript := impl.BuildCiPipelineScript(userId, ciScript, BEFORE_DOCKER_BUILD, pipeline)
-		if _, ok := existingCiScriptMap[ciScript.Id]; ok { // Update
-			err := impl.ciPipelineRepository.UpdateCiPipelineScript(ciPipelineScript, tx)
-			if err != nil {
-				impl.logger.Errorw("error while updating script", "err", err)
-				return err
-			}
-			existingCiScriptMap[ciScript.Id] = false
-		} else {
-			err := impl.ciPipelineRepository.SaveCiPipelineScript(ciPipelineScript, tx) // Create
-			if err != nil {
-				impl.logger.Errorw("error while creating script", "err", err)
-				return err
-			}
-		}
-		//creating history entry
-		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
-		if err != nil {
-			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
-			return err
-		}
-	}
-
-	for _, ciScript := range pipeline.AfterDockerBuildScripts {
-		ciPipelineScript := impl.BuildCiPipelineScript(userId, ciScript, AFTER_DOCKER_BUILD, pipeline)
-		if _, ok := existingCiScriptMap[ciScript.Id]; ok { // Update
-			err := impl.ciPipelineRepository.UpdateCiPipelineScript(ciPipelineScript, tx)
-			if err != nil {
-				impl.logger.Errorw("error while updating script", "err", err)
-				return err
-			}
-			existingCiScriptMap[ciScript.Id] = false
-		} else {
-			err := impl.ciPipelineRepository.SaveCiPipelineScript(ciPipelineScript, tx) // Create
-			if err != nil {
-				impl.logger.Errorw("error while creating script", "err", err)
-				return err
-			}
-		}
-		//creating history entry
-		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
-		if err != nil {
-			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
-			return err
-		}
-	}
-
-	for k, v := range existingCiScriptMap {
-		if v { // Delete
-			script := existingCiScriptModelMap[k]
-			script.Active = false
-			err := impl.ciPipelineRepository.UpdateCiPipelineScript(script, tx)
-			if err != nil {
-				impl.logger.Errorw("error while deleting script", "err", err)
-				return err
-			}
-		}
-	}
-
-	return nil
 }
 
 func (impl DbPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, userId int32, tx *pg.Tx) error {

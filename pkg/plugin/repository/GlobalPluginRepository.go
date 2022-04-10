@@ -149,6 +149,8 @@ type PluginStepCondition struct {
 type GlobalPluginRepository interface {
 	GetMetaDataForAllPlugins() ([]*PluginMetadata, error)
 	GetMetaDataByPluginId(pluginId int) (*PluginMetadata, error)
+	GetAllPluginTags() ([]*PluginTag, error)
+	GetAllPluginTagRelations() ([]*PluginTagRelation, error)
 	GetTagsByPluginId(pluginId int) ([]string, error)
 	GetExposedVariablesByPluginIdAndVariableType(pluginId int, variableType PluginStepVariableType) ([]*PluginStepVariable, error)
 	GetExposedVariablesByPluginId(pluginId int) ([]*PluginStepVariable, error)
@@ -175,6 +177,29 @@ func (impl *GlobalPluginRepositoryImpl) GetMetaDataForAllPlugins() ([]*PluginMet
 		return nil, err
 	}
 	return plugins, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetAllPluginTags() ([]*PluginTag, error) {
+	var tags []*PluginTag
+	err := impl.dbConnection.Model(&tags).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all tags", "err", err)
+		return nil, err
+	}
+	return tags, nil
+}
+
+func (impl *GlobalPluginRepositoryImpl) GetAllPluginTagRelations() ([]*PluginTagRelation, error) {
+	var rel []*PluginTagRelation
+	err := impl.dbConnection.Model(&rel).
+		Join("INNER JOIN plugin_metadata pm ON pm.id = plugin_tag_relation.plugin_id").
+		Where("pm.deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err in getting all tags", "err", err)
+		return nil, err
+	}
+	return rel, nil
 }
 
 func (impl *GlobalPluginRepositoryImpl) GetTagsByPluginId(pluginId int) ([]string, error) {

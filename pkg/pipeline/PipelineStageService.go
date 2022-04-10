@@ -2,7 +2,7 @@ package pipeline
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -1046,7 +1046,9 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 		impl.logger.Errorw("error in getting variables by stepId", "err", err, "stepId", stepId)
 		return nil, nil, nil, err
 	}
+	variableNameIdMap := make(map[int]string)
 	for _, variable := range variables {
+		variableNameIdMap[variable.Id] = variable.Name
 		variableDto := &bean.StepVariableDto{
 			Id:                    variable.Id,
 			Name:                  variable.Name,
@@ -1065,21 +1067,24 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 		} else if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT {
 			outputVariablesDto = append(outputVariablesDto, variableDto)
 		}
-		conditions, err := impl.pipelineStageRepository.GetConditionsByVariableId(variable.Id)
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting conditions by variableId", "err", err, "variableId", variable.Id)
-			return nil, nil, nil, err
+	}
+	conditions, err := impl.pipelineStageRepository.GetConditionsByStepId(stepId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting conditions by stepId", "err", err, "stepId", stepId)
+		return nil, nil, nil, err
+	}
+	for _, condition := range conditions {
+		conditionDto := &bean.ConditionDetailDto{
+			Id:                  condition.Id,
+			ConditionalOperator: condition.ConditionalOperator,
+			ConditionalValue:    condition.ConditionalValue,
+			ConditionType:       condition.ConditionType,
 		}
-		for _, condition := range conditions {
-			conditionDto := &bean.ConditionDetailDto{
-				Id:                  condition.Id,
-				ConditionOnVariable: variable.Name,
-				ConditionalOperator: condition.ConditionalOperator,
-				ConditionalValue:    condition.ConditionalValue,
-				ConditionType:       condition.ConditionType,
-			}
-			conditionsDto = append(conditionsDto, conditionDto)
+		varName, ok := variableNameIdMap[condition.ConditionVariableId]
+		if ok {
+			conditionDto.ConditionOnVariable = varName
 		}
+		conditionsDto = append(conditionsDto, conditionDto)
 	}
 	return inputVariablesDto, outputVariablesDto, conditionsDto, nil
 }
