@@ -54,7 +54,7 @@ type PipelineStageStep struct {
 	StepType            PipelineStepType `sql:"step_type"`
 	ScriptId            int              `sql:"script_id"`
 	RefPluginId         int              `sql:"ref_plugin_id"` //id of plugin used as reference
-	ReportDirectoryPath string           `sql:"report_directory_path"`
+	OutputDirectoryPath []string         `sql:"output_directory_path" pg:",array"`
 	Deleted             bool             `sql:"deleted,notnull"`
 	sql.AuditLog
 }
@@ -72,7 +72,6 @@ type PluginPipelineScript struct {
 	MountCodeToContainer     bool                                 `sql:"mount_code_to_container,notnull"`
 	MountCodeToContainerPath string                               `sql:"mount_code_to_container_path"`
 	MountDirectoryFromHost   bool                                 `sql:"mount_directory_from_host,notnull"`
-	ConfigureMountPath       bool                                 `sql:"configure_mount_path,notnull"`
 	ContainerImagePath       string                               `sql:"container_image_path"`
 	ImagePullSecretType      repository.ScriptImagePullSecretType `sql:"image_pull_secret_type"`
 	ImagePullSecret          string                               `sql:"image_pull_secret"`

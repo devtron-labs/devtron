@@ -280,7 +280,7 @@ func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineSta
 			Description:         step.Description,
 			Index:               step.Index,
 			StepType:            step.StepType,
-			ReportDirectoryPath: step.ReportDirectoryPath,
+			OutputDirectoryPath: step.OutputDirectoryPath,
 			Deleted:             false,
 			AuditLog: sql.AuditLog{
 				CreatedOn: savedStep.CreatedOn,
@@ -418,7 +418,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 				Index:               step.Index,
 				StepType:            step.StepType,
 				ScriptId:            scriptEntryId,
-				ReportDirectoryPath: step.ReportDirectoryPath,
+				OutputDirectoryPath: step.OutputDirectoryPath,
 				Deleted:             false,
 				AuditLog: sql.AuditLog{
 					CreatedOn: time.Now(),
@@ -445,7 +445,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 				Index:               step.Index,
 				StepType:            step.StepType,
 				RefPluginId:         refPluginStepDetail.PluginId,
-				ReportDirectoryPath: step.ReportDirectoryPath,
+				OutputDirectoryPath: step.OutputDirectoryPath,
 				Deleted:             false,
 				AuditLog: sql.AuditLog{
 					CreatedOn: time.Now(),
@@ -551,7 +551,6 @@ func (impl *PipelineStageServiceImpl) CreateScriptAndMappingForInlineStep(inline
 		MountCodeToContainer:     inlineStepDetail.MountCodeToContainer,
 		MountCodeToContainerPath: inlineStepDetail.MountCodeToContainerPath,
 		MountDirectoryFromHost:   inlineStepDetail.MountDirectoryFromHost,
-		ConfigureMountPath:       inlineStepDetail.ConfigureMountPath,
 		ContainerImagePath:       inlineStepDetail.ContainerImagePath,
 		ImagePullSecretType:      inlineStepDetail.ImagePullSecretType,
 		ImagePullSecret:          inlineStepDetail.ImagePullSecret,
@@ -643,7 +642,6 @@ func (impl *PipelineStageServiceImpl) UpdateScriptAndMappingForInlineStep(inline
 		MountCodeToContainer:     inlineStepDetail.MountCodeToContainer,
 		MountCodeToContainerPath: inlineStepDetail.MountCodeToContainerPath,
 		MountDirectoryFromHost:   inlineStepDetail.MountDirectoryFromHost,
-		ConfigureMountPath:       inlineStepDetail.ConfigureMountPath,
 		ContainerImagePath:       inlineStepDetail.ContainerImagePath,
 		ImagePullSecretType:      inlineStepDetail.ImagePullSecretType,
 		ImagePullSecret:          inlineStepDetail.ImagePullSecret,
@@ -1009,7 +1007,7 @@ func (impl *PipelineStageServiceImpl) BuildCiStageData(ciStage *repository.Pipel
 			Name:                step.Name,
 			Index:               step.Index,
 			Description:         step.Description,
-			ReportDirectoryPath: step.ReportDirectoryPath,
+			OutputDirectoryPath: step.OutputDirectoryPath,
 			StepType:            step.StepType,
 		}
 		if step.StepType == repository.PIPELINE_STEP_TYPE_INLINE {
@@ -1048,7 +1046,6 @@ func (impl *PipelineStageServiceImpl) BuildInlineStepData(step *repository.Pipel
 		MountCodeToContainer:     scriptDetail.MountCodeToContainer,
 		MountCodeToContainerPath: scriptDetail.MountCodeToContainerPath,
 		MountDirectoryFromHost:   scriptDetail.MountDirectoryFromHost,
-		ConfigureMountPath:       scriptDetail.ConfigureMountPath,
 		ContainerImagePath:       scriptDetail.ContainerImagePath,
 		ImagePullSecretType:      scriptDetail.ImagePullSecretType,
 		ImagePullSecret:          scriptDetail.ImagePullSecret,

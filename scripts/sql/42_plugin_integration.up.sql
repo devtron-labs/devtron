@@ -62,7 +62,6 @@ CREATE TABLE "public"."plugin_pipeline_script"
     "mount_code_to_container"      bool,
     "mount_code_to_container_path" text,
     "mount_directory_from_host"    bool,
-    "configure_mount_path"         bool,
     "container_image_path"         text,
     "image_pull_secret_type"       varchar(255),   -- CONTAINER_REGISTRY or SECRET_PATH
     "image_pull_secret"            text,
@@ -205,7 +204,7 @@ CREATE TABLE "public"."pipeline_stage_step"
     "step_type"                   varchar(255),   -- INLINE or REF_PLUGIN
     "script_id"                   integer,
     "ref_plugin_id"               integer,        -- id of plugin used as reference
-    "report_directory_path"       text,
+    "output_directory_path"       text[],
     "deleted"                     bool,
     "created_on"                  timestamptz,
     "created_by"                  int4,

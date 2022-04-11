@@ -537,8 +537,10 @@ components:
           example:
             - "INLINE"
             - "REF_PLUGIN"
-        reportDirectoryPath:
-          type: string
+        outputDirectoryPath:
+          type: array
+          items:
+            type: string
         inlineStepDetail:
           $ref: '#/components/schemas/InlineStepDetail'
         pluginRefStepDetail:
@@ -566,9 +568,7 @@ components:
           type: string
         mountDirectoryFromHost:
           type: boolean
-        configureMountPath:
-          type: boolean
-        cotainerImagePath:
+        containerImagePath:
           type: string
         imagePullSecretType:
           type: string

@@ -19,7 +19,7 @@ type PipelineStageStepDto struct {
 	Description         string                      `json:"description"`
 	Index               int                         `json:"index"`
 	StepType            repository.PipelineStepType `json:"stepType"`
-	ReportDirectoryPath string                      `json:"reportDirectoryPath"`
+	OutputDirectoryPath []string                    `json:"outputDirectoryPath"`
 	InlineStepDetail    *InlineStepDetailDto        `json:"inlineStepDetail"`
 	RefPluginStepDetail *RefPluginStepDetailDto     `json:"pluginRefStepDetail"`
 }
@@ -33,7 +33,6 @@ type InlineStepDetailDto struct {
 	MountCodeToContainer     bool                                  `json:"mountCodeToContainer,omitempty"`
 	MountCodeToContainerPath string                                `json:"mountCodeToContainerPath,omitempty"`
 	MountDirectoryFromHost   bool                                  `json:"mountDirectoryFromHost"`
-	ConfigureMountPath       bool                                  `json:"configureMountPath,omitempty"`
 	ContainerImagePath       string                                `json:"containerImagePath,omitempty"`
 	ImagePullSecretType      repository2.ScriptImagePullSecretType `json:"imagePullSecretType,omitempty"`
 	ImagePullSecret          string                                `json:"imagePullSecret,omitempty"`
