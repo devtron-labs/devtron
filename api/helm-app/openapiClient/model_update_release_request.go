@@ -19,15 +19,12 @@ type UpdateReleaseRequest struct {
 	// helm app id
 	AppId *string `json:"appId,omitempty"`
 	// updated values yaml string
-	ValuesYaml *string `json:"valuesYaml,omitempty"`
-
-	ReferenceValueId   int    `json:"referenceValueId"`
-	AppStoreId         int    `json:"appStoreId"`
-	ReferenceValueKind string `json:"referenceValueKind"`
-	InstalledAppId     int    `json:"installedAppId"`
-	InstalledAppVersionId     int    `json:"installedAppVersionId"`
-	AppStoreVersion    int    `json:"appStoreVersion"`
-	UserId             int    `json:"-"`
+	ValuesYaml            *string `json:"valuesYaml,omitempty"`
+	ReferenceValueId      int     `json:"referenceValueId"`
+	ReferenceValueKind    string  `json:"referenceValueKind"`
+	InstalledAppVersionId int     `json:"installedAppVersionId"`
+	AppStoreVersion       int     `json:"appStoreVersion"`
+	UserId                int     `json:"-"`
 }
 
 // NewUpdateReleaseRequest instantiates a new UpdateReleaseRequest object

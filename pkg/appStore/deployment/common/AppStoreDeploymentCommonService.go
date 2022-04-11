@@ -115,7 +115,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateApplicationLinkedWithHelm(
 			return err
 		}
 		installedAppVersion = &repository.InstalledAppVersions{
-			InstalledAppId:               request.InstalledAppId,
+			InstalledAppId:               installedAppVersionModel.InstalledAppId,
 			AppStoreApplicationVersionId: request.AppStoreVersion,
 			ValuesYaml:                   request.GetValuesYaml(),
 		}
@@ -176,6 +176,9 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.Instal
 		EnvironmentName:       chart.Environment.Name,
 		InstalledAppId:        chart.Id,
 		InstalledAppVersionId: installedAppVersion.Id,
+		AppStoreVersion:       installedAppVersion.AppStoreApplicationVersionId,
+		ReferenceValueId:      installedAppVersion.ReferenceValueId,
+		ReferenceValueKind:    installedAppVersion.ReferenceValueKind,
 		InstallAppVersionChartDTO: &appStoreBean.InstallAppVersionChartDTO{
 			AppStoreChartId: chartVersionApp.AppStore.Id,
 			ChartName:       chartVersionApp.Name,

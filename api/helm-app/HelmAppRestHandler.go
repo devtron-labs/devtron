@@ -309,11 +309,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	var res *openapi.UpdateReleaseResponse
 
 	if installedApp != nil {
-		if request.InstalledAppId == 0 {
-			//if app is linked, on update request, must have installedAppId
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		} else if request.InstalledAppId != installedApp.InstalledAppId {
+		if request.InstalledAppVersionId != installedApp.InstalledAppVersionId {
 			//error invalid app id
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
@@ -372,6 +368,9 @@ func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) 
 		AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
 		ClusterId:             installedApp.ClusterId,
 		EnvironmentId:         installedApp.EnvironmentId,
+		AppStoreVersion:       installedApp.AppStoreVersion,
+		ReferenceValueId:      installedApp.ReferenceValueId,
+		ReferenceValueKind:    installedApp.ReferenceValueKind,
 	}
 }
 
@@ -399,4 +398,7 @@ type InstalledAppInfo struct {
 	AppOfferingMode       string `json:"appOfferingMode"`
 	ClusterId             int    `json:"clusterId"`
 	EnvironmentId         int    `json:"environmentId"`
+	AppStoreVersion       int    `json:"appStoreVersion,omitempty,notnull"`
+	ReferenceValueId      int    `json:"referenceValueId, omitempty" validate:"required,number"`
+	ReferenceValueKind    string `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
 }
