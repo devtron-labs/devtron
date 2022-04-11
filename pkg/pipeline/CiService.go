@@ -50,13 +50,16 @@ type CiServiceImpl struct {
 	mergeUtil                     *util.MergeUtil
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
+	pipelineStageService          PipelineStageService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiConfig, eventClient client.EventClient,
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService) *CiServiceImpl {
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
+	pipelineStageService PipelineStageService,
+) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
 		workflowService:               workflowService,
@@ -68,6 +71,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		mergeUtil:                     mergeUtil,
 		ciPipelineRepository:          ciPipelineRepository,
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
+		pipelineStageService:          pipelineStageService,
 	}
 }
 
@@ -310,6 +314,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 	}
 
+	//getting preCiStepsData, postCiStepsData & refPluginStepsData
+	preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id)
+	if err != nil {
+		impl.Logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
+		return nil, err
+	}
 	dockerImageTag := impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.ciConfig.DefaultCacheBucket
@@ -376,6 +386,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CloudProvider:              impl.ciConfig.CloudProvider,
 		DefaultAddressPoolBaseCidr: impl.ciConfig.DefaultAddressPoolBaseCidr,
 		DefaultAddressPoolSize:     impl.ciConfig.DefaultAddressPoolSize,
+		PreCiSteps:                 preCiSteps,
+		PostCiSteps:                postCiSteps,
+		RefPlugins:                 refPluginsData,
 	}
 
 	switch workflowRequest.CloudProvider {

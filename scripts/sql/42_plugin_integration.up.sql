@@ -110,6 +110,7 @@ CREATE TABLE "public"."plugin_step"
     "step_type"                   varchar(255),   -- INLINE or REF_PLUGIN
     "script_id"                   integer,
     "ref_plugin_id"               integer,        -- id of plugin used as reference
+    "output_directory_path"       text[],
     "deleted"                     bool,
     "created_on"                  timestamptz,
     "created_by"                  int4,
