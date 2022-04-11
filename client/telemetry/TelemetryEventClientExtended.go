@@ -51,7 +51,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 
 	watcher.HeartbeatEventForTelemetry()
 	watcher.SummaryEventForTelemetry() //for testing purpose
-	logger.Infow("adding summary event to cronjob")
+	logger.Infow("adding summary event to cronjob", "cronjob expression", SummaryCronExpr)
 	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetry)
 	logger.Infow("added summary event to cronjob")
 	if err != nil {
