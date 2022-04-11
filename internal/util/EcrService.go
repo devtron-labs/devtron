@@ -33,6 +33,9 @@ import (
 func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey string) error {
 	region := reg
 	fmt.Printf("repoName %s, reg %s, accessKey %s, secretKey %s\n", repoName, reg, accessKey, secretKey)
+
+	credentials := credentials.NewStaticCredentials(accessKey, secretKey, "")
+
 	if len(accessKey) == 0 || len(secretKey) == 0 {
 		fmt.Println("empty accessKey or secretKey")
 		sess, err := session.NewSession(&aws.Config{
@@ -42,21 +45,31 @@ func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey stri
 			log.Println(err)
 			return err
 		}
-		appsCreds := ec2rolecreds.NewCredentials(sess)
-		val, err := appsCreds.Get()
-		if err != nil {
-			log.Println(err)
-			return err
-		}
-		accessKey, secretKey = val.AccessKeyID, val.SecretAccessKey
-		log.Printf("accessKey: %s, secretKey: %s\n", accessKey, secretKey)
+		credentials = ec2rolecreds.NewCredentials(sess)
+		//val, err := appsCreds.Get()
+		//if err != nil {
+		//	log.Println(err)
+		//	return err
+		//}
+		//accessKey, secretKey = val.AccessKeyID, val.SecretAccessKey
+		//log.Printf("accessKey: %s, secretKey: %s\n", accessKey, secretKey)
 	}
 
-	credentials := credentials.NewStaticCredentials(accessKey, secretKey, "")
-	svc := ecr.New(session.New(&aws.Config{
+	sess, err := session.NewSession(&aws.Config{
 		Region:      &region,
 		Credentials: credentials,
-	}))
+	})
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	svc := ecr.New(sess)
+
+	if err != nil {
+		log.Println(err)
+		return err
+	}
 	input := &ecr.CreateRepositoryInput{
 		RepositoryName: aws.String(repoName),
 	}
