@@ -18,26 +18,34 @@
 package appStoreDeploymentCommon
 
 import (
+	"context"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
 type AppStoreDeploymentCommonService interface {
 	GetInstalledAppByClusterNamespaceAndName(clusterId int, namespace string, appName string) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppByInstalledAppId(installedAppId int) (*appStoreBean.InstallAppVersionDTO, error)
+	UpdateApplicationLinkedWithHelm(ctx context.Context, request *openapi.UpdateReleaseRequest) error
 }
 
 type AppStoreDeploymentCommonServiceImpl struct {
-	logger                 *zap.SugaredLogger
-	installedAppRepository repository.InstalledAppRepository
+	logger                               *zap.SugaredLogger
+	installedAppRepository               repository.InstalledAppRepository
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 }
 
-func NewAppStoreDeploymentCommonServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository) *AppStoreDeploymentCommonServiceImpl {
+func NewAppStoreDeploymentCommonServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository) *AppStoreDeploymentCommonServiceImpl {
 	return &AppStoreDeploymentCommonServiceImpl{
-		logger:                 logger,
-		installedAppRepository: installedAppRepository,
+		logger:                               logger,
+		installedAppRepository:               installedAppRepository,
+		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 	}
 }
 
@@ -73,6 +81,84 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByInstalledAppId(
 	return impl.convert(installedApp, installedAppVersion), nil
 
 	return nil, nil
+}
+
+func (impl AppStoreDeploymentCommonServiceImpl) UpdateApplicationLinkedWithHelm(ctx context.Context, request *openapi.UpdateReleaseRequest) error {
+
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	// update same chart or upgrade its version only
+	installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(request.InstalledAppId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching chart installed version", "error", err)
+		return err
+	}
+	var installedAppVersion *repository.InstalledAppVersions
+	if installedAppVersionModel.AppStoreApplicationVersionId != request.AppStoreVersion {
+		// upgrade to new version of same chart
+		installedAppVersionModel.Active = false
+		installedAppVersionModel.UpdatedOn = time.Now()
+		installedAppVersionModel.UpdatedBy = 1 //todo
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, nil)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return err
+		}
+		appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(request.AppStoreVersion)
+		if err != nil {
+			impl.logger.Errorw("fetching error", "err", err)
+			return err
+		}
+		installedAppVersion = &repository.InstalledAppVersions{
+			InstalledAppId:               request.InstalledAppId,
+			AppStoreApplicationVersionId: request.AppStoreVersion,
+			ValuesYaml:                   request.GetValuesYaml(),
+		}
+		installedAppVersion.CreatedBy = int32(request.UserId)
+		installedAppVersion.UpdatedBy = int32(request.UserId)
+		installedAppVersion.CreatedOn = time.Now()
+		installedAppVersion.UpdatedOn = time.Now()
+		installedAppVersion.Active = true
+		installedAppVersion.ReferenceValueId = request.ReferenceValueId
+		installedAppVersion.ReferenceValueKind = request.ReferenceValueKind
+		_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, nil)
+		if err != nil {
+			impl.logger.Errorw("error while fetching from db", "error", err)
+			return err
+		}
+		installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
+
+		//update requirements yaml in chart
+
+		request.InstalledAppVersionId = installedAppVersion.Id
+	} else {
+		installedAppVersion = installedAppVersionModel
+	}
+
+	//DB operation
+	installedAppVersion.ValuesYaml = request.GetValuesYaml()
+	installedAppVersion.UpdatedOn = time.Now()
+	installedAppVersion.UpdatedBy = int32(request.UserId)
+	installedAppVersion.ReferenceValueId = request.ReferenceValueId
+	installedAppVersion.ReferenceValueKind = request.ReferenceValueKind
+	_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, nil)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return err
+	}
+
+	//STEP 8: finish with return response
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while committing transaction to db", "error", err)
+		return err
+	}
+	return nil
 }
 
 //converts db object to bean

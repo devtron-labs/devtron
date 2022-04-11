@@ -20,6 +20,14 @@ type UpdateReleaseRequest struct {
 	AppId *string `json:"appId,omitempty"`
 	// updated values yaml string
 	ValuesYaml *string `json:"valuesYaml,omitempty"`
+
+	ReferenceValueId   int    `json:"referenceValueId"`
+	AppStoreId         int    `json:"appStoreId"`
+	ReferenceValueKind string `json:"referenceValueKind"`
+	InstalledAppId     int    `json:"installedAppId"`
+	InstalledAppVersionId     int    `json:"installedAppVersionId"`
+	AppStoreVersion    int    `json:"appStoreVersion"`
+	UserId             int    `json:"-"`
 }
 
 // NewUpdateReleaseRequest instantiates a new UpdateReleaseRequest object
@@ -149,5 +157,3 @@ func (v *NullableUpdateReleaseRequest) UnmarshalJSON(src []byte) error {
 	v.isSet = true
 	return json.Unmarshal(src, &v.value)
 }
-
-

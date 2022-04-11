@@ -297,7 +297,11 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
+	if request.InstalledAppId != installedApp.InstalledAppId {
+		//error invalid app id
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	updateReleaseRequest := &InstallReleaseRequest{
 		ValuesYaml: request.GetValuesYaml(),
 		ReleaseIdentifier: &ReleaseIdentifier{
@@ -324,6 +328,13 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
+
+		//Update the db entries (installed app, installed app versions, history) corresponding to this helm app,
+		err = handler.appStoreDeploymentCommonService.UpdateApplicationLinkedWithHelm(context.Background(), request)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
 	} else {
 		res, err = handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, request)
 		if err != nil {
@@ -334,7 +345,6 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-
 
 func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, strings.ToLower(object)); !ok {
