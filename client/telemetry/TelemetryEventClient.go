@@ -207,7 +207,7 @@ func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType Tele
 }
 
 func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
-	impl.logger.Errorw("HeartbeatEventForTelemetry start")
+	impl.logger.Infow("HeartbeatEventForTelemetry start")
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
@@ -218,14 +218,14 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		return
 	}
 
-	impl.logger.Errorw("HeartbeatEventForTelemetry 1")
+	impl.logger.Infow("HeartbeatEventForTelemetry 1")
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
 		return
 	}
 
-	impl.logger.Errorw("HeartbeatEventForTelemetry 2")
+	impl.logger.Infow("HeartbeatEventForTelemetry 2")
 	k8sServerVersion, err := discoveryClient.ServerVersion()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
@@ -235,7 +235,7 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 	payload.ServerVersion = k8sServerVersion.String()
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 
-	impl.logger.Errorw("HeartbeatEventForTelemetry 3")
+	impl.logger.Infow("HeartbeatEventForTelemetry 3")
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
 		impl.logger.Errorw("HeartbeatEventForTelemetry, payload marshal error", "error", err)
@@ -248,14 +248,14 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		return
 	}
 
-	impl.logger.Errorw("HeartbeatEventForTelemetry 3")
+	impl.logger.Infow("HeartbeatEventForTelemetry 4")
 	err = impl.EnqueuePostHog(ucid, Heartbeat, prop)
 	if err != nil {
 		impl.logger.Warnw("HeartbeatEventForTelemetry, failed to push event", "error", err)
 	} else {
 		impl.logger.Debugw("HeartbeatEventForTelemetry success")
 	}
-	impl.logger.Errorw("HeartbeatEventForTelemetry 4")
+	impl.logger.Infow("HeartbeatEventForTelemetry 5")
 }
 
 func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo, error) {

@@ -92,7 +92,7 @@ type SummaryDto struct {
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
-	impl.logger.Errorw("SendTelemetryInstallEvent start")
+	impl.logger.Infow("SendTelemetryInstallEvent start")
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
@@ -103,48 +103,48 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
 		return
 	}
-	impl.logger.Errorw("SendTelemetryInstallEvent 1")
+	impl.logger.Infow("SendTelemetryInstallEvent 1")
 	clusters, users, k8sServerVersion := impl.SummaryDetailsForTelemetry()
-	impl.logger.Errorw("SendTelemetryInstallEvent 2")
+	impl.logger.Infow("SendTelemetryInstallEvent 2")
 	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
-	impl.logger.Errorw("SendTelemetryInstallEvent 3")
+	impl.logger.Infow("SendTelemetryInstallEvent 3")
 	environments, err := impl.environmentService.GetAllActive()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
-	impl.logger.Errorw("SendTelemetryInstallEvent 4")
+	impl.logger.Infow("SendTelemetryInstallEvent 4")
 	prodApps, err := impl.appListingRepository.FindAppCount(true)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
-	impl.logger.Errorw("SendTelemetryInstallEvent 5")
+	impl.logger.Infow("SendTelemetryInstallEvent 5")
 	nonProdApps, err := impl.appListingRepository.FindAppCount(false)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
-	impl.logger.Errorw("SendTelemetryInstallEvent 6")
+	impl.logger.Infow("SendTelemetryInstallEvent 6")
 	ciPipeline, err := impl.ciPipelineRepository.FindAllPipelineInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
-	impl.logger.Errorw("SendTelemetryInstallEvent 7")
+	impl.logger.Infow("SendTelemetryInstallEvent 7")
 	cdPipeline, err := impl.pipelineRepository.FindAllPipelineInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
 
-	impl.logger.Errorw("SendTelemetryInstallEvent 8")
+	impl.logger.Infow("SendTelemetryInstallEvent 8")
 	devtronVersion := util.GetDevtronVersion()
 
 	summary := &SummaryDto{
@@ -171,10 +171,10 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		return
 	}
 
-	impl.logger.Errorw("SendTelemetryInstallEvent 8")
+	impl.logger.Infow("SendTelemetryInstallEvent 9")
 	err = impl.EnqueuePostHog(ucid, Summary, prop)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
 	}
-	impl.logger.Errorw("SendTelemetryInstallEvent 9")
+	impl.logger.Infow("SendTelemetryInstallEvent 10")
 }
