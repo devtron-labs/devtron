@@ -35,7 +35,9 @@ func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey stri
 	fmt.Printf("repoName %s, reg %s, accessKey %s, secretKey %s\n", repoName, reg, accessKey, secretKey)
 	if len(accessKey) == 0 || len(secretKey) == 0 {
 		fmt.Println("empty accessKey or secretKey")
-		sess, err := session.NewSession()
+		sess, err := session.NewSession(&aws.Config{
+			Region: &region,
+		})
 		if err != nil {
 			log.Println(err)
 			return err
@@ -49,6 +51,7 @@ func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey stri
 		accessKey, secretKey = val.AccessKeyID, val.SecretAccessKey
 		log.Printf("accessKey: %s, secretKey: %s\n", accessKey, secretKey)
 	}
+
 	credentials := credentials.NewStaticCredentials(accessKey, secretKey, "")
 	svc := ecr.New(session.New(&aws.Config{
 		Region:      &region,
