@@ -143,6 +143,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 }
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
+	impl.logger.Infow("SummaryEventForTelemetryEA 1")
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
@@ -154,12 +155,14 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 		return
 	}
 
+	impl.logger.Infow("SummaryEventForTelemetryEA 2")
 	clusters, users, k8sServerVersion := impl.SummaryDetailsForTelemetry()
 
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 
+	impl.logger.Infow("SummaryEventForTelemetryEA 3")
 	summary := &SummaryEA{
 		UserCount:    len(users),
 		ClusterCount: len(clusters),
@@ -178,10 +181,12 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 		return
 	}
 
+	impl.logger.Infow("SummaryEventForTelemetryEA 4")
 	err = impl.EnqueuePostHog(ucid, Summary, prop)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
 	}
+	impl.logger.Infow("SummaryEventForTelemetryEA 5")
 }
 
 func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType TelemetryEventType, prop map[string]interface{}) error {
