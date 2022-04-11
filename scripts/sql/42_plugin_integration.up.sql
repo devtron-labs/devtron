@@ -83,7 +83,7 @@ CREATE TABLE "public"."script_path_arg_port_mapping"
     "file_path_on_disk"           text,
     "file_path_on_container"      text,
     "command"                     text,
-    "args"                        text,             --marshaled array of strings(multiple args)
+    "args"                        text[],
     "port_on_local"               integer,
     "port_on_container"           integer,
     "script_id"                   integer,

@@ -86,7 +86,7 @@ type ScriptPathArgPortMapping struct {
 	FilePathOnDisk      string                       `sql:"file_path_on_disk"`
 	FilePathOnContainer string                       `sql:"file_path_on_container"`
 	Command             string                       `sql:"command"`
-	Args                string                       `sql:"args"`
+	Args                []string                     `sql:"args" pg:",array"`
 	PortOnLocal         int                          `sql:"port_on_local"`
 	PortOnContainer     int                          `sql:"port_on_container"`
 	ScriptId            int                          `sql:"script_id"`

@@ -1,7 +1,6 @@
 package pipeline
 
 import (
-	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -585,15 +584,10 @@ func (impl *PipelineStageServiceImpl) CreateScriptAndMappingForInlineStep(inline
 		scriptMap = append(scriptMap, repositoryEntry)
 	}
 	for _, commandArgMap := range inlineStepDetail.CommandArgsMap {
-		argsByte, err := json.Marshal(commandArgMap.Args)
-		if err != nil {
-			impl.logger.Errorw("error in marshaling docker args", "err", err)
-			return 0, err
-		}
 		repositoryEntry := repository.ScriptPathArgPortMapping{
 			TypeOfMapping: repository2.SCRIPT_MAPPING_TYPE_DOCKER_ARG,
 			Command:       commandArgMap.Command,
-			Args:          string(argsByte),
+			Args:          commandArgMap.Args,
 			ScriptId:      scriptEntry.Id,
 			Deleted:       false,
 			AuditLog: sql.AuditLog{
@@ -681,15 +675,10 @@ func (impl *PipelineStageServiceImpl) UpdateScriptAndMappingForInlineStep(inline
 		scriptMap = append(scriptMap, repositoryEntry)
 	}
 	for _, commandArgMap := range inlineStepDetail.CommandArgsMap {
-		argsByte, err := json.Marshal(commandArgMap.Args)
-		if err != nil {
-			impl.logger.Errorw("error in marshaling docker args", "err", err)
-			return err
-		}
 		repositoryEntry := repository.ScriptPathArgPortMapping{
 			TypeOfMapping: repository2.SCRIPT_MAPPING_TYPE_DOCKER_ARG,
 			Command:       commandArgMap.Command,
-			Args:          string(argsByte),
+			Args:          commandArgMap.Args,
 			ScriptId:      scriptEntry.Id,
 			Deleted:       false,
 			AuditLog: sql.AuditLog{
@@ -1067,15 +1056,9 @@ func (impl *PipelineStageServiceImpl) BuildInlineStepData(step *repository.Pipel
 			}
 			mountPathMap = append(mountPathMap, mapEntry)
 		} else if scriptMapping.TypeOfMapping == repository2.SCRIPT_MAPPING_TYPE_DOCKER_ARG {
-			var args []string
-			err = json.Unmarshal([]byte(scriptMapping.Args), &args)
-			if err != nil {
-				impl.logger.Errorw("error in un-marshaling docker args", "err", err)
-				return nil, err
-			}
 			mapEntry := &bean.CommandArgsMap{
 				Command: scriptMapping.Command,
-				Args:    args,
+				Args:    scriptMapping.Args,
 			}
 			commandArgsMap = append(commandArgsMap, mapEntry)
 		} else if scriptMapping.TypeOfMapping == repository2.SCRIPT_MAPPING_TYPE_PORT {
