@@ -57,7 +57,9 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
+	logger.Infow("Adding summary event fn to watcher")
 	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
+	logger.Infow("summary event added to watcher")
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
