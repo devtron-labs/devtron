@@ -29,7 +29,7 @@ In this field, add the name of your docker repository. The repository that you s
 
 ![](../../.gitbook/assets/docker-configuration-docker-hub.png)
 
-![](../../user-guide/creating-application/images/docker-build-config-1.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/docker-build-config-1.jpg)
 
 
 ## Checkout path 

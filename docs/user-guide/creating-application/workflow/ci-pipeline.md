@@ -1,8 +1,10 @@
 # CI Pipeline
 
-CI Pipeline can be created in three different ways, Continuous Integration, Linked CI Pipeline and Incoming Webhook. Each of these methods have different use-cases which can be used according to the needs of the organization. Let’s begin with Continuous Integration.
+CI Pipeline can be created in three different ways, `Continuous Integration`, `Linked CI Pipeline` and `Incoming Webhook`.
 
-![](../images/workflow-ci.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/workflow-ci.jpg)
+
+Each of these methods have different use-cases which can be used according to the needs of the organization. Let’s begin with Continuous Integration.
 
 ## A. Continuous Integration
 
@@ -158,9 +160,9 @@ You have provided all the details required to create a CI pipeline, now click on
 
 You can also update any configuration of an already created CI Pipeline, except the pipeline name. The pipeline name can not be edited.
 
-![](../images/update-ci.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/ci-pipeline-update.jpg)
 
-Click on your CI Pipeline, to update your CI Pipeline. A window will be popped up with all the details of the current pipeline.
+Click on your CI pipeline, to update your CI Pipeline. A window will be popped up with all the details of the current pipeline.
 
 ![](../../../.gitbook/assets/ca-workflow-update.png)
 
@@ -168,17 +170,17 @@ Make your changes and click on `Update Pipeline` at the bottom to update your Pi
 
 #### Delete CI Pipeline
 
-You can only delete CI Pipeline if you have no CD Pipeline created in your workflow.
+You can only delete CI pipeline if you have no CD pipeline created in your workflow.
 
-To Delete a CI Pipeline, go to the `App Configurations` and then click on `Workflow` editor
+To delete a CI pipeline, go to the `App Configurations` and then click on `Workflow` editor
 
-Click on `Delete Pipeline` at the bottom to delete the CD Pipeline
+Click on `Delete Pipeline` at the bottom to delete the CD pipeline
 
 #### Automated Test suite integration in the CI step using devtron-ci.yaml
 
-Users can run the Test case using the Devtron Dashboard or by including the Test cases in the devtron.ci.yaml file in the source git repository. For reference, check: [https://github.com/kumarnishant/getting-started-nodejs/blob/master/devtron-ci.yaml](https://github.com/kumarnishant/getting-started-nodejs/blob/master/devtron-ci.yaml)
+Users can run the test case using the Devtron dashboard or by including the test cases in the devtron.ci.yaml file in the source git repository. For reference, check: [https://github.com/kumarnishant/getting-started-nodejs/blob/master/devtron-ci.yaml](https://github.com/kumarnishant/getting-started-nodejs/blob/master/devtron-ci.yaml)
 
-The test cases given in the script will run before the Test Cases given in the devtron.ci.yaml
+The test cases given in the script will run before the test cases given in the devtron.ci.yaml
 
 ![](../../../.gitbook/assets/yaml%20%283%29.jpg)
 
@@ -195,13 +197,13 @@ The test cases given in the script will run before the Test Cases given in the d
 
 ## B. Linked CI Pipeline
 
-If one code is shared across multiple applications, Linked CI Pipeline can be used, and only one image will be built for multiple applications because if there is only one build, it is not advisable to create multiple CI Pipelines.
+If one code is shared across multiple applications, `Linked CI Pipeline` can be used, and only one image will be built for multiple applications because if there is only one build, it is not advisable to create multiple CI Pipelines.
 
 ![](../../../.gitbook/assets/ca-workflow-linked.png)
 
 ## C. Incoming Webhook
 
-You can use Devtron for Deployments on Kubernetes while using your own CI tool such as Jenkins. External CI features can be used for cases where the CI tool is hosted outside the Devtron platform.
+You can use Devtron for deployments on Kubernetes while using your own CI tool such as Jenkins. External CI features can be used for cases where the CI tool is hosted outside the Devtron platform.
 
 ![](../../../.gitbook/assets/ca-workflow-external.png)
 
