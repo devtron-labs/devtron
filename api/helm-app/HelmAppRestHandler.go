@@ -297,11 +297,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	if request.InstalledAppId != installedApp.InstalledAppId {
-		//error invalid app id
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+
 	updateReleaseRequest := &InstallReleaseRequest{
 		ValuesYaml: request.GetValuesYaml(),
 		ReleaseIdentifier: &ReleaseIdentifier{
@@ -313,6 +309,15 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	var res *openapi.UpdateReleaseResponse
 
 	if installedApp != nil {
+		if request.InstalledAppId == 0 {
+			//if app is linked, on update request, must have installedAppId
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		} else if request.InstalledAppId != installedApp.InstalledAppId {
+			//error invalid app id
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 		chartInfo := installedApp.InstallAppVersionChartDTO
 		chartRepoInfo := chartInfo.InstallAppVersionChartRepoDTO
 		updateReleaseRequest.ChartName = chartInfo.ChartName

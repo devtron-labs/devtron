@@ -93,7 +93,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateApplicationLinkedWithHelm(
 	// Rollback tx on error.
 	defer tx.Rollback()
 	// update same chart or upgrade its version only
-	installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(request.InstalledAppId)
+	installedAppVersionModel, err := impl.installedAppRepository.GetInstalledAppVersion(request.InstalledAppVersionId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching chart installed version", "error", err)
 		return err
@@ -103,8 +103,8 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateApplicationLinkedWithHelm(
 		// upgrade to new version of same chart
 		installedAppVersionModel.Active = false
 		installedAppVersionModel.UpdatedOn = time.Now()
-		installedAppVersionModel.UpdatedBy = 1 //todo
-		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, nil)
+		installedAppVersionModel.UpdatedBy = int32(request.UserId)
+		_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersionModel, tx)
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return err
@@ -126,7 +126,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateApplicationLinkedWithHelm(
 		installedAppVersion.Active = true
 		installedAppVersion.ReferenceValueId = request.ReferenceValueId
 		installedAppVersion.ReferenceValueKind = request.ReferenceValueKind
-		_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, nil)
+		_, err = impl.installedAppRepository.CreateInstalledAppVersion(installedAppVersion, tx)
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return err
@@ -146,7 +146,7 @@ func (impl AppStoreDeploymentCommonServiceImpl) UpdateApplicationLinkedWithHelm(
 	installedAppVersion.UpdatedBy = int32(request.UserId)
 	installedAppVersion.ReferenceValueId = request.ReferenceValueId
 	installedAppVersion.ReferenceValueKind = request.ReferenceValueKind
-	_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, nil)
+	_, err = impl.installedAppRepository.UpdateInstalledAppVersion(installedAppVersion, tx)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return err
