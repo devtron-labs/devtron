@@ -9,7 +9,7 @@ type PipelineStageDto struct {
 	Id          int                          `json:"id"`
 	Name        string                       `json:"name,omitempty"`
 	Description string                       `json:"description,omitempty"`
-	Type        repository.PipelineStageType `json:"type,omitempty" validate:"oneof=PRE_CI POST_CI PRE_CD POST_CD"`
+	Type        repository.PipelineStageType `json:"type,omitempty"`
 	Steps       []*PipelineStageStepDto      `json:"steps"`
 }
 
@@ -18,14 +18,14 @@ type PipelineStageStepDto struct {
 	Name                string                      `json:"name"`
 	Description         string                      `json:"description"`
 	Index               int                         `json:"index"`
-	StepType            repository.PipelineStepType `json:"stepType" validate:"oneof=INLINE REF_PLUGIN"`
+	StepType            repository.PipelineStepType `json:"stepType"`
 	OutputDirectoryPath []string                    `json:"outputDirectoryPath"`
 	InlineStepDetail    *InlineStepDetailDto        `json:"inlineStepDetail"`
 	RefPluginStepDetail *RefPluginStepDetailDto     `json:"pluginRefStepDetail"`
 }
 
 type InlineStepDetailDto struct {
-	ScriptType               repository2.ScriptType                `json:"scriptType" validate:"oneof= SHELL DOCKERFILE CONTAINER_IMAGE"`
+	ScriptType               repository2.ScriptType                `json:"scriptType"`
 	Script                   string                                `json:"script"`
 	StoreScriptAt            string                                `json:"storeScriptAt"`
 	DockerfileExists         bool                                  `json:"dockerfileExists,omitempty"`
@@ -34,7 +34,7 @@ type InlineStepDetailDto struct {
 	MountCodeToContainerPath string                                `json:"mountCodeToContainerPath,omitempty"`
 	MountDirectoryFromHost   bool                                  `json:"mountDirectoryFromHost"`
 	ContainerImagePath       string                                `json:"containerImagePath,omitempty"`
-	ImagePullSecretType      repository2.ScriptImagePullSecretType `json:"imagePullSecretType,omitempty" validate:"CONTAINER_REGISTRY SECRET_PATH"`
+	ImagePullSecretType      repository2.ScriptImagePullSecretType `json:"imagePullSecretType,omitempty"`
 	ImagePullSecret          string                                `json:"imagePullSecret,omitempty"`
 	MountPathMap             []*MountPathMap                       `json:"mountPathMap,omitempty"`
 	CommandArgsMap           []*CommandArgsMap                     `json:"commandArgsMap,omitempty"`
@@ -54,13 +54,13 @@ type RefPluginStepDetailDto struct {
 type StepVariableDto struct {
 	Id                    int                                            `json:"id"`
 	Name                  string                                         `json:"name"`
-	Format                repository.PipelineStageStepVariableFormatType `json:"format" validate:"oneof=STRING NUMBER BOOL DATE"`
+	Format                repository.PipelineStageStepVariableFormatType `json:"format"`
 	Description           string                                         `json:"description"`
 	IsExposed             bool                                           `json:"isExposed,omitempty"`
 	AllowEmptyValue       bool                                           `json:"allowEmptyValue,omitempty"`
 	DefaultValue          string                                         `json:"defaultValue,omitempty"`
 	Value                 string                                         `json:"value"`
-	ValueType             repository.PipelineStageStepVariableValueType  `json:"valueType,omitempty" validate:"oneof=NEW FROM_PREVIOUS_STEP GLOBAL"`
+	ValueType             repository.PipelineStageStepVariableValueType  `json:"valueType,omitempty"`
 	PreviousStepIndex     int                                            `json:"previousStepIndex,omitempty"`
 	ReferenceVariableName string                                         `json:"referenceVariableName,omitempty"`
 }
@@ -68,7 +68,7 @@ type StepVariableDto struct {
 type ConditionDetailDto struct {
 	Id                  int                                       `json:"id"`
 	ConditionOnVariable string                                    `json:"conditionOnVariable"` //name of variable on which condition is written
-	ConditionType       repository.PipelineStageStepConditionType `json:"conditionType" validate:"oneof=SKIP TRIGGER SUCCESS FAIL"`
+	ConditionType       repository.PipelineStageStepConditionType `json:"conditionType"`
 	ConditionalOperator string                                    `json:"conditionOperator"`
 	ConditionalValue    string                                    `json:"conditionalValue"`
 }
