@@ -193,7 +193,7 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 	var conditionsDto []*bean.ConditionDetailDto
 	//getting all variables in the step
 	variables, err := impl.pipelineStageRepository.GetVariablesByStepId(stepId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting variables by stepId", "err", err, "stepId", stepId)
 		return nil, nil, nil, err
 	}
@@ -907,7 +907,7 @@ func (impl *PipelineStageServiceImpl) UpdateInputAndOutputVariables(stepId int, 
 func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepVariables(stepId int, variables []*bean.StepVariableDto, variableType repository.PipelineStageStepVariableType, userId int32, tx *pg.Tx) (map[string]int, error) {
 	//getting ids of all current active variables
 	variableIds, err := impl.pipelineStageRepository.GetVariableIdsByStepIdAndVariableType(stepId, variableType)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting variablesIds by stepId", "err", err, "stepId", stepId)
 		return nil, err
 	}
@@ -1012,7 +1012,7 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepConditions(stepId i
 	defer tx.Rollback()
 	//getting ids of all current active variables
 	conditionIds, err := impl.pipelineStageRepository.GetConditionIdsByStepId(stepId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting variablesIds by stepId", "err", err, "stepId", stepId)
 		return nil, err
 	}
@@ -1370,7 +1370,7 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(
 	var outputVariables []*bean.VariableObject
 	//getting all variables in the step
 	variables, err := impl.pipelineStageRepository.GetVariablesByStepId(stepId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting variables by stepId", "err", err, "stepId", stepId)
 		return nil, nil, nil, nil, err
 	}
@@ -1483,7 +1483,7 @@ func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRe
 	var outputVariables []*bean.VariableObject
 	//getting all variables in the step
 	variables, err := impl.globalPluginRepository.GetVariablesByStepId(stepId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting variables by stepId", "err", err, "stepId", stepId)
 		return nil, nil, nil, nil, err
 	}
