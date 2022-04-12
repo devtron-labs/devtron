@@ -5,13 +5,16 @@ import (
 	"errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
+	client "github.com/devtron-labs/devtron/api/helm-app"
+	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/go-pg/pg"
+	"github.com/golang/protobuf/ptypes/timestamp"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -20,23 +23,25 @@ import (
 
 type AppStoreDeploymentArgoCdService interface {
 	InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
-	GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
-	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error
+	GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error)
+	DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
+	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.HelmAppDeploymentHistory, error)
+	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
 	Logger                            *zap.SugaredLogger
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	acdClient                         application2.ServiceClient
-	chartGroupDeploymentRepository    appStoreRepository.ChartGroupDeploymentRepository
-	installedAppRepository            appStoreRepository.InstalledAppRepository
-	installedAppRepositoryHistory     appStoreRepository.InstalledAppVersionHistoryRepository
+	chartGroupDeploymentRepository    repository.ChartGroupDeploymentRepository
+	installedAppRepository            repository.InstalledAppRepository
+	installedAppRepositoryHistory     repository.InstalledAppVersionHistoryRepository
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
-	acdClient application2.ServiceClient, chartGroupDeploymentRepository appStoreRepository.ChartGroupDeploymentRepository,
-	installedAppRepository appStoreRepository.InstalledAppRepository, installedAppRepositoryHistory appStoreRepository.InstalledAppVersionHistoryRepository) *AppStoreDeploymentArgoCdServiceImpl {
+	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
+	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -66,7 +71,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequ
 }
 
 // TODO: Test ACD to get status
-func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvDetails appStoreRepository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error) {
+func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvDetails repository.InstalledAppAndEnvDetails, w http.ResponseWriter, r *http.Request, token string) (string, error) {
 	if len(installedAppAndEnvDetails.AppName) > 0 && len(installedAppAndEnvDetails.EnvironmentName) > 0 {
 		acdAppName := installedAppAndEnvDetails.AppName + "-" + installedAppAndEnvDetails.EnvironmentName
 		query := &application.ResourcesQuery{
@@ -104,7 +109,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvD
 	return "", errors.New("invalid app name or env name")
 }
 
-func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *appStoreRepository.InstalledApps, dbTransaction *pg.Tx) error {
+func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.Context, appName string, environmentName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApps *repository.InstalledApps, dbTransaction *pg.Tx) error {
 	acdAppName := appName + "-" + environmentName
 	err := impl.deleteACD(acdAppName, ctx)
 	if err != nil {
@@ -169,7 +174,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 	}
 
 	//validate relations
-	if versionHistory.InstalledAppVersionId != installedApp.Id || installedApp.InstalledAppId != installedAppVersion.InstalledAppId {
+	if installedApp.InstalledAppId != installedAppVersion.InstalledAppId {
 		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "bad request, requested version are not belongs to each other", InternalMessage: ""}
 		return installedApp, false, err
 	}
@@ -219,4 +224,58 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx
 		return err
 	}
 	return nil
+}
+
+func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context.Context, installedAppDto *appStoreBean.InstallAppVersionDTO) (*client.HelmAppDeploymentHistory, error) {
+	result := &client.HelmAppDeploymentHistory{}
+	var history []*client.HelmAppDeploymentDetail
+	//TODO - response setup
+
+	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppIdMeta(installedAppDto.InstalledAppId)
+	if err != nil {
+		impl.Logger.Errorw("error while fetching installed version", "error", err)
+		return result, err
+	}
+	for _, installedAppVersionModel := range installedAppVersions {
+		versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(installedAppVersionModel.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error while fetching installed version history", "error", err)
+			return result, err
+		}
+		for _, updateHistory := range versionHistory {
+			history = append(history, &client.HelmAppDeploymentDetail{
+				ChartMetadata: &client.ChartMetadata{
+					ChartName:    installedAppVersionModel.AppStoreApplicationVersion.AppStore.Name,
+					ChartVersion: installedAppVersionModel.AppStoreApplicationVersion.Version,
+					Description:  installedAppVersionModel.AppStoreApplicationVersion.Description,
+					Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
+					Sources:      []string{installedAppVersionModel.AppStoreApplicationVersion.Source},
+				},
+				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
+				DeployedAt: &timestamp.Timestamp{
+					Seconds: updateHistory.UpdatedOn.Unix(),
+					Nanos:   int32(updateHistory.UpdatedOn.Nanosecond()),
+				},
+				Version: int32(updateHistory.Id),
+				//InstalledAppVersionId: installedAppVersionModel.Id,
+			})
+		}
+	}
+
+	if len(history) == 0 {
+		history = make([]*client.HelmAppDeploymentDetail, 0)
+	}
+	result.DeploymentHistory = history
+	return result, err
+}
+
+func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
+	values := &openapi.HelmAppDeploymentManifestDetail{}
+	versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistory(int(version))
+	if err != nil {
+		impl.Logger.Errorw("error while fetching installed version history", "error", err)
+		return nil, err
+	}
+	values.ValuesYaml = &versionHistory.ValuesYamlRaw
+	return values, err
 }

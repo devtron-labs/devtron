@@ -1,9 +1,9 @@
 package appStoreValues
 
 import (
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
-	appStoreValues "github.com/devtron-labs/devtron/pkg/appStore/values"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	"github.com/google/wire"
 )
 
@@ -12,10 +12,10 @@ var AppStoreValuesWireSet = wire.NewSet(
 	wire.Bind(new(AppStoreValuesRouter), new(*AppStoreValuesRouterImpl)),
 	NewAppStoreValuesRestHandlerImpl,
 	wire.Bind(new(AppStoreValuesRestHandler), new(*AppStoreValuesRestHandlerImpl)),
-	appStoreValues.NewAppStoreValuesServiceImpl,
-	wire.Bind(new(appStoreValues.AppStoreValuesService), new(*appStoreValues.AppStoreValuesServiceImpl)),
+	service.NewAppStoreValuesServiceImpl,
+	wire.Bind(new(service.AppStoreValuesService), new(*service.AppStoreValuesServiceImpl)),
 	appStoreValuesRepository.NewAppStoreVersionValuesRepositoryImpl,
 	wire.Bind(new(appStoreValuesRepository.AppStoreVersionValuesRepository), new(*appStoreValuesRepository.AppStoreVersionValuesRepositoryImpl)),
-	appStoreRepository.NewInstalledAppRepositoryImpl,
-	wire.Bind(new(appStoreRepository.InstalledAppRepository), new(*appStoreRepository.InstalledAppRepositoryImpl)),
+	repository.NewInstalledAppRepositoryImpl,
+	wire.Bind(new(repository.InstalledAppRepository), new(*repository.InstalledAppRepositoryImpl)),
 )

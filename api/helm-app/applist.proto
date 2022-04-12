@@ -84,6 +84,8 @@ message ChartMetadata {
   string home = 3;
   repeated string sources = 4;
   string description = 5;
+  // Contains the rendered templates/NOTES.txt
+  string notes = 6;
 }
 
 message ResourceTreeResponse {

@@ -37,7 +37,9 @@ type TelemetryEventClientImpl struct {
 
 type TelemetryEventClient interface {
 	GetTelemetryMetaInfo() (*TelemetryMetaInfo, error)
-	SendTelemtryInstallEventEA() (*TelemetryEventType, error)
+	SendTelemetryInstallEventEA() (*TelemetryEventType, error)
+	SendTelemetryDashboardAccessEvent() error
+	SendTelemetryDashboardLoggedInEvent() error
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
@@ -92,6 +94,7 @@ type SummaryEA struct {
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
 const DevtronUniqueClientIdConfigMapKey = "UCID"
 const InstallEventKey = "installEvent"
+const UIEventKey = "uiEventKey"
 
 type TelemetryEventType string
 
@@ -109,6 +112,8 @@ const (
 	UpgradeFailure               TelemetryEventType = "UpgradeFailure"
 	Summary                      TelemetryEventType = "Summary"
 	InstallationApplicationError TelemetryEventType = "InstallationApplicationError"
+	DashboardAccessed            TelemetryEventType = "DashboardAccessed"
+	DashboardLoggedIn            TelemetryEventType = "DashboardLoggedIn"
 )
 
 func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info) {
@@ -262,7 +267,7 @@ func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo
 	return data, err
 }
 
-func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEventType, error) {
+func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryEventType, error) {
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception while getting unique client id", "error", err)
@@ -310,6 +315,102 @@ func (impl *TelemetryEventClientImpl) SendTelemtryInstallEventEA() (*TelemetryEv
 	return nil, nil
 }
 
+func (impl *TelemetryEventClientImpl) SendTelemetryDashboardAccessEvent() error {
+	ucid, err := impl.getUCID()
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return err
+	}
+
+	client, err := impl.K8sUtil.GetClientForInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return err
+	}
+
+	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: DashboardAccessed, DevtronVersion: "v1"}
+	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+
+	reqBody, err := json.Marshal(payload)
+	if err != nil {
+		impl.logger.Errorw("DashboardAccessed EventForTelemetry, payload marshal error", "error", err)
+		return err
+	}
+	prop := make(map[string]interface{})
+	err = json.Unmarshal(reqBody, &prop)
+	if err != nil {
+		impl.logger.Errorw("DashboardAccessed EventForTelemetry, payload unmarshal error", "error", err)
+		return err
+	}
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	datamap := cm.Data
+
+	accessEventValue, installEventKeyExists := datamap[UIEventKey]
+
+	if installEventKeyExists == false || accessEventValue <= "1" {
+		err = impl.EnqueuePostHog(ucid, DashboardAccessed, prop)
+		if err == nil {
+			datamap[UIEventKey] = "2"
+			cm.Data = datamap
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				impl.logger.Warnw("config map update failed for install event", "err", err)
+			} else {
+				impl.logger.Debugw("config map apply succeeded for install event")
+			}
+		}
+	}
+	return nil
+}
+
+func (impl *TelemetryEventClientImpl) SendTelemetryDashboardLoggedInEvent() error {
+	ucid, err := impl.getUCID()
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return err
+	}
+
+	client, err := impl.K8sUtil.GetClientForInCluster()
+	if err != nil {
+		impl.logger.Errorw("exception while getting unique client id", "error", err)
+		return err
+	}
+
+	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: DashboardLoggedIn, DevtronVersion: "v1"}
+	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+
+	reqBody, err := json.Marshal(payload)
+	if err != nil {
+		impl.logger.Errorw("DashboardLoggedIn EventForTelemetry, payload marshal error", "error", err)
+		return err
+	}
+	prop := make(map[string]interface{})
+	err = json.Unmarshal(reqBody, &prop)
+	if err != nil {
+		impl.logger.Errorw("DashboardLoggedIn EventForTelemetry, payload unmarshal error", "error", err)
+		return err
+	}
+	cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, DevtronUniqueClientIdConfigMap, client)
+	datamap := cm.Data
+
+	accessEventValue, installEventKeyExists := datamap[UIEventKey]
+
+	if installEventKeyExists == false || accessEventValue != "3" {
+		err = impl.EnqueuePostHog(ucid, DashboardLoggedIn, prop)
+		if err == nil {
+			datamap[UIEventKey] = "3"
+			cm.Data = datamap
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				impl.logger.Warnw("config map update failed for install event", "err", err)
+			} else {
+				impl.logger.Debugw("config map apply succeeded for install event")
+			}
+		}
+	}
+	return nil
+}
+
 type TelemetryMetaInfo struct {
 	Url    string `json:"url,omitempty"`
 	UCID   string `json:"ucid,omitempty"`
@@ -334,6 +435,7 @@ func (impl *TelemetryEventClientImpl) getUCID() (string, error) {
 			data := map[string]string{}
 			data[DevtronUniqueClientIdConfigMapKey] = util.Generate(16) // generate unique random number
 			data[InstallEventKey] = "1"                                 // used in operator to detect event is install or upgrade
+			data[UIEventKey] = "1"
 			cm.Data = data
 			_, err = impl.K8sUtil.CreateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			if err != nil {
