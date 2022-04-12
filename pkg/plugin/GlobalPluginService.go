@@ -7,19 +7,6 @@ import (
 )
 
 type GlobalVariable struct {
-	GitRepository       string `env:""`
-	GitBranch           string
-	GitHash             string
-	GitTag              string
-	LatestCommitAuthor  string
-	DockerImageTag      string
-	DockerRepository    string
-	DockerRegistryUrl   string
-	DockerImage         string
-	AppName             string
-	PipelineName        string
-	TriggerByAuthorName string
-
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
