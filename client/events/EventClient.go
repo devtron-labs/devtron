@@ -56,22 +56,22 @@ type EventClient interface {
 }
 
 type Event struct {
-	EventTypeId        int                 `json:"eventTypeId"`
-	EventName          string              `json:"eventName"`
-	PipelineId         int                 `json:"pipelineId"`
-	PipelineType       string              `json:"pipelineType"`
-	CorrelationId      string              `json:"correlationId"`
-	Payload            *Payload            `json:"payload"`
-	EventTime          string              `json:"eventTime"`
-	TeamId             int                 `json:"teamId"`
-	AppId              int                 `json:"appId"`
-	EnvId              int                 `json:"envId"`
+	EventTypeId        int               `json:"eventTypeId"`
+	EventName          string            `json:"eventName"`
+	PipelineId         int               `json:"pipelineId"`
+	PipelineType       string            `json:"pipelineType"`
+	CorrelationId      string            `json:"correlationId"`
+	Payload            *Payload          `json:"payload"`
+	EventTime          string            `json:"eventTime"`
+	TeamId             int               `json:"teamId"`
+	AppId              int               `json:"appId"`
+	EnvId              int               `json:"envId"`
 	CdWorkflowType     bean.WorkflowType `json:"cdWorkflowType,omitempty"`
-	CdWorkflowRunnerId int                 `json:"cdWorkflowRunnerId"`
-	CiWorkflowRunnerId int                 `json:"ciWorkflowRunnerId"`
-	CiArtifactId       int                 `json:"ciArtifactId"`
-	BaseUrl            string              `json:"baseUrl"`
-	UserId             int                 `json:"-"`
+	CdWorkflowRunnerId int               `json:"cdWorkflowRunnerId"`
+	CiWorkflowRunnerId int               `json:"ciWorkflowRunnerId"`
+	CiArtifactId       int               `json:"ciArtifactId"`
+	BaseUrl            string            `json:"baseUrl"`
+	UserId             int               `json:"-"`
 }
 
 type Payload struct {
@@ -160,8 +160,10 @@ func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
 	var cdPipeline *pipelineConfig.Pipeline
 	var ciPipeline *pipelineConfig.CiPipeline
 	var err error
+	impl.logger.Infow("test log WriteEvent: 1", "event: ", event)
 	if event.PipelineId > 0 {
 		if event.PipelineType == string(util.CD) {
+			impl.logger.Infow("test log WriteEvent: 2")
 			cdPipeline, err = impl.pipelineRepository.FindById(event.PipelineId)
 			if err != nil {
 				impl.logger.Errorw("error while fetching pipeline", "err", err)
@@ -170,7 +172,9 @@ func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
 			if cdPipeline != nil {
 				event.TeamId = cdPipeline.App.TeamId
 			}
+			impl.logger.Infow("test log WriteEvent: 3")
 		} else if event.PipelineType == string(util.CI) {
+			impl.logger.Infow("test log WriteEvent: 4")
 			ciPipeline, err = impl.ciPipelineRepository.FindById(event.PipelineId)
 			if err != nil {
 				impl.logger.Errorw("error while fetching pipeline", "err", err)
@@ -179,12 +183,15 @@ func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
 			if ciPipeline != nil {
 				event.TeamId = ciPipeline.App.TeamId
 			}
+			impl.logger.Infow("test log WriteEvent: 5")
 		}
 	}
+	impl.logger.Infow("test log WriteEvent: 6")
 
 	payload := impl.buildFinalPayload(event, cdPipeline, ciPipeline)
 	event.Payload = payload
 
+	impl.logger.Infow("test log WriteEvent: 7")
 	isPreStageExist := false
 	isPostStageExist := false
 	if cdPipeline != nil && len(cdPipeline.PreStageConfig) > 0 {
@@ -194,7 +201,9 @@ func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
 		isPostStageExist = true
 	}
 
+	impl.logger.Infow("test log WriteEvent: 8")
 	attribute, err := impl.attributesRepository.FindByKey(attributes.HostUrlKey)
+	impl.logger.Infow("test log WriteEvent: 9")
 	if err != nil {
 		impl.logger.Errorw("there is host url configured", "ci pipeline", ciPipeline)
 		return false, err
@@ -203,12 +212,17 @@ func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
 		event.BaseUrl = attribute.Value
 	}
 	if event.CdWorkflowType == "" {
+		impl.logger.Infow("test log WriteEvent: 10")
 		_, err = impl.SendEvent(event)
+		impl.logger.Infow("test log WriteEvent: 11")
 	} else if event.CdWorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+		impl.logger.Infow("test log WriteEvent: 12")
 		if event.EventTypeId == int(util.Success) {
 			impl.logger.Debug("skip - will send from deployment or post stage")
 		} else {
+			impl.logger.Infow("test log WriteEvent: 13")
 			_, err = impl.SendEvent(event)
+			impl.logger.Infow("test log WriteEvent: 14")
 		}
 	} else if event.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY {
 		if isPreStageExist && event.EventTypeId == int(util.Trigger) {
@@ -216,15 +230,21 @@ func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
 		} else if isPostStageExist && event.EventTypeId == int(util.Success) {
 			impl.logger.Debug("skip - will send from post stage")
 		} else {
+			impl.logger.Infow("test log WriteEvent: 15")
 			_, err = impl.SendEvent(event)
+			impl.logger.Infow("test log WriteEvent: 16")
 		}
 	} else if event.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+		impl.logger.Infow("test log WriteEvent: 17")
 		if event.EventTypeId == int(util.Trigger) {
 			impl.logger.Debug("skip - already sent from pre or deployment stage")
 		} else {
+			impl.logger.Infow("test log WriteEvent: 18")
 			_, err = impl.SendEvent(event)
+			impl.logger.Infow("test log WriteEvent: 19")
 		}
 	}
+	impl.logger.Infow("test log WriteEvent: end ", "event", event)
 	return true, err
 }
 

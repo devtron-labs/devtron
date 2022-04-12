@@ -91,51 +91,64 @@ func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelin
 
 func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	impl.Logger.Debug("ci pipeline manual trigger")
+	impl.Logger.Infow("test log TriggerCiPipeline: 1")
 	ciMaterials, err := impl.GetCiMaterials(trigger.PipelineId, trigger.CiMaterials)
 	if err != nil {
 		return 0, err
 	}
 
+	impl.Logger.Infow("test log TriggerCiPipeline: 2")
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(trigger.PipelineId)
 	if err != nil && !util.IsErrNoRows(err) {
 		return 0, err
 	}
 
+	impl.Logger.Infow("test log TriggerCiPipeline: 3")
 	var pipeline *pipelineConfig.CiPipeline
 	for _, m := range ciMaterials {
 		pipeline = m.CiPipeline
 		break
 	}
 
+	impl.Logger.Infow("test log TriggerCiPipeline: 4")
 	ciWorkflowConfig, err := impl.ciWorkflowRepository.FindConfigByPipelineId(trigger.PipelineId)
+	impl.Logger.Infow("test log TriggerCiPipeline: 5")
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("could not fetch ci config", "pipeline", trigger.PipelineId)
 		return 0, err
 	}
+	impl.Logger.Infow("test log TriggerCiPipeline: 6")
 	if ciWorkflowConfig.Namespace == "" {
 		ciWorkflowConfig.Namespace = impl.ciConfig.DefaultNamespace
 	}
+	impl.Logger.Infow("test log TriggerCiPipeline: 7")
 	savedCiWf, err := impl.saveNewWorkflow(pipeline, ciWorkflowConfig, trigger.CommitHashes, trigger.TriggeredBy)
+	impl.Logger.Infow("test log TriggerCiPipeline: 8")
 	if err != nil {
 		impl.Logger.Errorw("could not save new workflow", "err", err)
 		return 0, err
 	}
 
+	impl.Logger.Infow("test log TriggerCiPipeline: 9")
 	workflowRequest, err := impl.buildWfRequestForCiPipeline(pipeline, trigger, ciMaterials, savedCiWf, ciWorkflowConfig, ciPipelineScripts)
 	if err != nil {
 		impl.Logger.Errorw("make workflow req", "err", err)
 		return 0, err
 	}
+	impl.Logger.Infow("test log TriggerCiPipeline: 10")
 
 	createdWf, err := impl.executeCiPipeline(workflowRequest)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return 0, err
 	}
+	impl.Logger.Infow("test log TriggerCiPipeline: 11")
 	impl.Logger.Debugw("ci triggered", "wf name ", createdWf.Name, " pipeline ", trigger.PipelineId)
 	middleware.CiTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(trigger.PipelineId)).Inc()
+	impl.Logger.Infow("test log TriggerCiPipeline: 12")
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
 	//creating entry of ci script history for build details
+	impl.Logger.Infow("test log TriggerCiPipeline: 13")
 	for _, ciPipelineScript := range ciPipelineScripts {
 		_, err = impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, nil, true, trigger.TriggeredBy, time.Now())
 		if err != nil {
@@ -147,11 +160,14 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 }
 
 func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipelineConfig.CiPipeline, workflowRequest *WorkflowRequest) {
+	impl.Logger.Infow("test log WriteCITriggerEvent: 1")
 	event := impl.eventFactory.Build(util2.Trigger, &pipeline.Id, pipeline.AppId, nil, util2.CI)
+	impl.Logger.Infow("test log WriteCITriggerEvent: 2")
 	material := &client.MaterialTriggerInfo{}
 
 	gitTriggers := make(map[int]pipelineConfig.GitCommit)
 
+	impl.Logger.Infow("test log WriteCITriggerEvent: 3")
 	for k, v := range trigger.CommitHashes {
 		gitCommit := pipelineConfig.GitCommit{
 			Commit:  v.Commit,
@@ -178,8 +194,11 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipeli
 
 	event.UserId = int(trigger.TriggeredBy)
 	event.CiWorkflowRunnerId = workflowRequest.WorkflowId
+	impl.Logger.Infow("test log WriteCITriggerEvent: 4")
 	event = impl.eventFactory.BuildExtraCIData(event, material, workflowRequest.CiImage)
+	impl.Logger.Infow("test log WriteCITriggerEvent: 5")
 	_, evtErr := impl.eventClient.WriteEvent(event)
+	impl.Logger.Infow("test log WriteCITriggerEvent: 6")
 	if evtErr != nil {
 		impl.Logger.Errorw("error in writing event", "err", evtErr)
 	}
