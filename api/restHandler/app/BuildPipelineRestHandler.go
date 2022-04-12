@@ -12,6 +12,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
+	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"io"
@@ -160,6 +162,23 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	//validating variables in pre & post average
+	if patchRequest.CiPipeline.PreBuildStage != nil {
+		err = validateVariablesInCiStage(patchRequest.CiPipeline.PreBuildStage)
+		if err != nil {
+			handler.Logger.Errorw("validation err", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	if patchRequest.CiPipeline.PostBuildStage != nil {
+		err = validateVariablesInCiStage(patchRequest.CiPipeline.PostBuildStage)
+		if err != nil {
+			handler.Logger.Errorw("validation err", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
 	handler.Logger.Debugw("update request ", "req", patchRequest)
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
@@ -181,6 +200,23 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
+func validateVariablesInCiStage(stage *bean2.PipelineStageDto) error {
+	for _, step := range stage.Steps {
+		var inputVariables []*bean2.StepVariableDto
+		if step.StepType == repository2.PIPELINE_STEP_TYPE_INLINE {
+			inputVariables = step.InlineStepDetail.InputVariables
+		} else {
+			inputVariables = step.RefPluginStepDetail.InputVariables
+		}
+		for _, inputVar := range inputVariables {
+			if !inputVar.IsExposed && (inputVar.DefaultValue == "") {
+				//variable is not exposed as well as not have default value
+				return errors.New(fmt.Sprintf("ERR: Expose variable or provide default value - %s", inputVar.Name))
+			}
+		}
+	}
+	return nil
+}
 func (handler PipelineConfigRestHandlerImpl) GetCiPipeline(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -236,7 +272,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 
 	//RBAC CHECK CD PIPELINE - FOR USER
 	pipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
-	if err!= nil{
+	if err != nil {
 		handler.Logger.Errorw("error in finding ccd pipelines by ciPipelineId", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -262,7 +298,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	if len(authorizedPipelines) == 0{
+	if len(authorizedPipelines) == 0 {
 		//user has no cd pipeline
 		ciPipeline, err := handler.ciPipelineRepository.FindById(ciTriggerRequest.PipelineId)
 		if err != nil {
@@ -782,7 +818,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWriter, r *http.Request){
+func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {

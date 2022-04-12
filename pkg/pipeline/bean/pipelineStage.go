@@ -9,7 +9,7 @@ type PipelineStageDto struct {
 	Id          int                          `json:"id"`
 	Name        string                       `json:"name,omitempty"`
 	Description string                       `json:"description,omitempty"`
-	Type        repository.PipelineStageType `json:"type,omitempty"`
+	Type        repository.PipelineStageType `json:"type,omitempty" validate:"oneof=PRE_CI POST_CI PRE_CD POST_CD"`
 	Steps       []*PipelineStageStepDto      `json:"steps"`
 }
 
@@ -18,14 +18,14 @@ type PipelineStageStepDto struct {
 	Name                string                      `json:"name"`
 	Description         string                      `json:"description"`
 	Index               int                         `json:"index"`
-	StepType            repository.PipelineStepType `json:"stepType"`
+	StepType            repository.PipelineStepType `json:"stepType" validate:"oneof=INLINE REF_PLUGIN"`
 	OutputDirectoryPath []string                    `json:"outputDirectoryPath"`
 	InlineStepDetail    *InlineStepDetailDto        `json:"inlineStepDetail"`
 	RefPluginStepDetail *RefPluginStepDetailDto     `json:"pluginRefStepDetail"`
 }
 
 type InlineStepDetailDto struct {
-	ScriptType               repository2.ScriptType                `json:"scriptType"`
+	ScriptType               repository2.ScriptType                `json:"scriptType" validate:"oneof= SHELL DOCKERFILE CONTAINER_IMAGE"`
 	Script                   string                                `json:"script"`
 	StoreScriptAt            string                                `json:"storeScriptAt"`
 	DockerfileExists         bool                                  `json:"dockerfileExists,omitempty"`
@@ -34,7 +34,7 @@ type InlineStepDetailDto struct {
 	MountCodeToContainerPath string                                `json:"mountCodeToContainerPath,omitempty"`
 	MountDirectoryFromHost   bool                                  `json:"mountDirectoryFromHost"`
 	ContainerImagePath       string                                `json:"containerImagePath,omitempty"`
-	ImagePullSecretType      repository2.ScriptImagePullSecretType `json:"imagePullSecretType,omitempty"`
+	ImagePullSecretType      repository2.ScriptImagePullSecretType `json:"imagePullSecretType,omitempty" validate:"CONTAINER_REGISTRY SECRET_PATH"`
 	ImagePullSecret          string                                `json:"imagePullSecret,omitempty"`
 	MountPathMap             []*MountPathMap                       `json:"mountPathMap,omitempty"`
 	CommandArgsMap           []*CommandArgsMap                     `json:"commandArgsMap,omitempty"`
@@ -60,7 +60,7 @@ type StepVariableDto struct {
 	AllowEmptyValue       bool                                          `json:"allowEmptyValue,omitempty"`
 	DefaultValue          string                                        `json:"defaultValue,omitempty"`
 	Value                 string                                        `json:"value"`
-	ValueType             repository.PipelineStageStepVariableValueType `json:"valueType,omitempty"`
+	ValueType             repository.PipelineStageStepVariableValueType `json:"valueType,omitempty" validate:"oneof=NEW FROM_PREVIOUS_STEP GLOBAL"`
 	PreviousStepIndex     int                                           `json:"previousStepIndex,omitempty"`
 	ReferenceVariableName string                                        `json:"referenceVariableName,omitempty"`
 }
@@ -68,7 +68,7 @@ type StepVariableDto struct {
 type ConditionDetailDto struct {
 	Id                  int                                       `json:"id"`
 	ConditionOnVariable string                                    `json:"conditionOnVariable"` //name of variable on which condition is written
-	ConditionType       repository.PipelineStageStepConditionType `json:"conditionType"`       //SKIP, TRIGGER, SUCCESS, FAIL
+	ConditionType       repository.PipelineStageStepConditionType `json:"conditionType" validate:"oneof=SKIP TRIGGER SUCCESS FAIL"`
 	ConditionalOperator string                                    `json:"conditionOperator"`
 	ConditionalValue    string                                    `json:"conditionalValue"`
 }
