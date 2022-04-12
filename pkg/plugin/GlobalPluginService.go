@@ -1,14 +1,12 @@
 package plugin
 
 import (
-	"errors"
-	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
-type GlobalVariables struct {
+type GlobalVariable struct {
 	GitRepository       string `env:""`
 	GitBranch           string
 	GitHash             string
@@ -21,10 +19,13 @@ type GlobalVariables struct {
 	AppName             string
 	PipelineName        string
 	TriggerByAuthorName string
+
+	Name  string `json:"name"`
+	Value string `json:"value"`
 }
 
 type GlobalPluginService interface {
-	GetAllGlobalVariables() (*GlobalVariables, error)
+	GetAllGlobalVariables() ([]*GlobalVariable, error)
 	ListAllPlugins() ([]*PluginMetadataDto, error)
 	GetPluginDetailById(pluginId int) (*PluginDetailDto, error)
 }
@@ -41,13 +42,29 @@ type GlobalPluginServiceImpl struct {
 	globalPluginRepository repository.GlobalPluginRepository
 }
 
-func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() (*GlobalVariables, error) {
-	globalVariables := &GlobalVariables{}
-	err := env.Parse(globalVariables)
-	if err != nil {
-		return nil, errors.New("could not get global variables from environment")
+func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable, error) {
+	globalVariableNames := []string{
+		"GIT_REPOSITORY",
+		"GIT_BRANCH",
+		"GIT_HASH",
+		"GIT_TAG",
+		"LATEST_COMMIT_AUTHOR",
+		"DOCKER_IMAGE_TAG",
+		"DOCKER_REPOSITORY",
+		"DOCKER_REGISTRY_URL",
+		"DOCKER_IMAGE",
+		"APP_NAME",
+		"PIPELINE_NAME",
+		"TRIGGER_BY_AUTHOR_NAME",
 	}
-	return globalVariables, err
+	var globalVariables []*GlobalVariable
+	for _, globalVariableName := range globalVariableNames {
+		globalVariable := &GlobalVariable{
+			Name: globalVariableName,
+		}
+		globalVariables = append(globalVariables, globalVariable)
+	}
+	return globalVariables, nil
 }
 
 func (impl *GlobalPluginServiceImpl) ListAllPlugins() ([]*PluginMetadataDto, error) {

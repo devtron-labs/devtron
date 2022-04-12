@@ -2,7 +2,10 @@ package restHandler
 
 import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -15,16 +18,23 @@ type GlobalPluginRestHandler interface {
 	GetPluginDetailById(w http.ResponseWriter, r *http.Request)
 }
 
-func NewGlobalPluginRestHandler(logger *zap.SugaredLogger, globalPluginService plugin.GlobalPluginService) *GlobalPluginRestHandlerImpl {
+func NewGlobalPluginRestHandler(logger *zap.SugaredLogger, globalPluginService plugin.GlobalPluginService,
+	enforcerUtil rbac.EnforcerUtil, enforcer casbin.Enforcer, pipelineBuilder pipeline.PipelineBuilder) *GlobalPluginRestHandlerImpl {
 	return &GlobalPluginRestHandlerImpl{
 		logger:              logger,
 		globalPluginService: globalPluginService,
+		enforcerUtil:        enforcerUtil,
+		enforcer:            enforcer,
+		pipelineBuilder:     pipelineBuilder,
 	}
 }
 
 type GlobalPluginRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	globalPluginService plugin.GlobalPluginService
+	enforcerUtil        rbac.EnforcerUtil
+	enforcer            casbin.Enforcer
+	pipelineBuilder     pipeline.PipelineBuilder
 }
 
 func (handler *GlobalPluginRestHandlerImpl) GetAllGlobalVariables(w http.ResponseWriter, r *http.Request) {
@@ -59,7 +69,6 @@ func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailById(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	//TODO: add rbac
 	pluginDetail, err := handler.globalPluginService.GetPluginDetailById(pluginId)
 	if err != nil {
 		handler.logger.Errorw("error in getting plugin detail by id", "err", err, "pluginId", pluginId)
