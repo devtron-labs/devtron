@@ -37,7 +37,7 @@ The `settings.py` contains the configuration for your SQL database. Make sure th
 
 To learn how to create an application on Devtron, refer to our documentation on [Creating Application](../creating-application/)
 
-#### _\*Git Material_
+#### _\*Git Repository_
 
 In this example, we are using the url of the forked Git Repository.
 
