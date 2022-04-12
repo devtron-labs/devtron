@@ -355,6 +355,11 @@ components:
           type: integer
         format:
           type: string
+          example:
+            - "STRING"
+            - "NUMBER"
+            - "BOOL"
+            - "DATE"
         description:
           type: string
         defaultValue:
@@ -632,6 +637,11 @@ components:
           type: integer
         format:
           type: string
+          example:
+            - "STRING"
+            - "NUMBER"
+            - "BOOL"
+            - "DATE"
         description:
           type: string
         defaultValue:

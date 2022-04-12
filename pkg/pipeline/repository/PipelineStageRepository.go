@@ -13,23 +13,28 @@ type PipelineStepType string
 type PipelineStageStepVariableType string
 type PipelineStageStepVariableValueType string
 type PipelineStageStepConditionType string
+type PipelineStageStepVariableFormatType string
 
 const (
-	PIPELINE_STAGE_TYPE_PRE_CI                       PipelineStageType                  = "PRE_CI"
-	PIPELINE_STAGE_TYPE_POST_CI                      PipelineStageType                  = "POST_CI"
-	PIPELINE_STAGE_TYPE_PRE_CD                       PipelineStageType                  = "PRE_CD"
-	PIPELINE_STAGE_TYPE_POST_CD                      PipelineStageType                  = "POST_CD"
-	PIPELINE_STEP_TYPE_INLINE                        PipelineStepType                   = "INLINE"
-	PIPELINE_STEP_TYPE_REF_PLUGIN                    PipelineStepType                   = "REF_PLUGIN"
-	PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT          PipelineStageStepVariableType      = "INPUT"
-	PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT         PipelineStageStepVariableType      = "OUTPUT"
-	PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_NEW      PipelineStageStepVariableValueType = "NEW"
-	PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_PREVIOUS PipelineStageStepVariableValueType = "FROM_PREVIOUS_STEP"
-	PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_GLOBAL   PipelineStageStepVariableValueType = "GLOBAL"
-	PIPELINE_STAGE_STEP_CONDITION_TYPE_SKIP          PipelineStageStepConditionType     = "SKIP"
-	PIPELINE_STAGE_STEP_CONDITION_TYPE_TRIGGER       PipelineStageStepConditionType     = "TRIGGER"
-	PIPELINE_STAGE_STEP_CONDITION_TYPE_SUCCESS       PipelineStageStepConditionType     = "SUCCESS"
-	PIPELINE_STAGE_STEP_CONDITION_TYPE_FAIL          PipelineStageStepConditionType     = "FAIL"
+	PIPELINE_STAGE_TYPE_PRE_CI                       PipelineStageType                   = "PRE_CI"
+	PIPELINE_STAGE_TYPE_POST_CI                      PipelineStageType                   = "POST_CI"
+	PIPELINE_STAGE_TYPE_PRE_CD                       PipelineStageType                   = "PRE_CD"
+	PIPELINE_STAGE_TYPE_POST_CD                      PipelineStageType                   = "POST_CD"
+	PIPELINE_STEP_TYPE_INLINE                        PipelineStepType                    = "INLINE"
+	PIPELINE_STEP_TYPE_REF_PLUGIN                    PipelineStepType                    = "REF_PLUGIN"
+	PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT          PipelineStageStepVariableType       = "INPUT"
+	PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT         PipelineStageStepVariableType       = "OUTPUT"
+	PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_NEW      PipelineStageStepVariableValueType  = "NEW"
+	PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_PREVIOUS PipelineStageStepVariableValueType  = "FROM_PREVIOUS_STEP"
+	PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_GLOBAL   PipelineStageStepVariableValueType  = "GLOBAL"
+	PIPELINE_STAGE_STEP_CONDITION_TYPE_SKIP          PipelineStageStepConditionType      = "SKIP"
+	PIPELINE_STAGE_STEP_CONDITION_TYPE_TRIGGER       PipelineStageStepConditionType      = "TRIGGER"
+	PIPELINE_STAGE_STEP_CONDITION_TYPE_SUCCESS       PipelineStageStepConditionType      = "SUCCESS"
+	PIPELINE_STAGE_STEP_CONDITION_TYPE_FAIL          PipelineStageStepConditionType      = "FAIL"
+	PIPELINE_STAGE_STEP_VARIABLE_FORMAT_TYPE_STRING  PipelineStageStepVariableFormatType = "STRING"
+	PIPELINE_STAGE_STEP_VARIABLE_FORMAT_TYPE_NUMBER  PipelineStageStepVariableFormatType = "NUMBER"
+	PIPELINE_STAGE_STEP_VARIABLE_FORMAT_TYPE_BOOL    PipelineStageStepVariableFormatType = "BOOL"
+	PIPELINE_STAGE_STEP_VARIABLE_FORMAT_TYPE_DATE    PipelineStageStepVariableFormatType = "DATE"
 )
 
 type PipelineStage struct {
@@ -95,21 +100,21 @@ type ScriptPathArgPortMapping struct {
 }
 
 type PipelineStageStepVariable struct {
-	tableName             struct{}                           `sql:"pipeline_stage_step_variable" pg:",discard_unknown_columns"`
-	Id                    int                                `sql:"id,pk"`
-	PipelineStageStepId   int                                `sql:"pipeline_stage_step_id"`
-	Name                  string                             `sql:"name"`
-	Format                string                             `sql:"format"`
-	Description           string                             `sql:"description"`
-	IsExposed             bool                               `sql:"is_exposed,notnull"`
-	AllowEmptyValue       bool                               `sql:"allow_empty_value,notnull"`
-	DefaultValue          string                             `sql:"default_value"`
-	Value                 string                             `sql:"value"`
-	VariableType          PipelineStageStepVariableType      `sql:"variable_type"`
-	ValueType             PipelineStageStepVariableValueType `sql:"value_type"`
-	PreviousStepIndex     int                                `sql:"previous_step_index,type:integer"`
-	ReferenceVariableName string                             `sql:"reference_variable_name,type:text"`
-	Deleted               bool                               `sql:"deleted,notnull"`
+	tableName             struct{}                            `sql:"pipeline_stage_step_variable" pg:",discard_unknown_columns"`
+	Id                    int                                 `sql:"id,pk"`
+	PipelineStageStepId   int                                 `sql:"pipeline_stage_step_id"`
+	Name                  string                              `sql:"name"`
+	Format                PipelineStageStepVariableFormatType `sql:"format"`
+	Description           string                              `sql:"description"`
+	IsExposed             bool                                `sql:"is_exposed,notnull"`
+	AllowEmptyValue       bool                                `sql:"allow_empty_value,notnull"`
+	DefaultValue          string                              `sql:"default_value"`
+	Value                 string                              `sql:"value"`
+	VariableType          PipelineStageStepVariableType       `sql:"variable_type"`
+	ValueType             PipelineStageStepVariableValueType  `sql:"value_type"`
+	PreviousStepIndex     int                                 `sql:"previous_step_index,type:integer"`
+	ReferenceVariableName string                              `sql:"reference_variable_name,type:text"`
+	Deleted               bool                                `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 

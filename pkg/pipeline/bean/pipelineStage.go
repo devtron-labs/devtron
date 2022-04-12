@@ -52,17 +52,17 @@ type RefPluginStepDetailDto struct {
 }
 
 type StepVariableDto struct {
-	Id                    int                                           `json:"id"`
-	Name                  string                                        `json:"name"`
-	Format                string                                        `json:"format"`
-	Description           string                                        `json:"description"`
-	IsExposed             bool                                          `json:"isExposed,omitempty"`
-	AllowEmptyValue       bool                                          `json:"allowEmptyValue,omitempty"`
-	DefaultValue          string                                        `json:"defaultValue,omitempty"`
-	Value                 string                                        `json:"value"`
-	ValueType             repository.PipelineStageStepVariableValueType `json:"valueType,omitempty" validate:"oneof=NEW FROM_PREVIOUS_STEP GLOBAL"`
-	PreviousStepIndex     int                                           `json:"previousStepIndex,omitempty"`
-	ReferenceVariableName string                                        `json:"referenceVariableName,omitempty"`
+	Id                    int                                            `json:"id"`
+	Name                  string                                         `json:"name"`
+	Format                repository.PipelineStageStepVariableFormatType `json:"format" validate:"oneof=STRING NUMBER BOOL DATE"`
+	Description           string                                         `json:"description"`
+	IsExposed             bool                                           `json:"isExposed,omitempty"`
+	AllowEmptyValue       bool                                           `json:"allowEmptyValue,omitempty"`
+	DefaultValue          string                                         `json:"defaultValue,omitempty"`
+	Value                 string                                         `json:"value"`
+	ValueType             repository.PipelineStageStepVariableValueType  `json:"valueType,omitempty" validate:"oneof=NEW FROM_PREVIOUS_STEP GLOBAL"`
+	PreviousStepIndex     int                                            `json:"previousStepIndex,omitempty"`
+	ReferenceVariableName string                                         `json:"referenceVariableName,omitempty"`
 }
 
 type ConditionDetailDto struct {

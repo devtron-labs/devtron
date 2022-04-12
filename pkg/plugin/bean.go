@@ -18,15 +18,15 @@ type PluginMetadataDto struct {
 }
 
 type PluginVariableDto struct {
-	Id                    int                                    `json:"id,omitempty"`
-	Name                  string                                 `json:"name"`
-	Format                string                                 `json:"format"`
-	Description           string                                 `json:"description"`
-	IsExposed             bool                                   `json:"isExposed,omitempty"`
-	AllowEmptyValue       bool                                   `json:"allowEmptyValue,omitempty"`
-	DefaultValue          string                                 `json:"defaultValue,omitempty"`
-	Value                 string                                 `json:"value,omitempty"`
-	ValueType             repository.PluginStepVariableValueType `json:"valueType,omitempty" validate:"oneof=NEW FROM_PREVIOUS_STEP GLOBAL"`
-	PreviousStepIndex     int                                    `json:"previousStepIndex,omitempty"`
-	ReferenceVariableName string                                 `json:"referenceVariableName,omitempty"`
+	Id                    int                                     `json:"id,omitempty"`
+	Name                  string                                  `json:"name"`
+	Format                repository.PluginStepVariableFormatType `json:"format" validate:"oneof=STRING NUMBER BOOL DATE"`
+	Description           string                                  `json:"description"`
+	IsExposed             bool                                    `json:"isExposed,omitempty"`
+	AllowEmptyValue       bool                                    `json:"allowEmptyValue,omitempty"`
+	DefaultValue          string                                  `json:"defaultValue,omitempty"`
+	Value                 string                                  `json:"value,omitempty"`
+	ValueType             repository.PluginStepVariableValueType  `json:"valueType,omitempty" validate:"oneof=NEW FROM_PREVIOUS_STEP GLOBAL"`
+	PreviousStepIndex     int                                     `json:"previousStepIndex,omitempty"`
+	ReferenceVariableName string                                  `json:"referenceVariableName,omitempty"`
 }

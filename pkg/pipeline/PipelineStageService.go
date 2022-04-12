@@ -1353,33 +1353,33 @@ func (impl *PipelineStageServiceImpl) BuildCiStepDataForWfRequest(step *reposito
 	} else if step.StepType == repository.PIPELINE_STEP_TYPE_REF_PLUGIN {
 		stepData.RefPluginId = step.RefPluginId
 	}
-	inputVars, outputVars, conditions, err := impl.BuildVariableAndConditionDataForWfRequest(step.Id)
+	inputVars, outputVars, triggerSkipConditions, successFailureConditions, err := impl.BuildVariableAndConditionDataForWfRequest(step.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting variable and conditions data for wf request", "err", err, "stepId", step.Id)
 		return nil, err
 	}
 	stepData.InputVars = inputVars
 	stepData.OutputVars = outputVars
-	stepData.Conditions = conditions
+	stepData.TriggerSkipConditions = triggerSkipConditions
+	stepData.SuccessFailureConditions = successFailureConditions
 	return stepData, nil
 }
 
-func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(stepId int) ([]*bean.VariableObject, []*bean.VariableObject, []*bean.ConditionObject, error) {
+func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(stepId int) ([]*bean.VariableObject, []*bean.VariableObject, []*bean.ConditionObject, []*bean.ConditionObject, error) {
 	var inputVariables []*bean.VariableObject
 	var outputVariables []*bean.VariableObject
-	var conditionsData []*bean.ConditionObject
 	//getting all variables in the step
 	variables, err := impl.pipelineStageRepository.GetVariablesByStepId(stepId)
 	if err != nil {
 		impl.logger.Errorw("error in getting variables by stepId", "err", err, "stepId", stepId)
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	variableNameIdMap := make(map[int]string)
 	for _, variable := range variables {
 		variableNameIdMap[variable.Id] = variable.Name
 		variableData := &bean.VariableObject{
 			Name:                       variable.Name,
-			Format:                     variable.Format,
+			Format:                     string(variable.Format),
 			ValueType:                  string(variable.ValueType),
 			ReferenceVariableStepIndex: variable.PreviousStepIndex,
 			ReferenceVariableName:      variable.ReferenceVariableName,
@@ -1403,8 +1403,10 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(
 	conditions, err := impl.pipelineStageRepository.GetConditionsByStepId(stepId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting conditions by stepId", "err", err, "stepId", stepId)
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
+	var triggerSkipConditions []*bean.ConditionObject
+	var successFailureConditions []*bean.ConditionObject
 	for _, condition := range conditions {
 		conditionData := &bean.ConditionObject{
 			ConditionalOperator: condition.ConditionalOperator,
@@ -1415,9 +1417,13 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(
 		if ok {
 			conditionData.ConditionOnVariable = varName
 		}
-		conditionsData = append(conditionsData, conditionData)
+		if condition.ConditionType == repository.PIPELINE_STAGE_STEP_CONDITION_TYPE_TRIGGER || condition.ConditionType == repository.PIPELINE_STAGE_STEP_CONDITION_TYPE_SKIP {
+			triggerSkipConditions = append(triggerSkipConditions, conditionData)
+		} else if condition.ConditionType == repository.PIPELINE_STAGE_STEP_CONDITION_TYPE_SUCCESS || condition.ConditionType == repository.PIPELINE_STAGE_STEP_CONDITION_TYPE_FAIL {
+			successFailureConditions = append(successFailureConditions, conditionData)
+		}
 	}
-	return inputVariables, outputVariables, conditionsData, nil
+	return inputVariables, outputVariables, triggerSkipConditions, successFailureConditions, nil
 }
 
 func (impl *PipelineStageServiceImpl) BuildPluginStepDataForWfRequest(step *repository2.PluginStep) (*bean.StepObject, error) {
@@ -1469,33 +1475,33 @@ func (impl *PipelineStageServiceImpl) BuildPluginStepDataForWfRequest(step *repo
 	} else if step.StepType == repository2.PLUGIN_STEP_TYPE_REF_PLUGIN {
 		stepData.RefPluginId = step.RefPluginId
 	}
-	inputVars, outputVars, conditions, err := impl.BuildPluginVariableAndConditionDataForWfRequest(step.Id)
+	inputVars, outputVars, triggerSkipConditions, successFailureConditions, err := impl.BuildPluginVariableAndConditionDataForWfRequest(step.Id)
 	if err != nil {
 		impl.logger.Errorw("error in getting variable and conditions data for wf request", "err", err, "stepId", step.Id)
 		return nil, err
 	}
 	stepData.InputVars = inputVars
 	stepData.OutputVars = outputVars
-	stepData.Conditions = conditions
+	stepData.TriggerSkipConditions = triggerSkipConditions
+	stepData.SuccessFailureConditions = successFailureConditions
 	return stepData, nil
 }
 
-func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRequest(stepId int) ([]*bean.VariableObject, []*bean.VariableObject, []*bean.ConditionObject, error) {
+func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRequest(stepId int) ([]*bean.VariableObject, []*bean.VariableObject, []*bean.ConditionObject, []*bean.ConditionObject, error) {
 	var inputVariables []*bean.VariableObject
 	var outputVariables []*bean.VariableObject
-	var conditionsData []*bean.ConditionObject
 	//getting all variables in the step
 	variables, err := impl.globalPluginRepository.GetVariablesByStepId(stepId)
 	if err != nil {
 		impl.logger.Errorw("error in getting variables by stepId", "err", err, "stepId", stepId)
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 	variableNameIdMap := make(map[int]string)
 	for _, variable := range variables {
 		variableNameIdMap[variable.Id] = variable.Name
 		variableData := &bean.VariableObject{
 			Name:                       variable.Name,
-			Format:                     variable.Format,
+			Format:                     string(variable.Format),
 			ValueType:                  string(variable.ValueType),
 			ReferenceVariableStepIndex: variable.PreviousStepIndex,
 			ReferenceVariableName:      variable.ReferenceVariableName,
@@ -1519,8 +1525,10 @@ func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRe
 	conditions, err := impl.globalPluginRepository.GetConditionsByStepId(stepId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting conditions by stepId", "err", err, "stepId", stepId)
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
+	var triggerSkipConditions []*bean.ConditionObject
+	var successFailureConditions []*bean.ConditionObject
 	for _, condition := range conditions {
 		conditionData := &bean.ConditionObject{
 			ConditionalOperator: condition.ConditionalOperator,
@@ -1531,9 +1539,13 @@ func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRe
 		if ok {
 			conditionData.ConditionOnVariable = varName
 		}
-		conditionsData = append(conditionsData, conditionData)
+		if condition.ConditionType == repository2.PLUGIN_CONDITION_TYPE_TRIGGER || condition.ConditionType == repository2.PLUGIN_CONDITION_TYPE_SKIP {
+			triggerSkipConditions = append(triggerSkipConditions, conditionData)
+		} else if condition.ConditionType == repository2.PLUGIN_CONDITION_TYPE_SUCCESS || condition.ConditionType == repository2.PLUGIN_CONDITION_TYPE_FAIL {
+			successFailureConditions = append(successFailureConditions, conditionData)
+		}
 	}
-	return inputVariables, outputVariables, conditionsData, nil
+	return inputVariables, outputVariables, triggerSkipConditions, successFailureConditions, nil
 }
 
 //BuildPrePostAndRefPluginStepsDataForWfRequest and related methods ends

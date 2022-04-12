@@ -14,29 +14,34 @@ type PluginStepType string
 type PluginStepVariableType string
 type PluginStepVariableValueType string
 type PluginStepConditionType string
+type PluginStepVariableFormatType string
 
 const (
-	PLUGIN_TYPE_SHARED                  PluginType                  = "SHARED"
-	PLUGIN_TYPE_PRESET                  PluginType                  = "PRESET"
-	SCRIPT_TYPE_SHELL                   ScriptType                  = "SHELL"
-	SCRIPT_TYPE_DOCKERFILE              ScriptType                  = "DOCKERFILE"
-	SCRIPT_TYPE_CONTAINER_IMAGE         ScriptType                  = "CONTAINER_IMAGE"
-	IMAGE_PULL_TYPE_CONTAINER_REGISTRY  ScriptImagePullSecretType   = "CONTAINER_REGISTRY"
-	IMAGE_PULL_TYPE_SECRET_PATH         ScriptImagePullSecretType   = "SECRET_PATH"
-	SCRIPT_MAPPING_TYPE_FILE_PATH       ScriptMappingType           = "FILE_PATH"
-	SCRIPT_MAPPING_TYPE_DOCKER_ARG      ScriptMappingType           = "DOCKER_ARG"
-	SCRIPT_MAPPING_TYPE_PORT            ScriptMappingType           = "PORT"
-	PLUGIN_STEP_TYPE_INLINE             PluginStepType              = "INLINE"
-	PLUGIN_STEP_TYPE_REF_PLUGIN         PluginStepType              = "REF_PLUGIN"
-	PLUGIN_VARIABLE_TYPE_INPUT          PluginStepVariableType      = "INPUT"
-	PLUGIN_VARIABLE_TYPE_OUTPUT         PluginStepVariableType      = "OUTPUT"
-	PLUGIN_VARIABLE_VALUE_TYPE_NEW      PluginStepVariableValueType = "NEW"
-	PLUGIN_VARIABLE_VALUE_TYPE_PREVIOUS PluginStepVariableValueType = "FROM_PREVIOUS_STEP"
-	PLUGIN_VARIABLE_VALUE_TYPE_GLOBAL   PluginStepVariableValueType = "GLOBAL"
-	PLUGIN_CONDITION_TYPE_SKIP          PluginStepConditionType     = "SKIP"
-	PLUGIN_CONDITION_TYPE_TRIGGER       PluginStepConditionType     = "TRIGGER"
-	PLUGIN_CONDITION_TYPE_SUCCESS       PluginStepConditionType     = "SUCCESS"
-	PLUGIN_CONDITION_TYPE_FAIL          PluginStepConditionType     = "FAIL"
+	PLUGIN_TYPE_SHARED                  PluginType                   = "SHARED"
+	PLUGIN_TYPE_PRESET                  PluginType                   = "PRESET"
+	SCRIPT_TYPE_SHELL                   ScriptType                   = "SHELL"
+	SCRIPT_TYPE_DOCKERFILE              ScriptType                   = "DOCKERFILE"
+	SCRIPT_TYPE_CONTAINER_IMAGE         ScriptType                   = "CONTAINER_IMAGE"
+	IMAGE_PULL_TYPE_CONTAINER_REGISTRY  ScriptImagePullSecretType    = "CONTAINER_REGISTRY"
+	IMAGE_PULL_TYPE_SECRET_PATH         ScriptImagePullSecretType    = "SECRET_PATH"
+	SCRIPT_MAPPING_TYPE_FILE_PATH       ScriptMappingType            = "FILE_PATH"
+	SCRIPT_MAPPING_TYPE_DOCKER_ARG      ScriptMappingType            = "DOCKER_ARG"
+	SCRIPT_MAPPING_TYPE_PORT            ScriptMappingType            = "PORT"
+	PLUGIN_STEP_TYPE_INLINE             PluginStepType               = "INLINE"
+	PLUGIN_STEP_TYPE_REF_PLUGIN         PluginStepType               = "REF_PLUGIN"
+	PLUGIN_VARIABLE_TYPE_INPUT          PluginStepVariableType       = "INPUT"
+	PLUGIN_VARIABLE_TYPE_OUTPUT         PluginStepVariableType       = "OUTPUT"
+	PLUGIN_VARIABLE_VALUE_TYPE_NEW      PluginStepVariableValueType  = "NEW"
+	PLUGIN_VARIABLE_VALUE_TYPE_PREVIOUS PluginStepVariableValueType  = "FROM_PREVIOUS_STEP"
+	PLUGIN_VARIABLE_VALUE_TYPE_GLOBAL   PluginStepVariableValueType  = "GLOBAL"
+	PLUGIN_CONDITION_TYPE_SKIP          PluginStepConditionType      = "SKIP"
+	PLUGIN_CONDITION_TYPE_TRIGGER       PluginStepConditionType      = "TRIGGER"
+	PLUGIN_CONDITION_TYPE_SUCCESS       PluginStepConditionType      = "SUCCESS"
+	PLUGIN_CONDITION_TYPE_FAIL          PluginStepConditionType      = "FAIL"
+	PLUGIN_VARIABLE_FORMAT_TYPE_STRING  PluginStepVariableFormatType = "STRING"
+	PLUGIN_VARIABLE_FORMAT_TYPE_NUMBER  PluginStepVariableFormatType = "NUMBER"
+	PLUGIN_VARIABLE_FORMAT_TYPE_BOOL    PluginStepVariableFormatType = "BOOL"
+	PLUGIN_VARIABLE_FORMAT_TYPE_DATE    PluginStepVariableFormatType = "DATE"
 )
 
 type PluginMetadata struct {
@@ -116,21 +121,21 @@ type PluginStep struct {
 }
 
 type PluginStepVariable struct {
-	tableName             struct{}                    `sql:"plugin_step_variable" pg:",discard_unknown_columns"`
-	Id                    int                         `sql:"id,pk"`
-	PluginStepId          int                         `sql:"plugin_step_id"`
-	Name                  string                      `sql:"name"`
-	Format                string                      `sql:"format"`
-	Description           string                      `sql:"description"`
-	IsExposed             bool                        `sql:"is_exposed,notnull"`
-	AllowEmptyValue       bool                        `sql:"allow_empty_value,notnull"`
-	DefaultValue          string                      `sql:"default_value"`
-	Value                 string                      `sql:"value"`
-	VariableType          PluginStepVariableType      `sql:"variable_type"`
-	ValueType             PluginStepVariableValueType `sql:"value_type"`
-	PreviousStepIndex     int                         `sql:"previous_step_index"`
-	ReferenceVariableName string                      `sql:"reference_variable_name"`
-	Deleted               bool                        `sql:"deleted,notnull"`
+	tableName             struct{}                     `sql:"plugin_step_variable" pg:",discard_unknown_columns"`
+	Id                    int                          `sql:"id,pk"`
+	PluginStepId          int                          `sql:"plugin_step_id"`
+	Name                  string                       `sql:"name"`
+	Format                PluginStepVariableFormatType `sql:"format"`
+	Description           string                       `sql:"description"`
+	IsExposed             bool                         `sql:"is_exposed,notnull"`
+	AllowEmptyValue       bool                         `sql:"allow_empty_value,notnull"`
+	DefaultValue          string                       `sql:"default_value"`
+	Value                 string                       `sql:"value"`
+	VariableType          PluginStepVariableType       `sql:"variable_type"`
+	ValueType             PluginStepVariableValueType  `sql:"value_type"`
+	PreviousStepIndex     int                          `sql:"previous_step_index"`
+	ReferenceVariableName string                       `sql:"reference_variable_name"`
+	Deleted               bool                         `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
