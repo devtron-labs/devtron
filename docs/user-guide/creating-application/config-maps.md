@@ -101,8 +101,7 @@ You can select `Kubernetes External ConfigMap` in the `data type` field if you h
 
 By default, the data type is set to `Kubernetes ConfigMap`.
 
-Kubernetes External ConfigMap is created using the `kubectl create configmap` command. You can also use the ConfigMap generator in `kustomization.yaml` to create a ConfigMap.
-
+Kubernetes External ConfigMap is created using the `kubectl create configmap` command. 
 If you are using `Kubernetes External ConfigMap`, make sure you give the name of ConfigMap the same as the name that you have given using kubectl create `Configmap <configmap-name> <data source>` command, otherwise, it might result in an error during the built.
 
 You have to ensure that the External ConfigMap exists and is available to the pod.
