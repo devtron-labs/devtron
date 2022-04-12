@@ -1263,7 +1263,7 @@ func (impl *PipelineStageServiceImpl) BuildRefPluginStepDataForWfRequest(refPlug
 func (impl *PipelineStageServiceImpl) GetRefPluginStepsByIds(refPluginIds []int, pluginIdsEvaluated map[int]bool) (map[int][]*bean.StepObject, error) {
 	//get refPlugin steps by ids
 	pluginSteps, err := impl.globalPluginRepository.GetStepsByPluginIds(refPluginIds)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting steps by pluginIds", "err", err, "pluginIds", refPluginIds)
 		return nil, err
 	}
