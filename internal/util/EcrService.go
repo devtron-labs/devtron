@@ -34,7 +34,7 @@ func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey stri
 	region := reg
 	fmt.Printf("repoName %s, reg %s, accessKey %s, secretKey %s\n", repoName, reg, accessKey, secretKey)
 
-	credentials := credentials.NewStaticCredentials(accessKey, secretKey, "")
+	var creds *credentials.Credentials
 
 	if len(accessKey) == 0 || len(secretKey) == 0 {
 		fmt.Println("empty accessKey or secretKey")
@@ -45,7 +45,7 @@ func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey stri
 			log.Println(err)
 			return err
 		}
-		credentials = ec2rolecreds.NewCredentials(sess)
+		creds = ec2rolecreds.NewCredentials(sess)
 		//val, err := appsCreds.Get()
 		//if err != nil {
 		//	log.Println(err)
@@ -53,11 +53,13 @@ func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey stri
 		//}
 		//accessKey, secretKey = val.AccessKeyID, val.SecretAccessKey
 		//log.Printf("accessKey: %s, secretKey: %s\n", accessKey, secretKey)
+	} else {
+		creds = credentials.NewStaticCredentials(accessKey, secretKey, "")
 	}
 
 	sess, err := session.NewSession(&aws.Config{
 		Region:      &region,
-		Credentials: credentials,
+		Credentials: creds,
 	})
 	if err != nil {
 		log.Println(err)
