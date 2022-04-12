@@ -1383,18 +1383,9 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(
 			ValueType:                  string(variable.ValueType),
 			ReferenceVariableStepIndex: variable.PreviousStepIndex,
 			ReferenceVariableName:      variable.ReferenceVariableName,
+			Value:                      variable.Value,
 		}
 		if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT {
-			if variable.DefaultValue == "" {
-				//no default value; will use value received from user, as it must be exposed
-				variableData.Value = variable.Value
-			} else {
-				if variable.IsExposed {
-					variableData.Value = variable.Value
-				} else {
-					variableData.Value = variable.DefaultValue
-				}
-			}
 			inputVariables = append(inputVariables, variableData)
 		} else if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT {
 			outputVariables = append(outputVariables, variableData)
