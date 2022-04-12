@@ -23,9 +23,7 @@ data:
     create database casbin;
     create database git_sensor;
     create database lens;
-    create database clairv4;
-    \c clairv4;
-    create extension "uuid-ossp";
+    create database clair;
 ---
 # Source: postgresql/templates/metrics-svc.yaml
 apiVersion: v1
@@ -150,6 +148,10 @@ spec:
       containers:
         - name: postgresql-postgresql
           image: quay.io/bitnami/postgresql:11.9.0-debian-10-r26
+          lifecycle:
+            postStart:
+              exec:
+                command: ["/bin/sh", "-c", "export PGPASSWORD=$POSTGRESQL_PASSWORD; while !</dev/tcp/db/5432; do sleep 1; done; psql -Upostgres -c 'create database if not exists clairv4;'"]
           imagePullPolicy: "IfNotPresent"
           securityContext:
             runAsUser: 1001
