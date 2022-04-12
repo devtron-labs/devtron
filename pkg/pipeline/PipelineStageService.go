@@ -449,17 +449,21 @@ func (impl *PipelineStageServiceImpl) CreateInputAndOutputVariables(stepId int, 
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	//creating input variables
-	inputVariablesRepo, err = impl.CreateVariablesEntryInDb(stepId, inputVariables, repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT, userId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in creating input variables for step", "err", err, "stepId", stepId)
-		return nil, nil, err
+	if len(inputVariables) > 0 {
+		//creating input variables
+		inputVariablesRepo, err = impl.CreateVariablesEntryInDb(stepId, inputVariables, repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating input variables for step", "err", err, "stepId", stepId)
+			return nil, nil, err
+		}
 	}
-	//creating output variables
-	outputVariablesRepo, err = impl.CreateVariablesEntryInDb(stepId, outputVariables, repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT, userId, tx)
-	if err != nil {
-		impl.logger.Errorw("error in creating output variables for step", "err", err, "stepId", stepId)
-		return nil, nil, err
+	if len(outputVariables) > 0 {
+		//creating output variables
+		outputVariablesRepo, err = impl.CreateVariablesEntryInDb(stepId, outputVariables, repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT, userId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating output variables for step", "err", err, "stepId", stepId)
+			return nil, nil, err
+		}
 	}
 	err = tx.Commit()
 	if err != nil {
