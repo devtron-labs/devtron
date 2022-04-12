@@ -1,6 +1,7 @@
 package restHandler
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/plugin"
@@ -38,20 +39,58 @@ type GlobalPluginRestHandlerImpl struct {
 }
 
 func (handler *GlobalPluginRestHandlerImpl) GetAllGlobalVariables(w http.ResponseWriter, r *http.Request) {
-
-	//TODO: add rbac
+	token := r.Header.Get("token")
+	appIdQueryParam := r.URL.Query().Get("appId")
+	appId, err := strconv.Atoi(appIdQueryParam)
+	if appIdQueryParam == "" || err != nil {
+		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+		return
+	}
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		handler.logger.Infow("service error, GetAllGlobalVariables", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//using appId for rbac in plugin(global resource), because this data must be visible to person having create permission
+	//on atleast one app & we can't check this without iterating through every app
+	//TODO: update plugin as a resource in casbin and make rbac independent of appId
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
 	globalVariables, err := handler.globalPluginService.GetAllGlobalVariables()
 	if err != nil {
 		handler.logger.Errorw("error in getting global variable list", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, globalVariables, http.StatusOK)
+	common.WriteJsonResp(w, nil, globalVariables, http.StatusOK)
 }
 
 func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter, r *http.Request) {
-
-	//TODO: add rbac
+	token := r.Header.Get("token")
+	appIdQueryParam := r.URL.Query().Get("appId")
+	appId, err := strconv.Atoi(appIdQueryParam)
+	if appIdQueryParam == "" || err != nil {
+		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+		return
+	}
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		handler.logger.Infow("service error, ListAllPlugins", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//using appId for rbac in plugin(global resource), because this data must be visible to person having create permission
+	//on atleast one app & we can't check this without iterating through every app
+	//TODO: update plugin as a resource in casbin and make rbac independent of appId
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
 	plugins, err := handler.globalPluginService.ListAllPlugins()
 	if err != nil {
 		handler.logger.Errorw("error in getting plugin list", "err", err)
@@ -62,6 +101,27 @@ func (handler *GlobalPluginRestHandlerImpl) ListAllPlugins(w http.ResponseWriter
 }
 
 func (handler *GlobalPluginRestHandlerImpl) GetPluginDetailById(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	appIdQueryParam := r.URL.Query().Get("appId")
+	appId, err := strconv.Atoi(appIdQueryParam)
+	if appIdQueryParam == "" || err != nil {
+		common.WriteJsonResp(w, err, "invalid appId", http.StatusBadRequest)
+		return
+	}
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		handler.logger.Infow("service error, GetPluginDetailById", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//using appId for rbac in plugin(global resource), because this data must be visible to person having create permission
+	//on atleast one app & we can't check this without iterating through every app
+	//TODO: update plugin as a resource in casbin and make rbac independent of appId
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
 	vars := mux.Vars(r)
 	pluginId, err := strconv.Atoi(vars["pluginId"])
 	if err != nil {
