@@ -71,7 +71,7 @@ type PluginTagRelation struct {
 type PluginPipelineScript struct {
 	tableName                struct{}                  `sql:"plugin_pipeline_script" pg:",discard_unknown_columns"`
 	Id                       int                       `sql:"id,pk"`
-	Script                   string                    `sql:"name"`
+	Script                   string                    `sql:"script"`
 	StoreScriptAt            string                    `sql:"store_script_at"`
 	Type                     ScriptType                `sql:"type"`
 	DockerfileExists         bool                      `sql:"dockerfile_exists, notnull"`
