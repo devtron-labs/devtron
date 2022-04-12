@@ -10,6 +10,12 @@ paths:
     get:
       description: Get list of all global plugins
       operationId: GetAllPluginsAtGlobalLevel
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: Successfully return all plugins
@@ -100,6 +106,11 @@ paths:
           required: true
           schema:
             type: integer
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: Successfully return detail of the plugin
@@ -176,6 +187,12 @@ paths:
     get:
       description: Get list of all global variables
       operationId: GetAllGlobalVaariables
+      parameters:
+        - name: appId
+          in: query
+          required: true
+          schema:
+            type: string
       responses:
         '200':
           description: Successfully return all operators
