@@ -1209,7 +1209,7 @@ func (impl *PipelineStageServiceImpl) BuildPrePostAndRefPluginStepsDataForWfRequ
 func (impl *PipelineStageServiceImpl) BuildCiStageDataForWfRequest(ciStage *repository.PipelineStage) ([]*bean.StepObject, []int, error) {
 	//getting all steps for this stage
 	steps, err := impl.pipelineStageRepository.GetAllStepsByStageId(ciStage.Id)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting all steps by stageId", "err", err, "stageId", ciStage.Id)
 		return nil, nil, err
 	}
