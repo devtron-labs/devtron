@@ -441,7 +441,9 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 }
 
 func (impl *CiHandlerImpl) GetRunningWorkflowLogs(pipelineId int, workflowId int) (*bufio.Reader, func() error, error) {
+	impl.Logger.Infow("GetRunningWorkflowLogs ")
 	ciWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
+	impl.Logger.Infow("GetRunningWorkflowLogs 1", "ciWorkflow", ciWorkflow)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return nil, nil, err
@@ -450,6 +452,7 @@ func (impl *CiHandlerImpl) GetRunningWorkflowLogs(pipelineId int, workflowId int
 }
 
 func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineConfig.CiWorkflow) (*bufio.Reader, func() error, error) {
+	impl.Logger.Infow("getWorkflowLogs start", "pipelineId", pipelineId, "ciWorkflow", ciWorkflow)
 	if string(v1alpha1.NodePending) == ciWorkflow.PodStatus {
 		return bufio.NewReader(strings.NewReader("")), nil, nil
 	}
@@ -457,6 +460,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		WorkflowName: ciWorkflow.Name,
 		Namespace:    ciWorkflow.Namespace,
 	}
+	impl.Logger.Infow("getWorkflowLogs 1")
 	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, "", "", false)
 	if logStream == nil || err != nil {
 		if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == WorkflowCancel {
