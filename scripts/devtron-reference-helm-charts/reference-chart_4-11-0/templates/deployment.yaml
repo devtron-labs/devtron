@@ -137,7 +137,7 @@ spec:
       containers:
 {{- if $.Values.appMetrics }}
         - name: envoy
-          image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
+          image: {{ $.Values.envoyproxy.image | default "quay.io/devtron/envoy:v1.14.1"}}
           resources:
 {{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
           ports:
