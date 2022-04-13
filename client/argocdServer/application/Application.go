@@ -417,6 +417,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	controllerRevisionManifests := make([]map[string]interface{}, 0)
 	jobsManifest := make(map[string]interface{})
 	for _, response := range responses {
+		c.logger.Infow("buildPodMetadata", "response", response)
 		if response != nil && response.Response != nil && response.Request.Kind == "Rollout" {
 			err := json.Unmarshal([]byte(response.Response.Manifest), &rolloutManifest)
 			if err != nil {
@@ -473,6 +474,8 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	}
 	newPodNames := make(map[string]bool, 0)
 	// for rollout we compare pod hash
+	c.logger.Infow("buildPodMetadata 1", "rolloutManifest", rolloutManifest, "replicaSetManifests", replicaSetManifests)
+	c.logger.Infow("buildPodMetadata 2", "statefulSetManifest", statefulSetManifest, "podManifests", podManifests)
 	if _, ok := rolloutManifest["kind"]; ok {
 		newReplicaSet = c.getRolloutNewReplicaSetName(rolloutManifest, replicaSetManifests)
 	}
