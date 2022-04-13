@@ -38,7 +38,7 @@ If you select the Branch Fixed as your source type for building CI Pipeline, the
 Branch Name is the name of the corresponding branch (eg. main or master, or any other branch)
 
 #### ii) Pull Request
-**Note:**It only works if Git Host is Github or Bitbucket Cloud as of now. In case you need support for any other Git Host, please create a [github issue](https://github.com/devtron-labs/devtron/issues).
+**Note:** It only works if Git Host is Github or Bitbucket Cloud as of now. In case you need support for any other Git Host, please create a [github issue](https://github.com/devtron-labs/devtron/issues).
 
 If you select the Pull Request option, you can configure the CI Pipeline using the generated PR. For this mechanism you need to configure a webhook for the repository added in the Git Material.
 
@@ -61,7 +61,7 @@ Now,  scroll down and select the custom events for which you want to trigger the
 6. Check the radio button for **Let me select individual events**
 7. Then, check the Branch or **Tag Creation** and **Pull Request** radio buttons under the individual events as mentioned in image below.
 
-[Note] If you select **Branch or Tag Creation**, it will work for the **Tag Creation** mechanism as well.
+**Note:** If you select **Branch or Tag Creation**, it will work for the **Tag Creation** mechanism as well.
 
 ![](../../../.gitbook/assets/ci-pipeline-5.png)
 
@@ -75,7 +75,7 @@ If you are using Bitbucket cloud as your git provider, you need to create a webh
 
 ![](../../../.gitbook/assets/ci-pipeline-6.png)
 
-3. Give any appropriate title as per your choice and then copy-paste the url which you can get from Devtron Ddashboard when you select Pull Request as source type in case of Bitbucket Cloud as Git Host.
+3. Give any appropriate title as per your choice and then copy-paste the url which you can get from Devtron dashboard when you select Pull Request as source type in case of Bitbucket Cloud as Git Host.
 4. Check the Pull Request events for which you want to trigger the webhook and then save the configurations.
 
 ![](../../../.gitbook/assets/ci-pipeline-7.png)
