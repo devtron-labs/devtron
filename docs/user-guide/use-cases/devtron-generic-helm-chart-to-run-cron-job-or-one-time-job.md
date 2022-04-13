@@ -12,7 +12,7 @@ Select the `Devtron-generic Helm Chart` from the Devtron Chart Store.
 
 Select the Chart Version and the Chart Value of the Chart.
 
-And, then Click on `Deploy`
+And, then click on `Deploy`
 
 ![](../../.gitbook/assets/use-case-deploy-chart%20%282%29.jpg)
 
