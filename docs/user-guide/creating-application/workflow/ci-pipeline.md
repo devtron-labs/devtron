@@ -33,12 +33,12 @@ In source type, we can observe that we have three types of mechanisms which can 
 ![](../../../.gitbook/assets/ci-pipeline-2.png)
 
 #### i) Branch Fixed
-If you select the Branch Fixed as your source type for building CI Pipeline, then you need to provide the corresponding Branch Name.
+If you select the Branch Fixed as your source type for building CI Pipeline, then you need to provide the corresponding branch name.
 
 Branch Name is the name of the corresponding branch (eg. main or master, or any other branch)
 
 #### ii) Pull Request
-[Note] It only works if Git Host is Github or Bitbucket Cloud as of now. In case you need support for any other Git Host, please create a [github issue](https://github.com/devtron-labs/devtron/issues).
+**Note:**It only works if Git Host is Github or Bitbucket Cloud as of now. In case you need support for any other Git Host, please create a [github issue](https://github.com/devtron-labs/devtron/issues).
 
 If you select the Pull Request option, you can configure the CI Pipeline using the generated PR. For this mechanism you need to configure a webhook for the repository added in the Git Material.
 
@@ -48,11 +48,11 @@ If you select the Pull Request option, you can configure the CI Pipeline using t
 **If using GitHub -**
 To use this mechanism, as stated above you need to create a webhook for the corresponding repository of your Git Provider. In Github to create a webhook for the repository -
 
-1. Go to settings of that particular repository
-2. Click on webhook section under options tab
+1. Go to settings of that particular repository.
+2. Click on webhook section under options tab.
 3. In the Payload URL section, please copy paste the Webhook URL which can be found at Devtron Dashboard when you select source type as Pull Request as seen in above image.
-4. Change content type to - application/json
-5. Copy paste the Secret as well from the Dashboard when you select the source type as Pull Request
+4. Change content type to - application/json.
+5. Copy paste the Secret as well from the dashboard when you select the source type as `Pull Request`.
 
 ![](../../../.gitbook/assets/ci-pipeline-4.png)
 
@@ -71,11 +71,11 @@ After selecting the respective options, click on the generate the webhook button
 If you are using Bitbucket cloud as your git provider, you need to create a webhook for that as we created for Github in the above section.  Follow the steps to create webhook -
 
 1. Go to Repository Settings on left sidebar of repository window
-2. Click on Webhooks and then click on Add webhook as shown in the image.
+2. Click on webhooks and then click on `Add webhook` as shown in the image.
 
 ![](../../../.gitbook/assets/ci-pipeline-6.png)
 
-3. Give any appropriate title as per your choice and then copy-paste the url which you can get from Devtron Dashboard when you select Pull Request as source type in case of Bitbucket Cloud as Git Host.
+3. Give any appropriate title as per your choice and then copy-paste the url which you can get from Devtron Ddashboard when you select Pull Request as source type in case of Bitbucket Cloud as Git Host.
 4. Check the Pull Request events for which you want to trigger the webhook and then save the configurations.
 
 ![](../../../.gitbook/assets/ci-pipeline-7.png)
@@ -99,6 +99,8 @@ Devtron uses regexp library, view [regexp cheatsheet](https://yourbasic.org/gola
 | `Title` | Title provided to the Pull Request. |
 | `State` | It shows the state of PR and as of now it is fixed to Open which cannot be changed. |
 
+`Pull Request` option shows the pull requests that are created after creating the CI pipeline. This will not show previously created pull requests. However, it will show the new commits pushed on previously created pull requests.
+
 #### iii) Tag Creation
 The third option i.e, **Tag Creation**. In this mechanism you need to provide the tag name or author to specify the exact tag for which you want to build the CI Pipeline. To work with this feature as well, you need to configure the webhook for either Github or Bitbucket as we did in the previous mechanism i.e, **Pull Request**.
 
@@ -112,6 +114,8 @@ In this process as well you can find the option to filter the specific tags with
 Select the appropriate filter and pass the value in the form of regex and then click on **Create Pipeline**.
 
 ![](../../../.gitbook/assets/ci-pipeline-9.png)
+
+This option doesn't work if tags are created before creating the CI pipeline. `Tag creation` option works only with new tag creation i.e created after creating CI pipeline.
 
 ### Advanced Options
 When you click on the advanced options button which can be seen at the bottom-left of the screen, you can see some more configuration options which includes pipeline execution, stages and scan for vulnerabilities. 
