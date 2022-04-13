@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"log"
 	"time"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -428,12 +429,6 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 			if err != nil {
 				c.logger.Error(err)
 			}
-		} else if response != nil && response.Response != nil && response.Request.Kind == "Workflow" {
-			err := json.Unmarshal([]byte(response.Response.Manifest), &workflowSetManifest)
-			if err != nil {
-				c.logger.Error(err)
-			}
-			c.logger.Infow("onexit testing", "manifest", workflowSetManifest) //for testing (should be removed)
 		} else if response != nil && response.Response != nil && response.Request.Kind == "StatefulSet" {
 			err := json.Unmarshal([]byte(response.Response.Manifest), &statefulSetManifest)
 			if err != nil {
@@ -500,23 +495,31 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 		newPodNames = c.getJobsNewPods(jobsManifest, podManifests)
 	}
 
+	c.logger.Infow("buildPodMetadata 3", "newReplicaSet", newReplicaSet)
 	//podMetaData := make([]*PodMetadata, 0)
 	duplicateCheck := make(map[string]bool)
 	if newReplicaSet != "" {
 		results := buildPodMetadataFromReplicaSet(resp, newReplicaSet, replicaSetManifests)
+		c.logger.Infow("buildPodMetadata 4", "results", results)
 		for _, meta := range results {
+			c.logger.Infow("buildPodMetadata 5", "meta", meta)
 			duplicateCheck[meta.Name] = true
 			podMetaData = append(podMetaData, meta)
 		}
 	}
+	c.logger.Infow("buildPodMetadata 6", "newPodNames", newPodNames)
 	if newPodNames != nil {
+		c.logger.Infow("buildPodMetadata 7", "resp", resp, "podManifests", podManifests)
 		results := buildPodMetadataFromPod(resp, podManifests, newPodNames)
+		c.logger.Infow("buildPodMetadata 8", "results", results)
 		for _, meta := range results {
+			c.logger.Infow("buildPodMetadata 9", "meta", meta)
 			if _, ok := duplicateCheck[meta.Name]; !ok {
 				podMetaData = append(podMetaData, meta)
 			}
 		}
 	}
+	c.logger.Infow("buildPodMetadata 10", "podMetaData", podMetaData, "duplicateCheck", duplicateCheck)
 	return
 }
 
@@ -806,6 +809,7 @@ func getRolloutPodTemplateHash(pod map[string]interface{}) string {
 func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool) (podMetadata []*PodMetadata) {
 	containerMapping := make(map[string][]*string)
 	initContainerMapping := make(map[string][]*string)
+	log.Println("buildPodMetadataFromPod ", "podManifests", podManifests, "newPodNames", newPodNames)
 	for _, pod := range podManifests {
 		containerMapping[getResourceName(pod)] = getPodContainers(pod)
 	}
@@ -814,6 +818,7 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 		initContainerMapping[getResourceName(pod)] = getPodInitContainers(pod)
 	}
 	for _, node := range resp.Nodes {
+		log.Println("buildPodMetadataFromPod 1", "node", node)
 		if node.Kind == "Pod" {
 			isNew := newPodNames[node.Name]
 			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], InitContainers: initContainerMapping[node.Name], IsNew: isNew}
@@ -868,9 +873,11 @@ func getPodInitContainers(resource map[string]interface{}) []*string {
 
 func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSet string, replicaSetManifests []map[string]interface{}) (podMetadata []*PodMetadata) {
 	replicaSets := make(map[string]map[string]interface{})
+	log.Println("buildPodMetadataFromReplicaSet 1", "newReplicaSet", newReplicaSet, "replicaSetManifests", replicaSetManifests)
 	for _, replicaSet := range replicaSetManifests {
 		replicaSets[getResourceName(replicaSet)] = replicaSet
 	}
+	log.Println("buildPodMetadataFromReplicaSet 2", "replicaSets", replicaSets, "resp", resp)
 	for _, node := range resp.Nodes {
 		if node.Kind == "Pod" {
 			parentName := ""
@@ -882,6 +889,7 @@ func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSe
 					parentName = p.Name
 				}
 			}
+			log.Println("buildPodMetadataFromReplicaSet 3", "parentName", parentName, "newReplicaSet", newReplicaSet)
 			if parentName != "" {
 				isNew := parentName == newReplicaSet
 				replicaSet := replicaSets[parentName]
