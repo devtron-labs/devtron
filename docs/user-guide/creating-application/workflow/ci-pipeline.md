@@ -201,6 +201,29 @@ If one code is shared across multiple applications, `Linked CI Pipeline` can be 
 
 ![](../../../.gitbook/assets/ca-workflow-linked.png)
 
+To create a `Linked CI Pipeline`, please follow the steps mentioned below :
+
+1. Click on `+ New Build Pipeline` button.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/linked-ci-pipeline-1.png)
+
+2. Select `Linked CI Pipeline`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/linked-ci-pipeline-2.png)
+
+3. Select the application in which the source CI pipeline is present.
+
+4. Select the source CI pipeline.
+
+5. Provide a name for linked CI pipeline.
+
+6. Click on `Create Linked CI Pipeline` button to create linked CI pipeline.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/linked-ci-pipeline-3.png)
+
+After creating a linked CI pipeline, you can create a CD pipeline. 
+You cannot trigger build from linked CI  pipeline, it can be triggered only from source CI pipeline. Initially you will not see any images to deploy in CD pipeline created from `linked CI pipeline`. Trigger build in source CI pipeline to see the images in CD pipeline of linked CI pipeline. After this, whenever you trigger buld in source CI pipeline, the build images will be listed in CD pipeline of `linked CI pipeline` too.
+
 ## C. Incoming Webhook
 
 You can use Devtron for deployments on Kubernetes while using your own CI tool such as Jenkins. External CI features can be used for cases where the CI tool is hosted outside the Devtron platform.
