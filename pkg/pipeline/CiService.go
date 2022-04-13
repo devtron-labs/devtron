@@ -19,7 +19,10 @@ package pipeline
 
 import (
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -313,12 +316,23 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			afterDockerBuildScripts = append(afterDockerBuildScripts, ciTask)
 		}
 	}
-
-	//getting preCiStepsData, postCiStepsData & refPluginStepsData
-	preCiSteps, postCiSteps, refPluginsData, err := impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id)
-	if err != nil {
-		impl.Logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
-		return nil, err
+	var preCiSteps []*bean2.StepObject
+	var postCiSteps []*bean2.StepObject
+	var refPluginsData []*bean2.RefPluginObject
+	var err error
+	if !(len(beforeDockerBuildScripts) == 0 && len(afterDockerBuildScripts) == 0) {
+		//found beforeDockerBuildScripts/afterDockerBuildScripts
+		//building preCiSteps & postCiSteps from them, refPluginsData not needed
+		preCiSteps = buildCiStepsDataFromDockerBuildScripts(beforeDockerBuildScripts)
+		postCiSteps = buildCiStepsDataFromDockerBuildScripts(afterDockerBuildScripts)
+	} else {
+		//beforeDockerBuildScripts & afterDockerBuildScripts not found
+		//getting preCiStepsData, postCiStepsData & refPluginsData
+		preCiSteps, postCiSteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id)
+		if err != nil {
+			impl.Logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
+			return nil, err
+		}
 	}
 	dockerImageTag := impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
 	if ciWorkflowConfig.CiCacheBucket == "" {
@@ -379,8 +393,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		WorkflowId:                 savedWf.Id,
 		TriggeredBy:                savedWf.TriggeredBy,
 		CacheLimit:                 impl.ciConfig.CacheLimit,
-		BeforeDockerBuildScripts:   beforeDockerBuildScripts,
-		AfterDockerBuildScripts:    afterDockerBuildScripts,
 		InvalidateCache:            trigger.InvalidateCache,
 		ScanEnabled:                pipeline.ScanEnabled,
 		CloudProvider:              impl.ciConfig.CloudProvider,
@@ -413,6 +425,22 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
 	}
 	return workflowRequest, nil
+}
+
+func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*bean2.StepObject {
+	var ciSteps []*bean2.StepObject
+	for _, dockerBuildScript := range dockerBuildScripts {
+		ciStep := &bean2.StepObject{
+			Name:          dockerBuildScript.Name,
+			Index:         dockerBuildScript.Index,
+			Script:        dockerBuildScript.Script,
+			ArtifactPaths: []string{dockerBuildScript.OutputLocation},
+			StepType:      string(repository.PIPELINE_STEP_TYPE_INLINE),
+			ExecutorType:  string(repository2.SCRIPT_TYPE_SHELL),
+		}
+		ciSteps = append(ciSteps, ciStep)
+	}
+	return ciSteps
 }
 
 func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id int, wfId int) string {

@@ -1309,6 +1309,7 @@ func (impl *PipelineStageServiceImpl) GetRefPluginStepsByIds(refPluginIds []int,
 
 func (impl *PipelineStageServiceImpl) BuildCiStepDataForWfRequest(step *repository.PipelineStageStep) (*bean.StepObject, error) {
 	stepData := &bean.StepObject{
+		Name:          step.Name,
 		Index:         step.Index,
 		StepType:      string(step.StepType),
 		ArtifactPaths: step.OutputDirectoryPath,
@@ -1424,6 +1425,7 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(
 
 func (impl *PipelineStageServiceImpl) BuildPluginStepDataForWfRequest(step *repository2.PluginStep) (*bean.StepObject, error) {
 	stepData := &bean.StepObject{
+		Name:          step.Name,
 		Index:         step.Index,
 		StepType:      string(step.StepType),
 		ArtifactPaths: step.OutputDirectoryPath,

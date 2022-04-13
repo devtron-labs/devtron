@@ -6,6 +6,7 @@ type RefPluginObject struct {
 }
 
 type StepObject struct {
+	Name                     string             `json:"name"`
 	Index                    int                `json:"index"`
 	StepType                 string             `json:"stepType"`     // REF_PLUGIN or INLINE
 	ExecutorType             string             `json:"executorType"` //SHELL, DOCKERFILE, CONTAINER_IMAGE
