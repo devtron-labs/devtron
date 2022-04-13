@@ -626,8 +626,6 @@ components:
     PluginRefStepDetail:
       type: object
       properties:
-        id:
-          type: integer
         pluginId:
           type: integer
           description: id of the plugin used in the step
@@ -663,36 +661,41 @@ components:
           type: string
         defaultValue:
           type: string
-        RefVariableUsed:
+        refVariableUsed:
           type: boolean
-        RefVariableType:
+        refVariableType:
           type: string
           example:
             - "GLOBAL"
             - "FROM_PREVIOUS_STEP"
             - "NEW"
-        RefVariableStepIndex:
+        refVariableStepIndex:
           type: integer
-        RefVariableName:
+        refVariableName:
           type: string
+        refVariableStage:
+          type: string
+          example:
+            - "PRE_CI"
+            - "POST_CI"
     ConditionDetail:
       type: object
       properties:
         id:
           type: integer
-        ConditionOnVariable:
+        conditionOnVariable:
           type: string
           description: name of the variable on which condition is applied
-        ConditionOperator:
+        conditionOperator:
           type: string
-        ConditionType:
+        conditionType:
           type: string
           example:
             - "SKIP"
             - "TRIGGER"
             - "SUCCESS"
             - "FAIL"
-        ConditionalValue:
+        conditionalValue:
           type: string
     MountPathMap:
       type: object

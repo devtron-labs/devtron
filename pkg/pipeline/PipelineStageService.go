@@ -201,17 +201,18 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 	for _, variable := range variables {
 		variableNameIdMap[variable.Id] = variable.Name
 		variableDto := &bean.StepVariableDto{
-			Id:                    variable.Id,
-			Name:                  variable.Name,
-			Format:                variable.Format,
-			Description:           variable.Description,
-			IsExposed:             variable.IsExposed,
-			AllowEmptyValue:       variable.AllowEmptyValue,
-			DefaultValue:          variable.DefaultValue,
-			Value:                 variable.Value,
-			ValueType:             variable.ValueType,
-			PreviousStepIndex:     variable.PreviousStepIndex,
-			ReferenceVariableName: variable.ReferenceVariableName,
+			Id:                     variable.Id,
+			Name:                   variable.Name,
+			Format:                 variable.Format,
+			Description:            variable.Description,
+			IsExposed:              variable.IsExposed,
+			AllowEmptyValue:        variable.AllowEmptyValue,
+			DefaultValue:           variable.DefaultValue,
+			Value:                  variable.Value,
+			ValueType:              variable.ValueType,
+			PreviousStepIndex:      variable.PreviousStepIndex,
+			ReferenceVariableName:  variable.ReferenceVariableName,
+			ReferenceVariableStage: variable.ReferenceVariableStage,
 		}
 		if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT {
 			inputVariablesDto = append(inputVariablesDto, variableDto)
@@ -509,19 +510,20 @@ func (impl *PipelineStageServiceImpl) CreateVariablesEntryInDb(stepId int, varia
 	var err error
 	for _, v := range variables {
 		inVarRepo := repository.PipelineStageStepVariable{
-			PipelineStageStepId:   stepId,
-			Name:                  v.Name,
-			Format:                v.Format,
-			Description:           v.Description,
-			IsExposed:             v.IsExposed,
-			AllowEmptyValue:       v.AllowEmptyValue,
-			DefaultValue:          v.DefaultValue,
-			Value:                 v.Value,
-			ValueType:             v.ValueType,
-			VariableType:          variableType,
-			PreviousStepIndex:     v.PreviousStepIndex,
-			ReferenceVariableName: v.ReferenceVariableName,
-			Deleted:               false,
+			PipelineStageStepId:    stepId,
+			Name:                   v.Name,
+			Format:                 v.Format,
+			Description:            v.Description,
+			IsExposed:              v.IsExposed,
+			AllowEmptyValue:        v.AllowEmptyValue,
+			DefaultValue:           v.DefaultValue,
+			Value:                  v.Value,
+			ValueType:              v.ValueType,
+			VariableType:           variableType,
+			PreviousStepIndex:      v.PreviousStepIndex,
+			ReferenceVariableName:  v.ReferenceVariableName,
+			ReferenceVariableStage: v.ReferenceVariableStage,
+			Deleted:                false,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: userId,
@@ -969,20 +971,21 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepVariables(stepId in
 	for _, v := range variablesToBeUpdated {
 		variableNameIdMap[v.Name] = v.Id
 		inVarRepo := repository.PipelineStageStepVariable{
-			Id:                    v.Id,
-			PipelineStageStepId:   stepId,
-			Name:                  v.Name,
-			Format:                v.Format,
-			Description:           v.Description,
-			IsExposed:             v.IsExposed,
-			AllowEmptyValue:       v.AllowEmptyValue,
-			DefaultValue:          v.DefaultValue,
-			Value:                 v.Value,
-			ValueType:             v.ValueType,
-			VariableType:          variableType,
-			PreviousStepIndex:     v.PreviousStepIndex,
-			ReferenceVariableName: v.ReferenceVariableName,
-			Deleted:               false,
+			Id:                     v.Id,
+			PipelineStageStepId:    stepId,
+			Name:                   v.Name,
+			Format:                 v.Format,
+			Description:            v.Description,
+			IsExposed:              v.IsExposed,
+			AllowEmptyValue:        v.AllowEmptyValue,
+			DefaultValue:           v.DefaultValue,
+			Value:                  v.Value,
+			ValueType:              v.ValueType,
+			VariableType:           variableType,
+			PreviousStepIndex:      v.PreviousStepIndex,
+			ReferenceVariableName:  v.ReferenceVariableName,
+			ReferenceVariableStage: v.ReferenceVariableStage,
+			Deleted:                false,
 			AuditLog: sql.AuditLog{
 				UpdatedOn: time.Now(),
 				UpdatedBy: userId,
@@ -1340,6 +1343,7 @@ func (impl *PipelineStageServiceImpl) BuildCiStepDataForWfRequest(step *reposito
 				portMap[scriptMapping.PortOnLocal] = portMap[scriptMapping.PortOnContainer]
 			}
 		}
+		stepData.ExecutorType = string(scriptDetail.Type)
 		stepData.DockerImage = scriptDetail.ContainerImagePath
 		stepData.Script = scriptDetail.Script
 		stepData.ExposedPorts = portMap
@@ -1383,6 +1387,7 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(
 			ValueType:                  string(variable.ValueType),
 			ReferenceVariableStepIndex: variable.PreviousStepIndex,
 			ReferenceVariableName:      variable.ReferenceVariableName,
+			ReferenceVariableStage:     string(variable.ReferenceVariableStage),
 			Value:                      variable.Value,
 		}
 		if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT {
@@ -1453,6 +1458,7 @@ func (impl *PipelineStageServiceImpl) BuildPluginStepDataForWfRequest(step *repo
 				portMap[scriptMapping.PortOnLocal] = portMap[scriptMapping.PortOnContainer]
 			}
 		}
+		stepData.ExecutorType = string(scriptDetail.Type)
 		stepData.DockerImage = scriptDetail.ContainerImagePath
 		stepData.Script = scriptDetail.Script
 		stepData.ExposedPorts = portMap

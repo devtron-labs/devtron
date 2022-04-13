@@ -45,24 +45,25 @@ type InlineStepDetailDto struct {
 }
 
 type RefPluginStepDetailDto struct {
-	PluginId         int                   `json:"pluginId,omitempty"`
+	PluginId         int                   `json:"pluginId"`
 	InputVariables   []*StepVariableDto    `json:"inputVariables"`
 	OutputVariables  []*StepVariableDto    `json:"outputVariables"`
 	ConditionDetails []*ConditionDetailDto `json:"conditionDetails"`
 }
 
 type StepVariableDto struct {
-	Id                    int                                            `json:"id"`
-	Name                  string                                         `json:"name"`
-	Format                repository.PipelineStageStepVariableFormatType `json:"format"`
-	Description           string                                         `json:"description"`
-	IsExposed             bool                                           `json:"isExposed,omitempty"`
-	AllowEmptyValue       bool                                           `json:"allowEmptyValue,omitempty"`
-	DefaultValue          string                                         `json:"defaultValue,omitempty"`
-	Value                 string                                         `json:"value"`
-	ValueType             repository.PipelineStageStepVariableValueType  `json:"valueType,omitempty"`
-	PreviousStepIndex     int                                            `json:"previousStepIndex,omitempty"`
-	ReferenceVariableName string                                         `json:"referenceVariableName,omitempty"`
+	Id                     int                                            `json:"id"`
+	Name                   string                                         `json:"name"`
+	Format                 repository.PipelineStageStepVariableFormatType `json:"format"`
+	Description            string                                         `json:"description"`
+	IsExposed              bool                                           `json:"isExposed,omitempty"`
+	AllowEmptyValue        bool                                           `json:"allowEmptyValue,omitempty"`
+	DefaultValue           string                                         `json:"defaultValue,omitempty"`
+	Value                  string                                         `json:"value"`
+	ValueType              repository.PipelineStageStepVariableValueType  `json:"refVariableType,omitempty"`
+	PreviousStepIndex      int                                            `json:"refVariableStepIndex,omitempty"`
+	ReferenceVariableName  string                                         `json:"refVariableName,omitempty"`
+	ReferenceVariableStage repository.PipelineStageType                   `json:"refVariableStage"`
 }
 
 type ConditionDetailDto struct {

@@ -100,21 +100,22 @@ type ScriptPathArgPortMapping struct {
 }
 
 type PipelineStageStepVariable struct {
-	tableName             struct{}                            `sql:"pipeline_stage_step_variable" pg:",discard_unknown_columns"`
-	Id                    int                                 `sql:"id,pk"`
-	PipelineStageStepId   int                                 `sql:"pipeline_stage_step_id"`
-	Name                  string                              `sql:"name"`
-	Format                PipelineStageStepVariableFormatType `sql:"format"`
-	Description           string                              `sql:"description"`
-	IsExposed             bool                                `sql:"is_exposed,notnull"`
-	AllowEmptyValue       bool                                `sql:"allow_empty_value,notnull"`
-	DefaultValue          string                              `sql:"default_value"`
-	Value                 string                              `sql:"value"`
-	VariableType          PipelineStageStepVariableType       `sql:"variable_type"`
-	ValueType             PipelineStageStepVariableValueType  `sql:"value_type"`
-	PreviousStepIndex     int                                 `sql:"previous_step_index,type:integer"`
-	ReferenceVariableName string                              `sql:"reference_variable_name,type:text"`
-	Deleted               bool                                `sql:"deleted,notnull"`
+	tableName              struct{}                            `sql:"pipeline_stage_step_variable" pg:",discard_unknown_columns"`
+	Id                     int                                 `sql:"id,pk"`
+	PipelineStageStepId    int                                 `sql:"pipeline_stage_step_id"`
+	Name                   string                              `sql:"name"`
+	Format                 PipelineStageStepVariableFormatType `sql:"format"`
+	Description            string                              `sql:"description"`
+	IsExposed              bool                                `sql:"is_exposed,notnull"`
+	AllowEmptyValue        bool                                `sql:"allow_empty_value,notnull"`
+	DefaultValue           string                              `sql:"default_value"`
+	Value                  string                              `sql:"value"`
+	VariableType           PipelineStageStepVariableType       `sql:"variable_type"`
+	ValueType              PipelineStageStepVariableValueType  `sql:"value_type"`
+	PreviousStepIndex      int                                 `sql:"previous_step_index,type:integer"`
+	ReferenceVariableName  string                              `sql:"reference_variable_name,type:text"`
+	ReferenceVariableStage PipelineStageType                   `sql:"reference_variable_stage,type:text"`
+	Deleted                bool                                `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 

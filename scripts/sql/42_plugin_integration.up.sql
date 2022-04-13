@@ -235,6 +235,7 @@ CREATE TABLE "public"."pipeline_stage_step_variable"
     "value_type"                  varchar(255),   -- NEW, FROM_PREVIOUS_STEP or GLOBAL
     "previous_step_index"         integer,
     "reference_variable_name"     text,
+    "reference_variable_stage"    text,
     "deleted"                     bool,
     "created_on"                  timestamptz,
     "created_by"                  int4,

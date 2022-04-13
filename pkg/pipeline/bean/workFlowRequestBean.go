@@ -7,7 +7,8 @@ type RefPluginObject struct {
 
 type StepObject struct {
 	Index                    int                `json:"index"`
-	StepType                 string             `json:"stepType"` // REF_PLUGIN or INLINE
+	StepType                 string             `json:"stepType"`     // REF_PLUGIN or INLINE
+	ExecutorType             string             `json:"executorType"` //SHELL, DOCKERFILE, CONTAINER_IMAGE
 	RefPluginId              int                `json:"refPluginId"`
 	Script                   string             `json:"script"`
 	InputVars                []*VariableObject  `json:"inputVars"`
@@ -32,6 +33,7 @@ type VariableObject struct {
 	ValueType                  string `json:"valueType,omitempty"`
 	ReferenceVariableName      string `json:"referenceVariableName,omitempty"`
 	ReferenceVariableStepIndex int    `json:"referenceVariableStepIndex,omitempty"`
+	ReferenceVariableStage     string `json:"referenceVariableStage,omitempty"`
 }
 
 type ConditionObject struct {
