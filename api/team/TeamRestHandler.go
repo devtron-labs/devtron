@@ -118,7 +118,7 @@ func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	// RBAC enforcer applying
+
 	var result []team.TeamRequest
 	for _, item := range res {
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(item.Name)); ok {
