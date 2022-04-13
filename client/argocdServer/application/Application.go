@@ -378,11 +378,13 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	asc := application.NewApplicationServiceClient(conn)
 	c.logger.Debugw("GRPC_GET_RESOURCETREE", "req", query)
 	resp, err := asc.ResourceTree(ctx, query)
+	c.logger.Infow("test ResourceTree 1", "resp", resp)
 	if err != nil {
 		c.logger.Errorw("GRPC_GET_RESOURCETREE", "req", query, "err", err)
 		return nil, err
 	}
 	responses := parseResult(resp, query, ctx, asc, err, c)
+	c.logger.Infow("test ResourceTree", "responses", responses)
 	podMetadata, newReplicaSet := c.buildPodMetadata(resp, responses)
 
 	appQuery := application.ApplicationQuery{Name: query.ApplicationName}
