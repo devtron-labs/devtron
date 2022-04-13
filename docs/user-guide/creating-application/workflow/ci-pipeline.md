@@ -211,7 +211,7 @@ To create a `Linked CI Pipeline`, please follow the steps mentioned below :
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/linked-ci-pipeline-2.png)
 
-3. Select the aaplication in which the source CI pipeline is present.
+3. Select the application in which the source CI pipeline is present.
 
 4. Select the source CI pipeline.
 
