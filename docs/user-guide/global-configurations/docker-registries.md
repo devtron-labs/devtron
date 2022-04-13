@@ -23,7 +23,7 @@ Provide a `Name` to your registry, this name will be shown to you in `Docker Bui
 
 Select `Registry type` from the drop-down, currently we are supporting multiple types of container registry across different global platforms. By default `ECR` is selected.
 
-Registries we are supporting are:
+Registries supported are:
 
   * <a href= #ECR>Elastic Container Registry (ECR)</a>
   * <a href= #Docker>Docker-Hub</a>
