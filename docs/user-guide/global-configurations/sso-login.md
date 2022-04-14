@@ -32,7 +32,7 @@ Fill correct `redirect URL` or `callback URL` from which you have registered wit
 
 Only single SSO login configuration can be active at one time. Whenever you create or update any SSO config, it will be activated and used by the system and previous configurations will be deleted.
 
-URL and redirectURI should be same as provided in screenshots except domain substring.
+Except for the domain substring, URL and redirectURI should be the same as in the screenshots.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/sso-login-service/sso-login.jpg)
 
