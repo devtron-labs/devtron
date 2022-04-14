@@ -27,7 +27,7 @@ type ExternalLinksMonitoringTools struct {
 	Id        int      `sql:"id,pk"`
 	Name      string   `sql:"name,notnull"`
 	Icon      string   `sql:"icon,notnull"`
-	IsActive  bool     `sql:"is_active,notnull"`
+	Active    bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
 
@@ -45,7 +45,7 @@ func NewExternalLinkoutToolsRepositoryImpl(dbConnection *pg.DB) *ExternalLinkout
 
 func (impl ExternalLinkoutToolsRepositoryImpl) FindAllActive() ([]ExternalLinksMonitoringTools, error) {
 	var tools []ExternalLinksMonitoringTools
-	err := impl.dbConnection.Model(&tools).Where("is_active = ?", true).Select()
+	err := impl.dbConnection.Model(&tools).Where("active = ?", true).Select()
 	return tools, err
 }
 

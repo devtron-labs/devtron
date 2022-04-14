@@ -68,11 +68,11 @@ func NewExternalLinkoutServiceImpl(logger *zap.SugaredLogger, externalLinkoutToo
 func (impl ExternalLinkoutServiceImpl) Create(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error) {
 	impl.logger.Debugw("external linkout create request", "req", request)
 	t := &ExternalLinks{
-		Name:             request.Name,
-		IsActive:         request.Active,
-		MonitoringToolId: request.MonitoringToolId,
-		Url:              request.Url,
-		AuditLog:         sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now()},
+		Name:                          request.Name,
+		Active:                        request.Active,
+		ExternalLinksMonitoringToolId: request.MonitoringToolId,
+		Url:                           request.Url,
+		AuditLog:                      sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now()},
 	}
 	err := impl.externalLinksRepository.Save(t)
 
@@ -87,9 +87,9 @@ func (impl ExternalLinkoutServiceImpl) Create(request *ExternalLinkoutRequest) (
 
 	for _, v := range request.ClusterIds {
 		x := &ExternalLinksClusters{
-			ExternalLinkId: t.Id,
-			ClusterId:      v,
-			AuditLog:       sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now()},
+			ExternalLinksId: t.Id,
+			ClusterId:       v,
+			AuditLog:        sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now()},
 		}
 		err := impl.externalLinksClustersRepository.Save(x)
 
@@ -135,7 +135,7 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 		links, err = impl.externalLinksClustersRepository.FindAllActive(clusterId)
 	}
 	if err != nil {
-		impl.logger.Errorw("error in fetch all team", "err", err)
+		impl.logger.Errorw("error in fetch all links", "err", err)
 		return nil, err
 	}
 	var linkRequests []*ExternalLinkoutRequest
@@ -145,8 +145,8 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 			providerRes := &ExternalLinkoutRequest{
 				Name:             link.ExternalLinks.Name,
 				Url:              link.ExternalLinks.Url,
-				Active:           link.ExternalLinks.IsActive,
-				MonitoringToolId: link.ExternalLinks.MonitoringToolId,
+				Active:           link.ExternalLinks.Active,
+				MonitoringToolId: link.ExternalLinks.ExternalLinksMonitoringToolId,
 			}
 			providerRes.ClusterIds = append(providerRes.ClusterIds, link.ClusterId)
 			linkRequests = append(linkRequests, providerRes)
@@ -155,8 +155,8 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 			response[link.Id] = &ExternalLinkoutRequest{
 				Name:             link.ExternalLinks.Name,
 				Url:              link.ExternalLinks.Url,
-				Active:           link.ExternalLinks.IsActive,
-				MonitoringToolId: link.ExternalLinks.MonitoringToolId,
+				Active:           link.ExternalLinks.Active,
+				MonitoringToolId: link.ExternalLinks.ExternalLinksMonitoringToolId,
 			}
 			response[link.Id].ClusterIds = append(response[link.Id].ClusterIds, link.ClusterId)
 		}
@@ -180,16 +180,16 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 		return nil, err0
 	}
 	link := &ExternalLinks{
-		Id:               request.Id,
-		Name:             request.Name,
-		IsActive:         request.Active,
-		MonitoringToolId: request.MonitoringToolId,
-		Url:              request.Url,
-		AuditLog:         sql.AuditLog{CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now()},
+		Id:                            request.Id,
+		Name:                          request.Name,
+		Active:                        request.Active,
+		ExternalLinksMonitoringToolId: request.MonitoringToolId,
+		Url:                           request.Url,
+		AuditLog:                      sql.AuditLog{CreatedOn: existingProvider.CreatedOn, UpdatedOn: time.Now()},
 	}
 	err := impl.externalLinksRepository.Update(link)
 	if err != nil {
-		impl.logger.Errorw("error in updating team", "data", link, "err", err)
+		impl.logger.Errorw("error in updating link", "data", link, "err", err)
 		err = &util.ApiError{
 			Code:            constants.GitProviderUpdateFailedInDb,
 			InternalMessage: "link failed to update in db",
@@ -201,10 +201,10 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 	totalClusters, _ := impl.externalLinksClustersRepository.FindAllClusters(request.Id)
 	for _, v := range totalClusters {
 		x := &ExternalLinksClusters{
-			ExternalLinkId: link.Id,
-			ClusterId:      v,
-			IsActive:       false,
-			AuditLog:       sql.AuditLog{UpdatedOn: time.Now()},
+			ExternalLinksId: link.Id,
+			ClusterId:       v,
+			Active:          false,
+			AuditLog:        sql.AuditLog{UpdatedOn: time.Now()},
 		}
 		err := impl.externalLinksClustersRepository.Update(x)
 
@@ -222,10 +222,10 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 		}
 
 		x := &ExternalLinksClusters{
-			ExternalLinkId: link.Id,
-			ClusterId:      v,
-			IsActive:       true,
-			AuditLog:       sql.AuditLog{UpdatedOn: time.Now()},
+			ExternalLinksId: link.Id,
+			ClusterId:       v,
+			Active:          true,
+			AuditLog:        sql.AuditLog{UpdatedOn: time.Now()},
 		}
 		if flag == 1 {
 			err = impl.externalLinksClustersRepository.Update(x)
@@ -252,10 +252,10 @@ func (impl ExternalLinkoutServiceImpl) DeleteLink(request *ExternalLinkoutReques
 	totalClusters, _ := impl.externalLinksClustersRepository.FindAllClusters(request.Id)
 	for _, v := range totalClusters {
 		x := &ExternalLinksClusters{
-			ExternalLinkId: request.Id,
-			ClusterId:      v,
-			IsActive:       false,
-			AuditLog:       sql.AuditLog{UpdatedOn: time.Now()},
+			ExternalLinksId: request.Id,
+			ClusterId:       v,
+			Active:          false,
+			AuditLog:        sql.AuditLog{UpdatedOn: time.Now()},
 		}
 		err := impl.externalLinksClustersRepository.Update(x)
 
@@ -266,7 +266,7 @@ func (impl ExternalLinkoutServiceImpl) DeleteLink(request *ExternalLinkoutReques
 
 	link := &ExternalLinks{
 		Id:       request.Id,
-		IsActive: false,
+		Active:   false,
 		AuditLog: sql.AuditLog{UpdatedOn: time.Now()},
 	}
 	err := impl.externalLinksRepository.Update(link)

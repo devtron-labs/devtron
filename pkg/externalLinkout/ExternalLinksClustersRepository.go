@@ -23,12 +23,12 @@ import (
 )
 
 type ExternalLinksClusters struct {
-	tableName      struct{} `sql:"external_links_clusters"`
-	Id             int      `sql:"id,pk"`
-	ExternalLinkId int      `sql:"external_link_id,notnull"`
-	ClusterId      int      `sql:"cluster_id,notnull"`
-	IsActive       bool     `sql:"is_active,default true"`
-	ExternalLinks  ExternalLinks
+	tableName       struct{} `sql:"external_links_clusters"`
+	Id              int      `sql:"id,pk"`
+	ExternalLinksId int      `sql:"external_links_id,notnull"`
+	ClusterId       int      `sql:"cluster_id,notnull"`
+	Active          bool     `sql:"active,default true"`
+	ExternalLinks   ExternalLinks
 	sql.AuditLog
 }
 
@@ -61,7 +61,7 @@ func (impl ExternalLinksClustersRepositoryImpl) FindAllActive(clusterId int) ([]
 	var links []ExternalLinksClusters
 	err := impl.dbConnection.Model(&links).
 		Column("external_links_clusters.*", "ExternalLinks").
-		Where("external_links_clusters.is_active = ?", true).
+		Where("external_links_clusters.active = ?", true).
 		Where("external_links_clusters.cluster_id = ?", clusterId).
 		Select()
 	return links, err
@@ -71,7 +71,7 @@ func (impl ExternalLinksClustersRepositoryImpl) FindAll() ([]ExternalLinksCluste
 	var links []ExternalLinksClusters
 	err := impl.dbConnection.Model(&links).
 		Column("external_links_clusters.*", "ExternalLinks").
-		Where("external_links_clusters.is_active = ?", true).
+		Where("external_links_clusters.active = ?", true).
 		Select()
 
 	return links, err
@@ -80,8 +80,8 @@ func (impl ExternalLinksClustersRepositoryImpl) FindAll() ([]ExternalLinksCluste
 func (impl ExternalLinksClustersRepositoryImpl) FindAllClusters(linkId int) ([]int, error) {
 	var links []int
 	err := impl.dbConnection.Model(&links).
-		Where("is_active = ?", true).
-		Where("external_link_id = ?", linkId).
+		Where("active = ?", true).
+		Where("external_links_id = ?", linkId).
 		Select("cluster_id")
 
 	return links, err

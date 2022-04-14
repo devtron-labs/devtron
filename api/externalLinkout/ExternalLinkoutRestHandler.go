@@ -128,7 +128,7 @@ func (impl ExternalLinkoutRestHandlerImpl) UpdateExternalLinks(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, UpdateTeam", "err", err, "bean", bean)
+	impl.logger.Infow("request payload, UpdateLink", "err", err, "bean", bean)
 	res, err := impl.externalLinkoutService.Update(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, Update Links", "err", err, "bean", bean)

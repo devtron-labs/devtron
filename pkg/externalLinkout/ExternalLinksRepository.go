@@ -23,18 +23,18 @@ import (
 )
 
 type ExternalLinks struct {
-	tableName        struct{} `sql:"external_links"`
-	Id               int      `sql:"id,pk"`
-	MonitoringToolId int      `sql:"monitoring_tool_id, notnull"`
-	Name             string   `sql:"name,notnull"`
-	Url              string   `sql:"url,notnull"`
-	IsActive         bool     `sql:"is_active,notnull"`
+	tableName                     struct{} `sql:"external_links"`
+	Id                            int      `sql:"id,pk"`
+	ExternalLinksMonitoringToolId int      `sql:"external_links_monitoring_tool_id, notnull"`
+	Name                          string   `sql:"name,notnull"`
+	Url                           string   `sql:"url,notnull"`
+	Active                        bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
 
 type ExternalLinksRepository interface {
 	Save(externalLinks *ExternalLinks) error
-	FindAllActive(clusterIds []int) ([]ExternalLinks, error)
+	FindAllActive() ([]ExternalLinks, error)
 	FindOne(id int) (ExternalLinks, error)
 	Update(link *ExternalLinks) error
 }
@@ -51,9 +51,9 @@ func (impl ExternalLinksRepositoryImpl) Save(externalLinks *ExternalLinks) error
 	return err
 }
 
-func (impl ExternalLinksRepositoryImpl) FindAllActive(clusterIds []int) ([]ExternalLinks, error) {
+func (impl ExternalLinksRepositoryImpl) FindAllActive() ([]ExternalLinks, error) {
 	var links []ExternalLinks
-	err := impl.dbConnection.Model(&links).Where("is_active = ?", true).Select()
+	err := impl.dbConnection.Model(&links).Where("active = ?", true).Select()
 	return links, err
 }
 func (impl ExternalLinksRepositoryImpl) Update(link *ExternalLinks) error {
