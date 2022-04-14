@@ -67,6 +67,9 @@ func (impl ExternalLinksRepositoryImpl) FindOne(id int) (ExternalLinks, error) {
 	return link, err
 }
 func (impl ExternalLinksRepositoryImpl) FindAllNonMapped(mappedExternalLinksIds []int) ([]ExternalLinks, error) {
+	if mappedExternalLinksIds == nil || len(mappedExternalLinksIds) > 0 {
+		return impl.FindAllActive()
+	}
 	var links []ExternalLinks
 	err := impl.dbConnection.Model(&links).
 		Where("active = ?", true).

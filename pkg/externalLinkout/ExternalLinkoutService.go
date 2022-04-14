@@ -201,6 +201,9 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 		externalLinkResponse = append(externalLinkResponse, providerRes)
 	}
 
+	if externalLinkResponse == nil {
+		externalLinkResponse = make([]*ExternalLinkoutRequest, 0)
+	}
 	return externalLinkResponse, err
 }
 func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (*ExternalLinksCreateUpdateResponse, error) {
