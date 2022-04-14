@@ -70,7 +70,7 @@ func NewExternalLinkoutRestHandlerImpl(logger *zap.SugaredLogger,
 func (impl ExternalLinkoutRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
-	var bean externalLinkout.ExternalLinkoutRequest2
+	var bean externalLinkout.ExternalLinkoutRequest
 	err := decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveTeam", "err", err, "payload", bean)
@@ -123,7 +123,7 @@ func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinks(w http.ResponseWrite
 func (impl ExternalLinkoutRestHandlerImpl) UpdateExternalLinks(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
-	var bean externalLinkout.ExternalLinkoutRequest2
+	var bean externalLinkout.ExternalLinkoutRequest
 	err := decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Update Link", "err", err, "bean", bean)
