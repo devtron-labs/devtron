@@ -5,7 +5,7 @@ metadata:
   name: postgresql-postgresql
   labels:
     app: postgresql
-    chart: postgresql-9.6.0
+    chart: postgresql-8.6.4
     release: "devtron"
 type: Opaque
 ---
@@ -16,7 +16,7 @@ metadata:
   name: postgresql-postgresql-init-scripts
   labels:
     app: postgresql
-    chart: postgresql-9.6.0
+    chart: postgresql-8.6.4
     release: "devtron"
 data:
   db_create.sql: |
@@ -33,7 +33,7 @@ metadata:
   name: postgresql-postgresql-metrics
   labels:
     app: postgresql
-    chart: postgresql-9.6.0
+    chart: postgresql-8.6.4
     release: "devtron"
   annotations:
     prometheus.io/port: "9187"
@@ -56,7 +56,7 @@ metadata:
   name: postgresql-postgresql-headless
   labels:
     app: postgresql
-    chart: postgresql-9.6.0
+    chart: postgresql-8.6.4
     release: "devtron"
 spec:
   type: ClusterIP
@@ -76,7 +76,7 @@ metadata:
   name: postgresql-postgresql
   labels:
     app: postgresql
-    chart: postgresql-9.6.0
+    chart: postgresql-8.6.4
     release: "devtron"
 spec:
   type: ClusterIP
@@ -96,7 +96,7 @@ metadata:
   name: postgresql-postgresql
   labels:
     app: postgresql
-    chart: postgresql-9.6.0
+    chart: postgresql-8.6.4
     release: "devtron"
 spec:
   serviceName: postgresql-postgresql-headless
@@ -113,7 +113,7 @@ spec:
       name: postgresql-postgresql
       labels:
         app: postgresql
-        chart: postgresql-9.6.0
+        chart: postgresql-8.6.4
         release: "devtron"
         role: master
     spec:      
