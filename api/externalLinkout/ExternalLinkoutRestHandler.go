@@ -97,13 +97,17 @@ func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinksTools(w http.Response
 }
 
 func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, r *http.Request) {
-	params := mux.Vars(r)
-	id := params["clusterId"]
-	clusterId, err := strconv.Atoi(id)
-	if err != nil {
-		impl.logger.Errorw("request err, FetchOne", "err", err, "id", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	v := r.URL.Query()
+	id := v.Get("clusterId")
+	var err error
+	clusterId := 0
+	if len(id) > 0 {
+		clusterId, err = strconv.Atoi(id)
+		if err != nil {
+			impl.logger.Errorw("request err, FetchOne", "err", err, "id", id)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 	res, err := impl.externalLinkoutService.FetchAllActiveLinks(clusterId)
 	if err != nil {
@@ -111,6 +115,7 @@ func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinks(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
