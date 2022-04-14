@@ -30,7 +30,6 @@ type ExternalLinksMonitoringTools struct {
 	Active    bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
-
 type ExternalLinkoutToolsRepository interface {
 	Save(externalLinkoutTools *ExternalLinksMonitoringTools) error
 	FindAllActive() ([]ExternalLinksMonitoringTools, error)
@@ -42,13 +41,11 @@ type ExternalLinkoutToolsRepositoryImpl struct {
 func NewExternalLinkoutToolsRepositoryImpl(dbConnection *pg.DB) *ExternalLinkoutToolsRepositoryImpl {
 	return &ExternalLinkoutToolsRepositoryImpl{dbConnection: dbConnection}
 }
-
 func (impl ExternalLinkoutToolsRepositoryImpl) FindAllActive() ([]ExternalLinksMonitoringTools, error) {
 	var tools []ExternalLinksMonitoringTools
 	err := impl.dbConnection.Model(&tools).Where("active = ?", true).Select()
 	return tools, err
 }
-
 func (impl ExternalLinkoutToolsRepositoryImpl) Save(externalLinkoutTools *ExternalLinksMonitoringTools) error {
 	err := impl.dbConnection.Insert(externalLinkoutTools)
 	return err

@@ -36,8 +36,7 @@ type ExternalLinkoutRestHandler interface {
 	GetExternalLinksTools(w http.ResponseWriter, r *http.Request)
 	GetExternalLinks(w http.ResponseWriter, r *http.Request)
 	UpdateExternalLinks(w http.ResponseWriter, r *http.Request)
-	Delete(w http.ResponseWriter, r *http.Request) // Update is_active to false link
-
+	DeleteExternalLinks(w http.ResponseWriter, r *http.Request) // Update is_active to false link
 }
 type ExternalLinkoutRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
@@ -66,7 +65,6 @@ func NewExternalLinkoutRestHandlerImpl(logger *zap.SugaredLogger,
 		deleteService:          deleteService,
 	}
 }
-
 func (impl ExternalLinkoutRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var bean externalLinkout.ExternalLinkoutRequest
@@ -76,7 +74,6 @@ func (impl ExternalLinkoutRestHandlerImpl) CreateExternalLinks(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
 	res, err := impl.externalLinkoutService.Create(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, SaveLink", "err", err, "payload", bean)
@@ -85,7 +82,6 @@ func (impl ExternalLinkoutRestHandlerImpl) CreateExternalLinks(w http.ResponseWr
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-
 func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinksTools(w http.ResponseWriter, r *http.Request) {
 	res, err := impl.externalLinkoutService.GetAllActiveTools()
 	if err != nil {
@@ -95,7 +91,6 @@ func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinksTools(w http.Response
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-
 func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, r *http.Request) {
 	v := r.URL.Query()
 	id := v.Get("clusterId")
@@ -115,10 +110,8 @@ func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinks(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-
 func (impl ExternalLinkoutRestHandlerImpl) UpdateExternalLinks(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var bean externalLinkout.ExternalLinkoutRequest
@@ -137,8 +130,7 @@ func (impl ExternalLinkoutRestHandlerImpl) UpdateExternalLinks(w http.ResponseWr
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-
-func (impl ExternalLinkoutRestHandlerImpl) Delete(w http.ResponseWriter, r *http.Request) {
+func (impl ExternalLinkoutRestHandlerImpl) DeleteExternalLinks(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
 	idi, err := strconv.Atoi(id)

@@ -20,5 +20,5 @@ func (impl ExternalLinkoutRouterImpl) InitExternalLinkoutRouter(configRouter *mu
 	configRouter.Path("/tools").HandlerFunc(impl.externalLinkoutRestHandler.GetExternalLinksTools).Methods("GET")
 	configRouter.Path("").HandlerFunc(impl.externalLinkoutRestHandler.GetExternalLinks).Methods("GET")
 	configRouter.Path("").HandlerFunc(impl.externalLinkoutRestHandler.UpdateExternalLinks).Methods("PUT")
-	configRouter.Path("").HandlerFunc(impl.externalLinkoutRestHandler.Delete).Methods("DELETE")
+	configRouter.Path("").HandlerFunc(impl.externalLinkoutRestHandler.DeleteExternalLinks).Methods("DELETE")
 }

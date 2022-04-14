@@ -69,7 +69,7 @@ func (impl ExternalLinkoutServiceImpl) Create(request *ExternalLinkoutRequest) (
 	impl.logger.Debugw("external linkout create request", "req", request)
 	t := &ExternalLinks{
 		Name:                          request.Name,
-		Active:                        request.Active,
+		Active:                        true,
 		ExternalLinksMonitoringToolId: request.MonitoringToolId,
 		Url:                           request.Url,
 		AuditLog:                      sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now()},
@@ -129,10 +129,10 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 	var links []ExternalLinksClusters
 	var err error
 	if clusterId == 0 {
-		links, err = impl.externalLinksClustersRepository.FindAll()
+		links, err = impl.externalLinksClustersRepository.FindAllActive()
 
 	} else {
-		links, err = impl.externalLinksClustersRepository.FindAllActive(clusterId)
+		links, err = impl.externalLinksClustersRepository.FindAllActiveByClusterId(clusterId)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetch all links", "err", err)
@@ -151,14 +151,13 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 			providerRes.ClusterIds = append(providerRes.ClusterIds, link.ClusterId)
 			linkRequests = append(linkRequests, providerRes)
 		} else {
-
-			response[link.Id] = &ExternalLinkoutRequest{
+			response[link.ExternalLinksId] = &ExternalLinkoutRequest{
 				Name:             link.ExternalLinks.Name,
 				Url:              link.ExternalLinks.Url,
 				Active:           link.ExternalLinks.Active,
 				MonitoringToolId: link.ExternalLinks.ExternalLinksMonitoringToolId,
 			}
-			response[link.Id].ClusterIds = append(response[link.Id].ClusterIds, link.ClusterId)
+			response[link.Id].ClusterIds = append(response[link.ExternalLinksId].ClusterIds, link.ClusterId)
 		}
 	}
 	for _, v := range response {
@@ -166,7 +165,6 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 	}
 	return linkRequests, err
 }
-
 func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error) {
 	impl.logger.Debugw("link update request", "req", request)
 	existingProvider, err0 := impl.externalLinksRepository.FindOne(request.Id)
@@ -212,7 +210,6 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 			impl.logger.Errorw("error in updating clusters to false", "data", x, "err", err)
 		}
 	}
-
 	for _, v := range request.ClusterIds {
 		flag := 0
 		for _, w := range totalClusters {
@@ -220,7 +217,6 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 				flag = 1
 			}
 		}
-
 		x := &ExternalLinksClusters{
 			ExternalLinksId: link.Id,
 			ClusterId:       v,
@@ -240,15 +236,12 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 			}
 			return nil, err
 		}
-
 	}
-
 	request.Id = link.Id
 	return request, nil
 }
 func (impl ExternalLinkoutServiceImpl) DeleteLink(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error) {
 	impl.logger.Debugw("link delete request", "req", request)
-
 	totalClusters, _ := impl.externalLinksClustersRepository.FindAllClusters(request.Id)
 	for _, v := range totalClusters {
 		x := &ExternalLinksClusters{
@@ -263,7 +256,6 @@ func (impl ExternalLinkoutServiceImpl) DeleteLink(request *ExternalLinkoutReques
 			impl.logger.Errorw("error in deleting clusters to false", "data", x, "err", err)
 		}
 	}
-
 	link := &ExternalLinks{
 		Id:       request.Id,
 		Active:   false,

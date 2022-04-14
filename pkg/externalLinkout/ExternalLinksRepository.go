@@ -37,6 +37,7 @@ type ExternalLinksRepository interface {
 	FindAllActive() ([]ExternalLinks, error)
 	FindOne(id int) (ExternalLinks, error)
 	Update(link *ExternalLinks) error
+	FindAllNonMapped() ([]ExternalLinks, error)
 }
 type ExternalLinksRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -45,12 +46,10 @@ type ExternalLinksRepositoryImpl struct {
 func NewExternalLinksRepositoryImpl(dbConnection *pg.DB) *ExternalLinksRepositoryImpl {
 	return &ExternalLinksRepositoryImpl{dbConnection: dbConnection}
 }
-
 func (impl ExternalLinksRepositoryImpl) Save(externalLinks *ExternalLinks) error {
 	err := impl.dbConnection.Insert(externalLinks)
 	return err
 }
-
 func (impl ExternalLinksRepositoryImpl) FindAllActive() ([]ExternalLinks, error) {
 	var links []ExternalLinks
 	err := impl.dbConnection.Model(&links).Where("active = ?", true).Select()
@@ -60,11 +59,17 @@ func (impl ExternalLinksRepositoryImpl) Update(link *ExternalLinks) error {
 	err := impl.dbConnection.Update(link)
 	return err
 }
-
 func (impl ExternalLinksRepositoryImpl) FindOne(id int) (ExternalLinks, error) {
 	var link ExternalLinks
 	err := impl.dbConnection.Model(&link).
 		Where("id = ?", id).
 		Where("active = ?", true).Select()
 	return link, err
+}
+func (impl ExternalLinksRepositoryImpl) FindAllNonMapped() ([]ExternalLinks, error) {
+	var links []ExternalLinks
+	err := impl.dbConnection.Model(&links).
+		Where("active = ?", true).
+		Select()
+	return links, err
 }
