@@ -27,7 +27,7 @@ import (
 )
 
 type ExternalLinkoutService interface {
-	Create(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error)
+	Create(requests []*ExternalLinkoutRequest) ([]*ExternalLinkoutRequest, error)
 	GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error)
 	FetchAllActiveLinks(clusterIds int) ([]*ExternalLinkoutRequest, error)
 	Update(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error)
@@ -65,44 +65,44 @@ func NewExternalLinkoutServiceImpl(logger *zap.SugaredLogger, externalLinkoutToo
 	}
 }
 
-func (impl ExternalLinkoutServiceImpl) Create(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error) {
-	impl.logger.Debugw("external linkout create request", "req", request)
-	t := &ExternalLinks{
-		Name:                          request.Name,
-		Active:                        true,
-		ExternalLinksMonitoringToolId: request.MonitoringToolId,
-		Url:                           request.Url,
-		AuditLog:                      sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now()},
-	}
-	err := impl.externalLinksRepository.Save(t)
-
-	if err != nil {
-		impl.logger.Errorw("error in saving link", "data", t, "err", err)
-		err = &util.ApiError{
-			InternalMessage: "external link failed to create in db",
-			UserMessage:     "external link failed to create in db",
+func (impl ExternalLinkoutServiceImpl) Create(requests []*ExternalLinkoutRequest) ([]*ExternalLinkoutRequest, error) {
+	impl.logger.Debugw("external linkout create request", "req", requests)
+	for _, request := range requests {
+		t := &ExternalLinks{
+			Name:                          request.Name,
+			Active:                        true,
+			ExternalLinksMonitoringToolId: request.MonitoringToolId,
+			Url:                           request.Url,
+			AuditLog:                      sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now()},
 		}
-		return nil, err
-	}
-
-	for _, v := range request.ClusterIds {
-		x := &ExternalLinksClusters{
-			ExternalLinksId: t.Id,
-			ClusterId:       v,
-			AuditLog:        sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now()},
-		}
-		err := impl.externalLinksClustersRepository.Save(x)
-
+		err := impl.externalLinksRepository.Save(t)
 		if err != nil {
-			impl.logger.Errorw("error in saving cluster id's", "data", t, "err", err)
+			impl.logger.Errorw("error in saving link", "data", t, "err", err)
 			err = &util.ApiError{
-				InternalMessage: "cluster id failed to create in db",
-				UserMessage:     "cluster id failed to create in db",
+				InternalMessage: "external link failed to create in db",
+				UserMessage:     "external link failed to create in db",
 			}
 			return nil, err
 		}
+
+		for _, clusterId := range request.ClusterIds {
+			externalLinksMapping := &ExternalLinksClusters{
+				ExternalLinksId: t.Id,
+				ClusterId:       clusterId,
+				AuditLog:        sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now()},
+			}
+			err := impl.externalLinksClustersRepository.Save(externalLinksMapping)
+			if err != nil {
+				impl.logger.Errorw("error in saving cluster id's", "data", t, "err", err)
+				err = &util.ApiError{
+					InternalMessage: "cluster id failed to create in db",
+					UserMessage:     "cluster id failed to create in db",
+				}
+				return nil, err
+			}
+		}
 	}
-	return request, nil
+	return requests, nil
 }
 
 func (impl ExternalLinkoutServiceImpl) GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error) {
