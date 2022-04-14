@@ -29,7 +29,6 @@ type ExternalLinks struct {
 	Name             string   `sql:"name,notnull"`
 	Url              string   `sql:"url,notnull"`
 	IsActive         bool     `sql:"is_active,notnull"`
-
 	sql.AuditLog
 }
 

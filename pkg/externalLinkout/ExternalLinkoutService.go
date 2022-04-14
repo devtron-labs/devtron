@@ -31,6 +31,7 @@ type ExternalLinkoutService interface {
 	GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error)
 	FetchAllActiveLinks(clusterIds int) ([]*ExternalLinkoutRequest, error)
 	Update(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error)
+	DeleteLink(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error)
 }
 type ExternalLinkoutServiceImpl struct {
 	logger                          *zap.SugaredLogger
@@ -76,7 +77,7 @@ func (impl ExternalLinkoutServiceImpl) Create(request *ExternalLinkoutRequest) (
 	err := impl.externalLinksRepository.Save(t)
 
 	if err != nil {
-		impl.logger.Errorw("error in saving team", "data", t, "err", err)
+		impl.logger.Errorw("error in saving link", "data", t, "err", err)
 		err = &util.ApiError{
 			InternalMessage: "external link failed to create in db",
 			UserMessage:     "external link failed to create in db",
@@ -105,7 +106,7 @@ func (impl ExternalLinkoutServiceImpl) Create(request *ExternalLinkoutRequest) (
 }
 
 func (impl ExternalLinkoutServiceImpl) GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error) {
-	impl.logger.Debug("fetch all team from db")
+	impl.logger.Debug("fetch all links from db")
 	tools, err := impl.externalLinkoutToolsRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all tools", "err", err)
@@ -124,7 +125,7 @@ func (impl ExternalLinkoutServiceImpl) GetAllActiveTools() ([]ExternalLinksMonit
 }
 
 func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*ExternalLinkoutRequest, error) {
-	impl.logger.Debug("fetch all team from db")
+	impl.logger.Debug("fetch all links from db")
 	var links []ExternalLinksClusters
 	var err error
 	if clusterId == 0 {
@@ -167,7 +168,7 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 }
 
 func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error) {
-	impl.logger.Debugw("team update request", "req", request)
+	impl.logger.Debugw("link update request", "req", request)
 	existingProvider, err0 := impl.externalLinksRepository.FindOne(request.Id)
 	if err0 != nil {
 		impl.logger.Errorw("No matching entry found for update.", "id", request.Id)
@@ -191,14 +192,12 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 		impl.logger.Errorw("error in updating team", "data", link, "err", err)
 		err = &util.ApiError{
 			Code:            constants.GitProviderUpdateFailedInDb,
-			InternalMessage: "team failed to update in db",
-			UserMessage:     "team failed to update in db",
+			InternalMessage: "link failed to update in db",
+			UserMessage:     "link failed to update in db",
 		}
 		return nil, err
 	}
 
-	// if request.ClusterIds == ""
-	// Change range to integer number 1 to x
 	totalClusters, _ := impl.externalLinksClustersRepository.FindAllClusters(request.Id)
 	for _, v := range totalClusters {
 		x := &ExternalLinksClusters{
@@ -215,12 +214,10 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 	}
 
 	for _, v := range request.ClusterIds {
-		// Check if available for
 		flag := 0
 		for _, w := range totalClusters {
 			if v == w {
 				flag = 1
-				break
 			}
 		}
 
@@ -246,6 +243,42 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 
 	}
 
+	request.Id = link.Id
+	return request, nil
+}
+func (impl ExternalLinkoutServiceImpl) DeleteLink(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error) {
+	impl.logger.Debugw("link delete request", "req", request)
+
+	totalClusters, _ := impl.externalLinksClustersRepository.FindAllClusters(request.Id)
+	for _, v := range totalClusters {
+		x := &ExternalLinksClusters{
+			ExternalLinkId: request.Id,
+			ClusterId:      v,
+			IsActive:       false,
+			AuditLog:       sql.AuditLog{UpdatedOn: time.Now()},
+		}
+		err := impl.externalLinksClustersRepository.Update(x)
+
+		if err != nil {
+			impl.logger.Errorw("error in deleting clusters to false", "data", x, "err", err)
+		}
+	}
+
+	link := &ExternalLinks{
+		Id:       request.Id,
+		IsActive: false,
+		AuditLog: sql.AuditLog{UpdatedOn: time.Now()},
+	}
+	err := impl.externalLinksRepository.Update(link)
+	if err != nil {
+		impl.logger.Errorw("error in deleting link", "data", link, "err", err)
+		err = &util.ApiError{
+			Code:            constants.GitProviderUpdateFailedInDb,
+			InternalMessage: "link failed to delete in db",
+			UserMessage:     "link failed to delete in db",
+		}
+		return nil, err
+	}
 	request.Id = link.Id
 	return request, nil
 }
