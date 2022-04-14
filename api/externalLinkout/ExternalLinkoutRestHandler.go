@@ -141,11 +141,11 @@ func (impl ExternalLinkoutRestHandlerImpl) DeleteExternalLinks(w http.ResponseWr
 	}
 	var bean externalLinkout.ExternalLinkoutRequest
 	bean.Id = idi
-	res, err := impl.externalLinkoutService.DeleteLink(&bean)
+	err = impl.externalLinkoutService.DeleteLink(idi)
 	if err != nil {
 		impl.logger.Errorw("service err, Update Links", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, true, http.StatusOK)
 }
