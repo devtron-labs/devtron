@@ -66,15 +66,20 @@ func NewExternalLinkoutRestHandlerImpl(logger *zap.SugaredLogger,
 	}
 }
 func (impl ExternalLinkoutRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	var beans []*externalLinkout.ExternalLinkoutRequest
-	err := decoder.Decode(&beans)
+	err = decoder.Decode(&beans)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveLink", "err", err, "payload", beans)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := impl.externalLinkoutService.Create(beans)
+	res, err := impl.externalLinkoutService.Create(beans, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, SaveLink", "err", err, "payload", beans)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -83,6 +88,11 @@ func (impl ExternalLinkoutRestHandlerImpl) CreateExternalLinks(w http.ResponseWr
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinksTools(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	res, err := impl.externalLinkoutService.GetAllActiveTools()
 	if err != nil {
 		impl.logger.Errorw("service err, GetAllActiveTools", "err", err)
@@ -92,9 +102,13 @@ func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinksTools(w http.Response
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	v := r.URL.Query()
 	id := v.Get("clusterId")
-	var err error
 	clusterId := 0
 	if len(id) > 0 {
 		clusterId, err = strconv.Atoi(id)
@@ -113,14 +127,20 @@ func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinks(w http.ResponseWrite
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 func (impl ExternalLinkoutRestHandlerImpl) UpdateExternalLinks(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	var bean externalLinkout.ExternalLinkoutRequest
-	err := decoder.Decode(&bean)
+	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Update Link", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	bean.UserId = userId
 	impl.logger.Infow("request payload, UpdateLink", "err", err, "bean", bean)
 	res, err := impl.externalLinkoutService.Update(&bean)
 	if err != nil {
@@ -131,6 +151,11 @@ func (impl ExternalLinkoutRestHandlerImpl) UpdateExternalLinks(w http.ResponseWr
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 func (impl ExternalLinkoutRestHandlerImpl) DeleteExternalLinks(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	params := mux.Vars(r)
 	id := params["id"]
 	idi, err := strconv.Atoi(id)
@@ -141,7 +166,7 @@ func (impl ExternalLinkoutRestHandlerImpl) DeleteExternalLinks(w http.ResponseWr
 	}
 	var bean externalLinkout.ExternalLinkoutRequest
 	bean.Id = idi
-	err = impl.externalLinkoutService.DeleteLink(idi)
+	err = impl.externalLinkoutService.DeleteLink(idi, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Update Links", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

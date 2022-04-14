@@ -26,11 +26,11 @@ import (
 )
 
 type ExternalLinkoutService interface {
-	Create(requests []*ExternalLinkoutRequest) ([]*ExternalLinkoutRequest, error)
+	Create(requests []*ExternalLinkoutRequest, userId int32) ([]*ExternalLinkoutRequest, error)
 	GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error)
 	FetchAllActiveLinks(clusterIds int) ([]*ExternalLinkoutRequest, error)
 	Update(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error)
-	DeleteLink(id int) error
+	DeleteLink(id int, userId int32) error
 }
 type ExternalLinkoutServiceImpl struct {
 	logger                          *zap.SugaredLogger
@@ -51,7 +51,7 @@ type ExternalLinkoutRequest struct {
 	Active           bool   `json:"active"`
 	MonitoringToolId int    `json:"monitoringToolId"`
 	ClusterIds       []int  `json:"clusterIds"`
-	UserId           int    `json:"-"`
+	UserId           int32  `json:"-"`
 }
 
 func NewExternalLinkoutServiceImpl(logger *zap.SugaredLogger, externalLinkoutToolsRepository ExternalLinkoutToolsRepository,
@@ -65,7 +65,7 @@ func NewExternalLinkoutServiceImpl(logger *zap.SugaredLogger, externalLinkoutToo
 	}
 }
 
-func (impl ExternalLinkoutServiceImpl) Create(requests []*ExternalLinkoutRequest) ([]*ExternalLinkoutRequest, error) {
+func (impl ExternalLinkoutServiceImpl) Create(requests []*ExternalLinkoutRequest, userId int32) ([]*ExternalLinkoutRequest, error) {
 	impl.logger.Debugw("external linkout create request", "req", requests)
 	for _, request := range requests {
 		t := &ExternalLinks{
@@ -73,7 +73,7 @@ func (impl ExternalLinkoutServiceImpl) Create(requests []*ExternalLinkoutRequest
 			Active:                        true,
 			ExternalLinksMonitoringToolId: request.MonitoringToolId,
 			Url:                           request.Url,
-			AuditLog:                      sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now()},
+			AuditLog:                      sql.AuditLog{CreatedOn: time.Now(), CreatedBy: userId, UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
 		err := impl.externalLinksRepository.Save(t)
 		if err != nil {
@@ -89,7 +89,8 @@ func (impl ExternalLinkoutServiceImpl) Create(requests []*ExternalLinkoutRequest
 			externalLinksMapping := &ExternalLinksClusters{
 				ExternalLinksId: t.Id,
 				ClusterId:       clusterId,
-				AuditLog:        sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now()},
+				Active:          true,
+				AuditLog:        sql.AuditLog{CreatedOn: time.Now(), CreatedBy: userId, UpdatedOn: time.Now(), UpdatedBy: userId},
 			}
 			err := impl.externalLinksClustersRepository.Save(externalLinksMapping)
 			if err != nil {
@@ -204,7 +205,7 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 	}
 	externalLinks.Name = request.Name
 	externalLinks.Url = request.Url
-	externalLinks.Active = request.Active
+	externalLinks.Active = true
 	externalLinks.ExternalLinksMonitoringToolId = request.MonitoringToolId
 	externalLinks.UpdatedBy = int32(request.UserId)
 	externalLinks.UpdatedOn = time.Now()
@@ -214,45 +215,43 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 		return nil, err
 	}
 
-	allExternalLinksMapping, err := impl.externalLinksClustersRepository.FindAllClusters(request.Id)
+	allExternalLinksMapping, err := impl.externalLinksClustersRepository.FindAllActiveByExternalLinkId(request.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching link", "data", externalLinks, "err", err)
 		return nil, err
 	}
-	for _, clusterId := range allExternalLinksMapping {
-		externalLinksMap := &ExternalLinksClusters{
-			ExternalLinksId: request.Id,
-			ClusterId:       clusterId,
-			Active:          false,
-			AuditLog:        sql.AuditLog{UpdatedOn: time.Now()},
-		}
-		err := impl.externalLinksClustersRepository.Update(externalLinksMap)
+	for _, model := range allExternalLinksMapping {
+		model.Active = false
+		model.UpdatedBy = int32(request.UserId)
+		model.UpdatedOn = time.Now()
+		err := impl.externalLinksClustersRepository.Update(model)
 		if err != nil {
-			impl.logger.Errorw("error in updating clusters to false", "data", externalLinksMap, "err", err)
+			impl.logger.Errorw("error in updating clusters to false", "data", model, "err", err)
+			return nil, err
 		}
 	}
 	for _, requestedClusterId := range request.ClusterIds {
-		flag := 0
-		for _, existingClusterId := range allExternalLinksMapping {
-			if requestedClusterId == existingClusterId {
-				flag = 1
+		externalLinkClusterId := 0
+		for _, model := range allExternalLinksMapping {
+			if requestedClusterId == model.ClusterId {
+				externalLinkClusterId = model.Id
 				break
 			}
 		}
-
-		x := &ExternalLinksClusters{
+		externalLinkCluster := &ExternalLinksClusters{
 			ExternalLinksId: request.Id,
 			ClusterId:       requestedClusterId,
 			Active:          true,
-			AuditLog:        sql.AuditLog{UpdatedOn: time.Now()},
+			AuditLog:        sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: int32(request.UserId)},
 		}
-		if flag == 1 {
-			err = impl.externalLinksClustersRepository.Update(x)
+		if externalLinkClusterId > 0 {
+			externalLinkCluster.Id = externalLinkClusterId
+			err = impl.externalLinksClustersRepository.Update(externalLinkCluster)
 		} else {
-			err = impl.externalLinksClustersRepository.Save(x)
+			err = impl.externalLinksClustersRepository.Save(externalLinkCluster)
 		}
 		if err != nil {
-			impl.logger.Errorw("error in saving cluster id's", "data", x, "err", err)
+			impl.logger.Errorw("error in saving cluster id's", "data", externalLinkCluster, "err", err)
 			err = &util.ApiError{
 				InternalMessage: "cluster id failed to create in db",
 				UserMessage:     "cluster id failed to create in db",
@@ -262,27 +261,28 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 	}
 	return request, nil
 }
-func (impl ExternalLinkoutServiceImpl) DeleteLink(id int) error {
+func (impl ExternalLinkoutServiceImpl) DeleteLink(id int, userId int32) error {
 	impl.logger.Debugw("link delete request", "req", id)
-	externalLinksMapping, _ := impl.externalLinksClustersRepository.FindAllClusters(id)
-	for _, v := range externalLinksMapping {
-		x := &ExternalLinksClusters{
-			ExternalLinksId: id,
-			ClusterId:       v,
-			Active:          false,
-			AuditLog:        sql.AuditLog{UpdatedOn: time.Now()},
-		}
-		err := impl.externalLinksClustersRepository.Update(x)
+	externalLinksMapping, err := impl.externalLinksClustersRepository.FindAllActiveByExternalLinkId(id)
+	if err != nil {
+		return err
+	}
+	for _, externalLink := range externalLinksMapping {
+		externalLink.Active = false
+		externalLink.UpdatedOn = time.Now()
+		externalLink.UpdatedBy = userId
+		err := impl.externalLinksClustersRepository.Update(externalLink)
 		if err != nil {
-			impl.logger.Errorw("error in deleting clusters to false", "data", x, "err", err)
+			impl.logger.Errorw("error in deleting clusters to false", "data", externalLink, "err", err)
+			return err
 		}
 	}
 	link := &ExternalLinks{
 		Id:       id,
 		Active:   false,
-		AuditLog: sql.AuditLog{UpdatedOn: time.Now()},
+		AuditLog: sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: userId},
 	}
-	err := impl.externalLinksRepository.Update(link)
+	err = impl.externalLinksRepository.Update(link)
 	if err != nil {
 		impl.logger.Errorw("error in deleting link", "data", link, "err", err)
 		return err
