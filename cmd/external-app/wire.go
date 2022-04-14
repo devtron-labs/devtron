@@ -36,10 +36,12 @@ import (
 
 func InitializeApp() (*App, error) {
 	wire.Build(
+
 		sql.PgSqlWireSet,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		AuthWireSet,
+		externalLinkout.ExternalLinkoutWireSet,
 		team.TeamsWireSet,
 		cluster.ClusterWireSetEa,
 		dashboard.DashboardWireSet,

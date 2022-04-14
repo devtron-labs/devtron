@@ -29,7 +29,7 @@ import (
 type ExternalLinkoutService interface {
 	Create(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error)
 	GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error)
-	FetchAllActiveLinks(clusterIds int) ([]ExternalLinkoutRequest, error)
+	FetchAllActiveLinks(clusterIds int) ([]*ExternalLinkoutRequest, error)
 	Update(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error)
 }
 type ExternalLinkoutServiceImpl struct {
@@ -123,12 +123,13 @@ func (impl ExternalLinkoutServiceImpl) GetAllActiveTools() ([]ExternalLinksMonit
 	return toolRequests, err
 }
 
-func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]ExternalLinkoutRequest, error) {
+func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*ExternalLinkoutRequest, error) {
 	impl.logger.Debug("fetch all team from db")
 	var links []ExternalLinksClusters
 	var err error
 	if clusterId == 0 {
 		links, err = impl.externalLinksClustersRepository.FindAll()
+
 	} else {
 		links, err = impl.externalLinksClustersRepository.FindAllActive(clusterId)
 	}
@@ -136,10 +137,11 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]Ext
 		impl.logger.Errorw("error in fetch all team", "err", err)
 		return nil, err
 	}
-	var linkRequests []ExternalLinkoutRequest
+	var linkRequests []*ExternalLinkoutRequest
+	response := make(map[int]*ExternalLinkoutRequest)
 	for _, link := range links {
 		if clusterId > 0 {
-			providerRes := ExternalLinkoutRequest{
+			providerRes := &ExternalLinkoutRequest{
 				Name:             link.ExternalLinks.Name,
 				Url:              link.ExternalLinks.Url,
 				Active:           link.ExternalLinks.IsActive,
@@ -148,16 +150,18 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]Ext
 			providerRes.ClusterIds = append(providerRes.ClusterIds, link.ClusterId)
 			linkRequests = append(linkRequests, providerRes)
 		} else {
-			var Response map[int]ExternalLinkoutRequest
-			Response[link.Id] = ExternalLinkoutRequest{
+
+			response[link.Id] = &ExternalLinkoutRequest{
 				Name:             link.ExternalLinks.Name,
 				Url:              link.ExternalLinks.Url,
 				Active:           link.ExternalLinks.IsActive,
 				MonitoringToolId: link.ExternalLinks.MonitoringToolId,
 			}
-			//Response[link.Id].ClusterIds = append(Response[link.Id].ClusterIds, link.ClusterId)
-
+			response[link.Id].ClusterIds = append(response[link.Id].ClusterIds, link.ClusterId)
 		}
+	}
+	for _, v := range response {
+		linkRequests = append(linkRequests, v)
 	}
 	return linkRequests, err
 }
