@@ -26,11 +26,11 @@ import (
 )
 
 type ExternalLinkoutService interface {
-	Create(requests []*ExternalLinkoutRequest, userId int32) ([]*ExternalLinkoutRequest, error)
+	Create(requests []*ExternalLinkoutRequest, userId int32) (*ExternalLinksCreateUpdateResponse, error)
 	GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error)
 	FetchAllActiveLinks(clusterIds int) ([]*ExternalLinkoutRequest, error)
-	Update(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error)
-	DeleteLink(id int, userId int32) error
+	Update(request *ExternalLinkoutRequest) (*ExternalLinksCreateUpdateResponse, error)
+	DeleteLink(id int, userId int32) (*ExternalLinksCreateUpdateResponse, error)
 }
 type ExternalLinkoutServiceImpl struct {
 	logger                          *zap.SugaredLogger
@@ -54,6 +54,10 @@ type ExternalLinkoutRequest struct {
 	UserId           int32  `json:"-"`
 }
 
+type ExternalLinksCreateUpdateResponse struct {
+	Success bool `json:"success"`
+}
+
 func NewExternalLinkoutServiceImpl(logger *zap.SugaredLogger, externalLinkoutToolsRepository ExternalLinkoutToolsRepository,
 	externalLinksClustersRepository ExternalLinksClustersRepository, externalLinksRepository ExternalLinksRepository, userAuthService user.UserAuthService) *ExternalLinkoutServiceImpl {
 	return &ExternalLinkoutServiceImpl{
@@ -65,7 +69,7 @@ func NewExternalLinkoutServiceImpl(logger *zap.SugaredLogger, externalLinkoutToo
 	}
 }
 
-func (impl ExternalLinkoutServiceImpl) Create(requests []*ExternalLinkoutRequest, userId int32) ([]*ExternalLinkoutRequest, error) {
+func (impl ExternalLinkoutServiceImpl) Create(requests []*ExternalLinkoutRequest, userId int32) (*ExternalLinksCreateUpdateResponse, error) {
 	impl.logger.Debugw("external linkout create request", "req", requests)
 	for _, request := range requests {
 		t := &ExternalLinks{
@@ -103,7 +107,10 @@ func (impl ExternalLinkoutServiceImpl) Create(requests []*ExternalLinkoutRequest
 			}
 		}
 	}
-	return requests, nil
+	externalLinksCreateUpdateResponse := &ExternalLinksCreateUpdateResponse{
+		Success: true,
+	}
+	return externalLinksCreateUpdateResponse, nil
 }
 
 func (impl ExternalLinkoutServiceImpl) GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error) {
@@ -196,7 +203,7 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 
 	return externalLinkResponse, err
 }
-func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (*ExternalLinkoutRequest, error) {
+func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (*ExternalLinksCreateUpdateResponse, error) {
 	impl.logger.Debugw("link update request", "req", request)
 	externalLinks, err0 := impl.externalLinksRepository.FindOne(request.Id)
 	if err0 != nil {
@@ -259,13 +266,16 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 			return nil, err
 		}
 	}
-	return request, nil
+	externalLinksCreateUpdateResponse := &ExternalLinksCreateUpdateResponse{
+		Success: true,
+	}
+	return externalLinksCreateUpdateResponse, nil
 }
-func (impl ExternalLinkoutServiceImpl) DeleteLink(id int, userId int32) error {
+func (impl ExternalLinkoutServiceImpl) DeleteLink(id int, userId int32) (*ExternalLinksCreateUpdateResponse, error) {
 	impl.logger.Debugw("link delete request", "req", id)
 	externalLinksMapping, err := impl.externalLinksClustersRepository.FindAllActiveByExternalLinkId(id)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	for _, externalLink := range externalLinksMapping {
 		externalLink.Active = false
@@ -274,7 +284,7 @@ func (impl ExternalLinkoutServiceImpl) DeleteLink(id int, userId int32) error {
 		err := impl.externalLinksClustersRepository.Update(externalLink)
 		if err != nil {
 			impl.logger.Errorw("error in deleting clusters to false", "data", externalLink, "err", err)
-			return err
+			return nil, err
 		}
 	}
 	link := &ExternalLinks{
@@ -285,7 +295,11 @@ func (impl ExternalLinkoutServiceImpl) DeleteLink(id int, userId int32) error {
 	err = impl.externalLinksRepository.Update(link)
 	if err != nil {
 		impl.logger.Errorw("error in deleting link", "data", link, "err", err)
-		return err
+		return nil, err
 	}
-	return nil
+
+	externalLinksCreateUpdateResponse := &ExternalLinksCreateUpdateResponse{
+		Success: true,
+	}
+	return externalLinksCreateUpdateResponse, nil
 }
