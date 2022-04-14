@@ -432,6 +432,8 @@ components:
           type: string
         value:
           type: string
+        format:
+          type: string
     CiPipelineDto:
       type: object
       properties:

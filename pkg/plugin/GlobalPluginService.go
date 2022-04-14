@@ -7,8 +7,9 @@ import (
 )
 
 type GlobalVariable struct {
-	Name  string `json:"name"`
-	Value string `json:"value"`
+	Name   string `json:"name"`
+	Value  string `json:"value,omitempty"`
+	Format string `json:"format"`
 }
 
 type GlobalPluginService interface {
@@ -47,7 +48,8 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 	var globalVariables []*GlobalVariable
 	for _, globalVariableName := range globalVariableNames {
 		globalVariable := &GlobalVariable{
-			Name: globalVariableName,
+			Name:   globalVariableName,
+			Format: string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
 		}
 		globalVariables = append(globalVariables, globalVariable)
 	}
