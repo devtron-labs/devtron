@@ -38,7 +38,6 @@ type ExternalLinksRepository interface {
 	FindAllActive(clusterIds []int) ([]ExternalLinks, error)
 	FindOne(id int) (ExternalLinks, error)
 	Update(link *ExternalLinks) error
-	Delete(link *ExternalLinks) error
 }
 type ExternalLinksRepositoryImpl struct {
 	dbConnection *pg.DB

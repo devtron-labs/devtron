@@ -179,6 +179,7 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 		return nil, err0
 	}
 	link := &ExternalLinks{
+		Id:               request.Id,
 		Name:             request.Name,
 		IsActive:         request.Active,
 		MonitoringToolId: request.MonitoringToolId,
@@ -196,15 +197,44 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 		return nil, err
 	}
 
-	for _, v := range request.ClusterIds {
+	// if request.ClusterIds == ""
+	// Change range to integer number 1 to x
+	totalClusters, _ := impl.externalLinksClustersRepository.FindAllClusters(request.Id)
+	for _, v := range totalClusters {
 		x := &ExternalLinksClusters{
 			ExternalLinkId: link.Id,
 			ClusterId:      v,
-			IsActive:       link.IsActive,
+			IsActive:       false,
 			AuditLog:       sql.AuditLog{UpdatedOn: time.Now()},
 		}
 		err := impl.externalLinksClustersRepository.Update(x)
 
+		if err != nil {
+			impl.logger.Errorw("error in updating clusters to false", "data", x, "err", err)
+		}
+	}
+
+	for _, v := range request.ClusterIds {
+		// Check if available for
+		flag := 0
+		for _, w := range totalClusters {
+			if v == w {
+				flag = 1
+				break
+			}
+		}
+
+		x := &ExternalLinksClusters{
+			ExternalLinkId: link.Id,
+			ClusterId:      v,
+			IsActive:       true,
+			AuditLog:       sql.AuditLog{UpdatedOn: time.Now()},
+		}
+		if flag == 1 {
+			err = impl.externalLinksClustersRepository.Update(x)
+		} else {
+			err = impl.externalLinksClustersRepository.Save(x)
+		}
 		if err != nil {
 			impl.logger.Errorw("error in saving cluster id's", "data", x, "err", err)
 			err = &util.ApiError{
@@ -213,6 +243,7 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 			}
 			return nil, err
 		}
+
 	}
 
 	request.Id = link.Id
