@@ -24,19 +24,19 @@ import (
 	"github.com/devtron-labs/devtron/pkg/externalLinkout"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
-	"strings"
 )
 
 type ExternalLinkoutRestHandler interface {
 	CreateExternalLinks(w http.ResponseWriter, r *http.Request)
-	GetAllTools(w http.ResponseWriter, r *http.Request)
-	GetAllLinks(w http.ResponseWriter, r *http.Request)
-	Update(w http.ResponseWriter, r *http.Request)
-	Delete(w http.ResponseWriter, r *http.Request) // Update is_active to false link
+	GetExternalLinksTools(w http.ResponseWriter, r *http.Request)
+	GetExternalLinks(w http.ResponseWriter, r *http.Request)
+	UpdateExternalLinks(w http.ResponseWriter, r *http.Request)
+	//Delete(w http.ResponseWriter, r *http.Request) // Update is_active to false link
 
 }
 type ExternalLinkoutRestHandlerImpl struct {
@@ -70,7 +70,7 @@ func NewExternalLinkoutRestHandlerImpl(logger *zap.SugaredLogger,
 func (impl ExternalLinkoutRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
-	var bean externalLinkout.ExternalLinkoutRequest
+	var bean externalLinkout.ExternalLinkoutRequest2
 	err := decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveTeam", "err", err, "payload", bean)
@@ -87,7 +87,7 @@ func (impl ExternalLinkoutRestHandlerImpl) CreateExternalLinks(w http.ResponseWr
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl ExternalLinkoutRestHandlerImpl) GetAllTools(w http.ResponseWriter, r *http.Request) {
+func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinksTools(w http.ResponseWriter, r *http.Request) {
 	res, err := impl.externalLinkoutService.GetAllActiveTools()
 	if err != nil {
 		impl.logger.Errorw("service err, GetAllActiveTools", "err", err)
@@ -99,22 +99,18 @@ func (impl ExternalLinkoutRestHandlerImpl) GetAllTools(w http.ResponseWriter, r 
 
 }
 
-func (impl ExternalLinkoutRestHandlerImpl) GetAllLinks(w http.ResponseWriter, r *http.Request) {
-	v := r.URL.Query()
-	clusterIdString := v.Get("clusterId")
-	var clusterIds []int
-	if clusterIdString != "" {
-		clusterIdSlices := strings.Split(clusterIdString, ",")
-		for _, clusterId := range clusterIdSlices {
-			id, err := strconv.Atoi(clusterId)
-			if err != nil {
-				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
-				return
-			}
-			clusterIds = append(clusterIds, id)
-		}
+func (impl ExternalLinkoutRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, r *http.Request) {
+	//v := r.URL.Query()
+	//clusterId := v.Get("clusterId")
+	params := mux.Vars(r)
+	id := params["clusterId"]
+	clusterId, err := strconv.Atoi(id)
+	if err != nil {
+		impl.logger.Errorw("request err, FetchOne", "err", err, "id", id)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
-	res, err := impl.externalLinkoutService.FetchAllActiveLinks(clusterIds)
+	res, err := impl.externalLinkoutService.FetchAllActiveLinks(clusterId)
 	if err != nil {
 		impl.logger.Errorw("service err, FetchAllActive", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -124,10 +120,10 @@ func (impl ExternalLinkoutRestHandlerImpl) GetAllLinks(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl ExternalLinkoutRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
+func (impl ExternalLinkoutRestHandlerImpl) UpdateExternalLinks(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 
-	var bean externalLinkout.ExternalLinkoutRequest
+	var bean externalLinkout.ExternalLinkoutRequest2
 	err := decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Update Link", "err", err, "bean", bean)
@@ -146,27 +142,9 @@ func (impl ExternalLinkoutRestHandlerImpl) Update(w http.ResponseWriter, r *http
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
+/*
 func (impl ExternalLinkoutRestHandlerImpl) Delete(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var bean externalLinkout.ExternalLinkoutRequest
-	err := decoder.Decode(&bean)
-	if err != nil {
-		impl.logger.Errorw("request err, UpdateTeam", "err", err, "bean", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	impl.logger.Infow("request payload, UpdateTeam", "err", err, "bean", bean)
-	err = impl.validator.Struct(bean)
-	if err != nil {
-		impl.logger.Errorw("validation err, UpdateTeam", "err", err, "bean", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	res, err := impl.externalLinkoutService.Delete(&bean)
-	if err != nil {
-		impl.logger.Errorw("service err, UpdateLink", "err", err, "bean", bean)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+
+
 }
+*/

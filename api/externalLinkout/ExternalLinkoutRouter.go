@@ -17,10 +17,10 @@ func NewExternalLinkoutRouterImpl(externalLinkoutRestHandler ExternalLinkoutRest
 
 func (impl ExternalLinkoutRouterImpl) InitExternalLinkoutRouter(configRouter *mux.Router) {
 	configRouter.Path("").HandlerFunc(impl.externalLinkoutRestHandler.CreateExternalLinks).Methods("POST")
+	configRouter.Path("/tools").HandlerFunc(impl.externalLinkoutRestHandler.GetExternalLinksTools).Methods("GET")
+	configRouter.Path("").HandlerFunc(impl.externalLinkoutRestHandler.GetExternalLinks).Methods("GET")
 
-	configRouter.Path("/tools").HandlerFunc(impl.externalLinkoutRestHandler.GetAllTools).Methods("GET")
-	configRouter.Path("").HandlerFunc(impl.externalLinkoutRestHandler.GetAllLinks).Methods("GET")
-	configRouter.Path("").HandlerFunc(impl.externalLinkoutRestHandler.Update).Methods("PUT")
+	configRouter.Path("").HandlerFunc(impl.externalLinkoutRestHandler.UpdateExternalLinks).Methods("PUT")
 
 	//configRouter.Path("").HandlerFunc(impl.externalLinkoutRestHandler.Delete).Methods("PUT")
 }

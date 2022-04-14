@@ -29,6 +29,7 @@ type ExternalLinks struct {
 	Name             string   `sql:"name,notnull"`
 	Url              string   `sql:"url,notnull"`
 	IsActive         bool     `sql:"is_active,notnull"`
+
 	sql.AuditLog
 }
 
@@ -37,6 +38,7 @@ type ExternalLinksRepository interface {
 	FindAllActive(clusterIds []int) ([]ExternalLinks, error)
 	FindOne(id int) (ExternalLinks, error)
 	Update(link *ExternalLinks) error
+	Delete(link *ExternalLinks) error
 }
 type ExternalLinksRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -53,13 +55,14 @@ func (impl ExternalLinksRepositoryImpl) Save(externalLinks *ExternalLinks) error
 
 func (impl ExternalLinksRepositoryImpl) FindAllActive(clusterIds []int) ([]ExternalLinks, error) {
 	var links []ExternalLinks
-	err := impl.dbConnection.Model(&links).Where("active = ?", true).Select()
+	err := impl.dbConnection.Model(&links).Where("is_active = ?", true).Select()
 	return links, err
 }
 func (impl ExternalLinksRepositoryImpl) Update(link *ExternalLinks) error {
 	err := impl.dbConnection.Update(link)
 	return err
 }
+
 func (impl ExternalLinksRepositoryImpl) FindOne(id int) (ExternalLinks, error) {
 	var link ExternalLinks
 	err := impl.dbConnection.Model(&link).
