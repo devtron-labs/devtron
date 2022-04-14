@@ -2,19 +2,17 @@
 
 ## Deploying Charts
 
-Charts can be deployed individually or by creating a group of Charts.
-
-Both methods are mentioned in the given document.
+Charts can be deployed individually or by creating a group of Charts. Both methods are mentioned here.
 
 ### Deploying Chart
 
-![](../../.gitbook/assets/deploy-chart-store.jpg)
+To deploy any chart or chart group, visit the `Charts` section from left panel and then select the chart that you want to use.
 
-Select Discover and then select the chart that you want to use.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-1.jpg)
 
-Click on README.MD to get more idea about the configurations of the chart.
+Click on `README.md` to get more idea about the configurations of the chart.
 
-![](../../.gitbook/assets/custom%20%283%29%20%284%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-2.jpg)
 
 Select the Chart Version that you want to use and Chart Value, you can either use the Default Values or Custom Values.
 
@@ -24,79 +22,71 @@ The configuration values can be edited in the section given below Chart Version.
 
 | Key | Description |
 | :--- | :--- |
-| `App Name` | The name of the app |
+| `App Name` | Name of the app |
 | `Project` | Project of the app |
-| `Environment` | Environment of the app to be deployed |
+| `Environment` | Environment of the app to be deployed in |
 | `Chart Version` | Version of the chart to be used |
 
-![](../../.gitbook/assets/depchart4config.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-3.jpg)
 
-ReadMe.md present on the left can be used by the user to set configuration values.
+Readme.md present on the left can be used by the user to set configuration values.
 
-![](../../.gitbook/assets/depchart4readme.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-4.jpg)
+
 
 Click on `Deploy Chart` to deploy the chart.
 
-![](../../.gitbook/assets/depchartdeployedredo%20%282%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-5.jpg)
 
-You can see the status of the chart deployed. Click on `Values.Yaml` to reconfigure the deployment.
+Click on `App Details` to see the status and details of the deployed chart  and click on `Values` to reconfigure the deployment.
 
-![](../../.gitbook/assets/depchartreconfig.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-6.jpg)
 
-Configuration values can be edited over here by the help of ReadMe.md.
+Configuration values can be edited over here by the help of Readme.md .
 
 Select Update And Deploy to update new settings.
 ### Custom Values
 
 You can use the default values or create Custom value by clicking on `Create Custom`.
 
-![](../../.gitbook/assets/custom%20%283%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-7.jpg)
 
 You can name your Custom Value, select the Chart Version and change the configurations in YAML file.
 
-![](../../.gitbook/assets/custom_val.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-8.jpg)
 
 Click on `Save Template` to save the configurations.
 
 ### Deploying Chart Groups
 
-To deploy multiple applications and work with them simultaneously, you can use `Chart Groups`.
+You can deploy multiple applications and work with them simultaneously by creating `Chart Group`.
+To create chart group click on `Create Group`.
 
-To create Chart Groups Click on `Discover` and Click on `Create Group`.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-1.jpg)
 
-![](../../.gitbook/assets/screen2.jpg)
+Add the `Group Name` and `Description`(optional) and Click on `Create Group`.
 
-Add the Group Name and Description and Click on `Create Group`.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-2.jpg)
 
-![](../../.gitbook/assets/create_group.jpg)
+You can select the Charts that you want to add in your Chart Group by clicking on '+' sign. You also can add multiple copies of same chart in the chart group according to your requirements.
 
-You can select the Charts that you want to add in your Chart Group by clicking on '+' sign.
-
-You can select a particular chart multiple number of times according to your requirements.
-
-![](../../.gitbook/assets/select_charts%20%281%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-3.jpg)
 
 Select the `Version` and `Values` for your charts.
+You can use Default Values or the Custom Values, just make sure the value that you select for the chart is compatible with the version of the chart that you are using.
 
-You can use Default Values or the Custom Values, just make sure the Value that you select for your Chart is compatible with the Version of the Chart that you are using.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-9.jpg)
 
-![](../../.gitbook/assets/select_charts2.jpg)
+To edit the chart configuration, Click on `Edit`.
 
-To edit the Chart Configuration, Click on 'Edit'.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-10.jpg)
 
-![](../../.gitbook/assets/edit_group%20%282%29.jpg)
+You can `Add` more charts or `Delete` charts from your existing Chart Group.
+After making any changes, click on `Save` to save changes for the Chart Group.
 
-You can `Add` more Charts to your existing Chart Group or `Delete` Charts from your existing Chart Group.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-11.jpg)
 
-After making changes, Click on `Save` to save changes to your Chart Group.
-
-![](../../.gitbook/assets/edit_group2%20%282%29.jpg)
-
-If you wish to edit the Chart Configuration, Double Click on that Chart and edit the Configurations in YAML File.
-
-![](../../.gitbook/assets/edit_chart1%20%282%29.jpg)
-
-You can edit the `App Name`, `Chart Version`, `Values`, `Deploy Environment` and the YAML file.
+If you wish to edit the chart configuration of any any chart in the chart group, click on that Chart and edit the configurations in YAML file. You also can edit the `App Name`, `Chart Version`, `Values`, `Deploy Environment` and the YAML file from here.
 
 | Key | Description |
 | :--- | :--- |
@@ -105,5 +95,7 @@ You can edit the `App Name`, `Chart Version`, `Values`, `Deploy Environment` and
 | `Environment` | Name of the Environment in which app has to be deployed |
 | `Chart Version` | Select the Version of the chart to be used |
 
-Click on `Deploy` to initiate the deployment of a Chart in Chart Group.
+After changing the configurations, click on `Deploy` to initiate the deployment of the chart in the Chart Group.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-12.jpg)
 

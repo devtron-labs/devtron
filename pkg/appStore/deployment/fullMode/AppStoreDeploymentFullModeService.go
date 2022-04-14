@@ -21,8 +21,8 @@ import (
 	"context"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
-	appStoreRepository "github.com/devtron-labs/devtron/pkg/appStore/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -75,7 +75,8 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	aCDAuthConfig                        *util2.ACDAuthConfig
 	gitOpsRepository                     repository3.GitOpsConfigRepository
 	globalEnvVariables                   *util3.GlobalEnvVariables
-	installedAppRepository               appStoreRepository.InstalledAppRepository
+	installedAppRepository               repository4.InstalledAppRepository
+	tokenCache                           *util2.TokenCache
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -87,7 +88,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
 	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables,
-	installedAppRepository appStoreRepository.InstalledAppRepository) *AppStoreDeploymentFullModeServiceImpl {
+	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -102,6 +103,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		gitOpsRepository:                     gitOpsRepository,
 		globalEnvVariables:                   globalEnvVariables,
 		installedAppRepository:               installedAppRepository,
+		tokenCache:                           tokenCache,
 	}
 }
 
@@ -306,9 +308,14 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 }
 
 func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) string {
+	ctx, err := impl.tokenCache.BuildACDSynchContext()
+	if err != nil {
+		impl.logger.Errorw("error in creating acd synch context", "err", err)
+		return ""
+	}
 	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
 	gitOpsRepoName := ""
-	application, err := impl.acdClient.Get(context.Background(), &application.ApplicationQuery{Name: &acdAppName})
+	application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {
 		impl.logger.Errorw("no argo app exists", "app", acdAppName)
 		return ""

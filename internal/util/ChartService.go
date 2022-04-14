@@ -46,6 +46,7 @@ type ChartTemplateService interface {
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
+	GetDir() string
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 }
@@ -81,7 +82,7 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (ChartTemplateServiceImpl) GetChartVersion(location string) (string, error) {
+func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, error) {
 	if fi, err := os.Stat(location); err != nil {
 		return "", err
 	} else if !fi.IsDir() {
@@ -90,7 +91,7 @@ func (ChartTemplateServiceImpl) GetChartVersion(location string) (string, error)
 
 	chartYaml := filepath.Join(location, "Chart.yaml")
 	if _, err := os.Stat(chartYaml); os.IsNotExist(err) {
-		return "", fmt.Errorf("no Chart.yaml exists in directory %q", location)
+		return "", fmt.Errorf("Chart.yaml file not present in the directory %q", location)
 	}
 	//chartYaml = filepath.Join(chartYaml,filepath.Clean(chartYaml))
 	chartYamlContent, err := ioutil.ReadFile(filepath.Clean(chartYaml))
@@ -102,12 +103,13 @@ func (ChartTemplateServiceImpl) GetChartVersion(location string) (string, error)
 	if err != nil {
 		return "", fmt.Errorf("cannot read Chart.Yaml in directory %q", location)
 	}
+
 	return chartContent.Version, nil
 }
 
 func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
-	dir := impl.getDir()
+	dir := impl.GetDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
@@ -115,6 +117,7 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
 		return nil, nil, err
 	}
+
 	defer impl.CleanDir(chartDir)
 	err = dirCopy.Copy(refChartLocation, chartDir)
 
@@ -176,7 +179,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(gitOpsRepoName, baseTemp
 		}
 	}
 
-	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.getDir())
+	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.GetDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
@@ -228,38 +231,65 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(gitOpsRepoName, baseTemp
 }
 
 func (impl ChartTemplateServiceImpl) getValues(directory string) (values *ChartValues, err error) {
-	appOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(directory, "app-values.yaml")))
-	if err != nil {
+
+	if fi, err := os.Stat(directory); err != nil {
 		return nil, err
-	}
-	appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(directory, "env-values.yaml")))
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
-	if err != nil {
-		return nil, err
-	}
-	releaseOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(directory, "release-values.yaml")))
-	if err != nil {
-		return nil, err
-	}
-	releaseOverrideByte, err = yaml.YAMLToJSON(releaseOverrideByte)
-	if err != nil {
-		return nil, err
+	} else if !fi.IsDir() {
+		return nil, fmt.Errorf("%q is not a directory", directory)
 	}
 
-	pipelineOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(directory, "pipeline-values.yaml")))
+	files, err := ioutil.ReadDir(directory)
 	if err != nil {
-		return nil, err
+		impl.logger.Errorw("failed reading directory", "err", err)
+		return nil, fmt.Errorf(" Couldn't read the %q", directory)
 	}
-	pipelineOverrideByte, err = yaml.YAMLToJSON(pipelineOverrideByte)
-	if err != nil {
-		return nil, err
+
+	var appOverrideByte, envOverrideByte, releaseOverrideByte, pipelineOverrideByte []byte
+
+	for _, file := range files {
+		if !file.IsDir() {
+			name := strings.ToLower(file.Name())
+			if name == "app-values.yaml" || name == "app-values.yml" {
+				appOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
+				if err != nil {
+					impl.logger.Errorw("failed reading data from file", "err", err)
+				}
+				appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if name == "env-values.yaml" || name == "env-values.yml" {
+				envOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
+				if err != nil {
+					impl.logger.Errorw("failed reading data from file", "err", err)
+				}
+				envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if name == "release-values.yaml" || name == "release-values.yml" {
+				releaseOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
+				if err != nil {
+					impl.logger.Errorw("failed reading data from file", "err", err)
+				}
+				releaseOverrideByte, err = yaml.YAMLToJSON(releaseOverrideByte)
+				if err != nil {
+					return nil, err
+				}
+			}
+			if name == "pipeline-values.yaml" || name == "pipeline-values.yml" {
+				pipelineOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
+				if err != nil {
+					impl.logger.Errorw("failed reading data from file", "err", err)
+				}
+				pipelineOverrideByte, err = yaml.YAMLToJSON(pipelineOverrideByte)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
 	}
 
 	val := &ChartValues{
@@ -317,7 +347,7 @@ func (impl ChartTemplateServiceImpl) CleanDir(dir string) {
 	}
 }
 
-func (impl ChartTemplateServiceImpl) getDir() string {
+func (impl ChartTemplateServiceImpl) GetDir() string {
 	/* #nosec */
 	r1 := rand.New(impl.randSource).Int63()
 	return strconv.FormatInt(r1, 10)
@@ -325,7 +355,7 @@ func (impl ChartTemplateServiceImpl) getDir() string {
 
 func (impl ChartTemplateServiceImpl) CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v2" // ensure always v2
-	dir := impl.getDir()
+	dir := impl.GetDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
 	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
 	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
@@ -388,7 +418,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			return nil, err
 		}
 	}
-	chartDir := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, impl.getDir())
+	chartDir := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, impl.GetDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)

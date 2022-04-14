@@ -7,39 +7,34 @@ Create Chart Group And Deploy App store applications.
 
 ## 1. Create Group 
 
-Select the `Charts` section from the left pane, you will be landed to the `Chart Store` page. 
-Click on `Discover` and Click Button on right top `Create Group`.
+1. Select `Charts` from the left pane, you will land to the `Chart Store` page. 
+2. Click on `Create Group` button present in the upper right corner.
 
-![](../../.gitbook/assets/chart-group-1.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-1.jpg)
 
-It will pop-up a dialog, fill required data.
+3. It will pop-up a dialog box where you can enter `name` and `description`(optional) for the chart-group and then click on `Create Group`.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-2.jpg)
 
-And click on right bottom button `Create Group`.
-![](../../.gitbook/assets/chart-group-2.png)
-
-It will land you to the page where you can discover charts to add in this group and later deploy by single click.
+4. This will redirect you to the page where you can discover or search charts to add in the chart-group and later deploy by single click.
 
 ## 2. Add Charts To Group 
 
+1. Choose any chart and add by `+` sign and click on `save` to save the chart group.
 
-![](../../.gitbook/assets/chart-group-3.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-3.jpg)
 
-Choose any chart and add by plus button, save this group by pressing `Save`.
-
-For Running Instances and Group Detail Click on `Group Detail` from here you can Edit yous charts as well.
+2. Click on `Group Detail` to see all the running instances and group details. You can also edit the chart group from here.
 
 ## 3.Bulk Deploy and Edit Option for Charts
 
-![](../../.gitbook/assets/chart-group-4.png)
+1. You can see all the charts in the chart group in right panel. Click on `Deploy to..`, this will pop up a dialog box.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-4.jpg)
 
-Charts are visible in right panel you can deploy it right bottom button `Deploy To ..`
+2. Select `Project` and `Environment` where you want to deploy the chart group.
 
-It will open a dialog box, select project and environment where you want to deploy this specific chart.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-5.jpg)
 
-![](../../.gitbook/assets/chart-group-5.png)
+3. Click on `Advanced Option` for more deploy option like to edit `values.yaml` or to change `Environment` and `Project` for each chart.
 
-Click on `Advanced Option` for more deploy option like values yaml environment and project selection for each chart.
-
-![](../../.gitbook/assets/chart-group-6.png)
-
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-6.jpg)

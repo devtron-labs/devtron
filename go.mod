@@ -104,6 +104,7 @@ require (
 	k8s.io/apimachinery v0.0.0-20190816221834-a9f1d8a9c101
 	k8s.io/client-go v11.0.1-0.20190820062731-7e43eff7c80a+incompatible
 	k8s.io/helm v2.12.3+incompatible
+	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20190918143330-0270cf2f1c1d // indirect
 	k8s.io/utils v0.0.0-20191010214722-8d271d903fe4
 	mellium.im/sasl v0.2.1 // indirect
