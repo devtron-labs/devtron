@@ -161,6 +161,7 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 	for _, link := range links {
 		if clusterId > 0 {
 			providerRes := &ExternalLinkoutRequest{
+				Id:               link.ExternalLinksId,
 				Name:             link.ExternalLinks.Name,
 				Url:              link.ExternalLinks.Url,
 				Active:           link.ExternalLinks.Active,
@@ -171,6 +172,7 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 		} else {
 			if _, ok := response[link.ExternalLinksId]; !ok {
 				response[link.ExternalLinksId] = &ExternalLinkoutRequest{
+					Id:               link.ExternalLinksId,
 					Name:             link.ExternalLinks.Name,
 					Url:              link.ExternalLinks.Url,
 					Active:           link.ExternalLinks.Active,
