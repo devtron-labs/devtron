@@ -134,10 +134,9 @@ func (impl ExternalLinkoutServiceImpl) GetAllActiveTools() ([]ExternalLinksMonit
 
 func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*ExternalLinkoutRequest, error) {
 	impl.logger.Debug("fetch all links from db")
-	var links []ExternalLinksClusters
 	var err error
-
 	var mappedExternalLinksIds []int
+	filterByCluster := make(map[int]int)
 	externalLinksMap := make(map[int]int)
 	allActiveExternalLinks, err := impl.externalLinksClustersRepository.FindAllActive()
 	for _, link := range allActiveExternalLinks {
@@ -147,43 +146,34 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 		mappedExternalLinksIds = append(mappedExternalLinksIds, externalLinksId)
 	}
 
-	if clusterId == 0 {
-		links = allActiveExternalLinks
-	} else {
-		links, err = impl.externalLinksClustersRepository.FindAllActiveByClusterId(clusterId)
-	}
-	if err != nil {
-		impl.logger.Errorw("error in fetch all links", "err", err)
-		return nil, err
-	}
 	var externalLinkResponse []*ExternalLinkoutRequest
 	response := make(map[int]*ExternalLinkoutRequest)
-	for _, link := range links {
+	for _, link := range allActiveExternalLinks {
+
+		//requested all links
 		if clusterId > 0 {
-			providerRes := &ExternalLinkoutRequest{
+			if link.ClusterId == clusterId {
+				filterByCluster[link.ExternalLinksId] = link.ExternalLinksId
+			}
+		}
+		if _, ok := response[link.ExternalLinksId]; !ok {
+			response[link.ExternalLinksId] = &ExternalLinkoutRequest{
 				Id:               link.ExternalLinksId,
 				Name:             link.ExternalLinks.Name,
 				Url:              link.ExternalLinks.Url,
 				Active:           link.ExternalLinks.Active,
 				MonitoringToolId: link.ExternalLinks.ExternalLinksMonitoringToolId,
 			}
-			providerRes.ClusterIds = append(providerRes.ClusterIds, link.ClusterId)
-			externalLinkResponse = append(externalLinkResponse, providerRes)
-		} else {
-			if _, ok := response[link.ExternalLinksId]; !ok {
-				response[link.ExternalLinksId] = &ExternalLinkoutRequest{
-					Id:               link.ExternalLinksId,
-					Name:             link.ExternalLinks.Name,
-					Url:              link.ExternalLinks.Url,
-					Active:           link.ExternalLinks.Active,
-					MonitoringToolId: link.ExternalLinks.ExternalLinksMonitoringToolId,
-				}
-			}
-			response[link.ExternalLinksId].ClusterIds = append(response[link.ExternalLinksId].ClusterIds, link.ClusterId)
 		}
+		response[link.ExternalLinksId].ClusterIds = append(response[link.ExternalLinksId].ClusterIds, link.ClusterId)
 	}
-	for _, v := range response {
-		externalLinkResponse = append(externalLinkResponse, v)
+
+	for k, v := range response {
+		if _, ok := filterByCluster[k]; ok {
+			externalLinkResponse = append(externalLinkResponse, v)
+		} else if clusterId == 0 {
+			externalLinkResponse = append(externalLinkResponse, v)
+		}
 	}
 
 	//now add all the links which are not mapped to any clusters

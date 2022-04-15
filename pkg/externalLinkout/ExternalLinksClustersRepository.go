@@ -38,6 +38,7 @@ type ExternalLinksClustersRepository interface {
 	FindAllActive() ([]ExternalLinksClusters, error)
 	Update(link *ExternalLinksClusters) error
 	FindAllActiveByExternalLinkId(linkId int) ([]*ExternalLinksClusters, error)
+	FindAllActiveByLinkIdAndNotMatchedByClusterId(linkId int, clusterId int) ([]ExternalLinksClusters, error)
 }
 type ExternalLinksClustersRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -62,6 +63,16 @@ func (impl ExternalLinksClustersRepositoryImpl) FindAllActiveByClusterId(cluster
 	err := impl.dbConnection.Model(&links).
 		Column("external_links_clusters.*", "ExternalLinks").
 		Where("external_links_clusters.active = ?", true).
+		Where("external_links_clusters.cluster_id = ?", clusterId).
+		Select()
+	return links, err
+}
+func (impl ExternalLinksClustersRepositoryImpl) FindAllActiveByLinkIdAndNotMatchedByClusterId(linkId int, clusterId int) ([]ExternalLinksClusters, error) {
+	var links []ExternalLinksClusters
+	err := impl.dbConnection.Model(&links).
+		Column("external_links_clusters.*", "ExternalLinks").
+		Where("external_links_clusters.active = ?", true).
+		Where("external_links_clusters.external_links_id = ?", linkId).
 		Where("external_links_clusters.cluster_id = ?", clusterId).
 		Select()
 	return links, err
