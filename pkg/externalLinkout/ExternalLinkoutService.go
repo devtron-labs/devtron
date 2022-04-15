@@ -217,7 +217,7 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 		return nil, err
 	}
 
-	allExternalLinksMapping, err := impl.externalLinksClustersRepository.FindAllActiveByExternalLinkId(request.Id)
+	allExternalLinksMapping, err := impl.externalLinksClustersRepository.FindAllByExternalLinkId(request.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching link", "data", externalLinks, "err", err)
 		return nil, err
@@ -234,22 +234,26 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 	}
 	for _, requestedClusterId := range request.ClusterIds {
 		externalLinkClusterId := 0
+		var externalLinkCluster *ExternalLinksClusters
 		for _, model := range allExternalLinksMapping {
 			if requestedClusterId == model.ClusterId {
 				externalLinkClusterId = model.Id
+				externalLinkCluster = model
 				break
 			}
 		}
-		externalLinkCluster := &ExternalLinksClusters{
-			ExternalLinksId: request.Id,
-			ClusterId:       requestedClusterId,
-			Active:          true,
-			AuditLog:        sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: int32(request.UserId)},
-		}
-		if externalLinkClusterId > 0 {
-			externalLinkCluster.Id = externalLinkClusterId
+		if externalLinkClusterId > 0 && externalLinkCluster != nil {
+			externalLinkCluster.Active = true
+			externalLinkCluster.UpdatedOn = time.Now()
+			externalLinkCluster.UpdatedBy = request.UserId
 			err = impl.externalLinksClustersRepository.Update(externalLinkCluster)
 		} else {
+			externalLinkCluster := &ExternalLinksClusters{
+				ExternalLinksId: request.Id,
+				ClusterId:       requestedClusterId,
+				Active:          true,
+				AuditLog:        sql.AuditLog{CreatedOn: time.Now(), CreatedBy: request.UserId, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+			}
 			err = impl.externalLinksClustersRepository.Save(externalLinkCluster)
 		}
 		if err != nil {
