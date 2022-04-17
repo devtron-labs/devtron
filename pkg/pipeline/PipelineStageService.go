@@ -1385,11 +1385,20 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(
 		variableData := &bean.VariableObject{
 			Name:                       variable.Name,
 			Format:                     string(variable.Format),
-			ValueType:                  string(variable.ValueType),
 			ReferenceVariableStepIndex: variable.PreviousStepIndex,
 			ReferenceVariableName:      variable.ReferenceVariableName,
-			ReferenceVariableStage:     string(variable.ReferenceVariableStage),
 			Value:                      variable.Value,
+		}
+		if variable.ValueType == repository.PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_NEW {
+			variableData.VariableType = bean.VARIABLE_TYPE_VALUE
+		} else if variable.ValueType == repository.PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_GLOBAL {
+			variableData.VariableType = bean.VARIABLE_TYPE_REF_GLOBAL
+		} else if variable.ValueType == repository.PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_PREVIOUS {
+			if variable.ReferenceVariableStage == repository.PIPELINE_STAGE_TYPE_POST_CI {
+				variableData.VariableType = bean.VARIABLE_TYPE_REF_POST_CI
+			} else if variable.ReferenceVariableStage == repository.PIPELINE_STAGE_TYPE_PRE_CI {
+				variableData.VariableType = bean.VARIABLE_TYPE_REF_PRE_CI
+			}
 		}
 		if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT {
 			inputVariables = append(inputVariables, variableData)
@@ -1501,9 +1510,15 @@ func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRe
 		variableData := &bean.VariableObject{
 			Name:                       variable.Name,
 			Format:                     string(variable.Format),
-			ValueType:                  string(variable.ValueType),
 			ReferenceVariableStepIndex: variable.PreviousStepIndex,
 			ReferenceVariableName:      variable.ReferenceVariableName,
+		}
+		if variable.ValueType == repository2.PLUGIN_VARIABLE_VALUE_TYPE_NEW {
+			variableData.VariableType = bean.VARIABLE_TYPE_VALUE
+		} else if variable.ValueType == repository2.PLUGIN_VARIABLE_VALUE_TYPE_GLOBAL {
+			variableData.VariableType = bean.VARIABLE_TYPE_REF_GLOBAL
+		} else if variable.ValueType == repository2.PLUGIN_VARIABLE_VALUE_TYPE_PREVIOUS {
+			variableData.VariableType = bean.VARIABLE_TYPE_REF_PLUGIN
 		}
 		if variable.VariableType == repository2.PLUGIN_VARIABLE_TYPE_INPUT {
 			if variable.DefaultValue == "" {
