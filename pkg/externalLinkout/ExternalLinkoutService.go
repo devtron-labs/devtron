@@ -40,7 +40,7 @@ type ExternalLinkoutServiceImpl struct {
 	userAuthService                 user.UserAuthService
 }
 type ExternalLinksMonitoringToolsRequest struct {
-	Id   int    `json:"Id"`
+	Id   int    `json:"id"`
 	Name string `json:"name"`
 	Icon string `json:"icon"`
 }
@@ -286,14 +286,17 @@ func (impl ExternalLinkoutServiceImpl) DeleteLink(id int, userId int32) (*Extern
 			return nil, err
 		}
 	}
-	link := &ExternalLinks{
-		Id:       id,
-		Active:   false,
-		AuditLog: sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: userId},
-	}
-	err = impl.externalLinksRepository.Update(link)
+
+	externalLinks, err := impl.externalLinksRepository.FindOne(id)
 	if err != nil {
-		impl.logger.Errorw("error in deleting link", "data", link, "err", err)
+		return nil, err
+	}
+	externalLinks.Active = false
+	externalLinks.UpdatedOn = time.Now()
+	externalLinks.UpdatedBy = userId
+	err = impl.externalLinksRepository.Update(&externalLinks)
+	if err != nil {
+		impl.logger.Errorw("error in deleting link", "data", externalLinks, "err", err)
 		return nil, err
 	}
 
