@@ -12,7 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
-	"github.com/devtron-labs/devtron/api/externalLinkout"
+	"github.com/devtron-labs/devtron/api/externalLinks"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
@@ -42,7 +42,7 @@ func InitializeApp() (*App, error) {
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		AuthWireSet,
-		externalLinkout.ExternalLinkoutWireSet,
+		externalLinks.ExternalLinksWireSet,
 		team.TeamsWireSet,
 		cluster.ClusterWireSetEa,
 		dashboard.DashboardWireSet,

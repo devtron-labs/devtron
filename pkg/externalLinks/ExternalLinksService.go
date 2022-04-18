@@ -15,7 +15,7 @@
  *
  */
 
-package externalLinkout
+package externalLinks
 
 import (
 	"github.com/devtron-labs/devtron/internal/util"
@@ -25,16 +25,16 @@ import (
 	"time"
 )
 
-type ExternalLinkoutService interface {
+type ExternalLinksService interface {
 	Create(requests []*ExternalLinkoutRequest, userId int32) (*ExternalLinksCreateUpdateResponse, error)
 	GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error)
 	FetchAllActiveLinks(clusterIds int) ([]*ExternalLinkoutRequest, error)
 	Update(request *ExternalLinkoutRequest) (*ExternalLinksCreateUpdateResponse, error)
 	DeleteLink(id int, userId int32) (*ExternalLinksCreateUpdateResponse, error)
 }
-type ExternalLinkoutServiceImpl struct {
+type ExternalLinksServiceImpl struct {
 	logger                          *zap.SugaredLogger
-	externalLinkoutToolsRepository  ExternalLinkoutToolsRepository
+	externalLinksToolsRepository    ExternalLinksToolsRepository
 	externalLinksClustersRepository ExternalLinksClustersRepository
 	externalLinksRepository         ExternalLinksRepository
 	userAuthService                 user.UserAuthService
@@ -58,18 +58,18 @@ type ExternalLinksCreateUpdateResponse struct {
 	Success bool `json:"success"`
 }
 
-func NewExternalLinkoutServiceImpl(logger *zap.SugaredLogger, externalLinkoutToolsRepository ExternalLinkoutToolsRepository,
-	externalLinksClustersRepository ExternalLinksClustersRepository, externalLinksRepository ExternalLinksRepository, userAuthService user.UserAuthService) *ExternalLinkoutServiceImpl {
-	return &ExternalLinkoutServiceImpl{
+func NewExternalLinksServiceImpl(logger *zap.SugaredLogger, externalLinksToolsRepository ExternalLinksToolsRepository,
+	externalLinksClustersRepository ExternalLinksClustersRepository, externalLinksRepository ExternalLinksRepository, userAuthService user.UserAuthService) *ExternalLinksServiceImpl {
+	return &ExternalLinksServiceImpl{
 		logger:                          logger,
-		externalLinkoutToolsRepository:  externalLinkoutToolsRepository,
+		externalLinksToolsRepository:    externalLinksToolsRepository,
 		externalLinksClustersRepository: externalLinksClustersRepository,
 		externalLinksRepository:         externalLinksRepository,
 		userAuthService:                 userAuthService,
 	}
 }
 
-func (impl ExternalLinkoutServiceImpl) Create(requests []*ExternalLinkoutRequest, userId int32) (*ExternalLinksCreateUpdateResponse, error) {
+func (impl ExternalLinksServiceImpl) Create(requests []*ExternalLinkoutRequest, userId int32) (*ExternalLinksCreateUpdateResponse, error) {
 	impl.logger.Debugw("external linkout create request", "req", requests)
 	for _, request := range requests {
 		t := &ExternalLinks{
@@ -113,9 +113,9 @@ func (impl ExternalLinkoutServiceImpl) Create(requests []*ExternalLinkoutRequest
 	return externalLinksCreateUpdateResponse, nil
 }
 
-func (impl ExternalLinkoutServiceImpl) GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error) {
+func (impl ExternalLinksServiceImpl) GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error) {
 	impl.logger.Debug("fetch all links from db")
-	tools, err := impl.externalLinkoutToolsRepository.FindAllActive()
+	tools, err := impl.externalLinksToolsRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all tools", "err", err)
 		return nil, err
@@ -132,7 +132,7 @@ func (impl ExternalLinkoutServiceImpl) GetAllActiveTools() ([]ExternalLinksMonit
 	return toolRequests, err
 }
 
-func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*ExternalLinkoutRequest, error) {
+func (impl ExternalLinksServiceImpl) FetchAllActiveLinks(clusterId int) ([]*ExternalLinkoutRequest, error) {
 	impl.logger.Debug("fetch all links from db")
 	var err error
 	var mappedExternalLinksIds []int
@@ -199,7 +199,7 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 	}
 	return externalLinkResponse, err
 }
-func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (*ExternalLinksCreateUpdateResponse, error) {
+func (impl ExternalLinksServiceImpl) Update(request *ExternalLinkoutRequest) (*ExternalLinksCreateUpdateResponse, error) {
 	impl.logger.Debugw("link update request", "req", request)
 	externalLinks, err0 := impl.externalLinksRepository.FindOne(request.Id)
 	if err0 != nil {
@@ -271,7 +271,7 @@ func (impl ExternalLinkoutServiceImpl) Update(request *ExternalLinkoutRequest) (
 	}
 	return externalLinksCreateUpdateResponse, nil
 }
-func (impl ExternalLinkoutServiceImpl) DeleteLink(id int, userId int32) (*ExternalLinksCreateUpdateResponse, error) {
+func (impl ExternalLinksServiceImpl) DeleteLink(id int, userId int32) (*ExternalLinksCreateUpdateResponse, error) {
 	impl.logger.Debugw("link delete request", "req", id)
 	externalLinksMapping, err := impl.externalLinksClustersRepository.FindAllActiveByExternalLinkId(id)
 	if err != nil {

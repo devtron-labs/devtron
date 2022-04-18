@@ -25,7 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
-	"github.com/devtron-labs/devtron/api/externalLinkout"
+	"github.com/devtron-labs/devtron/api/externalLinks"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
@@ -89,17 +89,17 @@ type MuxRouter struct {
 	ssoLoginRouter                   sso.SsoLoginRouter
 	telemetryRouter                  TelemetryRouter
 	telemetryWatcher                 telemetry.TelemetryEventClient
-	bulkUpdateRouter                 BulkUpdateRouter
-	WebhookListenerRouter            WebhookListenerRouter
-	appLabelsRouter                  AppLabelRouter
-	coreAppRouter                    CoreAppRouter
-	helmAppRouter                    client.HelmAppRouter
-	k8sApplicationRouter             k8s.K8sApplicationRouter
-	pProfRouter                      PProfRouter
-	deploymentConfigRouter           deployment.DeploymentConfigRouter
-	dashboardTelemetryRouter         dashboardEvent.DashboardTelemetryRouter
-	commonDeploymentRouter           appStoreDeployment.CommonDeploymentRouter
-	externalLinkoutRouter            externalLinkout.ExternalLinkoutRouter
+	bulkUpdateRouter         BulkUpdateRouter
+	WebhookListenerRouter    WebhookListenerRouter
+	appLabelsRouter          AppLabelRouter
+	coreAppRouter            CoreAppRouter
+	helmAppRouter            client.HelmAppRouter
+	k8sApplicationRouter     k8s.K8sApplicationRouter
+	pProfRouter              PProfRouter
+	deploymentConfigRouter   deployment.DeploymentConfigRouter
+	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
+	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
+	externalLinksRouter      externalLinks.ExternalLinksRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -122,7 +122,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
-	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkoutRouter externalLinkout.ExternalLinkoutRouter) *MuxRouter {
+	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinksRouter externalLinks.ExternalLinksRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -178,7 +178,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		deploymentConfigRouter:           deploymentConfigRouter,
 		dashboardTelemetryRouter:         dashboardTelemetryRouter,
 		commonDeploymentRouter:           commonDeploymentRouter,
-		externalLinkoutRouter:            externalLinkoutRouter,
+		externalLinksRouter:              externalLinksRouter,
 	}
 	return r
 }
@@ -350,5 +350,5 @@ func (r MuxRouter) Init() {
 	r.helmAppRouter.InitAppListRouter(applicationSubRouter)
 
 	externalLinksRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
-	r.externalLinkoutRouter.InitExternalLinkoutRouter(externalLinksRouter)
+	r.externalLinksRouter.InitExternalLinksRouter(externalLinksRouter)
 }

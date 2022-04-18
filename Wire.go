@@ -30,7 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
-	"github.com/devtron-labs/devtron/api/externalLinkout"
+	"github.com/devtron-labs/devtron/api/externalLinks"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
@@ -101,7 +101,7 @@ func InitializeApp() (*App, error) {
 	wire.Build(
 		// ----- wireset start
 		sql.PgSqlWireSet,
-		externalLinkout.ExternalLinkoutWireSet,
+		externalLinks.ExternalLinksWireSet,
 		team.TeamsWireSet,
 		AuthWireSet,
 		user.UserWireSet,

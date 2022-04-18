@@ -15,7 +15,7 @@
  *
  */
 
-package externalLinkout
+package externalLinks
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -30,23 +30,23 @@ type ExternalLinksMonitoringTools struct {
 	Active    bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
-type ExternalLinkoutToolsRepository interface {
-	Save(externalLinkoutTools *ExternalLinksMonitoringTools) error
+type ExternalLinksToolsRepository interface {
+	Save(externalLinksTools *ExternalLinksMonitoringTools) error
 	FindAllActive() ([]ExternalLinksMonitoringTools, error)
 }
-type ExternalLinkoutToolsRepositoryImpl struct {
+type ExternalLinksToolsRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
-func NewExternalLinkoutToolsRepositoryImpl(dbConnection *pg.DB) *ExternalLinkoutToolsRepositoryImpl {
-	return &ExternalLinkoutToolsRepositoryImpl{dbConnection: dbConnection}
+func NewExternalLinksToolsRepositoryImpl(dbConnection *pg.DB) *ExternalLinksToolsRepositoryImpl {
+	return &ExternalLinksToolsRepositoryImpl{dbConnection: dbConnection}
 }
-func (impl ExternalLinkoutToolsRepositoryImpl) FindAllActive() ([]ExternalLinksMonitoringTools, error) {
+func (impl ExternalLinksToolsRepositoryImpl) FindAllActive() ([]ExternalLinksMonitoringTools, error) {
 	var tools []ExternalLinksMonitoringTools
 	err := impl.dbConnection.Model(&tools).Where("active = ?", true).Select()
 	return tools, err
 }
-func (impl ExternalLinkoutToolsRepositoryImpl) Save(externalLinkoutTools *ExternalLinksMonitoringTools) error {
-	err := impl.dbConnection.Insert(externalLinkoutTools)
+func (impl ExternalLinksToolsRepositoryImpl) Save(externalLinksTools *ExternalLinksMonitoringTools) error {
+	err := impl.dbConnection.Insert(externalLinksTools)
 	return err
 }
