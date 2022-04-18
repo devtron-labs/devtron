@@ -13,7 +13,6 @@ package openapi
 import (
 	"bytes"
 	_context "context"
-	"golang.org/x/net/context"
 	_ioutil "io/ioutil"
 	_nethttp "net/http"
 	_neturl "net/url"
@@ -29,15 +28,15 @@ var (
 type DefaultApiService service
 
 type ApiOrchestratorAppListGetRequest struct {
-	ctx            _context.Context
-	ApiService     *DefaultApiService
-	projectIds     *[]int32
-	clusterIds     *[]int32
+	ctx _context.Context
+	ApiService *DefaultApiService
+	projectIds *[]int32
+	clusterIds *[]int32
 	environmentIds *[]int32
-	offset         *int32
-	size           *int32
-	sortOrder      *string
-	sortBy         *string
+	offset *int32
+	size *int32
+	sortOrder *string
+	sortBy *string
 }
 
 // project ids
@@ -45,37 +44,31 @@ func (r ApiOrchestratorAppListGetRequest) ProjectIds(projectIds []int32) ApiOrch
 	r.projectIds = &projectIds
 	return r
 }
-
 // cluster ids
 func (r ApiOrchestratorAppListGetRequest) ClusterIds(clusterIds []int32) ApiOrchestratorAppListGetRequest {
 	r.clusterIds = &clusterIds
 	return r
 }
-
 // environment ids
 func (r ApiOrchestratorAppListGetRequest) EnvironmentIds(environmentIds []int32) ApiOrchestratorAppListGetRequest {
 	r.environmentIds = &environmentIds
 	return r
 }
-
 // offser
 func (r ApiOrchestratorAppListGetRequest) Offset(offset int32) ApiOrchestratorAppListGetRequest {
 	r.offset = &offset
 	return r
 }
-
 // size
 func (r ApiOrchestratorAppListGetRequest) Size(size int32) ApiOrchestratorAppListGetRequest {
 	r.size = &size
 	return r
 }
-
 // sortOrder
 func (r ApiOrchestratorAppListGetRequest) SortOrder(sortOrder string) ApiOrchestratorAppListGetRequest {
 	r.sortOrder = &sortOrder
 	return r
 }
-
 // sortBy
 func (r ApiOrchestratorAppListGetRequest) SortBy(sortBy string) ApiOrchestratorAppListGetRequest {
 	r.sortBy = &sortBy
@@ -97,7 +90,7 @@ this api gives all devtron applications.
 func (a *DefaultApiService) OrchestratorAppListGet(ctx _context.Context) ApiOrchestratorAppListGetRequest {
 	return ApiOrchestratorAppListGetRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
@@ -105,10 +98,10 @@ func (a *DefaultApiService) OrchestratorAppListGet(ctx _context.Context) ApiOrch
 //  @return AppList
 func (a *DefaultApiService) OrchestratorAppListGetExecute(r ApiOrchestratorAppListGetRequest) (AppList, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue AppList
+		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  AppList
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorAppListGet")
@@ -235,16 +228,16 @@ func (a *DefaultApiService) OrchestratorAppListGetExecute(r ApiOrchestratorAppLi
 }
 
 type ApiOrchestratorAppStoreInstalledAppsGetRequest struct {
-	ctx            _context.Context
-	ApiService     *DefaultApiService
-	envIds         *[]int32
-	clusterIds     *[]int32
+	ctx _context.Context
+	ApiService *DefaultApiService
+	envIds *[]int32
+	clusterIds *[]int32
 	onlyDeprecated *bool
-	chartRepoIds   *int32
-	offset         *int32
-	size           *int32
-	appStoreName   *string
-	sortBy         *string
+	chartRepoIds *int32
+	offset *int32
+	size *int32
+	appStoreName *string
+	sortBy *string
 }
 
 // environment ids
@@ -252,43 +245,36 @@ func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) EnvIds(envIds []int32) A
 	r.envIds = &envIds
 	return r
 }
-
 // cluster ids
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) ClusterIds(clusterIds []int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.clusterIds = &clusterIds
 	return r
 }
-
 // deprecated flag
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) OnlyDeprecated(onlyDeprecated bool) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.onlyDeprecated = &onlyDeprecated
 	return r
 }
-
 // size
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) ChartRepoIds(chartRepoIds int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.chartRepoIds = &chartRepoIds
 	return r
 }
-
 // offser
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) Offset(offset int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.offset = &offset
 	return r
 }
-
 // size
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) Size(size int32) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.size = &size
 	return r
 }
-
 // app store name
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) AppStoreName(appStoreName string) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.appStoreName = &appStoreName
 	return r
 }
-
 // app name
 func (r ApiOrchestratorAppStoreInstalledAppsGetRequest) SortBy(sortBy string) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	r.sortBy = &sortBy
@@ -310,7 +296,7 @@ this api gives all chart-store applications.
 func (a *DefaultApiService) OrchestratorAppStoreInstalledAppsGet(ctx _context.Context) ApiOrchestratorAppStoreInstalledAppsGetRequest {
 	return ApiOrchestratorAppStoreInstalledAppsGetRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
@@ -318,10 +304,10 @@ func (a *DefaultApiService) OrchestratorAppStoreInstalledAppsGet(ctx _context.Co
 //  @return AppList
 func (a *DefaultApiService) OrchestratorAppStoreInstalledAppsGetExecute(r ApiOrchestratorAppStoreInstalledAppsGetRequest) (AppList, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue AppList
+		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  AppList
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorAppStoreInstalledAppsGet")
@@ -442,9 +428,10 @@ func (a *DefaultApiService) OrchestratorAppStoreInstalledAppsGetExecute(r ApiOrc
 }
 
 type ApiOrchestratorApplicationClusterEnvDetailsGetRequest struct {
-	ctx        _context.Context
+	ctx _context.Context
 	ApiService *DefaultApiService
 }
+
 
 func (r ApiOrchestratorApplicationClusterEnvDetailsGetRequest) Execute() ([]ClusterEnvironmentDetail, *_nethttp.Response, error) {
 	return r.ApiService.OrchestratorApplicationClusterEnvDetailsGetExecute(r)
@@ -461,7 +448,7 @@ returns cluster environment namespace mappings
 func (a *DefaultApiService) OrchestratorApplicationClusterEnvDetailsGet(ctx _context.Context) ApiOrchestratorApplicationClusterEnvDetailsGetRequest {
 	return ApiOrchestratorApplicationClusterEnvDetailsGetRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
@@ -469,10 +456,10 @@ func (a *DefaultApiService) OrchestratorApplicationClusterEnvDetailsGet(ctx _con
 //  @return []ClusterEnvironmentDetail
 func (a *DefaultApiService) OrchestratorApplicationClusterEnvDetailsGetExecute(r ApiOrchestratorApplicationClusterEnvDetailsGetRequest) ([]ClusterEnvironmentDetail, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue []ClusterEnvironmentDetail
+		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []ClusterEnvironmentDetail
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationClusterEnvDetailsGet")
@@ -541,9 +528,9 @@ func (a *DefaultApiService) OrchestratorApplicationClusterEnvDetailsGetExecute(r
 }
 
 type ApiOrchestratorApplicationDeleteDeleteRequest struct {
-	ctx        _context.Context
+	ctx _context.Context
 	ApiService *DefaultApiService
-	appId      *string
+	appId *string
 }
 
 // application Id
@@ -567,7 +554,7 @@ delete application
 func (a *DefaultApiService) OrchestratorApplicationDeleteDelete(ctx _context.Context) ApiOrchestratorApplicationDeleteDeleteRequest {
 	return ApiOrchestratorApplicationDeleteDeleteRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
@@ -575,10 +562,10 @@ func (a *DefaultApiService) OrchestratorApplicationDeleteDelete(ctx _context.Con
 //  @return UninstallReleaseResponse
 func (a *DefaultApiService) OrchestratorApplicationDeleteDeleteExecute(r ApiOrchestratorApplicationDeleteDeleteRequest) (UninstallReleaseResponse, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodDelete
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue UninstallReleaseResponse
+		localVarHTTPMethod   = _nethttp.MethodDelete
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  UninstallReleaseResponse
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationDeleteDelete")
@@ -631,7 +618,7 @@ func (a *DefaultApiService) OrchestratorApplicationDeleteDeleteExecute(r ApiOrch
 	}
 
 	if localVarHTTPResponse.StatusCode >= 300 {
-		newErr := &GenericOpenAPIError{
+		newErr := GenericOpenAPIError{
 			body:  localVarBody,
 			error: localVarHTTPResponse.Status,
 		}
@@ -640,7 +627,7 @@ func (a *DefaultApiService) OrchestratorApplicationDeleteDeleteExecute(r ApiOrch
 
 	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
 	if err != nil {
-		newErr := &GenericOpenAPIError{
+		newErr := GenericOpenAPIError{
 			body:  localVarBody,
 			error: err.Error(),
 		}
@@ -651,10 +638,10 @@ func (a *DefaultApiService) OrchestratorApplicationDeleteDeleteExecute(r ApiOrch
 }
 
 type ApiOrchestratorApplicationDeploymentDetailGetRequest struct {
-	ctx        context.Context
+	ctx _context.Context
 	ApiService *DefaultApiService
-	appId      *string
-	version    *int32
+	appId *string
+	version *int32
 }
 
 // project ids
@@ -662,14 +649,13 @@ func (r ApiOrchestratorApplicationDeploymentDetailGetRequest) AppId(appId string
 	r.appId = &appId
 	return r
 }
-
 // deployment version
 func (r ApiOrchestratorApplicationDeploymentDetailGetRequest) Version(version int32) ApiOrchestratorApplicationDeploymentDetailGetRequest {
 	r.version = &version
 	return r
 }
 
-func (r ApiOrchestratorApplicationDeploymentDetailGetRequest) Execute() (*HelmAppDeploymentManifestDetail, *_nethttp.Response, error) {
+func (r ApiOrchestratorApplicationDeploymentDetailGetRequest) Execute() (HelmAppDeploymentManifestDetail, *_nethttp.Response, error) {
 	return r.ApiService.OrchestratorApplicationDeploymentDetailGetExecute(r)
 }
 
@@ -678,29 +664,29 @@ OrchestratorApplicationDeploymentDetailGet Method for OrchestratorApplicationDep
 
 deployment details of helm app
 
- @param ctx context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
  @return ApiOrchestratorApplicationDeploymentDetailGetRequest
 */
-func (a *DefaultApiService) OrchestratorApplicationDeploymentDetailGet(ctx context.Context) ApiOrchestratorApplicationDeploymentDetailGetRequest {
+func (a *DefaultApiService) OrchestratorApplicationDeploymentDetailGet(ctx _context.Context) ApiOrchestratorApplicationDeploymentDetailGetRequest {
 	return ApiOrchestratorApplicationDeploymentDetailGetRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
 // Execute executes the request
 //  @return HelmAppDeploymentManifestDetail
-func (a *DefaultApiService) OrchestratorApplicationDeploymentDetailGetExecute(r ApiOrchestratorApplicationDeploymentDetailGetRequest) (*HelmAppDeploymentManifestDetail, *_nethttp.Response, error) {
+func (a *DefaultApiService) OrchestratorApplicationDeploymentDetailGetExecute(r ApiOrchestratorApplicationDeploymentDetailGetRequest) (HelmAppDeploymentManifestDetail, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue *HelmAppDeploymentManifestDetail
+		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  HelmAppDeploymentManifestDetail
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationDeploymentDetailGet")
 	if err != nil {
-		return localVarReturnValue, nil, &GenericOpenAPIError{error: err.Error()}
+		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
 	}
 
 	localVarPath := localBasePath + "/orchestrator/application/deployment-detail"
@@ -772,9 +758,9 @@ func (a *DefaultApiService) OrchestratorApplicationDeploymentDetailGetExecute(r 
 }
 
 type ApiOrchestratorApplicationDeploymentHistoryGetRequest struct {
-	ctx        _context.Context
+	ctx _context.Context
 	ApiService *DefaultApiService
-	appId      *string
+	appId *string
 }
 
 // project ids
@@ -798,7 +784,7 @@ deployment history of helm app
 func (a *DefaultApiService) OrchestratorApplicationDeploymentHistoryGet(ctx _context.Context) ApiOrchestratorApplicationDeploymentHistoryGetRequest {
 	return ApiOrchestratorApplicationDeploymentHistoryGetRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
@@ -806,10 +792,10 @@ func (a *DefaultApiService) OrchestratorApplicationDeploymentHistoryGet(ctx _con
 //  @return []HelmAppDeploymentDetail
 func (a *DefaultApiService) OrchestratorApplicationDeploymentHistoryGetExecute(r ApiOrchestratorApplicationDeploymentHistoryGetRequest) ([]HelmAppDeploymentDetail, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue []HelmAppDeploymentDetail
+		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []HelmAppDeploymentDetail
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationDeploymentHistoryGet")
@@ -882,8 +868,8 @@ func (a *DefaultApiService) OrchestratorApplicationDeploymentHistoryGetExecute(r
 }
 
 type ApiOrchestratorApplicationDesiredManifestGetRequest struct {
-	ctx                    _context.Context
-	ApiService             *DefaultApiService
+	ctx _context.Context
+	ApiService *DefaultApiService
 	desiredManifestRequest *DesiredManifestRequest
 }
 
@@ -907,7 +893,7 @@ get desired manifest for an object
 func (a *DefaultApiService) OrchestratorApplicationDesiredManifestGet(ctx _context.Context) ApiOrchestratorApplicationDesiredManifestGetRequest {
 	return ApiOrchestratorApplicationDesiredManifestGetRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
@@ -915,10 +901,10 @@ func (a *DefaultApiService) OrchestratorApplicationDesiredManifestGet(ctx _conte
 //  @return []DesiredManifestResponse
 func (a *DefaultApiService) OrchestratorApplicationDesiredManifestGetExecute(r ApiOrchestratorApplicationDesiredManifestGetRequest) ([]DesiredManifestResponse, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue []DesiredManifestResponse
+		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []DesiredManifestResponse
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationDesiredManifestGet")
@@ -989,8 +975,8 @@ func (a *DefaultApiService) OrchestratorApplicationDesiredManifestGetExecute(r A
 }
 
 type ApiOrchestratorApplicationHibernatePostRequest struct {
-	ctx              _context.Context
-	ApiService       *DefaultApiService
+	ctx _context.Context
+	ApiService *DefaultApiService
 	hibernateRequest *HibernateRequest
 }
 
@@ -1014,7 +1000,7 @@ hibernate the app
 func (a *DefaultApiService) OrchestratorApplicationHibernatePost(ctx _context.Context) ApiOrchestratorApplicationHibernatePostRequest {
 	return ApiOrchestratorApplicationHibernatePostRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
@@ -1022,10 +1008,10 @@ func (a *DefaultApiService) OrchestratorApplicationHibernatePost(ctx _context.Co
 //  @return []HibernateStatus
 func (a *DefaultApiService) OrchestratorApplicationHibernatePostExecute(r ApiOrchestratorApplicationHibernatePostRequest) ([]HibernateStatus, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue []HibernateStatus
+		localVarHTTPMethod   = _nethttp.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []HibernateStatus
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationHibernatePost")
@@ -1096,8 +1082,8 @@ func (a *DefaultApiService) OrchestratorApplicationHibernatePostExecute(r ApiOrc
 }
 
 type ApiOrchestratorApplicationPostRequest struct {
-	ctx                _context.Context
-	ApiService         *DefaultApiService
+	ctx _context.Context
+	ApiService *DefaultApiService
 	helmAppListRequest *HelmAppListRequest
 }
 
@@ -1122,7 +1108,7 @@ this api gives all external application+ devtron helm chart applications.
 func (a *DefaultApiService) OrchestratorApplicationPost(ctx _context.Context) ApiOrchestratorApplicationPostRequest {
 	return ApiOrchestratorApplicationPostRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
@@ -1130,10 +1116,10 @@ func (a *DefaultApiService) OrchestratorApplicationPost(ctx _context.Context) Ap
 //  @return AppList
 func (a *DefaultApiService) OrchestratorApplicationPostExecute(r ApiOrchestratorApplicationPostRequest) (AppList, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue AppList
+		localVarHTTPMethod   = _nethttp.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  AppList
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationPost")
@@ -1207,9 +1193,9 @@ func (a *DefaultApiService) OrchestratorApplicationPostExecute(r ApiOrchestrator
 }
 
 type ApiOrchestratorApplicationReleaseInfoGetRequest struct {
-	ctx        _context.Context
+	ctx _context.Context
 	ApiService *DefaultApiService
-	appId      *string
+	appId *string
 }
 
 // project ids
@@ -1218,7 +1204,7 @@ func (r ApiOrchestratorApplicationReleaseInfoGetRequest) AppId(appId string) Api
 	return r
 }
 
-func (r ApiOrchestratorApplicationReleaseInfoGetRequest) Execute() (ReleaseInfo, *_nethttp.Response, error) {
+func (r ApiOrchestratorApplicationReleaseInfoGetRequest) Execute() (ReleaseAndInstalledAppInfo, *_nethttp.Response, error) {
 	return r.ApiService.OrchestratorApplicationReleaseInfoGetExecute(r)
 }
 
@@ -1233,18 +1219,18 @@ deployment values.yaml/release-info
 func (a *DefaultApiService) OrchestratorApplicationReleaseInfoGet(ctx _context.Context) ApiOrchestratorApplicationReleaseInfoGetRequest {
 	return ApiOrchestratorApplicationReleaseInfoGetRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
 // Execute executes the request
-//  @return ReleaseInfo
-func (a *DefaultApiService) OrchestratorApplicationReleaseInfoGetExecute(r ApiOrchestratorApplicationReleaseInfoGetRequest) (ReleaseInfo, *_nethttp.Response, error) {
+//  @return ReleaseAndInstalledAppInfo
+func (a *DefaultApiService) OrchestratorApplicationReleaseInfoGetExecute(r ApiOrchestratorApplicationReleaseInfoGetRequest) (ReleaseAndInstalledAppInfo, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodGet
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue ReleaseInfo
+		localVarHTTPMethod   = _nethttp.MethodGet
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  ReleaseAndInstalledAppInfo
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationReleaseInfoGet")
@@ -1317,8 +1303,8 @@ func (a *DefaultApiService) OrchestratorApplicationReleaseInfoGetExecute(r ApiOr
 }
 
 type ApiOrchestratorApplicationUnhibernatePostRequest struct {
-	ctx              _context.Context
-	ApiService       *DefaultApiService
+	ctx _context.Context
+	ApiService *DefaultApiService
 	hibernateRequest *HibernateRequest
 }
 
@@ -1342,7 +1328,7 @@ un hibernate the app
 func (a *DefaultApiService) OrchestratorApplicationUnhibernatePost(ctx _context.Context) ApiOrchestratorApplicationUnhibernatePostRequest {
 	return ApiOrchestratorApplicationUnhibernatePostRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
@@ -1350,10 +1336,10 @@ func (a *DefaultApiService) OrchestratorApplicationUnhibernatePost(ctx _context.
 //  @return []HibernateStatus
 func (a *DefaultApiService) OrchestratorApplicationUnhibernatePostExecute(r ApiOrchestratorApplicationUnhibernatePostRequest) ([]HibernateStatus, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodPost
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue []HibernateStatus
+		localVarHTTPMethod   = _nethttp.MethodPost
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []HibernateStatus
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationUnhibernatePost")
@@ -1424,8 +1410,8 @@ func (a *DefaultApiService) OrchestratorApplicationUnhibernatePostExecute(r ApiO
 }
 
 type ApiOrchestratorApplicationUpdatePutRequest struct {
-	ctx                  _context.Context
-	ApiService           *DefaultApiService
+	ctx _context.Context
+	ApiService *DefaultApiService
 	updateReleaseRequest *UpdateReleaseRequest
 }
 
@@ -1449,7 +1435,7 @@ update the application
 func (a *DefaultApiService) OrchestratorApplicationUpdatePut(ctx _context.Context) ApiOrchestratorApplicationUpdatePutRequest {
 	return ApiOrchestratorApplicationUpdatePutRequest{
 		ApiService: a,
-		ctx:        ctx,
+		ctx: ctx,
 	}
 }
 
@@ -1457,10 +1443,10 @@ func (a *DefaultApiService) OrchestratorApplicationUpdatePut(ctx _context.Contex
 //  @return []UpdateReleaseResponse
 func (a *DefaultApiService) OrchestratorApplicationUpdatePutExecute(r ApiOrchestratorApplicationUpdatePutRequest) ([]UpdateReleaseResponse, *_nethttp.Response, error) {
 	var (
-		localVarHTTPMethod  = _nethttp.MethodPut
-		localVarPostBody    interface{}
-		formFiles           []formFile
-		localVarReturnValue []UpdateReleaseResponse
+		localVarHTTPMethod   = _nethttp.MethodPut
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  []UpdateReleaseResponse
 	)
 
 	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationUpdatePut")
@@ -1493,6 +1479,116 @@ func (a *DefaultApiService) OrchestratorApplicationUpdatePutExecute(r ApiOrchest
 	}
 	// body params
 	localVarPostBody = r.updateReleaseRequest
+	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
+	if err != nil {
+		return localVarReturnValue, nil, err
+	}
+
+	localVarHTTPResponse, err := a.client.callAPI(req)
+	if err != nil || localVarHTTPResponse == nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	localVarBody, err := _ioutil.ReadAll(localVarHTTPResponse.Body)
+	localVarHTTPResponse.Body.Close()
+	localVarHTTPResponse.Body = _ioutil.NopCloser(bytes.NewBuffer(localVarBody))
+	if err != nil {
+		return localVarReturnValue, localVarHTTPResponse, err
+	}
+
+	if localVarHTTPResponse.StatusCode >= 300 {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: localVarHTTPResponse.Status,
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	err = a.client.decode(&localVarReturnValue, localVarBody, localVarHTTPResponse.Header.Get("Content-Type"))
+	if err != nil {
+		newErr := GenericOpenAPIError{
+			body:  localVarBody,
+			error: err.Error(),
+		}
+		return localVarReturnValue, localVarHTTPResponse, newErr
+	}
+
+	return localVarReturnValue, localVarHTTPResponse, nil
+}
+
+type ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest struct {
+	ctx _context.Context
+	ApiService *DefaultApiService
+	updateReleaseWithChartLinkingRequest *UpdateReleaseWithChartLinkingRequest
+}
+
+func (r ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest) UpdateReleaseWithChartLinkingRequest(updateReleaseWithChartLinkingRequest UpdateReleaseWithChartLinkingRequest) ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest {
+	r.updateReleaseWithChartLinkingRequest = &updateReleaseWithChartLinkingRequest
+	return r
+}
+
+func (r ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest) Execute() (UpdateReleaseResponse, *_nethttp.Response, error) {
+	return r.ApiService.OrchestratorApplicationUpdateWithChartLinkingPutExecute(r)
+}
+
+/*
+OrchestratorApplicationUpdateWithChartLinkingPut Method for OrchestratorApplicationUpdateWithChartLinkingPut
+
+update the application with chartstore linking
+
+ @param ctx _context.Context - for authentication, logging, cancellation, deadlines, tracing, etc. Passed from http.Request or context.Background().
+ @return ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest
+*/
+func (a *DefaultApiService) OrchestratorApplicationUpdateWithChartLinkingPut(ctx _context.Context) ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest {
+	return ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest{
+		ApiService: a,
+		ctx: ctx,
+	}
+}
+
+// Execute executes the request
+//  @return UpdateReleaseResponse
+func (a *DefaultApiService) OrchestratorApplicationUpdateWithChartLinkingPutExecute(r ApiOrchestratorApplicationUpdateWithChartLinkingPutRequest) (UpdateReleaseResponse, *_nethttp.Response, error) {
+	var (
+		localVarHTTPMethod   = _nethttp.MethodPut
+		localVarPostBody     interface{}
+		formFiles            []formFile
+		localVarReturnValue  UpdateReleaseResponse
+	)
+
+	localBasePath, err := a.client.cfg.ServerURLWithContext(r.ctx, "DefaultApiService.OrchestratorApplicationUpdateWithChartLinkingPut")
+	if err != nil {
+		return localVarReturnValue, nil, GenericOpenAPIError{error: err.Error()}
+	}
+
+	localVarPath := localBasePath + "/orchestrator/application/update-with-chart-linking"
+
+	localVarHeaderParams := make(map[string]string)
+	localVarQueryParams := _neturl.Values{}
+	localVarFormParams := _neturl.Values{}
+	if r.updateReleaseWithChartLinkingRequest == nil {
+		return localVarReturnValue, nil, reportError("updateReleaseWithChartLinkingRequest is required and must be specified")
+	}
+
+	// to determine the Content-Type header
+	localVarHTTPContentTypes := []string{"application/json"}
+
+	// set Content-Type header
+	localVarHTTPContentType := selectHeaderContentType(localVarHTTPContentTypes)
+	if localVarHTTPContentType != "" {
+		localVarHeaderParams["Content-Type"] = localVarHTTPContentType
+	}
+
+	// to determine the Accept header
+	localVarHTTPHeaderAccepts := []string{"application/json"}
+
+	// set Accept header
+	localVarHTTPHeaderAccept := selectHeaderAccept(localVarHTTPHeaderAccepts)
+	if localVarHTTPHeaderAccept != "" {
+		localVarHeaderParams["Accept"] = localVarHTTPHeaderAccept
+	}
+	// body params
+	localVarPostBody = r.updateReleaseWithChartLinkingRequest
 	req, err := a.client.prepareRequest(r.ctx, localVarPath, localVarHTTPMethod, localVarPostBody, localVarHeaderParams, localVarQueryParams, localVarFormParams, formFiles)
 	if err != nil {
 		return localVarReturnValue, nil, err

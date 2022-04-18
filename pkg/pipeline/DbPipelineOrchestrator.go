@@ -27,6 +27,8 @@ import (
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
@@ -63,23 +65,26 @@ type DbPipelineOrchestrator interface {
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	GetByEnvOverrideId(envOverrideId int) (*bean.CdPipelines, error)
+	BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript
 }
 
 type DbPipelineOrchestratorImpl struct {
-	appRepository                app2.AppRepository
-	logger                       *zap.SugaredLogger
-	materialRepository           pipelineConfig.MaterialRepository
-	pipelineRepository           pipelineConfig.PipelineRepository
-	ciPipelineRepository         pipelineConfig.CiPipelineRepository
-	CiPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-	GitSensorClient              gitSensor.GitSensorClient
-	ciConfig                     *CiConfig
-	appWorkflowRepository        appWorkflow.AppWorkflowRepository
-	envRepository                repository2.EnvironmentRepository
-	attributesService            attributes.AttributesService
-	appListingRepository         repository.AppListingRepository
-	appLabelsService             app.AppLabelService
-	userAuthService              user.UserAuthService
+	appRepository                 app2.AppRepository
+	logger                        *zap.SugaredLogger
+	materialRepository            pipelineConfig.MaterialRepository
+	pipelineRepository            pipelineConfig.PipelineRepository
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	CiPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
+	GitSensorClient               gitSensor.GitSensorClient
+	ciConfig                      *CiConfig
+	appWorkflowRepository         appWorkflow.AppWorkflowRepository
+	envRepository                 repository2.EnvironmentRepository
+	attributesService             attributes.AttributesService
+	appListingRepository          repository.AppListingRepository
+	appLabelsService              app.AppLabelService
+	userAuthService               user.UserAuthService
+	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService
+	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService
 }
 
 func NewDbPipelineOrchestrator(
@@ -95,22 +100,26 @@ func NewDbPipelineOrchestrator(
 	attributesService attributes.AttributesService,
 	appListingRepository repository.AppListingRepository,
 	appLabelsService app.AppLabelService,
-	userAuthService user.UserAuthService) *DbPipelineOrchestratorImpl {
+	userAuthService user.UserAuthService,
+	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService,
+	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService) *DbPipelineOrchestratorImpl {
 	return &DbPipelineOrchestratorImpl{
-		appRepository:                pipelineGroupRepository,
-		logger:                       logger,
-		materialRepository:           materialRepository,
-		pipelineRepository:           pipelineRepository,
-		ciPipelineRepository:         ciPipelineRepository,
-		CiPipelineMaterialRepository: CiPipelineMaterialRepository,
-		GitSensorClient:              GitSensorClient,
-		ciConfig:                     ciConfig,
-		appWorkflowRepository:        appWorkflowRepository,
-		envRepository:                envRepository,
-		attributesService:            attributesService,
-		appListingRepository:         appListingRepository,
-		appLabelsService:             appLabelsService,
-		userAuthService:              userAuthService,
+		appRepository:                 pipelineGroupRepository,
+		logger:                        logger,
+		materialRepository:            materialRepository,
+		pipelineRepository:            pipelineRepository,
+		ciPipelineRepository:          ciPipelineRepository,
+		CiPipelineMaterialRepository:  CiPipelineMaterialRepository,
+		GitSensorClient:               GitSensorClient,
+		ciConfig:                      ciConfig,
+		appWorkflowRepository:         appWorkflowRepository,
+		envRepository:                 envRepository,
+		attributesService:             attributesService,
+		appListingRepository:          appListingRepository,
+		appLabelsService:              appLabelsService,
+		userAuthService:               userAuthService,
+		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
+		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 	}
 }
 
@@ -283,7 +292,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 
 func (impl DbPipelineOrchestratorImpl) patchCiScripts(userId int32, pipeline *bean.CiPipeline, existingCiScriptMap map[int]bool, existingCiScriptModelMap map[int]*pipelineConfig.CiPipelineScript, tx *pg.Tx) error {
 	for _, ciScript := range pipeline.BeforeDockerBuildScripts {
-		ciPipelineScript := impl.buildCiPipelineScript(userId, ciScript, BEFORE_DOCKER_BUILD, pipeline)
+		ciPipelineScript := impl.BuildCiPipelineScript(userId, ciScript, BEFORE_DOCKER_BUILD, pipeline)
 		if _, ok := existingCiScriptMap[ciScript.Id]; ok { // Update
 			err := impl.ciPipelineRepository.UpdateCiPipelineScript(ciPipelineScript, tx)
 			if err != nil {
@@ -298,10 +307,16 @@ func (impl DbPipelineOrchestratorImpl) patchCiScripts(userId int32, pipeline *be
 				return err
 			}
 		}
+		//creating history entry
+		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			return err
+		}
 	}
 
 	for _, ciScript := range pipeline.AfterDockerBuildScripts {
-		ciPipelineScript := impl.buildCiPipelineScript(userId, ciScript, AFTER_DOCKER_BUILD, pipeline)
+		ciPipelineScript := impl.BuildCiPipelineScript(userId, ciScript, AFTER_DOCKER_BUILD, pipeline)
 		if _, ok := existingCiScriptMap[ciScript.Id]; ok { // Update
 			err := impl.ciPipelineRepository.UpdateCiPipelineScript(ciPipelineScript, tx)
 			if err != nil {
@@ -315,6 +330,12 @@ func (impl DbPipelineOrchestratorImpl) patchCiScripts(userId int32, pipeline *be
 				impl.logger.Errorw("error while creating script", "err", err)
 				return err
 			}
+		}
+		//creating history entry
+		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			return err
 		}
 	}
 
@@ -425,20 +446,32 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 		}
 
 		for i, ciScript := range ciPipeline.BeforeDockerBuildScripts {
-			ciPipelineScript := impl.buildCiPipelineScript(createRequest.UserId, ciScript, BEFORE_DOCKER_BUILD, ciPipeline)
+			ciPipelineScript := impl.BuildCiPipelineScript(createRequest.UserId, ciScript, BEFORE_DOCKER_BUILD, ciPipeline)
 			err = impl.ciPipelineRepository.SaveCiPipelineScript(ciPipelineScript, tx)
 			if err != nil {
 				impl.logger.Errorw("error while saving ci script", "err", err)
+				return nil, err
+			}
+			//creating history entry
+			_, err = impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+			if err != nil {
+				impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
 				return nil, err
 			}
 			ciPipeline.BeforeDockerBuildScripts[i].Id = ciPipelineScript.Id
 		}
 
 		for i, ciScript := range ciPipeline.AfterDockerBuildScripts {
-			ciPipelineScript := impl.buildCiPipelineScript(createRequest.UserId, ciScript, AFTER_DOCKER_BUILD, ciPipeline)
+			ciPipelineScript := impl.BuildCiPipelineScript(createRequest.UserId, ciScript, AFTER_DOCKER_BUILD, ciPipeline)
 			err = impl.ciPipelineRepository.SaveCiPipelineScript(ciPipelineScript, tx)
 			if err != nil {
 				impl.logger.Errorw("error while saving ci script", "err", err)
+				return nil, err
+			}
+			//creating history entry
+			_, err = impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+			if err != nil {
+				impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
 				return nil, err
 			}
 			ciPipeline.AfterDockerBuildScripts[i].Id = ciPipelineScript.Id
@@ -527,7 +560,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 	return createRequest, nil
 }
 
-func (impl DbPipelineOrchestratorImpl) buildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript {
+func (impl DbPipelineOrchestratorImpl) BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript {
 	ciPipelineScript := &pipelineConfig.CiPipelineScript{
 		Name:           ciScript.Name,
 		Index:          ciScript.Index,
@@ -1028,7 +1061,25 @@ func (impl DbPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean.C
 		AuditLog:                      sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.pipelineRepository.Save([]*pipelineConfig.Pipeline{pipeline}, tx)
-	return pipeline.Id, err
+	if err != nil {
+		impl.logger.Errorw("error in saving cd pipeline", "err", err, "pipeline", pipeline)
+		return 0, err
+	}
+	if pipeline.PreStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.PRE_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
+			return 0, err
+		}
+	}
+	if pipeline.PostStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
+			return 0, err
+		}
+	}
+	return pipeline.Id, nil
 }
 
 func (impl DbPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (err error) {
@@ -1079,7 +1130,22 @@ func (impl DbPipelineOrchestratorImpl) UpdateCDPipeline(pipelineRequest *bean.CD
 	pipeline.UpdatedOn = time.Now()
 	err = impl.pipelineRepository.Update(pipeline, tx)
 	if err != nil {
+		impl.logger.Errorw("error in updating cd pipeline", "err", err, "pipeline", pipeline)
 		return err
+	}
+	if pipeline.PreStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.PRE_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
+			return err
+		}
+	}
+	if pipeline.PostStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
+			return err
+		}
 	}
 	return err
 }

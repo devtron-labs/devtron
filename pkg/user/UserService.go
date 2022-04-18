@@ -676,14 +676,19 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 		}
 	}
 
-	filterGroupsModels, err := impl.roleGroupRepository.GetRoleGroupListByCasbinNames(filterGroups)
-	if err != nil {
-		impl.logger.Warnw("No Roles Found for user", "id", model.Id)
+	if len(filterGroups) > 0 {
+		filterGroupsModels, err := impl.roleGroupRepository.GetRoleGroupListByCasbinNames(filterGroups)
+		if err != nil {
+			impl.logger.Warnw("No Roles Found for user", "id", model.Id)
+		}
+		filterGroups = nil
+		for _, item := range filterGroupsModels {
+			filterGroups = append(filterGroups, item.Name)
+		}
+	} else {
+		impl.logger.Warnw("no roles found for user", "email", model.EmailId)
 	}
-	filterGroups = nil
-	for _, item := range filterGroupsModels {
-		filterGroups = append(filterGroups, item.Name)
-	}
+
 	if len(filterGroups) == 0 {
 		filterGroups = make([]string, 0)
 	}

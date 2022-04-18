@@ -24,12 +24,10 @@ type HelmAppRestHandler interface {
 	GetApplicationDetail(w http.ResponseWriter, r *http.Request)
 	Hibernate(w http.ResponseWriter, r *http.Request)
 	UnHibernate(w http.ResponseWriter, r *http.Request)
-	GetDeploymentHistory(w http.ResponseWriter, r *http.Request)
-	GetValuesYaml(w http.ResponseWriter, r *http.Request)
+	GetReleaseInfo(w http.ResponseWriter, r *http.Request)
 	GetDesiredManifest(w http.ResponseWriter, r *http.Request)
 	DeleteApplication(w http.ResponseWriter, r *http.Request)
 	UpdateApplication(w http.ResponseWriter, r *http.Request)
-	GetDeploymentDetail(w http.ResponseWriter, r *http.Request)
 }
 
 type HelmAppRestHandlerImpl struct {
@@ -72,7 +70,7 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 		clusterIds = append(clusterIds, j)
 	}
 	token := r.Header.Get("token")
-	handler.helmAppService.ListHelmApplications(clusterIds, w, token, handler.CheckHelmAuth)
+	handler.helmAppService.ListHelmApplications(clusterIds, w, token, handler.checkHelmAuth)
 }
 
 func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
@@ -129,7 +127,7 @@ func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.
 	// RBAC enforcer applying
 	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -143,7 +141,7 @@ func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.
 }
 
 func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *http.Request) {
-	var hibernateRequest *openapi.HibernateRequest
+	hibernateRequest := &openapi.HibernateRequest{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(hibernateRequest)
 	if err != nil {
@@ -158,7 +156,7 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 	// RBAC enforcer applying
 	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -171,32 +169,7 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *HelmAppRestHandlerImpl) GetDeploymentHistory(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	appId := vars["appId"]
-	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-	res, err := handler.helmAppService.GetDeploymentHistory(context.Background(), appIdentifier)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler *HelmAppRestHandlerImpl) GetValuesYaml(w http.ResponseWriter, r *http.Request) {
+func (handler *HelmAppRestHandlerImpl) GetReleaseInfo(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId := vars["appId"]
 	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
@@ -351,7 +324,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-	}else{
+	} else {
 		res, err = handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, request)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -362,49 +335,8 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *HelmAppRestHandlerImpl) GetDeploymentDetail(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	appId := vars["appId"]
-	version, err := strconv.ParseInt(vars["version"], 10, 32)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-	res, err := handler.helmAppService.GetDeploymentDetail(context.Background(), appIdentifier, int32(version))
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
 
-	// Obfuscate secrets if user does not have edit access
-	canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
-	if !canUpdate && res != nil && res.Manifest != nil {
-		modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput(*res.Manifest)
-		if err != nil {
-			handler.logger.Errorw("error in hiding secret values", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		res.Manifest = &modifiedManifest
-	}
-
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler *HelmAppRestHandlerImpl) CheckHelmAuth(token string, object string) bool {
+func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, strings.ToLower(object)); !ok {
 		return false
 	}
@@ -417,11 +349,14 @@ func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) 
 	}
 
 	return &InstalledAppInfo{
-		AppId:           installedApp.AppId,
-		EnvironmentName: installedApp.EnvironmentName,
-		AppOfferingMode: installedApp.AppOfferingMode,
-		InstalledAppId:  installedApp.InstalledAppId,
-		AppStoreChartId: installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+		AppId:                 installedApp.AppId,
+		EnvironmentName:       installedApp.EnvironmentName,
+		AppOfferingMode:       installedApp.AppOfferingMode,
+		InstalledAppId:        installedApp.InstalledAppId,
+		InstalledAppVersionId: installedApp.InstalledAppVersionId,
+		AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+		ClusterId:             installedApp.ClusterId,
+		EnvironmentId:         installedApp.EnvironmentId,
 	}
 }
 
@@ -435,10 +370,18 @@ type ReleaseAndInstalledAppInfo struct {
 	ReleaseInfo      *ReleaseInfo      `json:"releaseInfo"`
 }
 
+type DeploymentHistoryAndInstalledAppInfo struct {
+	InstalledAppInfo  *InstalledAppInfo          `json:"installedAppInfo"`
+	DeploymentHistory []*HelmAppDeploymentDetail `json:"deploymentHistory"`
+}
+
 type InstalledAppInfo struct {
-	AppId           int    `json:"appId"`
-	InstalledAppId  int    `json:"installedAppId"`
-	AppStoreChartId int    `json:"appStoreChartId"`
-	EnvironmentName string `json:"environmentName"`
-	AppOfferingMode string `json:"appOfferingMode"`
+	AppId                 int    `json:"appId"`
+	InstalledAppId        int    `json:"installedAppId"`
+	InstalledAppVersionId int    `json:"installedAppVersionId"`
+	AppStoreChartId       int    `json:"appStoreChartId"`
+	EnvironmentName       string `json:"environmentName"`
+	AppOfferingMode       string `json:"appOfferingMode"`
+	ClusterId             int    `json:"clusterId"`
+	EnvironmentId         int    `json:"environmentId"`
 }

@@ -1,3 +1,4 @@
 .idea
 devtron
 .DS_Store
+/cmd/external-app/devtron-ea

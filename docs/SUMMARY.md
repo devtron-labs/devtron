@@ -25,6 +25,7 @@
     * [Deploy a sample App](user-guide/Deploy-sample-app/nodejs_app.md)
   * [Devtron Upgrade](setup/upgrade/README.md)
     * [0.2.x-0.3.x](setup/upgrade/devtron-upgrade-0.2.x-0.3.x.md)
+    * [0.3.x-0.3.x](setup/upgrade/devtron-upgrade-0.3.x-0.3.x.md)
 * [User Guide](user-guide/creating-application/userguide.md)
   * [Creating Application](user-guide/creating-application/README.md)
     * [Git Repository](user-guide/creating-application/git-material.md)
