@@ -184,6 +184,7 @@ func (impl ExternalLinkoutServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Ex
 	}
 	for _, link := range additionalExternalLinks {
 		providerRes := &ExternalLinkoutRequest{
+			Id:               link.Id,
 			Name:             link.Name,
 			Url:              link.Url,
 			Active:           link.Active,
