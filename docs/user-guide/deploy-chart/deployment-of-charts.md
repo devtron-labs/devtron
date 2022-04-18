@@ -11,7 +11,7 @@ Search `nginx` or any other charts in search filter.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-1.jpg)
 
-Click on chart and it will redirect you to `Chart Details` page where you can a see number of instances deployed by using the same chart.
+Click on chart and it will redirect you to `Chart Details` page where you can see a number of instances deployed by using the same chart.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-2.jpg)
 
