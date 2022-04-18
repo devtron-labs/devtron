@@ -128,9 +128,11 @@ components:
         clusterIds:
           type: array
           description: clusters to which this url is applied e.g 1,2,3... (* for all)
-
           items:
             type: string
+        updatedOn:
+          type: string
+          description: updated on
     ActionResponse:
       type: object
       properties:

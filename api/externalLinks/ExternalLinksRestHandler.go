@@ -73,7 +73,7 @@ func (impl ExternalLinksRestHandlerImpl) CreateExternalLinks(w http.ResponseWrit
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var beans []*externalLinks.ExternalLinkoutRequest
+	var beans []*externalLinks.ExternalLinksRequest
 	err = decoder.Decode(&beans)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveLink", "err", err, "payload", beans)
@@ -161,7 +161,7 @@ func (impl ExternalLinksRestHandlerImpl) UpdateExternalLinks(w http.ResponseWrit
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var bean externalLinks.ExternalLinkoutRequest
+	var bean externalLinks.ExternalLinksRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Update Link", "err", err, "bean", bean)
@@ -206,7 +206,7 @@ func (impl ExternalLinksRestHandlerImpl) DeleteExternalLinks(w http.ResponseWrit
 		return
 	}
 
-	var bean externalLinks.ExternalLinkoutRequest
+	var bean externalLinks.ExternalLinksRequest
 	bean.Id = idi
 	res, err := impl.externalLinksService.DeleteLink(idi, userId)
 	if err != nil {

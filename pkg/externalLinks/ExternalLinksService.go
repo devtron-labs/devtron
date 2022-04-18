@@ -26,10 +26,10 @@ import (
 )
 
 type ExternalLinksService interface {
-	Create(requests []*ExternalLinkoutRequest, userId int32) (*ExternalLinksCreateUpdateResponse, error)
+	Create(requests []*ExternalLinksRequest, userId int32) (*ExternalLinksCreateUpdateResponse, error)
 	GetAllActiveTools() ([]ExternalLinksMonitoringToolsRequest, error)
-	FetchAllActiveLinks(clusterIds int) ([]*ExternalLinkoutRequest, error)
-	Update(request *ExternalLinkoutRequest) (*ExternalLinksCreateUpdateResponse, error)
+	FetchAllActiveLinks(clusterIds int) ([]*ExternalLinksRequest, error)
+	Update(request *ExternalLinksRequest) (*ExternalLinksCreateUpdateResponse, error)
 	DeleteLink(id int, userId int32) (*ExternalLinksCreateUpdateResponse, error)
 }
 type ExternalLinksServiceImpl struct {
@@ -44,14 +44,15 @@ type ExternalLinksMonitoringToolsRequest struct {
 	Name string `json:"name"`
 	Icon string `json:"icon"`
 }
-type ExternalLinkoutRequest struct {
-	Id               int    `json:"id"`
-	Name             string `json:"name"`
-	Url              string `json:"url"`
-	Active           bool   `json:"active"`
-	MonitoringToolId int    `json:"monitoringToolId"`
-	ClusterIds       []int  `json:"clusterIds"`
-	UserId           int32  `json:"-"`
+type ExternalLinksRequest struct {
+	Id               int       `json:"id"`
+	Name             string    `json:"name"`
+	Url              string    `json:"url"`
+	Active           bool      `json:"active"`
+	MonitoringToolId int       `json:"monitoringToolId"`
+	ClusterIds       []int     `json:"clusterIds"`
+	UpdatedOn        time.Time `json:"updatedOn"`
+	UserId           int32     `json:"-"`
 }
 
 type ExternalLinksCreateUpdateResponse struct {
@@ -69,7 +70,7 @@ func NewExternalLinksServiceImpl(logger *zap.SugaredLogger, externalLinksToolsRe
 	}
 }
 
-func (impl ExternalLinksServiceImpl) Create(requests []*ExternalLinkoutRequest, userId int32) (*ExternalLinksCreateUpdateResponse, error) {
+func (impl ExternalLinksServiceImpl) Create(requests []*ExternalLinksRequest, userId int32) (*ExternalLinksCreateUpdateResponse, error) {
 	impl.logger.Debugw("external linkout create request", "req", requests)
 	for _, request := range requests {
 		t := &ExternalLinks{
@@ -132,7 +133,7 @@ func (impl ExternalLinksServiceImpl) GetAllActiveTools() ([]ExternalLinksMonitor
 	return toolRequests, err
 }
 
-func (impl ExternalLinksServiceImpl) FetchAllActiveLinks(clusterId int) ([]*ExternalLinkoutRequest, error) {
+func (impl ExternalLinksServiceImpl) FetchAllActiveLinks(clusterId int) ([]*ExternalLinksRequest, error) {
 	impl.logger.Debug("fetch all links from db")
 	var err error
 	var mappedExternalLinksIds []int
@@ -146,8 +147,8 @@ func (impl ExternalLinksServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Exte
 		mappedExternalLinksIds = append(mappedExternalLinksIds, externalLinksId)
 	}
 
-	var externalLinkResponse []*ExternalLinkoutRequest
-	response := make(map[int]*ExternalLinkoutRequest)
+	var externalLinkResponse []*ExternalLinksRequest
+	response := make(map[int]*ExternalLinksRequest)
 	for _, link := range allActiveExternalLinks {
 
 		//requested all links
@@ -157,12 +158,13 @@ func (impl ExternalLinksServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Exte
 			}
 		}
 		if _, ok := response[link.ExternalLinksId]; !ok {
-			response[link.ExternalLinksId] = &ExternalLinkoutRequest{
+			response[link.ExternalLinksId] = &ExternalLinksRequest{
 				Id:               link.ExternalLinksId,
 				Name:             link.ExternalLinks.Name,
 				Url:              link.ExternalLinks.Url,
 				Active:           link.ExternalLinks.Active,
 				MonitoringToolId: link.ExternalLinks.ExternalLinksMonitoringToolId,
+				UpdatedOn:        link.UpdatedOn,
 			}
 		}
 		response[link.ExternalLinksId].ClusterIds = append(response[link.ExternalLinksId].ClusterIds, link.ClusterId)
@@ -183,23 +185,24 @@ func (impl ExternalLinksServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Exte
 		return nil, err
 	}
 	for _, link := range additionalExternalLinks {
-		providerRes := &ExternalLinkoutRequest{
+		providerRes := &ExternalLinksRequest{
 			Id:               link.Id,
 			Name:             link.Name,
 			Url:              link.Url,
 			Active:           link.Active,
 			MonitoringToolId: link.ExternalLinksMonitoringToolId,
 			ClusterIds:       []int{},
+			UpdatedOn:        link.UpdatedOn,
 		}
 		externalLinkResponse = append(externalLinkResponse, providerRes)
 	}
 
 	if externalLinkResponse == nil {
-		externalLinkResponse = make([]*ExternalLinkoutRequest, 0)
+		externalLinkResponse = make([]*ExternalLinksRequest, 0)
 	}
 	return externalLinkResponse, err
 }
-func (impl ExternalLinksServiceImpl) Update(request *ExternalLinkoutRequest) (*ExternalLinksCreateUpdateResponse, error) {
+func (impl ExternalLinksServiceImpl) Update(request *ExternalLinksRequest) (*ExternalLinksCreateUpdateResponse, error) {
 	impl.logger.Debugw("link update request", "req", request)
 	externalLinks, err0 := impl.externalLinksRepository.FindOne(request.Id)
 	if err0 != nil {
