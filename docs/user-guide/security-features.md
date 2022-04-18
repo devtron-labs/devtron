@@ -69,7 +69,7 @@ Click on the `Show Source Info` option. A window will be expanded with two optio
 
 You can find Vulnerabilities on the `App Details` page too. Here we are displaying the total number of vulnerabilities found in the code and their Severity Level wise segregation.
 
-![](../.gitbook/assets/security-feature-app-details-vulnerability.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/security-feature-app-details-vulnerability.jpg)
 
 ## Security
 
@@ -77,7 +77,7 @@ You can check Vulnerabilities for all your applications in one place. On the Hom
 
 **Note:-**
 
-It displays the “Vulnerability count and Severity Level” on a priority basis. And critical level has the highest priority, so it displays the critical level vulnerabilities and there counts if any application is having critical Vulnerability in it.
+It displays the “Vulnerability count and Severity Level” on a priority basis. And critical level has the highest priority, so it displays the critical level vulnerabilities and there counts if any application is having critical vulnerability in it.
 
 You can directly `Search` your application using the Search bar or you can `filter out` your requirement according to Severity, Clusters, and Environment.
 

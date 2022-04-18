@@ -2,6 +2,7 @@ package appStoreDeploymentGitopsTool
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -225,7 +226,22 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) deleteACD(acdAppName string, ctx
 	}
 	return nil
 }
-
+func (impl AppStoreDeploymentArgoCdServiceImpl) getSourcesFromManifest(chartYaml string) ([]string, error) {
+	var b map[string]interface{}
+	var sources []string
+	err := json.Unmarshal([]byte(chartYaml), &b)
+	if err != nil {
+		impl.Logger.Errorw("error while unmarshal chart yaml", "error", err)
+		return sources, err
+	}
+	if b != nil && b["sources"] != nil {
+		slice := b["sources"].([]interface{})
+		for _, item := range slice {
+			sources = append(sources, item.(string))
+		}
+	}
+	return sources, nil
+}
 func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context.Context, installedAppDto *appStoreBean.InstallAppVersionDTO) (*client.HelmAppDeploymentHistory, error) {
 	result := &client.HelmAppDeploymentHistory{}
 	var history []*client.HelmAppDeploymentDetail
@@ -237,6 +253,12 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 		return result, err
 	}
 	for _, installedAppVersionModel := range installedAppVersions {
+
+		sources, err := impl.getSourcesFromManifest(installedAppVersionModel.AppStoreApplicationVersion.ChartYaml)
+		if err != nil {
+			impl.Logger.Errorw("error while fetching sources", "error", err)
+			//continues here, skip error in case found issue on fetching source
+		}
 		versionHistory, err := impl.installedAppRepositoryHistory.GetInstalledAppVersionHistoryByVersionId(installedAppVersionModel.Id)
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("error while fetching installed version history", "error", err)
@@ -249,7 +271,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 					ChartVersion: installedAppVersionModel.AppStoreApplicationVersion.Version,
 					Description:  installedAppVersionModel.AppStoreApplicationVersion.Description,
 					Home:         installedAppVersionModel.AppStoreApplicationVersion.Home,
-					Sources:      []string{installedAppVersionModel.AppStoreApplicationVersion.Source},
+					Sources:      sources,
 				},
 				DockerImages: []string{installedAppVersionModel.AppStoreApplicationVersion.AppVersion},
 				DeployedAt: &timestamp.Timestamp{
@@ -257,7 +279,6 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetDeploymentHistory(ctx context
 					Nanos:   int32(updateHistory.UpdatedOn.Nanosecond()),
 				},
 				Version: int32(updateHistory.Id),
-				//InstalledAppVersionId: installedAppVersionModel.Id,
 			})
 		}
 	}

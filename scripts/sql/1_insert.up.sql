@@ -5429,15 +5429,15 @@ INSERT INTO "public"."chart_ref" ("id", "location", "version", "is_default", "ac
 
 INSERT INTO "public"."chart_repo" ("id", "name", "url", "is_default", "active", "created_on", "created_by", "updated_on", "updated_by", "external") VALUES
 ('1', 'default-chartmuseum', 'http://devtron-chartmuseum.devtroncd:8080/', 't', 't', 'now()', '1', 'now()', '1', 'f'),
-('2', 'fluent', 'https://fluent.github.io/helm-charts', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('3', 'devtron', 'https://helm.devtron.ai', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('4', 'nginx-ingress', 'https://kubernetes.github.io/ingress-nginx', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('5', 'elastic', 'https://helm.elastic.co', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('6', 'bitnami', 'https://charts.bitnami.com/bitnami', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('7', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('8', 'jetstack', 'https://charts.jetstack.io', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('9', 'metrics-server', 'https://kubernetes-sigs.github.io/metrics-server', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('10', 'autoscaler', 'https://kubernetes.github.io/autoscaler', 'f', 't', 'now()', '1', 'now()', '1', 't');
+('2', 'devtron', 'https://helm.devtron.ai', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('3', 'jetstack', 'https://charts.jetstack.io', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('4', 'elastic', 'https://helm.elastic.co', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('5', 'autoscaler', 'https://kubernetes.github.io/autoscaler', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('6', 'fluent', 'https://fluent.github.io/helm-charts', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('7', 'nginx-ingress', 'https://kubernetes.github.io/ingress-nginx', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('8', 'metrics-server', 'https://kubernetes-sigs.github.io/metrics-server', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('9', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('10', 'bitnami', 'https://charts.bitnami.com/bitnami', 'f', 't', 'now()', '1', 'now()', '1', 't');
 
 
 INSERT INTO "public"."cluster" ("id", "cluster_name", "active", "created_on", "created_by", "updated_on", "updated_by", "server_url", "config", "prometheus_endpoint", "cd_argo_setup", "p_username", "p_password", "p_tls_client_cert", "p_tls_client_key") VALUES

@@ -57,7 +57,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetry)
+	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
@@ -142,7 +142,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	return clusters, users, k8sServerVersion
 }
 
-func (impl *TelemetryEventClientImpl) SummaryEventForTelemetry() {
+func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
@@ -222,6 +222,7 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
 		return
 	}
+
 	k8sServerVersion, err := discoveryClient.ServerVersion()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry heartbeat event", "err", err)
@@ -244,13 +245,12 @@ func (impl *TelemetryEventClientImpl) HeartbeatEventForTelemetry() {
 	}
 
 	err = impl.EnqueuePostHog(ucid, Heartbeat, prop)
-	if err == nil {
-		if err != nil {
-			impl.logger.Warnw("HeartbeatEventForTelemetry, failed to push event", "error", err)
-		} else {
-			impl.logger.Debugw("HeartbeatEventForTelemetry success")
-		}
+	if err != nil {
+		impl.logger.Warnw("HeartbeatEventForTelemetry, failed to push event", "error", err)
+		return
 	}
+	impl.logger.Debugw("HeartbeatEventForTelemetry success")
+	return
 }
 
 func (impl *TelemetryEventClientImpl) GetTelemetryMetaInfo() (*TelemetryMetaInfo, error) {
