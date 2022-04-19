@@ -20,14 +20,12 @@ package externalLink
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
-	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 )
@@ -43,27 +41,19 @@ type ExternalLinkRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
 	externalLinkService externalLink.ExternalLinkService
 	userService         user.UserService
-	validator           *validator.Validate
 	enforcer            casbin.Enforcer
-	userAuthService     user.UserAuthService
-	deleteService       delete2.DeleteService
 }
 
 func NewExternalLinkRestHandlerImpl(logger *zap.SugaredLogger,
 	externalLinkService externalLink.ExternalLinkService,
 	userService user.UserService,
 	enforcer casbin.Enforcer,
-	validator *validator.Validate, userAuthService user.UserAuthService,
-	deleteService delete2.DeleteService,
 ) *ExternalLinkRestHandlerImpl {
 	return &ExternalLinkRestHandlerImpl{
 		logger:              logger,
 		externalLinkService: externalLinkService,
 		userService:         userService,
-		validator:           validator,
 		enforcer:            enforcer,
-		userAuthService:     userAuthService,
-		deleteService:       deleteService,
 	}
 }
 func (impl ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
@@ -103,13 +93,6 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinkMonitoringTools(w http.Re
 	}
 
 	// auth free api as we using this for multiple places
-	/*
-		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
-			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
-	*/
 
 	res, err := impl.externalLinkService.GetAllActiveTools()
 	if err != nil {
@@ -131,7 +114,6 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 	if len(id) > 0 {
 		clusterId, err = strconv.Atoi(id)
 		if err != nil {
-			impl.logger.Errorw("request err, FetchOne", "err", err, "id", id)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
@@ -195,7 +177,7 @@ func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter
 	id := params["id"]
 	idi, err := strconv.Atoi(id)
 	if err != nil {
-		impl.logger.Errorw("request err, FetchOne", "err", err, "id", id)
+		impl.logger.Errorw("request err, DeleteExternalLink", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -206,11 +188,9 @@ func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter
 		return
 	}
 
-	var bean externalLink.ExternalLinkDto
-	bean.Id = idi
 	res, err := impl.externalLinkService.DeleteLink(idi, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, Update Links", "err", err, "bean", bean)
+		impl.logger.Errorw("service err, delete Links", "err", err, "id", idi)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

@@ -20,7 +20,6 @@ package externalLink
 import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"time"
 )
@@ -37,7 +36,6 @@ type ExternalLinkServiceImpl struct {
 	externalLinkMonitoringToolRepository ExternalLinkMonitoringToolRepository
 	externalLinkClusterMappingRepository ExternalLinkClusterMappingRepository
 	externalLinkRepository               ExternalLinkRepository
-	userAuthService                      user.UserAuthService
 }
 type ExternalLinkMonitoringToolDto struct {
 	Id   int    `json:"id"`
@@ -60,18 +58,17 @@ type ExternalLinkApiResponse struct {
 }
 
 func NewExternalLinkServiceImpl(logger *zap.SugaredLogger, externalLinksToolsRepository ExternalLinkMonitoringToolRepository,
-	externalLinksClustersRepository ExternalLinkClusterMappingRepository, externalLinksRepository ExternalLinkRepository, userAuthService user.UserAuthService) *ExternalLinkServiceImpl {
+	externalLinksClustersRepository ExternalLinkClusterMappingRepository, externalLinksRepository ExternalLinkRepository) *ExternalLinkServiceImpl {
 	return &ExternalLinkServiceImpl{
 		logger:                               logger,
 		externalLinkMonitoringToolRepository: externalLinksToolsRepository,
 		externalLinkClusterMappingRepository: externalLinksClustersRepository,
 		externalLinkRepository:               externalLinksRepository,
-		userAuthService:                      userAuthService,
 	}
 }
 
 func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId int32) (*ExternalLinkApiResponse, error) {
-	impl.logger.Debugw("external linkout create request", "req", requests)
+	impl.logger.Debugw("external links create request", "req", requests)
 	for _, request := range requests {
 		externalLink := &ExternalLink{
 			Name:                         request.Name,
@@ -91,13 +88,13 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 		}
 
 		for _, clusterId := range request.ClusterIds {
-			externalLinksMapping := &ExternalLinkClusterMapping{
+			externalLinkClusterMapping := &ExternalLinkClusterMapping{
 				ExternalLinkId: externalLink.Id,
 				ClusterId:      clusterId,
 				Active:         true,
 				AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: userId, UpdatedOn: time.Now(), UpdatedBy: userId},
 			}
-			err := impl.externalLinkClusterMappingRepository.Save(externalLinksMapping)
+			err := impl.externalLinkClusterMappingRepository.Save(externalLinkClusterMapping)
 			if err != nil {
 				impl.logger.Errorw("error in saving cluster id's", "data", externalLink, "err", err)
 				err = &util.ApiError{
@@ -137,8 +134,8 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Exter
 	var mappedExternalLinksIds []int
 	filterByCluster := make(map[int]int)
 	externalLinksMap := make(map[int]int)
-	allActiveExternalLinks, err := impl.externalLinkClusterMappingRepository.FindAllActive()
-	for _, link := range allActiveExternalLinks {
+	allActiveExternalLinkMapping, err := impl.externalLinkClusterMappingRepository.FindAllActive()
+	for _, link := range allActiveExternalLinkMapping {
 		externalLinksMap[link.ExternalLinkId] = link.ExternalLinkId
 	}
 	for _, externalLinksId := range externalLinksMap {
@@ -147,7 +144,7 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Exter
 
 	var externalLinkResponse []*ExternalLinkDto
 	response := make(map[int]*ExternalLinkDto)
-	for _, link := range allActiveExternalLinks {
+	for _, link := range allActiveExternalLinkMapping {
 
 		//requested all links
 		if clusterId > 0 {
@@ -274,11 +271,11 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto) (*ExternalL
 }
 func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalLinkApiResponse, error) {
 	impl.logger.Debugw("link delete request", "req", id)
-	externalLinksMapping, err := impl.externalLinkClusterMappingRepository.FindAllActiveByExternalLinkId(id)
+	externalLinksClusterMapping, err := impl.externalLinkClusterMappingRepository.FindAllActiveByExternalLinkId(id)
 	if err != nil {
 		return nil, err
 	}
-	for _, externalLink := range externalLinksMapping {
+	for _, externalLink := range externalLinksClusterMapping {
 		externalLink.Active = false
 		externalLink.UpdatedOn = time.Now()
 		externalLink.UpdatedBy = userId

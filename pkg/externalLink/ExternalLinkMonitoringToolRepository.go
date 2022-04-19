@@ -31,7 +31,6 @@ type ExternalLinkMonitoringTool struct {
 	sql.AuditLog
 }
 type ExternalLinkMonitoringToolRepository interface {
-	Save(externalLinksTools *ExternalLinkMonitoringTool) error
 	FindAllActive() ([]ExternalLinkMonitoringTool, error)
 }
 type ExternalLinkMonitoringToolRepositoryImpl struct {
@@ -45,8 +44,4 @@ func (impl ExternalLinkMonitoringToolRepositoryImpl) FindAllActive() ([]External
 	var tools []ExternalLinkMonitoringTool
 	err := impl.dbConnection.Model(&tools).Where("active = ?", true).Select()
 	return tools, err
-}
-func (impl ExternalLinkMonitoringToolRepositoryImpl) Save(externalLinksTools *ExternalLinkMonitoringTool) error {
-	err := impl.dbConnection.Insert(externalLinksTools)
-	return err
 }
