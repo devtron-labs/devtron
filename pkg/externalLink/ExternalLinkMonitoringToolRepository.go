@@ -15,7 +15,7 @@
  *
  */
 
-package externalLinks
+package externalLink
 
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"

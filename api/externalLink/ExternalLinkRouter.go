@@ -1,4 +1,4 @@
-package externalLinks
+package externalLink
 
 import (
 	"github.com/gorilla/mux"

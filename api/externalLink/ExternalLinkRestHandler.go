@@ -15,13 +15,13 @@
  *
  */
 
-package externalLinks
+package externalLink
 
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/devtron-labs/devtron/pkg/externalLinks"
+	"github.com/devtron-labs/devtron/pkg/externalLink"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -41,7 +41,7 @@ type ExternalLinkRestHandler interface {
 }
 type ExternalLinkRestHandlerImpl struct {
 	logger              *zap.SugaredLogger
-	externalLinkService externalLinks.ExternalLinkService
+	externalLinkService externalLink.ExternalLinkService
 	userService         user.UserService
 	validator           *validator.Validate
 	enforcer            casbin.Enforcer
@@ -50,7 +50,7 @@ type ExternalLinkRestHandlerImpl struct {
 }
 
 func NewExternalLinkRestHandlerImpl(logger *zap.SugaredLogger,
-	externalLinkService externalLinks.ExternalLinkService,
+	externalLinkService externalLink.ExternalLinkService,
 	userService user.UserService,
 	enforcer casbin.Enforcer,
 	validator *validator.Validate, userAuthService user.UserAuthService,
@@ -73,7 +73,7 @@ func (impl ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWrite
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var beans []*externalLinks.ExternalLinkDto
+	var beans []*externalLink.ExternalLinkDto
 	err = decoder.Decode(&beans)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveLink", "err", err, "payload", beans)
@@ -161,7 +161,7 @@ func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var bean externalLinks.ExternalLinkDto
+	var bean externalLink.ExternalLinkDto
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Update Link", "err", err, "bean", bean)
@@ -206,7 +206,7 @@ func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter
 		return
 	}
 
-	var bean externalLinks.ExternalLinkDto
+	var bean externalLink.ExternalLinkDto
 	bean.Id = idi
 	res, err := impl.externalLinkService.DeleteLink(idi, userId)
 	if err != nil {

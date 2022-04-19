@@ -15,7 +15,7 @@
  *
  */
 
-package externalLinks
+package externalLink
 
 import (
 	"github.com/devtron-labs/devtron/internal/util"
@@ -73,16 +73,16 @@ func NewExternalLinkServiceImpl(logger *zap.SugaredLogger, externalLinksToolsRep
 func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId int32) (*ExternalLinkApiResponse, error) {
 	impl.logger.Debugw("external linkout create request", "req", requests)
 	for _, request := range requests {
-		t := &ExternalLink{
+		externalLink := &ExternalLink{
 			Name:                         request.Name,
 			Active:                       true,
 			ExternalLinkMonitoringToolId: request.MonitoringToolId,
 			Url:                          request.Url,
 			AuditLog:                     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: userId, UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
-		err := impl.externalLinkRepository.Save(t)
+		err := impl.externalLinkRepository.Save(externalLink)
 		if err != nil {
-			impl.logger.Errorw("error in saving link", "data", t, "err", err)
+			impl.logger.Errorw("error in saving link", "data", externalLink, "err", err)
 			err = &util.ApiError{
 				InternalMessage: "external link failed to create in db",
 				UserMessage:     "external link failed to create in db",
@@ -92,14 +92,14 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 
 		for _, clusterId := range request.ClusterIds {
 			externalLinksMapping := &ExternalLinkClusterMapping{
-				ExternalLinkId: t.Id,
+				ExternalLinkId: externalLink.Id,
 				ClusterId:      clusterId,
 				Active:         true,
 				AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: userId, UpdatedOn: time.Now(), UpdatedBy: userId},
 			}
 			err := impl.externalLinkClusterMappingRepository.Save(externalLinksMapping)
 			if err != nil {
-				impl.logger.Errorw("error in saving cluster id's", "data", t, "err", err)
+				impl.logger.Errorw("error in saving cluster id's", "data", externalLink, "err", err)
 				err = &util.ApiError{
 					InternalMessage: "cluster id failed to create in db",
 					UserMessage:     "cluster id failed to create in db",
@@ -115,26 +115,24 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 }
 
 func (impl ExternalLinkServiceImpl) GetAllActiveTools() ([]ExternalLinkMonitoringToolDto, error) {
-	impl.logger.Debug("fetch all links from db")
 	tools, err := impl.externalLinkMonitoringToolRepository.FindAllActive()
 	if err != nil {
 		impl.logger.Errorw("error in fetch all tools", "err", err)
 		return nil, err
 	}
-	var toolRequests []ExternalLinkMonitoringToolDto
+	var response []ExternalLinkMonitoringToolDto
 	for _, tool := range tools {
 		providerRes := ExternalLinkMonitoringToolDto{
 			Id:   tool.Id,
 			Name: tool.Name,
 			Icon: tool.Icon,
 		}
-		toolRequests = append(toolRequests, providerRes)
+		response = append(response, providerRes)
 	}
-	return toolRequests, err
+	return response, err
 }
 
 func (impl ExternalLinkServiceImpl) FetchAllActiveLinks(clusterId int) ([]*ExternalLinkDto, error) {
-	impl.logger.Debug("fetch all links from db")
 	var err error
 	var mappedExternalLinksIds []int
 	filterByCluster := make(map[int]int)
@@ -204,26 +202,26 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Exter
 }
 func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto) (*ExternalLinkApiResponse, error) {
 	impl.logger.Debugw("link update request", "req", request)
-	externalLinks, err0 := impl.externalLinkRepository.FindOne(request.Id)
+	externalLink, err0 := impl.externalLinkRepository.FindOne(request.Id)
 	if err0 != nil {
 		impl.logger.Errorw("No matching entry found for update.", "id", request.Id)
 		return nil, err0
 	}
-	externalLinks.Name = request.Name
-	externalLinks.Url = request.Url
-	externalLinks.Active = true
-	externalLinks.ExternalLinkMonitoringToolId = request.MonitoringToolId
-	externalLinks.UpdatedBy = int32(request.UserId)
-	externalLinks.UpdatedOn = time.Now()
-	err := impl.externalLinkRepository.Update(&externalLinks)
+	externalLink.Name = request.Name
+	externalLink.Url = request.Url
+	externalLink.Active = true
+	externalLink.ExternalLinkMonitoringToolId = request.MonitoringToolId
+	externalLink.UpdatedBy = int32(request.UserId)
+	externalLink.UpdatedOn = time.Now()
+	err := impl.externalLinkRepository.Update(&externalLink)
 	if err != nil {
-		impl.logger.Errorw("error in updating link", "data", externalLinks, "err", err)
+		impl.logger.Errorw("error in updating link", "data", externalLink, "err", err)
 		return nil, err
 	}
 
 	allExternalLinksMapping, err := impl.externalLinkClusterMappingRepository.FindAllByExternalLinkId(request.Id)
 	if err != nil {
-		impl.logger.Errorw("error in fetching link", "data", externalLinks, "err", err)
+		impl.logger.Errorw("error in fetching link", "data", externalLink, "err", err)
 		return nil, err
 	}
 	for _, model := range allExternalLinksMapping {
@@ -291,16 +289,16 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalL
 		}
 	}
 
-	externalLinks, err := impl.externalLinkRepository.FindOne(id)
+	externalLink, err := impl.externalLinkRepository.FindOne(id)
 	if err != nil {
 		return nil, err
 	}
-	externalLinks.Active = false
-	externalLinks.UpdatedOn = time.Now()
-	externalLinks.UpdatedBy = userId
-	err = impl.externalLinkRepository.Update(&externalLinks)
+	externalLink.Active = false
+	externalLink.UpdatedOn = time.Now()
+	externalLink.UpdatedBy = userId
+	err = impl.externalLinkRepository.Update(&externalLink)
 	if err != nil {
-		impl.logger.Errorw("error in deleting link", "data", externalLinks, "err", err)
+		impl.logger.Errorw("error in deleting link", "data", externalLink, "err", err)
 		return nil, err
 	}
 
