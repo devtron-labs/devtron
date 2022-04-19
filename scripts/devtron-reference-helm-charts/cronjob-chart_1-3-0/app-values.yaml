@@ -8,10 +8,11 @@ jobConfigs:
   completions: 2
   suspend: false
   ttlSecondsAfterFinished: 100
-  
+
 cronjobConfigs:
   schedule: "* * * * *"
   startingDeadlineSeconds: 100
+  parallelism: 1
   concurrencyPolicy: Allow
   suspend: false
   successfulJobsHistoryLimit: 3
@@ -25,7 +26,8 @@ image:
 service:
   type: ClusterIP
   #name: "service-1234567890"
-  annotations: {}
+  annotations:
+    {}
     # test1: test2
     # test3: test4
 ContainerPort:
@@ -59,14 +61,13 @@ resources:
     cpu: 0.10
     memory: 100Mi
 
-
 # Optional configs
 
 command:
   enabled: false
   value: []
-    
-args: 
+
+args:
   enabled: false
   value:
     - /bin/sh
@@ -82,7 +83,8 @@ podAnnotations: {}
 
 rawYaml: []
 
-initContainers: []
+initContainers:
+  []
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage.
   #- name: volume-mount-hack
@@ -92,7 +94,8 @@ initContainers: []
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
 
-containers: []
+containers:
+  []
   ## Additional containers to run along with application pods.
   ## for example, be used to run a sidecar that chown Logs storage .
   #- name: volume-mount-hack
@@ -109,7 +112,6 @@ volumeMounts: []
 volumes: []
 #     - name: log-volume
 #       emptyDir: {}
-
 
 tolerations: []
 
@@ -130,16 +132,18 @@ server:
 servicemonitor:
   additionalLabels: {}
 
-imagePullSecrets: []
+imagePullSecrets:
+  []
   # - test1
   # - test2
 
 containerSecurityContext:
   allowPrivilegeEscalation: false
 
-podSecurityContext: {}
+podSecurityContext:
+  {}
   # runAsUser: 1000
   # runAsGroup: 3000
-  # fsGroup: 2000 
+  # fsGroup: 2000
 
 shareProcessNamespace: false
