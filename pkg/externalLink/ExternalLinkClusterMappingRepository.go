@@ -38,7 +38,6 @@ type ExternalLinkClusterMappingRepository interface {
 	FindAllActive() ([]ExternalLinkClusterMapping, error)
 	Update(link *ExternalLinkClusterMapping, tx *pg.Tx) error
 	FindAllActiveByExternalLinkId(linkId int) ([]*ExternalLinkClusterMapping, error)
-	FindAllActiveByLinkIdAndNotMatchedByClusterId(linkId int, clusterId int) ([]ExternalLinkClusterMapping, error)
 	FindAllByExternalLinkId(linkId int) ([]*ExternalLinkClusterMapping, error)
 }
 type ExternalLinkClusterMappingRepositoryImpl struct {
@@ -64,16 +63,6 @@ func (impl ExternalLinkClusterMappingRepositoryImpl) FindAllActiveByClusterId(cl
 	err := impl.dbConnection.Model(&links).
 		Column("external_link_cluster_mapping.*", "ExternalLink").
 		Where("external_link_cluster_mapping.active = ?", true).
-		Where("external_link_cluster_mapping.cluster_id = ?", clusterId).
-		Select()
-	return links, err
-}
-func (impl ExternalLinkClusterMappingRepositoryImpl) FindAllActiveByLinkIdAndNotMatchedByClusterId(linkId int, clusterId int) ([]ExternalLinkClusterMapping, error) {
-	var links []ExternalLinkClusterMapping
-	err := impl.dbConnection.Model(&links).
-		Column("external_link_cluster_mapping.*", "ExternalLink").
-		Where("external_link_cluster_mapping.active = ?", true).
-		Where("external_link_cluster_mapping.external_link_id = ?", linkId).
 		Where("external_link_cluster_mapping.cluster_id = ?", clusterId).
 		Select()
 	return links, err

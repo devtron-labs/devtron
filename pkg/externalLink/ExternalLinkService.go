@@ -105,7 +105,7 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 			}
 			err := impl.externalLinkClusterMappingRepository.Save(externalLinkClusterMapping, tx)
 			if err != nil {
-				impl.logger.Errorw("error in saving cluster id's", "data", externalLink, "err", err)
+				impl.logger.Errorw("error in saving cluster id's", "data", externalLinkClusterMapping, "err", err)
 				err = &util.ApiError{
 					InternalMessage: "cluster id failed to create in db",
 					UserMessage:     "cluster id failed to create in db",
@@ -132,12 +132,12 @@ func (impl ExternalLinkServiceImpl) GetAllActiveTools() ([]ExternalLinkMonitorin
 	}
 	var response []ExternalLinkMonitoringToolDto
 	for _, tool := range tools {
-		providerRes := ExternalLinkMonitoringToolDto{
+		morningTool := ExternalLinkMonitoringToolDto{
 			Id:   tool.Id,
 			Name: tool.Name,
 			Icon: tool.Icon,
 		}
-		response = append(response, providerRes)
+		response = append(response, morningTool)
 	}
 	return response, err
 }
@@ -161,6 +161,10 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinks(clusterId int) ([]*Exter
 
 	if clusterId > 0 {
 		allActiveExternalLinkMapping, err = impl.externalLinkClusterMappingRepository.FindAllActiveByClusterId(clusterId)
+		if err != nil && pg.ErrNoRows != err {
+			impl.logger.Errorw("error in fetch links by cluster id", "err", err)
+			return nil, err
+		}
 	}
 	var externalLinkResponse []*ExternalLinkDto
 	response := make(map[int]*ExternalLinkDto)
