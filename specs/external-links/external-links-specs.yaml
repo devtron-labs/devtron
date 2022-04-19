@@ -127,9 +127,9 @@ components:
           example: "some url"
         clusterIds:
           type: array
-          description: clusters to which this url is applied e.g 1,2,3... (* for all)
+          description: clusters to which this url is applied e.g 1,2,3
           items:
-            type: string
+            type: integer
         updatedOn:
           type: string
           description: updated on
