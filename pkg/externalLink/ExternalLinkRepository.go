@@ -33,11 +33,12 @@ type ExternalLink struct {
 }
 
 type ExternalLinkRepository interface {
-	Save(externalLinks *ExternalLink) error
+	Save(externalLinks *ExternalLink, tx *pg.Tx) error
 	FindAllActive() ([]ExternalLink, error)
 	FindOne(id int) (ExternalLink, error)
-	Update(link *ExternalLink) error
+	Update(link *ExternalLink, tx *pg.Tx) error
 	FindAllFilterOutByIds(ids []int) ([]ExternalLink, error)
+	GetConnection() *pg.DB
 }
 type ExternalLinkRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -46,8 +47,11 @@ type ExternalLinkRepositoryImpl struct {
 func NewExternalLinkRepositoryImpl(dbConnection *pg.DB) *ExternalLinkRepositoryImpl {
 	return &ExternalLinkRepositoryImpl{dbConnection: dbConnection}
 }
-func (impl ExternalLinkRepositoryImpl) Save(externalLinks *ExternalLink) error {
-	err := impl.dbConnection.Insert(externalLinks)
+func (repo ExternalLinkRepositoryImpl) GetConnection() *pg.DB {
+	return repo.dbConnection
+}
+func (impl ExternalLinkRepositoryImpl) Save(externalLinks *ExternalLink, tx *pg.Tx) error {
+	err := tx.Insert(externalLinks)
 	return err
 }
 func (impl ExternalLinkRepositoryImpl) FindAllActive() ([]ExternalLink, error) {
@@ -55,8 +59,8 @@ func (impl ExternalLinkRepositoryImpl) FindAllActive() ([]ExternalLink, error) {
 	err := impl.dbConnection.Model(&links).Where("active = ?", true).Select()
 	return links, err
 }
-func (impl ExternalLinkRepositoryImpl) Update(link *ExternalLink) error {
-	err := impl.dbConnection.Update(link)
+func (impl ExternalLinkRepositoryImpl) Update(link *ExternalLink, tx *pg.Tx) error {
+	err := tx.Update(link)
 	return err
 }
 func (impl ExternalLinkRepositoryImpl) FindOne(id int) (ExternalLink, error) {

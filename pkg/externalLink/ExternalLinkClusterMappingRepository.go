@@ -28,15 +28,15 @@ type ExternalLinkClusterMapping struct {
 	ExternalLinkId int      `sql:"external_link_id,notnull"`
 	ClusterId      int      `sql:"cluster_id,notnull"`
 	Active         bool     `sql:"active, notnull"`
-	ExternalLinks  ExternalLink
+	ExternalLink   ExternalLink
 	sql.AuditLog
 }
 
 type ExternalLinkClusterMappingRepository interface {
-	Save(externalLinksClusters *ExternalLinkClusterMapping) error
+	Save(externalLinksClusters *ExternalLinkClusterMapping, tx *pg.Tx) error
 	FindAllActiveByClusterId(clusterId int) ([]ExternalLinkClusterMapping, error)
 	FindAllActive() ([]ExternalLinkClusterMapping, error)
-	Update(link *ExternalLinkClusterMapping) error
+	Update(link *ExternalLinkClusterMapping, tx *pg.Tx) error
 	FindAllActiveByExternalLinkId(linkId int) ([]*ExternalLinkClusterMapping, error)
 	FindAllActiveByLinkIdAndNotMatchedByClusterId(linkId int, clusterId int) ([]ExternalLinkClusterMapping, error)
 	FindAllByExternalLinkId(linkId int) ([]*ExternalLinkClusterMapping, error)
@@ -49,13 +49,13 @@ func NewExternalLinkClusterMappingRepositoryImpl(dbConnection *pg.DB) *ExternalL
 	return &ExternalLinkClusterMappingRepositoryImpl{dbConnection: dbConnection}
 }
 
-func (impl ExternalLinkClusterMappingRepositoryImpl) Save(externalLinksClusters *ExternalLinkClusterMapping) error {
-	err := impl.dbConnection.Insert(externalLinksClusters)
+func (impl ExternalLinkClusterMappingRepositoryImpl) Save(externalLinksClusters *ExternalLinkClusterMapping, tx *pg.Tx) error {
+	err := tx.Insert(externalLinksClusters)
 	return err
 }
 
-func (impl ExternalLinkClusterMappingRepositoryImpl) Update(link *ExternalLinkClusterMapping) error {
-	err := impl.dbConnection.Update(link)
+func (impl ExternalLinkClusterMappingRepositoryImpl) Update(link *ExternalLinkClusterMapping, tx *pg.Tx) error {
+	err := tx.Update(link)
 	return err
 }
 
@@ -85,7 +85,6 @@ func (impl ExternalLinkClusterMappingRepositoryImpl) FindAllActive() ([]External
 		Column("external_link_cluster_mapping.*", "ExternalLink").
 		Where("external_link_cluster_mapping.active = ?", true).
 		Select()
-
 	return links, err
 }
 
