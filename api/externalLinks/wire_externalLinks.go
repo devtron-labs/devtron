@@ -9,18 +9,18 @@ import (
 //TODO integrate user auth module
 
 var ExternalLinksWireSet = wire.NewSet(
-	externalLinks.NewExternalLinksToolsRepositoryImpl,
-	wire.Bind(new(externalLinks.ExternalLinksToolsRepository), new(*externalLinks.ExternalLinksToolsRepositoryImpl)),
-	externalLinks.NewExternalLinksClustersRepositoryImpl,
-	wire.Bind(new(externalLinks.ExternalLinksClustersRepository), new(*externalLinks.ExternalLinksClustersRepositoryImpl)),
-	externalLinks.NewExternalLinksRepositoryImpl,
-	wire.Bind(new(externalLinks.ExternalLinksRepository), new(*externalLinks.ExternalLinksRepositoryImpl)),
+	externalLinks.NewExternalLinkMonitoringToolRepositoryImpl,
+	wire.Bind(new(externalLinks.ExternalLinkMonitoringToolRepository), new(*externalLinks.ExternalLinkMonitoringToolRepositoryImpl)),
+	externalLinks.NewExternalLinkClusterMappingRepositoryImpl,
+	wire.Bind(new(externalLinks.ExternalLinkClusterMappingRepository), new(*externalLinks.ExternalLinkClusterMappingRepositoryImpl)),
+	externalLinks.NewExternalLinkRepositoryImpl,
+	wire.Bind(new(externalLinks.ExternalLinkRepository), new(*externalLinks.ExternalLinkRepositoryImpl)),
 
 
-	externalLinks.NewExternalLinksServiceImpl,
-	wire.Bind(new(externalLinks.ExternalLinksService), new(*externalLinks.ExternalLinksServiceImpl)),
-	NewExternalLinksRestHandlerImpl,
-	wire.Bind(new(ExternalLinksRestHandler), new(*ExternalLinksRestHandlerImpl)),
-	NewExternalLinksRouterImpl,
-	wire.Bind(new(ExternalLinksRouter), new(*ExternalLinksRouterImpl)),
+	externalLinks.NewExternalLinkServiceImpl,
+	wire.Bind(new(externalLinks.ExternalLinkService), new(*externalLinks.ExternalLinkServiceImpl)),
+	NewExternalLinkRestHandlerImpl,
+	wire.Bind(new(ExternalLinkRestHandler), new(*ExternalLinkRestHandlerImpl)),
+	NewExternalLinkRouterImpl,
+	wire.Bind(new(ExternalLinkRouter), new(*ExternalLinkRouterImpl)),
 )

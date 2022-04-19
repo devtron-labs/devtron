@@ -1,5 +1,5 @@
-DROP TABLE "public"."external_links_clusters" CASCADE;
+DROP TABLE "public"."external_link_cluster_mapping" CASCADE;
 
-DROP TABLE "public"."external_links_monitoring_tools" CASCADE;
+DROP TABLE "public"."external_link_monitoring_tool" CASCADE;
 
-DROP TABLE "public"."external_links" CASCADE;
+DROP TABLE "public"."external_link" CASCADE;

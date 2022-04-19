@@ -32,48 +32,48 @@ import (
 	"strconv"
 )
 
-type ExternalLinksRestHandler interface {
+type ExternalLinkRestHandler interface {
 	CreateExternalLinks(w http.ResponseWriter, r *http.Request)
-	GetExternalLinksTools(w http.ResponseWriter, r *http.Request)
+	GetExternalLinkMonitoringTools(w http.ResponseWriter, r *http.Request)
 	GetExternalLinks(w http.ResponseWriter, r *http.Request)
-	UpdateExternalLinks(w http.ResponseWriter, r *http.Request)
-	DeleteExternalLinks(w http.ResponseWriter, r *http.Request) // Update is_active to false link
+	UpdateExternalLink(w http.ResponseWriter, r *http.Request)
+	DeleteExternalLink(w http.ResponseWriter, r *http.Request) // Update is_active to false link
 }
-type ExternalLinksRestHandlerImpl struct {
-	logger               *zap.SugaredLogger
-	externalLinksService externalLinks.ExternalLinksService
-	userService          user.UserService
-	validator            *validator.Validate
-	enforcer             casbin.Enforcer
-	userAuthService      user.UserAuthService
-	deleteService        delete2.DeleteService
+type ExternalLinkRestHandlerImpl struct {
+	logger              *zap.SugaredLogger
+	externalLinkService externalLinks.ExternalLinkService
+	userService         user.UserService
+	validator           *validator.Validate
+	enforcer            casbin.Enforcer
+	userAuthService     user.UserAuthService
+	deleteService       delete2.DeleteService
 }
 
-func NewExternalLinksRestHandlerImpl(logger *zap.SugaredLogger,
-	externalLinksService externalLinks.ExternalLinksService,
+func NewExternalLinkRestHandlerImpl(logger *zap.SugaredLogger,
+	externalLinkService externalLinks.ExternalLinkService,
 	userService user.UserService,
 	enforcer casbin.Enforcer,
 	validator *validator.Validate, userAuthService user.UserAuthService,
 	deleteService delete2.DeleteService,
-) *ExternalLinksRestHandlerImpl {
-	return &ExternalLinksRestHandlerImpl{
-		logger:               logger,
-		externalLinksService: externalLinksService,
-		userService:          userService,
-		validator:            validator,
-		enforcer:             enforcer,
-		userAuthService:      userAuthService,
-		deleteService:        deleteService,
+) *ExternalLinkRestHandlerImpl {
+	return &ExternalLinkRestHandlerImpl{
+		logger:              logger,
+		externalLinkService: externalLinkService,
+		userService:         userService,
+		validator:           validator,
+		enforcer:            enforcer,
+		userAuthService:     userAuthService,
+		deleteService:       deleteService,
 	}
 }
-func (impl ExternalLinksRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
+func (impl ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var beans []*externalLinks.ExternalLinksRequest
+	var beans []*externalLinks.ExternalLinkDto
 	err = decoder.Decode(&beans)
 	if err != nil {
 		impl.logger.Errorw("request err, SaveLink", "err", err, "payload", beans)
@@ -87,7 +87,7 @@ func (impl ExternalLinksRestHandlerImpl) CreateExternalLinks(w http.ResponseWrit
 		return
 	}
 
-	res, err := impl.externalLinksService.Create(beans, userId)
+	res, err := impl.externalLinkService.Create(beans, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, SaveLink", "err", err, "payload", beans)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -95,7 +95,7 @@ func (impl ExternalLinksRestHandlerImpl) CreateExternalLinks(w http.ResponseWrit
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-func (impl ExternalLinksRestHandlerImpl) GetExternalLinksTools(w http.ResponseWriter, r *http.Request) {
+func (impl ExternalLinkRestHandlerImpl) GetExternalLinkMonitoringTools(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -111,7 +111,7 @@ func (impl ExternalLinksRestHandlerImpl) GetExternalLinksTools(w http.ResponseWr
 		}
 	*/
 
-	res, err := impl.externalLinksService.GetAllActiveTools()
+	res, err := impl.externalLinkService.GetAllActiveTools()
 	if err != nil {
 		impl.logger.Errorw("service err, GetAllActiveTools", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -119,7 +119,7 @@ func (impl ExternalLinksRestHandlerImpl) GetExternalLinksTools(w http.ResponseWr
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-func (impl ExternalLinksRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, r *http.Request) {
+func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -146,7 +146,7 @@ func (impl ExternalLinksRestHandlerImpl) GetExternalLinks(w http.ResponseWriter,
 		}
 	}
 
-	res, err := impl.externalLinksService.FetchAllActiveLinks(clusterId)
+	res, err := impl.externalLinkService.FetchAllActiveLinks(clusterId)
 	if err != nil {
 		impl.logger.Errorw("service err, FetchAllActive", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -154,14 +154,14 @@ func (impl ExternalLinksRestHandlerImpl) GetExternalLinks(w http.ResponseWriter,
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-func (impl ExternalLinksRestHandlerImpl) UpdateExternalLinks(w http.ResponseWriter, r *http.Request) {
+func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var bean externalLinks.ExternalLinksRequest
+	var bean externalLinks.ExternalLinkDto
 	err = decoder.Decode(&bean)
 	if err != nil {
 		impl.logger.Errorw("request err, Update Link", "err", err, "bean", bean)
@@ -177,7 +177,7 @@ func (impl ExternalLinksRestHandlerImpl) UpdateExternalLinks(w http.ResponseWrit
 	}
 
 	impl.logger.Infow("request payload, UpdateLink", "err", err, "bean", bean)
-	res, err := impl.externalLinksService.Update(&bean)
+	res, err := impl.externalLinkService.Update(&bean)
 	if err != nil {
 		impl.logger.Errorw("service err, Update Links", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -185,7 +185,7 @@ func (impl ExternalLinksRestHandlerImpl) UpdateExternalLinks(w http.ResponseWrit
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-func (impl ExternalLinksRestHandlerImpl) DeleteExternalLinks(w http.ResponseWriter, r *http.Request) {
+func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -206,9 +206,9 @@ func (impl ExternalLinksRestHandlerImpl) DeleteExternalLinks(w http.ResponseWrit
 		return
 	}
 
-	var bean externalLinks.ExternalLinksRequest
+	var bean externalLinks.ExternalLinkDto
 	bean.Id = idi
-	res, err := impl.externalLinksService.DeleteLink(idi, userId)
+	res, err := impl.externalLinkService.DeleteLink(idi, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Update Links", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

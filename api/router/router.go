@@ -89,17 +89,17 @@ type MuxRouter struct {
 	ssoLoginRouter                   sso.SsoLoginRouter
 	telemetryRouter                  TelemetryRouter
 	telemetryWatcher                 telemetry.TelemetryEventClient
-	bulkUpdateRouter         BulkUpdateRouter
-	WebhookListenerRouter    WebhookListenerRouter
-	appLabelsRouter          AppLabelRouter
-	coreAppRouter            CoreAppRouter
-	helmAppRouter            client.HelmAppRouter
-	k8sApplicationRouter     k8s.K8sApplicationRouter
-	pProfRouter              PProfRouter
-	deploymentConfigRouter   deployment.DeploymentConfigRouter
-	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
-	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
-	externalLinksRouter      externalLinks.ExternalLinksRouter
+	bulkUpdateRouter                 BulkUpdateRouter
+	WebhookListenerRouter            WebhookListenerRouter
+	appLabelsRouter                  AppLabelRouter
+	coreAppRouter                    CoreAppRouter
+	helmAppRouter                    client.HelmAppRouter
+	k8sApplicationRouter             k8s.K8sApplicationRouter
+	pProfRouter                      PProfRouter
+	deploymentConfigRouter           deployment.DeploymentConfigRouter
+	dashboardTelemetryRouter         dashboardEvent.DashboardTelemetryRouter
+	commonDeploymentRouter           appStoreDeployment.CommonDeploymentRouter
+	externalLinkRouter               externalLinks.ExternalLinkRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -122,7 +122,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
-	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinksRouter externalLinks.ExternalLinksRouter) *MuxRouter {
+	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLinks.ExternalLinkRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -178,7 +178,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		deploymentConfigRouter:           deploymentConfigRouter,
 		dashboardTelemetryRouter:         dashboardTelemetryRouter,
 		commonDeploymentRouter:           commonDeploymentRouter,
-		externalLinksRouter:              externalLinksRouter,
+		externalLinkRouter:               externalLinkRouter,
 	}
 	return r
 }
@@ -349,6 +349,6 @@ func (r MuxRouter) Init() {
 	//this router must placed after commonDeploymentRouter
 	r.helmAppRouter.InitAppListRouter(applicationSubRouter)
 
-	externalLinksRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
-	r.externalLinksRouter.InitExternalLinksRouter(externalLinksRouter)
+	externalLinkRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
+	r.externalLinkRouter.InitExternalLinkRouter(externalLinkRouter)
 }

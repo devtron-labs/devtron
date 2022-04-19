@@ -22,31 +22,31 @@ import (
 	"github.com/go-pg/pg"
 )
 
-type ExternalLinksMonitoringTools struct {
-	tableName struct{} `sql:"external_links_monitoring_Tools"`
+type ExternalLinkMonitoringTool struct {
+	tableName struct{} `sql:"external_link_monitoring_tool"`
 	Id        int      `sql:"id,pk"`
 	Name      string   `sql:"name,notnull"`
 	Icon      string   `sql:"icon,notnull"`
 	Active    bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
-type ExternalLinksToolsRepository interface {
-	Save(externalLinksTools *ExternalLinksMonitoringTools) error
-	FindAllActive() ([]ExternalLinksMonitoringTools, error)
+type ExternalLinkMonitoringToolRepository interface {
+	Save(externalLinksTools *ExternalLinkMonitoringTool) error
+	FindAllActive() ([]ExternalLinkMonitoringTool, error)
 }
-type ExternalLinksToolsRepositoryImpl struct {
+type ExternalLinkMonitoringToolRepositoryImpl struct {
 	dbConnection *pg.DB
 }
 
-func NewExternalLinksToolsRepositoryImpl(dbConnection *pg.DB) *ExternalLinksToolsRepositoryImpl {
-	return &ExternalLinksToolsRepositoryImpl{dbConnection: dbConnection}
+func NewExternalLinkMonitoringToolRepositoryImpl(dbConnection *pg.DB) *ExternalLinkMonitoringToolRepositoryImpl {
+	return &ExternalLinkMonitoringToolRepositoryImpl{dbConnection: dbConnection}
 }
-func (impl ExternalLinksToolsRepositoryImpl) FindAllActive() ([]ExternalLinksMonitoringTools, error) {
-	var tools []ExternalLinksMonitoringTools
+func (impl ExternalLinkMonitoringToolRepositoryImpl) FindAllActive() ([]ExternalLinkMonitoringTool, error) {
+	var tools []ExternalLinkMonitoringTool
 	err := impl.dbConnection.Model(&tools).Where("active = ?", true).Select()
 	return tools, err
 }
-func (impl ExternalLinksToolsRepositoryImpl) Save(externalLinksTools *ExternalLinksMonitoringTools) error {
+func (impl ExternalLinkMonitoringToolRepositoryImpl) Save(externalLinksTools *ExternalLinkMonitoringTool) error {
 	err := impl.dbConnection.Insert(externalLinksTools)
 	return err
 }
