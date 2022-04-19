@@ -37,6 +37,7 @@ metadata:
 spec:
   schedule: {{ $.Values.cronjobConfigs.schedule | quote }}
   startingDeadlineSeconds: {{ $.Values.cronjobConfigs.startingDeadlineSeconds }}
+  parallelism: {{ $.Values.cronjobConfigs.parallelism }}
   concurrencyPolicy: {{ $.Values.cronjobConfigs.concurrencyPolicy }}
   {{ if semverCompare ">1.20" .Capabilities.KubeVersion.GitVersion -}}
   suspend: {{ $.Values.cronjobConfigs.suspend }}
