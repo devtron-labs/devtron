@@ -222,11 +222,12 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto) (*ExternalL
 	externalLink, err0 := impl.externalLinkRepository.FindOne(request.Id)
 	if err0 != nil {
 		impl.logger.Errorw("No matching entry found for update.", "id", request.Id)
+		msg := "no row found for external link	"
+		err = &util.ApiError{InternalMessage: msg, UserMessage: msg}
 		return nil, err0
 	}
 	externalLink.Name = request.Name
 	externalLink.Url = request.Url
-	externalLink.Active = true
 	externalLink.ExternalLinkMonitoringToolId = request.MonitoringToolId
 	externalLink.UpdatedBy = int32(request.UserId)
 	externalLink.UpdatedOn = time.Now()
@@ -239,6 +240,8 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto) (*ExternalL
 	allExternalLinksMapping, err := impl.externalLinkClusterMappingRepository.FindAllByExternalLinkId(request.Id)
 	if err != nil {
 		impl.logger.Errorw("error in fetching link", "data", externalLink, "err", err)
+		msg := "no row found for external link cluster mapping"
+		err = &util.ApiError{InternalMessage: msg, UserMessage: msg}
 		return nil, err
 	}
 	for _, model := range allExternalLinksMapping {
@@ -252,16 +255,16 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto) (*ExternalL
 		}
 	}
 	for _, requestedClusterId := range request.ClusterIds {
-		externalLinkClusterId := 0
+		externalLinkClusterMappingId := 0
 		var externalLinkCluster *ExternalLinkClusterMapping
 		for _, model := range allExternalLinksMapping {
 			if requestedClusterId == model.ClusterId {
-				externalLinkClusterId = model.Id
+				externalLinkClusterMappingId = model.Id
 				externalLinkCluster = model
 				break
 			}
 		}
-		if externalLinkClusterId > 0 && externalLinkCluster != nil {
+		if externalLinkClusterMappingId > 0 && externalLinkCluster != nil {
 			externalLinkCluster.Active = true
 			externalLinkCluster.UpdatedOn = time.Now()
 			externalLinkCluster.UpdatedBy = request.UserId
@@ -327,7 +330,7 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalL
 	externalLink.UpdatedBy = userId
 	err = impl.externalLinkRepository.Update(&externalLink, tx)
 	if err != nil {
-		impl.logger.Errorw("error in deleting link", "data", externalLink, "err", err)
+		impl.logger.Errorw("error in update link", "data", externalLink, "err", err)
 		return nil, err
 	}
 	err = tx.Commit()
