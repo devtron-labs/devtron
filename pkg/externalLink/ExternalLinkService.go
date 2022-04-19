@@ -238,20 +238,20 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto) (*ExternalL
 	}
 
 	allExternalLinksMapping, err := impl.externalLinkClusterMappingRepository.FindAllByExternalLinkId(request.Id)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching link", "data", externalLink, "err", err)
-		msg := "no row found for external link cluster mapping"
-		err = &util.ApiError{InternalMessage: msg, UserMessage: msg}
 		return nil, err
 	}
 	for _, model := range allExternalLinksMapping {
-		model.Active = false
-		model.UpdatedBy = int32(request.UserId)
-		model.UpdatedOn = time.Now()
-		err := impl.externalLinkClusterMappingRepository.Update(model, tx)
-		if err != nil {
-			impl.logger.Errorw("error in updating clusters to false", "data", model, "err", err)
-			return nil, err
+		if model.Active == true {
+			model.Active = false
+			model.UpdatedBy = int32(request.UserId)
+			model.UpdatedOn = time.Now()
+			err := impl.externalLinkClusterMappingRepository.Update(model, tx)
+			if err != nil {
+				impl.logger.Errorw("error in updating clusters to false", "data", model, "err", err)
+				return nil, err
+			}
 		}
 	}
 	for _, requestedClusterId := range request.ClusterIds {
