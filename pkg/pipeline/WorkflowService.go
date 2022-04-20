@@ -207,7 +207,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		ciWorkflow = v1alpha1.Workflow{
 			ObjectMeta: v1.ObjectMeta{
 				GenerateName: workflowRequest.WorkflowNamePrefix + "-",
-				Labels:       map[string]string{"github.com/workflow-purpose": "ci"},
+				Labels:       map[string]string{"devtron.ai/workflow-purpose": "ci"},
 			},
 			Spec: v1alpha1.WorkflowSpec{
 				ServiceAccountName: impl.ciConfig.WorkflowServiceAccount,

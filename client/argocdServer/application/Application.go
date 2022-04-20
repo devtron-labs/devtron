@@ -377,14 +377,15 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	c.logger.Debugw("GRPC_GET_RESOURCETREE", "req", query)
+	c.logger.Infow("test ResourceTree 1", "query", query)
 	resp, err := asc.ResourceTree(ctx, query)
-	c.logger.Infow("test ResourceTree 1", "resp", resp)
+	c.logger.Infow("test ResourceTree 2", "resp", resp)
 	if err != nil {
 		c.logger.Errorw("GRPC_GET_RESOURCETREE", "req", query, "err", err)
 		return nil, err
 	}
 	responses := parseResult(resp, query, ctx, asc, err, c)
-	c.logger.Infow("test ResourceTree", "responses", responses)
+	c.logger.Infow("test ResourceTree 3", "responses", responses)
 	podMetadata, newReplicaSet := c.buildPodMetadata(resp, responses)
 
 	appQuery := application.ApplicationQuery{Name: query.ApplicationName}
@@ -412,7 +413,6 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*Result) (podMetaData []*PodMetadata, newReplicaSet string) {
 	rolloutManifest := make(map[string]interface{})
 	statefulSetManifest := make(map[string]interface{})
-	workflowSetManifest := make(map[string]interface{})
 	deploymentManifest := make(map[string]interface{})
 	daemonSetManifest := make(map[string]interface{})
 	replicaSetManifests := make([]map[string]interface{}, 0)
@@ -479,10 +479,6 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 
 	if _, ok := deploymentManifest["kind"]; ok {
 		newReplicaSet = c.getDeploymentNewReplicaSetName(deploymentManifest, replicaSetManifests)
-	}
-
-	if _, ok := workflowSetManifest["kind"]; ok {
-		newReplicaSet = c.getRolloutNewReplicaSetName(workflowSetManifest, replicaSetManifests)
 	}
 
 	if _, ok := statefulSetManifest["kind"]; ok {
@@ -820,10 +816,11 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 		initContainerMapping[getResourceName(pod)] = getPodInitContainers(pod)
 	}
 	for _, node := range resp.Nodes {
-		log.Println("buildPodMetadataFromPod 1", "node", node)
+		log.Println("buildPodMetadataFromPod 1", "node", node, "kind", node.Kind)
 		if node.Kind == "Pod" {
 			isNew := newPodNames[node.Name]
 			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], InitContainers: initContainerMapping[node.Name], IsNew: isNew}
+			log.Println("test metadata", "Pod metadata", metadata)
 			podMetadata = append(podMetadata, &metadata)
 		}
 	}
