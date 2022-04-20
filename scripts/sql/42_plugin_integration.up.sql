@@ -111,6 +111,7 @@ CREATE TABLE "public"."plugin_step"
     "script_id"                   integer,
     "ref_plugin_id"               integer,        -- id of plugin used as reference
     "output_directory_path"       text[],
+    "dependent_on_step"           text,           -- name of step this step is dependent on
     "deleted"                     bool,
     "created_on"                  timestamptz,
     "created_by"                  int4,
@@ -206,6 +207,7 @@ CREATE TABLE "public"."pipeline_stage_step"
     "script_id"                   integer,
     "ref_plugin_id"               integer,        -- id of plugin used as reference
     "output_directory_path"       text[],
+    "dependent_on_step"           text,           -- name of step this step is dependent on
     "deleted"                     bool,
     "created_on"                  timestamptz,
     "created_by"                  int4,

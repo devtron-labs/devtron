@@ -263,8 +263,12 @@ func (impl *PipelineStageServiceImpl) CreateCiStage(stageReq *bean.PipelineStage
 		impl.logger.Errorw("error in creating entry for ciStage", "err", err, "ciStage", stage)
 		return err
 	}
+	indexNameString := make(map[int]string)
+	for _, step := range stageReq.Steps {
+		indexNameString[step.Index] = step.Name
+	}
 	//creating stage steps and all related data
-	err = impl.CreateStageSteps(stageReq.Steps, stage.Id, userId)
+	err = impl.CreateStageSteps(stageReq.Steps, stage.Id, userId, indexNameString)
 	if err != nil {
 		impl.logger.Errorw("error in creating stage steps for ci stage", "err", err, "stageId", stage.Id)
 		return err
@@ -272,8 +276,17 @@ func (impl *PipelineStageServiceImpl) CreateCiStage(stageReq *bean.PipelineStage
 	return nil
 }
 
-func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineStageStepDto, stageId int, userId int32) error {
+func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineStageStepDto, stageId int, userId int32, indexNameString map[int]string) error {
 	for _, step := range steps {
+		//setting dependentStep detail
+		var dependentOnStep string
+		if step.Index > 1 {
+			//since starting index is independent of any step we will be setting dependent detail for further indexes
+			name, ok := indexNameString[step.Index-1]
+			if ok {
+				dependentOnStep = name
+			}
+		}
 		var stepId int
 		var inputVariables []*bean.StepVariableDto
 		var outputVariables []*bean.StepVariableDto
@@ -294,6 +307,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 				StepType:            step.StepType,
 				ScriptId:            scriptEntryId,
 				OutputDirectoryPath: step.OutputDirectoryPath,
+				DependentOnStep:     dependentOnStep,
 				Deleted:             false,
 				AuditLog: sql.AuditLog{
 					CreatedOn: time.Now(),
@@ -321,6 +335,7 @@ func (impl *PipelineStageServiceImpl) CreateStageSteps(steps []*bean.PipelineSta
 				StepType:            step.StepType,
 				RefPluginId:         refPluginStepDetail.PluginId,
 				OutputDirectoryPath: step.OutputDirectoryPath,
+				DependentOnStep:     dependentOnStep,
 				Deleted:             false,
 				AuditLog: sql.AuditLog{
 					CreatedOn: time.Now(),
@@ -633,7 +648,9 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInCiStageUpdateRequest(
 	var stepsToBeUpdated []*bean.PipelineStageStepDto
 	var activeStepIdsPresentInReq []int
 	idsOfStepsToBeUpdated := make(map[int]bool)
+	indexNameString := make(map[int]string)
 	for _, step := range stageReq.Steps {
+		indexNameString[step.Index] = step.Name
 		_, ok := activeStepIdsMap[step.Id]
 		_, ok2 := idsOfStepsToBeUpdated[step.Id]
 		if ok && !ok2 {
@@ -666,7 +683,7 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInCiStageUpdateRequest(
 	}
 	if len(stepsToBeCreated) > 0 {
 		//creating new steps
-		err = impl.CreateStageSteps(stepsToBeCreated, stageReq.Id, userId)
+		err = impl.CreateStageSteps(stepsToBeCreated, stageReq.Id, userId, indexNameString)
 		if err != nil {
 			impl.logger.Errorw("error in creating stage steps for ci stage", "err", err, "stageId", stageReq.Id)
 			return err
@@ -674,7 +691,7 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInCiStageUpdateRequest(
 	}
 	if len(stepsToBeUpdated) > 0 {
 		//updating steps
-		err = impl.UpdateStageSteps(stepsToBeUpdated, userId, stageReq.Id)
+		err = impl.UpdateStageSteps(stepsToBeUpdated, userId, stageReq.Id, indexNameString)
 		if err != nil {
 			impl.logger.Errorw("error in updating stage steps for ci stage", "err", err)
 			return err
@@ -683,8 +700,17 @@ func (impl *PipelineStageServiceImpl) FilterAndActOnStepsInCiStageUpdateRequest(
 	return nil
 }
 
-func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineStageStepDto, userId int32, stageId int) error {
+func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineStageStepDto, userId int32, stageId int, indexNameString map[int]string) error {
 	for _, step := range steps {
+		//setting dependentStep detail
+		var dependentOnStep string
+		if step.Index > 1 {
+			//since starting index is independent of any step we will be setting dependent detail for further indexes
+			name, ok := indexNameString[step.Index-1]
+			if ok {
+				dependentOnStep = name
+			}
+		}
 		//getting saved step from db
 		savedStep, err := impl.pipelineStageRepository.GetStepById(step.Id)
 		if err != nil {
@@ -699,6 +725,7 @@ func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineSta
 			Index:               step.Index,
 			StepType:            step.StepType,
 			OutputDirectoryPath: step.OutputDirectoryPath,
+			DependentOnStep:     dependentOnStep,
 			Deleted:             false,
 			AuditLog: sql.AuditLog{
 				CreatedOn: savedStep.CreatedOn,

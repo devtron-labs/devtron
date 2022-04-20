@@ -116,6 +116,7 @@ type PluginStep struct {
 	ScriptId            int            `sql:"script_id"`
 	RefPluginId         int            `sql:"ref_plugin_id"` //id of plugin used as reference
 	OutputDirectoryPath []string       `sql:"output_directory_path" pg:",array"`
+	DependentOnStep     string         `sql:"dependent_on_step"`
 	Deleted             bool           `sql:"deleted,notnull"`
 	sql.AuditLog
 }
