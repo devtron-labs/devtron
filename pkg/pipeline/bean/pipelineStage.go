@@ -60,7 +60,7 @@ type StepVariableDto struct {
 	AllowEmptyValue        bool                                           `json:"allowEmptyValue,omitempty"`
 	DefaultValue           string                                         `json:"defaultValue,omitempty"`
 	Value                  string                                         `json:"value"`
-	ValueType              repository.PipelineStageStepVariableValueType  `json:"refVariableType,omitempty"`
+	ValueType              repository.PipelineStageStepVariableValueType  `json:"variableType,omitempty"`
 	PreviousStepIndex      int                                            `json:"refVariableStepIndex,omitempty"`
 	ReferenceVariableName  string                                         `json:"refVariableName,omitempty"`
 	ReferenceVariableStage repository.PipelineStageType                   `json:"refVariableStage"`
