@@ -90,6 +90,19 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			return
 		}
 		impl.logger.Infow("onexit3 testing", "wfstatus", wfStatus) //need to be removed
+
+		//validate name
+		workflowName := ""
+		for name, _ := range wfStatus.Nodes {
+			workflowName = name
+			break
+		}
+
+		_, err = strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
+		if err != nil {
+			return
+		}
+
 		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
