@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
+	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/sso"
@@ -39,6 +40,7 @@ type MuxRouter struct {
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
 	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
 	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
+	externalLinksRouter      externalLink.ExternalLinkRouter
 }
 
 func NewMuxRouter(
@@ -58,6 +60,7 @@ func NewMuxRouter(
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
 	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter,
+	externalLinkRouter externalLink.ExternalLinkRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -77,6 +80,7 @@ func NewMuxRouter(
 		appStoreDeploymentRouter: appStoreDeploymentRouter,
 		dashboardTelemetryRouter: dashboardTelemetryRouter,
 		commonDeploymentRouter:   commonDeploymentRouter,
+		externalLinksRouter:      externalLinkRouter,
 	}
 	return r
 }
@@ -162,4 +166,7 @@ func (r *MuxRouter) Init() {
 	dashboardTelemetryRouter := r.Router.PathPrefix("/orchestrator/dashboard-event").Subrouter()
 	r.dashboardTelemetryRouter.Init(dashboardTelemetryRouter)
 	// dashboard event router ends
+
+	externalLinkRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
+	r.externalLinksRouter.InitExternalLinkRouter(externalLinkRouter)
 }
