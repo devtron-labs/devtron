@@ -536,7 +536,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 			for _, pr := range node.ParentRefs {
 				podParents = append(podParents, pr.Name)
 			}
-			c.logger.Infow("parseResult 1 Podparents", podParents)
+			c.logger.Infow("parseResult 1 ", "Podparents", podParents)
 		}
 	}
 	for _, node := range resp.Nodes {
@@ -569,7 +569,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 				queryNodes = append(queryNodes, node)
 			}
 		}
-		c.logger.Infow("parseResult 1 queryNodes", queryNodes)
+		c.logger.Infow("parseResult 3 ", "queryNodes", queryNodes)
 	}
 
 	relevantCR := make(map[string]bool)
@@ -610,7 +610,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 			}
 			if res != nil || err != nil {
 				response <- Result{Response: res, Error: err, Request: &request}
-				c.logger.Infow("parseResult 1 response", response)
+				c.logger.Infow("parseResult 4 ", "response", response)
 			} else {
 				response <- Result{Response: nil, Error: fmt.Errorf("connection closed by client"), Request: &request}
 			}
