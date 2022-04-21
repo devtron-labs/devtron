@@ -155,7 +155,7 @@ In `Global Configurations` >> `Cluters & Environments`, if you try to update a c
 
 #### 9. Postgresql is in crashloop with error - Failed to pull image
     
-There may be some other pods also in crashloop as they are not able to connect to database. To resolve this issue, you can either [update devtron to latest version](https://docs.devtron.ai/devtron/setup/upgrade/devtron-upgrade-0.3.x-0.3.x) or run the following commands to fix instantly on the same version you are using: 
+There may be some other pods also in crashloop as they are not able to connect to database. To resolve this issue, you can either [update devtron to latest version](https://docs.devtron.ai/devtron/setup/upgrade) or run the following commands to fix instantly on the same version you are using: 
 ```
 kubectl patch -n devtroncd statefulset postgresql-postgresql -p '{"spec":{"template":{"spec":{"initContainers":[{"name":"init-chmod-data","image":"quay.io/devtron/minideb:latest"}],"containers":[{"name":"postgresql-postgresql","image":"quay.io/devtron/postgres:11.3.0-debian-9-r28"}]}}}}'
 ```
