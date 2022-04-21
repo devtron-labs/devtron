@@ -385,7 +385,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 		return nil, err
 	}
 	responses := parseResult(resp, query, ctx, asc, err, c)
-	c.logger.Infow("test ResourceTree 3", "responses", responses)
+	c.logger.Infow("test ResourceTree 3", "responses", responses, "query", query)
 	podMetadata, newReplicaSet := c.buildPodMetadata(resp, responses)
 
 	appQuery := application.ApplicationQuery{Name: query.ApplicationName}
@@ -536,6 +536,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 			for _, pr := range node.ParentRefs {
 				podParents = append(podParents, pr.Name)
 			}
+			c.logger.Infow("parseResult 1 Podparents", podParents)
 		}
 	}
 	for _, node := range resp.Nodes {
@@ -560,7 +561,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 		}
 	}
 
-	c.logger.Debugw("needPods", "pods", needPods)
+	c.logger.Infow("needPods", "pods", needPods)
 
 	if needPods {
 		for _, node := range resp.Nodes {
@@ -568,6 +569,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 				queryNodes = append(queryNodes, node)
 			}
 		}
+		c.logger.Infow("parseResult 1 queryNodes", queryNodes)
 	}
 
 	relevantCR := make(map[string]bool)
@@ -608,6 +610,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 			}
 			if res != nil || err != nil {
 				response <- Result{Response: res, Error: err, Request: &request}
+				c.logger.Infow("parseResult 1 response", response)
 			} else {
 				response <- Result{Response: nil, Error: fmt.Errorf("connection closed by client"), Request: &request}
 			}
