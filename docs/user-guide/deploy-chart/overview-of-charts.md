@@ -6,11 +6,11 @@ Charts can be deployed individually or by creating a group of Charts. Both metho
 
 ### Deploying Chart
 
-To deploy any chart or chart group, visit the `Charts` section from left panel and then select the chart that you want to use.
+To deploy any chart or chart group, visit the `Charts` section from the left panel and then select the chart that you want to use.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-1.jpg)
 
-Click on `README.md` to get more idea about the configurations of the chart.
+Click on `README.md` to get more ideas about the configurations of the chart.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-2.jpg)
 
@@ -33,18 +33,21 @@ Readme.md present on the left can be used by the user to set configuration value
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-4.jpg)
 
-
 Click on `Deploy Chart` to deploy the chart.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-5.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-5-2.jpg)
 
-Click on `App Details` to see the status and details of the deployed chart  and click on `Values` to reconfigure the deployment.
+Click on `App Details` to see the status and details of the deployed chart and click on `Values` to reconfigure the deployment.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-6.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-6-2.jpg)
 
-Configuration values can be edited over here by the help of Readme.md .
+Configuration values can be edited over here by the help of Readme.md.
 
-Select Update And Deploy to update new settings.
+Click on `Update And Deploy` to update new settings.
+You can also see deployment history of Helm application and values.yaml corresponding to the deployment by clicking on `Deployment history`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-9-2.jpg)
+
 ### Custom Values
 
 You can use the default values or create Custom value by clicking on `Create Custom`.
@@ -53,7 +56,7 @@ You can use the default values or create Custom value by clicking on `Create Cus
 
 You can name your Custom Value, select the Chart Version and change the configurations in YAML file.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-8.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-8-2.jpg)
 
 Click on `Save Template` to save the configurations.
 
@@ -64,11 +67,11 @@ To create chart group click on `Create Group`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-1.jpg)
 
-Add the `Group Name` and `Description`(optional) and Click on `Create Group`.
+Add the `Group Name` and `Description`(optional), and select `Create Group`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-2.jpg)
 
-You can select the Charts that you want to add in your Chart Group by clicking on '+' sign. You also can add multiple copies of same chart in the chart group according to your requirements.
+You can select the Charts that you want to add to your Chart Group by clicking on '+' sign. You also can add multiple copies of the same chart in the chart group according to your requirements.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/chart-group/chart-group-3.jpg)
 
@@ -86,7 +89,7 @@ After making any changes, click on `Save` to save changes for the Chart Group.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/overview-of-charts/overview-of-charts-11.jpg)
 
-If you wish to edit the chart configuration of any any chart in the chart group, click on that Chart and edit the configurations in YAML file. You also can edit the `App Name`, `Chart Version`, `Values`, `Deploy Environment` and the YAML file from here.
+If you wish to edit the chart configuration of any chart in the chart group, click on that Chart and edit the configurations in YAML file. You also can edit the `App Name`, `Chart Version`, `Values`, `Deploy Environment` and the YAML file from here.
 
 | Key | Description |
 | :--- | :--- |
