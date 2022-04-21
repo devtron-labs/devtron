@@ -3,9 +3,16 @@ info:
   version: 1.0.0
   title: Modularisation v1 APIs
 paths:
-  /orchestrator/module:
+  /orchestrator/module/{moduleName}:
     get:
-      description: Get All active modules
+      description: Get module info
+      parameters:
+        - name: moduleName
+          in: path
+          description: module name
+          required: true
+          schema:
+            type: string
       responses:
         "200":
           description: Successfully fetched modules
@@ -14,9 +21,16 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/Module"
+                  $ref: "#/components/schemas/ModuleInfo"
     post:
       description: some action on module (for eg - install/upgrade/etc..)
+      parameters:
+        - name: moduleName
+          in: path
+          description: module name
+          required: true
+          schema:
+            type: string
       requestBody:
         required: true
         content:
@@ -59,7 +73,7 @@ paths:
 # Components
 components:
   schemas:
-    Module:
+    ModuleInfo:
       type: object
       properties:
         id:
@@ -77,10 +91,6 @@ components:
     ModuleActionRequest:
       type: object
       properties:
-        id:
-          type: integer
-          description: Id of module
-          example: 1
         action:
           type: string
           description: action on the module
