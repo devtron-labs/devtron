@@ -58,7 +58,7 @@ spec:
       serviceAccountName: devtron
       containers:
       - name: devtron-rollout
-        image: quay.io/bitnami/kubectl:latest
+        image: "quay.io/devtron/kubectl:latest"
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
       initContainers:
       - name: postgresql-migrate-casbin
