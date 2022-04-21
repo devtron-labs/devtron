@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
+	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
@@ -36,10 +37,12 @@ import (
 
 func InitializeApp() (*App, error) {
 	wire.Build(
+
 		sql.PgSqlWireSet,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		AuthWireSet,
+		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		cluster.ClusterWireSetEa,
 		dashboard.DashboardWireSet,
