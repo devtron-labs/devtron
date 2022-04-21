@@ -25,7 +25,7 @@ paths:
     post:
       description: some action on module (for eg - install/upgrade/etc..)
       parameters:
-        - name: moduleName
+        - name: name
           in: path
           description: module name
           required: true
