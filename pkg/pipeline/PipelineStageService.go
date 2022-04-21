@@ -1313,12 +1313,12 @@ func (impl *PipelineStageServiceImpl) GetRefPluginStepsByIds(refPluginIds []int,
 				pluginIdsEvaluated[stepData.RefPluginId] = true
 			}
 		}
-		stepsInMap, ok := pluginIdStepsMap[stepData.RefPluginId]
+		stepsInMap, ok := pluginIdStepsMap[pluginStep.PluginId]
 		if ok {
 			stepsInMap = append(stepsInMap, stepData)
-			pluginIdStepsMap[stepData.RefPluginId] = stepsInMap
+			pluginIdStepsMap[pluginStep.PluginId] = stepsInMap
 		} else {
-			pluginIdStepsMap[stepData.RefPluginId] = []*bean.StepObject{stepData}
+			pluginIdStepsMap[pluginStep.PluginId] = []*bean.StepObject{stepData}
 		}
 	}
 	if len(nestedRefPluginIds) > 0 {
