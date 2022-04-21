@@ -121,7 +121,7 @@ spec:
         fsGroup: 1001
       initContainers:
         - name: init-chmod-data
-          image: "quay.io/devtron/minideb:test"
+          image: "quay.io/devtron/minideb:latest"
           imagePullPolicy: "IfNotPresent"
           command:
             - /bin/sh
