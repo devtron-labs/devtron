@@ -73,7 +73,7 @@ components:
         status:
           type: string
           description: status of the module
-          example: "notInstalled|installed|installing|installFailed"
+          example: "notInstalled|installed|installing|installFailed|timeout"
     ModuleActionRequest:
       type: object
       properties:
@@ -95,7 +95,7 @@ components:
         status:
           type: string
           description: status of the server
-          example: "available|installing|installFailed"
+          example: "available|installing|installFailed|timeout"
         releaseName:
           type: string
           description: helm release name of the devtron server
