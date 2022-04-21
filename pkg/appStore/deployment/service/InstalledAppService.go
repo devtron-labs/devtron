@@ -89,19 +89,19 @@ type InstalledAppServiceImpl struct {
 	teamRepository                       repository4.TeamRepository
 	appRepository                        app.AppRepository
 	acdClient                            application2.ServiceClient
-	appStoreValuesService             service.AppStoreValuesService
-	pubsubClient                      *pubsub.PubSubClient
-	tokenCache                        *util2.TokenCache
-	chartGroupDeploymentRepository    repository2.ChartGroupDeploymentRepository
-	envService                        cluster2.EnvironmentService
-	ArgoK8sClient                     argocdServer.ArgoK8sClient
-	gitFactory                        *util.GitFactory
-	aCDAuthConfig                     *util2.ACDAuthConfig
-	gitOpsRepository                  repository3.GitOpsConfigRepository
-	userService                       user.UserService
-	appStoreDeploymentService         AppStoreDeploymentService
-	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
-	installedAppRepositoryHistory     repository2.InstalledAppVersionHistoryRepository
+	appStoreValuesService                service.AppStoreValuesService
+	pubsubClient                         *pubsub.PubSubClient
+	tokenCache                           *util2.TokenCache
+	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
+	envService                           cluster2.EnvironmentService
+	ArgoK8sClient                        argocdServer.ArgoK8sClient
+	gitFactory                           *util.GitFactory
+	aCDAuthConfig                        *util2.ACDAuthConfig
+	gitOpsRepository                     repository3.GitOpsConfigRepository
+	userService                          user.UserService
+	appStoreDeploymentService            AppStoreDeploymentService
+	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
+	installedAppRepositoryHistory        repository2.InstalledAppVersionHistoryRepository
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -1065,6 +1065,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		LastDeployedTime:              installedAppVerison.UpdatedOn.Format(bean.LayoutRFC3339),
 		Namespace:                     installedAppVerison.InstalledApp.Environment.Namespace,
 		Deprecated:                    installedAppVerison.AppStoreApplicationVersion.Deprecated,
+		ClusterId:                     installedAppVerison.InstalledApp.Environment.ClusterId,
 	}
 	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {

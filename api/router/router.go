@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
+	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
@@ -99,6 +100,7 @@ type MuxRouter struct {
 	dashboardTelemetryRouter         dashboardEvent.DashboardTelemetryRouter
 	commonDeploymentRouter           appStoreDeployment.CommonDeploymentRouter
 	globalPluginRouter               GlobalPluginRouter
+	externalLinkRouter       externalLink.ExternalLinkRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -121,7 +123,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
-	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter,
+	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
 	globalPluginRouter GlobalPluginRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
@@ -178,6 +180,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		deploymentConfigRouter:           deploymentConfigRouter,
 		dashboardTelemetryRouter:         dashboardTelemetryRouter,
 		commonDeploymentRouter:           commonDeploymentRouter,
+		externalLinkRouter:               externalLinkRouter,
 		globalPluginRouter:               globalPluginRouter,
 	}
 	return r
@@ -351,4 +354,7 @@ func (r MuxRouter) Init() {
 	r.commonDeploymentRouter.Init(applicationSubRouter)
 	//this router must placed after commonDeploymentRouter
 	r.helmAppRouter.InitAppListRouter(applicationSubRouter)
+
+	externalLinkRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
+	r.externalLinkRouter.InitExternalLinkRouter(externalLinkRouter)
 }
