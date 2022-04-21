@@ -28,6 +28,8 @@ import (
 	"github.com/devtron-labs/devtron/util/event"
 	"github.com/nats-io/stan.go"
 	"go.uber.org/zap"
+	"strconv"
+	"strings"
 	"time"
 )
 
@@ -112,6 +114,19 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 			impl.logger.Error("err", err)
 			return
 		}
+
+		//validate name
+		workflowName := ""
+		for name, _ := range wfStatus.Nodes {
+			workflowName = name
+			break
+		}
+
+		_, err = strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
+		if err != nil {
+			return
+		}
+
 		impl.logger.Debugw("received cd wf update request body", "body", wfStatus)
 		wfrId, wfrStatus, err := impl.cdHandler.UpdateWorkflow(wfStatus)
 		impl.logger.Debug(wfrId)
