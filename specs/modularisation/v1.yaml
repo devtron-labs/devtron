@@ -3,11 +3,11 @@ info:
   version: 1.0.0
   title: Modularisation v1 APIs
 paths:
-  /orchestrator/module/{moduleName}:
+  /orchestrator/module/{name}:
     get:
       description: Get module info
       parameters:
-        - name: moduleName
+        - name: name
           in: path
           description: module name
           required: true
