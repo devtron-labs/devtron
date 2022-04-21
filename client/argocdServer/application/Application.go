@@ -536,11 +536,11 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 			for _, pr := range node.ParentRefs {
 				podParents = append(podParents, pr.Name)
 			}
-			c.logger.Infow("parseResult 1 ", "Podparents", podParents)
+			c.logger.Infow("parseResult 1 ", "Podparents", podParents, "node", node)
 		}
 	}
 	for _, node := range resp.Nodes {
-		if node.Kind == "Rollout" || node.Kind == "Deployment" || node.Kind == "StatefulSet" || node.Kind == "DaemonSet" {
+		if node.Kind == "Rollout" || node.Kind == "Deployment" || node.Kind == "StatefulSet" || node.Kind == "DaemonSet" || node.Kind == "Workflow" {
 			queryNodes = append(queryNodes, node)
 		}
 		if node.Kind == "ReplicaSet" {
