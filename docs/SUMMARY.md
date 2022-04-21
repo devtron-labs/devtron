@@ -23,6 +23,7 @@
     * [User Access](user-guide/global-configurations/user-access.md)
     * [Manage Notification](user-guide/global-configurations/manage-notification.md)
     * [Deploy a sample App](user-guide/Deploy-sample-app/nodejs_app.md)
+    * [External links](user-guide/global-configurations/external-links.md)
   * [Devtron Upgrade](setup/upgrade/README.md)
     * [0.2.x-0.3.x](setup/upgrade/devtron-upgrade-0.2.x-0.3.x.md)
     * [0.3.x-0.3.x](setup/upgrade/devtron-upgrade-0.3.x-0.3.x.md)
