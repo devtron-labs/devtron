@@ -26,7 +26,7 @@ type PluginVariableDto struct {
 	AllowEmptyValue       bool                                    `json:"allowEmptyValue,omitempty"`
 	DefaultValue          string                                  `json:"defaultValue,omitempty"`
 	Value                 string                                  `json:"value,omitempty"`
-	ValueType             repository.PluginStepVariableValueType  `json:"valueType,omitempty"`
+	ValueType             repository.PluginStepVariableValueType  `json:"variableType,omitempty"`
 	PreviousStepIndex     int                                     `json:"previousStepIndex,omitempty"`
 	ReferenceVariableName string                                  `json:"referenceVariableName,omitempty"`
 }

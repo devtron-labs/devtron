@@ -383,7 +383,7 @@ components:
           type: string
         RefVariableUsed:
           type: boolean
-        RefVariableType:
+        variableType:
           type: string
           example:
             - "GLOBAL"
