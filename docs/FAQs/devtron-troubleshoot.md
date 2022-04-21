@@ -153,7 +153,14 @@ In `Global Configurations` >> `Cluters & Environments`, if you try to update a c
 
 [Note: If you already have created some environments in that cluster, it needs to be updated again]
 
-
-
-
-
+#### 9. Postgresql is in crashloop with error - Failed to pull image
+    
+There may be some other pods also in crashloop as they are not able to connect to database. To resolve this issue, you can either [update devtron to latest version](https://docs.devtron.ai/devtron/setup/upgrade/devtron-upgrade-0.3.x-0.3.x) or run the following commands to fix instantly on the same version you are using: 
+```
+kubectl patch -n devtroncd statefulset postgresql-postgresql -p '{"spec":{"template":{"spec":{"initContainers":[{"name":"init-chmod-data","image":"quay.io/devtron/minideb:latest"}],"containers":[{"name":"postgresql-postgresql","image":"quay.io/devtron/postgres:11.3.0-debian-9-r28"}]}}}}'
+```
+Then delete postgresql pod so that it can fetch the updated images:
+```
+kubectl delete pod -n devtroncd postgresql-postgresql-0
+```
+You can also delete other pods which are in crashloop after postgresql is up and running so that they can restart and connect to postgresql and Devtron will be up and running again in a few moments.
