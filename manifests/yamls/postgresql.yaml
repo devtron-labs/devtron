@@ -120,7 +120,7 @@ spec:
         fsGroup: 1001
       initContainers:
         - name: init-chmod-data
-          image: "quay.io/bitnami/minideb:latest"
+          image: "quay.io/devtron/minideb:latest"
           imagePullPolicy: "IfNotPresent"
           command:
             - /bin/sh
@@ -147,7 +147,7 @@ spec:
         
       containers:
         - name: postgresql-postgresql
-          image: quay.io/bitnami/postgresql:11.3.0-debian-9-r28
+          image: "quay.io/devtron/postgres:11.3.0-debian-9-r28"
           imagePullPolicy: "IfNotPresent"
           securityContext:
             runAsUser: 1001
