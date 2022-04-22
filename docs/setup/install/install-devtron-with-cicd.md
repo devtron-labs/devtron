@@ -1,12 +1,12 @@
-# Install Devtron using Helm3 (Deprecated)
+# Install Devtron with CI/CD module
 
-> Info: From Devtron v0.3.27 onwards, using Helm3 to install Devtron will be deprecated.
+The Devtron installation includes the base installation and CI/CD modules.
 
 ## Before you begin
 
-Install [Helm3](https://helm.sh/docs/intro/install/).
+Install [Helm](https://helm.sh/docs/intro/install/).
 
-## Installing Devtron using Helm3
+## Installing Devtron using Helm
 
 1. Add Devtron repository
 2. Install Devtron
@@ -15,13 +15,26 @@ Install [Helm3](https://helm.sh/docs/intro/install/).
 {% tab title="Install with default configurations" %}
 This installation will use Minio for storing build logs and cache. 
 
-```bash
-helm repo add devtron https://helm.devtron.ai
+* To install the latest version, use `main` in the below URL:
 
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+```bash
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
 -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
---set installer.modules={cicd}
+
 ```
+
+* To install a specific version, replace `main` with the [release tag](https://github.com/devtron-labs/devtron/releases). For example, to install `v0.3.26`:
+
+```bash
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+-f https://raw.githubusercontent.com/devtron-labs/devtron/v0.3.26/manifests/devtron-bom.yaml \
+
+```
+
 {% endtab %}
 
 {% tab title="Install with AWS S3 Buckets" %}
@@ -30,8 +43,8 @@ This installation will use AWS s3 buckets for storing build logs and cache. Refe
 ```bash
 helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
 --set installer.modules={cicd} \
+-f https://raw.githubusercontent.com/devtron-labs/devtron/v2.0/manifests/devtron-bom.yaml \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
@@ -47,24 +60,13 @@ Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](./i
 ```bash
 helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
 --set installer.modules={cicd} \
+-f https://raw.githubusercontent.com/devtron-labs/devtron/v2.0/manifests/devtron-bom.yaml \
 --set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
 --set configs.AZURE_ACCOUNT_NAME=test-account \
 --set configs.AZURE_BLOB_CONTAINER_CI_LOG=ci-log-container \
 --set configs.AZURE_BLOB_CONTAINER_CI_CACHE=ci-cache-container
-```
-{% endtab %}
-{% endtabs %}
-
-For those countries/users where Github is blocked, you can use Gitee as the installation source.
-
-{% tabs %}
-{% tab title="Install with Gitee" %}
-```bash
-helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd --set installer.source=gitee
 ```
 {% endtab %}
 {% endtabs %}
@@ -79,16 +81,16 @@ The install commands start Devtron-operator, which takes about 20 minutes to spi
 kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
 ```
 
-The command executes with one of the following output message, indicating the status of the installation:
+The command executes with one of the following output messages, indicating the status of the installation:
 
 | Status | Description |
 | :--- | :--- |
-| `Downloaded` | Installer has downloaded all the manifests and installation is in progress. |
-| `Applied` | Installer has successfully applied all the manifests and installation is complete. |
+| `Downloaded` | Installer has downloaded all the manifests, and installation is in progress. |
+| `Applied` | Installer has successfully applied all the manifests, and installation is complete. |
 
 ## Check the installer logs
 
-To check the installer logs run the following command:
+To check the installer logs, run the following command:
 
 ```bash
 kubectl logs -f -l app=inception -n devtroncd
@@ -96,7 +98,7 @@ kubectl logs -f -l app=inception -n devtroncd
 
 ## Access Devtron dashboard
 
-If you did not provide a **BASE\_URL** during installation or have used the default installation, Devtron creates a load balancer for you on its own. Use the following command to get the dashboard URL.
+Use the following command to get the dashboard URL:
 
 ```bash
 kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
@@ -109,7 +111,7 @@ You will get an output similar to the one shown below:
 [map[hostname:aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com]]
 ```
 
-The hostname mentioned here `aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com` is the Loadbalancer URL where you can access the Devtron dashboard.
+The hostname `aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com` as mentioned above is the Loadbalancer URL where you can access the Devtron dashboard.
 
 If you don't see any results or receive a message that says "service doesn't exist," it means Devtron is still installing; please check back in 5 minutes.
 
@@ -127,7 +129,7 @@ For admin login, use the username:`admin`, and run the following command to get 
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
-## Cleaning Devtron Installer Helm3
+## Cleaning Devtron Helm installer
 
 Please make sure that you do not have anything inside namespaces devtroncd, devtron-cd, devtron-ci, and devtron-demo as the below steps will clean everything inside these namespaces:
 
@@ -187,8 +189,8 @@ kubectl delete ns devtroncd
   kubectl -n devtroncd patch installer installer-devtron --type json -p '[{"op": "remove", "path": "/status"}]'
   ```
 
-  Next, [install Devtron using Helm3](./install-devtron-helm-3.md)
+  Next, [install Devtron](./install-devtron.md)
 </details>
 
 
-Still facing issues, please reach out to us on [discord](https://discord.gg/jsRG5qx2gp).
+Still facing issues, please reach out to us on [Discord](https://discord.gg/jsRG5qx2gp).
