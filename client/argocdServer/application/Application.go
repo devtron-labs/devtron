@@ -540,7 +540,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 		}
 	}
 	for _, node := range resp.Nodes {
-		if node.Kind == "Rollout" || node.Kind == "Deployment" || node.Kind == "StatefulSet" || node.Kind == "DaemonSet" || node.Kind == "Workflow" {
+		if node.Kind == "Rollout" || node.Kind == "Deployment" || node.Kind == "StatefulSet" || node.Kind == "DaemonSet" {
 			queryNodes = append(queryNodes, node)
 		}
 		if node.Kind == "ReplicaSet" {
@@ -551,7 +551,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 				}
 			}
 		}
-		if node.Kind == "StatefulSet" || node.Kind == "DaemonSet" {
+		if node.Kind == "StatefulSet" || node.Kind == "DaemonSet" || node.Kind == "Workflow" {
 			needPods = true
 		}
 
@@ -606,7 +606,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 			if err != nil {
 				c.logger.Errorw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime), "err", err)
 			} else {
-				c.logger.Debugw("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime))
+				c.logger.Infow("GRPC_GET_RESOURCE", "data", request, "timeTaken", time.Since(startTime))
 			}
 			if res != nil || err != nil {
 				response <- Result{Response: res, Error: err, Request: &request}
