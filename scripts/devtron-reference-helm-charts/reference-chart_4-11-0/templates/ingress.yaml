@@ -30,7 +30,7 @@ metadata:
     chart: {{ template ".Chart.Name .chart" . }}
     release: {{ .Release.Name }}
     {{- if .Values.ingress.labels }}
-    {{ toYaml .Values.ingress.labels | indent 4 }}
+{{ toYaml .Values.ingress.labels | indent 4 }}
     {{- end }}
 {{- if .Values.ingress.annotations }}
   annotations:
