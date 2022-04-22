@@ -1374,14 +1374,22 @@ func (impl *PipelineStageServiceImpl) BuildCiStepDataForWfRequest(step *reposito
 		stepData.ExecutorType = string(scriptDetail.Type)
 		stepData.DockerImage = scriptDetail.ContainerImagePath
 		stepData.Script = scriptDetail.Script
-		stepData.ExposedPorts = portMap
-		stepData.CustomScriptMount = &bean.MountPath{
-			DestinationPath: scriptDetail.StoreScriptAt,
+		if len(portMap) > 0 {
+			stepData.ExposedPorts = portMap
 		}
-		stepData.SourceCodeMount = &bean.MountPath{
-			DestinationPath: scriptDetail.MountCodeToContainerPath,
+		if len(scriptDetail.StoreScriptAt) > 0 {
+			stepData.CustomScriptMount = &bean.MountPath{
+				DestinationPath: scriptDetail.StoreScriptAt,
+			}
 		}
-		stepData.ExtraVolumeMounts = extraMappings
+		if len(scriptDetail.MountCodeToContainerPath) > 0 {
+			stepData.SourceCodeMount = &bean.MountPath{
+				DestinationPath: scriptDetail.MountCodeToContainerPath,
+			}
+		}
+		if len(extraMappings) > 0 {
+			stepData.ExtraVolumeMounts = extraMappings
+		}
 	} else if step.StepType == repository.PIPELINE_STEP_TYPE_REF_PLUGIN {
 		stepData.RefPluginId = step.RefPluginId
 	}
@@ -1499,14 +1507,22 @@ func (impl *PipelineStageServiceImpl) BuildPluginStepDataForWfRequest(step *repo
 		stepData.ExecutorType = string(scriptDetail.Type)
 		stepData.DockerImage = scriptDetail.ContainerImagePath
 		stepData.Script = scriptDetail.Script
-		stepData.ExposedPorts = portMap
-		stepData.CustomScriptMount = &bean.MountPath{
-			DestinationPath: scriptDetail.StoreScriptAt,
+		if len(portMap) > 0 {
+			stepData.ExposedPorts = portMap
 		}
-		stepData.SourceCodeMount = &bean.MountPath{
-			DestinationPath: scriptDetail.MountCodeToContainerPath,
+		if len(scriptDetail.StoreScriptAt) > 0 {
+			stepData.CustomScriptMount = &bean.MountPath{
+				DestinationPath: scriptDetail.StoreScriptAt,
+			}
 		}
-		stepData.ExtraVolumeMounts = extraMappings
+		if len(scriptDetail.MountCodeToContainerPath) > 0 {
+			stepData.SourceCodeMount = &bean.MountPath{
+				DestinationPath: scriptDetail.MountCodeToContainerPath,
+			}
+		}
+		if len(extraMappings) > 0 {
+			stepData.ExtraVolumeMounts = extraMappings
+		}
 	} else if step.StepType == repository2.PLUGIN_STEP_TYPE_REF_PLUGIN {
 		stepData.RefPluginId = step.RefPluginId
 	}

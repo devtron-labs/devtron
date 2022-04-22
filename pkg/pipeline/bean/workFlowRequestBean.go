@@ -30,9 +30,9 @@ type StepObject struct {
 	DockerImage              string             `json:"dockerImage"`
 	Command                  string             `json:"command"`
 	Args                     []string           `json:"args"`
-	CustomScriptMount        *MountPath         `json:"customScriptMountDestinationPath"` // destination path - storeScriptAt
-	SourceCodeMount          *MountPath         `json:"sourceCodeMountDestinationPath"`   // destination path - mountCodeToContainerPath
-	ExtraVolumeMounts        []*MountPath       `json:"extraVolumeMounts"`                // filePathMapping
+	CustomScriptMount        *MountPath         `json:"customScriptMount"` // destination path - storeScriptAt
+	SourceCodeMount          *MountPath         `json:"sourceCodeMount"`   // destination path - mountCodeToContainerPath
+	ExtraVolumeMounts        []*MountPath       `json:"extraVolumeMounts"` // filePathMapping
 	ArtifactPaths            []string           `json:"artifactPaths"`
 }
 
