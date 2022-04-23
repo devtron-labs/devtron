@@ -427,6 +427,7 @@ func WhitelistChecker(url string) bool {
 		"/",
 		"/orchestrator/dashboard-event/dashboardAccessed",
 		"/orchestrator/dashboard-event/dashboardLoggedIn",
+		"/orchestrator/register",
 	}
 	for _, a := range urls {
 		if a == url {
