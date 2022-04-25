@@ -11,9 +11,9 @@ The users can access the configured external links from the **App Details** page
 
    As shown in the screenshot, the monitoring tool appears at the configured component level:
 
-   ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/link-app-pod-level.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/link-app-pod-level.png)
 
-   ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/link-container-level.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/link-container-level.png)
 
 
 3. Click on an external link to access the Monitoring Tool.
