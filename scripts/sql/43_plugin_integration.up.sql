@@ -268,3 +268,79 @@ CREATE TABLE "public"."pipeline_stage_step_condition"
     CONSTRAINT "pipeline_stage_step_condition_condition_variable_id_fkey" FOREIGN KEY ("condition_variable_id") REFERENCES "public"."pipeline_stage_step_variable" ("id"),
     PRIMARY KEY ("id")
 );
+
+----------- inserting values for PRESET plugins
+
+
+INSERT INTO "public"."plugin_tag" ("id", "name", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
+('1', 'TESTING','f', 'now()', '1', 'now()', '1'),
+('2', 'CODE QUALITY','f', 'now()', '1', 'now()', '1');
+
+SELECT pg_catalog.setval('public.id_seq_plugin_tag', 2, true);
+
+--TODO: update icons
+INSERT INTO "public"."plugin_metadata" ("id", "name", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
+('1', 'K6','Load testing tool','PRESET','icon','f', 'now()', '1', 'now()', '1'),
+('2', 'Sonarqube','Code quality analysis tool','PRESET','icon','f', 'now()', '1', 'now()', '1');
+
+SELECT pg_catalog.setval('public.id_seq_plugin_metadata', 2, true);
+
+INSERT INTO "public"."plugin_tag_relation" ("id", "tag_id", "plugin_id", "created_on", "created_by", "updated_on", "updated_by") VALUES
+('1', '1','1','now()', '1', 'now()', '1'),
+('2', '2','2', 'now()', '1', 'now()', '1');
+
+SELECT pg_catalog.setval('public.id_seq_plugin_tag_relation', 2, true);
+
+
+INSERT INTO "public"."plugin_pipeline_script" ("id", "script", "type","deleted","created_on", "created_by", "updated_on", "updated_by") VALUES
+('1', 'PathToScript=$WORKING_DIRECTORY$RelativePathToScript
+
+if [ $OutputType == "GRAFANA_CLOUD" ]
+then
+    wget https://go.dev/dl/go1.18.1.linux-amd64.tar.gz
+    rm -rf /usr/local/go && tar -C /usr/local -xzf go1.18.1.linux-amd64.tar.gz
+    export GOPATH=/usr/local/go
+    export GOCACHE=/usr/local/go/cache
+    export PATH=$PATH:/usr/local/go/bin
+    go install go.k6.io/xk6/cmd/xk6@latest
+    xk6 build --with github.com/grafana/xk6-output-prometheus-remote
+    K6_PROMETHEUS_USER=$GrafanaCloudUsername \
+    K6_PROMETHEUS_PASSWORD=$GrafanaCloudApiKey \
+    K6_PROMETHEUS_REMOTE_URL=$GrafanaCloudEndpoint \
+    ./k6 run $PathToScript -o output-prometheus-remote
+elif [ $OutputType == "LOG" ]
+then
+    docker pull grafana/k6
+	docker run --rm -i grafana/k6 run - <$PathToScript
+fi','SHELL','f','now()', '1', 'now()', '1'),
+('2', 'PathToCodeDir=$WORKING_DIR$CheckoutPath
+
+cd $PathToCodeDir
+echo "sonar.projectKey=$SonarqubeProjectKey" > sonar-project.properties
+docker run \
+    --rm \
+    -e SONAR_HOST_URL=$SonarqubeEndpoint \
+    -e SONAR_LOGIN=$SonarqubeApiKey \
+    -v "/$PWD:/usr/src" \
+    sonarsource/sonar-scanner-cli','SHELL','f', 'now()', '1', 'now()', '1');
+
+SELECT pg_catalog.setval('public.id_seq_plugin_pipeline_script', 2, true);
+
+INSERT INTO "public"."plugin_step" ("id", "plugin_id","name","description","index","step_type","script_id","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
+('1', '1','Step 1','Step 1 for K6 load testing','1','INLINE','1','f','now()', '1', 'now()', '1'),
+('2', '2','Step 1','Step 1 for Sonarqube','1','INLINE','2','f','now()', '1', 'now()', '1');
+
+SELECT pg_catalog.setval('public.id_seq_plugin_step', 2, true);
+
+
+INSERT INTO "public"."plugin_step_variable" ("id", "plugin_step_id","name","format","description","is_exposed","allow_empty_value","variable_type","value_type","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
+('1', '1','RelativePathToScript','STRING','checkout path + script path along with script name','t','f','INPUT','NEW','f','now()', '1', 'now()', '1'),
+('2', '1','GrafanaCloudUsername','STRING','username of grafana cloud/prometheus account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1'),
+('3', '1','GrafanaCloudApiKey','STRING','api key of grafana cloud/prometheus account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1'),
+('4', '1','GrafanaCloudEndpoint','STRING','remote write endpoint of grafana cloud/prometheus account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1'),
+('5', '1','OutputType','STRING','output type - LOG or GRAFANA_CLOUD','t','f','INPUT','NEW','f','now()', '1', 'now()', '1'),
+('6', '2','SonarqubeProjectKey','STRING','project key of grafana sonarqube account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1'),
+('7', '2','SonarqubeApiKey','STRING','api key of sonarqube account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1'),
+('8', '2','SonarqubeEndpoint','STRING','api endpoint of sonarqube account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1');
+
+SELECT pg_catalog.setval('public.id_seq_plugin_step_variable', 8, true);
