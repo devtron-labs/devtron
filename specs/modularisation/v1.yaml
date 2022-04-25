@@ -3,12 +3,12 @@ info:
   version: 1.0.0
   title: Modularisation v1 APIs
 paths:
-  /orchestrator/module/{name}:
+  /orchestrator/module:
     get:
       description: Get module info
       parameters:
         - name: name
-          in: path
+          in: query
           description: module name
           required: true
           schema:
@@ -26,7 +26,7 @@ paths:
       description: some action on module (for eg - install/upgrade/etc..)
       parameters:
         - name: name
-          in: path
+          in: query
           description: module name
           required: true
           schema:
@@ -94,7 +94,11 @@ components:
         action:
           type: string
           description: action on the module
-          example: "install/upgrade"
+          example: "install"
+        version:
+          type: string
+          description: version on which module is to be installed
+          example: "v1.2.3"
     ServerInfo:
       type: object
       properties:

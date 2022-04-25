@@ -515,9 +515,12 @@ github.com/src-d/gcfg
 github.com/src-d/gcfg/scanner
 github.com/src-d/gcfg/token
 github.com/src-d/gcfg/types
+# github.com/stretchr/objx v0.2.0
+github.com/stretchr/objx
 # github.com/stretchr/testify v1.7.0
 ## explicit
 github.com/stretchr/testify/assert
+github.com/stretchr/testify/mock
 github.com/stretchr/testify/require
 # github.com/tidwall/gjson v1.11.0
 ## explicit
@@ -926,6 +929,8 @@ k8s.io/apimachinery/third_party/forked/golang/reflect
 ## explicit
 k8s.io/client-go/discovery
 k8s.io/client-go/dynamic
+k8s.io/client-go/dynamic/dynamicinformer
+k8s.io/client-go/dynamic/dynamiclister
 k8s.io/client-go/informers
 k8s.io/client-go/informers/admissionregistration
 k8s.io/client-go/informers/admissionregistration/v1beta1

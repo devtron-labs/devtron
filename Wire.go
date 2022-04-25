@@ -32,10 +32,12 @@ import (
 	"github.com/devtron-labs/devtron/api/deployment"
 	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	pipeline2 "github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
+	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
@@ -114,6 +116,8 @@ func InitializeApp() (*App, error) {
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		appStoreValues.AppStoreValuesWireSet,
 		appStoreDeployment.AppStoreDeploymentWireSet,
+		server.ServerWireSet,
+		module.ModuleWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,

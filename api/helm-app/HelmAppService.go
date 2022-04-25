@@ -7,6 +7,8 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gogo/protobuf/proto"
 	"go.uber.org/zap"
@@ -37,23 +39,25 @@ type HelmAppService interface {
 }
 
 type HelmAppServiceImpl struct {
-	logger         *zap.SugaredLogger
-	clusterService cluster.ClusterService
-	helmAppClient  HelmAppClient
-	pump           connector.Pump
-	enforcerUtil   rbac.EnforcerUtilHelm
+	logger          *zap.SugaredLogger
+	clusterService  cluster.ClusterService
+	helmAppClient   HelmAppClient
+	pump            connector.Pump
+	enforcerUtil    rbac.EnforcerUtilHelm
+	serverDataStore *serverDataStore.ServerDataStore
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	helmAppClient HelmAppClient,
-	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm) *HelmAppServiceImpl {
+	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
-		logger:         Logger,
-		clusterService: clusterService,
-		helmAppClient:  helmAppClient,
-		pump:           pump,
-		enforcerUtil:   enforcerUtil,
+		logger:          Logger,
+		clusterService:  clusterService,
+		helmAppClient:   helmAppClient,
+		pump:            pump,
+		enforcerUtil:    enforcerUtil,
+		serverDataStore: serverDataStore,
 	}
 }
 
@@ -191,6 +195,14 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 		ReleaseName:   app.ReleaseName,
 	}
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
+
+	// if application is devtron app helm release,
+	// then for Hyperipn, status is same as helm release
+	// and for FULL, then status is combination of helm release and installer object status
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
+		//a := impl.serverDataStore.InstallerCrdObjectStatus
+		// TODO : manish
+	}
 	return appdetail, err
 
 }
