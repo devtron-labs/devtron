@@ -32,18 +32,19 @@ type GlobalPluginServiceImpl struct {
 
 func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable, error) {
 	globalVariableNames := []string{
-		"GIT_REPOSITORY",
-		"GIT_BRANCH",
-		"GIT_HASH",
-		"GIT_TAG",
-		"LATEST_COMMIT_AUTHOR",
+		//"GIT_REPOSITORY",
+		//"GIT_BRANCH",
+		//"GIT_HASH",
+		//"GIT_TAG",
+		//"LATEST_COMMIT_AUTHOR",
+		//"PIPELINE_NAME",
+		"WORKING_DIR",
 		"DOCKER_IMAGE_TAG",
 		"DOCKER_REPOSITORY",
 		"DOCKER_REGISTRY_URL",
 		"DOCKER_IMAGE",
 		"APP_NAME",
-		"PIPELINE_NAME",
-		"TRIGGER_BY_AUTHOR_NAME",
+		"TRIGGER_BY_AUTHOR",
 	}
 	var globalVariables []*GlobalVariable
 	for _, globalVariableName := range globalVariableNames {

@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -54,6 +55,7 @@ type CiServiceImpl struct {
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
+	userService                   user.UserService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -62,7 +64,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
-) *CiServiceImpl {
+	userService user.UserService) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
 		workflowService:               workflowService,
@@ -75,6 +77,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		ciPipelineRepository:          ciPipelineRepository,
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
+		userService:                   userService,
 	}
 }
 
@@ -366,6 +369,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if checkoutPath == "" {
 		checkoutPath = "./"
 	}
+	user, err := impl.userService.GetById(trigger.TriggeredBy)
+	if err != nil {
+		impl.Logger.Errorw("unable to find user by id", "err", err, "id", trigger.TriggeredBy)
+		return nil, err
+	}
 	dockerfilePath := filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
 	workflowRequest := &WorkflowRequest{
 		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
@@ -401,6 +409,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		PreCiSteps:                 preCiSteps,
 		PostCiSteps:                postCiSteps,
 		RefPlugins:                 refPluginsData,
+		AppName:                    pipeline.App.AppName,
+		TriggerByAuthor:            user.EmailId,
 	}
 
 	switch workflowRequest.CloudProvider {

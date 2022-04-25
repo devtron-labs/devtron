@@ -99,6 +99,8 @@ type WorkflowRequest struct {
 	PreCiSteps                 []*bean2.StepObject      `json:"preCiSteps"`
 	PostCiSteps                []*bean2.StepObject      `json:"postCiSteps"`
 	RefPlugins                 []*bean2.RefPluginObject `json:"refPlugins"`
+	AppName                    string                   `json:"appName"`
+	TriggerByAuthor            string                   `json:"triggerByAuthor"`
 }
 
 const BLOB_STORAGE_AZURE = "AZURE"
