@@ -5,7 +5,7 @@ The ConfigMap API resource holds key-value pairs of the  configuration data that
 Click on `Add ConfigMap` to add a config map to your application.
 
 
-![](../../user-guide/creating-application/images/config-maps.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/config-map.jpg)
 
 ## Configure the ConfigMap
 
@@ -93,16 +93,15 @@ For multiple files mount at the same location you need to check sub path bool fi
 Sub Path feature is not applicable in case of external configmap.
 
 ## File Permission
-File permission will be provide at the configmap level not on the each key of the configmap. it will take 3 digit standard permission for the file.
+File permission will be provide at the configmap level not on the each key of the configmap. It will take 3 digit standard permission for the file.
 
 ### \(B\) Kubernetes External ConfigMap
 
-You can select `Kubernetes External ConfigMap` in the `data type` field if you have created a ConfigMap using the Kubectl command.
+You can select `Kubernetes External ConfigMap` in the `data type` field if you have created a ConfigMap using the kubectl command.
 
 By default, the data type is set to `Kubernetes ConfigMap`.
 
-Kubernetes External ConfigMap is created using the `kubectl create configmap` command. You can also use the ConfigMap generator in `kustomization.yaml` to create a ConfigMap.
-
+Kubernetes External ConfigMap is created using the `kubectl create configmap` command. 
 If you are using `Kubernetes External ConfigMap`, make sure you give the name of ConfigMap the same as the name that you have given using kubectl create `Configmap <configmap-name> <data source>` command, otherwise, it might result in an error during the built.
 
 You have to ensure that the External ConfigMap exists and is available to the pod.

@@ -1,0 +1,142 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: External links APIs
+paths:
+  /orchestrator/external-link/tools:
+    get:
+      description: Get all available monitoring tools for external links
+      responses:
+        "200":
+          description: Gives all monitoring tools
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExternalLinkMonitoringTool"
+  /orchestrator/external-link:
+    get:
+      description: Get All active External links (If query parameter is not supplied then it will give all external links otherwise it will give externl links mapped to that cluster Id)
+      parameters:
+        - in: query
+          name: clusterId
+          example: 1
+          description: clusterId
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Successfully fetched external links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ExternalLink"
+    post:
+      description: Create external links (id should be zero in externalLink object)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/ExternalLink"
+      responses:
+        "200":
+          description: External links creation response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+    put:
+      description: update external link
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExternalLink"
+      responses:
+        "200":
+          description: External link update response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+    delete:
+      description: delete external link
+      parameters:
+        - in: query
+          name: id
+          example: 1
+          description: external link Id
+          required: true
+          allowEmptyValue: false
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: External link delete response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+
+
+# Components
+components:
+  schemas:
+    ExternalLinkMonitoringTool:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Id of monitoring tool
+          example: 1
+        name:
+          type: string
+          description: name of monitoring tool
+          example: "grafana"
+        icon:
+          type: string
+          description: icon of monitoring tool
+          example: "some url"
+    ExternalLink:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Id of external link
+          example: 1
+        monitoringToolId:
+          type: integer
+          description: Id of monitoring tool, to which this is mapped
+          example: 1
+        name:
+          type: string
+          description: external link name
+          example: "some name"
+        url:
+          type: string
+          description: url given to this external link
+          example: "some url"
+        clusterIds:
+          type: array
+          description: clusters to which this url is applied e.g 1,2,3
+          items:
+            type: integer
+        updatedOn:
+          type: string
+          description: updated on
+    ActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true

@@ -23,7 +23,7 @@ import (
 	v1alpha12 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/app"
-	"github.com/devtron-labs/devtron/pkg/appStore"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -40,11 +40,11 @@ type ApplicationStatusUpdateHandlerImpl struct {
 	pubsubClient        *pubsub.PubSubClient
 	appService          app.AppService
 	workflowDagExecutor pipeline.WorkflowDagExecutor
-	installedAppService appStore.InstalledAppService
+	installedAppService service.InstalledAppService
 }
 
 func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, appService app.AppService,
-	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService appStore.InstalledAppService) *ApplicationStatusUpdateHandlerImpl {
+	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService) *ApplicationStatusUpdateHandlerImpl {
 	appStatusUpdateHandlerImpl := &ApplicationStatusUpdateHandlerImpl{
 		logger:              logger,
 		pubsubClient:        pubsubClient,

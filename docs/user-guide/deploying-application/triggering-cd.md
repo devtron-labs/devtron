@@ -2,21 +2,21 @@
 
 ## Triggering CD Pipelines
 
-![](../../.gitbook/assets/trigger-select-image%20%281%29.jpg)
+After CI pipeline is complete, CD pipeline can be triggered by clicking on `Select Image`.
 
-After CI Pipeline is complete, CD Pipeline can be triggered by Clicking on _Select Image_.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/select-image.jpg)
 
-![](../../.gitbook/assets/cd-deploy-console.jpg)
+Select an image to deploy and then click on `Deploy` to trigger the CD pipeline.
 
-Select an image to deploy and then Click on **Deploy** to trigger the CD Pipeline.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/deploy.jpg)
 
-The running images are tagged as _Running_
+The current deployed images are tagged as `Deployed on <Environment name>`.
 
-![](../../.gitbook/assets/tri_cd5.jpg)
+The status of the current deployment can be viewed by Clicking on **App Details** that will show the `Progressing`state for 1-2 minutes and then gradually shows `Healthy` state or `Hibernating` state, based on the deployment strategy.
 
-The status of the current deployment can be viewed by Clicking on **App Details** that will show the _Progressing_ state for 1-2 minutes and then gradually shows _Healthy_ state or _Hibernating_ state, based on the deployment strategy.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-cd/app-status.jpg)
 
-Here, triggering CD Pipeline is successful and the deployment is in "Healthy" state.
+Here, triggering CD pipeline is successful and the deployment is in "Healthy" state.
 
 [To further diagnose deployments, Click here](../debugging-deployment-and-monitoring.md)
 
