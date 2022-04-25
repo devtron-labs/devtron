@@ -72,7 +72,6 @@ spec:
                 values:
                 - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
 {{- end }}
-
 {{- if $.Values.serviceAccountName }}
       serviceAccountName: {{ $.Values.serviceAccountName }}
 {{- else  }}
