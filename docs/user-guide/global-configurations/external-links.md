@@ -23,12 +23,12 @@ Before you begin, configure an application in the Devtron dashboard.
 1. On the Devtron dashboard, select `Global Configurations` from the left navigation pane.
 2. Select `External links`.
    
-   ![External links welcome page](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/external-links-welcome.png)
+![External links welcome page](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/external-links-welcome.png)
 
 3. Select **Add link**.
 4. On the `Add link` page, enter the following fields:
 
-    ![Create an external link](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/add-external-link.png)
+![Create an external link](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/add-external-link.png)
 
     <table>
     <row>
