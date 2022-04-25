@@ -75,6 +75,8 @@ spec:
 
 {{- if $.Values.serviceAccountName }}
       serviceAccountName: {{ $.Values.serviceAccountName }}
+{{- else  }}
+      serviceAccountName: {{ template "serviceAccountName" . }}
 {{- end }}
   {{- if .Values.tolerations }}
       tolerations:
