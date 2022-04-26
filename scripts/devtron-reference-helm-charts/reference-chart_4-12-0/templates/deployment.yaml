@@ -59,6 +59,9 @@ spec:
 {{ toYaml .Values.podLabels | indent 8 }}
 {{- end }}
     spec:
+{{- if $.Values.podExtraSpecs }}	
+{{ toYaml .Values.podExtraSpecs | indent 6 }}	
+{{- end }}
       terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
       restartPolicy: Always
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
@@ -162,18 +165,19 @@ spec:
         - name: {{ $.Chart.Name }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
-{{- if $.Values.privileged }}
-          securityContext:
-            privileged: true
-{{- end}}
-{{- if $.Values.containerSecurityContext }}
-          securityContext:
-{{ toYaml .Values.containerSecurityContext | indent 12 }}
-{{- end }}
 {{- if and $.Values.containerSecurityContext $.Values.privileged }}
           securityContext:
             privileged: true
 {{ toYaml .Values.containerSecurityContext | indent 12 }}
+{{- else if $.Values.privileged }}
+          securityContext:
+            privileged: true
+{{- else if $.Values.containerSecurityContext }}
+          securityContext:
+{{ toYaml .Values.containerSecurityContext | indent 12 }}
+{{- end }}
+{{- if $.Values.containerExtraSpecs }}	
+{{ toYaml .Values.containerExtraSpecs | indent 10 }}	
 {{- end }}
           ports:
           {{- range $.Values.ContainerPort }}

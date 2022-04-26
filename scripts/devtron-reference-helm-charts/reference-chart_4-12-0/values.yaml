@@ -270,6 +270,13 @@ volumes: []
 
 nodeSelector: {}
 
+# If you need to provide some extra specs for pod which are not included by default in deployment template
+# then provide them here
+podExtraSpecs: {}
+
+# If you need to provide some extra specs for main container which are not included by default in deployment template
+# then provide them here
+containerExtraSpecs: {}
 
 #used for deployment algo selection
 orchestrator.deploymant.algo: 1
