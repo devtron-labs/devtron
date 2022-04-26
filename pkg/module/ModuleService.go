@@ -18,7 +18,9 @@
 package module
 
 import (
+	"context"
 	"errors"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
@@ -35,15 +37,17 @@ type ModuleServiceImpl struct {
 	serverEnvConfig                *serverEnvConfig.ServerEnvConfig
 	moduleRepository               ModuleRepository
 	moduleActionAuditLogRepository ModuleActionAuditLogRepository
+	helmAppService                 client.HelmAppService
 }
 
 func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleRepository ModuleRepository,
-	moduleActionAuditLogRepository ModuleActionAuditLogRepository) *ModuleServiceImpl {
+	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService) *ModuleServiceImpl {
 	return &ModuleServiceImpl{
 		logger:                         logger,
 		serverEnvConfig:                serverEnvConfig,
 		moduleRepository:               moduleRepository,
 		moduleActionAuditLogRepository: moduleActionAuditLogRepository,
+		helmAppService:                 helmAppService,
 	}
 }
 
@@ -135,14 +139,33 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		return nil, err
 	}
 
-	// TODO : call kubelink service
-	// TODO : manish
-	// on error - mark it as install failed
+	// HELM_OPERATION Starts
+	devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
+	chartRepository := &client.ChartRepository{
+		Name: impl.serverEnvConfig.DevtronHelmRepoName,
+		Url:  impl.serverEnvConfig.DevtronHelmRepoUrl,
+	}
+
+	extraValues := make(map[string]interface{})
+	extraValues["installer"] = map[string]interface{}{
+		"release": moduleActionRequest.Version,
+		"modules": []interface{}{moduleName},
+	}
+	extraValuesYamlUrl := util2.BuildImagesBomUrl(moduleActionRequest.Version)
+
+	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)
 	if err != nil {
+		impl.logger.Errorw("error in updating helm release ", "err", err)
 		module.Status = ModuleStatusInstallFailed
 		impl.moduleRepository.Update(module)
 		return nil, err
 	}
+	if !updateResponse.GetSuccess() {
+		module.Status = ModuleStatusInstallFailed
+		impl.moduleRepository.Update(module)
+		return nil, errors.New("success is false from helm")
+	}
+	// HELM_OPERATION Ends
 
 	return &ActionResponse{
 		Success: true,

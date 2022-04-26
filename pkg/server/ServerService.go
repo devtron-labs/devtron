@@ -57,18 +57,14 @@ func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error)
 	impl.logger.Debug("getting server info")
 
 	// fetch status of devtron helm app
-	appIdentifier := client.AppIdentifier{
-		ClusterId:   1,
-		Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
-		ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
-	}
-	appDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), &appIdentifier)
+	devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
+	devtronAppDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), devtronHelmAppIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron helm app release status ", "err", err)
 		return nil, err
 	}
 
-	helmReleaseStatus := appDetail.ReleaseStatus.Status
+	helmReleaseStatus := devtronAppDetail.ReleaseStatus.Status
 	var serverStatus string
 
 	// for hyperion mode mode i.e. ciCd not installed - use mapping
@@ -82,7 +78,7 @@ func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error)
 	} else {
 		if impl.serverDataStore.InstallerCrdObjectStatus == serverBean.InstallerCrdObjectStatusApplied {
 			serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
-		} else if time.Now().After(appDetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
+		} else if time.Now().After(devtronAppDetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
 			serverStatus = serverBean.ServerStatusTimeout
 		} else if helmReleaseStatus == serverBean.HelmReleaseStatusDeployed {
 			serverStatus = serverBean.ServerStatusUpgrading
@@ -121,8 +117,28 @@ func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionReque
 		return nil, err
 	}
 
-	// TODO : call kubelink service
-	// TODO : manish
+	// HELM_OPERATION Starts
+	devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
+	chartRepository := &client.ChartRepository{
+		Name: impl.serverEnvConfig.DevtronHelmRepoName,
+		Url:  impl.serverEnvConfig.DevtronHelmRepoUrl,
+	}
+
+	extraValues := make(map[string]interface{})
+	extraValues["installer"] = map[string]interface{}{
+		"release": serverActionRequest.Version,
+	}
+	extraValuesYamlUrl := util2.BuildImagesBomUrl(serverActionRequest.Version)
+
+	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)
+	if err != nil {
+		impl.logger.Errorw("error in updating helm release ", "err", err)
+		return nil, err
+	}
+	if !updateResponse.GetSuccess() {
+		return nil, errors.New("success is false from helm")
+	}
+	// HELM_OPERATION Ends
 
 	return &serverBean.ActionResponse{
 		Success: true,
