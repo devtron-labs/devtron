@@ -181,7 +181,7 @@ spec:
     spec:
       containers:
       - name: postgresql-miscellaneous
-        image: quay.io/bitnami/postgresql:latest
+        image: quay.io/devtron/postgres:11.9.0-debian-10-r26
         env:
         - name: PGPASSWORD
           valueFrom:
