@@ -357,11 +357,9 @@ log("created external secret");
 #postgresql
 # if postgres already installed skip installation
 hasPostgresql = kubectl get sts postgresql-postgresql -n devtroncd;
-if !hasPostgresql {
-	kubeYamlEdit(postgresql, "data.postgresql-password", postgresqlPassword, `/Secret//postgresql-postgresql`);
-	postgresql = kubectl apply -n devtroncd postgresql -u postgresqlOverride;
-	log("created postgresql");
-}
+kubeYamlEdit(postgresql, "data.postgresql-password", postgresqlPassword, `/Secret//postgresql-postgresql`);
+postgresql = kubectl apply -n devtroncd postgresql -u postgresqlOverride;
+log("created postgresql");
 #argocd
 hasArgocd = kubectl get deployment argocd-server -n devtroncd;
 hasargocdSecret = kubectl get secret argocd-secret -n devtroncd;
