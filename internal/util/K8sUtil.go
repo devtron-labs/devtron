@@ -21,6 +21,10 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
+	"os/user"
+	"path/filepath"
+	"time"
+
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
@@ -34,9 +38,6 @@ import (
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"os/user"
-	"path/filepath"
-	"time"
 )
 
 type K8sUtil struct {
