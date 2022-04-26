@@ -13,9 +13,10 @@ ContainerPort:
   - name: app
     port: 8080
     servicePort: 80
+    envoyTimeout: 15
     envoyPort: 8799
-    useHTTP2: true
-    supportStreaming: true
+    useHTTP2: false
+    supportStreaming: false
     idleTimeout: 1800s
     servicemonitor:
       enabled: true
@@ -402,3 +403,15 @@ tolerations: []
 #    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 
 appMetrics: false
+serviceAccount:
+  ## @param serviceAccount.create Enable creation of ServiceAccount for pods
+  ##
+  create: false
+  ## @param serviceAccount.name The name of the ServiceAccount to use.
+  ## If not set and create is true, a name is generated using the `.Chart.Name .fullname` template
+  name: "test1"
+  ## @param serviceAccount.annotations Annotations for service account. Evaluated as a template.
+  ## Only used if `create` is `true`.
+  ##
+  annotations:
+     kubernetes.io/service-account.name: build-robot

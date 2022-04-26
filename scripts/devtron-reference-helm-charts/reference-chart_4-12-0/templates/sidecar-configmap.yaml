@@ -142,6 +142,9 @@ data:
 {{- if $element.supportStreaming }}
                                   "timeout": "0s",
 {{- end }}
+{{- if and ($element.envoyTimeout) (not $element.supportStreaming) }}
+                                  "timeout": "{{ $element.envoyTimeout }}",
+{{- end }}
                                   "cluster": "{{ $.Values.app }}-{{ $index }}"
                                 }
                               }

@@ -75,9 +75,10 @@ spec:
                 values:
                 - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
 {{- end }}
-
 {{- if $.Values.serviceAccountName }}
       serviceAccountName: {{ $.Values.serviceAccountName }}
+{{- else  }}
+      serviceAccountName: {{ template "serviceAccountName" . }}
 {{- end }}
   {{- if .Values.tolerations }}
       tolerations:
@@ -316,6 +317,7 @@ spec:
           {{- if eq .subPath false }}
             - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath }}
+	  
           {{- else }}
           {{- range $k, $v := .data }}
             - name: {{ $cmName | replace "." "-"}}-vol
@@ -335,13 +337,7 @@ spec:
           {{- if eq .subPath false }}
             - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath }}
-          {{- else if and (eq (.subPath) true) (eq (.externalType) "KubernetesSecret") }}
-          {{- else if and (eq (.subPath) true) (eq (.external) true) }}
-          {{- range .secretData }}
-            - name: {{ $cmName | replace "." "-"}}-vol
-              mountPath: {{ $cmMountPath}}/{{ .name }}
-              subPath: {{ .name }}
-          {{- end }}
+	      
           {{- else }}
           {{- range $k, $v := .data }}
             - name: {{ $cmName | replace "." "-"}}-vol

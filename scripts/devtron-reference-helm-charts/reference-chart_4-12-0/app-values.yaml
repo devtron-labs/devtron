@@ -7,6 +7,10 @@ image:
 service:
   type: ClusterIP
   #name: "service-1234567890"
+  loadBalancerSourceRanges: []
+  # loadBalancerSourceRanges: 
+  #    - 1.2.3.4/32
+  #    - 1.2.5.6/23
   annotations: {}
     # test1: test2
     # test3: test4
@@ -256,6 +260,20 @@ envoyproxy:
       cpu: 50m
       memory: 50Mi
 
+## Pods Service Account
+## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+##
+serviceAccount:
+  ## @param serviceAccount.create Enable creation of ServiceAccount for pods
+  ##  
+  create: false
+  ## @param serviceAccount.name The name of the ServiceAccount to use.
+  ## If not set and create is true, a name is generated using the `.Chart.Name .fullname` template
+  name: ""
+  ## @param serviceAccount.annotations Annotations for service account. Evaluated as a template.
+  ## Only used if `create` is `true`.
+  ##  
+  annotations: {}
 
 imagePullSecrets: []
   # - test1

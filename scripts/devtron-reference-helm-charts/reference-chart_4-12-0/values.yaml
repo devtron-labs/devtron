@@ -12,6 +12,7 @@ ContainerPort:
     port: 8080
     servicePort: 80
     envoyPort: 8799
+    envoyTimeout: 15s
     useHTTP2: false
     supportStreaming: false
     idleTimeout: 1800s
@@ -242,13 +243,13 @@ command:
  enabled: false
  value: []
 
-# If you need to provide some extra specs for main container which are not included by default in deployment template
-# then provide them here
-containerExtraSpecs: {}
-
 args:
  enabled: false
  value: []
+
+# If you need to provide some extra specs for main container which are not included by default in deployment template
+# then provide them here
+containerExtraSpecs: {}
 
 resources:
   # We usually recommend not to specify default resources and to leave this as a conscious
@@ -353,7 +354,6 @@ containers: []
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
 
-
 # If you need to provide some extra specs for pod which are not included by default in deployment template
 # then provide them here
 podExtraSpecs: {}
@@ -429,6 +429,21 @@ podSecurityContext: {}
 
 containerSecurityContext: {}
   # allowPrivilegeEscalation: false
+
+## Pods Service Account
+## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+##
+serviceAccount:
+  ## @param serviceAccount.create Enable creation of ServiceAccount for pods
+  ##  
+  create: false
+  ## @param serviceAccount.name The name of the ServiceAccount to use.
+  ## If not set and create is true, a name is generated using the `.Chart.Name .fullname` template
+  name: ""
+  ## @param serviceAccount.annotations Annotations for service account. Evaluated as a template.
+  ## Only used if `create` is `true`.
+  ##  
+  annotations: {}
 
 tolerations: []
   #  - key: "key"
