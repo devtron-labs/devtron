@@ -1110,11 +1110,13 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepConditions(stepId i
 		}
 		conditionsRepo = append(conditionsRepo, conditionRepo)
 	}
-	//saving conditions
-	conditionsRepo, err = impl.pipelineStageRepository.UpdatePipelineStageStepConditions(conditionsRepo, tx)
-	if err != nil {
-		impl.logger.Errorw("error in updating pipeline stage step conditions", "err", err, "conditionsRepo", conditionsRepo)
-		return nil, err
+	if len(conditionsRepo) > 0 {
+		//updating conditions
+		conditionsRepo, err = impl.pipelineStageRepository.UpdatePipelineStageStepConditions(conditionsRepo, tx)
+		if err != nil {
+			impl.logger.Errorw("error in updating pipeline stage step conditions", "err", err, "conditionsRepo", conditionsRepo)
+			return nil, err
+		}
 	}
 	err = tx.Commit()
 	if err != nil {
