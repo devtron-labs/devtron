@@ -8,6 +8,7 @@ import (
 
 type SelfRegistrationRolesService interface {
 	GetAll() ([]string, error)
+	Check() (bool, error)
 	SelfRegister(emailId string)
 }
 
@@ -36,6 +37,23 @@ func (impl *SelfRegistrationRolesServiceImpl) GetAll() ([]string, error) {
 		roles = append(roles, role.Role)
 	}
 	return roles, nil
+}
+
+func (impl *SelfRegistrationRolesServiceImpl) Check() (bool, error) {
+	roleEntries, err := impl.selfRegistrationRolesRepository.GetAll()
+	if err != nil {
+		impl.logger.Errorf("error fetching all role %+v", err)
+		return false, err
+	}
+	if roleEntries != nil {
+		for _, v := range roleEntries {
+			if v.Role != "" {
+				return true, err
+			}
+		}
+		return false, err
+	}
+	return false, nil
 }
 
 func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) {

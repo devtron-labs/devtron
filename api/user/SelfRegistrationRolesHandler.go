@@ -11,6 +11,7 @@ import (
 
 type SelfRegistrationRolesHandler interface {
 	SelfRegister(w http.ResponseWriter, r *http.Request)
+	SelfRegisterCheck(w http.ResponseWriter, r *http.Request)
 }
 
 type SelfRegistrationRolesHandlerImpl struct {
@@ -37,4 +38,14 @@ func (impl *SelfRegistrationRolesHandlerImpl) SelfRegister(w http.ResponseWriter
 	}
 	impl.selfRegistrationRolesService.SelfRegister(userInfo.EmailId)
 	common.WriteJsonResp(w, nil, map[string]string{"status": "ok"}, http.StatusOK)
+}
+
+func (impl *SelfRegistrationRolesHandlerImpl) SelfRegisterCheck(w http.ResponseWriter, r *http.Request) {
+	res, err := impl.selfRegistrationRolesService.Check()
+	if err != nil {
+		impl.logger.Errorw("service err, Check", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
 }

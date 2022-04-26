@@ -22,6 +22,8 @@ func NewSelfRegistrationRolesRouterImpl(logger *zap.SugaredLogger, selfRegistrat
 }
 
 func (impl *SelfRegistrationRolesRouterImpl) InitSelfRegistrationRolesRouter(router *mux.Router) {
-	router.Path("/register").
+	router.Path("/selfRegister").
 		HandlerFunc(impl.selfRegistrationRolesHandler.SelfRegister).Methods("POST")
+	router.Path("/selfRegisterCheck").
+		HandlerFunc(impl.selfRegistrationRolesHandler.SelfRegisterCheck).Methods("GET")
 }
