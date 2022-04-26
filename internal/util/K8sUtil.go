@@ -449,7 +449,7 @@ func (impl K8sUtil) GetK8sClusterRestConfig() (*rest.Config, error) {
 		if err != nil {
 			impl.logger.Errorw("Error while getting user current env details", "error", err)
 		}
-		kubeconfig := flag.String("build-informer", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		kubeconfig := flag.String("read-kubeconfig", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 		flag.Parse()
 		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 		if err != nil {

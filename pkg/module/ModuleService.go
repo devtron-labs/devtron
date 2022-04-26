@@ -38,16 +38,21 @@ type ModuleServiceImpl struct {
 	moduleRepository               ModuleRepository
 	moduleActionAuditLogRepository ModuleActionAuditLogRepository
 	helmAppService                 client.HelmAppService
+	// no need to inject moduleCacheService and cronService, but not generating in wire_gen (not triggering cache work in constructor) if not injecting. hence injecting
+	moduleCacheService ModuleCacheService
+	moduleCronService  ModuleCronService
 }
 
 func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleRepository ModuleRepository,
-	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService) *ModuleServiceImpl {
+	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService, moduleCacheService ModuleCacheService, moduleCronService ModuleCronService) *ModuleServiceImpl {
 	return &ModuleServiceImpl{
 		logger:                         logger,
 		serverEnvConfig:                serverEnvConfig,
 		moduleRepository:               moduleRepository,
 		moduleActionAuditLogRepository: moduleActionAuditLogRepository,
 		helmAppService:                 helmAppService,
+		moduleCacheService:             moduleCacheService,
+		moduleCronService:              moduleCronService,
 	}
 }
 

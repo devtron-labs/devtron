@@ -40,16 +40,19 @@ type ServerServiceImpl struct {
 	serverDataStore                *serverDataStore.ServerDataStore
 	serverEnvConfig                *serverEnvConfig.ServerEnvConfig
 	helmAppService                 client.HelmAppService
+	// no need to inject serverCacheService, but not generating in wire_gen (not triggering cache work in constructor) if not injecting. hence injecting
+	serverCacheService ServerCacheService
 }
 
 func NewServerServiceImpl(logger *zap.SugaredLogger, serverActionAuditLogRepository ServerActionAuditLogRepository,
-	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService) *ServerServiceImpl {
+	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, serverCacheService ServerCacheService) *ServerServiceImpl {
 	return &ServerServiceImpl{
 		logger:                         logger,
 		serverActionAuditLogRepository: serverActionAuditLogRepository,
 		serverDataStore:                serverDataStore,
 		serverEnvConfig:                serverEnvConfig,
 		helmAppService:                 helmAppService,
+		serverCacheService:             serverCacheService,
 	}
 }
 
