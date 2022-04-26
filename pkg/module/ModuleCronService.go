@@ -70,7 +70,7 @@ func (impl *ModuleCronServiceImpl) HandleModuleTimeoutStatus() {
 
 	// fetch ciCd module from DB
 	ciCdModule, err := impl.moduleRepository.FindOne(ModuleCiCdName)
-	if err == nil {
+	if err != nil {
 		impl.logger.Errorw("error occurred while fetching ciCd module", "err", err)
 		return
 	}
