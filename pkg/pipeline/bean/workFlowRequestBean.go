@@ -18,10 +18,10 @@ type RefPluginObject struct {
 type StepObject struct {
 	Name                     string             `json:"name"`
 	Index                    int                `json:"index"`
-	StepType                 string             `json:"stepType"`     // REF_PLUGIN or INLINE
-	ExecutorType             string             `json:"executorType"` //SHELL, DOCKERFILE, CONTAINER_IMAGE
-	RefPluginId              int                `json:"refPluginId"`
-	Script                   string             `json:"script"`
+	StepType                 string             `json:"stepType"`               // REF_PLUGIN or INLINE
+	ExecutorType             string             `json:"executorType,omitempty"` //SHELL, DOCKERFILE, CONTAINER_IMAGE
+	RefPluginId              int                `json:"refPluginId,omitempty"`
+	Script                   string             `json:"script,omitempty"`
 	InputVars                []*VariableObject  `json:"inputVars"`
 	ExposedPorts             map[int]int        `json:"exposedPorts"` //map of host:container
 	OutputVars               []*VariableObject  `json:"outputVars"`
