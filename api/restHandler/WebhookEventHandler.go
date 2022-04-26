@@ -18,16 +18,17 @@
 package restHandler
 
 import (
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	client "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/client/pubsub"
-	"github.com/devtron-labs/devtron/pkg/git"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/gorilla/mux"
-	"go.uber.org/zap"
 	"io/ioutil"
 	"net/http"
 	"strconv"
+
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	client "github.com/devtron-labs/devtron/client/events"
+	"github.com/devtron-labs/devtron/pkg/git"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/util"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 type WebhookEventHandler interface {
@@ -118,7 +119,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	}
 
 	// write event
-	err = impl.eventClient.WriteNatsEvent(pubsub.WEBHOOK_EVENT_TOPIC, webhookEvent)
+	err = impl.eventClient.WriteNatsEvent(util.WEBHOOK_EVENT_TOPIC, webhookEvent)
 	if err != nil {
 		impl.logger.Errorw("Error while handling webhook in git-sensor", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

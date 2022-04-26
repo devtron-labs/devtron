@@ -40,7 +40,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 02842282899755e13efb25d51248dadc04739392
+          value: d8b33faefa1eedf52b18619998bda559eed54baf
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -58,7 +58,7 @@ spec:
       serviceAccountName: devtron
       containers:
       - name: devtron-rollout
-        image: quay.io/bitnami/kubectl:latest
+        image: "quay.io/devtron/kubectl:latest"
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
       initContainers:
       - name: postgresql-migrate-casbin
@@ -81,7 +81,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 02842282899755e13efb25d51248dadc04739392
+          value: d8b33faefa1eedf52b18619998bda559eed54baf
         - name: GIT_BRANCH
           value: main
         envFrom:
