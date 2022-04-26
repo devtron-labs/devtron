@@ -438,7 +438,7 @@ kubeYamlEdit(lens, "data.PG_PASSWORD", postgresqlPassword, `/Secret//lens-secret
 
 #migrator
 #delete migrator job
-migDelete = kubectl delete -n devtroncd job  postgresql-migrate-devtron postgresql-migrate-casbin postgresql-migrate-gitsensor  postgresql-migrate-lens;
+migDelete = kubectl delete -n devtroncd job  postgresql-migrate-devtron postgresql-migrate-casbin postgresql-migrate-gitsensor  postgresql-migrate-lens postgresql-miscellaneous;
 if !migDelete {
 	log("migration job deletion failed");
 }
