@@ -20,6 +20,7 @@ package service
 import (
 	"bytes"
 	"context"
+
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -33,7 +34,9 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/ktrysmt/go-bitbucket"
+
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -57,7 +60,7 @@ import (
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/stan.go"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -146,7 +149,11 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 	}
-	err := impl.Subscribe()
+	err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
+	if err != nil {
+		return nil, err
+	}
+	err = impl.Subscribe()
 	if err != nil {
 		return nil, err
 	}
@@ -817,7 +824,14 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 		if err != nil {
 			status = appStoreBean.QUE_ERROR
 		} else {
-			err := impl.pubsubClient.Conn.Publish(appStoreBean.BULK_APPSTORE_DEPLOY_TOPIC, data)
+			err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
+
+			if err != nil {
+				impl.logger.Errorw("Error while adding stream.", "error", err)
+			}
+			//Generate random string for passing as Header Id in message
+			randString := "MsgHeaderId-" + util3.Generate(10)
+			_, err = impl.pubsubClient.JetStrCtxt.Publish(util3.BULK_APPSTORE_DEPLOY_TOPIC, data, nats.MsgId(randString))
 			if err != nil {
 				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
 				status = appStoreBean.QUE_ERROR
@@ -837,13 +851,13 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 }
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(appStoreBean.BULK_APPSTORE_DEPLOY_TOPIC, appStoreBean.BULK_APPSTORE_DEPLOY_GROUP, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util3.BULK_APPSTORE_DEPLOY_TOPIC, util3.BULK_APPSTORE_DEPLOY_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("cd stage event received")
 		defer msg.Ack()
 		deployPayload := &appStoreBean.DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Error("Error while unmarshalling deployPayload json object", "error", err)
 			return
 		}
 		impl.logger.Debugw("deployPayload:", "deployPayload", deployPayload)
@@ -851,7 +865,7 @@ func (impl *InstalledAppServiceImpl) Subscribe() error {
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
-	}, stan.DurableName(appStoreBean.BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(200)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(3))
+	}, nats.Durable(util3.BULK_APPSTORE_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util3.ORCHESTRATOR_STREAM))
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err
