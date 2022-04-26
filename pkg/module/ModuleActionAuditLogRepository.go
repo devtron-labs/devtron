@@ -25,7 +25,7 @@ import (
 type ModuleActionAuditLog struct {
 	tableName struct{}  `sql:"module_action_audit_log"`
 	Id        int       `sql:"id,pk"`
-	ModuleId  int       `sql:"moduleId, notnull"`
+	ModuleId  int       `sql:"module_id, notnull"`
 	Action    string    `sql:"action,notnull"`
 	Version   string    `sql:"version,notnull"`
 	CreatedOn time.Time `sql:"created_on,notnull"`

@@ -25,7 +25,7 @@ import (
 type ServerActionAuditLog struct {
 	tableName struct{}  `sql:"server_action_audit_log"`
 	Id        int       `sql:"id,pk"`
-	Action    string    `sql:"action, notnull"`
+	Action    string    `sql:"action,notnull"`
 	Version   string    `sql:"version"`
 	CreatedOn time.Time `sql:"created_on,notnull"`
 	CreatedBy int32     `sql:"created_by,notnull"`
