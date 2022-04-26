@@ -119,6 +119,7 @@ func (impl *PipelineStageServiceImpl) BuildInlineStepData(step *repository.Pipel
 	inlineStepDetail := &bean.InlineStepDetailDto{
 		ScriptType:               scriptDetail.Type,
 		Script:                   scriptDetail.Script,
+		StoreScriptAt:            scriptDetail.StoreScriptAt,
 		DockerfileExists:         scriptDetail.DockerfileExists,
 		MountPath:                scriptDetail.MountPath,
 		MountCodeToContainer:     scriptDetail.MountCodeToContainer,
