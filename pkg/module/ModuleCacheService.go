@@ -20,7 +20,8 @@ package module
 import (
 	"context"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/server"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
@@ -44,13 +45,13 @@ type ModuleCacheServiceImpl struct {
 	mutex            sync.Mutex
 	K8sUtil          *util.K8sUtil
 	moduleEnvConfig  *ModuleEnvConfig
-	serverEnvConfig  *server.ServerEnvConfig
+	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	moduleDataStore  *ModuleDataStore
 	serverDataStore  *serverDataStore.ServerDataStore
 	moduleRepository ModuleRepository
 }
 
-func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *server.ServerEnvConfig, moduleDataStore *ModuleDataStore,
+func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleDataStore *ModuleDataStore,
 	serverDataStore *serverDataStore.ServerDataStore, moduleRepository ModuleRepository) *ModuleCacheServiceImpl {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
@@ -113,7 +114,7 @@ func (impl *ModuleCacheServiceImpl) handleInstallerObjectChange(obj interface{})
 	// if status is installing or unknown then save as installed in DB
 	// if status is in installing/unknown state, then mark it as installed and update in-memory
 	// if status is installed, then update in-memory
-	if !impl.moduleDataStore.IsCiCdModuleInstalled && val == server.InstallerCrdObjectStatusApplied && util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
+	if !impl.moduleDataStore.IsCiCdModuleInstalled && val == serverBean.InstallerCrdObjectStatusApplied && util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
 		ciCdModule, err := impl.moduleRepository.FindOne(ModuleCiCdName)
 		if err != nil {
 			impl.logger.Errorw("error occurred while fetching ciCd module", "err", err)

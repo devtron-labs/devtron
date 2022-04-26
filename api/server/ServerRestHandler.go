@@ -22,6 +22,7 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/server"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"go.uber.org/zap"
@@ -85,7 +86,7 @@ func (impl ServerRestHandlerImpl) HandleServerAction(w http.ResponseWriter, r *h
 
 	// decode request
 	decoder := json.NewDecoder(r.Body)
-	var serverActionRequestDto *server.ServerActionRequestDto
+	var serverActionRequestDto *serverBean.ServerActionRequestDto
 	err = decoder.Decode(&serverActionRequestDto)
 	if err != nil {
 		impl.logger.Errorw("error in decoding request in HandleServerAction", "err", err)

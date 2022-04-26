@@ -7,6 +7,8 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -15,6 +17,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const DEFAULT_CLUSTER = "default_cluster"
@@ -45,12 +48,14 @@ type HelmAppServiceImpl struct {
 	pump            connector.Pump
 	enforcerUtil    rbac.EnforcerUtilHelm
 	serverDataStore *serverDataStore.ServerDataStore
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	helmAppClient HelmAppClient,
-	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore) *HelmAppServiceImpl {
+	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore,
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:          Logger,
 		clusterService:  clusterService,
@@ -58,6 +63,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 		pump:            pump,
 		enforcerUtil:    enforcerUtil,
 		serverDataStore: serverDataStore,
+		serverEnvConfig: serverEnvConfig,
 	}
 }
 
@@ -183,6 +189,7 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 	}
 	return config, nil
 }
+
 func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
@@ -197,11 +204,18 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
 
 	// if application is devtron app helm release,
-	// then for Hyperipn, status is same as helm release
-	// and for FULL, then status is combination of helm release and installer object status
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
-		//a := impl.serverDataStore.InstallerCrdObjectStatus
-		// TODO : manish
+	// then for FULL, then status is combination of helm app status and installer object status
+	// if installer status is not applied then check for timeout and progressing
+	if app.ClusterId == 1 && app.Namespace == impl.serverEnvConfig.DevtronHelmReleaseNamespace && app.ReleaseName == impl.serverEnvConfig.DevtronHelmReleaseName &&
+		util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
+		if impl.serverDataStore.InstallerCrdObjectStatus != serverBean.InstallerCrdObjectStatusApplied {
+			// if timeout
+			if time.Now().After(appdetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
+				appdetail.ApplicationStatus = serverBean.AppHealthStatusDegraded
+			} else {
+				appdetail.ApplicationStatus = serverBean.AppHealthStatusProgressing
+			}
+		}
 	}
 	return appdetail, err
 

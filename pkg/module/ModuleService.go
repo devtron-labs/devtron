@@ -19,7 +19,7 @@ package module
 
 import (
 	"errors"
-	"github.com/devtron-labs/devtron/pkg/server"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"time"
@@ -32,12 +32,12 @@ type ModuleService interface {
 
 type ModuleServiceImpl struct {
 	logger                         *zap.SugaredLogger
-	serverEnvConfig                *server.ServerEnvConfig
+	serverEnvConfig                *serverEnvConfig.ServerEnvConfig
 	moduleRepository               ModuleRepository
 	moduleActionAuditLogRepository ModuleActionAuditLogRepository
 }
 
-func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *server.ServerEnvConfig, moduleRepository ModuleRepository,
+func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleRepository ModuleRepository,
 	moduleActionAuditLogRepository ModuleActionAuditLogRepository) *ModuleServiceImpl {
 	return &ModuleServiceImpl{
 		logger:                         logger,

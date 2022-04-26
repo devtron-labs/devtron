@@ -20,6 +20,7 @@ package server
 import (
 	"context"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
@@ -31,12 +32,12 @@ type ServerCacheService interface {
 
 type ServerCacheServiceImpl struct {
 	logger          *zap.SugaredLogger
-	serverEnvConfig *ServerEnvConfig
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig
 	serverDataStore *serverDataStore.ServerDataStore
 	helmAppService  client.HelmAppService
 }
 
-func NewServerCacheServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *ServerEnvConfig, serverDataStore *serverDataStore.ServerDataStore, helmAppService client.HelmAppService) *ServerCacheServiceImpl {
+func NewServerCacheServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvConfig.ServerEnvConfig, serverDataStore *serverDataStore.ServerDataStore, helmAppService client.HelmAppService) *ServerCacheServiceImpl {
 	impl := &ServerCacheServiceImpl{
 		logger:          logger,
 		serverEnvConfig: serverEnvConfig,

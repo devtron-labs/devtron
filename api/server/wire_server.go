@@ -2,6 +2,7 @@ package server
 
 import (
 	"github.com/devtron-labs/devtron/pkg/server"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/google/wire"
 )
@@ -9,7 +10,7 @@ import (
 var ServerWireSet = wire.NewSet(
 	server.NewServerActionAuditLogRepositoryImpl,
 	wire.Bind(new(server.ServerActionAuditLogRepository), new(*server.ServerActionAuditLogRepositoryImpl)),
-	server.ParseServerEnvConfig,
+	serverEnvConfig.ParseServerEnvConfig,
 	serverDataStore.InitServerDataStore,
 	server.NewServerServiceImpl,
 	wire.Bind(new(server.ServerService), new(*server.ServerServiceImpl)),

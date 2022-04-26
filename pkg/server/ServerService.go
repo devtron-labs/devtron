@@ -21,26 +21,29 @@ import (
 	"context"
 	"errors"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
+	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"time"
 )
 
 type ServerService interface {
-	GetServerInfo() (*ServerInfoDto, error)
-	HandleServerAction(userId int32, serverActionRequest *ServerActionRequestDto) (*ActionResponse, error)
+	GetServerInfo() (*serverBean.ServerInfoDto, error)
+	HandleServerAction(userId int32, serverActionRequest *serverBean.ServerActionRequestDto) (*serverBean.ActionResponse, error)
 }
 
 type ServerServiceImpl struct {
 	logger                         *zap.SugaredLogger
 	serverActionAuditLogRepository ServerActionAuditLogRepository
 	serverDataStore                *serverDataStore.ServerDataStore
-	serverEnvConfig                *ServerEnvConfig
+	serverEnvConfig                *serverEnvConfig.ServerEnvConfig
 	helmAppService                 client.HelmAppService
 }
 
 func NewServerServiceImpl(logger *zap.SugaredLogger, serverActionAuditLogRepository ServerActionAuditLogRepository,
-	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *ServerEnvConfig, helmAppService client.HelmAppService) *ServerServiceImpl {
+	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService) *ServerServiceImpl {
 	return &ServerServiceImpl{
 		logger:                         logger,
 		serverActionAuditLogRepository: serverActionAuditLogRepository,
@@ -50,7 +53,7 @@ func NewServerServiceImpl(logger *zap.SugaredLogger, serverActionAuditLogReposit
 	}
 }
 
-func (impl ServerServiceImpl) GetServerInfo() (*ServerInfoDto, error) {
+func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error) {
 	impl.logger.Debug("getting server info")
 
 	// fetch status of devtron helm app
@@ -65,16 +68,39 @@ func (impl ServerServiceImpl) GetServerInfo() (*ServerInfoDto, error) {
 		return nil, err
 	}
 
-	serverInfoDto := ServerInfoDto{
-		CurrentVersion: impl.serverDataStore.CurrentVersion,
-		ReleaseName:    impl.serverEnvConfig.DevtronHelmReleaseName,
-		Status:         appDetail.ApplicationStatus,
+	helmReleaseStatus := appDetail.ReleaseStatus.Status
+	var serverStatus string
+
+	// for hyperion mode mode i.e. ciCd not installed - use mapping
+	// for full mode i.e. ciCd is installed -
+	// if installer object status is applied then use mapping
+	// if empty or downloaded, then check timeout
+	// else if deployed then upgrading
+	// else use mapping
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+		serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
+	} else {
+		if impl.serverDataStore.InstallerCrdObjectStatus == serverBean.InstallerCrdObjectStatusApplied {
+			serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
+		} else if time.Now().After(appDetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
+			serverStatus = serverBean.ServerStatusTimeout
+		} else if helmReleaseStatus == serverBean.HelmReleaseStatusDeployed {
+			serverStatus = serverBean.ServerStatusUpgrading
+		} else {
+			serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
+		}
 	}
 
-	return &serverInfoDto, nil
+	serverInfoDto := &serverBean.ServerInfoDto{
+		CurrentVersion: impl.serverDataStore.CurrentVersion,
+		ReleaseName:    impl.serverEnvConfig.DevtronHelmReleaseName,
+		Status:         serverStatus,
+	}
+
+	return serverInfoDto, nil
 }
 
-func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionRequest *ServerActionRequestDto) (*ActionResponse, error) {
+func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionRequest *serverBean.ServerActionRequestDto) (*serverBean.ActionResponse, error) {
 	impl.logger.Debugw("handling server action request", "userId", userId, "payload", serverActionRequest)
 
 	// check if can update server
@@ -98,8 +124,29 @@ func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionReque
 	// TODO : call kubelink service
 	// TODO : manish
 
-
-	return &ActionResponse{
+	return &serverBean.ActionResponse{
 		Success: true,
 	}, nil
+}
+
+func mapServerStatusFromHelmReleaseStatus(helmReleaseStatus string) string {
+	var serverStatus string
+	switch helmReleaseStatus {
+	case serverBean.HelmReleaseStatusDeployed:
+		serverStatus = serverBean.ServerStatusHealthy
+	case serverBean.HelmReleaseStatusFailed:
+		serverStatus = serverBean.ServerStatusUpgradeFailed
+	case serverBean.HelmReleaseStatusPendingUpgrade:
+		serverStatus = serverBean.ServerStatusUpgrading
+	case serverBean.HelmReleaseStatusUnknown:
+	case serverBean.HelmReleaseStatusUninstalled:
+	case serverBean.HelmReleaseStatusSuperseded:
+	case serverBean.HelmReleaseStatusUninstalling:
+	case serverBean.HelmReleaseStatusPendingInstall:
+	case serverBean.HelmReleaseStatusPendingRollback:
+		serverStatus = serverBean.ServerStatusUnknown
+	default:
+		serverStatus = serverBean.ServerStatusUnknown
+	}
+	return serverStatus
 }
