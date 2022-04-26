@@ -29,6 +29,7 @@ type K8sApplicationRestHandler interface {
 	ListEvents(w http.ResponseWriter, r *http.Request)
 	GetPodLogs(w http.ResponseWriter, r *http.Request)
 	GetTerminalSession(w http.ResponseWriter, r *http.Request)
+	GetResourceInfo(w http.ResponseWriter, r *http.Request)
 }
 type K8sApplicationRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
@@ -368,4 +369,16 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 
 	status, message, err := handler.terminalSessionHandler.GetTerminalSession(request)
 	common.WriteJsonResp(w, err, message, status)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) GetResourceInfo(w http.ResponseWriter, r *http.Request) {
+	// this is auth free api
+	response, err := handler.k8sApplicationService.GetResourceInfo()
+	if err != nil {
+		handler.logger.Errorw("error on resource info", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
+	return
 }
