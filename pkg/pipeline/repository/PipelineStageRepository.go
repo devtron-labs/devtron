@@ -301,7 +301,8 @@ func (impl *PipelineStageRepositoryImpl) GetAllStepsByStageId(stageId int) ([]*P
 	var steps []*PipelineStageStep
 	err := impl.dbConnection.Model(&steps).
 		Where("pipeline_stage_id = ?", stageId).
-		Where("deleted = ?", false).Select()
+		Where("deleted = ?", false).
+		Order(" ORDER BY index ASC").Select()
 	if err != nil {
 		impl.logger.Errorw("err in getting all steps by stageId", "err", err, "stageId", stageId)
 		return nil, err
