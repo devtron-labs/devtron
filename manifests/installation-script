@@ -355,8 +355,6 @@ externalSecret = kubectl apply -n devtroncd externalSecret -u externalSecretOver
 log("created external secret");
 
 #postgresql
-# if postgres already installed skip installation
-hasPostgresql = kubectl get sts postgresql-postgresql -n devtroncd;
 kubeYamlEdit(postgresql, "data.postgresql-password", postgresqlPassword, `/Secret//postgresql-postgresql`);
 postgresql = kubectl apply -n devtroncd postgresql -u postgresqlOverride;
 log("created postgresql");
