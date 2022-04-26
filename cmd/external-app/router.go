@@ -88,6 +88,7 @@ func NewMuxRouter(
 		commonDeploymentRouter:   commonDeploymentRouter,
 		externalLinksRouter:      externalLinkRouter,
 		moduleRouter:             moduleRouter,
+		serverRouter:             serverRouter,
 	}
 	return r
 }
