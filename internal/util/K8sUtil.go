@@ -443,7 +443,7 @@ func (impl K8sUtil) GetClientByToken(serverUrl string, token map[string]string) 
 	return client, nil
 }
 
-func (impl K8sUtil) GePodByLabelSelector(namespace string, labelSelector string) (*v1.Pod, error) {
+func (impl K8sUtil) GetResourceInfoByLabelSelector(namespace string, labelSelector string) (*v1.Pod, error) {
 	client, err := impl.GetClientForInCluster()
 	if err != nil {
 		impl.logger.Errorw("cluster config error", "err", err)

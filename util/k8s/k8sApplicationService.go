@@ -229,7 +229,7 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(appIdentifier *cl
 }
 
 func (impl *K8sApplicationServiceImpl) GetResourceInfo() (*ResourceInfo, error) {
-	pod, err := impl.K8sUtil.GePodByLabelSelector(DevtronDefaultNamespace, "app=inception")
+	pod, err := impl.K8sUtil.GetResourceInfoByLabelSelector(DevtronDefaultNamespace, "app=inception")
 	if err != nil {
 		impl.logger.Errorw("error on getting resource from k8s, unable to fetch installer pod", "err", err)
 		return nil, err
