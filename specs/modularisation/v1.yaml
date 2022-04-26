@@ -76,10 +76,6 @@ components:
     ModuleInfo:
       type: object
       properties:
-        id:
-          type: integer
-          description: Id of module
-          example: 1
         name:
           type: string
           description: module name
@@ -103,21 +99,17 @@ components:
       type: object
       properties:
         currentVersion:
-          type: integer
+          type: string
           description: current version of the devtron server
-          example: 1
+          example: "v1.2.3"
         status:
           type: string
           description: status of the server
-          example: "available|installing|installFailed|timeout"
+          example: "healthy|upgrading|upgradeFailed|unknown|timeout"
         releaseName:
           type: string
           description: helm release name of the devtron server
           example: "devtron"
-        logPodName:
-          type: string
-          description: pod name of inception for logs
-          example: "inception-1"
     ServerActionRequest:
       type: object
       properties:
