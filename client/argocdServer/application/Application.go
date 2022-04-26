@@ -822,7 +822,7 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 		log.Println("buildPodMetadataFromPod 1", "node", node, "kind", node.Kind)
 		if node.Kind == "Pod" {
 			isNew := newPodNames[node.Name]
-			if node.ParentRefs[0].Kind == "Workflow" {
+			if node.ParentRefs != nil && node.ParentRefs[0].Kind == "Workflow" {
 				isNew = true
 			}
 			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], InitContainers: initContainerMapping[node.Name], IsNew: isNew}
