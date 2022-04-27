@@ -26,8 +26,7 @@ image:
 service:
   type: ClusterIP
   #name: "service-1234567890"
-  annotations:
-    {}
+  annotations: {}
     # test1: test2
     # test3: test4
 ContainerPort:
@@ -83,8 +82,7 @@ podAnnotations: {}
 
 rawYaml: []
 
-initContainers:
-  []
+initContainers: []
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage.
   #- name: volume-mount-hack
@@ -94,8 +92,7 @@ initContainers:
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
 
-containers:
-  []
+containers: []
   ## Additional containers to run along with application pods.
   ## for example, be used to run a sidecar that chown Logs storage .
   #- name: volume-mount-hack
@@ -132,16 +129,14 @@ server:
 servicemonitor:
   additionalLabels: {}
 
-imagePullSecrets:
-  []
+imagePullSecrets: []
   # - test1
   # - test2
 
 containerSecurityContext:
   allowPrivilegeEscalation: false
 
-podSecurityContext:
-  {}
+podSecurityContext: {}
   # runAsUser: 1000
   # runAsGroup: 3000
   # fsGroup: 2000
