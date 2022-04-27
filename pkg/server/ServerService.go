@@ -158,13 +158,6 @@ func mapServerStatusFromHelmReleaseStatus(helmReleaseStatus string) string {
 		serverStatus = serverBean.ServerStatusUpgradeFailed
 	case serverBean.HelmReleaseStatusPendingUpgrade:
 		serverStatus = serverBean.ServerStatusUpgrading
-	case serverBean.HelmReleaseStatusUnknown:
-	case serverBean.HelmReleaseStatusUninstalled:
-	case serverBean.HelmReleaseStatusSuperseded:
-	case serverBean.HelmReleaseStatusUninstalling:
-	case serverBean.HelmReleaseStatusPendingInstall:
-	case serverBean.HelmReleaseStatusPendingRollback:
-		serverStatus = serverBean.ServerStatusUnknown
 	default:
 		serverStatus = serverBean.ServerStatusUnknown
 	}
