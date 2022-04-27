@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"go.uber.org/zap"
 	"io"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -34,12 +35,13 @@ type K8sApplicationServiceImpl struct {
 	k8sClientService application.K8sClientService
 	helmAppService   client.HelmAppService
 	K8sUtil          *util.K8sUtil
+	aCDAuthConfig    *util3.ACDAuthConfig
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	pump connector.Pump, k8sClientService application.K8sClientService,
-	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil) *K8sApplicationServiceImpl {
+	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig) *K8sApplicationServiceImpl {
 	return &K8sApplicationServiceImpl{
 		logger:           Logger,
 		clusterService:   clusterService,
@@ -47,6 +49,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 		k8sClientService: k8sClientService,
 		helmAppService:   helmAppService,
 		K8sUtil:          K8sUtil,
+		aCDAuthConfig:    aCDAuthConfig,
 	}
 }
 
@@ -55,8 +58,6 @@ type ResourceRequestBean struct {
 	AppIdentifier *client.AppIdentifier       `json:"-"`
 	K8sRequest    *application.K8sRequestBean `json:"k8sRequest"`
 }
-
-const DevtronDefaultNamespace = "devtroncd"
 
 type ResourceInfo struct {
 	PodName string `json:"podName"`
@@ -229,7 +230,7 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(appIdentifier *cl
 }
 
 func (impl *K8sApplicationServiceImpl) GetResourceInfo() (*ResourceInfo, error) {
-	pod, err := impl.K8sUtil.GetResourceInfoByLabelSelector(DevtronDefaultNamespace, "app=inception")
+	pod, err := impl.K8sUtil.GetResourceInfoByLabelSelector(impl.aCDAuthConfig.ACDConfigMapNamespace, "app=inception")
 	if err != nil {
 		impl.logger.Errorw("error on getting resource from k8s, unable to fetch installer pod", "err", err)
 		return nil, err

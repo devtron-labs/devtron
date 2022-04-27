@@ -455,8 +455,9 @@ func (impl K8sUtil) GetResourceInfoByLabelSelector(namespace string, labelSelect
 	if err != nil {
 		return nil, err
 	} else if len(pods.Items) > 1 {
-		// todo - check others
 		return nil, fmt.Errorf("found more than one pod for label selector")
+	} else if len(pods.Items) == 0 {
+		return nil, fmt.Errorf("no pod found for label selector")
 	} else {
 		return &pods.Items[0], nil
 	}
