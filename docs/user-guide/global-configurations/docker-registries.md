@@ -44,14 +44,14 @@ Amazon ECR is an AWS-managed container image registry service.
 The ECR provides resource-based permissions to the private repositories using AWS Identity and Access Management (IAM).
 ECR allows both Key-based and Role-based authentications.
 
-Before you begin, create an [IAM user](https://docs.aws.amazon.com/AmazonECR/latest/userguide/get-set-up-for-amazon-ecr.html), and attach ECR policies (If using Key-based auth) or attach the ECR policy to the cluster worker nodes IAM role of your Kubernetes cluster (If using Role-based access).
+Before you begin, create an [IAM user](https://docs.aws.amazon.com/AmazonECR/latest/userguide/get-set-up-for-amazon-ecr.html), and attach only ECR policy ( AmazonEC2ContainerRegistryFullAccess ) if using Key-based auth. Or attach the ECR policy ( AmazonEC2ContainerRegistryFullAccess) to the cluster worker nodes IAM role of your Kubernetes cluster if using Role-based access.
 
 | Fields | Description |
 | --- | --- |
 | **Name** | User-defined name for the registry in Devtron |
 | **Registry Type** | Select **ECR** |
 | **Registry URL** | This is the URL of your private registry in AWS. <br></br> For example, the URL format is: `https://xxxxxxxxxxxx.dkr.ecr.<region>.amazonaws.com`. <br></br>`xxxxxxxxxxxx` is your 12-digit AWS account Id. |
-| **Authentication Type** | <br></br> * **EC2 IAM role**: Authenticate with an IAM user role. <br></br> * **User Auth**: Authenticate with an authorization token <br></br>  - **Access key ID**: Your AWS access key <br></br>  - **Secret access key**: Your AWS secret access key ID |
+| **Authentication Type** | <br></br> * **EC2 IAM role**: Authenticate with workernode IAM role. <br></br> * **User Auth**: Authenticate with an authorization token <br></br>  - **Access key ID**: Your AWS access key <br></br>  - **Secret access key**: Your AWS secret access key ID |
 
 ![ECR Role-based authentication](https://devtron-public-asset.s3.us-east-2.amazonaws.com/Container-registeries/ECR-IAM-auth-role-based.png)
 
