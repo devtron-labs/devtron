@@ -18,7 +18,6 @@
 package module
 
 import (
-	"context"
 	"github.com/devtron-labs/devtron/internal/util"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
@@ -31,8 +30,6 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"log"
-	"os"
-	"os/signal"
 	"sync"
 	"time"
 )
@@ -99,10 +96,8 @@ func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 		},
 	})
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
-
-	informer.Run(ctx.Done())
+	stopCh := make(chan struct{})
+	informer.Run(stopCh)
 }
 
 func (impl *ModuleCacheServiceImpl) handleInstallerObjectChange(obj interface{}) {
