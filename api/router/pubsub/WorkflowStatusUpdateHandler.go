@@ -32,7 +32,6 @@ import (
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type WorkflowStatusUpdateHandler interface {
@@ -92,7 +91,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 
 		//validate name
 		workflowName := ""
-		for name, _ := range wfStatus.Nodes {
+		for name := range wfStatus.Nodes {
 			workflowName = name
 			break
 		}
@@ -129,7 +128,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 
 		//validate name
 		workflowName := ""
-		for name, _ := range wfStatus.Nodes {
+		for name := range wfStatus.Nodes {
 			workflowName = name
 			break
 		}
