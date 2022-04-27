@@ -7,9 +7,10 @@ import (
 )
 
 type GlobalVariable struct {
-	Name   string `json:"name"`
-	Value  string `json:"value,omitempty"`
-	Format string `json:"format"`
+	Name        string `json:"name"`
+	Value       string `json:"value,omitempty"`
+	Format      string `json:"format"`
+	Description string `json:"description"`
 }
 
 type GlobalPluginService interface {
@@ -31,28 +32,42 @@ type GlobalPluginServiceImpl struct {
 }
 
 func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable, error) {
-	globalVariableNames := []string{
-		//"GIT_REPOSITORY",
-		//"GIT_BRANCH",
-		//"GIT_HASH",
-		//"GIT_TAG",
-		//"LATEST_COMMIT_AUTHOR",
-		//"PIPELINE_NAME",
-		"WORKING_DIRECTORY",
-		"DOCKER_IMAGE_TAG",
-		"DOCKER_REPOSITORY",
-		"DOCKER_REGISTRY_URL",
-		"DOCKER_IMAGE",
-		"APP_NAME",
-		"TRIGGER_BY_AUTHOR",
-	}
-	var globalVariables []*GlobalVariable
-	for _, globalVariableName := range globalVariableNames {
-		globalVariable := &GlobalVariable{
-			Name:   globalVariableName,
-			Format: string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
-		}
-		globalVariables = append(globalVariables, globalVariable)
+	globalVariables := []*GlobalVariable{
+		{
+			Name:        "WORKING_DIRECTORY",
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Directory in which git material is checked out and cloned. The path of cloned repository will be WORKING_DIRECTORY+CHECKOUT_PATH.",
+		},
+		{
+			Name:        "DOCKER_IMAGE_TAG",
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Tag going to be used to push image.",
+		},
+		{
+			Name:        "DOCKER_REPOSITORY",
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Name of the repository to be used for pushing images.",
+		},
+		{
+			Name:        "DOCKER_REGISTRY_URL",
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Url of the container registry used for this pipeline.",
+		},
+		{
+			Name:        "DOCKER_IMAGE",
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Complete image name(repository+registry+tag).",
+		},
+		{
+			Name:        "APP_NAME",
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Name of the app this pipeline resides in.",
+		},
+		{
+			Name:        "TRIGGER_BY_AUTHOR",
+			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
+			Description: "Email-Id/Name of the user who triggers pipeline.",
+		},
 	}
 	return globalVariables, nil
 }
