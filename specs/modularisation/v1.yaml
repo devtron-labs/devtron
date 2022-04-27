@@ -110,6 +110,10 @@ components:
           type: string
           description: helm release name of the devtron server
           example: "devtron"
+        canUpdateServer:
+          type: boolean
+          description: if server update is allowed programatically
+          example: "true"
     ServerActionRequest:
       type: object
       properties:

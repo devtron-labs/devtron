@@ -18,9 +18,10 @@
 package serverBean
 
 type ServerInfoDto struct {
-	CurrentVersion string `json:"currentVersion,notnull"`
-	Status         string `json:"status,notnull" validate:"oneof=healthy upgrading upgradeFailed unknown timeout"`
-	ReleaseName    string `json:"releaseName,notnull"`
+	CurrentVersion  string `json:"currentVersion,notnull"`
+	Status          string `json:"status,notnull" validate:"oneof=healthy upgrading upgradeFailed unknown timeout"`
+	ReleaseName     string `json:"releaseName,notnull"`
+	CanUpdateServer bool   `json:"canUpdateServer,notnull"`
 }
 
 type ServerActionRequestDto struct {

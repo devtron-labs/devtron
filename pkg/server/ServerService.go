@@ -91,9 +91,10 @@ func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error)
 	}
 
 	serverInfoDto := &serverBean.ServerInfoDto{
-		CurrentVersion: impl.serverDataStore.CurrentVersion,
-		ReleaseName:    impl.serverEnvConfig.DevtronHelmReleaseName,
-		Status:         serverStatus,
+		CurrentVersion:  impl.serverDataStore.CurrentVersion,
+		ReleaseName:     impl.serverEnvConfig.DevtronHelmReleaseName,
+		Status:          serverStatus,
+		CanUpdateServer: impl.serverEnvConfig.CanServerUpdate,
 	}
 
 	return serverInfoDto, nil
