@@ -620,7 +620,7 @@ if !helmInstallation {
 }
 guard = kubectl apply -n devtroncd guard -u guardOverride;
 log("executed guard setup");
-if !helmInstallation
+if !helmInstallation {
   dashboard = kubectl apply -n devtroncd dashboard -u dashboardOverride;
   log("executed dashboard setup");
 }
