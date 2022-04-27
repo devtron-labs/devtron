@@ -29,6 +29,7 @@ PluginStepVariableValueType = ["NEW", "FROM_PREVIOUS_STEP", "GLOBAL"]
 ```
 
 Note - Same data will be sent back in get api.
+
 ##Pipeline stage step variable data taken from user - step creation
 
 ###Case 1 - Inline Step Type
