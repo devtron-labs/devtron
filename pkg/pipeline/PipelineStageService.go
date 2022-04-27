@@ -1385,12 +1385,12 @@ func (impl *PipelineStageServiceImpl) BuildCiStepDataForWfRequest(step *reposito
 				DestinationPath: scriptDetail.StoreScriptAt,
 			}
 		}
-		if len(scriptDetail.MountCodeToContainerPath) > 0 {
+		if scriptDetail.MountCodeToContainer && len(scriptDetail.MountCodeToContainerPath) > 0 {
 			stepData.SourceCodeMount = &bean.MountPath{
 				DestinationPath: scriptDetail.MountCodeToContainerPath,
 			}
 		}
-		if len(extraMappings) > 0 {
+		if scriptDetail.MountDirectoryFromHost && len(extraMappings) > 0 {
 			stepData.ExtraVolumeMounts = extraMappings
 		}
 	} else if step.StepType == repository.PIPELINE_STEP_TYPE_REF_PLUGIN {
@@ -1518,12 +1518,12 @@ func (impl *PipelineStageServiceImpl) BuildPluginStepDataForWfRequest(step *repo
 				DestinationPath: scriptDetail.StoreScriptAt,
 			}
 		}
-		if len(scriptDetail.MountCodeToContainerPath) > 0 {
+		if scriptDetail.MountCodeToContainer && len(scriptDetail.MountCodeToContainerPath) > 0 {
 			stepData.SourceCodeMount = &bean.MountPath{
 				DestinationPath: scriptDetail.MountCodeToContainerPath,
 			}
 		}
-		if len(extraMappings) > 0 {
+		if scriptDetail.MountDirectoryFromHost && len(extraMappings) > 0 {
 			stepData.ExtraVolumeMounts = extraMappings
 		}
 	} else if step.StepType == repository2.PLUGIN_STEP_TYPE_REF_PLUGIN {
