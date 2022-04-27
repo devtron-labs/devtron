@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/terminal"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
@@ -29,6 +30,7 @@ type K8sApplicationRestHandler interface {
 	ListEvents(w http.ResponseWriter, r *http.Request)
 	GetPodLogs(w http.ResponseWriter, r *http.Request)
 	GetTerminalSession(w http.ResponseWriter, r *http.Request)
+	GetResourceInfo(w http.ResponseWriter, r *http.Request)
 }
 type K8sApplicationRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
@@ -39,13 +41,14 @@ type K8sApplicationRestHandlerImpl struct {
 	enforcerUtil           rbac.EnforcerUtilHelm
 	clusterService         cluster.ClusterService
 	helmAppService         client.HelmAppService
+	userService            user.UserService
 }
 
 func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
 	k8sApplicationService K8sApplicationService, pump connector.Pump,
 	terminalSessionHandler terminal.TerminalSessionHandler,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtilHelm, clusterService cluster.ClusterService,
-	helmAppService client.HelmAppService) *K8sApplicationRestHandlerImpl {
+	helmAppService client.HelmAppService, userService user.UserService) *K8sApplicationRestHandlerImpl {
 	return &K8sApplicationRestHandlerImpl{
 		logger:                 logger,
 		k8sApplicationService:  k8sApplicationService,
@@ -55,6 +58,7 @@ func NewK8sApplicationRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcerUtil:           enforcerUtil,
 		helmAppService:         helmAppService,
 		clusterService:         clusterService,
+		userService:            userService,
 	}
 }
 
@@ -69,7 +73,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	}
 	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
 	if err != nil {
-		handler.logger.Errorw("error in decoding appId","err",err,"appId",request.AppId)
+		handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -101,7 +105,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	// Obfuscate secret if user does not have edit access
 	canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
 	if !canUpdate && resource != nil {
-		modifiedManifest , err := k8sObjectsUtil.HideValuesIfSecret(&resource.Manifest)
+		modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecret(&resource.Manifest)
 		if err != nil {
 			handler.logger.Errorw("error in hiding secret values", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -124,7 +128,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 	}
 	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
 	if err != nil {
-		handler.logger.Errorw("error in decoding appId","err",err,"appId",request.AppId)
+		handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -158,7 +162,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 	}
 	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
 	if err != nil {
-		handler.logger.Errorw("error in decoding appId","err",err,"appId",request.AppId)
+		handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -198,7 +202,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 	}
 	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
 	if err != nil {
-		handler.logger.Errorw("error in decoding appId","err",err,"appId",request.AppId)
+		handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -238,7 +242,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 	}
 	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
 	if err != nil {
-		handler.logger.Errorw("error in decoding appId","err",err,"appId",request.AppId)
+		handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -287,7 +291,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 	}
 	appIdentifier, err := handler.helmAppService.DecodeAppId(appId)
 	if err != nil {
-		handler.logger.Errorw("error in decoding appId","err",err,"appId",appId)
+		handler.logger.Errorw("error in decoding appId", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -368,4 +372,22 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 
 	status, message, err := handler.terminalSessionHandler.GetTerminalSession(request)
 	common.WriteJsonResp(w, err, message, status)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) GetResourceInfo(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	
+	// this is auth free api
+	response, err := handler.k8sApplicationService.GetResourceInfo()
+	if err != nil {
+		handler.logger.Errorw("error on resource info", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
+	return
 }
