@@ -18,6 +18,7 @@
 package module
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/internal/util"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
@@ -30,6 +31,8 @@ import (
 	"k8s.io/client-go/dynamic/dynamicinformer"
 	"k8s.io/client-go/tools/cache"
 	"log"
+	"os"
+	"os/signal"
 	"sync"
 	"time"
 )
@@ -86,7 +89,7 @@ func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		clusterClient, time.Minute, impl.serverEnvConfig.InstallerCrdNamespace, nil)
 	informer := factory.ForResource(installerResource).Informer()
-
+	
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			impl.handleInstallerObjectChange(obj)
@@ -96,8 +99,11 @@ func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 		},
 	})
 
-	stopCh := make(chan struct{})
-	informer.Run(stopCh)
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
+	go informer.Run(ctx.Done())
+	<-ctx.Done()
 }
 
 func (impl *ModuleCacheServiceImpl) handleInstallerObjectChange(obj interface{}) {

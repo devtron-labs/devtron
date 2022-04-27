@@ -482,15 +482,8 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ct
 		return nil, err
 	}
 
-	// handle original values
-	originalMergedValuesJsonByteArr, err := json.Marshal(releaseInfo.MergedValues)
-	if err != nil {
-		impl.logger.Errorw("error in json marshalling of original values", "err", err)
-		return nil, err
-	}
-
-	// intialise merge with original
-	mergedValuesJsonByteArr := originalMergedValuesJsonByteArr
+	// intialise merge with original values
+	mergedValuesJsonByteArr := []byte(releaseInfo.MergedValues)
 
 	// initialise extra values
 	if len(extraValues) > 0 {
