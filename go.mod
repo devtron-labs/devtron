@@ -67,9 +67,8 @@ require (
 	github.com/lib/pq v1.2.0
 	github.com/mailru/easyjson v0.7.0 // indirect
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
-	github.com/nats-io/nats-streaming-server v0.15.1 // indirect
-	github.com/nats-io/nats.go v1.8.1
-	github.com/nats-io/stan.go v0.5.0
+	github.com/nats-io/nats-server/v2 v2.0.0 // indirect
+	github.com/nats-io/nats.go v1.13.0
 	github.com/otiai10/copy v1.0.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1
@@ -90,7 +89,6 @@ require (
 	github.com/xeipuuv/gojsonschema v1.2.0
 	go.uber.org/multierr v1.2.0 // indirect
 	go.uber.org/zap v1.10.0
-	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2
 	golang.org/x/oauth2 v0.0.0-20211104180415-d3ed0bb246c8
 	google.golang.org/grpc v1.33.1
 	google.golang.org/protobuf v1.25.0
@@ -104,7 +102,6 @@ require (
 	k8s.io/apimachinery v0.0.0-20190816221834-a9f1d8a9c101
 	k8s.io/client-go v11.0.1-0.20190820062731-7e43eff7c80a+incompatible
 	k8s.io/helm v2.12.3+incompatible
-	k8s.io/klog v1.0.0
 	k8s.io/kube-openapi v0.0.0-20190918143330-0270cf2f1c1d // indirect
 	k8s.io/utils v0.0.0-20191010214722-8d271d903fe4
 	mellium.im/sasl v0.2.1 // indirect

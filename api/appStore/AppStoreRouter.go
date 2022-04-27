@@ -47,45 +47,34 @@ func NewAppStoreRouterImpl(restHandler InstalledAppRestHandler,
 }
 
 func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
-
-	configRouter.Path("/application/update").
-		HandlerFunc(router.deployRestHandler.UpdateInstalledApp).Methods("PUT")
-
 	// deployment router starts
 	appStoreDeploymentSubRouter := configRouter.PathPrefix("/deployment").Subrouter()
 	router.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)
 	// deployment router ends
-
-	configRouter.Path("/application/exists").
-		HandlerFunc(router.deployRestHandler.CheckAppExists).Methods("POST")
-	configRouter.Path("/group/install").
-		HandlerFunc(router.deployRestHandler.DeployBulk).Methods("POST")
-
-	// discover router starts
-	appStoreDiscoverSubRouter := configRouter.PathPrefix("/discover").Subrouter()
-	router.appStoreDiscoverRouter.Init(appStoreDiscoverSubRouter)
-	// discover router ends
-
-	configRouter.Path("/installed-app/detail").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
-		HandlerFunc(router.deployRestHandler.FetchAppDetailsForInstalledApp).
-		Methods("GET")
-
-	configRouter.Path("/installed-app").
-		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
-
-	configRouter.Path("/application/version/{installedAppVersionId}").
-		HandlerFunc(router.deployRestHandler.GetInstalledAppVersion).Methods("GET")
 
 	// values router starts
 	appStoreValuesSubRouter := configRouter.PathPrefix("/values").Subrouter()
 	router.appStoreValuesRouter.Init(appStoreValuesSubRouter)
 	// values router ends
 
+	// discover router starts
+	appStoreDiscoverSubRouter := configRouter.PathPrefix("/discover").Subrouter()
+	router.appStoreDiscoverRouter.Init(appStoreDiscoverSubRouter)
+	// discover router ends
+
+	configRouter.Path("/application/update").
+		HandlerFunc(router.deployRestHandler.UpdateInstalledApp).Methods("PUT")
+	configRouter.Path("/application/exists").
+		HandlerFunc(router.deployRestHandler.CheckAppExists).Methods("POST")
+	configRouter.Path("/group/install").
+		HandlerFunc(router.deployRestHandler.DeployBulk).Methods("POST")
+	configRouter.Path("/installed-app/detail").Queries("installed-app-id", "{installed-app-id}").Queries("env-id", "{env-id}").
+		HandlerFunc(router.deployRestHandler.FetchAppDetailsForInstalledApp).
+		Methods("GET")
+	configRouter.Path("/installed-app").
+		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
+	configRouter.Path("/application/version/{installedAppVersionId}").
+		HandlerFunc(router.deployRestHandler.GetInstalledAppVersion).Methods("GET")
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
-
-	configRouter.Path("/installed-app/deployment-history").Queries("installedAppId", "{installedAppId}").
-		HandlerFunc(router.deployRestHandler.GetDeploymentHistory).Methods("GET")
-	configRouter.Path("/installed-app/deployment-history/info").Queries("installedAppId", "{installedAppId}").Queries("version", "{version}").
-		HandlerFunc(router.deployRestHandler.GetDeploymentHistoryValues).Methods("GET")
 }

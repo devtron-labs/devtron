@@ -38,5 +38,5 @@ DEVTRON_TARGET_VERSION=v0.3.x
 2. Patch Devtron Installer
 
 ```bash
-kubectl patch -n devtroncd installer installer-devtron --type='json' -p='[{"op": "add", "path": "/spec/reSync", "value": true },{"op": "replace", "path": "/spec/url", "value": "https://raw.githubusercontent.com/devtron-labs/devtron/$DEVTRON_TARGET_VERSION/manifests/installation-script"}]'
+kubectl patch -n devtroncd installer installer-devtron --type='json' -p='[{"op": "add", "path": "/spec/reSync", "value": true },{"op": "replace", "path": "/spec/url", "value": "https://raw.githubusercontent.com/devtron-labs/devtron/'$DEVTRON_TARGET_VERSION'/manifests/installation-script"}]'
 ```

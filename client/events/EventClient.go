@@ -22,6 +22,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"time"
+
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -29,10 +32,10 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	util1 "github.com/devtron-labs/devtron/util"
 	util "github.com/devtron-labs/devtron/util/event"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
-	"net/http"
-	"time"
 )
 
 type EventClientConfig struct {
@@ -271,12 +274,18 @@ func (impl *EventRESTClientImpl) SendEvent(event Event) (bool, error) {
 	return true, err
 }
 
-func (impl *EventRESTClientImpl) WriteNatsEvent(channel string, payload interface{}) error {
+func (impl *EventRESTClientImpl) WriteNatsEvent(topic string, payload interface{}) error {
 	body, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
-	err = impl.pubsubClient.Conn.Publish(channel, body)
+	err = util1.AddStream(impl.pubsubClient.JetStrCtxt, util1.ORCHESTRATOR_STREAM)
+	if err != nil {
+		return err
+	}
+	//Generate random string for passing as Header Id in message
+	randString := "MsgHeaderId-" + util1.Generate(10)
+	_, err = impl.pubsubClient.JetStrCtxt.Publish(topic, body, nats.MsgId(randString))
 	return err
 }
 

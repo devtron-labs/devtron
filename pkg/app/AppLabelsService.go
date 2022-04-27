@@ -201,17 +201,25 @@ func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto,
 		}
 	}
 
-	user, err := impl.userRepository.GetById(app.CreatedBy)
-	if err != nil {
+	user, err := impl.userRepository.GetByIdIncludeDeleted(app.CreatedBy)
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching user for app meta info", "error", err)
 		return nil, err
+	}
+	userEmailId := ""
+	if user != nil && user.Id > 0 {
+		if user.Active {
+			userEmailId = fmt.Sprintf(user.EmailId)
+		} else {
+			userEmailId = fmt.Sprintf("%s (inactive)", user.EmailId)
+		}
 	}
 	info := &bean.AppMetaInfoDto{
 		AppId:       app.Id,
 		AppName:     app.AppName,
 		ProjectId:   app.TeamId,
 		ProjectName: app.Team.Name,
-		CreatedBy:   user.EmailId,
+		CreatedBy:   userEmailId,
 		CreatedOn:   app.CreatedOn,
 		Labels:      labels,
 		Active:      app.Active,
