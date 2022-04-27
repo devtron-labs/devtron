@@ -156,7 +156,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		"release": moduleActionRequest.Version,
 		"modules": []interface{}{moduleName},
 	}
-	extraValuesYamlUrl := util2.BuildImagesBomUrl(moduleActionRequest.Version)
+	extraValuesYamlUrl := util2.BuildDevtronBomUrl(moduleActionRequest.Version)
 
 	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)
 	if err != nil {

@@ -211,6 +211,6 @@ func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
 	return nil
 }
 
-func BuildImagesBomUrl(version string) string {
-	return fmt.Sprintf("https://raw.githubusercontent.com/devtron-labs/devtron/%s/manifests/images-bom.yaml", version)
+func BuildDevtronBomUrl(version string) string {
+	return fmt.Sprintf("https://raw.githubusercontent.com/devtron-labs/devtron/%s/manifests/devtron-bom.yaml", version)
 }
