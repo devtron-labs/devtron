@@ -19,7 +19,7 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "module_mvp"
-        GIT_HASH: "a464ba14e7b215bc395efe3171c93cddd081447d"
+        GIT_HASH: "bb52b9433097fef62d9b2849f80a4a5ed51b5fc6"
       casbin:
         GIT_BRANCH: "module_mvp"
-        GIT_HASH: "a464ba14e7b215bc395efe3171c93cddd081447d"
+        GIT_HASH: "bb52b9433097fef62d9b2849f80a4a5ed51b5fc6"
