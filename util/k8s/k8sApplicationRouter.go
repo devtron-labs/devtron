@@ -47,8 +47,5 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 	k8sAppRouter.PathPrefix("/pod/exec/sockjs/ws").Handler(terminal.CreateAttachHandler("/pod/exec/sockjs/ws"))
 
 	/*k8sAppRouter.Path("/pod/exec/sockjs/ws/").
-	Handler(terminal.CreateAttachHandler("/api/v1/applications/pod/exec/sockjs/ws/"))*/
-
-	k8sAppRouter.Path("/resource/inception/info").
-		HandlerFunc(impl.k8sApplicationRestHandler.GetResourceInfo).Methods("GET")
+		Handler(terminal.CreateAttachHandler("/api/v1/applications/pod/exec/sockjs/ws/"))*/
 }
