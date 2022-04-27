@@ -1,3 +1,8 @@
+installer:
+  release: "v0.3.27"
+  image: quay.io/devtron/inception
+  tag: acb623ff-185-7117
+  
 components:
   dashboard:
     image: "quay.io/devtron/dashboard:43ae34e6-325-7969"
