@@ -1425,7 +1425,6 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(
 			Format:                     string(variable.Format),
 			ReferenceVariableStepIndex: variable.PreviousStepIndex,
 			ReferenceVariableName:      variable.ReferenceVariableName,
-			Value:                      variable.Value,
 		}
 		if variable.ValueType == repository.PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_NEW {
 			variableData.VariableType = bean.VARIABLE_TYPE_VALUE
@@ -1439,6 +1438,18 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(
 			}
 		}
 		if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT {
+			//below checks for setting Value field is only relevant for ref_plugin
+			//for inline step it will always end up using variable.Value(since no default value)
+			if variable.DefaultValue == "" {
+				//no default value; will use value received from user, as it must be exposed
+				variableData.Value = variable.Value
+			} else {
+				if variable.IsExposed {
+					variableData.Value = variable.Value
+				} else {
+					variableData.Value = variable.DefaultValue
+				}
+			}
 			inputVariables = append(inputVariables, variableData)
 		} else if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT {
 			outputVariables = append(outputVariables, variableData)
@@ -1572,6 +1583,8 @@ func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRe
 				variableData.Value = variable.Value
 			} else {
 				if variable.IsExposed {
+					//this value will be empty as value is set in plugin_stage_step_variable
+					//& that variable is sent in pre/post steps data
 					variableData.Value = variable.Value
 				} else {
 					variableData.Value = variable.DefaultValue
