@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -810,6 +811,7 @@ func getRolloutPodTemplateHash(pod map[string]interface{}) string {
 func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool) (podMetadata []*PodMetadata) {
 	containerMapping := make(map[string][]*string)
 	initContainerMapping := make(map[string][]*string)
+	var parentWorkflow []string
 	log.Println("buildPodMetadataFromPod ", "podManifests", podManifests, "newPodNames", newPodNames)
 	for _, pod := range podManifests {
 		containerMapping[getResourceName(pod)] = getPodContainers(pod)
@@ -818,19 +820,37 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 	for _, pod := range podManifests {
 		initContainerMapping[getResourceName(pod)] = getPodInitContainers(pod)
 	}
+
 	for _, node := range resp.Nodes {
-		log.Println("buildPodMetadataFromPod 1", "node", node, "kind", node.Kind)
+		if node.Kind == "Workflow" {
+			parentWorkflow = append(parentWorkflow, node.Name)
+		}
+	}
+
+	for _, node := range resp.Nodes {
+		log.Println("buildPodMetadataFromPod 1", "node", node, "kind", node.Kind, "parentWorkflows", parentWorkflow)
 		if node.Kind == "Pod" {
-			isNew := newPodNames[node.Name]
-			if node.ParentRefs != nil && node.ParentRefs[0].Kind == "Workflow" {
-				isNew = true
-			}
+			log.Println("check contains 1", "value", contains(parentWorkflow, node.Name))
+			isNew := newPodNames[node.Name] || contains(parentWorkflow, node.Name)
+			log.Println("test isNew 1", "isNew", isNew)
 			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], InitContainers: initContainerMapping[node.Name], IsNew: isNew}
 			log.Println("test metadata", "Pod metadata", metadata)
 			podMetadata = append(podMetadata, &metadata)
 		}
 	}
 	return
+}
+
+func contains(elems []string, v string) bool {
+	if len(elems) == 0 {
+		return false
+	}
+	for _, s := range elems {
+		if strings.HasPrefix(v, s) {
+			return true
+		}
+	}
+	return false
 }
 
 func getPodContainers(resource map[string]interface{}) []*string {
@@ -888,9 +908,6 @@ func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSe
 			parentName := ""
 			for _, p := range node.ParentRefs {
 				if p.Kind == "ReplicaSet" {
-					parentName = p.Name
-				}
-				if p.Kind == "Workflow" {
 					parentName = p.Name
 				}
 			}
