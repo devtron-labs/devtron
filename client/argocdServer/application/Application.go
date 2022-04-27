@@ -842,9 +842,6 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 }
 
 func contains(elems []string, v string) bool {
-	if len(elems) == 0 {
-		return false
-	}
 	for _, s := range elems {
 		if strings.HasPrefix(v, s) {
 			return true
