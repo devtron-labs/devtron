@@ -14,7 +14,7 @@ CREATE TABLE "public"."module"
 
 -- insert data
 INSERT INTO "public"."module" ("name", "version", "status", "updated_on")
-VALUES ('ciCd', 'unknown', 'unknown', 'now()');
+VALUES ('cicd', 'unknown', 'unknown', 'now()');
 
 -- Sequence and defined type
 CREATE SEQUENCE id_seq_module_action_audit_log;

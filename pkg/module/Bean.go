@@ -58,7 +58,7 @@ const (
 	ModuleStatusTimeout       ModuleStatus = "timeout"
 	ModuleStatusUnknown       ModuleStatus = "unknown"
 
-	ModuleCiCdName string = "ciCd"
+	ModuleCiCdName string = "cicd"
 )
 
 type ModuleDataStore struct {

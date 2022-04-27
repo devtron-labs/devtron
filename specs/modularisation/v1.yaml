@@ -79,7 +79,7 @@ components:
         name:
           type: string
           description: module name
-          example: "ciCd"
+          example: "cicd"
         status:
           type: string
           description: status of the module
