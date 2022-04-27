@@ -208,6 +208,10 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 		ReleaseName:   app.ReleaseName,
 	}
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app detail", "err", err)
+		return nil, err
+	}
 
 	// if application is devtron app helm release,
 	// then for FULL, then status is combination of helm app status and installer object status
