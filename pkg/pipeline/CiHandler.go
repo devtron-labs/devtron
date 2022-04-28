@@ -441,9 +441,7 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 }
 
 func (impl *CiHandlerImpl) GetRunningWorkflowLogs(pipelineId int, workflowId int) (*bufio.Reader, func() error, error) {
-	impl.Logger.Infow("GetRunningWorkflowLogs ")
 	ciWorkflow, err := impl.ciWorkflowRepository.FindById(workflowId)
-	impl.Logger.Infow("GetRunningWorkflowLogs 1", "ciWorkflow", ciWorkflow)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return nil, nil, err
@@ -452,7 +450,6 @@ func (impl *CiHandlerImpl) GetRunningWorkflowLogs(pipelineId int, workflowId int
 }
 
 func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineConfig.CiWorkflow) (*bufio.Reader, func() error, error) {
-	impl.Logger.Infow("getWorkflowLogs start", "pipelineId", pipelineId, "ciWorkflow", ciWorkflow)
 	if string(v1alpha1.NodePending) == ciWorkflow.PodStatus {
 		return bufio.NewReader(strings.NewReader("")), nil, nil
 	}
@@ -460,7 +457,6 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		WorkflowName: ciWorkflow.Name,
 		Namespace:    ciWorkflow.Namespace,
 	}
-	impl.Logger.Infow("getWorkflowLogs 1")
 	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, "", "", false)
 	if logStream == nil || err != nil {
 		if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == WorkflowCancel {
@@ -642,13 +638,11 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 
 func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
 	workflowName, status, podStatus, message := impl.extractWorkfowStatus(workflowStatus)
-	impl.Logger.Infow("onexit testing", "workflowName: ", workflowName, " status: ", status, " podstatus: ", podStatus, " message: ", message) // need to be removed
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "podStatus", podStatus, "message", message)
 		return 0, errors.New("invalid wf name")
 	}
 	workflowId, err := strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
-	impl.Logger.Infow("onexit testing", "workflowIdGen: ", workflowName[:strings.Index(workflowName, "-")]) //testing purpose
 	if err != nil {
 		impl.Logger.Errorw("invalid wf status update req", "err", err)
 		return 0, err
