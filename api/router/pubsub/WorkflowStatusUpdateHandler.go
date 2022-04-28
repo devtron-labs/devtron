@@ -30,8 +30,6 @@ import (
 	util "github.com/devtron-labs/devtron/util/event"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
 )
 
 type WorkflowStatusUpdateHandler interface {
