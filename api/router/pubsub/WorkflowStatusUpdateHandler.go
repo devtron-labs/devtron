@@ -85,6 +85,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", string(msg.Data))
 			return
 		}
+		
 		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
@@ -109,6 +110,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 			impl.logger.Error("Error while unmarshalling wfStatus json object", "error", err)
 			return
 		}
+
 		impl.logger.Debugw("received cd wf update request body", "body", wfStatus)
 		wfrId, wfrStatus, err := impl.cdHandler.UpdateWorkflow(wfStatus)
 		impl.logger.Debug(wfrId)
