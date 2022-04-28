@@ -22,9 +22,9 @@ type PluginVariableDto struct {
 	Name                  string                                  `json:"name"`
 	Format                repository.PluginStepVariableFormatType `json:"format"`
 	Description           string                                  `json:"description"`
-	IsExposed             bool                                    `json:"isExposed,omitempty"`
-	AllowEmptyValue       bool                                    `json:"allowEmptyValue,omitempty"`
-	DefaultValue          string                                  `json:"defaultValue,omitempty"`
+	IsExposed             bool                                    `json:"isExposed"`
+	AllowEmptyValue       bool                                    `json:"allowEmptyValue"`
+	DefaultValue          string                                  `json:"defaultValue"`
 	Value                 string                                  `json:"value,omitempty"`
 	ValueType             repository.PluginStepVariableValueType  `json:"variableType,omitempty"`
 	PreviousStepIndex     int                                     `json:"previousStepIndex,omitempty"`

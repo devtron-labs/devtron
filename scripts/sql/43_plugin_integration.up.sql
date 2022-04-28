@@ -333,14 +333,14 @@ INSERT INTO "public"."plugin_step" ("id", "plugin_id","name","description","inde
 SELECT pg_catalog.setval('public.id_seq_plugin_step', 2, true);
 
 
-INSERT INTO "public"."plugin_step_variable" ("id", "plugin_step_id","name","format","description","is_exposed","allow_empty_value","variable_type","value_type","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
-('1', '1','RelativePathToScript','STRING','checkout path + script path along with script name','t','f','INPUT','NEW','f','now()', '1', 'now()', '1'),
-('2', '1','GrafanaCloudUsername','STRING','username of grafana cloud/prometheus account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1'),
-('3', '1','GrafanaCloudApiKey','STRING','api key of grafana cloud/prometheus account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1'),
-('4', '1','GrafanaCloudEndpoint','STRING','remote write endpoint of grafana cloud/prometheus account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1'),
-('5', '1','OutputType','STRING','output type - LOG or GRAFANA_CLOUD','t','f','INPUT','NEW','f','now()', '1', 'now()', '1'),
-('6', '2','SonarqubeProjectKey','STRING','project key of grafana sonarqube account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1'),
-('7', '2','SonarqubeApiKey','STRING','api key of sonarqube account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1'),
-('8', '2','SonarqubeEndpoint','STRING','api endpoint of sonarqube account','t','t','INPUT','NEW','f','now()', '1', 'now()', '1');
+INSERT INTO "public"."plugin_step_variable" ("id", "plugin_step_id","name","format","description","is_exposed","allow_empty_value","variable_type","value_type","default_value","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
+('1', '1','RelativePathToScript','STRING','checkout path + script path along with script name','t','f','INPUT','NEW','/./script.js','f','now()', '1', 'now()', '1'),
+('2', '1','GrafanaCloudUsername','STRING','username of grafana cloud/prometheus account','t','t','INPUT','NEW',null ,'f','now()', '1', 'now()', '1'),
+('3', '1','GrafanaCloudApiKey','STRING','api key of grafana cloud/prometheus account','t','t','INPUT','NEW',null ,'f','now()', '1', 'now()', '1'),
+('4', '1','GrafanaCloudEndpoint','STRING','remote write endpoint of grafana cloud/prometheus account','t','t','INPUT','NEW',null ,'f','now()', '1', 'now()', '1'),
+('5', '1','OutputType','STRING','output type - LOG or GRAFANA_CLOUD','t','f','INPUT','NEW','LOG' ,'f','now()', '1', 'now()', '1'),
+('6', '2','SonarqubeProjectKey','STRING','project key of grafana sonarqube account','t','t','INPUT','NEW',null,'f','now()', '1', 'now()', '1'),
+('7', '2','SonarqubeApiKey','STRING','api key of sonarqube account','t','t','INPUT','NEW',null,'f','now()', '1', 'now()', '1'),
+('8', '2','SonarqubeEndpoint','STRING','api endpoint of sonarqube account','t','t','INPUT','NEW',null ,'f','now()', '1', 'now()', '1');
 
 SELECT pg_catalog.setval('public.id_seq_plugin_step_variable', 8, true);
