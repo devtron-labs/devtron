@@ -441,3 +441,25 @@ func (impl K8sUtil) GetClientByToken(serverUrl string, token map[string]string) 
 	}
 	return client, nil
 }
+
+func (impl K8sUtil) GetResourceInfoByLabelSelector(namespace string, labelSelector string) (*v1.Pod, error) {
+	client, err := impl.GetClientForInCluster()
+	if err != nil {
+		impl.logger.Errorw("cluster config error", "err", err)
+		return nil, err
+	}
+	pods, err := client.Pods(namespace).List(metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, err
+	} else if len(pods.Items) > 1 {
+		err = &ApiError{Code: "406", HttpStatusCode: 200, UserMessage: "found more than one pod for label selector"}
+		return nil, err
+	} else if len(pods.Items) == 0 {
+		err = &ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no pod found for label selector"}
+		return nil, err
+	} else {
+		return &pods.Items[0], nil
+	}
+}
