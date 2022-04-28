@@ -7,7 +7,7 @@ components:
   dashboard:
     image: "quay.io/devtron/dashboard:931b2ffd-51-8219"
   devtron:
-    image: "quay.io/devtron/hyperion:bb52b943-282-8207"
+    image: "quay.io/devtron/hyperion:aaad5cb3-282-8227"
   argocdDexServer:
     image: "quay.io/dexidp/dex:v2.25.0"
   kubelink:
@@ -20,7 +20,7 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "module_mvp"
-        GIT_HASH: "bb52b9433097fef62d9b2849f80a4a5ed51b5fc6"
+        GIT_HASH: "aaad5cb34863af03ec51f2020957c0e3c2e94b00"
       casbin:
         GIT_BRANCH: "module_mvp"
-        GIT_HASH: "bb52b9433097fef62d9b2849f80a4a5ed51b5fc6"
+        GIT_HASH: "aaad5cb34863af03ec51f2020957c0e3c2e94b00"
