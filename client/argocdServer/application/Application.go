@@ -417,7 +417,6 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	controllerRevisionManifests := make([]map[string]interface{}, 0)
 	jobsManifest := make(map[string]interface{})
 	for _, response := range responses {
-		c.logger.Infow("buildPodMetadata", "response", response)
 		if response != nil && response.Response != nil && response.Request.Kind == "Rollout" {
 			err := json.Unmarshal([]byte(response.Response.Manifest), &rolloutManifest)
 			if err != nil {
