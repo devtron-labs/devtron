@@ -416,6 +416,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	podManifests := make([]map[string]interface{}, 0)
 	controllerRevisionManifests := make([]map[string]interface{}, 0)
 	jobsManifest := make(map[string]interface{})
+	var parentWorkflow []string
 	for _, response := range responses {
 		if response != nil && response.Response != nil && response.Request.Kind == "Rollout" {
 			err := json.Unmarshal([]byte(response.Response.Manifest), &rolloutManifest)
@@ -485,6 +486,20 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 
 	if _, ok := jobsManifest["kind"]; ok {
 		newPodNames = c.getJobsNewPods(jobsManifest, podManifests)
+	}
+	
+	for _, node := range resp.Nodes {
+		if node.Kind == "Workflow" {
+			parentWorkflow = append(parentWorkflow, node.Name)
+		}
+	}
+
+	for _, node := range resp.Nodes {
+		if node.Kind == "Pod" {
+			if contains(parentWorkflow, node.Name) {
+				newPodNames[node.Name] = true
+			}
+		}
 	}
 
 	//podMetaData := make([]*PodMetadata, 0)
@@ -791,7 +806,6 @@ func getRolloutPodTemplateHash(pod map[string]interface{}) string {
 func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[string]interface{}, newPodNames map[string]bool) (podMetadata []*PodMetadata) {
 	containerMapping := make(map[string][]*string)
 	initContainerMapping := make(map[string][]*string)
-	var parentWorkflow []string
 	for _, pod := range podManifests {
 		containerMapping[getResourceName(pod)] = getPodContainers(pod)
 	}
@@ -808,7 +822,7 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 
 	for _, node := range resp.Nodes {
 		if node.Kind == "Pod" {
-			isNew := newPodNames[node.Name] || contains(parentWorkflow, node.Name)
+			isNew := newPodNames[node.Name]
 			metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containerMapping[node.Name], InitContainers: initContainerMapping[node.Name], IsNew: isNew}
 			podMetadata = append(podMetadata, &metadata)
 		}
