@@ -256,18 +256,14 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if len(impl.ciConfig.NodeLabel) > 0 {
 		ciWorkflow.Spec.NodeSelector = impl.ciConfig.NodeLabel
 	}
-	impl.Logger.Infow("test log workflow submitted: 1", "ciworkflow", ciWorkflow)
 	wfTemplate, err := json.Marshal(ciWorkflow)
-	impl.Logger.Infow("test log workflow submitted: 2", "wfTemplate", wfTemplate)
 	if err != nil {
 		impl.Logger.Errorw("marshal error", "err", err)
 	}
 	impl.Logger.Debug("---->", string(wfTemplate))
 
-	impl.Logger.Infow("test log workflow submitted: 3")
 	createdWf, err := wfClient.Create(&ciWorkflow) // submit the hello world workflow
 	impl.Logger.Debug("workflow submitted: " + createdWf.Name)
-	impl.Logger.Infow("test log workflow submitted: 4")
 	impl.checkErr(err)
 	return createdWf, err
 }
