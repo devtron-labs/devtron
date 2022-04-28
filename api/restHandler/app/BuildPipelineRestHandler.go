@@ -570,8 +570,6 @@ func (handler *PipelineConfigRestHandlerImpl) GetBuildLogs(w http.ResponseWriter
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	handler.Logger.Infow("request payload, GetBuildLogs", "ciPipeline", ciPipeline)
-
 	//RBAC
 	token := r.Header.Get("token")
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipeline.AppId)
