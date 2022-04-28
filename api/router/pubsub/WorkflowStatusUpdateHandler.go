@@ -87,20 +87,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", string(msg.Data))
 			return
 		}
-		impl.logger.Infow("onexit3 testing", "wfstatus", wfStatus) //need to be removed
-
-		//validate name
-		workflowName := ""
-		for name := range wfStatus.Nodes {
-			workflowName = name
-			break
-		}
-
-		_, err = strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
-		if err != nil {
-			return
-		}
-
+		
 		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
@@ -123,18 +110,6 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
 		if err != nil {
 			impl.logger.Error("Error while unmarshalling wfStatus json object", "error", err)
-			return
-		}
-
-		//validate name
-		workflowName := ""
-		for name := range wfStatus.Nodes {
-			workflowName = name
-			break
-		}
-
-		_, err = strconv.Atoi(workflowName[:strings.Index(workflowName, "-")])
-		if err != nil {
 			return
 		}
 
