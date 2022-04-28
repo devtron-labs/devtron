@@ -119,15 +119,13 @@ Logic used for setting Value -
 variable -> object from db
 variableData -> object to be sent to ci runner
 
-if variable.DefaultValue == "" {
-	//no default value; will use value received from user, as it must be exposed
-	variableData.Value = variable.Value
+//below checks for setting Value field is only relevant for ref_plugin
+//for inline step it will always end up using user's choice(if value == "" then defaultValue will also be = "", as no defaultValue option in inline )
+if variable.Value == "" {
+	//no value from user; will use default value
+	variableData.Value = variable.DefaultValue
 } else {
-	if variable.IsExposed {
-		variableData.Value = variable.Value
-	} else {
-		variableData.Value = variable.DefaultValue
-	}
+	variableData.Value = variable.Value
 }
 
 Note - here we are assuming, only validated data is saved in db(that either we will have defaultValue/value in object from db)

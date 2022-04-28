@@ -1439,16 +1439,12 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(
 		}
 		if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT {
 			//below checks for setting Value field is only relevant for ref_plugin
-			//for inline step it will always end up using variable.Value(since no default value)
-			if variable.DefaultValue == "" {
-				//no default value; will use value received from user, as it must be exposed
-				variableData.Value = variable.Value
+			//for inline step it will always end up using user's choice(if value == "" then defaultValue will also be = "", as no defaultValue option in inline )
+			if variable.Value == "" {
+				//no value from user; will use default value
+				variableData.Value = variable.DefaultValue
 			} else {
-				if variable.IsExposed {
-					variableData.Value = variable.Value
-				} else {
-					variableData.Value = variable.DefaultValue
-				}
+				variableData.Value = variable.Value
 			}
 			inputVariables = append(inputVariables, variableData)
 		} else if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT {
