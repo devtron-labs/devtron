@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
-	"fmt"
 	"os/user"
 	"path/filepath"
 	"time"
@@ -455,9 +454,11 @@ func (impl K8sUtil) GetResourceInfoByLabelSelector(namespace string, labelSelect
 	if err != nil {
 		return nil, err
 	} else if len(pods.Items) > 1 {
-		return nil, fmt.Errorf("found more than one pod for label selector")
+		err = &ApiError{Code: "406", HttpStatusCode: 200, UserMessage: "found more than one pod for label selector"}
+		return nil, err
 	} else if len(pods.Items) == 0 {
-		return nil, fmt.Errorf("no pod found for label selector")
+		err = &ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no pod found for label selector"}
+		return nil, err
 	} else {
 		return &pods.Items[0], nil
 	}
