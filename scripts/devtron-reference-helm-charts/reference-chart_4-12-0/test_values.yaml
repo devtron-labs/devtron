@@ -316,8 +316,20 @@ ConfigSecrets:
 #      club : manchester utd
 #      nation : england
 #     key2: abc-2
-
-
+ExternalSecrets:
+  enabled: true
+  secrets:
+  - name: ext-secret-1
+    refreshinterval: 1m
+    secretstorename: mysecretstore
+    external: true
+    secretData:
+    - key: mypin
+      awssmsecretname: mysmname
+      keysm: pin
+    - key: mystate
+      awssmsecretname: mysmname
+      keysm: state
 initContainers: []
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
