@@ -15,7 +15,7 @@ helm list --namespace devtroncd
 
 ### 2. Set release name in the variable
 ```bash
-RELEASE-NAME=devtron
+RELEASE_NAME=devtron
 ```
 
 ### 3. Annotate all the Devtron resources
