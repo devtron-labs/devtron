@@ -1394,6 +1394,7 @@ func (impl *PipelineStageServiceImpl) BuildCiStepDataForWfRequest(step *reposito
 			stepData.ExtraVolumeMounts = extraMappings
 		}
 	} else if step.StepType == repository.PIPELINE_STEP_TYPE_REF_PLUGIN {
+		stepData.ExecutorType = "PLUGIN" //added only to avoid un-marshaling issues at ci-runner side, will not be used
 		stepData.RefPluginId = step.RefPluginId
 	}
 	inputVars, outputVars, triggerSkipConditions, successFailureConditions, err := impl.BuildVariableAndConditionDataForWfRequest(step.Id)
@@ -1534,6 +1535,7 @@ func (impl *PipelineStageServiceImpl) BuildPluginStepDataForWfRequest(step *repo
 			stepData.ExtraVolumeMounts = extraMappings
 		}
 	} else if step.StepType == repository2.PLUGIN_STEP_TYPE_REF_PLUGIN {
+		stepData.ExecutorType = "PLUGIN" //added only to avoid un-marshaling issues at ci-runner side, will not be used
 		stepData.RefPluginId = step.RefPluginId
 	}
 	inputVars, outputVars, triggerSkipConditions, successFailureConditions, err := impl.BuildPluginVariableAndConditionDataForWfRequest(step.Id)
