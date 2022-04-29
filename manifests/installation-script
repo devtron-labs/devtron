@@ -459,16 +459,18 @@ ignore = shellScript sleep50;
 natsServer = kubectl apply -n devtroncd natsServer -u natsServerOverride;
 hasNatsServerPod = kubectl get pod -n devtroncd devtron-nats-0;
 if hasNatsServerPod {
-  kubectl delete pod -n devtroncd devtron-nats-0;
+  kubectl delete -n devtroncd po "devtron-nats-0";
 }
+log(hasNatsServerPod);
 log("executed nats server setup");
 ## natsStreaming = kubectl apply -n devtroncd natsStreaming -u natsStreamingOverride;
 ##log("executed nats streaming setup");
 hasNatsStreaming = kubectl get statefulset -n devtroncd devtron-stan;
 if hasNatsStreaming {
-  kubectl delete -n devtroncd natsStreaming;
+  kubectl delete -n devtroncd sts "devtron-stan";
   log("devtron-stan was found and deleted");
 }
+log(hasNatsStreaming);
 
 #guard
 makeCertsDir = `#!/bin/bash
