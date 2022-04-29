@@ -35,8 +35,8 @@ helm repo update
 5.1 Upgrade Devtron to latest version
 
 ```bash
-helm upgrade devtron devtron/devtron-operator --namespace devtroncd /
--f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml /
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+-f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
 --set installer.modules={cicd}
 ```
 OR
@@ -46,7 +46,7 @@ OR
 ```bash
 DEVTRON_TARGET_VERSION=v0.4.x
 
-helm upgrade devtron devtron/devtron-operator --namespace devtroncd /
--f https://raw.githubusercontent.com/devtron-labs/devtron/$DEVTRON_TARGET_VERSION/manifests/devtron-bom.yaml /
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+-f https://raw.githubusercontent.com/devtron-labs/devtron/$DEVTRON_TARGET_VERSION/manifests/devtron-bom.yaml \
 --set installer.modules={cicd}
 ```
