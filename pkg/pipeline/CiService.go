@@ -438,6 +438,34 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 }
 
 func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*bean2.StepObject {
+	//before plugin support, few variables were set as env vars in ci-runner
+	//these variables are now moved to global vars in plugin steps, but to avoid error in old scripts adding those variables in payload
+	inputVars := []*bean2.VariableObject{
+		{
+			Name:                  "DOCKER_IMAGE_TAG",
+			Format:                "STRING",
+			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			ReferenceVariableName: "DOCKER_IMAGE_TAG",
+		},
+		{
+			Name:                  "DOCKER_REPOSITORY",
+			Format:                "STRING",
+			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			ReferenceVariableName: "DOCKER_REPOSITORY",
+		},
+		{
+			Name:                  "DOCKER_REGISTRY_URL",
+			Format:                "STRING",
+			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			ReferenceVariableName: "DOCKER_REGISTRY_URL",
+		},
+		{
+			Name:                  "DOCKER_IMAGE",
+			Format:                "STRING",
+			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			ReferenceVariableName: "DOCKER_IMAGE",
+		},
+	}
 	var ciSteps []*bean2.StepObject
 	for _, dockerBuildScript := range dockerBuildScripts {
 		ciStep := &bean2.StepObject{
@@ -447,6 +475,7 @@ func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript)
 			ArtifactPaths: []string{dockerBuildScript.OutputLocation},
 			StepType:      string(repository.PIPELINE_STEP_TYPE_INLINE),
 			ExecutorType:  string(repository2.SCRIPT_TYPE_SHELL),
+			InputVars:     inputVars,
 		}
 		ciSteps = append(ciSteps, ciStep)
 	}
