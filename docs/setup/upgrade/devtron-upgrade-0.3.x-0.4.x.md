@@ -8,29 +8,29 @@ kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync
 
 ## Follow the below mentioned steps to upgrade the Devtron version using Helm
 
-1. Check the devtron release name
+### 1. Check the devtron release name
 ```bash
 helm list --namespace devtroncd
 ```
 
-2. Set release name in the variable
+### 2. Set release name in the variable
 ```bash
 RELEASE-NAME=devtron
 ```
 
-3. Annotate all the devtron resources
+### 3. Annotate all the devtron resources
 
 ```bash
 kubectl -n devtroncd label all --all "app.kubernetes.io/managed-by=Helm" && kubectl -n devtroncd annotate all --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
 ```
 
-4. Fetch the latest Devtron helm chart
+### 4. Fetch the latest Devtron helm chart
 
 ```bash
 helm repo update
 ```
 
-5. Upgrade Devtron 
+### 5. Upgrade Devtron 
 
 5.1 Upgrade Devtron to latest version
 
@@ -39,11 +39,12 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd /
 --set installer.release=$DEVTRON_TARGET_VERSION /
 --set installer.modules={cicd}
 ```
+OR
 
-5.2 Upgrade Devtron to latest version. You can find the latest releases from Devtron on Github https://github.com/devtron-labs/devtron/releases
+5.2 Upgrade Devtron to a custom version. You can find the latest releases from Devtron on Github https://github.com/devtron-labs/devtron/releases
 
 ```bash
-DEVTRON_TARGET_VERSION=v0.3.x
+DEVTRON_TARGET_VERSION=v0.4.x
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd /
 --set installer.release=$DEVTRON_TARGET_VERSION /
