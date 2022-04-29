@@ -37,7 +37,6 @@ helm repo update
 ```bash
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd /
 -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml /
---set installer.release=$DEVTRON_TARGET_VERSION /
 --set installer.modules={cicd}
 ```
 OR
