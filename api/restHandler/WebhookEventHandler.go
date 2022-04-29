@@ -67,8 +67,7 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 		return
 	}
 
-	impl.logger.Debug("gitHostId", gitHostId)
-	impl.logger.Debug("secretFromRequest", secretFromRequest)
+	impl.logger.Debugw("webhook event request data", "gitHostId", gitHostId, "secretFromRequest", secretFromRequest)
 
 	// get git host from DB
 	gitHost, err := impl.gitHostConfig.GetById(gitHostId)
@@ -87,20 +86,23 @@ func (impl WebhookEventHandlerImpl) OnWebhookEvent(w http.ResponseWriter, r *htt
 	}
 
 	isValidSig := impl.webhookSecretValidator.ValidateSecret(r, secretFromRequest, requestBodyBytes, gitHost)
-	impl.logger.Debug("Secret validation result ", isValidSig)
+	impl.logger.Debug("Secret validation result: " + strconv.FormatBool(isValidSig))
 	if !isValidSig {
 		impl.logger.Error("Signature mismatch")
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
 		return
 	}
 
-	// validate event type
-	eventType := r.Header.Get(gitHost.EventTypeHeader)
-	impl.logger.Debugw("eventType : ", eventType)
-	if len(eventType) == 0 {
-		impl.logger.Errorw("Event type not known ", eventType)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	// validate event type if configured
+	var eventType string
+	if len(gitHost.EventTypeHeader) > 0 {
+		eventType = r.Header.Get(gitHost.EventTypeHeader)
+		impl.logger.Debug("eventType: " + eventType)
+		if len(eventType) == 0 {
+			impl.logger.Errorw("Event type not known ", "eventType", eventType)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
 
 	// make request to handle this webhook
