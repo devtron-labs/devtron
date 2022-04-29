@@ -3,25 +3,9 @@ info:
   version: 1.0.0
   title: Devtron Labs
 paths:
-  /orchestrator/app-store/deployment/application/rollback:
-    put:
-      description: Rollback application if the application is installed from the chartStore
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RollbackReleaseRequest'
-      responses:
-        "200":
-          description: application rollback response
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/RollbackReleaseResponse"
   /orchestrator/application/rollback:
     put:
-      description: Rollback application if the application is installed externally using helm (external-app)
+      description: Rollback application if the application is installed from the chartStore
       requestBody:
         required: true
         content:

@@ -11,6 +11,8 @@ import (
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
+	"github.com/devtron-labs/devtron/api/dashboardEvent"
+	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
@@ -24,6 +26,7 @@ import (
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -34,10 +37,12 @@ import (
 
 func InitializeApp() (*App, error) {
 	wire.Build(
+
 		sql.PgSqlWireSet,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		AuthWireSet,
+		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		cluster.ClusterWireSetEa,
 		dashboard.DashboardWireSet,
@@ -83,6 +88,15 @@ func InitializeApp() (*App, error) {
 
 		// binding gitops to helm (for hyperion)
 		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
+
+		wire.Value(pipeline.RefChartDir("scripts/devtron-reference-helm-charts")),
+
+		//needed for sending events
+		dashboardEvent.NewDashboardTelemetryRestHandlerImpl,
+		wire.Bind(new(dashboardEvent.DashboardTelemetryRestHandler), new(*dashboardEvent.DashboardTelemetryRestHandlerImpl)),
+		dashboardEvent.NewDashboardTelemetryRouterImpl,
+		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
+			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 	)
 	return &App{}, nil
 }

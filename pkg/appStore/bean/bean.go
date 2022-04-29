@@ -24,6 +24,44 @@ import (
 )
 
 //v1
+type InstallAppVersionHistoryDto struct {
+	InstalledAppInfo *InstalledAppDto `json:"installedAppInfo"`
+	IAVHistory       []*IAVHistory    `json:"deploymentHistory"`
+}
+type IAVHistory struct {
+	ChartMetaData         IAVHistoryChartMetaData `json:"chartMetadata"`
+	DeployedAt            IAVHistoryDeployedAt    `json:"deployedAt"`
+	DockerImages          []string                `json:"dockerImages"`
+	Version               int                     `json:"version"`
+	InstalledAppVersionId int                     `json:"installedAppVersionId"`
+}
+type IAVHistoryChartMetaData struct {
+	ChartName    string   `json:"chartName"`
+	ChartVersion string   `json:"chartVersion"`
+	Description  string   `json:"description"`
+	Home         string   `json:"home"`
+	Sources      []string `json:"sources"`
+}
+
+type IAVHistoryDeployedAt struct {
+	Nanos   int   `json:"nanos,omitempty"`
+	Seconds int64 `json:"seconds,omitempty"`
+}
+
+type IAVHistoryValues struct {
+	Manifest   string `json:"manifest"`
+	ValuesYaml string `json:"valuesYaml"`
+}
+
+type InstalledAppDto struct {
+	AppId           int    `json:"appId"`
+	InstalledAppId  int    `json:"installedAppId"`
+	EnvironmentName string `json:"environmentName"`
+	AppOfferingMode string `json:"appOfferingMode"`
+	ClusterId       int    `json:"clusterId"`
+	EnvironmentId   int    `json:"environmentId"`
+}
+
 type InstallAppVersionDTO struct {
 	Id                        int                        `json:"id,omitempty"`
 	AppId                     int                        `json:"appId,omitempty"`
@@ -51,6 +89,8 @@ type InstallAppVersionDTO struct {
 	Namespace                 string                     `json:"namespace"` // needed for hyperion mode
 	AppOfferingMode           string                     `json:"appOfferingMode"`
 	GitOpsRepoName            string                     `json:"gitOpsRepoName"`
+	GitOpsPath                string                     `json:"gitOpsPath"`
+	GitHash                   string                     `json:"gitHash"`
 	EnvironmentName           string                     `json:"-"`
 	InstallAppVersionChartDTO *InstallAppVersionChartDTO `json:"-"`
 }

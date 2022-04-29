@@ -7,6 +7,8 @@ import (
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	"github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
+	"github.com/devtron-labs/devtron/api/dashboardEvent"
+	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/sso"
@@ -36,6 +38,9 @@ type MuxRouter struct {
 	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
 	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
+	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
+	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
+	externalLinksRouter      externalLink.ExternalLinkRouter
 }
 
 func NewMuxRouter(
@@ -53,7 +58,9 @@ func NewMuxRouter(
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
-
+	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
+	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter,
+	externalLinkRouter externalLink.ExternalLinkRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -71,6 +78,9 @@ func NewMuxRouter(
 		appStoreDiscoverRouter:   appStoreDiscoverRouter,
 		appStoreValuesRouter:     appStoreValuesRouter,
 		appStoreDeploymentRouter: appStoreDeploymentRouter,
+		dashboardTelemetryRouter: dashboardTelemetryRouter,
+		commonDeploymentRouter:   commonDeploymentRouter,
+		externalLinksRouter:      externalLinkRouter,
 	}
 	return r
 }
@@ -125,8 +135,10 @@ func (r *MuxRouter) Init() {
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
 
-	helmApp := r.Router.PathPrefix("/orchestrator/application").Subrouter()
-	r.helmAppRouter.InitAppListRouter(helmApp)
+	applicationSubRouter := r.Router.PathPrefix("/orchestrator/application").Subrouter()
+	r.helmAppRouter.InitAppListRouter(applicationSubRouter)
+	r.commonDeploymentRouter.Init(applicationSubRouter)
+
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
 
@@ -149,4 +161,12 @@ func (r *MuxRouter) Init() {
 	appStoreDeploymentSubRouter := r.Router.PathPrefix("/orchestrator/app-store/deployment").Subrouter()
 	r.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)
 	// app-store deployment router ends
+
+	//  dashboard event router starts
+	dashboardTelemetryRouter := r.Router.PathPrefix("/orchestrator/dashboard-event").Subrouter()
+	r.dashboardTelemetryRouter.Init(dashboardTelemetryRouter)
+	// dashboard event router ends
+
+	externalLinkRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
+	r.externalLinksRouter.InitExternalLinkRouter(externalLinkRouter)
 }

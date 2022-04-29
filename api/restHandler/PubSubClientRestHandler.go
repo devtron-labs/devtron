@@ -19,12 +19,13 @@ package restHandler
 
 import (
 	"encoding/json"
+	"net/http"
+	"strings"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"go.uber.org/zap"
-	"net/http"
-	"strings"
 )
 
 type PubSubClientRestHandler interface {
@@ -68,13 +69,13 @@ func (impl *PubSubClientRestHandlerImpl) PublishEventsToNats(w http.ResponseWrit
 		return
 	}
 
-	id, err := impl.natsPublishClient.Publish(&publishRequest)
+	err = impl.natsPublishClient.Publish(&publishRequest)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", publishRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	result := make(map[string]string)
-	result["id"] = id
-	common.WriteJsonResp(w, err, result, http.StatusAccepted)
+	// result := make(map[string]string)
+	// result["id"] = id
+	common.WriteJsonResp(w, err, nil, http.StatusAccepted)
 }
