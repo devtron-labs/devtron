@@ -4,6 +4,14 @@ apiVersion: autoscaling/v2beta1
 kind: HorizontalPodAutoscaler
 metadata:
  name: {{ template ".Chart.Name .fullname" $ }}-hpa
+ {{- if .Values.autoscaling.annotations }}
+ annotations:
+{{ toYaml .Values.autoscaling.annotations | indent 4 }}
+  {{- end }}
+  {{- if .Values.autoscaling.labels }}
+ labels:
+{{ toYaml .Values.autoscaling.labels | indent 4 }}
+  {{- end }}
 spec:
  scaleTargetRef:
    apiVersion: argoproj.io/v1alpha1
