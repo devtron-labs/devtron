@@ -467,7 +467,7 @@ log("executed nats server setup");
 hasNatsStreaming = kubectl get statefulset -n devtroncd devtron-stan;
 if hasNatsStreaming {
   kubectl delete -n devtroncd natsStreaming;
-  log("devtron-stan was found and deleted")
+  log("devtron-stan was found and deleted");
 }
 
 #guard
