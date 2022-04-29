@@ -293,7 +293,7 @@ SELECT pg_catalog.setval('public.id_seq_plugin_tag_relation', 2, true);
 
 
 INSERT INTO "public"."plugin_pipeline_script" ("id", "script", "type","deleted","created_on", "created_by", "updated_on", "updated_by") VALUES
-('1', 'PathToScript=$WORKING_DIRECTORY$RelativePathToScript
+('1', 'PathToScript=/devtroncd$RelativePathToScript
 
 if [ $OutputType == "GRAFANA_CLOUD" ]
 then
@@ -313,7 +313,7 @@ then
     docker pull grafana/k6
 	docker run --rm -i grafana/k6 run - <$PathToScript
 fi','SHELL','f','now()', '1', 'now()', '1'),
-('2', 'PathToCodeDir=$WORKING_DIR$CheckoutPath
+('2', 'PathToCodeDir=/devtroncd$CheckoutPath
 
 cd $PathToCodeDir
 echo "sonar.projectKey=$SonarqubeProjectKey" > sonar-project.properties
