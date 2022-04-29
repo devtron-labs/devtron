@@ -86,7 +86,7 @@ lens_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/lens.yaml";
 migrator_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/migrator.yaml";
 ## natsOperator_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-operator.yaml";
 natsServer_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-server.yaml";
-natsStreaming_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-streaming.yaml";
+## natsStreaming_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-streaming.yaml";
 notifier_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/notifier.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
@@ -119,7 +119,7 @@ lens = download(lens_raw);
 migrator = download(migrator_raw);
 ## natsOperator = download(natsOperator_raw);
 natsServer = download(natsServer_raw);
-natsStreaming = download(natsStreaming_raw);
+## natsStreaming = download(natsStreaming_raw);
 notifier = download(notifier_raw);
 devtron = download(devtron_raw);
 devtronIngress = download(devtronIngress_raw);
@@ -466,7 +466,7 @@ log("executed nats server setup");
 ##log("executed nats streaming setup");
 hasNatsStreaming = kubectl get statefulset -n devtroncd devtron-stan;
 if hasNatsStreaming {
-  natsStreamingDelete = kubectl delete -n devtroncd natsStreaming;
+  natsStreamingDelete = kubectl delete -n devtroncd sts devtron-stan;
   log("devtron-stan was found and deleted");
 }
 log(hasNatsStreaming);
