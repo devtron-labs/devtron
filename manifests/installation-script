@@ -457,17 +457,17 @@ log("executed migrator setup command");
 ## log("executed nats operator setup");
 ignore = shellScript sleep50;
 natsServer = kubectl apply -n devtroncd natsServer -u natsServerOverride;
-hasNatsServerPod = kubectl get po -n devtroncd devtron-nats-0
+hasNatsServerPod = kubectl get pod -n devtroncd devtron-nats-0;
 if hasNatsServerPod {
-  kubectl delete po -n devtroncd devtron-nats-0
+  kubectl delete pod -n devtroncd devtron-nats-0;
 }
 log("executed nats server setup");
 ## natsStreaming = kubectl apply -n devtroncd natsStreaming -u natsStreamingOverride;
 ##log("executed nats streaming setup");
-hasNatsStreaming = kubectl get sts -n devtroncd devtron-stan
+hasNatsStreaming = kubectl get statefulset -n devtroncd devtron-stan;
 if hasNatsStreaming {
-  kubectl delete -n devtroncd natsStreaming
-  log("devtron-stan was found and deleted deleted")
+  kubectl delete -n devtroncd natsStreaming;
+  log("devtron-stan was found and deleted")
 }
 
 #guard
@@ -782,6 +782,3 @@ clairEncodedConfig = shellScript clairEncodedConfig;
 kubeYamlEdit(clair, `data.config\.yaml`, clairEncodedConfig, `/Secret//clair`);
 clair = kubectl apply -n devtroncd clair -u clairOverride;
 log("executed clair setup");
-
-log("Adding labels and annotations")
-kubectl -n devtroncd label all --all "app.kubernetes.io/managed-by=Helm" && kubectl -n devtroncd annotate all --all "meta.helm.sh/release-name=`+ helmReleaseName +`" "meta.helm.sh/release-namespace=devtroncd"
