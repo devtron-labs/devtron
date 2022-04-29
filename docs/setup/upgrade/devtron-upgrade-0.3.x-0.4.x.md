@@ -18,10 +18,13 @@ helm list --namespace devtroncd
 RELEASE-NAME=devtron
 ```
 
-### 3. Annotate all the devtron resources
+### 3. Annotate all the Devtron resources
 
 ```bash
-kubectl -n devtroncd label all --all "app.kubernetes.io/managed-by=Helm" && kubectl -n devtroncd annotate all --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
+kubectl -n devtroncd label secret --all "app.kubernetes.io/managed-by=Helm"
+kubectl -n devtroncd annotate secret --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
+kubectl -n devtroncd label cm --all "app.kubernetes.io/managed-by=Helm"
+kubectl -n devtroncd annotate cm --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
 ```
 
 ### 4. Fetch the latest Devtron helm chart
