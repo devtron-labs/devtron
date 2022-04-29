@@ -11,7 +11,6 @@ azureAccountKey = jsonSelect(operatorSecret, "data.AZURE_ACCOUNT_KEY");
 postgresSecret = kubectl get secret -n devtroncd postgresql-postgresql;
 enableLegacyApi = jsonSelect(operatorConfigMap, "data.ENABLE_LEGACY_API");
 helmInstallation = jsonSelect(operatorConfigMap, "data.INSTALLATION_THROUGH_HELM");
-helmReleaseName = jsonSelect(operatorConfigMap, "data.DEVTRON_HELM_RELEASE_NAME");
 
 baseURLScheme = jsonSelect(operatorConfigMap, "data.BASE_URL_SCHEME");
 baseURL = jsonSelect(operatorConfigMap, "data.BASE_URL");
@@ -87,7 +86,7 @@ lens_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/lens.yaml";
 migrator_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/migrator.yaml";
 ## natsOperator_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-operator.yaml";
 natsServer_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-server.yaml";
-natsStreaming_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-streaming.yaml";
+## natsStreaming_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-streaming.yaml";
 notifier_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/notifier.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
@@ -120,7 +119,7 @@ lens = download(lens_raw);
 migrator = download(migrator_raw);
 ## natsOperator = download(natsOperator_raw);
 natsServer = download(natsServer_raw);
-natsStreaming = download(natsStreaming_raw);
+## natsStreaming = download(natsStreaming_raw);
 notifier = download(notifier_raw);
 devtron = download(devtron_raw);
 devtronIngress = download(devtronIngress_raw);
@@ -459,7 +458,7 @@ ignore = shellScript sleep50;
 natsServer = kubectl apply -n devtroncd natsServer -u natsServerOverride;
 hasNatsServerPod = kubectl get pod -n devtroncd devtron-nats-0;
 if hasNatsServerPod {
-  kubectl delete -n devtroncd po "devtron-nats-0";
+  natsPodDelete = kubectl delete -n devtroncd po "devtron-nats-0";
 }
 log(hasNatsServerPod);
 log("executed nats server setup");
@@ -467,7 +466,7 @@ log("executed nats server setup");
 ##log("executed nats streaming setup");
 hasNatsStreaming = kubectl get statefulset -n devtroncd devtron-stan;
 if hasNatsStreaming {
-  kubectl delete -n devtroncd sts "devtron-stan";
+  natsStreamingDelete = kubectl delete -n devtroncd sts devtron-stan;
   log("devtron-stan was found and deleted");
 }
 log(hasNatsStreaming);
