@@ -467,7 +467,13 @@ log("executed nats server setup");
 hasNatsStreaming = kubectl get statefulset -n devtroncd devtron-stan;
 if hasNatsStreaming {
   natsStreamingDelete = kubectl delete -n devtroncd sts devtron-stan;
-  log("devtron-stan was found and deleted");
+  natsStreamingConfigDelete = kubectl delete -n devtroncd cm devtron-stan-config;
+  natsStreamingServiceDelete = kubectl delete -n devtroncd svc devtron-stan;
+  natsStreamingPVC = kubectl get pvc -n devtroncd devtron-stan-pvc-devtron-stan-0;
+  natsStreamingPV = jsonSelect(natsStreamingPVC, "spec.volumeName");
+  natsStreamingPVCDelete = kubectl delete -n devtroncd pvc devtron-stan-pvc-devtron-stan-0;
+  natsStreamingPVDelete = kubectl delete -n devtroncd pv natsStreamingPV;
+  log("devtron-stan was found and all it's resources deleted deleted");
 }
 log(hasNatsStreaming);
 
