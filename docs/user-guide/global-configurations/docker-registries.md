@@ -37,23 +37,31 @@ Here you can select the type of the Registry. We are supporting three types- `do
 
 Select any type of Registry from the drop-down, you have to provide the URL of your registry. Create your registry and provide the URL of that registry in the URL box.
 
-### Registry Type- ECR:
+### Registry Type: ECR
 
-You have to provide the below information if you select the registry type as ECR.
+To add an Amazon Elastic Container Registry (ECR), select the `ECR` Registry type.
+Amazon ECR is an AWS-managed container image registry service.
+The ECR provides resource-based permissions to the private repositories using AWS Identity and Access Management (IAM).
+ECR allows both Key-based and Role-based authentications.
 
-* **AWS region**
+Before you begin, create an [IAM user](https://docs.aws.amazon.com/AmazonECR/latest/userguide/get-set-up-for-amazon-ecr.html), and attach only ECR policy ( AmazonEC2ContainerRegistryFullAccess ) if using Key-based auth. Or attach the ECR policy ( AmazonEC2ContainerRegistryFullAccess) to the cluster worker nodes IAM role of your Kubernetes cluster if using Role-based access.
 
-Select your AWS region from the drop-down, region where you have created your registry in.
+| Fields | Description |
+| --- | --- |
+| **Name** | User-defined name for the registry in Devtron |
+| **Registry Type** | Select **ECR** |
+| **Registry URL** | This is the URL of your private registry in AWS. <br></br> For example, the URL format is: `https://xxxxxxxxxxxx.dkr.ecr.<region>.amazonaws.com`. <br></br>`xxxxxxxxxxxx` is your 12-digit AWS account Id. |
+| **Authentication Type** | <br></br> * **EC2 IAM role**: Authenticate with workernode IAM role. <br></br> * **User Auth**: Authenticate with an authorization token <br></br>  - **Access key ID**: Your AWS access key <br></br>  - **Secret access key**: Your AWS secret access key ID |
 
-* **Access key ID**
+![ECR Role-based authentication](https://devtron-public-asset.s3.us-east-2.amazonaws.com/Container-registeries/ECR-IAM-auth-role-based.png)
 
-Inside the Access key ID box, provide your AWS access key.
+![ECR Key-based authentication](https://devtron-public-asset.s3.us-east-2.amazonaws.com/Container-registeries/ECR_user-auth-key-based.png)
 
-* **Secret access key**
+To set this `ECR` as the default registry hub for your images, select **[x] Set as default registry**.
 
-Provide your AWS secret access key ID.
+Select **Save**.
 
-![](../../user-guide/global-configurations/images/Container_Registry_ecr.jpg)
+To use the ECR container image, go to the **Applications** page and select your application, and then select **App Configuration > [Docker Build Config](./../creating-application/docker-build-configuration.md)**.
 
 ### Registry Type- Docker Hub 
 

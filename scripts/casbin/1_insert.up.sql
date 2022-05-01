@@ -16,7 +16,7 @@
  */
 
 -- Table Definition
-CREATE TABLE "public"."casbin_rule" (
+CREATE TABLE IF NOT EXISTS "public"."casbin_rule" (
     "p_type" varchar(100) NOT NULL DEFAULT ''::character varying,
     "v0" varchar(100) NOT NULL DEFAULT ''::character varying,
     "v1" varchar(100) NOT NULL DEFAULT ''::character varying,

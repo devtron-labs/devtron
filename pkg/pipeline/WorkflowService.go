@@ -207,6 +207,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		ciWorkflow = v1alpha1.Workflow{
 			ObjectMeta: v1.ObjectMeta{
 				GenerateName: workflowRequest.WorkflowNamePrefix + "-",
+				Labels:       map[string]string{"devtron.ai/workflow-purpose": "ci"},
 			},
 			Spec: v1alpha1.WorkflowSpec{
 				ServiceAccountName: impl.ciConfig.WorkflowServiceAccount,
@@ -255,7 +256,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if len(impl.ciConfig.NodeLabel) > 0 {
 		ciWorkflow.Spec.NodeSelector = impl.ciConfig.NodeLabel
 	}
-
 	wfTemplate, err := json.Marshal(ciWorkflow)
 	if err != nil {
 		impl.Logger.Errorw("marshal error", "err", err)

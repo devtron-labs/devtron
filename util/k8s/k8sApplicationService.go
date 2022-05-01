@@ -7,7 +7,9 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"go.uber.org/zap"
 	"io"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -24,6 +26,7 @@ type K8sApplicationService interface {
 	ListEvents(request *ResourceRequestBean) (*application.EventsResponse, error)
 	GetPodLogs(request *ResourceRequestBean) (io.ReadCloser, error)
 	ValidateResourceRequest(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error)
+	GetResourceInfo() (*ResourceInfo, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger           *zap.SugaredLogger
@@ -31,18 +34,22 @@ type K8sApplicationServiceImpl struct {
 	pump             connector.Pump
 	k8sClientService application.K8sClientService
 	helmAppService   client.HelmAppService
+	K8sUtil          *util.K8sUtil
+	aCDAuthConfig    *util3.ACDAuthConfig
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	pump connector.Pump, k8sClientService application.K8sClientService,
-	helmAppService client.HelmAppService) *K8sApplicationServiceImpl {
+	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig) *K8sApplicationServiceImpl {
 	return &K8sApplicationServiceImpl{
 		logger:           Logger,
 		clusterService:   clusterService,
 		pump:             pump,
 		k8sClientService: k8sClientService,
 		helmAppService:   helmAppService,
+		K8sUtil:          K8sUtil,
+		aCDAuthConfig:    aCDAuthConfig,
 	}
 }
 
@@ -50,6 +57,10 @@ type ResourceRequestBean struct {
 	AppId         string                      `json:"appId"`
 	AppIdentifier *client.AppIdentifier       `json:"-"`
 	K8sRequest    *application.K8sRequestBean `json:"k8sRequest"`
+}
+
+type ResourceInfo struct {
+	PodName string `json:"podName"`
 }
 
 func (impl *K8sApplicationServiceImpl) GetResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
@@ -216,4 +227,14 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(appIdentifier *cl
 		}
 	}
 	return valid, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetResourceInfo() (*ResourceInfo, error) {
+	pod, err := impl.K8sUtil.GetResourceInfoByLabelSelector(impl.aCDAuthConfig.ACDConfigMapNamespace, "app=inception")
+	if err != nil {
+		impl.logger.Errorw("error on getting resource from k8s, unable to fetch installer pod", "err", err)
+		return nil, err
+	}
+	response := &ResourceInfo{PodName: pod.Name}
+	return response, nil
 }
