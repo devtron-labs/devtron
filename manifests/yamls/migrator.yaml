@@ -22,7 +22,7 @@ spec:
         image: quay.io/devtron/migrator:6687f572-133-2208
         env:
         - name: GIT_BRANCH
-          value: module_mvp
+          value: main
         - name: SCRIPT_LOCATION
           value: scripts/sql/
         - name: GIT_REPO_URL
