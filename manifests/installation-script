@@ -1,4 +1,4 @@
-LTAG="v0.3.27";
+LTAG="v0.4.0";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
@@ -10,6 +10,7 @@ grafanaPassword = jsonSelect(operatorSecret, "data.GRAFANA_PASSWORD");
 azureAccountKey = jsonSelect(operatorSecret, "data.AZURE_ACCOUNT_KEY");
 postgresSecret = kubectl get secret -n devtroncd postgresql-postgresql;
 enableLegacyApi = jsonSelect(operatorConfigMap, "data.ENABLE_LEGACY_API");
+helmInstallation = jsonSelect(operatorConfigMap, "data.INSTALLATION_THROUGH_HELM");
 
 baseURLScheme = jsonSelect(operatorConfigMap, "data.BASE_URL_SCHEME");
 baseURL = jsonSelect(operatorConfigMap, "data.BASE_URL");
@@ -455,9 +456,26 @@ log("executed migrator setup command");
 ## log("executed nats operator setup");
 ignore = shellScript sleep50;
 natsServer = kubectl apply -n devtroncd natsServer -u natsServerOverride;
+hasNatsServerPod = kubectl get pod -n devtroncd devtron-nats-0;
+if hasNatsServerPod {
+  natsPodDelete = kubectl delete -n devtroncd po "devtron-nats-0";
+}
+log(hasNatsServerPod);
 log("executed nats server setup");
 ## natsStreaming = kubectl apply -n devtroncd natsStreaming -u natsStreamingOverride;
 ##log("executed nats streaming setup");
+hasNatsStreaming = kubectl get statefulset -n devtroncd devtron-stan;
+if hasNatsStreaming {
+  natsStreamingDelete = kubectl delete -n devtroncd sts devtron-stan;
+  natsStreamingConfigDelete = kubectl delete -n devtroncd cm devtron-stan-config;
+  natsStreamingServiceDelete = kubectl delete -n devtroncd svc devtron-stan;
+  natsStreamingPVC = kubectl get pvc -n devtroncd devtron-stan-pvc-devtron-stan-0;
+  natsStreamingPV = jsonSelect(natsStreamingPVC, "spec.volumeName");
+  natsStreamingPVCDelete = kubectl delete -n devtroncd pvc devtron-stan-pvc-devtron-stan-0;
+  natsStreamingPVDelete = kubectl delete -n devtroncd pv natsStreamingPV;
+  log("devtron-stan was found and all it's resources deleted deleted");
+}
+log(hasNatsStreaming);
 
 #guard
 makeCertsDir = `#!/bin/bash
@@ -577,48 +595,60 @@ externaSecretRegion = `env:
 
 kubeYamlEdit(devtron, `data.dt-k8s-external-secrets\.yaml`, externaSecretRegion, `/ConfigMap//devtron-cluster-components`);
 
-if !setupDevtronIngress {
-  kubeYamlEdit(devtron, "spec.type", "LoadBalancer", `/Service//devtron-service`);
+if helmInstallation {
+  kubeYamlDelete(devtron, filter=`/Service//devtron-service`);
+}
+
+if !helmInstallation {
+  if !setupDevtronIngress {
+    kubeYamlEdit(devtron, "spec.type", "LoadBalancer", `/Service//devtron-service`);
+  }
 }
 
 devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
 log("executed devtron setup");
 
-if devtronIngressAnnotations {
-    log("editing ingress");
-	kubeYamlEdit(devtronIngress, "metadata.annotations", devtronIngressAnnotations, `extensions/Ingress//devtron-ingress`, "asObject");
-}
+if !helmInstallation {
+  if devtronIngressAnnotations {
+      log("editing ingress");
+    kubeYamlEdit(devtronIngress, "metadata.annotations", devtronIngressAnnotations, `extensions/Ingress//devtron-ingress`, "asObject");
+  }
 
-if setupDevtronIngress {
-  log("fetch ingress");
-  existingIngress = kubectl get -n devtroncd ing devtron-ingress;
-}
+  if setupDevtronIngress {
+    log("fetch ingress");
+    existingIngress = kubectl get -n devtroncd ing devtron-ingress;
+  }
 
-if existingIngress {
-	annotations = jsonSelect(existingIngress, "metadata.annotations");
-}
+  if existingIngress {
+    annotations = jsonSelect(existingIngress, "metadata.annotations");
+  }
 
-if annotations {
-  kubeYamlEdit(devtronIngress, "metadata.annotations", annotations, `extensions/Ingress//devtron-ingress`, "asObject");
-}
+  if annotations {
+    kubeYamlEdit(devtronIngress, "metadata.annotations", annotations, `extensions/Ingress//devtron-ingress`, "asObject");
+  }
 
-if setupDevtronIngress {
-  log("setup ingress");
-  log(devtronIngress);
-  devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
-}
+  if setupDevtronIngress {
+    log("setup ingress");
+    log(devtronIngress);
+    devtronIngress = kubectl apply -n devtroncd devtronIngress -u devtronIngressOverride;
+  }
 
-log("executed devtron ingress setup");
+  log("executed devtron ingress setup");
+}
 guard = kubectl apply -n devtroncd guard -u guardOverride;
 log("executed guard setup");
-dashboard = kubectl apply -n devtroncd dashboard -u dashboardOverride;
-log("executed dashboard setup");
+if !helmInstallation {
+  dashboard = kubectl apply -n devtroncd dashboard -u dashboardOverride;
+  log("executed dashboard setup");
+}
 gitSensor = kubectl apply -n devtroncd gitSensor -u gitSensorOverride;
 log("executed git sensor setup");
 imageScanner = kubectl apply -n devtroncd imageScanner -u imageScannerOverride;
 log("executed image scanner setup");
-kubelink = kubectl apply -n devtroncd kubelink -u kubelinkOverride;
-log("executed kubelink setup");
+if !helmInstallation {
+  kubelink = kubectl apply -n devtroncd kubelink -u kubelinkOverride;
+  log("executed kubelink setup");
+}
 kubewatch = kubectl apply -n devtroncd kubewatch -u kubewatchOverride;
 log("executed kubewatch setup");
 lens = kubectl apply -n devtroncd lens -u lensOverride;
