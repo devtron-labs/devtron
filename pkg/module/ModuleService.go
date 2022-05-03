@@ -58,9 +58,9 @@ func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvC
 
 func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error) {
 	impl.logger.Debugw("getting module info", "name", name)
-	if name != ModuleCiCdName {
+	/*if name != ModuleCiCdName {
 		return nil, errors.New("supplied module name is not supported yet")
-	}
+	}*/
 
 	moduleInfoDto := &ModuleInfoDto{
 		Name: name,
@@ -75,6 +75,8 @@ func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error)
 	// assume it as EA_ONLY
 	// fetch from DB
 	module, err := impl.moduleRepository.FindOne(name)
+	impl.logger.Infow("moduleInfo", "module", module)
+	impl.logger.Infow("errorInfo", "error", err)
 	if err != nil {
 		impl.logger.Errorw("error in getting module from DB ", "err", err)
 		return nil, err
