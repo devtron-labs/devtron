@@ -1,0 +1,50 @@
+entrypoint: diamond
+nodeSelector: []
+tolerations: []
+#    scaleDown:
+#      stabilizationWindowSeconds: 300
+#      policies:
+#      - type: Percent
+#        value: 100
+#        periodSeconds: 15
+#    scaleUp:
+#      stabilizationWindowSeconds: 0
+#      policies:
+#      - type: Percent
+#        value: 100
+#        periodSeconds: 15
+#      - type: Pods
+#        value: 4
+#        periodSeconds: 15
+#      selectPolicy: Max
+#   extraMetrics: []
+# #    - external:
+# #        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
+# #        metricSelector:
+# #          matchLabels:
+# #            resource.labels.subscription_id: echo-read
+# #        targetAverageValue: "2"
+# #      type: External
+# #
+# secret:
+#  enabled: false
+#  data: {}
+# #   my_own_secret: S3ViZXJuZXRlcyBXb3Jrcw==
+
+# EnvVariables: []
+# #  - name: FLASK_ENV
+# #    value: qa
+
+# resources:
+#   # We usually recommend not to specify default resources and to leave this as a conscious
+#   # choice for the user. This also increases chances charts run on environments with little
+#   # resources, such as Minikube. If you do want to specify resources, uncomment the following
+#   # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+#    limits:
+#     cpu: "0.05"
+#     memory: 50Mi
+#    requests:
+#     cpu: "0.01"
+#     memory: 10Mi
+
+

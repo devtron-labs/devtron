@@ -236,7 +236,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 
 	//RBAC CHECK CD PIPELINE - FOR USER
 	pipelines, err := handler.pipelineRepository.FindByCiPipelineId(ciTriggerRequest.PipelineId)
-	if err!= nil{
+	if err != nil {
 		handler.Logger.Errorw("error in finding ccd pipelines by ciPipelineId", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -262,7 +262,7 @@ func (handler PipelineConfigRestHandlerImpl) TriggerCiPipeline(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	if len(authorizedPipelines) == 0{
+	if len(authorizedPipelines) == 0 {
 		//user has no cd pipeline
 		ciPipeline, err := handler.ciPipelineRepository.FindById(ciTriggerRequest.PipelineId)
 		if err != nil {
@@ -782,7 +782,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateMaterial(w http.ResponseWrite
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWriter, r *http.Request){
+func (handler PipelineConfigRestHandlerImpl) DeleteMaterial(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
