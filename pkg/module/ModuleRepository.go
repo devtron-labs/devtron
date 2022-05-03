@@ -32,8 +32,10 @@ type Module struct {
 }
 
 type ModuleRepository interface {
+	Save(module *Module) error
 	FindOne(name string) (*Module, error)
 	Update(module *Module) error
+	FindAll() ([]Module, error)
 }
 
 type ModuleRepositoryImpl struct {
@@ -42,6 +44,10 @@ type ModuleRepositoryImpl struct {
 
 func NewModuleRepositoryImpl(dbConnection *pg.DB) *ModuleRepositoryImpl {
 	return &ModuleRepositoryImpl{dbConnection: dbConnection}
+}
+
+func (impl ModuleRepositoryImpl) Save(module *Module) error {
+	return impl.dbConnection.Insert(module)
 }
 
 func (impl ModuleRepositoryImpl) FindOne(name string) (*Module, error) {
@@ -53,4 +59,11 @@ func (impl ModuleRepositoryImpl) FindOne(name string) (*Module, error) {
 
 func (impl ModuleRepositoryImpl) Update(module *Module) error {
 	return impl.dbConnection.Update(module)
+}
+
+func (impl ModuleRepositoryImpl) FindAll() ([]Module, error) {
+	var modules []Module
+	err := impl.dbConnection.Model(&modules).
+		Select()
+	return modules, err
 }

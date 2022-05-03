@@ -59,16 +59,4 @@ const (
 	ModuleStatusInstalling    ModuleStatus = "installing"
 	ModuleStatusInstallFailed ModuleStatus = "installFailed"
 	ModuleStatusTimeout       ModuleStatus = "timeout"
-	ModuleStatusUnknown       ModuleStatus = "unknown"
-
-	ModuleCiCdName string = "cicd"
 )
-
-type ModuleDataStore struct {
-	InceptionPodName      string
-	IsCiCdModuleInstalled bool
-}
-
-func InitModuleDataStore() *ModuleDataStore {
-	return &ModuleDataStore{}
-}

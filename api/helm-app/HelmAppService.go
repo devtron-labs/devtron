@@ -2,7 +2,6 @@ package client
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
@@ -17,8 +16,11 @@ import (
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/ghodss/yaml"
 	"github.com/gogo/protobuf/proto"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
 	"time"
@@ -482,22 +484,37 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ct
 		return nil, err
 	}
 
-	// intialise merge with original values
-	mergedValuesJsonByteArr := []byte(releaseInfo.MergedValues)
+	// initialise object with original values
+	jsonString := releaseInfo.MergedValues
 
-	// initialise extra values
+	// handle extra values
+	// special handling for array
 	if len(extraValues) > 0 {
-		extraValuesJsonByteArr, err := json.Marshal(extraValues)
-		if err != nil {
-			impl.logger.Errorw("error in json marshalling of extra values", "err", err)
-			return nil, err
-		}
-		mergedValuesJsonByteArr, err = jsonpatch.MergePatch(mergedValuesJsonByteArr, extraValuesJsonByteArr)
-		if err != nil {
-			impl.logger.Errorw("error in json patch of extra values", "err", err)
-			return nil, err
+		for k, v := range extraValues {
+			var valueI interface{}
+			if reflect.TypeOf(v).Kind() == reflect.Slice {
+				currentValue := gjson.Get(jsonString, k).Value()
+				value := make([]interface{}, 0)
+				if currentValue != nil {
+					value = currentValue.([]interface{})
+				}
+				for _, singleNewVal := range v.([]interface{}) {
+					value = append(value, singleNewVal)
+				}
+				valueI = value
+			} else {
+				valueI = v
+			}
+			jsonString, err = sjson.Set(jsonString, k, valueI)
+			if err != nil {
+				impl.logger.Errorw("error in handing extra values", "err", err)
+				return nil, err
+			}
 		}
 	}
+
+	// convert to byte array
+	mergedValuesJsonByteArr := []byte(jsonString)
 
 	// handle extra values from url
 	if len(extraValuesYamlUrl) > 0 {
@@ -536,15 +553,15 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ct
 			ReleaseName:      appIdentifier.ReleaseName,
 			ReleaseNamespace: appIdentifier.Namespace,
 		},
-		ChartName:    releaseInfo.DeployedAppDetail.ChartName,
-		ValuesYaml:   string(mergedValuesYamlByteArr),
+		ChartName:       releaseInfo.DeployedAppDetail.ChartName,
+		ValuesYaml:      string(mergedValuesYamlByteArr),
 		ChartRepository: chartRepository,
 	}
 	if !useLatestChartVersion {
 		updateReleaseRequest.ChartVersion = releaseInfo.DeployedAppDetail.ChartVersion
 	}
 
-	updateResponse, err := impl.UpdateApplicationWithChartInfo(context.Background(), appIdentifier.ClusterId, updateReleaseRequest)
+	updateResponse, err := impl.UpdateApplicationWithChartInfo(ctx, appIdentifier.ClusterId, updateReleaseRequest)
 	if err != nil {
 		impl.logger.Errorw("error in upgrading release", "err", err)
 		return nil, err

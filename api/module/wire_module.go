@@ -11,7 +11,6 @@ var ModuleWireSet = wire.NewSet(
 	module.NewModuleRepositoryImpl,
 	wire.Bind(new(module.ModuleRepository), new(*module.ModuleRepositoryImpl)),
 	module.ParseModuleEnvConfig,
-	module.InitModuleDataStore,
 	module.NewModuleServiceImpl,
 	wire.Bind(new(module.ModuleService), new(*module.ModuleServiceImpl)),
 	module.NewModuleCronServiceImpl,

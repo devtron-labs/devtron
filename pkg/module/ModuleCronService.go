@@ -19,7 +19,6 @@ package module
 
 import (
 	"fmt"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"time"
@@ -43,22 +42,19 @@ func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *Module
 	}
 
 	// cron job to update status as timeout if installing state keeps in more than 1 hour
-	// do this only if mode is hyperion (as for hyperion only module can be installed, for full, module is being treated as already installed)
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
-		// initialise cron
-		cron := cron.New(
-			cron.WithChain())
-		cron.Start()
+	// initialise cron
+	cron := cron.New(
+		cron.WithChain())
+	cron.Start()
 
-		// add function into cron
-		_, err := cron.AddFunc(fmt.Sprintf("@every %dm", moduleEnvConfig.ModuleTimeoutStatusHandlingCronDurationInMin), moduleCronServiceImpl.HandleModuleTimeoutStatus)
-		if err != nil {
-			fmt.Println("error in adding cron function into module cron service")
-			return nil, err
-		}
-
-		moduleCronServiceImpl.cron = cron
+	// add function into cron
+	_, err := cron.AddFunc(fmt.Sprintf("@every %dm", moduleEnvConfig.ModuleTimeoutStatusHandlingCronDurationInMin), moduleCronServiceImpl.HandleModuleTimeoutStatus)
+	if err != nil {
+		fmt.Println("error in adding cron function into module cron service")
+		return nil, err
 	}
+
+	moduleCronServiceImpl.cron = cron
 
 	return moduleCronServiceImpl, nil
 }
@@ -68,22 +64,28 @@ func (impl *ModuleCronServiceImpl) HandleModuleTimeoutStatus() {
 	impl.logger.Debug("starting module status check thread")
 	defer impl.logger.Debug("stopped module status check thread")
 
-	// fetch ciCd module from DB
-	ciCdModule, err := impl.moduleRepository.FindOne(ModuleCiCdName)
+	// fetch all modules from DB
+	modules, err := impl.moduleRepository.FindAll()
 	if err != nil {
-		impl.logger.Errorw("error occurred while fetching ciCd module", "err", err)
+		impl.logger.Errorw("error occurred while fetching all the modules from DB", "err", err)
 		return
 	}
 
+
 	// update status timeout if module status is installing for more than 1 hour
-	if ciCdModule.Status == ModuleStatusInstalling && time.Now().After(ciCdModule.UpdatedOn.Add(1*time.Hour)) {
-		impl.logger.Debugw("updating module status as timeout", "name", ciCdModule.Name)
-		ciCdModule.Status = ModuleStatusTimeout
-		ciCdModule.UpdatedOn = time.Now()
-		err = impl.moduleRepository.Update(ciCdModule)
-		if err != nil {
-			impl.logger.Errorw("error in updating module status to timeout", "name", ciCdModule.Name, "err", err)
+	for _, module := range modules {
+		if module.Status != ModuleStatusInstalling || !time.Now().After(module.UpdatedOn.Add(1*time.Hour)) {
+			continue
 		}
+
+		impl.logger.Debugw("updating module status as timeout", "name", module.Name)
+		module.Status = ModuleStatusTimeout
+		module.UpdatedOn = time.Now()
+		err = impl.moduleRepository.Update(&module)
+		if err != nil {
+			impl.logger.Errorw("error in updating module status to timeout", "name", module.Name, "err", err)
+		}
+
 	}
 
 }

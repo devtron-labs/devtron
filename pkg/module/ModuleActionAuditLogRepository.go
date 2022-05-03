@@ -23,13 +23,13 @@ import (
 )
 
 type ModuleActionAuditLog struct {
-	tableName struct{}  `sql:"module_action_audit_log"`
-	Id        int       `sql:"id,pk"`
-	ModuleId  int       `sql:"module_id, notnull"`
-	Action    string    `sql:"action,notnull"`
-	Version   string    `sql:"version,notnull"`
-	CreatedOn time.Time `sql:"created_on,notnull"`
-	CreatedBy int32     `sql:"created_by,notnull"`
+	tableName  struct{}  `sql:"module_action_audit_log"`
+	Id         int       `sql:"id,pk"`
+	ModuleName string    `sql:"module_name, notnull"`
+	Action     string    `sql:"action,notnull"`
+	Version    string    `sql:"version,notnull"`
+	CreatedOn  time.Time `sql:"created_on,notnull"`
+	CreatedBy  int32     `sql:"created_by,notnull"`
 }
 
 type ModuleActionAuditLogRepository interface {

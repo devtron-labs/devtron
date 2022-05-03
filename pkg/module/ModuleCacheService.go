@@ -20,7 +20,6 @@ package module
 import (
 	"context"
 	"github.com/devtron-labs/devtron/internal/util"
-	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -40,33 +39,59 @@ import (
 type ModuleCacheService interface {
 }
 
-type ModuleCacheServiceImpl struct {
-	logger           *zap.SugaredLogger
-	mutex            sync.Mutex
-	K8sUtil          *util.K8sUtil
-	moduleEnvConfig  *ModuleEnvConfig
-	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
-	moduleDataStore  *ModuleDataStore
-	serverDataStore  *serverDataStore.ServerDataStore
-	moduleRepository ModuleRepository
-}
-
-func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleDataStore *ModuleDataStore,
+func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
 	serverDataStore *serverDataStore.ServerDataStore, moduleRepository ModuleRepository) *ModuleCacheServiceImpl {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
 		K8sUtil:          K8sUtil,
 		moduleEnvConfig:  moduleEnvConfig,
 		serverEnvConfig:  serverEnvConfig,
-		moduleDataStore:  moduleDataStore,
 		serverDataStore:  serverDataStore,
 		moduleRepository: moduleRepository,
 	}
 
-	// build informer to listen on installer object
-	go impl.buildInformerToListenOnInstallerObject()
+	// for hyperion mode, installer crd won't come in picture
+	// for full mode, need to update modules to installed in db in found as installing
+	// for full mode, listen in installer object to save status in-memory
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
+		// handle cicd module status
+		impl.updateModuleStatusToInstalled()
+
+		// build informer to listen on installer object
+		go impl.buildInformerToListenOnInstallerObject()
+	}
 
 	return impl
+}
+
+type ModuleCacheServiceImpl struct {
+	logger           *zap.SugaredLogger
+	mutex            sync.Mutex
+	K8sUtil          *util.K8sUtil
+	moduleEnvConfig  *ModuleEnvConfig
+	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
+	serverDataStore  *serverDataStore.ServerDataStore
+	moduleRepository ModuleRepository
+}
+
+func (impl *ModuleCacheServiceImpl) updateModuleStatusToInstalled() {
+	impl.logger.Debug("updating module status to installed")
+	modules, err := impl.moduleRepository.FindAll()
+	if err != nil {
+		log.Fatalln("not able to get all the module from DB.", "error", err)
+	}
+
+	for _, module := range modules {
+		if module.Status != ModuleStatusInstalling {
+			continue
+		}
+		module.Status = ModuleStatusInstalled
+		module.UpdatedOn = time.Now()
+		err = impl.moduleRepository.Update(&module)
+		if err != nil {
+			log.Fatalln("error in updating module status to installed", "name", module.Name, "err", err)
+		}
+	}
 }
 
 func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
@@ -89,7 +114,7 @@ func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 	factory := dynamicinformer.NewFilteredDynamicSharedInformerFactory(
 		clusterClient, time.Minute, impl.serverEnvConfig.InstallerCrdNamespace, nil)
 	informer := factory.ForResource(installerResource).Informer()
-	
+
 	informer.AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
 			impl.handleInstallerObjectChange(obj)
@@ -110,28 +135,4 @@ func (impl *ModuleCacheServiceImpl) handleInstallerObjectChange(obj interface{})
 	u := obj.(*unstructured.Unstructured)
 	val, _, _ := unstructured.NestedString(u.Object, "status", "sync", "status")
 	impl.serverDataStore.InstallerCrdObjectStatus = val
-
-	// if installer status is applied and server is of full mode and status is notInstalled then check ciCd module from DB
-	// if status is installing or unknown then save as installed in DB
-	// if status is in installing/unknown state, then mark it as installed and update in-memory
-	// if status is installed, then update in-memory
-	if !impl.moduleDataStore.IsCiCdModuleInstalled && val == serverBean.InstallerCrdObjectStatusApplied && util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
-		ciCdModule, err := impl.moduleRepository.FindOne(ModuleCiCdName)
-		if err != nil {
-			impl.logger.Errorw("error occurred while fetching ciCd module", "err", err)
-			return
-		}
-		if ciCdModule.Status == ModuleStatusInstalling || ciCdModule.Status == ModuleStatusUnknown {
-			ciCdModule.Status = ModuleStatusInstalled
-			ciCdModule.UpdatedOn = time.Now()
-			err = impl.moduleRepository.Update(ciCdModule)
-			if err != nil {
-				impl.logger.Errorw("error in updating module status to installed", "name", ciCdModule.Name, "err", err)
-			} else {
-				impl.moduleDataStore.IsCiCdModuleInstalled = true
-			}
-		} else if ciCdModule.Status == ModuleStatusInstalled {
-			impl.moduleDataStore.IsCiCdModuleInstalled = true
-		}
-	}
 }
