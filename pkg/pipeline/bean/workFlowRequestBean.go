@@ -44,6 +44,7 @@ type VariableObject struct {
 	VariableType               VariableType `json:"variableType,omitempty"`
 	ReferenceVariableName      string       `json:"referenceVariableName,omitempty"`
 	ReferenceVariableStepIndex int          `json:"referenceVariableStepIndex,omitempty"`
+	VariableStepIndexInPlugin  int          `json:"variableStepIndexInPlugin,omitempty"`
 }
 
 type ConditionObject struct {

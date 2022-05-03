@@ -128,24 +128,26 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_plugin_step_variable;
 -- Table Definition
 CREATE TABLE "public"."plugin_step_variable"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_plugin_step_variable'::regclass),
-    "plugin_step_id"              integer,
-    "name"                        varchar(255),
-    "format"                      varchar(255),
-    "description"                 text,
-    "is_exposed"                  bool,
-    "allow_empty_value"           bool,
-    "default_value"               varchar(255),
-    "value"                       varchar(255),
-    "variable_type"               varchar(255),   -- INPUT or OUTPUT
-    "value_type"                  varchar(255),   -- NEW, FROM_PREVIOUS_STEP or GLOBAL
-    "previous_step_index"         integer,
-    "reference_variable_name"     text,
-    "deleted"                     bool,
-    "created_on"                  timestamptz,
-    "created_by"                  int4,
-    "updated_on"                  timestamptz,
-    "updated_by"                  int4,
+    "id"                            integer NOT NULL DEFAULT nextval('id_seq_plugin_step_variable'::regclass),
+    "plugin_step_id"                integer,
+    "name"                          varchar(255),
+    "format"                        varchar(255),
+    "description"                   text,
+    "is_exposed"                    bool,
+    "allow_empty_value"             bool,
+    "default_value"                 varchar(255),
+    "value"                         varchar(255),
+    "variable_type"                 varchar(255),   -- INPUT or OUTPUT
+    "value_type"                    varchar(255),   -- NEW, FROM_PREVIOUS_STEP or GLOBAL
+    "previous_step_index"           integer,
+    "variable_step_index"           integer,
+    "variable_step_index_in_plugin" integer,        -- will contain step index of variable in case of ref plugin
+    "reference_variable_name"       text,
+    "deleted"                       bool,
+    "created_on"                    timestamptz,
+    "created_by"                    int4,
+    "updated_on"                    timestamptz,
+    "updated_by"                    int4,
     CONSTRAINT "plugin_step_variable_plugin_step_id_fkey" FOREIGN KEY ("plugin_step_id") REFERENCES "public"."plugin_step" ("id"),
     PRIMARY KEY ("id")
 );
@@ -223,26 +225,27 @@ CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_stage_step_variable;
 -- Table Definition
 CREATE TABLE "public"."pipeline_stage_step_variable"
 (
-    "id"                          integer NOT NULL DEFAULT nextval('id_seq_pipeline_stage_step_variable'::regclass),
-    "pipeline_stage_step_id"      integer,
-    "name"                        varchar(255),
-    "format"                      varchar(255),
-    "description"                 text,
-    "is_exposed"                  bool,
-    "allow_empty_value"           bool,
-    "default_value"               varchar(255),
-    "value"                       varchar(255),
-    "variable_type"               varchar(255),   -- INPUT or OUTPUT
-    "index"                       integer,
-    "value_type"                  varchar(255),   -- NEW, FROM_PREVIOUS_STEP or GLOBAL
-    "previous_step_index"         integer,
-    "reference_variable_name"     text,
-    "reference_variable_stage"    text,
-    "deleted"                     bool,
-    "created_on"                  timestamptz,
-    "created_by"                  int4,
-    "updated_on"                  timestamptz,
-    "updated_by"                  int4,
+    "id"                            integer NOT NULL DEFAULT nextval('id_seq_pipeline_stage_step_variable'::regclass),
+    "pipeline_stage_step_id"        integer,
+    "name"                          varchar(255),
+    "format"                        varchar(255),
+    "description"                   text,
+    "is_exposed"                    bool,
+    "allow_empty_value"             bool,
+    "default_value"                 varchar(255),
+    "value"                         varchar(255),
+    "variable_type"                 varchar(255),   -- INPUT or OUTPUT
+    "index"                         integer,
+    "value_type"                    varchar(255),   -- NEW, FROM_PREVIOUS_STEP or GLOBAL
+    "previous_step_index"           integer,
+    "variable_step_index_in_plugin" integer,
+    "reference_variable_name"       text,
+    "reference_variable_stage"      text,
+    "deleted"                       bool,
+    "created_on"                    timestamptz,
+    "created_by"                    int4,
+    "updated_on"                    timestamptz,
+    "updated_by"                    int4,
     CONSTRAINT "pipeline_stage_step_variable_pipeline_stage_step_id_fkey" FOREIGN KEY ("pipeline_stage_step_id") REFERENCES "public"."pipeline_stage_step" ("id"),
     PRIMARY KEY ("id")
 );
@@ -333,14 +336,14 @@ INSERT INTO "public"."plugin_step" ("id", "plugin_id","name","description","inde
 SELECT pg_catalog.setval('public.id_seq_plugin_step', 2, true);
 
 
-INSERT INTO "public"."plugin_step_variable" ("id", "plugin_step_id","name","format","description","is_exposed","allow_empty_value","variable_type","value_type","default_value","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
-('1', '1','RelativePathToScript','STRING','checkout path + script path along with script name','t','f','INPUT','NEW','/./script.js','f','now()', '1', 'now()', '1'),
-('2', '1','GrafanaCloudUsername','STRING','username of grafana cloud/prometheus account','t','t','INPUT','NEW',null ,'f','now()', '1', 'now()', '1'),
-('3', '1','GrafanaCloudApiKey','STRING','api key of grafana cloud/prometheus account','t','t','INPUT','NEW',null ,'f','now()', '1', 'now()', '1'),
-('4', '1','GrafanaCloudEndpoint','STRING','remote write endpoint of grafana cloud/prometheus account','t','t','INPUT','NEW',null ,'f','now()', '1', 'now()', '1'),
-('5', '1','OutputType','STRING','output type - LOG or GRAFANA_CLOUD','t','f','INPUT','NEW','LOG' ,'f','now()', '1', 'now()', '1'),
-('6', '2','SonarqubeProjectKey','STRING','project key of grafana sonarqube account','t','t','INPUT','NEW',null,'f','now()', '1', 'now()', '1'),
-('7', '2','SonarqubeApiKey','STRING','api key of sonarqube account','t','t','INPUT','NEW',null,'f','now()', '1', 'now()', '1'),
-('8', '2','SonarqubeEndpoint','STRING','api endpoint of sonarqube account','t','t','INPUT','NEW',null ,'f','now()', '1', 'now()', '1');
+INSERT INTO "public"."plugin_step_variable" ("id", "plugin_step_id", "name", "format", "description", "is_exposed", "allow_empty_value", "variable_type", "value_type", "default_value", "variable_step_index", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
+('1', '1','RelativePathToScript','STRING','checkout path + script path along with script name','t','f','INPUT','NEW','/./script.js','1','f','now()', '1', 'now()', '1'),
+('2', '1','GrafanaCloudUsername','STRING','username of grafana cloud/prometheus account','t','t','INPUT','NEW',null, '1' ,'f','now()', '1', 'now()', '1'),
+('3', '1','GrafanaCloudApiKey','STRING','api key of grafana cloud/prometheus account','t','t','INPUT','NEW',null, '1','f','now()', '1', 'now()', '1'),
+('4', '1','GrafanaCloudEndpoint','STRING','remote write endpoint of grafana cloud/prometheus account','t','t','INPUT','NEW',null, '1','f','now()', '1', 'now()', '1'),
+('5', '1','OutputType','STRING','output type - LOG or GRAFANA_CLOUD','t','f','INPUT','NEW','LOG', '1','f','now()', '1', 'now()', '1'),
+('6', '2','SonarqubeProjectKey','STRING','project key of grafana sonarqube account','t','t','INPUT','NEW',null, '1', 'f','now()', '1', 'now()', '1'),
+('7', '2','SonarqubeApiKey','STRING','api key of sonarqube account','t','t','INPUT','NEW',null, '1', 'f','now()', '1', 'now()', '1'),
+('8', '2','SonarqubeEndpoint','STRING','api endpoint of sonarqube account','t','t','INPUT','NEW',null, '1','f','now()', '1', 'now()', '1');
 
 SELECT pg_catalog.setval('public.id_seq_plugin_step_variable', 8, true);

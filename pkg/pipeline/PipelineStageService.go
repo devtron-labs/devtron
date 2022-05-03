@@ -526,20 +526,21 @@ func (impl *PipelineStageServiceImpl) CreateVariablesEntryInDb(stepId int, varia
 	var err error
 	for _, v := range variables {
 		inVarRepo := repository.PipelineStageStepVariable{
-			PipelineStageStepId:    stepId,
-			Name:                   v.Name,
-			Format:                 v.Format,
-			Description:            v.Description,
-			IsExposed:              v.IsExposed,
-			AllowEmptyValue:        v.AllowEmptyValue,
-			DefaultValue:           v.DefaultValue,
-			Value:                  v.Value,
-			ValueType:              v.ValueType,
-			VariableType:           variableType,
-			PreviousStepIndex:      v.PreviousStepIndex,
-			ReferenceVariableName:  v.ReferenceVariableName,
-			ReferenceVariableStage: v.ReferenceVariableStage,
-			Deleted:                false,
+			PipelineStageStepId:       stepId,
+			Name:                      v.Name,
+			Format:                    v.Format,
+			Description:               v.Description,
+			IsExposed:                 v.IsExposed,
+			AllowEmptyValue:           v.AllowEmptyValue,
+			DefaultValue:              v.DefaultValue,
+			Value:                     v.Value,
+			ValueType:                 v.ValueType,
+			VariableType:              variableType,
+			PreviousStepIndex:         v.PreviousStepIndex,
+			ReferenceVariableName:     v.ReferenceVariableName,
+			ReferenceVariableStage:    v.ReferenceVariableStage,
+			VariableStepIndexInPlugin: v.VariableStepIndexInPlugin,
+			Deleted:                   false,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: userId,
@@ -999,21 +1000,22 @@ func (impl *PipelineStageServiceImpl) UpdatePipelineStageStepVariables(stepId in
 	for _, v := range variablesToBeUpdated {
 		variableNameIdMap[v.Name] = v.Id
 		inVarRepo := repository.PipelineStageStepVariable{
-			Id:                     v.Id,
-			PipelineStageStepId:    stepId,
-			Name:                   v.Name,
-			Format:                 v.Format,
-			Description:            v.Description,
-			IsExposed:              v.IsExposed,
-			AllowEmptyValue:        v.AllowEmptyValue,
-			DefaultValue:           v.DefaultValue,
-			Value:                  v.Value,
-			ValueType:              v.ValueType,
-			VariableType:           variableType,
-			PreviousStepIndex:      v.PreviousStepIndex,
-			ReferenceVariableName:  v.ReferenceVariableName,
-			ReferenceVariableStage: v.ReferenceVariableStage,
-			Deleted:                false,
+			Id:                        v.Id,
+			PipelineStageStepId:       stepId,
+			Name:                      v.Name,
+			Format:                    v.Format,
+			Description:               v.Description,
+			IsExposed:                 v.IsExposed,
+			AllowEmptyValue:           v.AllowEmptyValue,
+			DefaultValue:              v.DefaultValue,
+			Value:                     v.Value,
+			ValueType:                 v.ValueType,
+			VariableType:              variableType,
+			PreviousStepIndex:         v.PreviousStepIndex,
+			ReferenceVariableName:     v.ReferenceVariableName,
+			ReferenceVariableStage:    v.ReferenceVariableStage,
+			VariableStepIndexInPlugin: v.VariableStepIndexInPlugin,
+			Deleted:                   false,
 			AuditLog: sql.AuditLog{
 				UpdatedOn: time.Now(),
 				UpdatedBy: userId,
@@ -1426,6 +1428,7 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataForWfRequest(
 			Format:                     string(variable.Format),
 			ReferenceVariableStepIndex: variable.PreviousStepIndex,
 			ReferenceVariableName:      variable.ReferenceVariableName,
+			VariableStepIndexInPlugin:  variable.VariableStepIndexInPlugin,
 		}
 		if variable.ValueType == repository.PIPELINE_STAGE_STEP_VARIABLE_VALUE_TYPE_NEW {
 			variableData.VariableType = bean.VARIABLE_TYPE_VALUE
@@ -1567,6 +1570,7 @@ func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRe
 			Format:                     string(variable.Format),
 			ReferenceVariableStepIndex: variable.PreviousStepIndex,
 			ReferenceVariableName:      variable.ReferenceVariableName,
+			VariableStepIndexInPlugin:  variable.VariableStepIndexInPlugin,
 		}
 		if variable.ValueType == repository2.PLUGIN_VARIABLE_VALUE_TYPE_NEW {
 			variableData.VariableType = bean.VARIABLE_TYPE_VALUE

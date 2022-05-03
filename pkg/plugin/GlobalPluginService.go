@@ -171,6 +171,7 @@ func (impl *GlobalPluginServiceImpl) GetPluginDetailById(pluginId int) (*PluginD
 			Value:                 pluginVariable.Value,
 			ValueType:             pluginVariable.ValueType,
 			PreviousStepIndex:     pluginVariable.PreviousStepIndex,
+			VariableStepIndex:     pluginVariable.VariableStepIndex,
 			ReferenceVariableName: pluginVariable.ReferenceVariableName,
 		}
 		if pluginVariable.VariableType == repository.PLUGIN_VARIABLE_TYPE_INPUT {

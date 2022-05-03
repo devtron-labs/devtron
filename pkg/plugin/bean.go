@@ -28,5 +28,6 @@ type PluginVariableDto struct {
 	Value                 string                                  `json:"value,omitempty"`
 	ValueType             repository.PluginStepVariableValueType  `json:"variableType,omitempty"`
 	PreviousStepIndex     int                                     `json:"previousStepIndex,omitempty"`
+	VariableStepIndex     int                                     `json:"variableStepIndex"`
 	ReferenceVariableName string                                  `json:"referenceVariableName,omitempty"`
 }

@@ -52,18 +52,19 @@ type RefPluginStepDetailDto struct {
 }
 
 type StepVariableDto struct {
-	Id                     int                                            `json:"id"`
-	Name                   string                                         `json:"name"`
-	Format                 repository.PipelineStageStepVariableFormatType `json:"format" validate:"oneof=STRING NUMBER BOOL DATE"`
-	Description            string                                         `json:"description"`
-	IsExposed              bool                                           `json:"isExposed,omitempty"`
-	AllowEmptyValue        bool                                           `json:"allowEmptyValue,omitempty"`
-	DefaultValue           string                                         `json:"defaultValue,omitempty"`
-	Value                  string                                         `json:"value"`
-	ValueType              repository.PipelineStageStepVariableValueType  `json:"variableType,omitempty" validate:"oneof=NEW FROM_PREVIOUS_STEP GLOBAL"`
-	PreviousStepIndex      int                                            `json:"refVariableStepIndex,omitempty"`
-	ReferenceVariableName  string                                         `json:"refVariableName,omitempty"`
-	ReferenceVariableStage repository.PipelineStageType                   `json:"refVariableStage"`
+	Id                        int                                            `json:"id"`
+	Name                      string                                         `json:"name"`
+	Format                    repository.PipelineStageStepVariableFormatType `json:"format" validate:"oneof=STRING NUMBER BOOL DATE"`
+	Description               string                                         `json:"description"`
+	IsExposed                 bool                                           `json:"isExposed,omitempty"`
+	AllowEmptyValue           bool                                           `json:"allowEmptyValue,omitempty"`
+	DefaultValue              string                                         `json:"defaultValue,omitempty"`
+	Value                     string                                         `json:"value"`
+	ValueType                 repository.PipelineStageStepVariableValueType  `json:"variableType,omitempty" validate:"oneof=NEW FROM_PREVIOUS_STEP GLOBAL"`
+	PreviousStepIndex         int                                            `json:"refVariableStepIndex,omitempty"`
+	ReferenceVariableName     string                                         `json:"refVariableName,omitempty"`
+	VariableStepIndexInPlugin int                                            `json:"variableStepIndexInPlugin,omitempty"`
+	ReferenceVariableStage    repository.PipelineStageType                   `json:"refVariableStage"`
 }
 
 type ConditionDetailDto struct {

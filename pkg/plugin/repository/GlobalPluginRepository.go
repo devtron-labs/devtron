@@ -122,21 +122,23 @@ type PluginStep struct {
 }
 
 type PluginStepVariable struct {
-	tableName             struct{}                     `sql:"plugin_step_variable" pg:",discard_unknown_columns"`
-	Id                    int                          `sql:"id,pk"`
-	PluginStepId          int                          `sql:"plugin_step_id"`
-	Name                  string                       `sql:"name"`
-	Format                PluginStepVariableFormatType `sql:"format"`
-	Description           string                       `sql:"description"`
-	IsExposed             bool                         `sql:"is_exposed,notnull"`
-	AllowEmptyValue       bool                         `sql:"allow_empty_value,notnull"`
-	DefaultValue          string                       `sql:"default_value"`
-	Value                 string                       `sql:"value"`
-	VariableType          PluginStepVariableType       `sql:"variable_type"`
-	ValueType             PluginStepVariableValueType  `sql:"value_type"`
-	PreviousStepIndex     int                          `sql:"previous_step_index"`
-	ReferenceVariableName string                       `sql:"reference_variable_name"`
-	Deleted               bool                         `sql:"deleted,notnull"`
+	tableName                 struct{}                     `sql:"plugin_step_variable" pg:",discard_unknown_columns"`
+	Id                        int                          `sql:"id,pk"`
+	PluginStepId              int                          `sql:"plugin_step_id"`
+	Name                      string                       `sql:"name"`
+	Format                    PluginStepVariableFormatType `sql:"format"`
+	Description               string                       `sql:"description"`
+	IsExposed                 bool                         `sql:"is_exposed,notnull"`
+	AllowEmptyValue           bool                         `sql:"allow_empty_value,notnull"`
+	DefaultValue              string                       `sql:"default_value"`
+	Value                     string                       `sql:"value"`
+	VariableType              PluginStepVariableType       `sql:"variable_type"`
+	ValueType                 PluginStepVariableValueType  `sql:"value_type"`
+	PreviousStepIndex         int                          `sql:"previous_step_index"`
+	VariableStepIndex         int                          `sql:"variable_step_index"`
+	VariableStepIndexInPlugin int                          `sql:"variable_step_index_in_plugin"` // will contain stepIndex of variable in case of refPlugin
+	ReferenceVariableName     string                       `sql:"reference_variable_name"`
+	Deleted                   bool                         `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
