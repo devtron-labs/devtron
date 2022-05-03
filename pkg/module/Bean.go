@@ -18,6 +18,7 @@
 package module
 
 import (
+	"fmt"
 	"github.com/caarlos0/env"
 )
 
@@ -39,13 +40,15 @@ type ModuleEnvConfig struct {
 	ModuleTimeoutStatusHandlingCronDurationInMin int `env:"MODULE_TIMEOUT_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"5"` // default 5 mins
 }
 
-func ParseModuleEnvConfig() *ModuleEnvConfig {
+func ParseModuleEnvConfig() (*ModuleEnvConfig, error) {
 	cfg := &ModuleEnvConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
-		panic("failed to parse module env config: " + err.Error())
+		fmt.Println("failed to parse module env config: " + err.Error())
+		return nil, err
 	}
-	return cfg
+
+	return cfg, nil
 }
 
 type ModuleStatus = string

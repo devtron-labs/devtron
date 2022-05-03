@@ -1,6 +1,9 @@
 package serverEnvConfig
 
-import "github.com/caarlos0/env"
+import (
+	"fmt"
+	"github.com/caarlos0/env"
+)
 
 type ServerEnvConfig struct {
 	CanServerUpdate                      bool   `env:"CAN_SERVER_UPDATE" envDefault:"true"` // default true
@@ -18,11 +21,12 @@ type ServerEnvConfig struct {
 	DevtronBomUrl                        string `env:"DEVTRON_BOM_URL" envDefault:"https://raw.githubusercontent.com/devtron-labs/devtron/%s/manifests/devtron-bom.yaml"`
 }
 
-func ParseServerEnvConfig() *ServerEnvConfig {
+func ParseServerEnvConfig() (*ServerEnvConfig, error) {
 	cfg := &ServerEnvConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
-		panic("failed to parse server env config: " + err.Error())
+		fmt.Println("failed to parse server env config: " + err.Error())
+		return nil, err
 	}
-	return cfg
+	return cfg, nil
 }
