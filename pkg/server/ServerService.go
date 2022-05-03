@@ -132,7 +132,7 @@ func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionReque
 	extraValues["installer"] = map[string]interface{}{
 		"release": serverActionRequest.Version,
 	}
-	extraValuesYamlUrl := util2.BuildDevtronBomUrl(serverActionRequest.Version)
+	extraValuesYamlUrl := util2.BuildDevtronBomUrl(impl.serverEnvConfig.DevtronBomUrl, serverActionRequest.Version)
 
 	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)
 	if err != nil {
