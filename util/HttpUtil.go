@@ -18,8 +18,10 @@
 package util
 
 import (
+	"errors"
 	"io/ioutil"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -41,6 +43,10 @@ func ReadFromUrlWithRetry(url string) ([]byte, error) {
 	}
 	if response != nil {
 		defer response.Body.Close()
+		statusCode := response.StatusCode
+		if statusCode != http.StatusOK {
+			return nil, errors.New("Error in downloading file. Status code : " + strconv.Itoa(statusCode))
+		}
 		body, err := ioutil.ReadAll(response.Body)
 		if err != nil {
 			return nil, err
