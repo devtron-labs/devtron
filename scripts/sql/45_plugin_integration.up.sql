@@ -344,6 +344,7 @@ INSERT INTO "public"."plugin_step_variable" ("id", "plugin_step_id", "name", "fo
 ('5', '1','OutputType','STRING','output type - LOG or GRAFANA_CLOUD','t','f','INPUT','NEW','LOG', '1','f','now()', '1', 'now()', '1'),
 ('6', '2','SonarqubeProjectKey','STRING','project key of grafana sonarqube account','t','t','INPUT','NEW',null, '1', 'f','now()', '1', 'now()', '1'),
 ('7', '2','SonarqubeApiKey','STRING','api key of sonarqube account','t','t','INPUT','NEW',null, '1', 'f','now()', '1', 'now()', '1'),
-('8', '2','SonarqubeEndpoint','STRING','api endpoint of sonarqube account','t','t','INPUT','NEW',null, '1','f','now()', '1', 'now()', '1');
+('8', '2','SonarqubeEndpoint','STRING','api endpoint of sonarqube account','t','t','INPUT','NEW',null, '1','f','now()', '1', 'now()', '1'),
+('9', '2','CheckoutPath','STRING','checkout path of git material','t','t','INPUT','NEW',null, '1','f','now()', '1', 'now()', '1');
 
-SELECT pg_catalog.setval('public.id_seq_plugin_step_variable', 8, true);
+SELECT pg_catalog.setval('public.id_seq_plugin_step_variable', 9, true);
