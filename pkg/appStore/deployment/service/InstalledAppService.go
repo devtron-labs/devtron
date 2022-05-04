@@ -356,6 +356,7 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 		impl.logger.Errorw("error in marshaling", "err", err)
 		return installAppVersionRequest, err
 	}
+	impl.logger.Infow("test acd login", "gitops repo name", installAppVersionRequest.GitOpsRepoName)
 	valuesConfig := &util.ChartConfig{
 		FileName:       appStoreBean.VALUES_YAML_FILE,
 		FileContent:    string(valuesByte),
