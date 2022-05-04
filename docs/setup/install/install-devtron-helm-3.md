@@ -8,7 +8,10 @@ This installation will use Minio for storing build logs and cache.
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd 
+
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+-f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
+--set installer.modules={cicd}
 ```
 {% endtab %}
 
@@ -18,6 +21,8 @@ This installation will use AWS s3 buckets for storing build logs and cache
 ```bash
 helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+-f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
+--set installer.modules={cicd} \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
@@ -32,6 +37,8 @@ This installation will use Azure Blob Storage for storing build logs and cache
 ```bash
 helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+-f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
+--set installer.modules={cicd} \
 --set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
 --set configs.AZURE_ACCOUNT_NAME=test-account \
