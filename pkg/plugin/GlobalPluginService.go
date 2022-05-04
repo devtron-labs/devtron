@@ -36,7 +36,7 @@ func (impl *GlobalPluginServiceImpl) GetAllGlobalVariables() ([]*GlobalVariable,
 		{
 			Name:        "WORKING_DIRECTORY",
 			Format:      string(repository.PLUGIN_VARIABLE_FORMAT_TYPE_STRING),
-			Description: "Directory in which git material is cloned. The home path of repository will be WORKING_DIRECTORY+CHECKOUT_PATH.",
+			Description: "Directory in which git material is cloned.The home path of repo = WORKING_DIRECTORY+CHECKOUT_PATH",
 		},
 		{
 			Name:        "DOCKER_IMAGE_TAG",
