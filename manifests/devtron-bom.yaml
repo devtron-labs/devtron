@@ -5,9 +5,9 @@ installer:
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:5a7371a0-51-8268"
+    image: "quay.io/devtron/dashboard:ff612e91-240-8338"
   devtron:
-    image: "quay.io/devtron/hyperion:bb23f1bc-282-8336"
+    image: "quay.io/devtron/hyperion:0e102b62-282-8340"
   argocdDexServer:
     image: "quay.io/dexidp/dex:v2.25.0"
   kubelink:
@@ -20,7 +20,7 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "module_mvp"
-        GIT_HASH: "40e437b85b61dcde2238c1323da1da56052d9f7a"
+        GIT_HASH: "0e102b62ecb99c29e6ed0e528bbfd93f5e36253f"
       casbin:
         GIT_BRANCH: "main"
         GIT_HASH: "a5f55594f7e1c41fc77e5915b9e6f6df537da4da"
