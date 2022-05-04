@@ -56,7 +56,7 @@ spec:
       restartPolicy: Always
       containers:
         - name: guard
-          image: quay.io/devtron/guard:62058d7c-122-2192
+          image: "quay.io/devtron/guard:62058d7c-122-2192"
           imagePullPolicy: IfNotPresent
           ports:
             - name: app
