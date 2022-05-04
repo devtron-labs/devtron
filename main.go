@@ -19,6 +19,7 @@ package main
 
 import (
 	"fmt"
+	_ "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"log"
 	"os"
 	"os/signal"

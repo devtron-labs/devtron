@@ -128,6 +128,11 @@ func (enc *jsonEncoder) AddFloat64(key string, val float64) {
 	enc.AppendFloat64(val)
 }
 
+func (enc *jsonEncoder) AddFloat32(key string, val float32) {
+	enc.addKey(key)
+	enc.AppendFloat32(val)
+}
+
 func (enc *jsonEncoder) AddInt64(key string, val int64) {
 	enc.addKey(key)
 	enc.AppendInt64(val)
@@ -145,15 +150,29 @@ func (enc *jsonEncoder) resetReflectBuf() {
 	}
 }
 
-func (enc *jsonEncoder) AddReflected(key string, obj interface{}) error {
+var nullLiteralBytes = []byte("null")
+
+// Only invoke the standard JSON encoder if there is actually something to
+// encode; otherwise write JSON null literal directly.
+func (enc *jsonEncoder) encodeReflected(obj interface{}) ([]byte, error) {
+	if obj == nil {
+		return nullLiteralBytes, nil
+	}
 	enc.resetReflectBuf()
-	err := enc.reflectEnc.Encode(obj)
+	if err := enc.reflectEnc.Encode(obj); err != nil {
+		return nil, err
+	}
+	enc.reflectBuf.TrimNewline()
+	return enc.reflectBuf.Bytes(), nil
+}
+
+func (enc *jsonEncoder) AddReflected(key string, obj interface{}) error {
+	valueBytes, err := enc.encodeReflected(obj)
 	if err != nil {
 		return err
 	}
-	enc.reflectBuf.TrimNewline()
 	enc.addKey(key)
-	_, err = enc.buf.Write(enc.reflectBuf.Bytes())
+	_, err = enc.buf.Write(valueBytes)
 	return err
 }
 
@@ -214,7 +233,11 @@ func (enc *jsonEncoder) AppendComplex128(val complex128) {
 	// Because we're always in a quoted string, we can use strconv without
 	// special-casing NaN and +/-Inf.
 	enc.buf.AppendFloat(r, 64)
-	enc.buf.AppendByte('+')
+	// If imaginary part is less than 0, minus (-) sign is added by default
+	// by AppendFloat.
+	if i >= 0 {
+		enc.buf.AppendByte('+')
+	}
 	enc.buf.AppendFloat(i, 64)
 	enc.buf.AppendByte('i')
 	enc.buf.AppendByte('"')
@@ -222,7 +245,9 @@ func (enc *jsonEncoder) AppendComplex128(val complex128) {
 
 func (enc *jsonEncoder) AppendDuration(val time.Duration) {
 	cur := enc.buf.Len()
-	enc.EncodeDuration(val, enc)
+	if e := enc.EncodeDuration; e != nil {
+		e(val, enc)
+	}
 	if cur == enc.buf.Len() {
 		// User-supplied EncodeDuration is a no-op. Fall back to nanoseconds to keep
 		// JSON valid.
@@ -236,14 +261,12 @@ func (enc *jsonEncoder) AppendInt64(val int64) {
 }
 
 func (enc *jsonEncoder) AppendReflected(val interface{}) error {
-	enc.resetReflectBuf()
-	err := enc.reflectEnc.Encode(val)
+	valueBytes, err := enc.encodeReflected(val)
 	if err != nil {
 		return err
 	}
-	enc.reflectBuf.TrimNewline()
 	enc.addElementSeparator()
-	_, err = enc.buf.Write(enc.reflectBuf.Bytes())
+	_, err = enc.buf.Write(valueBytes)
 	return err
 }
 
@@ -254,9 +277,18 @@ func (enc *jsonEncoder) AppendString(val string) {
 	enc.buf.AppendByte('"')
 }
 
+func (enc *jsonEncoder) AppendTimeLayout(time time.Time, layout string) {
+	enc.addElementSeparator()
+	enc.buf.AppendByte('"')
+	enc.buf.AppendTime(time, layout)
+	enc.buf.AppendByte('"')
+}
+
 func (enc *jsonEncoder) AppendTime(val time.Time) {
 	cur := enc.buf.Len()
-	enc.EncodeTime(val, enc)
+	if e := enc.EncodeTime; e != nil {
+		e(val, enc)
+	}
 	if cur == enc.buf.Len() {
 		// User-supplied EncodeTime is a no-op. Fall back to nanos since epoch to keep
 		// output JSON valid.
@@ -270,7 +302,6 @@ func (enc *jsonEncoder) AppendUint64(val uint64) {
 }
 
 func (enc *jsonEncoder) AddComplex64(k string, v complex64) { enc.AddComplex128(k, complex128(v)) }
-func (enc *jsonEncoder) AddFloat32(k string, v float32)     { enc.AddFloat64(k, float64(v)) }
 func (enc *jsonEncoder) AddInt(k string, v int)             { enc.AddInt64(k, int64(v)) }
 func (enc *jsonEncoder) AddInt32(k string, v int32)         { enc.AddInt64(k, int64(v)) }
 func (enc *jsonEncoder) AddInt16(k string, v int16)         { enc.AddInt64(k, int64(v)) }
@@ -343,14 +374,20 @@ func (enc *jsonEncoder) EncodeEntry(ent Entry, fields []Field) (*buffer.Buffer, 
 			final.AppendString(ent.LoggerName)
 		}
 	}
-	if ent.Caller.Defined && final.CallerKey != "" {
-		final.addKey(final.CallerKey)
-		cur := final.buf.Len()
-		final.EncodeCaller(ent.Caller, final)
-		if cur == final.buf.Len() {
-			// User-supplied EncodeCaller was a no-op. Fall back to strings to
-			// keep output JSON valid.
-			final.AppendString(ent.Caller.String())
+	if ent.Caller.Defined {
+		if final.CallerKey != "" {
+			final.addKey(final.CallerKey)
+			cur := final.buf.Len()
+			final.EncodeCaller(ent.Caller, final)
+			if cur == final.buf.Len() {
+				// User-supplied EncodeCaller was a no-op. Fall back to strings to
+				// keep output JSON valid.
+				final.AppendString(ent.Caller.String())
+			}
+		}
+		if final.FunctionKey != "" {
+			final.addKey(final.FunctionKey)
+			final.AppendString(ent.Caller.Function)
 		}
 	}
 	if final.MessageKey != "" {
