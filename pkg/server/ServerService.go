@@ -70,15 +70,17 @@ func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error)
 	helmReleaseStatus := devtronAppDetail.ReleaseStatus.Status
 	var serverStatus string
 
-	// for hyperion mode mode i.e. ciCd not installed - use mapping
-	// for full mode i.e. ciCd is installed -
+	// for hyperion mode mode i.e. installer object not found - use mapping
+	// for full mode  -
 	// if installer object status is applied then use mapping
 	// if empty or downloaded, then check timeout
 	// else if deployed then upgrading
 	// else use mapping
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+	if !impl.serverDataStore.InstallerCrdObjectExists {
+		impl.logger.Infow("in server service", "InstallerCrdObjectExists", "false")
 		serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
 	} else {
+		impl.logger.Infow("in server service", "InstallerCrdObjectExists", "true")
 		if impl.serverDataStore.InstallerCrdObjectStatus == serverBean.InstallerCrdObjectStatusApplied {
 			serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
 		} else if time.Now().After(devtronAppDetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {

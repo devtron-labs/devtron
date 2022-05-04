@@ -216,11 +216,12 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 	}
 
 	// if application is devtron app helm release,
-	// then for FULL, then status is combination of helm app status and installer object status
+	// then for FULL (installer object exists), then status is combination of helm app status and installer object status -
 	// if installer status is not applied then check for timeout and progressing
 	devtronHelmAppIdentifier := impl.GetDevtronHelmAppIdentifier()
 	if app.ClusterId == devtronHelmAppIdentifier.ClusterId && app.Namespace == devtronHelmAppIdentifier.Namespace && app.ReleaseName == devtronHelmAppIdentifier.ReleaseName &&
-		util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
+		impl.serverDataStore.InstallerCrdObjectExists {
+		impl.logger.Infow("in helmapp service", "InstallerCrdObjectExists", "true")
 		if impl.serverDataStore.InstallerCrdObjectStatus != serverBean.InstallerCrdObjectStatusApplied {
 			// if timeout
 			if time.Now().After(appdetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {

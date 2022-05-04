@@ -122,6 +122,10 @@ func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
 		UpdateFunc: func(oldObj, newObj interface{}) {
 			impl.handleInstallerObjectChange(newObj)
 		},
+		DeleteFunc: func(obj interface{}) {
+			impl.serverDataStore.InstallerCrdObjectStatus = ""
+			impl.serverDataStore.InstallerCrdObjectExists = false
+		},
 	})
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -135,4 +139,5 @@ func (impl *ModuleCacheServiceImpl) handleInstallerObjectChange(obj interface{})
 	u := obj.(*unstructured.Unstructured)
 	val, _, _ := unstructured.NestedString(u.Object, "status", "sync", "status")
 	impl.serverDataStore.InstallerCrdObjectStatus = val
+	impl.serverDataStore.InstallerCrdObjectExists = true
 }
