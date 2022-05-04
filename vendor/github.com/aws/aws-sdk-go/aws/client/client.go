@@ -12,6 +12,7 @@ import (
 type Config struct {
 	Config        *aws.Config
 	Handlers      request.Handlers
+	PartitionID   string
 	Endpoint      string
 	SigningRegion string
 	SigningName   string
@@ -87,10 +88,6 @@ func (c *Client) NewRequest(operation *request.Operation, params interface{}, da
 // AddDebugHandlers injects debug logging handlers into the service to log request
 // debug information.
 func (c *Client) AddDebugHandlers() {
-	if !c.Config.LogLevel.AtLeast(aws.LogDebug) {
-		return
-	}
-
 	c.Handlers.Send.PushFrontNamed(LogHTTPRequestHandler)
 	c.Handlers.Send.PushBackNamed(LogHTTPResponseHandler)
 }
