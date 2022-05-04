@@ -202,18 +202,19 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 	for _, variable := range variables {
 		variableNameIdMap[variable.Id] = variable.Name
 		variableDto := &bean.StepVariableDto{
-			Id:                     variable.Id,
-			Name:                   variable.Name,
-			Format:                 variable.Format,
-			Description:            variable.Description,
-			IsExposed:              variable.IsExposed,
-			AllowEmptyValue:        variable.AllowEmptyValue,
-			DefaultValue:           variable.DefaultValue,
-			Value:                  variable.Value,
-			ValueType:              variable.ValueType,
-			PreviousStepIndex:      variable.PreviousStepIndex,
-			ReferenceVariableName:  variable.ReferenceVariableName,
-			ReferenceVariableStage: variable.ReferenceVariableStage,
+			Id:                        variable.Id,
+			Name:                      variable.Name,
+			Format:                    variable.Format,
+			Description:               variable.Description,
+			IsExposed:                 variable.IsExposed,
+			AllowEmptyValue:           variable.AllowEmptyValue,
+			DefaultValue:              variable.DefaultValue,
+			Value:                     variable.Value,
+			ValueType:                 variable.ValueType,
+			PreviousStepIndex:         variable.PreviousStepIndex,
+			ReferenceVariableName:     variable.ReferenceVariableName,
+			ReferenceVariableStage:    variable.ReferenceVariableStage,
+			VariableStepIndexInPlugin: variable.VariableStepIndexInPlugin,
 		}
 		if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT {
 			inputVariablesDto = append(inputVariablesDto, variableDto)
