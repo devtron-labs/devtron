@@ -23,7 +23,6 @@ data:
     create database casbin;
     create database git_sensor;
     create database lens;
-    create database clair;
     create database clairv4;
 ---
 # Source: postgresql/templates/metrics-svc.yaml

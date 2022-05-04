@@ -172,6 +172,9 @@ spec:
   activeDeadlineSeconds: 1500
 ---
 apiVersion: batch/v1
+#this job is added for creating new database(clairv4).
+#This database is needed for clair upgrade (v2 to v4), since old database does not support migration for new clair.
+#Without this job, database can be created for new users, but not for existing users.
 kind: Job
 metadata:
   name: postgresql-miscellaneous
