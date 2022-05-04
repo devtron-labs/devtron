@@ -77,10 +77,8 @@ func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error)
 	// else if deployed then upgrading
 	// else use mapping
 	if !impl.serverDataStore.InstallerCrdObjectExists {
-		impl.logger.Infow("in server service", "InstallerCrdObjectExists", "false")
 		serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
 	} else {
-		impl.logger.Infow("in server service", "InstallerCrdObjectExists", "true")
 		if impl.serverDataStore.InstallerCrdObjectStatus == serverBean.InstallerCrdObjectStatusApplied {
 			serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
 		} else if time.Now().After(devtronAppDetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
