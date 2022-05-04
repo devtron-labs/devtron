@@ -52,14 +52,14 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 
 	// for hyperion mode, installer crd won't come in picture
 	// for full mode, need to update modules to installed in db in found as installing
-	// for full mode, listen in installer object to save status in-memory
 	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
 		// handle cicd module status
 		impl.updateModuleStatusToInstalled()
-
-		// build informer to listen on installer object
-		go impl.buildInformerToListenOnInstallerObject()
 	}
+
+	// listen in installer object to save status in-memory
+	// build informer to listen on installer object
+	go impl.buildInformerToListenOnInstallerObject()
 
 	return impl
 }
