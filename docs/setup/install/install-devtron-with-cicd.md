@@ -1,4 +1,4 @@
-# Install Devtron with CI/CD module
+# Install Devtron with CICD module
 
 ## Before you begin
 
