@@ -39,7 +39,7 @@ type DeploymentChartInfo struct {
 	ChartName   string `json:"chartName"`
 	Description string `json:"description"`
 	FileId      string `json:"fileId"`
-	Code        string `json:"code"`
+	Action      string `json:"action"`
 }
 
 func NewDeploymentConfigRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, enforcer casbin.Enforcer, validator *validator.Validate,
@@ -158,7 +158,7 @@ func (handler *DeploymentConfigRestHandlerImpl) SaveChart(w http.ResponseWriter,
 	}
 
 	location := filepath.Join(string(handler.refChartDir), request.FileId)
-	if request.Code == "Save" {
+	if request.Action == "Save" {
 		file, _ := ioutil.ReadFile(filepath.Join(location, "output.json"))
 		chartRefs := &chartRepoRepository.ChartRef{}
 		err = json.Unmarshal(file, &chartRefs)
