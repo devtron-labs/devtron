@@ -159,7 +159,12 @@ func (handler *DeploymentConfigRestHandlerImpl) SaveChart(w http.ResponseWriter,
 
 	location := filepath.Join(string(handler.refChartDir), request.FileId)
 	if request.Action == "Save" {
-		file, _ := ioutil.ReadFile(filepath.Join(location, "output.json"))
+		file, err := ioutil.ReadFile(filepath.Join(location, "output.json"))
+		if err != nil {
+			handler.Logger.Errorw("Error reading output.json", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 		chartRefs := &chartRepoRepository.ChartRef{}
 		err = json.Unmarshal(file, &chartRefs)
 		if err != nil {
