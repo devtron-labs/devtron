@@ -19,4 +19,6 @@ func NewDeploymentRouterImpl(deploymentRestHandler DeploymentConfigRestHandler) 
 func (router DeploymentConfigRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/upload").
 		HandlerFunc(router.deploymentRestHandler.CreateChartFromFile).Methods("POST")
+	configRouter.Path("/upload").
+		HandlerFunc(router.deploymentRestHandler.SaveChart).Methods("PUT")
 }
