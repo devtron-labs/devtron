@@ -173,17 +173,17 @@ kubectl delete pod -n devtroncd git-sensor-0
 ```
 #### 11. If you have restricted devtron-service to be accessible on certain IPs only and SSO login isn’t working
 
-Here you have to `Allow the IP of nat-gateway itself too`.
+Whitelist the NAT-gateway IPs of the cluster (There can be multiple NAT-gateways if your cluster is multi-AZ)
 
 #### 12. If CPU metrics are not showing but memory metrics are visible in graphs.
 
 Do the following:-
 
 1. Go to Grafana and Login with the credentials.
-2. Edit the CPU graph and remove image!=”” from the query.
+2. Edit the CPU graphs and remove `image!=””` from the query.
 3. Save the dashboard.
 
-Now it’ll work
+CPU metrics should start showing up in a while.
 
 #### 13. If user not able to upload a file more than specific size. 
 
@@ -191,14 +191,13 @@ Now it’ll work
 ```
 nginx.ingress.kubernetes.io/proxy-body-size: 100m
 ```
-`Note:- `Where m is in MiB unit.
+`Note:- `Where m is is MiB.
 
-#### 14. If ingress is not able to allocate LB in case of alb controller and getting message in alb controller as unautorised 
-`Please attach these IAM policy to  nodegroup`
+#### 14. If AWS Load balancer controller is unable to provision ALB and getting message in alb controller as unauthorized, attach these IAM policy to  the nodegroup IAM Role.
 
 [IAM policy](https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.3.1/docs/install/iam_policy.json)
 
-#### 15. When app metrics is not coming on grafana and devtron dashboard define this key and value in prometheus stack
+#### 15. When app metrics is not coming on grafana and devtron dashboard, set the value of the following parameter as false in kube prometheus stack values.
 
 ```
 serviceMonitorSelectorNilUsesHelmValues: false
@@ -236,9 +235,9 @@ If you are getting an error message of  “invalid username or password”, foll
 
 Run `kubectl get secret -n devtroncd` and then edit the `argocd-secret`, remove both the admin.password lines.
 
-Run `kubectl delete po your-argocd-server-pod -n devtroncd`, it will create a new pod after deletion and then again run the command for admin credentials and then login.
+Run `kubectl delete po your-argocd-server-pod -n devtroncd`, it will create a new pod after deletion and reset your admin password. Re-run the command for admin credentials again to get the new password.
 
-#### 19. After installing Devtron using helm3 cmd , getting the admin password does not work.(if using windows)
+#### 19. After installing Devtron using helm, getting the admin password does not work.(if using windows)
 
 `Debug`
 
