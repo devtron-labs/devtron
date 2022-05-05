@@ -103,6 +103,7 @@ import (
 
 import (
 	_ "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	_ "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	_ "github.com/lib/pq"
 )
 

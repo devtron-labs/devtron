@@ -1,5 +1,5 @@
 //
-// Copyright 2017, Sander van Harmelen
+// Copyright 2021, Sander van Harmelen
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package gitlab
 
 import (
 	"fmt"
+	"net/http"
 	"time"
 )
 
@@ -46,8 +47,8 @@ func (h Hook) String() string {
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/system_hooks.html#list-system-hooks
-func (s *SystemHooksService) ListHooks(options ...OptionFunc) ([]*Hook, *Response, error) {
-	req, err := s.client.NewRequest("GET", "hooks", nil, options)
+func (s *SystemHooksService) ListHooks(options ...RequestOptionFunc) ([]*Hook, *Response, error) {
+	req, err := s.client.NewRequest(http.MethodGet, "hooks", nil, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -66,15 +67,21 @@ func (s *SystemHooksService) ListHooks(options ...OptionFunc) ([]*Hook, *Respons
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/system_hooks.html#add-new-system-hook-hook
 type AddHookOptions struct {
-	URL *string `url:"url,omitempty" json:"url,omitempty"`
+	URL                    *string `url:"url,omitempty" json:"url,omitempty"`
+	Token                  *string `url:"token,omitempty" json:"token,omitempty"`
+	PushEvents             *bool   `url:"push_events,omitempty" json:"push_events,omitempty"`
+	TagPushEvents          *bool   `url:"tag_push_events,omitempty" json:"tag_push_events,omitempty"`
+	MergeRequestsEvents    *bool   `url:"merge_requests_events,omitempty" json:"merge_requests_events,omitempty"`
+	RepositoryUpdateEvents *bool   `url:"repository_update_events,omitempty" json:"repository_update_events,omitempty"`
+	EnableSSLVerification  *bool   `url:"enable_ssl_verification,omitempty" json:"enable_ssl_verification,omitempty"`
 }
 
 // AddHook adds a new system hook hook.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/system_hooks.html#add-new-system-hook-hook
-func (s *SystemHooksService) AddHook(opt *AddHookOptions, options ...OptionFunc) (*Hook, *Response, error) {
-	req, err := s.client.NewRequest("POST", "hooks", opt, options)
+func (s *SystemHooksService) AddHook(opt *AddHookOptions, options ...RequestOptionFunc) (*Hook, *Response, error) {
+	req, err := s.client.NewRequest(http.MethodPost, "hooks", opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -108,10 +115,10 @@ func (h HookEvent) String() string {
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/system_hooks.html#test-system-hook
-func (s *SystemHooksService) TestHook(hook int, options ...OptionFunc) (*HookEvent, *Response, error) {
+func (s *SystemHooksService) TestHook(hook int, options ...RequestOptionFunc) (*HookEvent, *Response, error) {
 	u := fmt.Sprintf("hooks/%d", hook)
 
-	req, err := s.client.NewRequest("GET", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -131,10 +138,10 @@ func (s *SystemHooksService) TestHook(hook int, options ...OptionFunc) (*HookEve
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/system_hooks.html#delete-system-hook
-func (s *SystemHooksService) DeleteHook(hook int, options ...OptionFunc) (*Response, error) {
+func (s *SystemHooksService) DeleteHook(hook int, options ...RequestOptionFunc) (*Response, error) {
 	u := fmt.Sprintf("hooks/%d", hook)
 
-	req, err := s.client.NewRequest("DELETE", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
 	if err != nil {
 		return nil, err
 	}

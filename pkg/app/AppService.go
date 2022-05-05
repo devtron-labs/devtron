@@ -34,8 +34,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"

@@ -33,9 +33,9 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/argoproj/argo-cd/pkg/apiclient/application"
-	repository2 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"

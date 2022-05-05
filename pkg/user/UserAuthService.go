@@ -34,7 +34,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/caarlos0/env"
 	"github.com/coreos/go-oidc"
 	"github.com/devtron-labs/devtron/api/bean"

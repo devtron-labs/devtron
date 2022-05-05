@@ -33,7 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"

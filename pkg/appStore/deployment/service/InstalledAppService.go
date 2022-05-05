@@ -48,8 +48,8 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"

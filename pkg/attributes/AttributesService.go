@@ -18,7 +18,7 @@
 package attributes
 
 import (
-	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/v2/util/session"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"

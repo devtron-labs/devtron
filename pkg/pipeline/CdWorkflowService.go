@@ -18,14 +18,16 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"strconv"
 
-	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
-	"github.com/argoproj/argo/pkg/client/clientset/versioned"
-	v1alpha12 "github.com/argoproj/argo/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
-	"github.com/argoproj/argo/workflow/util"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
+	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -131,7 +133,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	ttl := int32(300)
 
 	var volumes []v12.Volume
-	var steps [][]v1alpha1.WorkflowStep
+	var steps []v1alpha1.ParallelSteps
 
 	preStageConfigMapSecretsJson := pipeline.PreStageConfigMapSecretNames
 	postStageConfigMapSecretsJson := pipeline.PostStageConfigMapSecretNames
@@ -254,11 +256,12 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 					},
 				})
 			}
-
-			steps = append(steps, []v1alpha1.WorkflowStep{
-				{
-					Name:     "create-env-cm-" + strconv.Itoa(i),
-					Template: "cm-" + strconv.Itoa(i),
+			steps = append(steps, v1alpha1.ParallelSteps{
+				Steps: []v1alpha1.WorkflowStep{
+					{
+						Name:     "create-env-cm-" + strconv.Itoa(i),
+						Template: "cm-" + strconv.Itoa(i),
+					},
 				},
 			})
 		}
@@ -307,11 +310,12 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 					},
 				})
 			}
-
-			steps = append(steps, []v1alpha1.WorkflowStep{
-				{
-					Name:     "create-env-sec-" + strconv.Itoa(i),
-					Template: "sec-" + strconv.Itoa(i),
+			steps = append(steps, v1alpha1.ParallelSteps{
+				Steps: []v1alpha1.WorkflowStep{
+					{
+						Name:     "create-env-sec-" + strconv.Itoa(i),
+						Template: "sec-" + strconv.Itoa(i),
+					},
 				},
 			})
 		}
@@ -342,11 +346,12 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			})
 		}
 	}
-
-	steps = append(steps, []v1alpha1.WorkflowStep{
-		{
-			Name:     "run-wf",
-			Template: CD_WORKFLOW_NAME,
+	steps = append(steps, v1alpha1.ParallelSteps{
+		Steps: []v1alpha1.WorkflowStep{
+			{
+				Name:     "run-wf",
+				Template: CD_WORKFLOW_NAME,
+			},
 		},
 	})
 	templates = append(templates, v1alpha1.Template{
@@ -374,7 +379,9 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				},
 			},
 		},
-		ActiveDeadlineSeconds: &workflowRequest.ActiveDeadlineSeconds,
+		ActiveDeadlineSeconds: &intstr.IntOrString{
+			IntVal: int32(workflowRequest.ActiveDeadlineSeconds),
+		},
 		ArchiveLocation: &v1alpha1.ArtifactLocation{
 			ArchiveLogs: &archiveLogs,
 		},
@@ -447,13 +454,15 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				Labels:       map[string]string{"devtron.ai/workflow-purpose": "cd"},
 			},
 			Spec: v1alpha1.WorkflowSpec{
-				ServiceAccountName:      impl.cdConfig.WorkflowServiceAccount,
-				NodeSelector:            map[string]string{impl.cdConfig.TaintKey: impl.cdConfig.TaintValue},
-				Tolerations:             []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}},
-				Entrypoint:              entryPoint,
-				TTLSecondsAfterFinished: &ttl,
-				Templates:               templates,
-				Volumes:                 volumes,
+				ServiceAccountName: impl.cdConfig.WorkflowServiceAccount,
+				NodeSelector:       map[string]string{impl.cdConfig.TaintKey: impl.cdConfig.TaintValue},
+				Tolerations:        []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}},
+				Entrypoint:         entryPoint,
+				TTLStrategy: &v1alpha1.TTLStrategy{
+					SecondsAfterCompletion: &ttl,
+				},
+				Templates: templates,
+				Volumes:   volumes,
 			},
 		}
 	)
@@ -486,7 +495,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		}
 	}
 
-	createdWf, err := wfClient.Create(&cdWorkflow) // submit the hello world workflow
+	createdWf, err := wfClient.Create(context.Background(), &cdWorkflow, v1.CreateOptions{}) // submit the hello world workflow
 	if err != nil {
 		impl.Logger.Errorw("error in wf trigger", "err", err)
 		return nil, err
@@ -510,7 +519,7 @@ func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, ur
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return nil, err
 	}
-	workflow, err := wfClient.Get(name, v1.GetOptions{})
+	workflow, err := wfClient.Get(context.Background(), name, v1.GetOptions{})
 	return workflow, err
 }
 
@@ -528,7 +537,7 @@ func (impl *CdWorkflowServiceImpl) TerminateWorkflow(name string, namespace stri
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return err
 	}
-	err = util.TerminateWorkflow(wfClient, name)
+	err = util.TerminateWorkflow(context.Background(), wfClient, name)
 	return err
 }
 
@@ -539,7 +548,7 @@ func (impl *CdWorkflowServiceImpl) UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alp
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return nil, err
 	}
-	updatedWf, err := wfClient.Update(wf)
+	updatedWf, err := wfClient.Update(context.Background(), wf, v1.UpdateOptions{})
 	if err != nil {
 		impl.Logger.Errorw("cannot update wf ", "err", err)
 		return nil, err
@@ -553,7 +562,7 @@ func (impl *CdWorkflowServiceImpl) ListAllWorkflows(namespace string) (*v1alpha1
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return nil, err
 	}
-	workflowList, err := wfClient.List(v1.ListOptions{})
+	workflowList, err := wfClient.List(context.Background(), v1.ListOptions{})
 	return workflowList, err
 }
 
@@ -563,7 +572,7 @@ func (impl *CdWorkflowServiceImpl) DeleteWorkflow(wfName string, namespace strin
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return err
 	}
-	err = wfClient.Delete(wfName, &v1.DeleteOptions{})
+	err = wfClient.Delete(context.Background(), wfName, v1.DeleteOptions{})
 	return err
 }
 

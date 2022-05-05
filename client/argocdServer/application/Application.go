@@ -25,10 +25,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
@@ -392,7 +392,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	if app != nil {
 		appResp, err := app.Recv()
 		if err == nil {
-			status = appResp.Application.Status.Health.Status
+			status = appResp.Application.Status.Health.String()
 			conditions = appResp.Application.Status.Conditions
 			for _, condition := range conditions {
 				if condition.Type != v1alpha1.ApplicationConditionSharedResourceWarning {
@@ -487,7 +487,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	if _, ok := jobsManifest["kind"]; ok {
 		newPodNames = c.getJobsNewPods(jobsManifest, podManifests)
 	}
-	
+
 	for _, node := range resp.Nodes {
 		if node.Kind == "Workflow" {
 			parentWorkflow = append(parentWorkflow, node.Name)

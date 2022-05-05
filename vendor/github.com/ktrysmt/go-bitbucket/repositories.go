@@ -2,7 +2,7 @@ package bitbucket
 
 import (
 	"errors"
-  "fmt"
+	"fmt"
 
 	"github.com/mitchellh/mapstructure"
 )
@@ -20,6 +20,7 @@ type Repositories struct {
 	BranchRestrictions *BranchRestrictions
 	Webhooks           *Webhooks
 	Downloads          *Downloads
+	DeployKeys         *DeployKeys
 	repositories
 }
 
