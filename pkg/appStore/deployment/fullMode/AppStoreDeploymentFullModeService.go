@@ -59,7 +59,7 @@ type AppStoreDeploymentFullModeService interface {
 	SyncACD(acdAppName string, ctx context.Context)
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
-	GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) string
+	GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error)
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -307,30 +307,33 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 	return nil
 }
 
-func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) string {
+func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error) {
+	gitOpsRepoName := ""
 	ctx, err := impl.tokenCache.BuildACDSynchContext()
 	if err != nil {
-		impl.logger.Errorw("error in creating acd synch context", "err", err)
-		return ""
+		impl.logger.Errorw("error in creating acd sync context", "err", err)
+		return "", err
 	}
 	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
-	gitOpsRepoName := ""
 	application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {
-		impl.logger.Errorw("no argo app exists", "app", acdAppName)
-		return ""
+		impl.logger.Errorw("no argo app exists", "acdAppName", acdAppName, "err", err)
+		return "", err
 	}
 	if application != nil {
 		gitOpsRepoUrl := application.Spec.Source.RepoURL
 		gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
 	}
-	return gitOpsRepoName
+	return gitOpsRepoName, nil
 }
 
 func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
 	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
 	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
-		gitOpsRepoName := impl.GetGitOpsRepoName(installAppVersionRequest)
+		gitOpsRepoName, err := impl.GetGitOpsRepoName(installAppVersionRequest)
+		if err != nil {
+			return installAppVersionRequest, err
+		}
 		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	}
 	valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
