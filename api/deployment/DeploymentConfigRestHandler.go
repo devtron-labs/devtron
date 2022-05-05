@@ -99,9 +99,9 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 
 	if err != nil {
 		if chartInfo.TemporaryFolder != "" {
-			err = os.RemoveAll(chartInfo.TemporaryFolder)
-			if err != nil {
-				handler.Logger.Errorw("error in deleting temp dir ", "err", err)
+			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+			if err1 != nil {
+				handler.Logger.Errorw("error in deleting temp dir ", "err", err1)
 			}
 		}
 		common.WriteJsonResp(w, fmt.Errorf(err.Error()), nil, http.StatusBadRequest)
@@ -194,7 +194,7 @@ func (handler *DeploymentConfigRestHandlerImpl) SaveChart(w http.ResponseWriter,
 		}
 	}
 
-	common.WriteJsonResp(w, err, "Chart saved successfully", http.StatusOK)
+	common.WriteJsonResp(w, err, "Processed successfully", http.StatusOK)
 	return
 
 }
