@@ -68,7 +68,10 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	sugaredLogger := util.NewSugardLogger()
+	sugaredLogger, err := util.NewSugardLogger()
+	if err != nil {
+		return nil, err
+	}
 	db, err := sql.NewDbConnection(config, sugaredLogger)
 	if err != nil {
 		return nil, err

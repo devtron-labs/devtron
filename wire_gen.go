@@ -114,7 +114,10 @@ import (
 // Injectors from Wire.go:
 
 func InitializeApp() (*App, error) {
-	sugaredLogger := util.NewSugardLogger()
+	sugaredLogger, err := util.NewSugardLogger()
+	if err != nil {
+		return nil, err
+	}
 	config, err := sql.GetConfig()
 	if err != nil {
 		return nil, err
