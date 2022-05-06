@@ -147,7 +147,7 @@ spec:
         
       containers:
         - name: postgresql-postgresql
-          image: "quay.io/devtron/postgres:11.3.0-debian-9-r28"
+          image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
           imagePullPolicy: "IfNotPresent"
           securityContext:
             runAsUser: 1001
