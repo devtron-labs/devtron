@@ -134,7 +134,7 @@ type ChartService interface {
 	CheckChartExists(chartRefId int) error
 	GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string
 	ValidateUploadedFileFormat(fileName string) error
-	ReadChartMetaDataForLocation(chartDir string, fileName string) (string, string, error)
+	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -905,8 +905,9 @@ type chartRefResponse struct {
 }
 
 type ChartYamlStruct struct {
-	Name    string `yaml:"name"`
-	Version string `yaml:"version"`
+	Name        string `yaml:"name"`
+	Version     string `yaml:"version"`
+	Description string `yaml:"description"`
 }
 
 type ChartDataInfo struct {
@@ -914,6 +915,7 @@ type ChartDataInfo struct {
 	ChartName       string `json:"chartName"`
 	ChartVersion    string `json:"chartVersion"`
 	TemporaryFolder string `json:"temporaryFolder"`
+	Description     string `json:"description"`
 }
 
 func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
@@ -1305,31 +1307,31 @@ func (impl *ChartServiceImpl) ValidateUploadedFileFormat(fileName string) error 
 	return nil
 }
 
-func (impl ChartServiceImpl) ReadChartMetaDataForLocation(chartDir string, fileName string) (string, string, error) {
+func (impl ChartServiceImpl) ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error) {
 	chartLocation := filepath.Clean(filepath.Join(chartDir, fileName))
 
 	chartYamlPath := filepath.Clean(filepath.Join(chartLocation, "Chart.yaml"))
 	if _, err := os.Stat(chartYamlPath); os.IsNotExist(err) {
-		return "", "", fmt.Errorf("Chart.yaml file not present in the directory")
+		return nil, fmt.Errorf("Chart.yaml file not present in the directory")
 	}
 
 	data, err := ioutil.ReadFile(chartYamlPath)
 	if err != nil {
 		impl.logger.Errorw("failed reading data from file", "err", err)
-		return "", "", err
+		return nil, err
 	}
 	//println(data)
 	var chartYaml ChartYamlStruct
 	err = yaml.Unmarshal(data, &chartYaml)
 	if err != nil {
 		impl.logger.Errorw("Unmarshal error of yaml file", "err", err)
-		return "", "", err
+		return nil, err
 	}
 	if chartYaml.Name == "" || chartYaml.Version == "" {
 		impl.logger.Errorw("Missing values in yaml file either name or version", "err", err)
-		return "", "", errors.New("Missing values in yaml file either name or version")
+		return nil, errors.New("Missing values in yaml file either name or version")
 	}
-	return chartYaml.Name, chartYaml.Version, nil
+	return &chartYaml, nil
 }
 
 func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error) {
@@ -1340,6 +1342,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		ChartVersion:    "",
 		ChartLocation:   "",
 		TemporaryFolder: "",
+		Description:     "",
 	}
 	temporaryChartWorkingDir := filepath.Clean(filepath.Join(refChartDir, dir))
 	err := os.MkdirAll(temporaryChartWorkingDir, os.ModePerm)
@@ -1373,7 +1376,10 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 	currentChartWorkingDir := filepath.Clean(filepath.Join(temporaryChartWorkingDir, fileName))
 
 	if location == "" {
-		chartName, chartVersion, err = impl.ReadChartMetaDataForLocation(temporaryChartWorkingDir, fileName)
+		chartYaml, err := impl.ReadChartMetaDataForLocation(temporaryChartWorkingDir, fileName)
+		chartName = chartYaml.Name
+		chartVersion = chartYaml.Version
+		chartInfo.Description = chartYaml.Description
 		if err != nil {
 			impl.logger.Errorw("Chart yaml file not found")
 			return chartInfo, err
@@ -1398,12 +1404,14 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			return chartInfo, err
 		}
 		location = chartLocation
+
+		err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, location)))
+		if err != nil {
+			impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
+			return chartInfo, err
+		}
 	}
-	err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, location)))
-	if err != nil {
-		impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
-		return chartInfo, err
-	}
+
 	chartInfo.ChartLocation = location
 	chartInfo.ChartName = chartName
 	chartInfo.ChartVersion = chartVersion
