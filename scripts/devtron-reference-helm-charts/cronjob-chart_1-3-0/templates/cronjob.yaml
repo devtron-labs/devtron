@@ -25,7 +25,7 @@
   {{- end }}
 
 {{ if eq .Values.kind "CronJob" }}
-{{ if semverCompare "<1.20" .Capabilities.KubeVersion.GitVersion -}}
+{{ if semverCompare "<1.21" .Capabilities.KubeVersion.GitVersion -}}
 apiVersion: batch/v1beta1
 {{- else }}
 apiVersion: batch/v1
