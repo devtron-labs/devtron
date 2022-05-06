@@ -60,7 +60,7 @@ func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error)
 	impl.logger.Debug("getting server info")
 
 	// fetch status of devtron helm app
-	devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
+	/*devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
 	devtronAppDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), devtronHelmAppIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron helm app release status ", "err", err)
@@ -88,12 +88,12 @@ func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error)
 		} else {
 			serverStatus = mapServerStatusFromHelmReleaseStatus(helmReleaseStatus)
 		}
-	}
+	}*/
 
 	serverInfoDto := &serverBean.ServerInfoDto{
 		CurrentVersion:  impl.serverDataStore.CurrentVersion,
 		ReleaseName:     impl.serverEnvConfig.DevtronHelmReleaseName,
-		Status:          serverStatus,
+		Status:          impl.serverEnvConfig.DevtronStatus,
 		CanUpdateServer: impl.serverEnvConfig.CanServerUpdate,
 	}
 
