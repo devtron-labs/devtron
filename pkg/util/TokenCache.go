@@ -50,7 +50,7 @@ func (impl *TokenCache) BuildACDSynchContext() (acdContext context.Context, err 
 	if !found {
 		token, err := impl.userAuthService.HandleLogin(impl.aCDAuthConfig.ACDUsername, impl.aCDAuthConfig.ACDPassword)
 		if err != nil {
-			impl.logger.Errorw("error while acd login", "ACDUsername", impl.aCDAuthConfig.ACDUsername, "ACDPassword", impl.aCDAuthConfig.ACDPassword, "err", err)
+			impl.logger.Errorw("error while acd login", "err", err)
 			return nil, err
 		}
 		impl.cache.Set("token", token, cache.NoExpiration)
