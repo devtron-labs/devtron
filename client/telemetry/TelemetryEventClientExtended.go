@@ -17,10 +17,13 @@ import (
 )
 
 type TelemetryEventClientImplExtended struct {
-	environmentService   cluster.EnvironmentService
-	appListingRepository repository.AppListingRepository
-	ciPipelineRepository pipelineConfig.CiPipelineRepository
-	pipelineRepository   pipelineConfig.PipelineRepository
+	environmentService            cluster.EnvironmentService
+	appListingRepository          repository.AppListingRepository
+	ciPipelineRepository          pipelineConfig.CiPipelineRepository
+	pipelineRepository            pipelineConfig.PipelineRepository
+	gitHostRepository             repository.GitHostRepository
+	gitProviderRepository         repository.GitProviderRepository
+	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
 	*TelemetryEventClientImpl
 }
 
@@ -28,15 +31,21 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
-	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) (*TelemetryEventClientImplExtended, error) {
+	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
+	gitHostRepository repository.GitHostRepository, gitProviderRepository repository.GitProviderRepository,
+	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
 	watcher := &TelemetryEventClientImplExtended{
-		environmentService:   environmentService,
-		appListingRepository: appListingRepository,
-		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
+		environmentService:            environmentService,
+		appListingRepository:          appListingRepository,
+		ciPipelineRepository:          ciPipelineRepository,
+		pipelineRepository:            pipelineRepository,
+		gitHostRepository:             gitHostRepository,
+		gitProviderRepository:         gitProviderRepository,
+		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
 			cron:           cron,
 			logger:         logger,
@@ -85,6 +94,9 @@ type SummaryDto struct {
 	CdCountPerDay           int    `json:"cdCountPerDay,omitempty"`
 	HelmChartCount          int    `json:"helmChartCount,omitempty"`
 	SecurityScanCountPerDay int    `json:"securityScanCountPerDay,omitempty"`
+	GitAccountsCount        int    `json:"gitAccountsCount,omitempty"`
+	GitOpsCount             int    `json:"gitOpsCount,omitempty"`
+	RegistryCount           int    `json:"registryCount,omitempty"`
 	DevtronVersion          string `json:"devtronVersion,omitempty"`
 }
 
@@ -134,6 +146,24 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		return
 	}
 
+	gitAccounts, err := impl.gitProviderRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+
+	gitOps, err := impl.gitHostRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+
+	containerRegistry, err := impl.dockerArtifactStoreRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+
 	devtronVersion := util.GetDevtronVersion()
 
 	summary := &SummaryDto{
@@ -144,6 +174,9 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		ClusterCount:     len(clusters),
 		CiCountPerDay:    len(ciPipeline),
 		CdCountPerDay:    len(cdPipeline),
+		GitAccountsCount: len(gitAccounts),
+		GitOpsCount:      len(gitOps),
+		RegistryCount:    len(containerRegistry),
 		DevtronVersion:   devtronVersion.GitCommit,
 	}
 	payload.Summary = summary
