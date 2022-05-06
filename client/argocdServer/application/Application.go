@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
@@ -45,7 +46,7 @@ const (
 	TimeoutSlow = 30 * time.Second
 	TimeoutLazy = 60 * time.Second
 	HIBERNATING = "HIBERNATING"
-	SUCCEEDED = "Succeeded"
+	SUCCEEDED   = "Succeeded"
 )
 
 type ServiceClient interface {
@@ -415,6 +416,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	podManifests := make([]map[string]interface{}, 0)
 	controllerRevisionManifests := make([]map[string]interface{}, 0)
 	jobsManifest := make(map[string]interface{})
+	var parentWorkflow []string
 	for _, response := range responses {
 		if response != nil && response.Response != nil && response.Request.Kind == "Rollout" {
 			err := json.Unmarshal([]byte(response.Response.Manifest), &rolloutManifest)
@@ -485,6 +487,20 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	if _, ok := jobsManifest["kind"]; ok {
 		newPodNames = c.getJobsNewPods(jobsManifest, podManifests)
 	}
+	
+	for _, node := range resp.Nodes {
+		if node.Kind == "Workflow" {
+			parentWorkflow = append(parentWorkflow, node.Name)
+		}
+	}
+
+	for _, node := range resp.Nodes {
+		if node.Kind == "Pod" {
+			if contains(parentWorkflow, node.Name) {
+				newPodNames[node.Name] = true
+			}
+		}
+	}
 
 	//podMetaData := make([]*PodMetadata, 0)
 	duplicateCheck := make(map[string]bool)
@@ -535,7 +551,7 @@ func parseResult(resp *v1alpha1.ApplicationTree, query *application.ResourcesQue
 				}
 			}
 		}
-		if node.Kind == "StatefulSet" || node.Kind == "DaemonSet" {
+		if node.Kind == "StatefulSet" || node.Kind == "DaemonSet" || node.Kind == "Workflow" {
 			needPods = true
 		}
 
@@ -797,6 +813,7 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 	for _, pod := range podManifests {
 		initContainerMapping[getResourceName(pod)] = getPodInitContainers(pod)
 	}
+
 	for _, node := range resp.Nodes {
 		if node.Kind == "Pod" {
 			isNew := newPodNames[node.Name]
@@ -805,6 +822,15 @@ func buildPodMetadataFromPod(resp *v1alpha1.ApplicationTree, podManifests []map[
 		}
 	}
 	return
+}
+
+func contains(elems []string, v string) bool {
+	for _, s := range elems {
+		if strings.HasPrefix(v, s) {
+			return true
+		}
+	}
+	return false
 }
 
 func getPodContainers(resource map[string]interface{}) []*string {
