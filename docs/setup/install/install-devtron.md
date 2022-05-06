@@ -8,8 +8,7 @@ Install [Helm](https://helm.sh/docs/intro/install/) if you haven't done that alr
 {% tab title="Install with default configurations" %}
 ```bash
 helm repo add devtron https://helm.devtron.ai
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
 
 ```
 {% endtab %}
@@ -29,7 +28,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 
 [//]: # (```)
 
-## Access Devtron dashboard
+## Devtron dashboard
 
 Use the following command to get the dashboard URL:
 
@@ -49,7 +48,7 @@ The hostname `aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws
 > You can also do a CNAME entry corresponding to your domain/subdomain to point to this Loadbalancer URL to access it at a custom domain.
 
 | Host | Type | Points to |
-| ---: | :--- | :--- |
+| :--- | :--- | :--- |
 | devtron.yourdomain.com | CNAME | aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com |
 
 ### Devtron Admin credentials
@@ -65,10 +64,12 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 Please make sure that you do not have anything inside namespaces devtroncd, devtron-cd devtron-ci, and devtron-demo as the below steps will clean everything inside these namespaces
 ```
 helm uninstall devtron --namespace devtroncd
+
 kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
+
 kubectl delete ns devtroncd
 ```
 
 ## Upgrade
 
-To upgrade to the full version of Devtron with CI/CD modules, refer to the [Upgrade](#) section.
+To upgrade to the full version of Devtron with CI/CD integration, refer to the [Upgrade](#) section.

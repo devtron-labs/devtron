@@ -1,4 +1,4 @@
-# Install Devtron with CICD module
+# Install Devtron with CICD integration
 
 ## Before you begin
 
@@ -18,8 +18,7 @@ This installation will use Minio for storing build logs and cache.
 ```bash
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
---set installer.modules={cicd} \
+--set installer.modules={cicd}
 
 ```
 
@@ -28,8 +27,7 @@ helm install devtron devtron/devtron-operator \
 ```bash
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/devtron/v0.3.26/manifests/devtron-bom.yaml \
---set installer.modules={cicd} \
+--set installer.modules={cicd}
 
 ```
 
@@ -42,7 +40,6 @@ This installation will use AWS s3 buckets for storing build logs and cache. Refe
 helm repo add devtron https://helm.devtron.ai
 
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/devtron/v2.0/manifests/devtron-bom.yaml \
 --set installer.modules={cicd} \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
@@ -60,7 +57,6 @@ Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](./i
 helm repo add devtron https://helm.devtron.ai
 
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/devtron/v2.0/manifests/devtron-bom.yaml \
 --set installer.modules={cicd} \
 --set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
@@ -79,7 +75,8 @@ For those countries/users where Github is blocked, you can use Gitee as the inst
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd --set installer.source=gitee
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+--set installer.source=gitee
 ```
 {% endtab %}
 {% endtabs %}
@@ -109,7 +106,7 @@ To check the installer logs, run the following command:
 kubectl logs -f -l app=inception -n devtroncd
 ```
 
-## Access Devtron dashboard
+## Devtron dashboard
 
 Use the following command to get the dashboard URL:
 
@@ -131,7 +128,7 @@ If you don't see any results or receive a message that says "service doesn't exi
 > Note: You can also do a `CNAME` entry corresponding to your domain/subdomain to point to this Loadbalancer URL to access it at a custom domain.
 
 | Host | Type | Points to |
-| ---: | :--- | :--- |
+| :--- | :--- | :--- |
 | devtron.yourdomain.com | CNAME | aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com |
 
 ### Devtron Admin credentials
@@ -148,8 +145,11 @@ Please make sure that you do not have anything inside namespaces devtroncd, devt
 
 ```bash
 helm uninstall devtron --namespace devtroncd
+
 kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
+
 kubectl delete -n argo -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/workflow.yaml
+
 kubectl delete ns devtroncd devtron-cd devtron-ci devtron-demo
 ```
 

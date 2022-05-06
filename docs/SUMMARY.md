@@ -68,7 +68,7 @@
 * [FAQs & Troubleshooting](FAQs/faqs.md)
   * [Devtron Troubleshooting](FAQs/devtron-troubleshoot.md)
 
-### Hyperion
+### Hyperion (Depricated)
 * [Introduction](hyperion/README.md)
 * [Setup](hyperion/setup/setup.md)
   * [Install Hyperion](hyperion/setup/install.md)

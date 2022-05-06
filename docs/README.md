@@ -2,9 +2,9 @@
  
 ## Devtron 🚀
  
-Devtron is an open-source no-code Software Delivery workflow for Kubernetes.
- 
-Devtron integrates seamlessly with multiple open-source tools to provide you with a no-code SaaS-like ecosystem for Kubernetes Software Delivery workflow, debugging, monitoring, logging, and holistic access management for the entire team.
+Devtron is a tool integration platform for Kubernetes.
+
+Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security, cost, debugging, and observability via an intuitive web interface.
  
 > To quickly get started, refer to the [Devtron Installation Guide ⎈](setup/install/README.md) ⎈
  
@@ -47,7 +47,7 @@ You can efficiently handle security, stability, cost, and more in a unified expe
 * One place for all historical Kubernetes events
 * Access all manifests securely, such as secret obfuscation
 * _**Application metrics**_ for CPU, RAM, HTTP status code, and latency with a comparison between new and old
-* _**Advanced logging**_ with grep and json search
+* _**Advanced logging**_ with grep and JSON search
 * Intelligent _**correlation between events, logs**_ for faster triangulation of issue
 * Auto issue identification
  
@@ -63,7 +63,7 @@ You can efficiently handle security, stability, cost, and more in a unified expe
 #### GitOps aware
  
 * GitOps exposed through API and UI so that you don't have to interact with git CLI
-* GitOps backed by Postgres for easier analysis
+* GitOps backed by Postgres for easy analysis
 * Enforce finer access control than Git
  
 #### Operational insights
@@ -80,8 +80,6 @@ You can efficiently handle security, stability, cost, and more in a unified expe
 ## What's next
  
 * [Install Devtron](setup/install/README.md)
-* Build your first CI/CD workflow for Kubernetes using Devtron Dashboard
-* Explore Devtron UI with your GitHub sign-in
  
 ## Contribute
  

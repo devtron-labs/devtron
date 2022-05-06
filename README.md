@@ -1,8 +1,8 @@
 <p align="center"><img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
-<h1 align= "center">No-Code CI/CD Orchestrator for Kubernetes</h1>
+<h1 align= "center">Tool integration platform for Kubernetes</h1>
 </p>
  
-<p align="center">A web-based CI/CD Orchestrator leveraging open source tools to provide a No-Code, SaaS-like experience for Kubernetes
+<p align="center">
 <br>
 <a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
@@ -35,8 +35,7 @@ Apply Now 👋
 </p>
 <h1></h1>
 
-Devtron is a web-based CI/CD orchestrator for Kubernetes. It integrates various open-source tools to provide AppOps, which also includes Security scanning, GitOps, Access Control, Debugging, and Observability.
- 
+Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security, cost, debugging, and observability via an intuitive web interface.
 <br>
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
@@ -47,7 +46,7 @@ Devtron is a web-based CI/CD orchestrator for Kubernetes. It integrates various 
 <details><summary><b>Application-level Resource grouping for easier Debugging</b></summary>
 <br>
  
-- Devtron groups your Kubernetes objects deployed via Helm charts and display them in a slick UI, for easier monitoring or debugging. Access pod logs and resource manifests right from the Devtron UI and even edit them!
+- Devtron groups your Kubernetes objects deployed via Helm charts and display them in a slick UI for easier monitoring or debugging. Access pod logs and resource manifests right from the Devtron UI and even edit them!
  
 </details>
 <details><summary> <b>Centralized Access Management</b></summary>
@@ -58,72 +57,27 @@ Devtron is a web-based CI/CD orchestrator for Kubernetes. It integrates various 
 <details><summary> <b>Deploy, Manage and Observe on multiple clusters</b></summary>
 <br>
 - Deploy and manage Helm charts, applications across multiple Kubernetes clusters (hosted on multiple clouds/on-prem) right from a single Devtron setup
- 
 </details>
-<details><summary> <b>View and edit Kubernetes manifests </b></summary>
-<br>
-- View and edit all the Kubernetes resources right from the Devtron dashboard
- 
-</details>
-
-To use the CI/CD feature, you can [upgrade Devtron](./docs/setup/upgrade/README.md) to the latest version.
-
-### Integrations
-
-Devtron is designed to be modular, and its functionality can be easily expanded with the help of integrations such as the CICD module.
-
-#### Devtron with CICD module
-
-[Devtron with CICD](#install-devtron-with-cicd) integration helps you perform CI/CD, security scanning, GitOps, access control, debugging, and observability.
 
 <br>
-<img src="./assets/preview.gif">
-<br>
- 
-<details>
-<summary>
-<b>No Code self-serve DevOps platform</b>
-</summary>
-- Understands the domain of Kubernetes, Testing, CI/CD and SecOps
-- Reusable and composable Pipelines, which make Workflows easy to construct and visualize
-</details>
- 
-<details>
-<summary> <b>Multi-Cloud/Multi-Cluster Deployment</b></summary>
- 
-- Gives the ability to deploy your applications to multiple clusters/cloud, with a unified dashboard
-</details>
- 
-<details>
-<summary><b>Built-in SecOps tools and Integration</b> </summary>
- 
-- UI driven hierarchical security policy (Global, Cluster, Environment, and Application) management
-- Integration with [Clair](https://www.redhat.com/en/topics/containers/what-is-clair) for vulnerability scanning
-</details>
- 
-<details>
-<summary><b>UI enabled Application Debugging Dashboard</b></summary>
- 
-- Application-centric view for K8s components
-- Built-in monitoring for CPU, RAM, HTTP Status Code, and Latency
-- Advanced Logging, with grep and JSON search
-- Access all the manifests securely, e.g. secret obfuscation
-- Auto Issue identification
-</details>
- 
-<details>
-<summary><b>Enterprise grade Security and Compliance</b></summary>
- 
-- Easily manage Roles and Permissions for users through UI
-</details>
- 
-<details>
-<summary><b>Automated GitOps based deployment using ArgoCD</b></summary>
- 
-- Automated Git repository and application manifest management
-- Reduces complexity (configuration & access control) in adopting GitOps practices
-- GitOps backed by Postgres for easier analysis
-</details>
+
+## Integrations
+
+Devtron is designed to be modular, and its functionality can be easily extended with the help of integrations.
+
+### CI/CD integration
+
+[Devtron CI/CD with GitOps](#install-devtron-with-cicd) integration is used to automate the builds and deployments and enables the software development teams to focus on meeting the business requirements, code quality, and security.
+
+* Devtron leverages Kubernetes auto-scaling and centralized caching to give you unlimited cost-efficient CI workers
+* Supports pre-CI and post-CI integrations for code quality monitoring
+* Seamlessly integrates with Clair for image vulnerability scanning
+* Supports different deployment strategies: Blue/Green, Rolling, Canary, and Recreate.
+* Implements GitOps to manage the state of Kubernetes applications
+* Integrates with ArgoCD for continuous deployment
+* Checks logs, events, and manifests or exec inside containers for debugging
+* Provides deployment metrics like; deployment frequency, lead time, change failure rate, and mean-time recovery.
+* Seamlessly integration with Grafana for continuous application metrics like CPU and memory usage, status code, throughput, and latency on the dashboard
 
 ## Architecture
 
@@ -138,25 +92,27 @@ Before you begin, you must create a [Kubernetes cluster](https://kubernetes.io/d
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
 
 ```
 
-### Install Devtron with CI/CD module
+### Install Devtron with CI/CD integration
 
 Run the following command to install the latest version of Devtron along with the CI/CD module:
 
 ```bash
+helm repo add devtron https://helm.devtron.ai
+
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
---set installer.modules={cicd} \
+--set installer.modules={cicd}
 ```
 
 Please refer to the document on how to [install Devtron with CI/CD](./docs/setup/install/install-devtron-with-cicd.md) for more information.
 
-#### Installation status
+<br>
+
+### Installation status
 
 The install commands start Devtron-operator, which takes about 20 minutes to spin up all of the Devtron microservices one by one. You can use the following command to check the status of the installation:
 
@@ -178,7 +134,7 @@ Use the following command to get the dashboard URL:
 kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
 ```
 
-### Access dashboard credentials
+#### Dashboard credentials
 
 For admin login, use the username:`admin`, and run the following command to get the admin password:
 
@@ -201,23 +157,19 @@ Devtron is built on some of the most trusted and loved technologies:
 - [Running an application on Devtron](https://youtu.be/bA6zgjPD_yA?t=2927)
 - [Devtron Demo](https://youtu.be/ekxHV2Gje-E?t=7856)
 
-## Blogs
+## :memo: Blogs from Community
 
+* [How Livspace revolutionised its CI/CD saga](https://blog.livspace.io/how-livspace-revolutionised-its-ci-cd-saga-3120724e271b)
+* [AppOps with Kubernetes and Devtron: The Perfect Fit](https://hackernoon.com/appops-with-kubernetes-and-devtron-the-perfect-fit-sj934qj)
 * [Getting started with GitOps on Kubernetes with Devtron](https://piotrminkowski.com/2022/05/04/getting-started-with-gitops-on-kubernetes-with-devtron)
-
 * [Zero to hero on Kubernetes with Devtron](https://dzone.com/articles/zero-to-hero-on-kubernetes-with-devtron)
-
 * [Kubernetes deployment made easy](https://medium.com/container-talks/kubernetes-deployment-made-easy-cc74f0242f06)
-
-* [Run a container in Kubernetes cluster using Devtron CICD tool](https://devtron.ai/blog/run-a-container-in-kubernetes-cluster-using-devtrons-ci-cd-tool)
-
-* [Let's learn Devtron](https://medium.com/container-talks/lets-learn-devtron-c1a7ec31760f)
 
 ## :muscle: Trusted By
  
-Devtron is trusted by Enterprises and Communities, all across the globe:
+Devtron is trusted by Enterprises and Communities all across the globe:
 <br>
- 
+
 - [Delhivery:](https://www.delhivery.com/) Delhivery is an Indian delivery and e-commerce logistics company, that provides end-to-end Supply Chain solutions through cutting-edge technology
 - [BharatPe:](https://bharatpe.com/) Bharatpe is an Indian fintech company that offers a range of products including interoperable QR codes for UPI payments, POS machines for card acceptance, and small business financing
 - [Livspace:](https://www.livspace.com/in) Livspace is a home interior and renovation company, that provides interior design and renovation services in Singapore and India
@@ -226,10 +178,9 @@ Devtron is trusted by Enterprises and Communities, all across the globe:
  
 ## :question: FAQs & Troubleshooting
  
-- Hyperion - [see here](https://docs.devtron.ai/hyperion/faqs-and-troubleshooting/hyperion-troubleshoot)
 - Devtron - [see here](https://docs.devtron.ai/devtron/faqs-and-troubleshooting/devtron-troubleshoot)
  
-## :memo: Compatibility
+## :page_facing_up: Compatibility
  
 ### Current build
  
