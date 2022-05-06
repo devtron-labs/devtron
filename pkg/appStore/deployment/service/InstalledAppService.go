@@ -184,7 +184,10 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 	gitOpsRepoName := installedApp.GitOpsRepoName
 	if len(gitOpsRepoName) == 0 {
-		gitOpsRepoName = impl.appStoreDeploymentFullModeService.GetGitOpsRepoName(installAppVersionRequest)
+		gitOpsRepoName, err = impl.appStoreDeploymentFullModeService.GetGitOpsRepoName(installAppVersionRequest)
+		if err != nil {
+			return nil, err
+		}
 	}
 	installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	var installedAppVersion *repository2.InstalledAppVersions
