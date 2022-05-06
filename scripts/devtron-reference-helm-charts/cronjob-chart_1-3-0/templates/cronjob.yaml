@@ -25,7 +25,11 @@
   {{- end }}
 
 {{ if eq .Values.kind "CronJob" }}
+{{ if semverCompare "<1.21" .Capabilities.KubeVersion.GitVersion -}}
+apiVersion: batch/v1beta1
+{{- else }}
 apiVersion: batch/v1
+{{- end }}
 kind: CronJob
 metadata:
   name: {{ include ".Chart.Name .fullname" $ }}
@@ -64,6 +68,7 @@ spec:
         spec:
           shareProcessNamespace: {{ $.Values.shareProcessNamespace }}
           terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
+          parallelism: {{ $.Values.cronjobConfigs.parallelism }}
           restartPolicy: {{ $.Values.cronjobConfigs.restartPolicy }}
     {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
           affinity:
