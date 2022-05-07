@@ -656,7 +656,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		return detailedErrorGitOpsConfigResponse
 	}
 	appName := DryrunRepoName + util2.Generate(6)
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", config.BitBucketWorkspaceId, config.BitBucketProjectKey)
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", config.BitBucketWorkspaceId, config.BitBucketProjectKey, config.UserId)
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages

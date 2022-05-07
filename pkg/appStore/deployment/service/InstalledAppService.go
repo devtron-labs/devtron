@@ -316,6 +316,7 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 		ChartLocation:  argocdAppName,
 		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
+		UserId:         installAppVersionRequest.UserId,
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
@@ -363,6 +364,7 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 		ChartLocation:  argocdAppName,
 		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
+		UserId:         installAppVersionRequest.UserId,
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
