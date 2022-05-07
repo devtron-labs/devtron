@@ -1374,7 +1374,7 @@ func (impl *PipelineStageServiceImpl) BuildCiStepDataForWfRequest(step *reposito
 				stepData.Command = scriptMapping.Command
 				stepData.Args = scriptMapping.Args
 			} else if scriptMapping.TypeOfMapping == repository2.SCRIPT_MAPPING_TYPE_PORT {
-				portMap[scriptMapping.PortOnLocal] = portMap[scriptMapping.PortOnContainer]
+				portMap[scriptMapping.PortOnLocal] = scriptMapping.PortOnContainer
 			}
 		}
 		stepData.ExecutorType = string(scriptDetail.Type)
@@ -1516,7 +1516,7 @@ func (impl *PipelineStageServiceImpl) BuildPluginStepDataForWfRequest(step *repo
 				stepData.Command = scriptMapping.Command
 				stepData.Args = scriptMapping.Args
 			} else if scriptMapping.TypeOfMapping == repository2.SCRIPT_MAPPING_TYPE_PORT {
-				portMap[scriptMapping.PortOnLocal] = portMap[scriptMapping.PortOnContainer]
+				portMap[scriptMapping.PortOnLocal] = scriptMapping.PortOnContainer
 			}
 		}
 		stepData.ExecutorType = string(scriptDetail.Type)
