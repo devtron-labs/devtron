@@ -1023,7 +1023,7 @@ func (impl AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfig
 		Env:            envId,
 		AppMetrics:     appMetrics,
 	}
-	override, err := Tprintf(envOverride.Chart.ImageDescriptorTemplate, releaseAttribute)
+	override, err := util2.Tprintf(envOverride.Chart.ImageDescriptorTemplate, releaseAttribute)
 	if err != nil {
 		return "", &ApiError{InternalMessage: "unable to render ImageDescriptorTemplate"}
 	}

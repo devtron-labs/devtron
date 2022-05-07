@@ -42,7 +42,7 @@ import (
 type ChartWorkingDir string
 
 type ChartTemplateService interface {
-	CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error)
+	CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32) (*ChartValues, *ChartGitAttribute, error)
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
@@ -107,7 +107,7 @@ func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, e
 	return chartContent.Version, nil
 }
 
-func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string) (*ChartValues, *ChartGitAttribute, error) {
+func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32) (*ChartValues, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
@@ -137,7 +137,7 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 	}
 	values.Values = valuesYaml
 	gitOpsRepoName := impl.GetGitOpsRepoName(chartMetaData.Name)
-	chartGitAttr, err := impl.createAndPushToGit(gitOpsRepoName, templateName, chartMetaData.Version, chartDir)
+	chartGitAttr, err := impl.createAndPushToGit(gitOpsRepoName, templateName, chartMetaData.Version, chartDir, userId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
 		return nil, nil, err
@@ -155,7 +155,7 @@ type ChartGitAttribute struct {
 	RepoUrl, ChartLocation string
 }
 
-func (impl ChartTemplateServiceImpl) createAndPushToGit(gitOpsRepoName, baseTemplateName, version, tmpChartLocation string) (chartGitAttribute *ChartGitAttribute, err error) {
+func (impl ChartTemplateServiceImpl) createAndPushToGit(gitOpsRepoName, baseTemplateName, version, tmpChartLocation string, userId int32) (chartGitAttribute *ChartGitAttribute, err error) {
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	gitOpsRepoName = space.ReplaceAllString(gitOpsRepoName, "-")
@@ -205,7 +205,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(gitOpsRepoName, baseTemp
 		impl.logger.Errorw("error copying dir", "err", err)
 		return nil, nil
 	}
-	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
@@ -218,7 +218,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(gitOpsRepoName, baseTemp
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, err
 		}
-		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, err
@@ -445,7 +445,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 		impl.logger.Errorw("error copying dir", "err", err)
 		return nil, err
 	}
-	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", installAppVersionRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
 		impl.logger.Warn("re-trying, taking pull and then push again")
@@ -458,7 +458,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			impl.logger.Errorw("error copying dir", "err", err)
 			return nil, err
 		}
-		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", installAppVersionRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			return nil, err

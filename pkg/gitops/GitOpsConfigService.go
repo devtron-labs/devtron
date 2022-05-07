@@ -21,6 +21,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"math/rand"
 	"net/http"
@@ -94,12 +95,13 @@ type GitOpsConfigServiceImpl struct {
 	envService       cluster.EnvironmentService
 	versionService   argocdServer.VersionService
 	gitFactory       *util.GitFactory
+	userService      user.UserService
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory, userService user.UserService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		randSource:       rand.NewSource(time.Now().UnixNano()),
 		logger:           Logger,
@@ -110,6 +112,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 		envService:       envService,
 		versionService:   versionService,
 		gitFactory:       gitFactory,
+		userService:      userService,
 	}
 }
 
@@ -686,7 +689,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		}
 	}
 
-	commit, err := gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := gitService.CommitAndPushAllChanges(clonedDir, "first commit", config.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in commit and pushing git", "err", err)
 		if commit == "" {
@@ -717,17 +720,20 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	detailedErrorGitOpsConfigResponse := impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 	return detailedErrorGitOpsConfigResponse
 }
+
 func (impl *GitOpsConfigServiceImpl) cleanDir(dir string) {
 	err := os.RemoveAll(dir)
 	if err != nil {
 		impl.logger.Warnw("error in deleting dir ", "dir", dir)
 	}
 }
+
 func (impl *GitOpsConfigServiceImpl) getDir() string {
 	/* #nosec */
 	r1 := rand.New(impl.randSource).Int63()
 	return strconv.FormatInt(r1, 10)
 }
+
 func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, provider string) error {
 	if provider == GITLAB_PROVIDER {
 		errorResponse, ok := err.(*gitlab.ErrorResponse)
@@ -746,6 +752,7 @@ func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, pr
 	}
 	return err
 }
+
 func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions util.DetailedErrorGitOpsConfigActions) (detailedErrorResponse DetailedErrorGitOpsConfigResponse) {
 	detailedErrorResponse.StageErrorMap = make(map[string]string)
 	detailedErrorResponse.SuccessfulStages = detailedErrorGitOpsConfigActions.SuccessfulStages

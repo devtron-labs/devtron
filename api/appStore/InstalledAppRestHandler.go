@@ -257,7 +257,7 @@ func (handler InstalledAppRestHandlerImpl) GetInstalledAppVersion(w http.Respons
 	}
 	token := r.Header.Get("token")
 	handler.Logger.Infow("request payload, GetInstalledAppVersion", "installedAppVersionId", installedAppId)
-	dto, err := handler.installedAppService.GetInstalledAppVersion(installedAppId)
+	dto, err := handler.installedAppService.GetInstalledAppVersion(installedAppId, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetInstalledAppVersion", "err", err, "installedAppVersionId", installedAppId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

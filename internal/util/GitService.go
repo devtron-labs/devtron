@@ -20,6 +20,7 @@ package util
 import (
 	"context"
 	"fmt"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"io/ioutil"
 	http2 "net/http"
 	"net/url"
@@ -70,6 +71,7 @@ type GitFactory struct {
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
 	gitCliUtil       *GitCliUtil
+	userRepository   repository2.UserRepository
 }
 
 type DetailedErrorGitOpsConfigActions struct {
@@ -85,7 +87,7 @@ func (factory *GitFactory) Reload() error {
 	if err != nil {
 		return err
 	}
-	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
+	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil, factory.userRepository, factory.gitOpsRepository)
 	factory.gitService = gitService
 	client, err := NewGitOpsClient(cfg, logger, gitService)
 	if err != nil {
@@ -132,7 +134,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 		AzureToken:         gitOpsConfig.Token,
 		AzureProject:       gitOpsConfig.AzureProjectName,
 	}
-	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
+	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil, factory.userRepository, factory.gitOpsRepository)
 	//factory.gitService = gitService
 	client, err := NewGitOpsClient(cfg, logger, gitService)
 	if err != nil {
@@ -144,12 +146,12 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	return client, gitService, nil
 }
 
-func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitCliUtil *GitCliUtil) (*GitFactory, error) {
+func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitCliUtil *GitCliUtil, userRepository repository2.UserRepository) (*GitFactory, error) {
 	cfg, err := GetGitConfig(gitOpsRepository)
 	if err != nil {
 		return nil, err
 	}
-	gitService := NewGitServiceImpl(cfg, logger, gitCliUtil)
+	gitService := NewGitServiceImpl(cfg, logger, gitCliUtil, userRepository, gitOpsRepository)
 	client, err := NewGitOpsClient(cfg, logger, gitService)
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
@@ -479,12 +481,13 @@ type ChartConfig struct {
 	FileContent    string
 	ReleaseMessage string
 	ChartRepoName  string
+	UserId         int32
 }
 
 //-------------------- go-git integration -------------------
 type GitService interface {
 	Clone(url, targetDir string) (clonedDir string, err error)
-	CommitAndPushAllChanges(repoRoot, commitMsg string) (commitHash string, err error)
+	CommitAndPushAllChanges(repoRoot, commitMsg string, userId int32) (commitHash string, err error)
 	ForceResetHead(repoRoot string) (err error)
 	CommitValues(config *ChartConfig) (commitHash string, err error)
 
@@ -492,19 +495,25 @@ type GitService interface {
 	Pull(repoRoot string) (err error)
 }
 type GitServiceImpl struct {
-	Auth       *http.BasicAuth
-	config     *GitConfig
-	logger     *zap.SugaredLogger
-	gitCliUtil *GitCliUtil
+	Auth             *http.BasicAuth
+	config           *GitConfig
+	logger           *zap.SugaredLogger
+	gitCliUtil       *GitCliUtil
+	userRepository   repository2.UserRepository
+	gitOpsRepository repository.GitOpsConfigRepository
 }
 
-func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliUtil) *GitServiceImpl {
+func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliUtil,
+	userRepository repository2.UserRepository,
+	gitOpsRepository repository.GitOpsConfigRepository) *GitServiceImpl {
 	auth := &http.BasicAuth{Password: config.GitToken, Username: config.GitUserName}
 	return &GitServiceImpl{
-		Auth:       auth,
-		logger:     logger,
-		config:     config,
-		gitCliUtil: GitCliUtil,
+		Auth:             auth,
+		logger:           logger,
+		config:           config,
+		gitCliUtil:       GitCliUtil,
+		userRepository:   userRepository,
+		gitOpsRepository: gitOpsRepository,
 	}
 }
 
@@ -527,7 +536,7 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	return clonedDir, nil
 }
 
-func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg string) (commitHash string, err error) {
+func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg string, userId int32) (commitHash string, err error) {
 	repo, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
 		return "", err
@@ -536,11 +545,22 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg string) (
 	if err != nil {
 		return "", err
 	}
+	//getting emailId
+	emailId, err := impl.GetUserEmailIdForGitOpsCommit(userId)
+	if err != nil {
+		impl.logger.Errorw("error in getting emailId for commit", "err", err)
+		return "", nil
+	}
 	//--  commit
 	commit, err := workTree.Commit(commitMsg, &git.CommitOptions{
 		Author: &object.Signature{
-			Name:  "Devtron Boat",
-			Email: "manifest-boat@github.com/devtron-labs",
+			Name:  "Devtron-Bot",
+			Email: emailId,
+			When:  time.Now(),
+		},
+		Committer: &object.Signature{
+			Name:  "Devtron-Bot",
+			Email: emailId,
 			When:  time.Now(),
 		},
 	})
@@ -554,6 +574,29 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg string) (
 	})
 
 	return commit.String(), err
+}
+
+func (impl *GitServiceImpl) GetUserEmailIdForGitOpsCommit(userId int32) (string, error) {
+	var emailId string
+	//getting emailId associated with user
+	userDetail, err := impl.userRepository.GetById(userId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting userDetail by id", "err", err, "userId", userId)
+		return "", err
+	}
+	if userDetail != nil && userDetail.EmailId != "admin" && userDetail.EmailId != "system" {
+		emailId = userDetail.EmailId
+	} else {
+		emailId, err = impl.gitOpsRepository.GetEmailIdFromActiveGitOpsConfig()
+		if err != nil {
+			impl.logger.Errorw("error in getting emailId from active gitOps config", "err", err)
+			return "", err
+		} else {
+			//TODO: use emailId for devtron-bot
+			emailId = ""
+		}
+	}
+	return emailId, nil
 }
 
 func (impl GitServiceImpl) getRepoAndWorktree(repoRoot string) (*git.Repository, *git.Worktree, error) {
@@ -592,7 +635,7 @@ func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string,
 	if err != nil {
 		return "", err
 	}
-	hash, err := impl.CommitAndPushAllChanges(gitDir, config.ReleaseMessage)
+	hash, err := impl.CommitAndPushAllChanges(gitDir, config.ReleaseMessage, config.UserId)
 	return hash, err
 }
 
