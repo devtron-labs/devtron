@@ -276,23 +276,24 @@ CREATE TABLE "public"."pipeline_stage_step_condition"
 
 
 INSERT INTO "public"."plugin_tag" ("id", "name", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
-('1', 'TESTING','f', 'now()', '1', 'now()', '1'),
-('2', 'CODE QUALITY','f', 'now()', '1', 'now()', '1');
+('1', 'Load testing','f', 'now()', '1', 'now()', '1'),
+('2', 'Code quality','f', 'now()', '1', 'now()', '1'),
+('3', 'Security','f', 'now()', '1', 'now()', '1');
 
-SELECT pg_catalog.setval('public.id_seq_plugin_tag', 2, true);
+SELECT pg_catalog.setval('public.id_seq_plugin_tag', 3, true);
 
---TODO: update icons
 INSERT INTO "public"."plugin_metadata" ("id", "name", "description","type","icon","deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
-('1', 'K6','Load testing tool','PRESET','icon','f', 'now()', '1', 'now()', '1'),
-('2', 'Sonarqube','Code quality analysis tool','PRESET','icon','f', 'now()', '1', 'now()', '1');
+('1', 'K6 Load testing','K6 is an open-source tool and cloud service that makes load testing easy for developers and QA engineers.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/k6-plugin-icon.png','f', 'now()', '1', 'now()', '1'),
+('2', 'Sonarqube','Enhance Your Workflow with Continuous Code Quality & Code Security.','PRESET','https://raw.githubusercontent.com/devtron-labs/devtron/main/assets/sonarqube-plugin-icon.png','f', 'now()', '1', 'now()', '1');
 
 SELECT pg_catalog.setval('public.id_seq_plugin_metadata', 2, true);
 
 INSERT INTO "public"."plugin_tag_relation" ("id", "tag_id", "plugin_id", "created_on", "created_by", "updated_on", "updated_by") VALUES
 ('1', '1','1','now()', '1', 'now()', '1'),
-('2', '2','2', 'now()', '1', 'now()', '1');
+('2', '2','2', 'now()', '1', 'now()', '1'),
+('3', '3','2', 'now()', '1', 'now()', '1');
 
-SELECT pg_catalog.setval('public.id_seq_plugin_tag_relation', 2, true);
+SELECT pg_catalog.setval('public.id_seq_plugin_tag_relation', 3, true);
 
 
 INSERT INTO "public"."plugin_pipeline_script" ("id", "script", "type","deleted","created_on", "created_by", "updated_on", "updated_by") VALUES
