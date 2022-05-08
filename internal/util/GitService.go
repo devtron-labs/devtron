@@ -165,6 +165,7 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 		gitOpsRepository: gitOpsRepository,
 		GitWorkingDir:    cfg.GitWorkingDir,
 		gitCliUtil:       gitCliUtil,
+		userRepository:   userRepository,
 	}, nil
 }
 
