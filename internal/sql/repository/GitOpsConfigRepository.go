@@ -104,7 +104,7 @@ func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigActive() (*GitOpsConfig, 
 
 func (impl *GitOpsConfigRepositoryImpl) GetEmailIdFromActiveGitOpsConfig() (string, error) {
 	var emailId string
-	err := impl.dbConnection.Model((*GitOpsConfig)(nil)).Column().
+	err := impl.dbConnection.Model((*GitOpsConfig)(nil)).Column("email_id").
 		Where("active = ?", true).Select(&emailId)
 	return emailId, err
 }
