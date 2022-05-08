@@ -585,21 +585,20 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg string, u
 }
 
 func (impl *GitServiceImpl) GetUserEmailIdForGitOpsCommit(userId int32) (string, string) {
-	//TODO: use emailId & name for devtron-bot as default
-	emailId := ""
-	name := ""
+	//TODO: update emailId and name
+	emailId := "devtron-bot@gmail.com"
+	name := "devtron bot"
 	//getting emailId associated with user
-	userDetail, err := impl.userRepository.GetById(userId)
-	if err != nil {
-		impl.logger.Errorw("error in getting userDetail by id", "err", err, "userId", userId)
+	userDetail, _ := impl.userRepository.GetById(userId)
+	if userDetail != nil && userDetail.EmailId != "admin" && userDetail.EmailId != "system" && len(userDetail.EmailId) > 0 {
+		emailId = userDetail.EmailId
+	} else {
 		emailIdGitOps, err := impl.gitOpsRepository.GetEmailIdFromActiveGitOpsConfig()
 		if err != nil {
 			impl.logger.Errorw("error in getting emailId from active gitOps config", "err", err)
 		} else if len(emailIdGitOps) > 0 {
 			emailId = emailIdGitOps
 		}
-	} else if userDetail != nil && userDetail.EmailId != "admin" && userDetail.EmailId != "system" && len(userDetail.EmailId) > 0 {
-		emailId = userDetail.EmailId
 	}
 	//we are getting name from emailId(replacing special characters in <user-name part of email> with space)
 	emailComponents := strings.Split(emailId, "@")
