@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -57,44 +58,49 @@ type WorkflowServiceImpl struct {
 }
 
 type WorkflowRequest struct {
-	WorkflowNamePrefix         string             `json:"workflowNamePrefix"`
-	PipelineName               string             `json:"pipelineName"`
-	PipelineId                 int                `json:"pipelineId"`
-	DockerImageTag             string             `json:"dockerImageTag"`
-	DockerRegistryId           string             `json:"dockerRegistryId"`
-	DockerRegistryType         string             `json:"dockerRegistryType"`
-	DockerRegistryURL          string             `json:"dockerRegistryURL"`
-	DockerConnection           string             `json:"dockerConnection"`
-	DockerCert                 string             `json:"dockerCert"`
-	DockerBuildArgs            string             `json:"dockerBuildArgs"`
-	DockerRepository           string             `json:"dockerRepository"`
-	DockerFileLocation         string             `json:"dockerfileLocation"`
-	DockerUsername             string             `json:"dockerUsername"`
-	DockerPassword             string             `json:"dockerPassword"`
-	AwsRegion                  string             `json:"awsRegion"`
-	AccessKey                  string             `json:"accessKey"`
-	SecretKey                  string             `json:"secretKey"`
-	CiCacheLocation            string             `json:"ciCacheLocation"`
-	CiCacheRegion              string             `json:"ciCacheRegion"`
-	CiCacheFileName            string             `json:"ciCacheFileName"`
-	CiProjectDetails           []CiProjectDetails `json:"ciProjectDetails"`
-	ContainerResources         ContainerResources `json:"containerResources"`
-	ActiveDeadlineSeconds      int64              `json:"activeDeadlineSeconds"`
-	CiImage                    string             `json:"ciImage"`
-	Namespace                  string             `json:"namespace"`
-	WorkflowId                 int                `json:"workflowId"`
-	TriggeredBy                int32              `json:"triggeredBy"`
-	CacheLimit                 int64              `json:"cacheLimit"`
-	BeforeDockerBuildScripts   []*bean.CiScript   `json:"beforeDockerBuildScripts"`
-	AfterDockerBuildScripts    []*bean.CiScript   `json:"afterDockerBuildScripts"`
-	CiArtifactLocation         string             `json:"ciArtifactLocation"`
-	InvalidateCache            bool               `json:"invalidateCache"`
-	ScanEnabled                bool               `json:"scanEnabled"`
-	CloudProvider              string             `json:"cloudProvider"`
-	AzureBlobConfig            *AzureBlobConfig   `json:"azureBlobConfig"`
-	MinioEndpoint              string             `json:"minioEndpoint"`
-	DefaultAddressPoolBaseCidr string             `json:"defaultAddressPoolBaseCidr"`
-	DefaultAddressPoolSize     int                `json:"defaultAddressPoolSize"`
+	WorkflowNamePrefix         string                   `json:"workflowNamePrefix"`
+	PipelineName               string                   `json:"pipelineName"`
+	PipelineId                 int                      `json:"pipelineId"`
+	DockerImageTag             string                   `json:"dockerImageTag"`
+	DockerRegistryId           string                   `json:"dockerRegistryId"`
+	DockerRegistryType         string                   `json:"dockerRegistryType"`
+	DockerRegistryURL          string                   `json:"dockerRegistryURL"`
+	DockerConnection           string                   `json:"dockerConnection"`
+	DockerCert                 string                   `json:"dockerCert"`
+	DockerBuildArgs            string                   `json:"dockerBuildArgs"`
+	DockerRepository           string                   `json:"dockerRepository"`
+	DockerFileLocation         string                   `json:"dockerfileLocation"`
+	DockerUsername             string                   `json:"dockerUsername"`
+	DockerPassword             string                   `json:"dockerPassword"`
+	AwsRegion                  string                   `json:"awsRegion"`
+	AccessKey                  string                   `json:"accessKey"`
+	SecretKey                  string                   `json:"secretKey"`
+	CiCacheLocation            string                   `json:"ciCacheLocation"`
+	CiCacheRegion              string                   `json:"ciCacheRegion"`
+	CiCacheFileName            string                   `json:"ciCacheFileName"`
+	CiProjectDetails           []CiProjectDetails       `json:"ciProjectDetails"`
+	ContainerResources         ContainerResources       `json:"containerResources"`
+	ActiveDeadlineSeconds      int64                    `json:"activeDeadlineSeconds"`
+	CiImage                    string                   `json:"ciImage"`
+	Namespace                  string                   `json:"namespace"`
+	WorkflowId                 int                      `json:"workflowId"`
+	TriggeredBy                int32                    `json:"triggeredBy"`
+	CacheLimit                 int64                    `json:"cacheLimit"`
+	BeforeDockerBuildScripts   []*bean.CiScript         `json:"beforeDockerBuildScripts"`
+	AfterDockerBuildScripts    []*bean.CiScript         `json:"afterDockerBuildScripts"`
+	CiArtifactLocation         string                   `json:"ciArtifactLocation"`
+	InvalidateCache            bool                     `json:"invalidateCache"`
+	ScanEnabled                bool                     `json:"scanEnabled"`
+	CloudProvider              string                   `json:"cloudProvider"`
+	AzureBlobConfig            *AzureBlobConfig         `json:"azureBlobConfig"`
+	MinioEndpoint              string                   `json:"minioEndpoint"`
+	DefaultAddressPoolBaseCidr string                   `json:"defaultAddressPoolBaseCidr"`
+	DefaultAddressPoolSize     int                      `json:"defaultAddressPoolSize"`
+	PreCiSteps                 []*bean2.StepObject      `json:"preCiSteps"`
+	PostCiSteps                []*bean2.StepObject      `json:"postCiSteps"`
+	RefPlugins                 []*bean2.RefPluginObject `json:"refPlugins"`
+	AppName                    string                   `json:"appName"`
+	TriggerByAuthor            string                   `json:"triggerByAuthor"`
 }
 
 const BLOB_STORAGE_AZURE = "AZURE"

@@ -137,6 +137,7 @@ type PipelineBuilderImpl struct {
 	prePostCdScriptHistoryService    history.PrePostCdScriptHistoryService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
+	pipelineStageService             PipelineStageService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -168,7 +169,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	appLevelMetricsRepository repository.AppLevelMetricsRepository) *PipelineBuilderImpl {
+	appLevelMetricsRepository repository.AppLevelMetricsRepository,
+	pipelineStageService PipelineStageService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -202,6 +204,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
+		pipelineStageService:             pipelineStageService,
 	}
 }
 
@@ -368,16 +371,6 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
 		return nil, err
 	}
-	var beforeDockerBuild []*bean.Task
-	var afterDockerBuild []*bean.Task
-	if err := json.Unmarshal([]byte(template.BeforeDockerBuild), &beforeDockerBuild); err != nil {
-		impl.logger.Debugw("error in BeforeDockerBuild json unmarshal", "app", appId, "err", err)
-		return nil, err
-	}
-	if err := json.Unmarshal([]byte(template.AfterDockerBuild), &afterDockerBuild); err != nil {
-		impl.logger.Debugw("error in AfterDockerBuild json unmarshal", "app", appId, "err", err)
-		return nil, err
-	}
 	regHost, err := template.DockerRegistry.GetRegistryLocation()
 	if err != nil {
 		impl.logger.Errorw("invalid reg url", "err", err)
@@ -390,8 +383,6 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		DockerRepository:  template.DockerRepository,
 		DockerRegistry:    template.DockerRegistry.Id,
 		DockerRegistryUrl: regHost,
-		BeforeDockerBuild: beforeDockerBuild,
-		AfterDockerBuild:  afterDockerBuild,
 		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId},
 		Version:           template.Version,
 		CiTemplateName:    template.TemplateName,
@@ -934,21 +925,19 @@ func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*b
 			return nil, err
 		}
 	}
-	for _, ciScript := range request.CiPipeline.BeforeDockerBuildScripts {
-		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, BEFORE_DOCKER_BUILD, request.CiPipeline)
-		//creating history entry
-		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+	if request.CiPipeline.PreBuildStage != nil && request.CiPipeline.PreBuildStage.Id > 0 {
+		//deleting pre stage
+		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			impl.logger.Errorw("error in deleting pre stage", "err", err, "preBuildStage", request.CiPipeline.PreBuildStage)
 			return nil, err
 		}
 	}
-	for _, ciScript := range request.CiPipeline.AfterDockerBuildScripts {
-		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, AFTER_DOCKER_BUILD, request.CiPipeline)
-		//creating history entry
-		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+	if request.CiPipeline.PostBuildStage != nil && request.CiPipeline.PostBuildStage.Id > 0 {
+		//deleting post stage
+		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			impl.logger.Errorw("error in deleting post stage", "err", err, "postBuildStage", request.CiPipeline.PostBuildStage)
 			return nil, err
 		}
 	}
@@ -2325,5 +2314,13 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		ciPipeline.AppWorkflowId = mapping.AppWorkflowId
 	}
 
+	//getting pre stage and post stage details
+	preStageDetail, postStageDetail, err := impl.pipelineStageService.GetCiPipelineStageData(ciPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", ciPipeline.Id)
+		return nil, err
+	}
+	ciPipeline.PreBuildStage = preStageDetail
+	ciPipeline.PostBuildStage = postStageDetail
 	return ciPipeline, err
 }
