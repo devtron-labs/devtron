@@ -31,3 +31,4 @@ jobs:
         git-target-token: ${{ secrets.GIT_TARGET_TOKEN }}
         git-target-dir: ${{ secrets.GIT_TARGET_DIR }}
         git-source-dir: ${{ secrets.GIT_SOURCE_DIR }}
+        working-dir: ${{ secrets.WORKING_SIR }}
