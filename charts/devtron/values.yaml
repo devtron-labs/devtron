@@ -9,7 +9,7 @@ installer:
   modules: [] # Available options are cicd
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
 
-# Change the below values for full mode only
+# Change the below values for full mode only checking synching
 
 #Use secrets in plaintext, they'll be encoded to base64 automatically.
 secrets: {}
