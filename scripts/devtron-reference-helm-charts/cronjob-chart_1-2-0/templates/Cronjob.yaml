@@ -49,6 +49,7 @@ spec:
   failedJobsHistoryLimit: {{ $.Values.cronjobConfigs.failedJobsHistoryLimit }}
   jobTemplate:
     spec:
+      parallelism: {{ $.Values.cronjobConfigs.parallelism }}
       template:
         metadata:
         {{- if .Values.podAnnotations }}
@@ -79,8 +80,6 @@ spec:
                     values:
                     - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
     {{- end }}
-      parallelism: {{ $.Values.cronjobConfigs.parallelism }}
-
     {{- if $.Values.serviceAccountName }}
           serviceAccountName: {{ $.Values.serviceAccountName }}
     {{- end }}
