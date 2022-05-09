@@ -86,33 +86,36 @@ type DetailedErrorGitOpsConfigResponse struct {
 }
 
 type GitOpsConfigServiceImpl struct {
-	randSource       rand.Source
-	logger           *zap.SugaredLogger
-	gitOpsRepository repository.GitOpsConfigRepository
-	K8sUtil          *util.K8sUtil
-	aCDAuthConfig    *util3.ACDAuthConfig
-	clusterService   cluster.ClusterService
-	envService       cluster.EnvironmentService
-	versionService   argocdServer.VersionService
-	gitFactory       *util.GitFactory
-	userService      user.UserService
+	randSource           rand.Source
+	logger               *zap.SugaredLogger
+	gitOpsRepository     repository.GitOpsConfigRepository
+	K8sUtil              *util.K8sUtil
+	aCDAuthConfig        *util3.ACDAuthConfig
+	clusterService       cluster.ClusterService
+	envService           cluster.EnvironmentService
+	versionService       argocdServer.VersionService
+	gitFactory           *util.GitFactory
+	userService          user.UserService
+	chartTemplateService util.ChartTemplateService
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory, userService user.UserService) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory, userService user.UserService,
+	chartTemplateService util.ChartTemplateService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
-		randSource:       rand.NewSource(time.Now().UnixNano()),
-		logger:           Logger,
-		gitOpsRepository: gitOpsRepository,
-		K8sUtil:          K8sUtil,
-		aCDAuthConfig:    aCDAuthConfig,
-		clusterService:   clusterService,
-		envService:       envService,
-		versionService:   versionService,
-		gitFactory:       gitFactory,
-		userService:      userService,
+		randSource:           rand.NewSource(time.Now().UnixNano()),
+		logger:               Logger,
+		gitOpsRepository:     gitOpsRepository,
+		K8sUtil:              K8sUtil,
+		aCDAuthConfig:        aCDAuthConfig,
+		clusterService:       clusterService,
+		envService:           envService,
+		versionService:       versionService,
+		gitFactory:           gitFactory,
+		userService:          userService,
+		chartTemplateService: chartTemplateService,
 	}
 }
 
@@ -656,7 +659,9 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		return detailedErrorGitOpsConfigResponse
 	}
 	appName := DryrunRepoName + util2.Generate(6)
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", config.BitBucketWorkspaceId, config.BitBucketProjectKey, config.UserId)
+	//getting user name & emailId for commit author data
+	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", config.BitBucketWorkspaceId, config.BitBucketProjectKey, userName, userEmailId)
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
@@ -689,7 +694,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		}
 	}
 
-	commit, err := gitService.CommitAndPushAllChanges(clonedDir, "first commit", config.UserId)
+	commit, err := gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in commit and pushing git", "err", err)
 		if commit == "" {
