@@ -24,6 +24,7 @@ type SelfRegistrationRolesRepositoryImpl struct {
 func NewSelfRegistrationRolesRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *SelfRegistrationRolesRepositoryImpl {
 	return &SelfRegistrationRolesRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
+
 func (impl *SelfRegistrationRolesRepositoryImpl) GetAll() ([]SelfRegistrationRoles, error) {
 	var models []SelfRegistrationRoles
 	err := impl.dbConnection.Model(&models).Select()

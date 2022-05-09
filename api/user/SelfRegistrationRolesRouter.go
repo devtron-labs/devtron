@@ -26,4 +26,5 @@ func (impl *SelfRegistrationRolesRouterImpl) InitSelfRegistrationRolesRouter(rou
 		HandlerFunc(impl.selfRegistrationRolesHandler.SelfRegister).Methods("POST")
 	router.Path("/selfRegisterCheck").
 		HandlerFunc(impl.selfRegistrationRolesHandler.SelfRegisterCheck).Methods("GET")
+
 }

@@ -28,6 +28,7 @@ func NewSelfRegistrationRolesHandlerImpl(logger *zap.SugaredLogger,
 }
 
 func (impl *SelfRegistrationRolesHandlerImpl) SelfRegister(w http.ResponseWriter, r *http.Request) {
+
 	decoder := json.NewDecoder(r.Body)
 	var userInfo bean.UserInfo
 	err := decoder.Decode(&userInfo)

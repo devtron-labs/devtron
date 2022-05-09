@@ -7,8 +7,7 @@ import (
 )
 
 type SelfRegistrationRolesService interface {
-	GetAll() ([]string, error)
-	Check() (bool, error)
+	Check() (CheckResponse, error)
 	SelfRegister(emailId string)
 }
 
@@ -41,31 +40,48 @@ func (impl *SelfRegistrationRolesServiceImpl) GetAll() ([]string, error) {
 	return roles, nil
 }
 
-func (impl *SelfRegistrationRolesServiceImpl) Check() (bool, error) {
+type CheckResponse struct {
+	Enabled bool     `json:"enabled"`
+	Roles   []string `json:"roles"`
+}
+
+func (impl *SelfRegistrationRolesServiceImpl) Check() (CheckResponse, error) {
 	roleEntries, err := impl.selfRegistrationRolesRepository.GetAll()
+	var checkResponse CheckResponse
 	if err != nil {
 		impl.logger.Errorf("error fetching all role %+v", err)
-		return false, err
+		checkResponse.Enabled = false
+		return checkResponse, err
 	}
+	//var roles []string
 	if roleEntries != nil {
 		for _, role := range roleEntries {
 			if role.Role != "" {
-				return true, err
+				checkResponse.Roles = append(checkResponse.Roles, role.Role)
+				checkResponse.Enabled = true
+				//return checkResponse, err
 			}
 		}
-		return false, err
+		if checkResponse.Enabled == true {
+			return checkResponse, err
+		}
+		checkResponse.Enabled = false
+		return checkResponse, err
 	}
-	return false, nil
+	checkResponse.Enabled = false
+	return checkResponse, nil
 }
-
 func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) {
-	roles, err := impl.GetAll()
-	if err != nil || len(roles) == 0 {
+
+	roles, err := impl.Check()
+	if err != nil || roles.Enabled == false {
 		return
 	}
+
 	userInfo := &bean.UserInfo{
-		EmailId: emailId,
-		Roles:   roles,
+		EmailId:    emailId,
+		Roles:      roles.Roles,
+		SuperAdmin: false,
 	}
 	_, err = impl.userService.CreateUser(userInfo)
 	if err != nil {
