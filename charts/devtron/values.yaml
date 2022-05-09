@@ -7,7 +7,7 @@ installer:
   source: "github" # Available options are github and gitee
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
   modules: [] # Available options are cicd
-  production_overrides: "testing-final" # Set true if you want to use this Devtron stack in Production (This will require more resources)
+  production_overrides: "final-testing-final" # Set true if you want to use this Devtron stack in Production (This will require more resources)
 
 # Change the below values for full mode only checking synching
 
@@ -72,7 +72,7 @@ components:
       #      - devtron.example.com
 
   argocdDexServer:
-    image: quay.io/dexidp/dex:v2.25.0
+    image: quay.io/dexidp/dex:v2.25.1
     imagePullPolicy: IfNotPresent
 
   kubelink:
