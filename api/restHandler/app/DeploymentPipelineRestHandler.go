@@ -704,9 +704,9 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		var ciArtifactsFinal []bean.CiArtifactBean
 		for _, item := range ciArtifactResponse.CiArtifacts {
 			if item.ScanEnabled { // skip setting for artifacts which have marked scan disabled, but here deal with same digest
-				if _, ok := vulnerableMap[item.ImageDigest]; ok {
-					item.IsVulnerable = true
-				}
+				//if isVulnerable, ok := vulnerableMap[item.ImageDigest]; ok {
+				item.IsVulnerable = vulnerableMap[item.ImageDigest]
+				//}
 			}
 			ciArtifactsFinal = append(ciArtifactsFinal, item)
 		}
