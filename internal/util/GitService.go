@@ -585,8 +585,7 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg string, u
 }
 
 func (impl *GitServiceImpl) GetUserEmailIdForGitOpsCommit(userId int32) (string, string) {
-	//TODO: update emailId and name
-	emailId := "devtron-bot@gmail.com"
+	emailId := "devtron-bot@devtron.ai"
 	name := "devtron bot"
 	//getting emailId associated with user
 	userDetail, _ := impl.userRepository.GetById(userId)
