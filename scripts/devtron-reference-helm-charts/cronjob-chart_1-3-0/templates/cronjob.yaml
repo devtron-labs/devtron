@@ -68,7 +68,6 @@ spec:
         spec:
           shareProcessNamespace: {{ $.Values.shareProcessNamespace }}
           terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
-          parallelism: {{ $.Values.cronjobConfigs.parallelism }}
           restartPolicy: {{ $.Values.cronjobConfigs.restartPolicy }}
     {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
           affinity:
@@ -81,6 +80,7 @@ spec:
                     values:
                     - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
     {{- end }}
+      parallelism: {{ $.Values.cronjobConfigs.parallelism }}
 
     {{- if $.Values.serviceAccountName }}
           serviceAccountName: {{ $.Values.serviceAccountName }}
