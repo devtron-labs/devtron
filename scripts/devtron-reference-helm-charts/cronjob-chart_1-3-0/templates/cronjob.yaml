@@ -49,6 +49,7 @@ spec:
   failedJobsHistoryLimit: {{ $.Values.cronjobConfigs.failedJobsHistoryLimit }}
   jobTemplate:
     spec:
+      parallelism: {{ $.Values.cronjobConfigs.parallelism }}
       template:
         metadata:
         {{- if .Values.podAnnotations }}
@@ -68,7 +69,6 @@ spec:
         spec:
           shareProcessNamespace: {{ $.Values.shareProcessNamespace }}
           terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
-          parallelism: {{ $.Values.cronjobConfigs.parallelism }}
           restartPolicy: {{ $.Values.cronjobConfigs.restartPolicy }}
     {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
           affinity:
@@ -81,7 +81,6 @@ spec:
                     values:
                     - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
     {{- end }}
-
     {{- if $.Values.serviceAccountName }}
           serviceAccountName: {{ $.Values.serviceAccountName }}
     {{- end }}
