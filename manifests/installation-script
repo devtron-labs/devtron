@@ -74,7 +74,7 @@ if !defaultCacheBucket {
 argocd_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd.yaml";
 argocdResource_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd-resource.json";
 clair_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/clair.yaml";
-clairConfig_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/clair-config.yaml";
+clairConfig_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/clairv4-config.yaml";
 dashboard_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/dashboard.yaml";
 gitSensor_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/gitsensor.yaml";
 guard_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/guard.yaml";
@@ -356,13 +356,9 @@ externalSecret = kubectl apply -n devtroncd externalSecret -u externalSecretOver
 log("created external secret");
 
 #postgresql
-# if postgres already installed skip installation
-hasPostgresql = kubectl get sts postgresql-postgresql -n devtroncd;
-if !hasPostgresql {
-	kubeYamlEdit(postgresql, "data.postgresql-password", postgresqlPassword, `/Secret//postgresql-postgresql`);
-	postgresql = kubectl apply -n devtroncd postgresql -u postgresqlOverride;
-	log("created postgresql");
-}
+kubeYamlEdit(postgresql, "data.postgresql-password", postgresqlPassword, `/Secret//postgresql-postgresql`);
+postgresql = kubectl apply -n devtroncd postgresql -u postgresqlOverride;
+log("created postgresql");
 #argocd
 hasArgocd = kubectl get deployment argocd-server -n devtroncd;
 hasargocdSecret = kubectl get secret argocd-secret -n devtroncd;
@@ -443,7 +439,7 @@ kubeYamlEdit(lens, "data.PG_PASSWORD", postgresqlPassword, `/Secret//lens-secret
 
 #migrator
 #delete migrator job
-migDelete = kubectl delete -n devtroncd job  postgresql-migrate-devtron postgresql-migrate-casbin postgresql-migrate-gitsensor  postgresql-migrate-lens;
+migDelete = kubectl delete -n devtroncd job  postgresql-migrate-devtron postgresql-migrate-casbin postgresql-migrate-gitsensor  postgresql-migrate-lens postgresql-miscellaneous;
 if !migDelete {
 	log("migration job deletion failed");
 }
@@ -782,8 +778,11 @@ workflow = kubectl apply -n argo workflow -u workflowOverride;
 log("executed workflow setup");
 postgresPlainPwd = base64DecoderPrefix + `echo "` + postgresqlPassword + `" | tr -d ':\n' ` + base64DecoderSuffix;
 postgresPlainPwd = shellScript postgresPlainPwd;
-clairPosrgresUrl = "postgres://postgres:"+ postgresPlainPwd +"@postgresql-postgresql.devtroncd:5432/clair?sslmode=disable";
-yamlEdit(clairConfig, "clair.database.options.source", clairPosrgresUrl, 0);
+clairPostgresUrl = "host=postgresql-postgresql.devtroncd port=5432 dbname=clairv4 user=postgres password="+ postgresPlainPwd +" sslmode=disable"
+log(clairPostgresUrl);
+yamlEdit(clairConfig, "indexer.connstring", clairPostgresUrl, 0);
+yamlEdit(clairConfig, "matcher.connstring", clairPostgresUrl, 0);
+yamlEdit(clairConfig, "notifier.connstring", clairPostgresUrl, 0);
 clairEncodedConfig = base64EncoderPrefix + `echo "` + clairConfig + `"` + base64EncoderSuffix;
 clairEncodedConfig = shellScript clairEncodedConfig;
 kubeYamlEdit(clair, `data.config\.yaml`, clairEncodedConfig, `/Secret//clair`);

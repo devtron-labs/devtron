@@ -23,7 +23,7 @@ data:
     create database casbin;
     create database git_sensor;
     create database lens;
-    create database clair;
+    create database clairv4;
 ---
 # Source: postgresql/templates/metrics-svc.yaml
 apiVersion: v1
@@ -147,7 +147,7 @@ spec:
         
       containers:
         - name: postgresql-postgresql
-          image: "quay.io/devtron/postgres:11.3.0-debian-9-r28"
+          image: quay.io/devtron/postgres:11.9.0-debian-10-r26
           imagePullPolicy: "IfNotPresent"
           securityContext:
             runAsUser: 1001
@@ -171,6 +171,8 @@ spec:
               value: "orchestrator"
             - name: POSTGRESQL_ENABLE_LDAP
               value: "no"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: pgaudit, uuid-ossp
           ports:
             - name: tcp-postgresql
               containerPort: 5432

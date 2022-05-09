@@ -172,6 +172,43 @@ spec:
   activeDeadlineSeconds: 1500
 ---
 apiVersion: batch/v1
+#this job is added for creating new database(clairv4).
+#This database is needed for clair upgrade (v2 to v4), since old database does not support migration for new clair.
+#Without this job, database can be created for new users, but not for existing users.
+kind: Job
+metadata:
+  name: postgresql-miscellaneous
+spec:
+  ttlSecondsAfterFinished: 1000
+  template:
+    spec:
+      containers:
+      - name: postgresql-miscellaneous
+        image: quay.io/devtron/postgres:11.9.0-debian-10-r26
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-postgresql
+              key: postgresql-password
+        - name: PGHOST
+          value: postgresql-postgresql
+        command:
+          - /bin/sh
+          - -c
+          - psql -Upostgres -f /docker-entrypoint-initdb.d/db_create.sql
+        volumeMounts:
+          - name: custom-init-scripts
+            mountPath: /docker-entrypoint-initdb.d/
+      volumes:
+        - name: custom-init-scripts
+          configMap:
+            name: postgresql-postgresql-init-scripts
+      restartPolicy: OnFailure
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1
 kind: CronJob
 metadata:
   name: app-sync-cronjob
