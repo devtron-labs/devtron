@@ -26,9 +26,7 @@ import (
 	"net/url"
 	"path"
 	"path/filepath"
-	"regexp"
 	"strconv"
-	"strings"
 	"time"
 
 	bean2 "github.com/devtron-labs/devtron/api/bean"
@@ -60,7 +58,7 @@ const (
 )
 
 type GitClient interface {
-	CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string, userId int32) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
+	CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
 	CommitValues(config *ChartConfig, bitbucketWorkspaceId string) (commitHash string, err error)
 	GetRepoUrl(projectName string, repoOptions *bitbucket.RepositoryOptions) (repoUrl string, err error)
 	DeleteRepository(name, userName, gitHubOrgName, azureProjectName string, repoOptions *bitbucket.RepositoryOptions) error
@@ -306,7 +304,7 @@ func (impl GitLabClient) DeleteRepository(name, userName, gitHubOrgName, azurePr
 	}
 	return err
 }
-func (impl GitLabClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string, userId int32) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitLabClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	impl.logger.Debugw("gitlab app create request ", "name", name, "description", description)
 	repoUrl, err := impl.GetRepoUrl(name, nil)
@@ -338,7 +336,7 @@ func (impl GitLabClient) CreateRepository(name, description, bitbucketWorkspaceI
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
-	_, err = impl.createReadme(impl.config.GitlabGroupPath, name, userId)
+	_, err = impl.createReadme(impl.config.GitlabGroupPath, name, userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme ", "gitlab project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -441,15 +439,13 @@ func (impl GitLabClient) GetRepoUrl(projectName string, repoOptions *bitbucket.R
 	return "", nil
 }
 
-func (impl GitLabClient) createReadme(namespace, projectName string, userId int32) (res interface{}, err error) {
-	//getting email
-	emailId, name := impl.gitService.GetUserEmailIdForGitOpsCommit(userId)
+func (impl GitLabClient) createReadme(namespace, projectName, userName, userEmailId string) (res interface{}, err error) {
 	actions := &gitlab.CreateCommitOptions{
 		Branch:        gitlab.String("master"),
 		CommitMessage: gitlab.String("test commit"),
 		Actions:       []*gitlab.CommitAction{{Action: gitlab.FileCreate, FilePath: "README.md", Content: "devtron licence"}},
-		AuthorEmail:   &emailId,
-		AuthorName:    &name,
+		AuthorEmail:   &userEmailId,
+		AuthorName:    &userName,
 	}
 	c, _, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", namespace, projectName), actions)
 	return c, err
@@ -469,14 +465,12 @@ func (impl GitLabClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 	} else {
 		fileAction = gitlab.FileCreate
 	}
-	//getting email
-	emailId, name := impl.gitService.GetUserEmailIdForGitOpsCommit(config.UserId)
 	actions := &gitlab.CreateCommitOptions{
 		Branch:        &branch,
 		CommitMessage: gitlab.String(config.ReleaseMessage),
 		Actions:       []*gitlab.CommitAction{{Action: fileAction, FilePath: path, Content: config.FileContent}},
-		AuthorEmail:   &emailId,
-		AuthorName:    &name,
+		AuthorEmail:   &config.UserEmailId,
+		AuthorName:    &config.UserName,
 	}
 	c, _, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.ChartRepoName), actions)
 	if err != nil {
@@ -492,17 +486,17 @@ type ChartConfig struct {
 	FileContent    string
 	ReleaseMessage string
 	ChartRepoName  string
-	UserId         int32
+	UserName       string
+	UserEmailId    string
 }
 
 //-------------------- go-git integration -------------------
 type GitService interface {
 	Clone(url, targetDir string) (clonedDir string, err error)
-	CommitAndPushAllChanges(repoRoot, commitMsg string, userId int32) (commitHash string, err error)
+	CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error)
 	ForceResetHead(repoRoot string) (err error)
 	CommitValues(config *ChartConfig) (commitHash string, err error)
 
-	GetUserEmailIdForGitOpsCommit(userId int32) (emailId, name string)
 	GetCloneDirectory(targetDir string) (clonedDir string)
 	Pull(repoRoot string) (err error)
 }
@@ -548,7 +542,7 @@ func (impl GitServiceImpl) Clone(url, targetDir string) (clonedDir string, err e
 	return clonedDir, nil
 }
 
-func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg string, userId int32) (commitHash string, err error) {
+func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg, name, emailId string) (commitHash string, err error) {
 	repo, workTree, err := impl.getRepoAndWorktree(repoRoot)
 	if err != nil {
 		return "", err
@@ -557,8 +551,6 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg string, u
 	if err != nil {
 		return "", err
 	}
-	//getting emailId
-	emailId, name := impl.GetUserEmailIdForGitOpsCommit(userId)
 	//--  commit
 	commit, err := workTree.Commit(commitMsg, &git.CommitOptions{
 		Author: &object.Signature{
@@ -582,30 +574,6 @@ func (impl GitServiceImpl) CommitAndPushAllChanges(repoRoot, commitMsg string, u
 	})
 
 	return commit.String(), err
-}
-
-func (impl *GitServiceImpl) GetUserEmailIdForGitOpsCommit(userId int32) (string, string) {
-	emailId := "devtron-bot@devtron.ai"
-	name := "devtron bot"
-	//getting emailId associated with user
-	userDetail, _ := impl.userRepository.GetById(userId)
-	if userDetail != nil && userDetail.EmailId != "admin" && userDetail.EmailId != "system" && len(userDetail.EmailId) > 0 {
-		emailId = userDetail.EmailId
-	} else {
-		emailIdGitOps, err := impl.gitOpsRepository.GetEmailIdFromActiveGitOpsConfig()
-		if err != nil {
-			impl.logger.Errorw("error in getting emailId from active gitOps config", "err", err)
-		} else if len(emailIdGitOps) > 0 {
-			emailId = emailIdGitOps
-		}
-	}
-	//we are getting name from emailId(replacing special characters in <user-name part of email> with space)
-	emailComponents := strings.Split(emailId, "@")
-	regex, _ := regexp.Compile(`[^\w]`)
-	if regex != nil {
-		name = regex.ReplaceAllString(emailComponents[0], " ")
-	}
-	return emailId, name
 }
 
 func (impl GitServiceImpl) getRepoAndWorktree(repoRoot string) (*git.Repository, *git.Worktree, error) {
@@ -644,7 +612,7 @@ func (impl GitServiceImpl) CommitValues(config *ChartConfig) (commitHash string,
 	if err != nil {
 		return "", err
 	}
-	hash, err := impl.CommitAndPushAllChanges(gitDir, config.ReleaseMessage, config.UserId)
+	hash, err := impl.CommitAndPushAllChanges(gitDir, config.ReleaseMessage, "devtron bot", "devtron-bot@devtron.ai")
 	return hash, err
 }
 
@@ -710,7 +678,7 @@ func (impl GitHubClient) DeleteRepository(name, userName, gitHubOrgName, azurePr
 	}
 	return nil
 }
-func (impl GitHubClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string, userId int32) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitHubClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	repoExists := true
@@ -757,7 +725,7 @@ func (impl GitHubClient) CreateRepository(name, description, bitbucketWorkspaceI
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.createReadme(name, userId)
+	_, err = impl.createReadme(name, userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -780,7 +748,7 @@ func (impl GitHubClient) CreateRepository(name, description, bitbucketWorkspaceI
 	return *r.CloneURL, true, detailedErrorGitOpsConfigActions
 }
 
-func (impl GitHubClient) createReadme(repoName string, userId int32) (string, error) {
+func (impl GitHubClient) createReadme(repoName, userName, userEmailId string) (string, error) {
 	cfg := &ChartConfig{
 		ChartName:      repoName,
 		ChartLocation:  "",
@@ -788,7 +756,8 @@ func (impl GitHubClient) createReadme(repoName string, userId int32) (string, er
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
 		ChartRepoName:  repoName,
-		UserId:         userId,
+		UserName:       userName,
+		UserEmailId:    userEmailId,
 	}
 	hash, err := impl.CommitValues(cfg, "")
 	if err != nil {
@@ -816,8 +785,6 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 	if !newFile {
 		currentSHA = *fc.SHA
 	}
-	//getting emailId
-	emailId, name := impl.gitService.GetUserEmailIdForGitOpsCommit(config.UserId)
 	timeNow := time.Now()
 	options := &github.RepositoryContentFileOptions{
 		Message: &config.ReleaseMessage,
@@ -826,13 +793,13 @@ func (impl GitHubClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 		Branch:  &branch,
 		Author: &github.CommitAuthor{
 			Date:  &timeNow,
-			Email: &emailId,
-			Name:  &name,
+			Email: &config.UserEmailId,
+			Name:  &config.UserName,
 		},
 		Committer: &github.CommitAuthor{
 			Date:  &timeNow,
-			Email: &emailId,
-			Name:  &name,
+			Email: &config.UserEmailId,
+			Name:  &config.UserName,
 		},
 	}
 	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)

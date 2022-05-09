@@ -137,6 +137,7 @@ type PipelineBuilderImpl struct {
 	prePostCdScriptHistoryService    history.PrePostCdScriptHistoryService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
+	chartTemplateService             util.ChartTemplateService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -168,7 +169,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	appLevelMetricsRepository repository.AppLevelMetricsRepository) *PipelineBuilderImpl {
+	appLevelMetricsRepository repository.AppLevelMetricsRepository,
+	chartTemplateService util.ChartTemplateService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -202,6 +204,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
+		chartTemplateService:             chartTemplateService,
 	}
 }
 
@@ -1254,6 +1257,8 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	}
 
 	chartRepoName := impl.appService.GetChartRepoName(chart.GitRepoUrl)
+	//getting user name & emailId for commit author data
+	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	chartGitAttr := &util.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
 		FileContent:    string(DefaultPipelineValue),
@@ -1261,7 +1266,8 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		ChartLocation:  chart.ChartLocation,
 		ChartRepoName:  chartRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
-		UserId:         userId,
+		UserEmailId:    userEmailId,
+		UserName:       userName,
 	}
 	//FIXME: why only bitbucket?
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)

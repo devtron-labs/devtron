@@ -56,7 +56,7 @@ func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azure
 	}
 	return err
 }
-func (impl GitAzureClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string, userId int32) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitAzureClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	url, repoExists, err := impl.repoExists(name, impl.project)
@@ -96,7 +96,7 @@ func (impl GitAzureClient) CreateRepository(name, description, bitbucketWorkspac
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.createReadme(name, userId)
+	_, err = impl.createReadme(name, userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme azure", "project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -118,7 +118,7 @@ func (impl GitAzureClient) CreateRepository(name, description, bitbucketWorkspac
 	return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 }
 
-func (impl GitAzureClient) createReadme(repoName string, userId int32) (string, error) {
+func (impl GitAzureClient) createReadme(repoName, userName, userEmailId string) (string, error) {
 	cfg := &ChartConfig{
 		ChartName:      repoName,
 		ChartLocation:  "",
@@ -126,7 +126,8 @@ func (impl GitAzureClient) createReadme(repoName string, userId int32) (string, 
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
 		ChartRepoName:  repoName,
-		UserId:         userId,
+		UserName:       userName,
+		UserEmailId:    userEmailId,
 	}
 	hash, err := impl.CommitValues(cfg, "")
 	if err != nil {
@@ -193,8 +194,6 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig, bitbucketWorkspaceI
 	var contents []interface{}
 	contents = append(contents, gitChange)
 
-	//getting emailId
-	emailId, name := impl.gitService.GetUserEmailIdForGitOpsCommit(config.UserId)
 	var commits []git.GitCommitRef
 	commits = append(commits, git.GitCommitRef{
 		Changes: &contents,
@@ -203,15 +202,15 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig, bitbucketWorkspaceI
 			Date: &azuredevops.Time{
 				Time: time.Now(),
 			},
-			Email: &emailId,
-			Name:  &name,
+			Email: &config.UserEmailId,
+			Name:  &config.UserName,
 		},
 		Committer: &git.GitUserDate{
 			Date: &azuredevops.Time{
 				Time: time.Now(),
 			},
-			Email: &emailId,
-			Name:  &name,
+			Email: &config.UserEmailId,
+			Name:  &config.UserName,
 		},
 	})
 	push, err := clientAzure.CreatePush(ctx, git.CreatePushArgs{
