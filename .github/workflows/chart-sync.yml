@@ -24,7 +24,7 @@ jobs:
         fetch-depth: 0
     - uses: pawan-59/git-repo-sync@d0.0.8
       with:
-        script-file: ${{ secrets.SCRIPT_FILE }}
+        script-file: ${{ secrets.CHART_SYNC_SCRIPT_FILE }}
         git-target-repo: ${{ secrets.GIT_TARGET_REPO }}
         git-source-repo: ${{ secrets.GIT_SOURCE_REPO }}
         git-target-username: ${{ secrets.GIT_TARGET_USERNAME }}
