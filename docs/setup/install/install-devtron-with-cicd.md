@@ -9,9 +9,11 @@ Install [Helm](https://helm.sh/docs/intro/install/).
 1. Add Devtron repository
 2. Install Devtron
 
+> Append the comamnd with `--set installer.release="vx.x.x"` to install a particular version of Devtron. Where `vx.x.x` is the [release tag](https://github.com/devtron-labs/devtron/releases).
+
 {% tabs %}
 {% tab title="Install with default configurations" %}
-This installation will use Minio for storing build logs and cache. 
+This installation will use Minio for storing build logs and cache.
 
 ```bash
 helm repo add devtron https://helm.devtron.ai

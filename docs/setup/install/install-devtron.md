@@ -75,4 +75,4 @@ kubectl delete ns devtroncd
 
 ## Upgrade
 
-To upgrade to the full version of Devtron with CI/CD integration, refer to the [Upgrade](#) section.
+To use the CI/CD capabilities with Devtron, users can Install the [CI/CD integration](install-devtron-with-cicd.md).
