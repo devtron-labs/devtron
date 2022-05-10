@@ -87,7 +87,7 @@ func (factory *GitFactory) Reload() error {
 	if err != nil {
 		return err
 	}
-	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil, factory.userRepository, factory.gitOpsRepository)
+	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
 	factory.gitService = gitService
 	client, err := NewGitOpsClient(cfg, logger, gitService)
 	if err != nil {
@@ -134,7 +134,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 		AzureToken:         gitOpsConfig.Token,
 		AzureProject:       gitOpsConfig.AzureProjectName,
 	}
-	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil, factory.userRepository, factory.gitOpsRepository)
+	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
 	//factory.gitService = gitService
 	client, err := NewGitOpsClient(cfg, logger, gitService)
 	if err != nil {
@@ -146,12 +146,12 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	return client, gitService, nil
 }
 
-func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitCliUtil *GitCliUtil, userRepository repository2.UserRepository) (*GitFactory, error) {
+func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOpsConfigRepository, gitCliUtil *GitCliUtil) (*GitFactory, error) {
 	cfg, err := GetGitConfig(gitOpsRepository)
 	if err != nil {
 		return nil, err
 	}
-	gitService := NewGitServiceImpl(cfg, logger, gitCliUtil, userRepository, gitOpsRepository)
+	gitService := NewGitServiceImpl(cfg, logger, gitCliUtil)
 	client, err := NewGitOpsClient(cfg, logger, gitService)
 	if err != nil {
 		logger.Errorw("error in creating gitOps client", "err", err, "gitProvider", cfg.GitProvider)
@@ -163,7 +163,6 @@ func NewGitFactory(logger *zap.SugaredLogger, gitOpsRepository repository.GitOps
 		gitOpsRepository: gitOpsRepository,
 		GitWorkingDir:    cfg.GitWorkingDir,
 		gitCliUtil:       gitCliUtil,
-		userRepository:   userRepository,
 	}, nil
 }
 
@@ -501,25 +500,19 @@ type GitService interface {
 	Pull(repoRoot string) (err error)
 }
 type GitServiceImpl struct {
-	Auth             *http.BasicAuth
-	config           *GitConfig
-	logger           *zap.SugaredLogger
-	gitCliUtil       *GitCliUtil
-	userRepository   repository2.UserRepository
-	gitOpsRepository repository.GitOpsConfigRepository
+	Auth       *http.BasicAuth
+	config     *GitConfig
+	logger     *zap.SugaredLogger
+	gitCliUtil *GitCliUtil
 }
 
-func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliUtil,
-	userRepository repository2.UserRepository,
-	gitOpsRepository repository.GitOpsConfigRepository) *GitServiceImpl {
+func NewGitServiceImpl(config *GitConfig, logger *zap.SugaredLogger, GitCliUtil *GitCliUtil) *GitServiceImpl {
 	auth := &http.BasicAuth{Password: config.GitToken, Username: config.GitUserName}
 	return &GitServiceImpl{
-		Auth:             auth,
-		logger:           logger,
-		config:           config,
-		gitCliUtil:       GitCliUtil,
-		userRepository:   userRepository,
-		gitOpsRepository: gitOpsRepository,
+		Auth:       auth,
+		logger:     logger,
+		config:     config,
+		gitCliUtil: GitCliUtil,
 	}
 }
 
