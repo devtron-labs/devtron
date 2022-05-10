@@ -1,0 +1,61 @@
+{{- with .Values.components.kubelink }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubelink
+  labels:
+    app: kubelink
+    chart: kubelink-4.11.1
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  selector:
+    matchLabels:
+      app: kubelink
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: kubelink
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      serviceAccount: devtron
+      containers:
+        - name: kubelink
+          image: {{ .image }}
+          imagePullPolicy: {{ .imagePullPolicy }}
+          ports:
+            - name: app
+              containerPort: 50051
+              protocol: TCP
+          env:
+            - name: DEVTRON_APP_NAME
+              value: kubelink
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+  revisionHistoryLimit: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: kubelink
+  name: kubelink-service
+  namespace: devtroncd
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  ports:
+    - name: app
+      port: 50051
+      protocol: TCP
+      targetPort: app
+  selector:
+    app: kubelink
+  sessionAffinity: None
+  type: ClusterIP
+{{- end }}

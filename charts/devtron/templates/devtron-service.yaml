@@ -1,0 +1,41 @@
+{{- if $.Values.components }}
+{{- if $.Values.components.devtron }}
+{{- if $.Values.components.devtron.service }}
+{{- with $.Values.components.devtron.service }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: devtron
+    release: devtron
+    {{- if .labels }}
+{{ toYaml .labels | indent 4 }}
+    {{- end }}
+  annotations:
+    "helm.sh/resource-policy": keep
+    {{- if .annotations }}
+{{ toYaml .annotations | indent 4 }}
+    {{- end }}
+  name: devtron-service
+  namespace: devtroncd
+spec:
+  ports:
+  - name: devtron
+    port: {{ .port }}
+    {{- if .nodePort }}
+    nodePort: {{ .nodePort }}
+    {{- end }}
+    protocol: TCP
+    targetPort: devtron
+{{- if .loadBalancerSourceRanges }}
+  loadBalancerSourceRanges:
+{{ toYaml .loadBalancerSourceRanges | nindent 4}}
+{{- end }}
+  selector:
+    app: devtron
+  sessionAffinity: None
+  type: {{ .type }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -1,0 +1,46 @@
+{{- if not .Values.installer.modules }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devtron
+  namespace: devtroncd
+  labels:
+    release: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  annotations:
+    "helm.sh/resource-policy": keep
+  labels:
+    app.kubernetes.io/instance: devtron
+  name: devtron
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - '*'
+- nonResourceURLs:
+  - '*'
+  verbs:
+  - '*'
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: devtron
+subjects:
+  - kind: ServiceAccount
+    name: devtron
+    namespace: devtroncd
+{{- end }}
