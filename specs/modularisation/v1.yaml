@@ -1,0 +1,134 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Modularisation v1 APIs
+paths:
+  /orchestrator/module:
+    get:
+      description: Get module info
+      parameters:
+        - name: name
+          in: query
+          description: module name
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Successfully fetched modules
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ModuleInfo"
+    post:
+      description: some action on module (for eg - install/upgrade/etc..)
+      parameters:
+        - name: name
+          in: query
+          description: module name
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ModuleActionRequest"
+      responses:
+        "200":
+          description: module action response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+  /orchestrator/server:
+    get:
+      description: Get server info
+      responses:
+        "200":
+          description: Successfully fetched current server info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServerInfo"
+    post:
+      description: some action on server (for eg - install/upgrade/etc..)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServerActionRequest"
+      responses:
+        "200":
+          description: server action response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+
+# Components
+components:
+  schemas:
+    ModuleInfo:
+      type: object
+      properties:
+        name:
+          type: string
+          description: module name
+          example: "cicd"
+        status:
+          type: string
+          description: status of the module
+          example: "notInstalled|installed|installing|installFailed|timeout"
+    ModuleActionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          description: action on the module
+          example: "install"
+        version:
+          type: string
+          description: version on which module is to be installed
+          example: "v1.2.3"
+    ServerInfo:
+      type: object
+      properties:
+        currentVersion:
+          type: string
+          description: current version of the devtron server
+          example: "v1.2.3"
+        status:
+          type: string
+          description: status of the server
+          example: "healthy|upgrading|upgradeFailed|unknown|timeout"
+        releaseName:
+          type: string
+          description: helm release name of the devtron server
+          example: "devtron"
+        canUpdateServer:
+          type: boolean
+          description: if server update is allowed programatically
+          example: "true"
+    ServerActionRequest:
+      type: object
+      properties:
+        action:
+          type: string
+          description: action on the server
+          example: "upgrade"
+        version:
+          type: string
+          description: version to which server is to be upgradred
+          example: "v1.2.3"
+    ActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
