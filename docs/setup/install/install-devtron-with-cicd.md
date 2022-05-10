@@ -9,7 +9,6 @@ Install [Helm](https://helm.sh/docs/intro/install/).
 1. Add Devtron repository
 2. Install Devtron
 
-> Append the comamnd with `--set installer.release="vx.x.x"` to install a particular version of Devtron. Where `vx.x.x` is the [release tag](https://github.com/devtron-labs/devtron/releases).
 
 {% tabs %}
 {% tab title="Install with default configurations" %}
@@ -60,6 +59,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 {% endtab %}
 {% endtabs %}
 
+> Append the command with `--set installer.release="vX.X.X"` to install a particular version of Devtron. Where `vx.x.x` is the [release tag](https://github.com/devtron-labs/devtron/releases).
 
 For those countries/users where Github is blocked, you can use Gitee as the installation source:
 
