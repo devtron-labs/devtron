@@ -21,7 +21,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"math/rand"
 	"net/http"
@@ -95,15 +94,13 @@ type GitOpsConfigServiceImpl struct {
 	envService           cluster.EnvironmentService
 	versionService       argocdServer.VersionService
 	gitFactory           *util.GitFactory
-	userService          user.UserService
 	chartTemplateService util.ChartTemplateService
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory, userService user.UserService,
-	chartTemplateService util.ChartTemplateService) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		randSource:           rand.NewSource(time.Now().UnixNano()),
 		logger:               Logger,
@@ -114,7 +111,6 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 		envService:           envService,
 		versionService:       versionService,
 		gitFactory:           gitFactory,
-		userService:          userService,
 		chartTemplateService: chartTemplateService,
 	}
 }
