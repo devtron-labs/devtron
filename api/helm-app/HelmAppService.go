@@ -2,17 +2,28 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
+	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/ghodss/yaml"
 	"github.com/gogo/protobuf/proto"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const DEFAULT_CLUSTER = "default_cluster"
@@ -34,26 +45,33 @@ type HelmAppService interface {
 	IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error)
 	RollbackRelease(ctx context.Context, app *AppIdentifier, version int32) (bool, error)
 	GetClusterConf(clusterId int) (*ClusterConfig, error)
+	GetDevtronHelmAppIdentifier() *AppIdentifier
+	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
 }
 
 type HelmAppServiceImpl struct {
-	logger         *zap.SugaredLogger
-	clusterService cluster.ClusterService
-	helmAppClient  HelmAppClient
-	pump           connector.Pump
-	enforcerUtil   rbac.EnforcerUtilHelm
+	logger          *zap.SugaredLogger
+	clusterService  cluster.ClusterService
+	helmAppClient   HelmAppClient
+	pump            connector.Pump
+	enforcerUtil    rbac.EnforcerUtilHelm
+	serverDataStore *serverDataStore.ServerDataStore
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	helmAppClient HelmAppClient,
-	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm) *HelmAppServiceImpl {
+	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore,
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
-		logger:         Logger,
-		clusterService: clusterService,
-		helmAppClient:  helmAppClient,
-		pump:           pump,
-		enforcerUtil:   enforcerUtil,
+		logger:          Logger,
+		clusterService:  clusterService,
+		helmAppClient:   helmAppClient,
+		pump:            pump,
+		enforcerUtil:    enforcerUtil,
+		serverDataStore: serverDataStore,
+		serverEnvConfig: serverEnvConfig,
 	}
 }
 
@@ -179,6 +197,7 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 	}
 	return config, nil
 }
+
 func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
@@ -191,6 +210,26 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 		ReleaseName:   app.ReleaseName,
 	}
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app detail", "err", err)
+		return nil, err
+	}
+
+	// if application is devtron app helm release,
+	// then for FULL (installer object exists), then status is combination of helm app status and installer object status -
+	// if installer status is not applied then check for timeout and progressing
+	devtronHelmAppIdentifier := impl.GetDevtronHelmAppIdentifier()
+	if app.ClusterId == devtronHelmAppIdentifier.ClusterId && app.Namespace == devtronHelmAppIdentifier.Namespace && app.ReleaseName == devtronHelmAppIdentifier.ReleaseName &&
+		impl.serverDataStore.InstallerCrdObjectExists {
+		if impl.serverDataStore.InstallerCrdObjectStatus != serverBean.InstallerCrdObjectStatusApplied {
+			// if timeout
+			if time.Now().After(appdetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
+				appdetail.ApplicationStatus = serverBean.AppHealthStatusDegraded
+			} else {
+				appdetail.ApplicationStatus = serverBean.AppHealthStatusProgressing
+			}
+		}
+	}
 	return appdetail, err
 
 }
@@ -425,6 +464,115 @@ func (impl *HelmAppServiceImpl) RollbackRelease(ctx context.Context, app *AppIde
 	}
 
 	return apiResponse.Result, nil
+}
+
+func (impl *HelmAppServiceImpl) GetDevtronHelmAppIdentifier() *AppIdentifier {
+	return &AppIdentifier{
+		ClusterId:   1,
+		Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
+		ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
+	}
+}
+
+func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier,
+	chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error) {
+
+	// get release info
+	releaseInfo, err := impl.GetValuesYaml(context.Background(), appIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in fetching helm release info", "err", err)
+		return nil, err
+	}
+
+	// initialise object with original values
+	jsonString := releaseInfo.MergedValues
+
+	// handle extra values
+	// special handling for array
+	if len(extraValues) > 0 {
+		for k, v := range extraValues {
+			var valueI interface{}
+			if reflect.TypeOf(v).Kind() == reflect.Slice {
+				currentValue := gjson.Get(jsonString, k).Value()
+				value := make([]interface{}, 0)
+				if currentValue != nil {
+					value = currentValue.([]interface{})
+				}
+				for _, singleNewVal := range v.([]interface{}) {
+					value = append(value, singleNewVal)
+				}
+				valueI = value
+			} else {
+				valueI = v
+			}
+			jsonString, err = sjson.Set(jsonString, k, valueI)
+			if err != nil {
+				impl.logger.Errorw("error in handing extra values", "err", err)
+				return nil, err
+			}
+		}
+	}
+
+	// convert to byte array
+	mergedValuesJsonByteArr := []byte(jsonString)
+
+	// handle extra values from url
+	if len(extraValuesYamlUrl) > 0 {
+		extraValuesUrlYamlByteArr, err := util2.ReadFromUrlWithRetry(extraValuesYamlUrl)
+		if err != nil {
+			impl.logger.Errorw("error in reading content", "extraValuesYamlUrl", extraValuesYamlUrl, "err", err)
+			return nil, err
+		} else if extraValuesUrlYamlByteArr == nil {
+			impl.logger.Errorw("response is empty from url", "extraValuesYamlUrl", extraValuesYamlUrl)
+			return nil, errors.New("response is empty from values url")
+		}
+
+		extraValuesUrlJsonByteArr, err := yaml.YAMLToJSON(extraValuesUrlYamlByteArr)
+		if err != nil {
+			impl.logger.Errorw("error in converting json to yaml", "err", err)
+			return nil, err
+		}
+
+		mergedValuesJsonByteArr, err = jsonpatch.MergePatch(mergedValuesJsonByteArr, extraValuesUrlJsonByteArr)
+		if err != nil {
+			impl.logger.Errorw("error in json patch of extra values from url", "err", err)
+			return nil, err
+		}
+	}
+
+	// convert JSON to yaml byte array
+	mergedValuesYamlByteArr, err := yaml.JSONToYAML(mergedValuesJsonByteArr)
+	if err != nil {
+		impl.logger.Errorw("error in converting json to yaml", "err", err)
+		return nil, err
+	}
+
+	// update in helm
+	updateReleaseRequest := &InstallReleaseRequest{
+		ReleaseIdentifier: &ReleaseIdentifier{
+			ReleaseName:      appIdentifier.ReleaseName,
+			ReleaseNamespace: appIdentifier.Namespace,
+		},
+		ChartName:       releaseInfo.DeployedAppDetail.ChartName,
+		ValuesYaml:      string(mergedValuesYamlByteArr),
+		ChartRepository: chartRepository,
+	}
+	if !useLatestChartVersion {
+		updateReleaseRequest.ChartVersion = releaseInfo.DeployedAppDetail.ChartVersion
+	}
+
+	updateResponse, err := impl.UpdateApplicationWithChartInfo(ctx, appIdentifier.ClusterId, updateReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("error in upgrading release", "err", err)
+		return nil, err
+	}
+	// update in helm ends
+
+	response := &openapi.UpdateReleaseResponse{
+		Success: updateResponse.Success,
+	}
+
+	return response, nil
 }
 
 type AppIdentifier struct {
