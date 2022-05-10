@@ -5,7 +5,7 @@ installer:
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:cd97822c-51-8413"
+    image: "quay.io/devtron/dashboard:cd97822c-240-8414"
   devtron:
     image: "quay.io/devtron/hyperion:c6bc1f1d-282-8396"
   argocdDexServer:
