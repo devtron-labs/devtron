@@ -6,7 +6,8 @@
 
 * [Setup](setup/install/setup.md)
   * [Installing Devtron](setup/install/README.md)
-    * [Install using Helm3](setup/install/install-devtron-helm-3.md)
+    * [Install Devtron](setup/install/install-devtron.md)
+    * [Install Devtron with CI/CD module](setup/install/install-devtron-with-cicd.md)
     * [Installation Configurations](setup/install/installation-configuration.md)
     * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
     * [Ingress setup for devtron installation](setup/install/ingress-setup.md)
@@ -23,9 +24,9 @@
     * [Deploy a sample App](user-guide/Deploy-sample-app/nodejs_app.md)
     * [External links](user-guide/global-configurations/external-links.md)
   * [Devtron Upgrade](setup/upgrade/README.md)
-    * [0.2.x-0.3.x](setup/upgrade/devtron-upgrade-0.2.x-0.3.x.md)
-    * [0.3.x-0.3.x](setup/upgrade/devtron-upgrade-0.3.x-0.3.x.md)
     * [0.3.x-0.4.x](setup/upgrade/devtron-upgrade-0.3.x-0.4.x.md)
+    * [0.3.x-0.3.x](setup/upgrade/devtron-upgrade-0.3.x-0.3.x.md)
+    * [0.2.x-0.3.x](setup/upgrade/devtron-upgrade-0.2.x-0.3.x.md)
 * [User Guide](user-guide/creating-application/userguide.md)
   * [Creating Application](user-guide/creating-application/README.md)
     * [Git Repository](user-guide/creating-application/git-material.md)
@@ -67,7 +68,7 @@
 * [FAQs & Troubleshooting](FAQs/faqs.md)
   * [Devtron Troubleshooting](FAQs/devtron-troubleshoot.md)
 
-### Hyperion
+### Hyperion (Depricated)
 * [Introduction](hyperion/README.md)
 * [Setup](hyperion/setup/setup.md)
   * [Install Hyperion](hyperion/setup/install.md)

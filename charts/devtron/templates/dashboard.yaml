@@ -1,0 +1,94 @@
+{{- with .Values.components.dashboard }}
+apiVersion: v1
+kind: Secret
+metadata:
+  name: devtron-dashboard-secret
+  labels:
+    release: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+type: Opaque
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-cm
+  labels:
+    release: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+data:
+{{- if .config }}
+  GA_ENABLED: {{ .config.analytics | default "false" | quote }}
+  HOTJAR_ENABLED: {{ .config.hotjar | default "false" | quote }}
+  SENTRY_ENABLED: {{ .config.sentry | default "false" | quote }}
+  SENTRY_ENV: {{ .config.sentryEnv | default "PRODUCTION" | quote }}
+  APPLICATION_METRICS_ENABLED: {{ .config.applicationMetrics | default "true" | quote }}
+{{- end }} 
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard-service
+  labels:
+    app: dashboard
+    release: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  type: ClusterIP
+  ports:
+    - port: 80
+      targetPort: app
+      protocol: TCP
+      name: app
+  selector:
+    app: dashboard
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+  labels:
+    app: dashboard
+    release: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  selector:
+    matchLabels:
+      app: dashboard
+      release: devtron
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: dashboard
+        release: devtron
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      containers:
+        - name: dashboard
+          image: {{ .image }}
+          imagePullPolicy: {{ .imagePullPolicy }}
+          ports:
+            - name: app
+              containerPort: 80
+              protocol: TCP
+          env:
+            - name: DEVTRON_APP_NAME
+              value: dashboard
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+          - configMapRef:
+              name: dashboard-cm
+          - secretRef:
+              name: devtron-dashboard-secret
+          volumeMounts: []
+  revisionHistoryLimit: 3
+{{- end }}
