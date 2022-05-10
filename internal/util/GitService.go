@@ -20,7 +20,6 @@ package util
 import (
 	"context"
 	"fmt"
-	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"io/ioutil"
 	http2 "net/http"
 	"net/url"
@@ -71,7 +70,6 @@ type GitFactory struct {
 	logger           *zap.SugaredLogger
 	gitOpsRepository repository.GitOpsConfigRepository
 	gitCliUtil       *GitCliUtil
-	userRepository   repository2.UserRepository
 }
 
 type DetailedErrorGitOpsConfigActions struct {
