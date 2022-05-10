@@ -8,6 +8,7 @@ Install [Helm](https://helm.sh/docs/intro/install/) if you haven't done that alr
 {% tab title="Install with default configurations" %}
 ```bash
 helm repo add devtron https://helm.devtron.ai
+
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
 
 ```
@@ -56,7 +57,8 @@ The hostname `aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws
 For admin login, use the username as `admin`, and run the following command to get the admin password:
 
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret \
+-o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
 ### Cleaning Helm installer
@@ -65,7 +67,8 @@ Please make sure that you do not have anything inside namespaces devtroncd, devt
 ```
 helm uninstall devtron --namespace devtroncd
 
-kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
+kubectl delete -n devtroncd \
+-f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
 
 kubectl delete ns devtroncd
 ```
