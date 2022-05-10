@@ -339,7 +339,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName)
+	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
 	if err != nil {
 		return nil, err
 	}
@@ -470,7 +470,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName)
+	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
 
 	if err != nil {
 		return nil, err
