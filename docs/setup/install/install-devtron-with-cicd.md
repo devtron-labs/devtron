@@ -13,18 +13,9 @@ Install [Helm](https://helm.sh/docs/intro/install/).
 {% tab title="Install with default configurations" %}
 This installation will use Minio for storing build logs and cache. 
 
-* To install the latest version, use `main` in the below URL:
-
 ```bash
-helm install devtron devtron/devtron-operator \
---create-namespace --namespace devtroncd \
---set installer.modules={cicd}
+helm repo add devtron https://helm.devtron.ai
 
-```
-
-* To install a specific version, replace `main` with the [release tag](https://github.com/devtron-labs/devtron/releases). For example, to install `v0.3.26`:
-
-```bash
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd}
@@ -111,13 +102,15 @@ kubectl logs -f -l app=inception -n devtroncd
 Use the following command to get the dashboard URL:
 
 ```bash
-kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+kubectl get svc -n devtroncd devtron-service \
+-o jsonpath='{.status.loadBalancer.ingress}'
 ```
 
 You will get an output similar to the one shown below:
 
 ```bash
-[test2@server ~]$ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+[test2@server ~]$ kubectl get svc -n devtroncd devtron-service \
+-o jsonpath='{.status.loadBalancer.ingress}'
 [map[hostname:aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com]]
 ```
 
