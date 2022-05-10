@@ -1,0 +1,110 @@
+{{- if .Values.installer.modules }}
+{{- with .Values.installer.modules }}
+{{- range . }}
+{{- if eq . "cicd" }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: installer
+  namespace: devtroncd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: installer
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cluster-admin
+subjects:
+  - kind: ServiceAccount
+    name: installer
+    namespace: devtroncd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: installer-editor
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: installer-editor-role
+subjects:
+  - kind: ServiceAccount
+    name: installer
+    namespace: devtroncd
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: installer-editor-role
+rules:
+  - apiGroups:
+      - installer.devtron.ai
+    resources:
+      - installers
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - installer.devtron.ai
+    resources:
+      - installers/status
+    verbs:
+      - get
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: inception
+  name: inception
+  namespace: devtroncd
+spec:
+  minReadySeconds: 60
+  replicas: 1
+  strategy:
+    type:
+      Recreate
+  selector:
+    matchLabels:
+      app: inception
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: inception
+    spec:
+      containers:
+        -
+        {{- if $.Values.installer.tag }}
+          image: {{ $.Values.installer.image }}:{{ $.Values.installer.tag }}
+        {{- else }}
+          image: {{ $.Values.installer.image }}
+        {{- end }}
+          imagePullPolicy: IfNotPresent
+          name: inception
+          ports:
+            -
+              containerPort: 8080
+              name: app
+              protocol: TCP
+          resources:
+            limits:
+              cpu: 50m
+              memory: 500Mi
+            requests:
+              cpu: 10m
+              memory: 100Mi
+      restartPolicy: Always
+      serviceAccountName: installer
+      terminationGracePeriodSeconds: 30
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
