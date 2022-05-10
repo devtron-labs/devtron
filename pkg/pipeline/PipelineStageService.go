@@ -798,19 +798,18 @@ func (impl *PipelineStageServiceImpl) UpdateStageSteps(steps []*bean.PipelineSta
 			impl.logger.Errorw("error in updating variables for step", "err", err, "stepId", step.Id, "inputVariables", inputVariables, "outputVariables", outputVariables)
 			return err
 		}
-		if len(conditionDetails) > 0 {
-			//combining both maps
-			varNameIdMap := inputVarNameIdMap
-			for k, v := range outputVarNameIdMap {
-				varNameIdMap[k] = v
-			}
-			//updating conditions
-			_, err = impl.UpdatePipelineStageStepConditions(step.Id, conditionDetails, varNameIdMap, userId)
-			if err != nil {
-				impl.logger.Errorw("error in updating step conditions", "err", err)
-				return err
-			}
+		//combining both maps
+		varNameIdMap := inputVarNameIdMap
+		for k, v := range outputVarNameIdMap {
+			varNameIdMap[k] = v
 		}
+		//updating conditions
+		_, err = impl.UpdatePipelineStageStepConditions(step.Id, conditionDetails, varNameIdMap, userId)
+		if err != nil {
+			impl.logger.Errorw("error in updating step conditions", "err", err)
+			return err
+		}
+
 	}
 	return nil
 }
