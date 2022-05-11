@@ -119,11 +119,11 @@ func (impl ModuleRestHandlerImpl) HandleModuleAction(w http.ResponseWriter, r *h
 	}
 
 	// handle super-admin RBAC
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	//token := r.Header.Get("token")
+	//if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
-	}
+//	}
 
 	// service call
 	res, err := impl.moduleService.HandleModuleAction(userId, moduleName, moduleActionRequestDto)
