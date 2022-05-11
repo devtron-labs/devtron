@@ -48,5 +48,5 @@ func (impl *SelfRegistrationRolesHandlerImpl) SelfRegisterCheck(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, res.Enabled, http.StatusOK)
 }
