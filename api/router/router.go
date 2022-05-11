@@ -354,7 +354,7 @@ func (r MuxRouter) Init() {
 	externalLinkRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
 	r.externalLinkRouter.InitExternalLinkRouter(externalLinkRouter)
 
-	selfRegistrationRolesRouter := r.Router.PathPrefix("/orchestrator/selfRegistrationRoles").Subrouter()
+	selfRegistrationRolesRouter := r.Router.PathPrefix("/orchestrator/self-register").Subrouter()
 	r.selfRegistrationRolesRouter.InitSelfRegistrationRolesRouter(selfRegistrationRolesRouter)
 
 }

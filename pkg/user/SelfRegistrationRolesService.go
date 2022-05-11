@@ -84,7 +84,7 @@ func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) {
 		Roles:      roles.Roles,
 		SuperAdmin: false,
 	}
-	_, err = impl.userService.CreateUser(userInfo)
+	_, err = impl.userService.SelfRegisterUserIfNotExists(userInfo)
 	if err != nil {
 		impl.logger.Errorw("error while register user", "error", err)
 	}
