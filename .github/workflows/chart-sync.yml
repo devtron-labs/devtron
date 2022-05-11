@@ -33,3 +33,10 @@ jobs:
         git-target-dir: ${{ secrets.GIT_TARGET_DIR }}
         git-source-dir: ${{ secrets.GIT_SOURCE_DIR }}
         working-dir: ${{ secrets.WORKING_DIR }}
+    - uses: pawan-59/git-repo-sync@d0.1.4
+      with:
+        script-file: ${{ secrets.GITEE_SYNC_FILE }}
+        target-url: ${{ secrets.TARGET_URL }}
+        target-username: ${{ secrets.TARGET_USER_NAME }}
+        target-token: ${{ secrets.GITEE_ACCESS_TOKEN }}
+        target-useremail: ${{ secrets.TARGET_USER_EMAIL }}
