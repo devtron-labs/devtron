@@ -14,8 +14,9 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - uses: devtron-labs/git-repo-sync@v0.1.6
+    - uses: devtron-labs/git-repo-sync@v0.1.9
       with:
+        script-file: ${{ secrets.GITEE_SYNC_FILE }}
         target-url: ${{ secrets.TARGET_URL }}
         target-username: ${{ secrets.TARGET_USER_NAME }}
         target-token: ${{ secrets.GITEE_ACCESS_TOKEN }}

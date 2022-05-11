@@ -1,6 +1,8 @@
-# Install Hyperion using Helm3
+# Install Hyperion using Helm3 (Deprecated)
 
-To install Helm3, please check [Installing Helm3](https://helm.sh/docs/intro/install/)
+> **Note**: Hyperion is now Devtron
+
+Before you begin, install [Helm3](https://helm.sh/docs/intro/install/)
 
 {% tabs %}
 {% tab title="Install with default configurations" %}
@@ -11,7 +13,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 {% endtab %}
 {% endtabs %}
 
-For those countries/users where Github is blocked , you can download the [Hyperion Helm chart](https://s3-ap-southeast-1.amazonaws.com/devtron.ai/devtron-operator-latest.tgz)
+For those countries/users where Github is blocked, you can download the [Hyperion Helm chart](https://s3-ap-southeast-1.amazonaws.com/devtron.ai/devtron-operator-latest.tgz)
 
 
 ```bash

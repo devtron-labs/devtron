@@ -924,6 +924,8 @@ k8s.io/apimachinery/third_party/forked/golang/reflect
 ## explicit
 k8s.io/client-go/discovery
 k8s.io/client-go/dynamic
+k8s.io/client-go/dynamic/dynamicinformer
+k8s.io/client-go/dynamic/dynamiclister
 k8s.io/client-go/informers
 k8s.io/client-go/informers/admissionregistration
 k8s.io/client-go/informers/admissionregistration/v1beta1

@@ -19,10 +19,12 @@ import (
 	"github.com/devtron-labs/devtron/api/deployment"
 	externalLink2 "github.com/devtron-labs/devtron/api/externalLink"
 	client4 "github.com/devtron-labs/devtron/api/helm-app"
+	module2 "github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler"
 	app3 "github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/devtron-labs/devtron/api/router"
 	pubsub2 "github.com/devtron-labs/devtron/api/router/pubsub"
+	server2 "github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sse"
 	sso2 "github.com/devtron-labs/devtron/api/sso"
 	team2 "github.com/devtron-labs/devtron/api/team"
@@ -81,6 +83,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
+	"github.com/devtron-labs/devtron/pkg/module"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -90,6 +93,9 @@ import (
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
 	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	security2 "github.com/devtron-labs/devtron/pkg/security"
+	"github.com/devtron-labs/devtron/pkg/server"
+	"github.com/devtron-labs/devtron/pkg/server/config"
+	"github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -111,7 +117,10 @@ import (
 // Injectors from Wire.go:
 
 func InitializeApp() (*App, error) {
-	sugaredLogger := util.NewSugardLogger()
+	sugaredLogger, err := util.NewSugardLogger()
+	if err != nil {
+		return nil, err
+	}
 	config, err := sql.GetConfig()
 	if err != nil {
 		return nil, err
@@ -221,7 +230,13 @@ func InitializeApp() (*App, error) {
 	deploymentTemplateHistoryRepositoryImpl := repository4.NewDeploymentTemplateHistoryRepositoryImpl(sugaredLogger, db)
 	chartRefRepositoryImpl := chartRepoRepository.NewChartRefRepositoryImpl(db)
 	deploymentTemplateHistoryServiceImpl := history.NewDeploymentTemplateHistoryServiceImpl(sugaredLogger, deploymentTemplateHistoryRepositoryImpl, pipelineRepositoryImpl, chartRepositoryImpl, chartRefRepositoryImpl, envLevelAppMetricsRepositoryImpl, appLevelMetricsRepositoryImpl, userServiceImpl, cdWorkflowRepositoryImpl)
-	appServiceImpl := app2.NewAppService(envConfigOverrideRepositoryImpl, pipelineOverrideRepositoryImpl, mergeUtil, sugaredLogger, ciArtifactRepositoryImpl, pipelineRepositoryImpl, dbMigrationConfigRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, serviceClientImpl, tokenCache, acdAuthConfig, enforcerImpl, enforcerUtilImpl, userServiceImpl, appListingRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, appLevelMetricsRepositoryImpl, envLevelAppMetricsRepositoryImpl, chartRepositoryImpl, ciPipelineMaterialRepositoryImpl, cdWorkflowRepositoryImpl, commonServiceImpl, imageScanDeployInfoRepositoryImpl, imageScanHistoryRepositoryImpl, argoK8sClientImpl, gitFactory, gitOpsConfigRepositoryImpl, pipelineStrategyHistoryServiceImpl, configMapHistoryServiceImpl, deploymentTemplateHistoryServiceImpl)
+	chartWorkingDir := _wireChartWorkingDirValue
+	globalEnvVariables, err := util3.GetGlobalEnvVariables()
+	if err != nil {
+		return nil, err
+	}
+	chartTemplateServiceImpl := util.NewChartTemplateServiceImpl(sugaredLogger, chartWorkingDir, httpClient, gitFactory, globalEnvVariables, gitOpsConfigRepositoryImpl, userRepositoryImpl)
+	appServiceImpl := app2.NewAppService(envConfigOverrideRepositoryImpl, pipelineOverrideRepositoryImpl, mergeUtil, sugaredLogger, ciArtifactRepositoryImpl, pipelineRepositoryImpl, dbMigrationConfigRepositoryImpl, eventRESTClientImpl, eventSimpleFactoryImpl, serviceClientImpl, tokenCache, acdAuthConfig, enforcerImpl, enforcerUtilImpl, userServiceImpl, appListingRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, configMapRepositoryImpl, appLevelMetricsRepositoryImpl, envLevelAppMetricsRepositoryImpl, chartRepositoryImpl, ciPipelineMaterialRepositoryImpl, cdWorkflowRepositoryImpl, commonServiceImpl, imageScanDeployInfoRepositoryImpl, imageScanHistoryRepositoryImpl, argoK8sClientImpl, gitFactory, gitOpsConfigRepositoryImpl, pipelineStrategyHistoryServiceImpl, configMapHistoryServiceImpl, deploymentTemplateHistoryServiceImpl, chartTemplateServiceImpl)
 	validate, err := util.IntValidator()
 	if err != nil {
 		return nil, err
@@ -280,13 +295,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	pipelineBuilderImpl := pipeline.NewPipelineBuilderImpl(sugaredLogger, dbPipelineOrchestratorImpl, dockerArtifactStoreRepositoryImpl, materialRepositoryImpl, appRepositoryImpl, pipelineRepositoryImpl, propertiesConfigServiceImpl, ciTemplateRepositoryImpl, ciPipelineRepositoryImpl, serviceClientImpl, chartRepositoryImpl, ciArtifactRepositoryImpl, ecrConfig, envConfigOverrideRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, utilMergeUtil, appWorkflowRepositoryImpl, ciConfig, cdWorkflowRepositoryImpl, appServiceImpl, imageScanResultRepositoryImpl, argoK8sClientImpl, gitFactory, attributesServiceImpl, acdAuthConfig, gitOpsConfigRepositoryImpl, pipelineStrategyHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, prePostCdScriptHistoryServiceImpl, deploymentTemplateHistoryServiceImpl, appLevelMetricsRepositoryImpl, pipelineStageServiceImpl)
-	chartWorkingDir := _wireChartWorkingDirValue
-	globalEnvVariables, err := util3.GetGlobalEnvVariables()
-	if err != nil {
-		return nil, err
-	}
-	chartTemplateServiceImpl := util.NewChartTemplateServiceImpl(sugaredLogger, chartWorkingDir, httpClient, gitFactory, globalEnvVariables)
+	pipelineBuilderImpl := pipeline.NewPipelineBuilderImpl(sugaredLogger, dbPipelineOrchestratorImpl, dockerArtifactStoreRepositoryImpl, materialRepositoryImpl, appRepositoryImpl, pipelineRepositoryImpl, propertiesConfigServiceImpl, ciTemplateRepositoryImpl, ciPipelineRepositoryImpl, serviceClientImpl, chartRepositoryImpl, ciArtifactRepositoryImpl, ecrConfig, envConfigOverrideRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, utilMergeUtil, appWorkflowRepositoryImpl, ciConfig, cdWorkflowRepositoryImpl, appServiceImpl, imageScanResultRepositoryImpl, argoK8sClientImpl, gitFactory, attributesServiceImpl, acdAuthConfig, gitOpsConfigRepositoryImpl, pipelineStrategyHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, prePostCdScriptHistoryServiceImpl, deploymentTemplateHistoryServiceImpl, appLevelMetricsRepositoryImpl, pipelineStageServiceImpl, chartTemplateServiceImpl)
 	chartRepoRepositoryImpl := chartRepoRepository.NewChartRepoRepositoryImpl(db)
 	refChartDir := _wireRefChartDirValue
 	defaultChart := _wireDefaultChartValue
@@ -411,7 +420,12 @@ func InitializeApp() (*App, error) {
 	}
 	helmAppClientImpl := client4.NewHelmAppClientImpl(sugaredLogger, helmClientConfig)
 	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl)
-	helmAppServiceImpl := client4.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImplExtended, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl)
+	serverDataStoreServerDataStore := serverDataStore.InitServerDataStore()
+	serverEnvConfigServerEnvConfig, err := serverEnvConfig.ParseServerEnvConfig()
+	if err != nil {
+		return nil, err
+	}
+	helmAppServiceImpl := client4.NewHelmAppServiceImpl(sugaredLogger, clusterServiceImplExtended, helmAppClientImpl, pumpImpl, enforcerUtilHelmImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig)
 	appStoreDeploymentHelmServiceImpl := appStoreDeploymentTool.NewAppStoreDeploymentHelmServiceImpl(sugaredLogger, helmAppServiceImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, helmAppClientImpl)
 	installedAppVersionHistoryRepositoryImpl := repository8.NewInstalledAppVersionHistoryRepositoryImpl(sugaredLogger, db)
 	appStoreDeploymentArgoCdServiceImpl := appStoreDeploymentGitopsTool.NewAppStoreDeploymentArgoCdServiceImpl(sugaredLogger, appStoreDeploymentFullModeServiceImpl, serviceClientImpl, chartGroupDeploymentRepositoryImpl, installedAppRepositoryImpl, installedAppVersionHistoryRepositoryImpl)
@@ -477,7 +491,7 @@ func InitializeApp() (*App, error) {
 	policyRestHandlerImpl := restHandler.NewPolicyRestHandlerImpl(sugaredLogger, policyServiceImpl, userServiceImpl, userAuthServiceImpl, enforcerImpl, enforcerUtilImpl, environmentServiceImpl)
 	policyRouterImpl := router.NewPolicyRouterImpl(policyRestHandlerImpl)
 	versionServiceImpl := argocdServer.NewVersionServiceImpl(argoCDSettings, sugaredLogger)
-	gitOpsConfigServiceImpl := gitops.NewGitOpsConfigServiceImpl(sugaredLogger, ciHandlerImpl, gitOpsConfigRepositoryImpl, k8sUtil, acdAuthConfig, clusterServiceImplExtended, environmentServiceImpl, versionServiceImpl, gitFactory)
+	gitOpsConfigServiceImpl := gitops.NewGitOpsConfigServiceImpl(sugaredLogger, ciHandlerImpl, gitOpsConfigRepositoryImpl, k8sUtil, acdAuthConfig, clusterServiceImplExtended, environmentServiceImpl, versionServiceImpl, gitFactory, chartTemplateServiceImpl)
 	gitOpsConfigRestHandlerImpl := restHandler.NewGitOpsConfigRestHandlerImpl(sugaredLogger, gitOpsConfigServiceImpl, userServiceImpl, validate, enforcerImpl, teamServiceImpl, gitOpsConfigRepositoryImpl)
 	gitOpsConfigRouterImpl := router.NewGitOpsConfigRouterImpl(gitOpsConfigRestHandlerImpl)
 	dashboardConfig, err := dashboard.GetConfig()
@@ -542,7 +556,26 @@ func InitializeApp() (*App, error) {
 	globalPluginServiceImpl := plugin.NewGlobalPluginService(sugaredLogger, globalPluginRepositoryImpl)
 	globalPluginRestHandlerImpl := restHandler.NewGlobalPluginRestHandler(sugaredLogger, globalPluginServiceImpl, enforcerUtilImpl, enforcerImpl, pipelineBuilderImpl)
 	globalPluginRouterImpl := router.NewGlobalPluginRouter(sugaredLogger, globalPluginRestHandlerImpl)
-	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appLabelRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl)
+	moduleRepositoryImpl := module.NewModuleRepositoryImpl(db)
+	moduleActionAuditLogRepositoryImpl := module.NewModuleActionAuditLogRepositoryImpl(db)
+	moduleEnvConfig, err := module.ParseModuleEnvConfig()
+	if err != nil {
+		return nil, err
+	}
+	moduleCacheServiceImpl := module.NewModuleCacheServiceImpl(sugaredLogger, k8sUtil, moduleEnvConfig, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, moduleRepositoryImpl)
+	moduleCronServiceImpl, err := module.NewModuleCronServiceImpl(sugaredLogger, moduleEnvConfig, moduleRepositoryImpl)
+	if err != nil {
+		return nil, err
+	}
+	moduleServiceImpl := module.NewModuleServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, moduleRepositoryImpl, moduleActionAuditLogRepositoryImpl, helmAppServiceImpl, moduleCacheServiceImpl, moduleCronServiceImpl)
+	moduleRestHandlerImpl := module2.NewModuleRestHandlerImpl(sugaredLogger, moduleServiceImpl, userServiceImpl, enforcerImpl, validate)
+	moduleRouterImpl := module2.NewModuleRouterImpl(moduleRestHandlerImpl)
+	serverActionAuditLogRepositoryImpl := server.NewServerActionAuditLogRepositoryImpl(db)
+	serverCacheServiceImpl := server.NewServerCacheServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, helmAppServiceImpl)
+	serverServiceImpl := server.NewServerServiceImpl(sugaredLogger, serverActionAuditLogRepositoryImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig, helmAppServiceImpl, serverCacheServiceImpl)
+	serverRestHandlerImpl := server2.NewServerRestHandlerImpl(sugaredLogger, serverServiceImpl, userServiceImpl, enforcerImpl, validate)
+	serverRouterImpl := server2.NewServerRouterImpl(serverRestHandlerImpl)
+	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appLabelRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl)
 	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, versionServiceImpl, enforcer, db, pubSubClient, sessionManager)
 	return mainApp, nil
 }

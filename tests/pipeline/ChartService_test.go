@@ -22,7 +22,7 @@ var bulkUpdateRepository bulkUpdate.BulkUpdateRepositoryImpl
 
 func setup() {
 	config, _ := sql.GetConfig()
-	logger := util.NewSugardLogger()
+	logger, _ := util.NewSugardLogger()
 	dbConnection, _ := sql.NewDbConnection(config, logger)
 	bulkUpdateRepository := bulkUpdate.NewBulkUpdateRepository(dbConnection, logger)
 	bulkUpdateService = pipeline.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, "",

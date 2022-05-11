@@ -5,7 +5,7 @@ import (
 )
 
 func getTestGithubClient() GitHubClient {
-	logger := NewSugardLogger()
+	logger, err := NewSugardLogger()
 	gitCliUtl := NewGitCliUtil(logger)
 	gitService := NewGitServiceImpl(&GitConfig{GitToken: "", GitUserName: "nishant"}, logger, gitCliUtl)
 

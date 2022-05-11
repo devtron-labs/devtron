@@ -56,7 +56,7 @@ func (impl GitAzureClient) DeleteRepository(name, userName, gitHubOrgName, azure
 	}
 	return err
 }
-func (impl GitAzureClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitAzureClient) CreateRepository(name, description, bitbucketWorkspaceId, bitbucketProjectKey, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	url, repoExists, err := impl.repoExists(name, impl.project)
@@ -96,7 +96,7 @@ func (impl GitAzureClient) CreateRepository(name, description, bitbucketWorkspac
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.createReadme(name)
+	_, err = impl.createReadme(name, userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme azure", "project", name, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -118,7 +118,7 @@ func (impl GitAzureClient) CreateRepository(name, description, bitbucketWorkspac
 	return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 }
 
-func (impl GitAzureClient) createReadme(repoName string) (string, error) {
+func (impl GitAzureClient) createReadme(repoName, userName, userEmailId string) (string, error) {
 	cfg := &ChartConfig{
 		ChartName:      repoName,
 		ChartLocation:  "",
@@ -126,6 +126,8 @@ func (impl GitAzureClient) createReadme(repoName string) (string, error) {
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
 		ChartRepoName:  repoName,
+		UserName:       userName,
+		UserEmailId:    userEmailId,
 	}
 	hash, err := impl.CommitValues(cfg, "")
 	if err != nil {
@@ -196,6 +198,20 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig, bitbucketWorkspaceI
 	commits = append(commits, git.GitCommitRef{
 		Changes: &contents,
 		Comment: &config.ReleaseMessage,
+		Author: &git.GitUserDate{
+			Date: &azuredevops.Time{
+				Time: time.Now(),
+			},
+			Email: &config.UserEmailId,
+			Name:  &config.UserName,
+		},
+		Committer: &git.GitUserDate{
+			Date: &azuredevops.Time{
+				Time: time.Now(),
+			},
+			Email: &config.UserEmailId,
+			Name:  &config.UserName,
+		},
 	})
 	push, err := clientAzure.CreatePush(ctx, git.CreatePushArgs{
 		Push: &git.GitPush{
