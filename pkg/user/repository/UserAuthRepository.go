@@ -24,9 +24,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
@@ -175,7 +175,7 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 		err = impl.dbConnection.Model(&models).Where("action = ?", action).
 			Where("access_type is NULL").
 			Select()
-	} else{
+	} else {
 		err = impl.dbConnection.Model(&models).Where("action = ?", action).
 			Where("access_type = ?", accessType).
 			Select()

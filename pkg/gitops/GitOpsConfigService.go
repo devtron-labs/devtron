@@ -85,31 +85,33 @@ type DetailedErrorGitOpsConfigResponse struct {
 }
 
 type GitOpsConfigServiceImpl struct {
-	randSource       rand.Source
-	logger           *zap.SugaredLogger
-	gitOpsRepository repository.GitOpsConfigRepository
-	K8sUtil          *util.K8sUtil
-	aCDAuthConfig    *util3.ACDAuthConfig
-	clusterService   cluster.ClusterService
-	envService       cluster.EnvironmentService
-	versionService   argocdServer.VersionService
-	gitFactory       *util.GitFactory
+	randSource           rand.Source
+	logger               *zap.SugaredLogger
+	gitOpsRepository     repository.GitOpsConfigRepository
+	K8sUtil              *util.K8sUtil
+	aCDAuthConfig        *util3.ACDAuthConfig
+	clusterService       cluster.ClusterService
+	envService           cluster.EnvironmentService
+	versionService       argocdServer.VersionService
+	gitFactory           *util.GitFactory
+	chartTemplateService util.ChartTemplateService
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
-		randSource:       rand.NewSource(time.Now().UnixNano()),
-		logger:           Logger,
-		gitOpsRepository: gitOpsRepository,
-		K8sUtil:          K8sUtil,
-		aCDAuthConfig:    aCDAuthConfig,
-		clusterService:   clusterService,
-		envService:       envService,
-		versionService:   versionService,
-		gitFactory:       gitFactory,
+		randSource:           rand.NewSource(time.Now().UnixNano()),
+		logger:               Logger,
+		gitOpsRepository:     gitOpsRepository,
+		K8sUtil:              K8sUtil,
+		aCDAuthConfig:        aCDAuthConfig,
+		clusterService:       clusterService,
+		envService:           envService,
+		versionService:       versionService,
+		gitFactory:           gitFactory,
+		chartTemplateService: chartTemplateService,
 	}
 }
 
@@ -653,7 +655,9 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		return detailedErrorGitOpsConfigResponse
 	}
 	appName := DryrunRepoName + util2.Generate(6)
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", config.BitBucketWorkspaceId, config.BitBucketProjectKey)
+	//getting user name & emailId for commit author data
+	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", config.BitBucketWorkspaceId, config.BitBucketProjectKey, userName, userEmailId)
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
@@ -686,7 +690,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		}
 	}
 
-	commit, err := gitService.CommitAndPushAllChanges(clonedDir, "first commit")
+	commit, err := gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in commit and pushing git", "err", err)
 		if commit == "" {
@@ -717,17 +721,20 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	detailedErrorGitOpsConfigResponse := impl.convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions)
 	return detailedErrorGitOpsConfigResponse
 }
+
 func (impl *GitOpsConfigServiceImpl) cleanDir(dir string) {
 	err := os.RemoveAll(dir)
 	if err != nil {
 		impl.logger.Warnw("error in deleting dir ", "dir", dir)
 	}
 }
+
 func (impl *GitOpsConfigServiceImpl) getDir() string {
 	/* #nosec */
 	r1 := rand.New(impl.randSource).Int63()
 	return strconv.FormatInt(r1, 10)
 }
+
 func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, provider string) error {
 	if provider == GITLAB_PROVIDER {
 		errorResponse, ok := err.(*gitlab.ErrorResponse)
@@ -746,6 +753,7 @@ func (impl *GitOpsConfigServiceImpl) extractErrorMessageByProvider(err error, pr
 	}
 	return err
 }
+
 func (impl *GitOpsConfigServiceImpl) convertDetailedErrorToResponse(detailedErrorGitOpsConfigActions util.DetailedErrorGitOpsConfigActions) (detailedErrorResponse DetailedErrorGitOpsConfigResponse) {
 	detailedErrorResponse.StageErrorMap = make(map[string]string)
 	detailedErrorResponse.SuccessfulStages = detailedErrorGitOpsConfigActions.SuccessfulStages
