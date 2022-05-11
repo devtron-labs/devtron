@@ -40,24 +40,33 @@ type ServerServiceImpl struct {
 	serverDataStore                *serverDataStore.ServerDataStore
 	serverEnvConfig                *serverEnvConfig.ServerEnvConfig
 	helmAppService                 client.HelmAppService
-	// no need to inject serverCacheService, but not generating in wire_gen (not triggering cache work in constructor) if not injecting. hence injecting
-	serverCacheService ServerCacheService
 }
 
 func NewServerServiceImpl(logger *zap.SugaredLogger, serverActionAuditLogRepository ServerActionAuditLogRepository,
-	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, serverCacheService ServerCacheService) *ServerServiceImpl {
+	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService) *ServerServiceImpl {
 	return &ServerServiceImpl{
 		logger:                         logger,
 		serverActionAuditLogRepository: serverActionAuditLogRepository,
 		serverDataStore:                serverDataStore,
 		serverEnvConfig:                serverEnvConfig,
 		helmAppService:                 helmAppService,
-		serverCacheService:             serverCacheService,
 	}
 }
 
 func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error) {
 	impl.logger.Debug("getting server info")
+
+	serverInfoDto := &serverBean.ServerInfoDto{
+		CurrentVersion:   impl.serverDataStore.CurrentVersion,
+		ReleaseName:      impl.serverEnvConfig.DevtronHelmReleaseName,
+		Status:           serverBean.ServerStatusUnknown,
+		InstallationType: impl.serverEnvConfig.DevtronInstallationType,
+	}
+
+	// if installation type is not OSS helm, then return (do not calculate server status)
+	if serverInfoDto.InstallationType != serverBean.DevtronInstallationTypeOssHelm {
+		return serverInfoDto, nil
+	}
 
 	// fetch status of devtron helm app
 	devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
@@ -90,13 +99,7 @@ func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error)
 		}
 	}
 
-	serverInfoDto := &serverBean.ServerInfoDto{
-		CurrentVersion:  impl.serverDataStore.CurrentVersion,
-		ReleaseName:     impl.serverEnvConfig.DevtronHelmReleaseName,
-		Status:          serverStatus,
-		CanUpdateServer: impl.serverEnvConfig.CanServerUpdate,
-	}
-
+	serverInfoDto.Status = serverStatus
 	return serverInfoDto, nil
 }
 
@@ -104,7 +107,7 @@ func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionReque
 	impl.logger.Debugw("handling server action request", "userId", userId, "payload", serverActionRequest)
 
 	// check if can update server
-	if !impl.serverEnvConfig.CanServerUpdate {
+	if impl.serverEnvConfig.DevtronInstallationType != serverBean.DevtronInstallationTypeOssHelm {
 		return nil, errors.New("server up-gradation is not allowed")
 	}
 
