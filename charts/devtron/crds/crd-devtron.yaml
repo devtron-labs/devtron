@@ -1,0 +1,172 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.3.0
+  creationTimestamp: null
+  name: installers.installer.devtron.ai
+spec:
+  group: installer.devtron.ai
+  names:
+    kind: Installer
+    listKind: InstallerList
+    plural: installers
+    singular: installer
+  scope: Namespaced
+  versions:
+  - name: v1alpha1
+    served: true
+    storage: true
+    schema:
+      openAPIV3Schema:
+        description: Installer is the Schema for the installers API
+        properties:
+          apiVersion:
+            description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+            type: string
+          kind:
+            description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+            type: string
+          metadata:
+            type: object
+          spec:
+            description: InstallerSpec defines the desired state of Installer
+            properties:
+              reSync:
+                description: Rerun the installation script
+                type: boolean
+              url:
+                description: URL of the BOM version to be installed
+                type: string
+            type: object
+          status:
+            description: InstallerStatus defines the observed state of Installer
+            properties:
+              current_spec_hash:
+                type: string
+              sync:
+                description: SyncStatus is a comparison result of application spec and
+                  deployed application.
+                properties:
+                  conditions:
+                    items:
+                      description: InstallerCondition contains details about current
+                        application condition
+                      properties:
+                        lastTransitionTime:
+                          description: LastTransitionTime is the time the condition
+                            was first observed.
+                          format: date-time
+                          type: string
+                        message:
+                          description: Message contains human-readable message indicating
+                            details about condition
+                          type: string
+                        type:
+                          description: Type is an application condition type
+                          type: string
+                      required:
+                      - message
+                      - type
+                      type: object
+                    type: array
+                  data:
+                    type: string
+                  health:
+                    properties:
+                      message:
+                        type: string
+                      status:
+                        description: Represents resource health status
+                        type: string
+                    type: object
+                  history:
+                    description: RevisionHistories is a array of history, oldest first
+                      and newest last
+                    items:
+                      description: RevisionHistory contains information relevant to
+                        an application deployment
+                      properties:
+                        deployStartedAt:
+                          description: DeployStartedAt holds the time the deployment
+                            started
+                          format: date-time
+                          type: string
+                        deployedAt:
+                          description: DeployedAt holds the time the deployment completed
+                          format: date-time
+                          type: string
+                        id:
+                          description: ID is an auto incrementing identifier of the
+                            RevisionHistory
+                          format: int64
+                          type: integer
+                        revision:
+                          description: Revision holds the revision of the sync
+                          type: string
+                        source:
+                          description: ApplicationSource contains information about
+                            github repository, path within repository and target application
+                            environment.
+                          properties:
+                            url:
+                              type: string
+                          type: object
+                      required:
+                      - deployedAt
+                      - id
+                      - revision
+                      type: object
+                    type: array
+                  resources:
+                    items:
+                      description: ResourceStatus holds the current sync and health
+                        status of a resource
+                      properties:
+                        group:
+                          type: string
+                        health:
+                          properties:
+                            message:
+                              type: string
+                            status:
+                              description: Represents resource health status
+                              type: string
+                          type: object
+                        kind:
+                          type: string
+                        name:
+                          type: string
+                        namespace:
+                          type: string
+                        operation:
+                          type: string
+                        status:
+                          type: string
+                        version:
+                          type: string
+                      type: object
+                    type: array
+                  status:
+                    type: string
+                  url:
+                    description: URL of the BOM version pulled
+                    type: string
+                required:
+                - status
+                type: object
+            required:
+            - current_spec_hash
+            - sync
+            type: object
+        type: object
+status:
+  acceptedNames:
+    kind: ""
+    plural: ""
+  conditions: []
+  storedVersions: []

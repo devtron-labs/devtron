@@ -31,6 +31,7 @@ type GitOpsConfigRepository interface {
 	GetGitOpsConfigByProvider(provider string) (*GitOpsConfig, error)
 	GetGitOpsConfigActive() (*GitOpsConfig, error)
 	GetConnection() *pg.DB
+	GetEmailIdFromActiveGitOpsConfig() (string, error)
 }
 
 type GitOpsConfigRepositoryImpl struct {
@@ -51,6 +52,7 @@ type GitOpsConfig struct {
 	Active               bool     `sql:"active,notnull"`
 	BitBucketWorkspaceId string   `sql:"bitbucket_workspace_id"`
 	BitBucketProjectKey  string   `sql:"bitbucket_project_key"`
+	EmailId              string   `sql:"email_id"`
 	sql.AuditLog
 }
 
@@ -98,4 +100,11 @@ func (impl *GitOpsConfigRepositoryImpl) GetGitOpsConfigActive() (*GitOpsConfig, 
 	var model GitOpsConfig
 	err := impl.dbConnection.Model(&model).Where("active = ?", true).Limit(1).Select()
 	return &model, err
+}
+
+func (impl *GitOpsConfigRepositoryImpl) GetEmailIdFromActiveGitOpsConfig() (string, error) {
+	var emailId string
+	err := impl.dbConnection.Model((*GitOpsConfig)(nil)).Column("email_id").
+		Where("active = ?", true).Select(&emailId)
+	return emailId, err
 }

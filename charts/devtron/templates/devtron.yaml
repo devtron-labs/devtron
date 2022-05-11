@@ -1,0 +1,93 @@
+{{- if not .Values.installer.modules }}
+{{- with .Values.components.devtron }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: "devtron-cm"
+  labels:
+    release: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+data:
+  PG_USER: postgres
+  PG_ADDR: postgresql-postgresql.devtroncd
+  PG_PORT: "5432"
+  HELM_CLIENT_URL: kubelink-service:50051
+  DASHBOARD_PORT: "80"
+  DASHBOARD_HOST: dashboard-service.devtroncd
+  PG_DATABASE: orchestrator
+  DEX_HOST: http://argocd-dex-server.devtroncd
+  DEX_PORT: "5556"
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devtron
+  labels:
+    app: devtron
+    release: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  selector:
+    matchLabels:
+      app: devtron
+      release: devtron
+  replicas: 1
+  minReadySeconds: 60
+  template:
+    metadata:
+      labels:
+        app: devtron
+        release: devtron
+    spec:
+      terminationGracePeriodSeconds: 30
+      restartPolicy: Always
+      serviceAccountName: devtron
+      containers:
+        - name: devtron
+          image: {{ .image }}
+          imagePullPolicy: {{ .imagePullPolicy }}
+          ports:
+            - name: devtron
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: DEVTRON_APP_NAME
+              value: devtron
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          envFrom:
+          - configMapRef:
+              name: "devtron-cm"
+          - secretRef:
+              name: "devtron-secret"
+  revisionHistoryLimit: 3
+---
+{{- if .serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: devtron-sm
+  labels:
+    kind: Prometheus
+    app: devtron
+    release: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+spec:
+  endpoints:
+    - port: devtron
+      path: /metrics
+      scheme: http
+      interval: 30s
+      scrapeTimeout: 3s
+  selector:
+    matchLabels:
+      app: devtron
+{{- end }}
+{{- end }}
+{{- end }}
