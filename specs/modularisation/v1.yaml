@@ -110,10 +110,10 @@ components:
           type: string
           description: helm release name of the devtron server
           example: "devtron"
-        canUpdateServer:
-          type: boolean
-          description: if server update is allowed programatically
-          example: "true"
+        installationType:
+          type: string
+          description: devtron installation type
+          example: "oss_kubectl|oss_helm|enterprise"
     ServerActionRequest:
       type: object
       properties:

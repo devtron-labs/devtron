@@ -41,7 +41,7 @@ helm repo update
 
 ```bash
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/devtron-bom.yaml \
+-f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/devtron-bom.yaml \
 --set installer.modules={cicd} --reuse-values
 ```
 OR
@@ -52,6 +52,6 @@ OR
 DEVTRON_TARGET_VERSION=v0.4.x
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/devtron/$DEVTRON_TARGET_VERSION/manifests/devtron-bom.yaml \
+-f https://raw.githubusercontent.com/devtron-labs/devtron/$DEVTRON_TARGET_VERSION/charts/devtron/devtron-bom.yaml \
 --set installer.modules={cicd} --reuse-values
 ```

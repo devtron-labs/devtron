@@ -21,6 +21,8 @@ import (
 	"context"
 	"errors"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/pkg/server"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
@@ -39,19 +41,22 @@ type ModuleServiceImpl struct {
 	moduleRepository               ModuleRepository
 	moduleActionAuditLogRepository ModuleActionAuditLogRepository
 	helmAppService                 client.HelmAppService
-	// no need to inject moduleCacheService and cronService, but not generating in wire_gen (not triggering cache work in constructor) if not injecting. hence injecting
+	// no need to inject serverCacheService, moduleCacheService and cronService, but not generating in wire_gen (not triggering cache work in constructor) if not injecting. hence injecting
+	// serverCacheService should be injected first as it changes serverEnvConfig in its constructor, which is used by moduleCacheService and moduleCronService
+	serverCacheService server.ServerCacheService
 	moduleCacheService ModuleCacheService
 	moduleCronService  ModuleCronService
 }
 
 func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleRepository ModuleRepository,
-	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService, moduleCacheService ModuleCacheService, moduleCronService ModuleCronService) *ModuleServiceImpl {
+	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService, serverCacheService server.ServerCacheService, moduleCacheService ModuleCacheService, moduleCronService ModuleCronService) *ModuleServiceImpl {
 	return &ModuleServiceImpl{
 		logger:                         logger,
 		serverEnvConfig:                serverEnvConfig,
 		moduleRepository:               moduleRepository,
 		moduleActionAuditLogRepository: moduleActionAuditLogRepository,
 		helmAppService:                 helmAppService,
+		serverCacheService:             serverCacheService,
 		moduleCacheService:             moduleCacheService,
 		moduleCronService:              moduleCronService,
 	}
@@ -86,7 +91,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	impl.logger.Debugw("handling module action request", "moduleName", moduleName, "userId", userId, "payload", moduleActionRequest)
 
 	// check if can update server
-	if !impl.serverEnvConfig.CanServerUpdate {
+	if impl.serverEnvConfig.DevtronInstallationType != serverBean.DevtronInstallationTypeOssHelm {
 		return nil, errors.New("module installation is not allowed")
 	}
 

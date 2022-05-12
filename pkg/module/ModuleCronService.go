@@ -19,6 +19,8 @@ package module
 
 import (
 	"fmt"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"time"
@@ -32,29 +34,35 @@ type ModuleCronServiceImpl struct {
 	cron             *cron.Cron
 	moduleEnvConfig  *ModuleEnvConfig
 	moduleRepository ModuleRepository
+	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 }
 
-func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *ModuleEnvConfig, moduleRepository ModuleRepository) (*ModuleCronServiceImpl, error) {
+func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *ModuleEnvConfig, moduleRepository ModuleRepository, serverEnvConfig *serverEnvConfig.ServerEnvConfig) (*ModuleCronServiceImpl, error) {
 
 	moduleCronServiceImpl := &ModuleCronServiceImpl{
 		logger:           logger,
+		moduleEnvConfig:  moduleEnvConfig,
 		moduleRepository: moduleRepository,
+		serverEnvConfig:  serverEnvConfig,
 	}
 
-	// cron job to update status as timeout if installing state keeps in more than 1 hour
-	// initialise cron
-	cron := cron.New(
-		cron.WithChain())
-	cron.Start()
+	// if devtron user type is OSS_HELM then only cron to update module timeout status is useful
+	if serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeOssHelm {
+		// cron job to update status as timeout if installing state keeps in more than 1 hour
+		// initialise cron
+		cron := cron.New(
+			cron.WithChain())
+		cron.Start()
 
-	// add function into cron
-	_, err := cron.AddFunc(fmt.Sprintf("@every %dm", moduleEnvConfig.ModuleTimeoutStatusHandlingCronDurationInMin), moduleCronServiceImpl.HandleModuleTimeoutStatus)
-	if err != nil {
-		fmt.Println("error in adding cron function into module cron service")
-		return nil, err
+		// add function into cron
+		_, err := cron.AddFunc(fmt.Sprintf("@every %dm", moduleEnvConfig.ModuleTimeoutStatusHandlingCronDurationInMin), moduleCronServiceImpl.HandleModuleTimeoutStatus)
+		if err != nil {
+			fmt.Println("error in adding cron function into module cron service")
+			return nil, err
+		}
+
+		moduleCronServiceImpl.cron = cron
 	}
-
-	moduleCronServiceImpl.cron = cron
 
 	return moduleCronServiceImpl, nil
 }
@@ -70,7 +78,6 @@ func (impl *ModuleCronServiceImpl) HandleModuleTimeoutStatus() {
 		impl.logger.Errorw("error occurred while fetching all the modules from DB", "err", err)
 		return
 	}
-
 
 	// update status timeout if module status is installing for more than 1 hour
 	for _, module := range modules {

@@ -368,7 +368,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryList(pipelineId, baseC
 			Id:               history.Id,
 			DeployedOn:       history.DeployedOn,
 			DeployedBy:       user.EmailId,
-			DeploymentStatus: history.CdWorkflowRunner.Status,
+			DeploymentStatus: history.DeploymentStatus,
 		})
 	}
 	return historyList, nil

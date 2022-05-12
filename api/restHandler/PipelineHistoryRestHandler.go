@@ -191,7 +191,12 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDeta
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	id, err := strconv.Atoi(vars["id"])
+	if err != nil {
+		handler.logger.Errorw("request err, FetchDeployedHistoryComponentDetail", "err", err, "id", id)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	historyComponent := r.URL.Query().Get("historyComponent")
 	if historyComponent == "" || err != nil {
 		handler.logger.Errorw("request err, FetchDeployedHistoryComponentDetail", "err", err, "historyComponent", historyComponent)
@@ -202,13 +207,6 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDeta
 	if err != nil {
 		handler.logger.Errorw("request err, FetchDeployedHistoryComponentDetail", "err", err, "historyComponentName", historyComponentName)
 		common.WriteJsonResp(w, err, "invalid historyComponentName", http.StatusBadRequest)
-		return
-	}
-	idParam := r.URL.Query().Get("baseConfigurationId")
-	id, err := strconv.Atoi(idParam)
-	if id == 0 || err != nil {
-		handler.logger.Errorw("request err, FetchDeployedHistoryComponentDetail", "err", err, "id", id)
-		common.WriteJsonResp(w, err, "invalid id", http.StatusBadRequest)
 		return
 	}
 	handler.logger.Debugw("request payload, FetchDeployedHistoryComponentDetail", "pipelineId", pipelineId)

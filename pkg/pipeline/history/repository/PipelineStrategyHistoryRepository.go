@@ -37,7 +37,8 @@ type PipelineStrategyHistory struct {
 	DeployedOn time.Time                         `sql:"deployed_on"`
 	DeployedBy int32                             `sql:"deployed_by"`
 	sql.AuditLog
-	CdWorkflowRunner *pipelineConfig.CdWorkflowRunner
+	//getting below data from cd_workflow_runner join
+	DeploymentStatus string `sql:"-"`
 }
 
 func (impl PipelineStrategyHistoryRepositoryImpl) CreateHistory(model *PipelineStrategyHistory) (*PipelineStrategyHistory, error) {
@@ -97,13 +98,12 @@ func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId
 
 func (impl PipelineStrategyHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*PipelineStrategyHistory, error) {
 	var histories []*PipelineStrategyHistory
-	err := impl.dbConnection.Model(&histories).
-		Column("pipeline_strategy_history.*", "CdWorkflowRunner").
-		Join("INNER JOIN cd_workflow_runner cwr ON cwr.started_on = pipeline_strategy_history.deployed_on").
-		Where("pipeline_strategy_history.pipeline_id = ?", pipelineId).
-		Where("pipeline_strategy_history.deployed = ?", true).
-		Where("pipeline_strategy_history.id <= ?", baseConfigId).
-		Select()
+	query := "SELECT psh.id, psh.deployed_on, psh.deployed_by, cwr.status as deployment_status" +
+		" FROM pipeline_strategy_history psh" +
+		" INNER JOIN cd_workflow_runner cwr ON cwr.started_on = psh.deployed_on" +
+		" WHERE psh.pipeline_id = ? AND psh.deployed = true AND psh.id <= ?" +
+		" ORDER BY psh.id DESC;"
+	_, err := impl.dbConnection.Query(&histories, query, pipelineId, baseConfigId)
 	if err != nil {
 		impl.logger.Errorw("error in getting pipeline strategy history list by pipelineId", "err", err, "pipelineId", pipelineId)
 		return histories, err

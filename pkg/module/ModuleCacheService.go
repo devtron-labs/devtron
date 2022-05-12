@@ -20,6 +20,7 @@ package module
 import (
 	"context"
 	"github.com/devtron-labs/devtron/internal/util"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -39,6 +40,16 @@ import (
 type ModuleCacheService interface {
 }
 
+type ModuleCacheServiceImpl struct {
+	logger           *zap.SugaredLogger
+	mutex            sync.Mutex
+	K8sUtil          *util.K8sUtil
+	moduleEnvConfig  *ModuleEnvConfig
+	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
+	serverDataStore  *serverDataStore.ServerDataStore
+	moduleRepository ModuleRepository
+}
+
 func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
 	serverDataStore *serverDataStore.ServerDataStore, moduleRepository ModuleRepository) *ModuleCacheServiceImpl {
 	impl := &ModuleCacheServiceImpl{
@@ -50,28 +61,21 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 		moduleRepository: moduleRepository,
 	}
 
-	// for hyperion mode, installer crd won't come in picture
-	// for full mode, need to update modules to installed in db in found as installing
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
-		// handle cicd module status
-		impl.updateModuleStatusToInstalled()
+	// if devtron user type is OSS_HELM then only installer object and modules installation is useful
+	if serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeOssHelm {
+		// for hyperion mode, installer crd won't come in picture
+		// for full mode, need to update modules to installed in db in found as installing
+		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
+			// handle cicd module status
+			impl.updateModuleStatusToInstalled()
+		}
+
+		// listen in installer object to save status in-memory
+		// build informer to listen on installer object
+		go impl.buildInformerToListenOnInstallerObject()
 	}
 
-	// listen in installer object to save status in-memory
-	// build informer to listen on installer object
-	go impl.buildInformerToListenOnInstallerObject()
-
 	return impl
-}
-
-type ModuleCacheServiceImpl struct {
-	logger           *zap.SugaredLogger
-	mutex            sync.Mutex
-	K8sUtil          *util.K8sUtil
-	moduleEnvConfig  *ModuleEnvConfig
-	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
-	serverDataStore  *serverDataStore.ServerDataStore
-	moduleRepository ModuleRepository
 }
 
 func (impl *ModuleCacheServiceImpl) updateModuleStatusToInstalled() {

@@ -2,7 +2,6 @@ package repository
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -44,7 +43,8 @@ type ConfigmapAndSecretHistory struct {
 	DeployedOn time.Time  `sql:"deployed_on"`
 	DeployedBy int32      `sql:"deployed_by"`
 	sql.AuditLog
-	CdWorkflowRunner *pipelineConfig.CdWorkflowRunner
+	//getting below data from cd_workflow_runner join
+	DeploymentStatus string `sql:"-"`
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error) {
@@ -83,12 +83,10 @@ func (impl ConfigMapHistoryRepositoryImpl) GetDeploymentDetailsForDeployedCMCSHi
 
 func (impl ConfigMapHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
 	var history ConfigmapAndSecretHistory
-	err := impl.dbConnection.Model(&history).Join("INNER JOIN cd_workflow_runner cwr ON cwr.started_on = config_map_history.deployed_on").
-		Where("config_map_history.pipeline_id = ?", pipelineId).
-		Where("config_map_history.deployed = ?", true).
-		Where("config_map_history.data_type = ?", configType).
-		Where("cwr.id = ?", wfrId).
-		Select()
+	query := "SELECT cmh.* FROM config_map_history cmh" +
+		" INNER JOIN cd_workflow_runner cwr ON cwr.started_on = cmh.deployed_on" +
+		" WHERE cmh.pipeline_id = ? AND cmh.deployed = true AND cmh.data_type = ? AND cwr.id = ?;"
+	_, err := impl.dbConnection.Query(&history, query, pipelineId, configType, wfrId)
 	if err != nil {
 		impl.logger.Errorw("error in getting configmap/secret history by pipelineId & wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return &history, err
@@ -98,15 +96,12 @@ func (impl ConfigMapHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipeli
 
 func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, baseConfigId int, configType ConfigType, componentName string) ([]*ConfigmapAndSecretHistory, error) {
 	var histories []*ConfigmapAndSecretHistory
-	err := impl.dbConnection.Model(&histories).
-		Column("config_map_history.*", "CdWorkflowRunner").
-		Join("INNER JOIN cd_workflow_runner cwr ON cwr.started_on = config_map_history.deployed_on").
-		Where("config_map_history.pipeline_id = ?", pipelineId).
-		Where("config_map_history.deployed = ?", true).
-		Where("config_map_history.id <= ?", baseConfigId).
-		Where("config_map_history.data_type = ?", configType).
-		Where("config_map_history.data LIKE ?", "%"+fmt.Sprintf("\"name\":\"%s\"", componentName)+"%").
-		Select()
+	query := "SELECT cmh.id, cmh.deployed_on, cmh.deployed_by, cwr.status as deployment_status" +
+		" FROM config_map_history cmh" +
+		" INNER JOIN cd_workflow_runner cwr ON cwr.started_on = cmh.deployed_on" +
+		" WHERE cmh.pipeline_id = ? AND cmh.deployed = true AND cmh.id <= ? AND cmh.data_type = ? AND cmh.data LIKE ?" +
+		" ORDER BY cmh.id DESC;"
+	_, err := impl.dbConnection.Query(&histories, query, pipelineId, baseConfigId, configType, "%"+fmt.Sprintf("\"name\":\"%s\"", componentName)+"%")
 	if err != nil {
 		impl.logger.Errorw("error in getting configmap/secret history list by pipelineId", "err", err, "pipelineId", pipelineId)
 		return histories, err
