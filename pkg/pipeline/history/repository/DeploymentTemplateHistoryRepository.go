@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -41,7 +40,8 @@ type DeploymentTemplateHistory struct {
 	DeployedOn              time.Time `sql:"deployed_on"`
 	DeployedBy              int32     `sql:"deployed_by"`
 	sql.AuditLog
-	CdWorkflowRunner *pipelineConfig.CdWorkflowRunner
+	//getting below data from cd_workflow_runner join
+	DeploymentStatus string `sql:"-"`
 }
 
 func (impl DeploymentTemplateHistoryRepositoryImpl) CreateHistory(chart *DeploymentTemplateHistory) (*DeploymentTemplateHistory, error) {
@@ -102,13 +102,12 @@ func (impl DeploymentTemplateHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfr
 
 func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeploymentTemplateHistory, error) {
 	var histories []*DeploymentTemplateHistory
-	err := impl.dbConnection.Model(&histories).
-		Column("deployment_template_history.*", "CdWorkflowRunner").
-		Join("INNER JOIN cd_workflow_runner cwr ON cwr.started_on = deployment_template_history.deployed_on").
-		Where("deployment_template_history.pipeline_id = ?", pipelineId).
-		Where("deployment_template_history.deployed = ?", true).
-		Where("deployment_template_history.id <= ?", baseConfigId).
-		Select()
+	query := "SELECT dth.id, dth.deployed_on, dth.deployed_by, cwr.status as deployment_status" +
+		" FROM deployment_template_history dth" +
+		" INNER JOIN cd_workflow_runner cwr ON cwr.started_on = dth.deployed_on" +
+		" WHERE dth.pipeline_id = ? AND dth.deployed = true AND dth.id <= ?" +
+		" ORDER BY dth.id DESC;"
+	_, err := impl.dbConnection.Query(&histories, query, pipelineId, baseConfigId)
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment template history list by pipelineId", "err", err, "pipelineId", pipelineId)
 		return histories, err
