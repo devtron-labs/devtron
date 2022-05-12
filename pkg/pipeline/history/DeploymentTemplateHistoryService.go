@@ -310,15 +310,10 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryList(pipeline
 	}
 	var historyList []*DeployedHistoryComponentMetadataDto
 	for _, history := range histories {
-		user, err := impl.userService.GetById(history.DeployedBy)
-		if err != nil {
-			impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
-			return nil, err
-		}
 		historyList = append(historyList, &DeployedHistoryComponentMetadataDto{
 			Id:               history.Id,
 			DeployedOn:       history.DeployedOn,
-			DeployedBy:       user.EmailId,
+			DeployedBy:       history.DeployedByEmailId,
 			DeploymentStatus: history.DeploymentStatus,
 		})
 	}
