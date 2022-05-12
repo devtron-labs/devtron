@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -18,6 +20,8 @@ type ConfigMapHistoryRepository interface {
 	CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error)
 	GetHistoryForDeployedCMCSById(id, pipelineId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
 	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType ConfigType) ([]*ConfigmapAndSecretHistory, error)
+	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error)
+	GetDeployedHistoryList(pipelineId, baseConfigId int, configType ConfigType, componentName string) ([]*ConfigmapAndSecretHistory, error)
 }
 
 type ConfigMapHistoryRepositoryImpl struct {
@@ -40,6 +44,7 @@ type ConfigmapAndSecretHistory struct {
 	DeployedOn time.Time  `sql:"deployed_on"`
 	DeployedBy int32      `sql:"deployed_by"`
 	sql.AuditLog
+	CdWorkflowRunner *pipelineConfig.CdWorkflowRunner
 }
 
 func (impl ConfigMapHistoryRepositoryImpl) CreateHistory(model *ConfigmapAndSecretHistory) (*ConfigmapAndSecretHistory, error) {
@@ -71,6 +76,39 @@ func (impl ConfigMapHistoryRepositoryImpl) GetDeploymentDetailsForDeployedCMCSHi
 		Where("deployed = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting deployed CM/CS history", "err", err)
+		return histories, err
+	}
+	return histories, nil
+}
+
+func (impl ConfigMapHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType ConfigType) (*ConfigmapAndSecretHistory, error) {
+	var history ConfigmapAndSecretHistory
+	err := impl.dbConnection.Model(&history).Join("INNER JOIN cd_workflow_runner cwr ON cwr.started_on = config_map_history.deployed_on").
+		Where("config_map_history.pipeline_id = ?", pipelineId).
+		Where("config_map_history.deployed = ?", true).
+		Where("config_map_history.data_type = ?", configType).
+		Where("cwr.id = ?", wfrId).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting configmap/secret history by pipelineId & wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
+		return &history, err
+	}
+	return &history, nil
+}
+
+func (impl ConfigMapHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, baseConfigId int, configType ConfigType, componentName string) ([]*ConfigmapAndSecretHistory, error) {
+	var histories []*ConfigmapAndSecretHistory
+	err := impl.dbConnection.Model(&histories).
+		Column("config_map_history.*", "CdWorkflowRunner").
+		Join("INNER JOIN cd_workflow_runner cwr ON cwr.started_on = config_map_history.deployed_on").
+		Where("config_map_history.pipeline_id = ?", pipelineId).
+		Where("config_map_history.deployed = ?", true).
+		Where("config_map_history.id <= ?", baseConfigId).
+		Where("config_map_history.data_type = ?", configType).
+		Where("config_map_history.data LIKE ?", "%"+fmt.Sprintf("\"name\":\"%s\"", componentName)+"%").
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting configmap/secret history list by pipelineId", "err", err, "pipelineId", pipelineId)
 		return histories, err
 	}
 	return histories, nil

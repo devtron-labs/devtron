@@ -13,6 +13,8 @@ type PipelineStrategyHistoryRepository interface {
 	CreateHistoryWithTxn(model *PipelineStrategyHistory, tx *pg.Tx) (*PipelineStrategyHistory, error)
 	GetHistoryForDeployedStrategyById(id, pipelineId int) (*PipelineStrategyHistory, error)
 	GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistory, error)
+	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*PipelineStrategyHistory, error)
+	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*PipelineStrategyHistory, error)
 }
 
 type PipelineStrategyHistoryRepositoryImpl struct {
@@ -35,6 +37,7 @@ type PipelineStrategyHistory struct {
 	DeployedOn time.Time                         `sql:"deployed_on"`
 	DeployedBy int32                             `sql:"deployed_by"`
 	sql.AuditLog
+	CdWorkflowRunner *pipelineConfig.CdWorkflowRunner
 }
 
 func (impl PipelineStrategyHistoryRepositoryImpl) CreateHistory(model *PipelineStrategyHistory) (*PipelineStrategyHistory, error) {
@@ -73,6 +76,36 @@ func (impl PipelineStrategyHistoryRepositoryImpl) GetDeploymentDetailsForDeploye
 		Where("deployed = ?", true).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting strategy history", "err", err)
+		return histories, err
+	}
+	return histories, nil
+}
+
+func (impl PipelineStrategyHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*PipelineStrategyHistory, error) {
+	var history PipelineStrategyHistory
+	err := impl.dbConnection.Model(&history).Join("INNER JOIN cd_workflow_runner cwr ON cwr.started_on = pipeline_strategy_history.deployed_on").
+		Where("pipeline_strategy_history.pipeline_id = ?", pipelineId).
+		Where("pipeline_strategy_history.deployed = ?", true).
+		Where("cwr.id = ?", wfrId).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting pipeline strategy history by pipelineId & wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
+		return &history, err
+	}
+	return &history, nil
+}
+
+func (impl PipelineStrategyHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*PipelineStrategyHistory, error) {
+	var histories []*PipelineStrategyHistory
+	err := impl.dbConnection.Model(&histories).
+		Column("pipeline_strategy_history.*", "CdWorkflowRunner").
+		Join("INNER JOIN cd_workflow_runner cwr ON cwr.started_on = pipeline_strategy_history.deployed_on").
+		Where("pipeline_strategy_history.pipeline_id = ?", pipelineId).
+		Where("pipeline_strategy_history.deployed = ?", true).
+		Where("pipeline_strategy_history.id <= ?", baseConfigId).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting pipeline strategy history list by pipelineId", "err", err, "pipelineId", pipelineId)
 		return histories, err
 	}
 	return histories, nil

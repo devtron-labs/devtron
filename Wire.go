@@ -685,6 +685,8 @@ func InitializeApp() (*App, error) {
 		history3.NewPipelineStrategyHistoryServiceImpl,
 		wire.Bind(new(history3.PipelineStrategyHistoryService), new(*history3.PipelineStrategyHistoryServiceImpl)),
 
+		history3.NewDeployedConfigurationHistoryServiceImpl,
+		wire.Bind(new(history3.DeployedConfigurationHistoryService), new(*history3.DeployedConfigurationHistoryServiceImpl)),
 		//history ends
 		//	AuthWireSet,
 	)
