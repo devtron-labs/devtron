@@ -101,7 +101,8 @@ type MuxRouter struct {
 	deploymentConfigRouter           deployment.DeploymentConfigRouter
 	dashboardTelemetryRouter         dashboardEvent.DashboardTelemetryRouter
 	commonDeploymentRouter           appStoreDeployment.CommonDeploymentRouter
-	externalLinkRouter               externalLink.ExternalLinkRouter
+	globalPluginRouter               GlobalPluginRouter
+	externalLinkRouter       externalLink.ExternalLinkRouter
 	moduleRouter                     module.ModuleRouter
 	serverRouter                     server.ServerRouter
 }
@@ -126,7 +127,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
-	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter, moduleRouter module.ModuleRouter,
+	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
+	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
@@ -184,6 +186,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		dashboardTelemetryRouter:         dashboardTelemetryRouter,
 		commonDeploymentRouter:           commonDeploymentRouter,
 		externalLinkRouter:               externalLinkRouter,
+		globalPluginRouter:               globalPluginRouter,
 		moduleRouter:                     moduleRouter,
 		serverRouter:                     serverRouter,
 	}
@@ -339,6 +342,9 @@ func (r MuxRouter) Init() {
 
 	pProfListenerRouter := r.Router.PathPrefix("/orchestrator/debug/pprof").Subrouter()
 	r.pProfRouter.initPProfRouter(pProfListenerRouter)
+
+	globalPluginRouter := r.Router.PathPrefix("/orchestrator/plugin").Subrouter()
+	r.globalPluginRouter.initGlobalPluginRouter(globalPluginRouter)
 
 	//  deployment router starts
 	deploymentConfigSubRouter := r.Router.PathPrefix("/orchestrator/deployment/template").Subrouter()
