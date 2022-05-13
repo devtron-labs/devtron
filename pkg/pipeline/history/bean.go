@@ -34,7 +34,7 @@ type HistoryDetailDto struct {
 	TemplateVersion     string `json:"templateVersion,omitempty"`
 	IsAppMetricsEnabled bool   `json:"isAppMetricsEnabled,omitempty"`
 	//for pipeline strategy
-	PipelineTriggerType pipelineConfig.TriggerType `json:"pipelineTriggerType"`
+	PipelineTriggerType pipelineConfig.TriggerType `json:"pipelineTriggerType,omitempty"`
 	Strategy            string                     `json:"strategy,omitempty"`
 	//for configmap and secret
 	Type               string               `json:"type,omitempty"`
@@ -48,7 +48,7 @@ type HistoryDetailDto struct {
 }
 
 type HistoryDetailConfig struct {
-	DisplayName string `json:"DisplayName"`
+	DisplayName string `json:"displayName"`
 	Value       string `json:"value"`
 }
 
