@@ -345,6 +345,31 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(p
 	} else if err == pg.ErrNoRows {
 		return history, false, nil
 	}
+	var configData []*ConfigData
+	if configType == repository.CONFIGMAP_TYPE {
+		configList := ConfigList{}
+		if len(history.Data) > 0 {
+			err = json.Unmarshal([]byte(history.Data), &configList)
+			if err != nil {
+				impl.logger.Debugw("error while Unmarshal", "err", err)
+				return history, false, err
+			}
+		}
+		configData = configList.ConfigData
+	} else if configType == repository.SECRET_TYPE {
+		secretList := SecretList{}
+		if len(history.Data) > 0 {
+			err = json.Unmarshal([]byte(history.Data), &secretList)
+			if err != nil {
+				impl.logger.Debugw("error while Unmarshal", "err", err)
+				return history, false, err
+			}
+		}
+		configData = secretList.ConfigData
+	}
+	if len(configData) == 0 {
+		return history, false, nil
+	}
 	return history, true, nil
 }
 
