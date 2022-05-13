@@ -1,0 +1,33 @@
+name: chart-sync
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on publishing new release
+  release:
+    types: [released]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "build"
+  sync:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+    name: chart-sync
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+    - uses: devtron-labs/git-repo-sync@v0.1.9
+      with:
+        script-file: ${{ secrets.CHART_SYNC_SCRIPT_FILE }}
+        git-target-repo: ${{ secrets.GIT_TARGET_REPO }}
+        git-source-repo: ${{ secrets.GIT_SOURCE_REPO }}
+        git-target-useremail: ${{ secrets.GIT_TARGET_EMAIL }}
+        git-target-username: ${{ secrets.GIT_TARGET_USERNAME }}
+        git-target-token: ${{ secrets.GIT_TARGET_TOKEN }}
+        git-target-dir: ${{ secrets.GIT_TARGET_DIR }}
+        git-source-dir: ${{ secrets.GIT_SOURCE_DIR }}
+        working-dir: ${{ secrets.WORKING_DIR }}

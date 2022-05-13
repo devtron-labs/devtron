@@ -683,6 +683,10 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	if len(digests) > 0 {
 		vulnerableMap := make(map[string]bool)
+		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipelineModel.Environment.ClusterId, pipelineModel.EnvironmentId, pipelineModel.AppId, pipelineModel.App.AppStore)
+		if err != nil {
+			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
+		}
 		for _, digest := range digests {
 			if len(digest) > 0 {
 				var cveStores []*security.CveStore
@@ -694,21 +698,15 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 				for _, item := range imageScanResult {
 					cveStores = append(cveStores, &item.CveStore)
 				}
-				blockCveList, err := handler.policyService.GetBlockedCVEList(cveStores, pipelineModel.Environment.ClusterId, pipelineModel.EnvironmentId, pipelineModel.AppId, pipelineModel.App.AppStore)
-				if err != nil {
-					handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
-				}
-				if len(blockCveList) > 0 {
-					vulnerableMap[digest] = true
-				}
+				vulnerableMap[digest] = handler.policyService.HasBlockedCVE(cveStores, cvePolicy, severityPolicy)
 			}
 		}
 		var ciArtifactsFinal []bean.CiArtifactBean
 		for _, item := range ciArtifactResponse.CiArtifacts {
 			if item.ScanEnabled { // skip setting for artifacts which have marked scan disabled, but here deal with same digest
-				if _, ok := vulnerableMap[item.ImageDigest]; ok {
-					item.IsVulnerable = true
-				}
+				//if isVulnerable, ok := vulnerableMap[item.ImageDigest]; ok {
+				item.IsVulnerable = vulnerableMap[item.ImageDigest]
+				//}
 			}
 			ciArtifactsFinal = append(ciArtifactsFinal, item)
 		}

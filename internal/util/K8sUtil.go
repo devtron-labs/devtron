@@ -21,6 +21,10 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
+	"os/user"
+	"path/filepath"
+	"time"
+
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
@@ -34,9 +38,6 @@ import (
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
-	"os/user"
-	"path/filepath"
-	"time"
 )
 
 type K8sUtil struct {
@@ -439,4 +440,51 @@ func (impl K8sUtil) GetClientByToken(serverUrl string, token map[string]string) 
 		return nil, err
 	}
 	return client, nil
+}
+
+func (impl K8sUtil) GetResourceInfoByLabelSelector(namespace string, labelSelector string) (*v1.Pod, error) {
+	client, err := impl.GetClientForInCluster()
+	if err != nil {
+		impl.logger.Errorw("cluster config error", "err", err)
+		return nil, err
+	}
+	pods, err := client.Pods(namespace).List(metav1.ListOptions{
+		LabelSelector: labelSelector,
+	})
+	if err != nil {
+		return nil, err
+	} else if len(pods.Items) > 1 {
+		err = &ApiError{Code: "406", HttpStatusCode: 200, UserMessage: "found more than one pod for label selector"}
+		return nil, err
+	} else if len(pods.Items) == 0 {
+		err = &ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no pod found for label selector"}
+		return nil, err
+	} else {
+		return &pods.Items[0], nil
+	}
+}
+
+func (impl K8sUtil) GetK8sClusterRestConfig() (*rest.Config, error) {
+	impl.logger.Debug("getting k8s rest config")
+	if impl.runTimeConfig.LocalDevMode {
+		usr, err := user.Current()
+		if err != nil {
+			impl.logger.Errorw("Error while getting user current env details", "error", err)
+		}
+		kubeconfig := flag.String("read-kubeconfig", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		flag.Parse()
+		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		if err != nil {
+			impl.logger.Errorw("Error while building kubernetes cluster rest config", "error", err)
+			return nil, err
+		}
+		return restConfig, nil
+	} else {
+		clusterConfig, err := rest.InClusterConfig()
+		if err != nil {
+			impl.logger.Errorw("error in fetch default cluster config", "err", err)
+			return nil, err
+		}
+		return clusterConfig, nil
+	}
 }

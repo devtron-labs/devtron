@@ -40,7 +40,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 62a26f9abd59090e61178c65ee123c6af170170c
+          value: f9eea17e6f123542b453e14c040ea8661c41f492
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -58,7 +58,7 @@ spec:
       serviceAccountName: devtron
       containers:
       - name: devtron-rollout
-        image: quay.io/bitnami/kubectl:latest
+        image: "quay.io/devtron/kubectl:latest"
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
       initContainers:
       - name: postgresql-migrate-casbin
@@ -81,7 +81,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 62a26f9abd59090e61178c65ee123c6af170170c
+          value: f9eea17e6f123542b453e14c040ea8661c41f492
         - name: GIT_BRANCH
           value: main
         envFrom:
@@ -125,7 +125,7 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: 4842c981f4879be538276a965a7c916a81475885
+          value: b842d963c9390534f8c97888b60ae19b63194ac5
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -163,10 +163,47 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: 772fcb2a4b3198879efb6139ed3a27dfb40ed681
+          value: f4c11d888525178fee70cae317096d2df4438e19
         envFrom:
           - secretRef:
               name: postgresql-migrator
+      restartPolicy: OnFailure
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1
+#this job is added for creating new database(clairv4).
+#This database is needed for clair upgrade (v2 to v4), since old database does not support migration for new clair.
+#Without this job, database can be created for new users, but not for existing users.
+kind: Job
+metadata:
+  name: postgresql-miscellaneous
+spec:
+  ttlSecondsAfterFinished: 1000
+  template:
+    spec:
+      containers:
+      - name: postgresql-miscellaneous
+        image: quay.io/devtron/postgres:11.9.0-debian-10-r26
+        env:
+        - name: PGPASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgresql-postgresql
+              key: postgresql-password
+        - name: PGHOST
+          value: postgresql-postgresql
+        command:
+          - /bin/sh
+          - -c
+          - psql -Upostgres -f /docker-entrypoint-initdb.d/db_create.sql
+        volumeMounts:
+          - name: custom-init-scripts
+            mountPath: /docker-entrypoint-initdb.d/
+      volumes:
+        - name: custom-init-scripts
+          configMap:
+            name: postgresql-postgresql-init-scripts
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500

@@ -1,0 +1,94 @@
+{{- if $.Values.components }}
+{{- if $.Values.components.devtron }}
+{{- if $.Values.components.devtron.ingress }}
+{{- if $.Values.components.devtron.ingress.enabled }}
+{{- with $.Values.components.devtron.ingress }}
+{{- if eq $.Values.configs.ENABLE_LEGACY_API "true" }}
+apiVersion: extensions/v1beta1
+kind: Ingress
+metadata:
+  labels:
+    app: devtron
+    release: devtron
+  name: devtron-ingress
+  annotations:
+    kubernetes.io/ingress.class: {{ .className }}
+    {{- if .annotations }}
+{{ toYaml .annotations | nindent 4 }}
+    {{- end }}
+spec:
+  rules:
+  - host: {{ .host }}
+    http:
+      paths:
+      - backend:
+          serviceName: devtron-service
+          servicePort: 80
+        path: /orchestrator
+      - backend:
+          serviceName: devtron-service
+          servicePort: 80
+        path: /dashboard
+      - backend:
+          serviceName: devtron-service
+          servicePort: 80
+        path: /grafana
+        pathType: ImplementationSpecific
+  {{- if .tls }}
+  tls:
+{{ toYaml .tls | nindent 4 }}
+  {{- end }}
+{{- else }}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  labels:
+    app: devtron
+    release: devtron
+    {{- if .labels }}
+    {{ toYaml .labels | nindent 4 }}
+    {{- end }}
+  name: devtron-ingress
+  {{- if .annotations }}
+  annotations:
+{{ toYaml .annotations | nindent 4 }}
+  {{- end }}
+spec:
+  {{- if .className }}
+  ingressClassName: {{ .className }}
+  {{- end }}
+  rules:
+  - host: {{ .host }}
+    http:
+      paths:
+      - backend:
+          service:
+            name: devtron-service
+            port:
+              number: 80
+        path: /orchestrator
+        pathType: {{ .pathType }}
+      - backend:
+          service:
+            name: devtron-service
+            port:
+              number: 80
+        path: /dashboard
+        pathType: {{ .pathType }}
+      - backend:
+          service:
+            name: devtron-service
+            port:
+              number: 80
+        path: /grafana
+        pathType: {{ .pathType }}
+  {{- if .tls }}
+  tls:
+{{ toYaml .tls | nindent 4 }}
+  {{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

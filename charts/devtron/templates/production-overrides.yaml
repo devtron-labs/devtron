@@ -1,0 +1,791 @@
+{{- if $.Values.installer.modules }}
+{{- if $.Values.installer.production_overrides }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: argocd-ssh-known-hosts-cm
+    #   update:
+    #     data:
+    #       ssh_known_hosts: |
+    #         ssh-public-key
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-dex-server
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.02
+                  memory: 50Mi
+                requests:
+                  cpu: 0.02
+                  memory: 50Mi
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-redis
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.02
+                  memory: 100Mi
+                requests:
+                  cpu: 0.02
+                  memory: 100Mi
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-repo-server
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.5
+                  memory: 1Gi
+                requests:
+                  cpu: 0.5
+                  memory: 1Gi
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argocd-server
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.3
+                  memory: 400Mi
+                requests:
+                  cpu: 0.3
+                  memory: 400Mi
+    ---
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: argocd-application-controller
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 1
+                  memory: 2Gi
+                requests:
+                  cpu: 1
+                  memory: 2Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: clair-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: clair
+      namespace: devtroncd
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.3
+                  memory: 3Gi
+                requests:
+                  cpu: 0.3
+                  memory: 3Gi
+    ---
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: clair
+    #    update:
+    #      data:
+    #        config.yaml: |-
+    #          replace-me with key/secret
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: dashboard-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: dashboard
+      annotations:
+        name: change-me
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.02
+                  memory: 50Mi
+                requests:
+                  cpu: 0.02
+                  memory: 50Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: external-secret-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: devtron-kubernetes-external-secrets
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.01
+                  memory: 100Mi
+                requests:
+                  cpu: 0.01
+                  memory: 100Mi
+    #              env:
+    #              - name: "LOG_LEVEL"
+    #                value: "info"
+    #              - name: "LOG_MESSAGE_KEY"
+    #                value: "msg"
+    #              - name: "METRICS_PORT"
+    #                value: "3001"
+    #              - name: "POLLER_INTERVAL_MILLISECONDS"
+    #                value: "10000"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: git-sensor-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: git-sensor-cm
+    #    update:
+    #      data:
+    #        PG_ADDR: postgresql-postgresql.devtroncd
+    #        PG_USER: change-me
+    ---
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: git-sensor
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.1
+                  memory: 2.5Gi
+                requests:
+                  cpu: 0.1
+                  memory: 2.5Gi
+        volumeClaimTemplates:
+        - spec:
+            resources:
+              requests:
+                storage: 2Gi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: devtron-grafana
+    update:
+      spec:
+        resources:
+          requests:
+            storage: "20Gi"
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: devtron-grafana
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.02
+                  memory: 200Mi
+                requests:
+                  cpu: 0.02
+                  memory: 200Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: guard-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: guard
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.01
+                  memory: 30Mi
+                requests:
+                  cpu: 0.01
+                  memory: 30Mi
+    #             env:
+    #              - name: CONFIG_HASH
+    #                value: give-value
+    #              - name: SECRET_HASH
+    #                value: give-value
+    #              - name: DEVTRON_APP_NAME
+    #                value: guard
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: image-scanner-override-cm
+  namespace: devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: image-scanner-cm
+    #    update:
+    #      data:
+    #        CLAIR_ADDR: clair.devtroncd:6060
+    #        NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+    #        PG_USER: postgres
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: image-scanner
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 1
+                  memory: 500Mi
+                requests:
+                  cpu: 0.5
+                  memory: 200Mi
+    #              env:
+    #              - name: CONFIG_HASH
+    #                value: 66ea130a3a759ac13165931cc6c106f5a9d40a01171b38982715b5570351134a
+    #              - name: SECRET_HASH
+    #                value: dab9f1b9549ed81db8bca66052d574b870a25e69d1845100d5c0d0368fbf3ee0
+    #              - name: DEVTRON_APP_NAME
+    #                value: image-scanner
+    #              - name: POD_NAME
+    #                valueFrom:
+    #                  fieldRef:
+    #                    fieldPath: metadata.name
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-ingress-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: networking.k8s.io/v1
+    kind: Ingress
+    metadata:
+      name: devtron-ingress
+    #    update:
+    #      metadata:
+    #        annotations:
+    #          owner: app1
+    #      spec:
+    #        rules:
+    #        - http:
+    #            host: http://change-me
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubelink-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: kubelink
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.1
+                  memory: 100Mi
+                requests:
+                  cpu: 0.05
+                  memory: 50Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubewatch-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: kubewatch
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                requests:
+                  cpu: 0.02
+                  memory: 150Mi
+                limits:
+                  cpu: 0.02
+                  memory: 150Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lens-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: lens-cm
+    #    update:
+    #      data:
+    #        GIT_SENSOR_URL: http://git-sensor-service.devtroncd:80
+    #        NATS_SERVER_HOST: nats://devtron-nats.devtroncd:4222
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: lens
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.02
+                  memory: 50Mi
+                requests:
+                  cpu: 0.02
+                  memory: 50Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: devtron-minio
+    #    update:
+    #      data:
+    #        accesskey: ""
+    #        secretkey: ""
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: devtron-minio
+    update:
+      spec:
+        replicas: 2
+        template:
+          spec:
+            containers:
+            - resources:
+                requests:
+                  memory: 100Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: minio-storage-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: devtron-minio
+    #    update:
+    #      data:
+    #        accesskey: ""
+    #        secretkey: ""
+    ---
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: devtron-minio
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                requests:
+                  memory: 100Mi
+    ---
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: devtron-minio-make-bucket-job
+    #    update:
+    #      spec:
+    #        template:
+    #          spec:
+    #            containers:
+    #            - resources:
+    #                requests:
+    #                  memory: 128Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-operator-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: nats-operator
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.01
+                  memory: 30Mi
+                requests:
+                  cpu: 0.01
+                  memory: 30Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-server-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: devtron-nats
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.1
+                  memory: 40Mi
+                requests:
+                  cpu: 0.05
+                  memory: 20Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-streaming-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: devtron-stan
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.2
+                  memory: 100Mi
+                requests:
+                  cpu: 0.1
+                  memory: 50Mi
+#             env:
+#             - name: POD_NAME
+#                valueFrom:
+#                  fieldRef:
+#                    fieldPath: metadata.name
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: notifier-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: notifier-cm
+    #    update:
+    #      data:
+    #        DB_HOST: postgresql-postgresql.devtroncd
+    #        DB_PORT: "5432"
+    #        DB_USER: postgres
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: notifier
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.02
+                  memory: 100Mi
+                requests:
+                  cpu: 0.02
+                  memory: 100Mi
+    #              env:
+    #              - name: CONFIG_HASH
+    #                value: f64a7abec5f850c3393a5f3a1efb3a3c62fbcb6530cc3c6807028c41677fc3ec
+    #              - name: SECRET_HASH
+    #                value: 613cf1b1ff0cf6a867565df5ff0b3585893258f3430f0cccef14cf8c600bc701
+    #              - name: POD_NAME
+    #                valueFrom:
+    #                  fieldRef:
+    #                    fieldPath: metadata.name
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-override-cm
+  namespace: devtroncd
+data:
+  override: |
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: devtron-cm
+    update:
+      data:
+        GIT_SENSOR_TIMEOUT: "300"
+        LENS_TIMEOUT: "300"
+        DEFAULT_BUILD_LOGS_KEY_PREFIX: "devtron"
+        DEFAULT_CD_ARTIFACT_KEY_LOCATION: "devtron/cd-artifacts"
+        DEFAULT_CD_TIMEOUT: "3600"
+        CI_LOGS_KEY_PREFIX: "ci-artifacts"
+        DEFAULT_TIMEOUT: "3600"
+        CD_LIMIT_CI_CPU: "0.5"
+        CD_LIMIT_CI_MEM: "1G"
+        CD_REQ_CI_CPU: "0.5"
+        CD_REQ_CI_MEM: "1G"
+        LIMIT_CI_CPU: "1.5"
+        LIMIT_CI_MEM: "3G"
+        REQ_CI_CPU: "1.5"
+        REQ_CI_MEM: "3G"
+        CD_NODE_TAINTS_KEY: ""
+        CD_NODE_TAINTS_VALUE: ""
+        CI_NODE_TAINTS_KEY: ""
+        CI_NODE_TAINTS_VALUE: ""
+        CI_NODE_LABEL_SELECTOR: ""
+        CACHE_LIMIT: "5000000000"
+        DEFAULT_ARTIFACT_KEY_LOCATION: "devtron/ci-artifacts"
+        EXTERNAL_CI_PAYLOAD: "{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/srj92/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2019-10-31T20:55:21+05:30\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"Devtron Labs \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\",\"digest\":\"test1\",\"dataSource\":\"ext\",\"materialType\":\"git\"}"
+        ECR_REPO_NAME_PREFIX: "devtron/"
+    ---
+    apiVersion: v1
+    kind: Secret
+    metadata:
+      name: devtron-secret
+    #update:
+    #  data:
+    #    GRAFANA_PASSWORD: "ssas"
+    #    GRAFANA_USERNAME: "admin"
+    ---
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: devtron
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 1
+                  memory: 600Mi
+                requests:
+                  cpu: 1
+                  memory: 600Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: postgresql-postgresql
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.25
+                  memory: 1.5Gi
+                requests:
+                  cpu: 0.25
+                  memory: 800Mi
+            volumeClaimTemplates:
+              spec:
+                resources:
+                  requests:
+                    storage: "5Gi"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rollout-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argo-rollouts
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                requests:
+                  cpu: 0.02
+                  memory: 50Mi
+                limits:
+                  cpu: 0.02
+                  memory: 50Mi
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: workflow-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: argo-ui
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+                limits:
+                  cpu: 0.01
+                  memory: 30Mi
+                requests:
+                  cpu: 0.01
+                  memory: 30Mi
+    #            - env:
+    #              - name: ARGO_NAMESPACE
+    #                valueFrom:
+    #                  fieldRef:
+    #                    apiVersion: v1
+    #                    fieldPath: metadata.namespace
+    #              - name: IN_CLUSTER
+    #                value: "true"
+    #              - name: ENABLE_WEB_CONSOLE
+    #                value: "false"
+    #              - name: BASE_HREF
+    #                value: /
+{{- end }}
+{{- end }}

@@ -1,0 +1,142 @@
+{{- if not .Values.installer.modules }}
+{{- with .Values.components.argocdDexServer }}
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/part-of: argocd
+  annotations:
+    "helm.sh/resource-policy": keep
+  name: argocd-dex-server
+spec:
+  ports:
+  - name: http
+    port: 5556
+    protocol: TCP
+    targetPort: 5556
+  - name: grpc
+    port: 5557
+    protocol: TCP
+    targetPort: 5557
+  - name: metrics
+    port: 5558
+    protocol: TCP
+    targetPort: 5558
+  selector:
+    app.kubernetes.io/name: argocd-dex-server
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/part-of: argocd
+  annotations:
+    "helm.sh/resource-policy": keep
+  name: argocd-dex-server
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: argocd-dex-server
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: argocd-dex-server
+    spec:
+      affinity:
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+          - podAffinityTerm:
+              labelSelector:
+                matchLabels:
+                  app.kubernetes.io/part-of: argocd
+              topologyKey: kubernetes.io/hostname
+            weight: 5
+      containers:
+      - command:
+        - /shared/authenticator
+        - rundex
+        image: {{ .image }}
+        imagePullPolicy: {{ .imagePullPolicy }}
+        name: dex
+        ports:
+        - containerPort: 5556
+        - containerPort: 5557
+        - containerPort: 5558
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      initContainers:
+      - command:
+        - cp
+        - -n
+        - /authenticator
+        - /shared
+        image: quay.io/devtron/authenticator:415f5470-279-6520
+        imagePullPolicy: IfNotPresent
+        name: copyutil
+        volumeMounts:
+        - mountPath: /shared
+          name: static-files
+      serviceAccountName: argocd-dex-server
+      volumes:
+      - emptyDir: {}
+        name: static-files
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/part-of: argocd
+  annotations:
+    "helm.sh/resource-policy": keep
+  name: argocd-dex-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/part-of: argocd
+  annotations:
+    "helm.sh/resource-policy": keep
+  name: argocd-dex-server
+rules:
+- apiGroups:
+  - ""
+  resources:
+  - secrets
+  - configmaps
+  verbs:
+  - get
+  - list
+  - watch
+  - create
+  - update
+  - patch
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: dex-server
+    app.kubernetes.io/name: argocd-dex-server
+    app.kubernetes.io/part-of: argocd
+  annotations:
+    "helm.sh/resource-policy": keep
+  name: argocd-dex-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: argocd-dex-server
+subjects:
+- kind: ServiceAccount
+  name: argocd-dex-server
+{{- end }}
+{{- end }}

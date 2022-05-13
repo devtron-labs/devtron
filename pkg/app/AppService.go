@@ -21,6 +21,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/url"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -28,10 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
-	"net/url"
-	"strconv"
-	"strings"
-	"time"
 
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
@@ -40,7 +41,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	client "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -97,6 +97,7 @@ type AppServiceImpl struct {
 	pipelineStrategyHistoryService   history2.PipelineStrategyHistoryService
 	configMapHistoryService          history2.ConfigMapHistoryService
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService
+	chartTemplateService             ChartTemplateService
 }
 
 type AppService interface {
@@ -136,7 +137,8 @@ func NewAppService(
 	gitFactory *GitFactory, gitOpsRepository repository.GitOpsConfigRepository,
 	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
-	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService) *AppServiceImpl {
+	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
+	chartTemplateService ChartTemplateService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -172,6 +174,7 @@ func NewAppService(
 		pipelineStrategyHistoryService:   pipelineStrategyHistoryService,
 		configMapHistoryService:          configMapHistoryService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		chartTemplateService:             chartTemplateService,
 	}
 	return appServiceImpl
 }
@@ -930,7 +933,7 @@ func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOver
 		deploymentEvent.PipelineMaterials = append(deploymentEvent.PipelineMaterials, pipelineMaterialInfo)
 	}
 	impl.logger.Infow("triggering deployment event", "event", deploymentEvent)
-	err = impl.eventClient.WriteNatsEvent(pubsub.CD_SUCCESS, deploymentEvent)
+	err = impl.eventClient.WriteNatsEvent(util2.CD_SUCCESS, deploymentEvent)
 	if err != nil {
 		impl.logger.Errorw("error in writing cd trigger event", "err", err)
 	}
@@ -1023,7 +1026,7 @@ func (impl AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfig
 		Env:            envId,
 		AppMetrics:     appMetrics,
 	}
-	override, err := Tprintf(envOverride.Chart.ImageDescriptorTemplate, releaseAttribute)
+	override, err := util2.Tprintf(envOverride.Chart.ImageDescriptorTemplate, releaseAttribute)
 	if err != nil {
 		return "", &ApiError{InternalMessage: "unable to render ImageDescriptorTemplate"}
 	}
@@ -1108,6 +1111,8 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
 
 	chartRepoName := impl.GetChartRepoName(envOverride.Chart.GitRepoUrl)
+	//getting user name & emailId for commit author data
+	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)
 	chartGitAttr := &ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
 		FileContent:    string(merged),
@@ -1115,6 +1120,8 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		ChartLocation:  envOverride.Chart.ChartLocation,
 		ChartRepoName:  chartRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
+		UserName:       userName,
+		UserEmailId:    userEmailId,
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
 	if err != nil {

@@ -11,7 +11,7 @@ Search `nginx` or any other charts in search filter.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-1.jpg)
 
-Click on chart and it will redirect you to `Chart Details` page where you can see number of instances deployed by using the same chart.
+Click on chart and it will redirect you to `Chart Details` page where you can see a number of instances deployed by using the same chart.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-2.jpg)
 
@@ -39,37 +39,42 @@ Click on `Deploy` to deploy the Chart
 
 After clicking on `Deploy` you will land on a page that shows the status of the deployment of the Chart.
 
-The status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
-In case the status of the deployment is `Degraded` or takes a long time to get deployed, click on `Details` in `Application Status` section on same page or check the logs of the pods to debug the issue.
+The status of the chart should be `Healthy`. It might take a few seconds after initiating the deployment of the chart.
+In case the status of the deployment is `Degraded` or takes a long time to get deployed, click on `Details` in `Application Status` section on the same page or check the logs of the pods to debug the issue.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-4.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-4-2.jpg)
 
-1. shows status of deployed chart.
+1. Shows status of deployed chart.
 
 2. Shows the controller service accounts being used.
 
-3. Clicking on `values` will land you to the page where you can update, upgrade or delete chart.
+3. Clicking on `values` will land you on the page where you can update, upgrade or delete chart.
 
 4. Clicking on `View Chart` will land you to the page where you can see all the running instances of this chart.
 
+To see deployment history of Helm application, click on `Deployment history` from `App details` page.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/hyperion/user-guide/deploy-charts/overview-of-charts/overview-of-charts-9.jpg)
+
+
 ## 4. Update or Upgrade Chart
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-5.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-5-2.jpg)
 
 For update you can change its `chart version` or `values.yaml` and then click on `Update And Deploy`.
 
 For upgrade click on `Repo/Chart` field and search any chart name like `nginx-ingress` and change values corresponding to that chart and Click on `Update And Deploy`.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-6.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-6-2.jpg)
 
 
-After update or upgrade you again will land on `App Detail` page, where you can check pods and service name.
+After an update or upgrade you again will land on `App Detail` page, where you can check pods and service name.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-7.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-7-2.jpg)
 
 ## 5. Chart Details and Delete Charts
 
-By clicking on `View Chart` in `Chart Used` section on `App Details` page, it will redirect you to `Chart Details` page where you can see number of instances installed by this chart and also you can delete chart instance from here.
+By clicking on `View Chart` in `Chart Used` section on `App Details` page, it will redirect you to `Chart Details` page where you can see number of instances installed by this chart and also you can delete the chart instance from here.
 
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-8.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deployment-of-charts/charts-8-2.jpg)

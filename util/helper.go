@@ -90,6 +90,7 @@ func Close(c Closer, logger *zap.SugaredLogger) {
 
 var chars = []rune("abcdefghijklmnopqrstuvwxyz0123456789")
 
+//Generates random string
 func Generate(size int) string {
 	rand.Seed(time.Now().UnixNano())
 	var b strings.Builder
@@ -208,4 +209,8 @@ func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
 
 	}
 	return nil
+}
+
+func BuildDevtronBomUrl(bomUrl string, version string) string {
+	return fmt.Sprintf(bomUrl, version)
 }

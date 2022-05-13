@@ -8,8 +8,11 @@ import (
 	"github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
+	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
@@ -39,6 +42,9 @@ type MuxRouter struct {
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
 	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
 	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
+	externalLinksRouter      externalLink.ExternalLinkRouter
+	moduleRouter             module.ModuleRouter
+	serverRouter             server.ServerRouter
 }
 
 func NewMuxRouter(
@@ -58,6 +64,9 @@ func NewMuxRouter(
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
 	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter,
+	externalLinkRouter externalLink.ExternalLinkRouter,
+	moduleRouter module.ModuleRouter,
+	serverRouter server.ServerRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -77,6 +86,9 @@ func NewMuxRouter(
 		appStoreDeploymentRouter: appStoreDeploymentRouter,
 		dashboardTelemetryRouter: dashboardTelemetryRouter,
 		commonDeploymentRouter:   commonDeploymentRouter,
+		externalLinksRouter:      externalLinkRouter,
+		moduleRouter:             moduleRouter,
+		serverRouter:             serverRouter,
 	}
 	return r
 }
@@ -162,4 +174,15 @@ func (r *MuxRouter) Init() {
 	dashboardTelemetryRouter := r.Router.PathPrefix("/orchestrator/dashboard-event").Subrouter()
 	r.dashboardTelemetryRouter.Init(dashboardTelemetryRouter)
 	// dashboard event router ends
+
+	externalLinkRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
+	r.externalLinksRouter.InitExternalLinkRouter(externalLinkRouter)
+
+	// module router
+	moduleRouter := r.Router.PathPrefix("/orchestrator/module").Subrouter()
+	r.moduleRouter.Init(moduleRouter)
+
+	// server router
+	serverRouter := r.Router.PathPrefix("/orchestrator/server").Subrouter()
+	r.serverRouter.Init(serverRouter)
 }

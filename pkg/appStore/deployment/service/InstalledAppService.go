@@ -20,6 +20,7 @@ package service
 import (
 	"bytes"
 	"context"
+
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -33,7 +34,9 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
+	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/ktrysmt/go-bitbucket"
+
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -57,7 +60,7 @@ import (
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/stan.go"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -68,10 +71,10 @@ const (
 
 type InstalledAppService interface {
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
-	GetInstalledAppVersion(id int) (*appStoreBean.InstallAppVersionDTO, error)
+	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
 	DeployBulk(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error)
-	performDeployStage(appId int) (*appStoreBean.InstallAppVersionDTO, error)
+	performDeployStage(appId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
@@ -89,19 +92,19 @@ type InstalledAppServiceImpl struct {
 	teamRepository                       repository4.TeamRepository
 	appRepository                        app.AppRepository
 	acdClient                            application2.ServiceClient
-	appStoreValuesService             service.AppStoreValuesService
-	pubsubClient                      *pubsub.PubSubClient
-	tokenCache                        *util2.TokenCache
-	chartGroupDeploymentRepository    repository2.ChartGroupDeploymentRepository
-	envService                        cluster2.EnvironmentService
-	ArgoK8sClient                     argocdServer.ArgoK8sClient
-	gitFactory                        *util.GitFactory
-	aCDAuthConfig                     *util2.ACDAuthConfig
-	gitOpsRepository                  repository3.GitOpsConfigRepository
-	userService                       user.UserService
-	appStoreDeploymentService         AppStoreDeploymentService
-	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
-	installedAppRepositoryHistory     repository2.InstalledAppVersionHistoryRepository
+	appStoreValuesService                service.AppStoreValuesService
+	pubsubClient                         *pubsub.PubSubClient
+	tokenCache                           *util2.TokenCache
+	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
+	envService                           cluster2.EnvironmentService
+	ArgoK8sClient                        argocdServer.ArgoK8sClient
+	gitFactory                           *util.GitFactory
+	aCDAuthConfig                        *util2.ACDAuthConfig
+	gitOpsRepository                     repository3.GitOpsConfigRepository
+	userService                          user.UserService
+	appStoreDeploymentService            AppStoreDeploymentService
+	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
+	installedAppRepositoryHistory        repository2.InstalledAppVersionHistoryRepository
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -146,7 +149,11 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 	}
-	err := impl.Subscribe()
+	err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
+	if err != nil {
+		return nil, err
+	}
+	err = impl.Subscribe()
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +184,10 @@ func (impl InstalledAppServiceImpl) UpdateInstalledApp(ctx context.Context, inst
 	argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 	gitOpsRepoName := installedApp.GitOpsRepoName
 	if len(gitOpsRepoName) == 0 {
-		gitOpsRepoName = impl.appStoreDeploymentFullModeService.GetGitOpsRepoName(installAppVersionRequest)
+		gitOpsRepoName, err = impl.appStoreDeploymentFullModeService.GetGitOpsRepoName(installAppVersionRequest)
+		if err != nil {
+			return nil, err
+		}
 	}
 	installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	var installedAppVersion *repository2.InstalledAppVersions
@@ -302,6 +312,8 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 	if err != nil {
 		return err
 	}
+	//getting user name & emailId for commit author data
+	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	requirmentYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),
@@ -309,6 +321,8 @@ func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *r
 		ChartLocation:  argocdAppName,
 		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
+		UserEmailId:    userEmailId,
+		UserName:       userName,
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
@@ -349,6 +363,8 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 		impl.logger.Errorw("error in marshaling", "err", err)
 		return installAppVersionRequest, err
 	}
+	//getting user name & emailId for commit author data
+	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	valuesConfig := &util.ChartConfig{
 		FileName:       appStoreBean.VALUES_YAML_FILE,
 		FileContent:    string(valuesByte),
@@ -356,6 +372,8 @@ func (impl InstalledAppServiceImpl) updateValuesYaml(environment *repository5.En
 		ChartLocation:  argocdAppName,
 		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),
+		UserEmailId:    userEmailId,
+		UserName:       userName,
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
@@ -442,7 +460,7 @@ func (impl InstalledAppServiceImpl) upgradeInstalledApp(ctx context.Context, ins
 	return installAppVersionRequest, installedAppVersion, err
 }
 
-func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)
@@ -465,6 +483,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int) (*appStoreBea
 		AppStoreName:       app.AppStoreApplicationVersion.AppStore.Name,
 		Deprecated:         app.AppStoreApplicationVersion.Deprecated,
 		GitOpsRepoName:     app.InstalledApp.GitOpsRepoName,
+		UserId:             userId,
 	}
 	return installAppVersion, err
 }
@@ -645,7 +664,7 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 	}
 }
 
-func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int) (*appStoreBean.InstallAppVersionDTO, error) {
+func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	ctx, err := impl.tokenCache.BuildACDSynchContext()
 	if err != nil {
 		return nil, err
@@ -656,7 +675,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		return nil, err
 	}*/
 
-	installedAppVersion, err := impl.GetInstalledAppVersion(installedAppVersionId)
+	installedAppVersion, err := impl.GetInstalledAppVersion(installedAppVersionId, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -817,7 +836,14 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 		if err != nil {
 			status = appStoreBean.QUE_ERROR
 		} else {
-			err := impl.pubsubClient.Conn.Publish(appStoreBean.BULK_APPSTORE_DEPLOY_TOPIC, data)
+			err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
+
+			if err != nil {
+				impl.logger.Errorw("Error while adding stream.", "error", err)
+			}
+			//Generate random string for passing as Header Id in message
+			randString := "MsgHeaderId-" + util3.Generate(10)
+			_, err = impl.pubsubClient.JetStrCtxt.Publish(util3.BULK_APPSTORE_DEPLOY_TOPIC, data, nats.MsgId(randString))
 			if err != nil {
 				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
 				status = appStoreBean.QUE_ERROR
@@ -837,21 +863,22 @@ func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions [
 }
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(appStoreBean.BULK_APPSTORE_DEPLOY_TOPIC, appStoreBean.BULK_APPSTORE_DEPLOY_GROUP, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util3.BULK_APPSTORE_DEPLOY_TOPIC, util3.BULK_APPSTORE_DEPLOY_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("cd stage event received")
 		defer msg.Ack()
 		deployPayload := &appStoreBean.DeployPayload{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Error("Error while unmarshalling deployPayload json object", "error", err)
 			return
 		}
 		impl.logger.Debugw("deployPayload:", "deployPayload", deployPayload)
-		_, err = impl.performDeployStage(deployPayload.InstalledAppVersionId)
+		//using userId 1 - for system user
+		_, err = impl.performDeployStage(deployPayload.InstalledAppVersionId, 1)
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
 		}
-	}, stan.DurableName(appStoreBean.BULK_APPSTORE_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(200)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(3))
+	}, nats.Durable(util3.BULK_APPSTORE_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util3.ORCHESTRATOR_STREAM))
 	if err != nil {
 		impl.logger.Error("err", err)
 		return err
@@ -1032,7 +1059,7 @@ func (impl InstalledAppServiceImpl) DeployDefaultComponent(chartGroupInstallRequ
 	//nats event
 
 	for _, versions := range installAppVersions {
-		_, err := impl.performDeployStage(versions.InstalledAppVersionId)
+		_, err := impl.performDeployStage(versions.InstalledAppVersionId, chartGroupInstallRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in performing deploy stage", "deployPayload", versions, "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(versions.InstalledAppVersionId, appStoreBean.QUE_ERROR)
@@ -1065,6 +1092,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		LastDeployedTime:              installedAppVerison.UpdatedOn.Format(bean.LayoutRFC3339),
 		Namespace:                     installedAppVerison.InstalledApp.Environment.Namespace,
 		Deprecated:                    installedAppVerison.AppStoreApplicationVersion.Deprecated,
+		ClusterId:                     installedAppVerison.InstalledApp.Environment.ClusterId,
 	}
 	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {

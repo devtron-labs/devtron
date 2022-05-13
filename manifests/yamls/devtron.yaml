@@ -27,9 +27,6 @@ data:
   LENS_URL: "http://lens-service.devtroncd:80"
   LENS_TIMEOUT: "300"
   NATS_SERVER_HOST: "nats://devtron-nats.devtroncd:4222"
-  CLUSTER_ID: "devtron-stan"
-  CLIENT_ID: "orchestrator"
-  ACK_DURATION: "30"
   PG_ADDR: "postgresql-postgresql.devtroncd"
   PG_PORT: "5432"
   PG_USER: "postgres"
@@ -57,7 +54,7 @@ data:
   CD_NODE_TAINTS_VALUE: "ci"
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:bd937f92-138-7712"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:095c7a6d-138-8277"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
@@ -155,7 +152,7 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:62a26f9a-146-7831"
+          image: "quay.io/devtron/devtron:f9eea17e-326-8480"
           imagePullPolicy: IfNotPresent
           ports:
             - name: devtron

@@ -8,10 +8,11 @@ jobConfigs:
   completions: 2
   suspend: false
   ttlSecondsAfterFinished: 100
-  
+
 cronjobConfigs:
   schedule: "* * * * *"
   startingDeadlineSeconds: 100
+  parallelism: 1
   concurrencyPolicy: Allow
   suspend: false
   successfulJobsHistoryLimit: 3
@@ -59,14 +60,13 @@ resources:
     cpu: 0.10
     memory: 100Mi
 
-
 # Optional configs
 
 command:
   enabled: false
   value: []
-    
-args: 
+
+args:
   enabled: false
   value:
     - /bin/sh
@@ -109,7 +109,6 @@ volumeMounts: []
 volumes: []
 #     - name: log-volume
 #       emptyDir: {}
-
 
 tolerations: []
 

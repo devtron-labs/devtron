@@ -21,6 +21,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -28,9 +32,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
-	"strconv"
-	"strings"
-	"time"
 
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -45,10 +46,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
+	util4 "github.com/devtron-labs/devtron/util"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/stan.go"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -103,16 +105,6 @@ type CiArtifactDTO struct {
 	WorkflowId           *int   `json:"workflowId"`
 	ciArtifactRepository repository.CiArtifactRepository
 }
-
-const CD_STAGE_COMPLETE_TOPIC = "CI-RUNNER.CD-STAGE-COMPLETE"
-const CD_COMPLETE_GROUP = "CI-RUNNER.CD-COMPLETE_GROUP-1"
-const CD_COMPLETE_DURABLE = "CI-RUNNER.CD-COMPLETE_DURABLE-1"
-const BULK_DEPLOY_TOPIC = "ORCHESTRATOR.CD.BULK"
-const BULK_HIBERNATE_TOPIC = "ORCHESTRATOR.CD.BULK-HIBERNATE"
-const BULK_DEPLOY_GROUP = "ORCHESTRATOR.CD.BULK.GROUP-1"
-const BULK_HIBERNATE_GROUP = "ORCHESTRATOR.CD.BULK-HIBERNATE.GROUP-1"
-const BULK_DEPLOY_DURABLE = "ORCHESTRATOR.CD.BULK.DURABLE-1"
-const BULK_HIBERNATE_DURABLE = "ORCHESTRATOR.CD.BULK-HIBERNATE.DURABLE-1"
 
 type CdStageCompleteEvent struct {
 	CiProjectDetails []CiProjectDetails           `json:"ciProjectDetails"`
@@ -170,7 +162,11 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		appWorkflowRepository:         appWorkflowRepository,
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 	}
-	err := wde.Subscribe()
+	err := util4.AddStream(wde.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM, util4.CI_RUNNER_STREAM)
+	if err != nil {
+		return nil
+	}
+	err = wde.Subscribe()
 	if err != nil {
 		return nil
 	}
@@ -186,13 +182,13 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 }
 
 func (impl *WorkflowDagExecutorImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(CD_STAGE_COMPLETE_TOPIC, CD_COMPLETE_GROUP, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util4.CD_STAGE_COMPLETE_TOPIC, util4.CD_COMPLETE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("cd stage event received")
 		defer msg.Ack()
 		cdStageCompleteEvent := CdStageCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &cdStageCompleteEvent)
 		if err != nil {
-			impl.logger.Errorw("error on cd stage complete", "err", err, "msg", string(msg.Data))
+			impl.logger.Errorw("error while unmarshalling cdStageCompleteEvent object", "err", err, "msg", string(msg.Data))
 			return
 		}
 		impl.logger.Debugw("cd stage event:", "workflowRunnerId", cdStageCompleteEvent.WorkflowRunnerId)
@@ -216,7 +212,7 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 				return
 			}
 		}
-	}, stan.DurableName(CD_COMPLETE_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, nats.Durable(util4.CD_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util4.CI_RUNNER_STREAM))
 	if err != nil {
 		impl.logger.Error("error", "err", err)
 		return err
@@ -1115,11 +1111,16 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeplo
 		if err != nil {
 			impl.logger.Errorw("error while writing app stop event to nats ", "app", app.AppId, "deploymentGroup", app.DeploymentGroupId, "err", err)
 		} else {
-			impl.pubsubClient.Conn.PublishAsync(BULK_HIBERNATE_TOPIC, data, func(s string, err error) {
-				if err != nil {
-					impl.logger.Errorw("error while writing app stop event to nats ", "app", app.AppId, "deploymentGroup", app.DeploymentGroupId, "err", err)
-				}
-			})
+			err = util4.AddStream(impl.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM)
+			if err != nil {
+				impl.logger.Errorw("Error while adding stream", "error", err)
+			}
+			//Generate random string for passing as Header Id in message
+			randString := "MsgHeaderId-" + util4.Generate(10)
+			_, err = impl.pubsubClient.JetStrCtxt.Publish(util4.BULK_HIBERNATE_TOPIC, data, nats.MsgId(randString))
+			if err != nil {
+				impl.logger.Errorw("Error while publishing request", "topic", util4.BULK_HIBERNATE_TOPIC, "error", err)
+			}
 		}
 	}
 	return nil, nil
@@ -1131,13 +1132,19 @@ func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows [
 		if err != nil {
 			wf.WorkflowStatus = pipelineConfig.QUE_ERROR
 		} else {
-			impl.pubsubClient.Conn.PublishAsync(BULK_DEPLOY_TOPIC, data, func(s string, err error) {
-				if err != nil {
-					wf.WorkflowStatus = pipelineConfig.QUE_ERROR
-				} else {
-					wf.WorkflowStatus = pipelineConfig.ENQUEUED
-				}
-			})
+			err = util4.AddStream(impl.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM)
+			if err != nil {
+				impl.logger.Errorw("Error while adding stream", "error", err)
+			}
+			//Generate random string for passing as Header Id in message
+			randString := "MsgHeaderId-" + util4.Generate(10)
+			_, err := impl.pubsubClient.JetStrCtxt.Publish(util4.BULK_DEPLOY_TOPIC, data, nats.MsgId(randString))
+
+			if err != nil {
+				wf.WorkflowStatus = pipelineConfig.QUE_ERROR
+			} else {
+				wf.WorkflowStatus = pipelineConfig.ENQUEUED
+			}
 		}
 		err = impl.cdWorkflowRepository.UpdateWorkFlow(wf)
 		if err != nil {
@@ -1147,13 +1154,13 @@ func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows [
 }
 
 func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_DEPLOY_TOPIC, BULK_DEPLOY_GROUP, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util4.BULK_DEPLOY_TOPIC, util4.BULK_DEPLOY_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("subscribeTriggerBulkAction event received")
 		defer msg.Ack()
 		cdWorkflow := new(pipelineConfig.CdWorkflow)
 		err := json.Unmarshal([]byte(string(msg.Data)), cdWorkflow)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Error("Error while unmarshalling cdWorkflow json object", "error", err)
 			return
 		}
 		impl.logger.Debugw("subscribeTriggerBulkAction event:", "cdWorkflow", cdWorkflow)
@@ -1199,18 +1206,18 @@ func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
 			wf.WorkflowStatus = pipelineConfig.WF_STARTED
 		}
 		impl.cdWorkflowRepository.UpdateWorkFlow(wf)
-	}, stan.DurableName(BULK_DEPLOY_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(180)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, nats.Durable(util4.BULK_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util4.ORCHESTRATOR_STREAM))
 	return err
 }
 
 func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(BULK_HIBERNATE_TOPIC, BULK_HIBERNATE_GROUP, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util4.BULK_HIBERNATE_TOPIC, util4.BULK_HIBERNATE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("subscribeHibernateBulkAction event received")
 		defer msg.Ack()
 		deploymentGroupAppWithEnv := new(DeploymentGroupAppWithEnv)
 		err := json.Unmarshal([]byte(string(msg.Data)), deploymentGroupAppWithEnv)
 		if err != nil {
-			impl.logger.Error("err", err)
+			impl.logger.Error("Error while unmarshalling deploymentGroupAppWithEnv json object", err)
 			return
 		}
 		impl.logger.Debugw("subscribeHibernateBulkAction event:", "DeploymentGroupAppWithEnv", deploymentGroupAppWithEnv)
@@ -1227,7 +1234,11 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 			return
 		}
 		_, err = impl.StopStartApp(stopAppRequest, ctx)
-	}, stan.DurableName(BULK_HIBERNATE_DURABLE), stan.StartWithLastReceived(), stan.AckWait(time.Duration(180)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+		if err != nil {
+			impl.logger.Errorw("error in stop app request", "err", err)
+			return
+		}
+	}, nats.Durable(util4.BULK_HIBERNATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util4.ORCHESTRATOR_STREAM))
 	return err
 }
 

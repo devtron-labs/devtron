@@ -12,7 +12,10 @@ import (
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
+	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/module"
+	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
@@ -36,10 +39,12 @@ import (
 
 func InitializeApp() (*App, error) {
 	wire.Build(
+
 		sql.PgSqlWireSet,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		AuthWireSet,
+		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		cluster.ClusterWireSetEa,
 		dashboard.DashboardWireSet,
@@ -49,6 +54,8 @@ func InitializeApp() (*App, error) {
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		appStoreValues.AppStoreValuesWireSet,
 		appStoreDeployment.AppStoreDeploymentWireSet,
+		server.ServerWireSet,
+		module.ModuleWireSet,
 
 		NewApp,
 		NewMuxRouter,

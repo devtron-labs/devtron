@@ -198,7 +198,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 		}
 
 	}
-	if (len(clusterIds)>0 || len(mappings)>0) && len(fetchAppListingRequest.Environments)==0{
+	if (len(clusterIds) > 0 || len(mappings) > 0) && len(fetchAppListingRequest.Environments) == 0 {
 		// no result when no matching cluster and env
 		return []*bean.AppEnvironmentContainer{}, nil
 	}
@@ -607,6 +607,7 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 		return bean.AppDetailContainer{}, err
 	}
 	appDetailContainer.K8sVersion = envModel.Cluster.K8sVersion
+	appDetailContainer.ClusterId = envModel.ClusterId
 	return appDetailContainer, nil
 }
 
