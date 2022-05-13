@@ -71,11 +71,11 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedConfigurationByW
 		impl.logger.Errorw("error in checking if history exists for configmap", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
-	configmapConfiguration := &DeploymentConfigurationDto{
-		Name: CONFIGMAP_TYPE_HISTORY_COMPONENT,
-	}
 	if exists {
-		configmapConfiguration.Id = configmapHistory.Id
+		configmapConfiguration := &DeploymentConfigurationDto{
+			Id:   configmapHistory.Id,
+			Name: CONFIGMAP_TYPE_HISTORY_COMPONENT,
+		}
 		configList := ConfigList{}
 		if len(configmapHistory.Data) > 0 {
 			err := json.Unmarshal([]byte(configmapHistory.Data), &configList)
@@ -88,8 +88,8 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedConfigurationByW
 		for _, data := range configList.ConfigData {
 			configmapNames = append(configmapNames, data.Name)
 		}
+		deployedConfigurations = append(deployedConfigurations, configmapConfiguration)
 	}
-	deployedConfigurations = append(deployedConfigurations, configmapConfiguration)
 
 	//checking if secret history data exists and get its details
 	secretHistory, exists, err := impl.configMapHistoryService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId, repository.SECRET_TYPE)
@@ -97,11 +97,11 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedConfigurationByW
 		impl.logger.Errorw("error in checking if history exists for secret", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
-	secretConfiguration := &DeploymentConfigurationDto{
-		Name: SECRET_TYPE_HISTORY_COMPONENT,
-	}
 	if exists {
-		secretConfiguration.Id = secretHistory.Id
+		secretConfiguration := &DeploymentConfigurationDto{
+			Id:   secretHistory.Id,
+			Name: SECRET_TYPE_HISTORY_COMPONENT,
+		}
 		secretList := SecretList{}
 		if len(secretHistory.Data) > 0 {
 			err := json.Unmarshal([]byte(secretHistory.Data), &secretList)
@@ -114,8 +114,8 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedConfigurationByW
 		for _, data := range secretList.ConfigData {
 			secretNames = append(secretNames, data.Name)
 		}
+		deployedConfigurations = append(deployedConfigurations, secretConfiguration)
 	}
-	deployedConfigurations = append(deployedConfigurations, secretConfiguration)
 	return deployedConfigurations, nil
 }
 
