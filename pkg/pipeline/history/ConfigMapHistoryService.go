@@ -20,7 +20,7 @@ type ConfigMapHistoryService interface {
 	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType repository.ConfigType) ([]*ConfigMapAndSecretHistoryDto, error)
 
 	GetHistoryForDeployedCMCSById(id, pipelineId int, configType repository.ConfigType, componentName string) (*HistoryDetailDto, error)
-	GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType repository.ConfigType) (history *repository.ConfigmapAndSecretHistory, exists bool, err error)
+	GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType repository.ConfigType) (history *repository.ConfigmapAndSecretHistory, exists bool, cmCsNames []string, err error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*DeployedHistoryComponentMetadataDto, error)
 }
 
@@ -334,16 +334,15 @@ func (impl ConfigMapHistoryServiceImpl) GetDeploymentDetailsForDeployedCMCSHisto
 	return historiesDto, nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType repository.ConfigType) (history *repository.ConfigmapAndSecretHistory, exists bool, err error) {
+func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType repository.ConfigType) (history *repository.ConfigmapAndSecretHistory, exists bool, cmCsNames []string, err error) {
 	impl.logger.Debugw("received request, CheckIfHistoryExistsForPipelineIdAndWfrId", "pipelineId", pipelineId, "wfrId", wfrId)
-
 	//checking if history exists for pipelineId and wfrId
 	history, err = impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId, configType)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in checking if history exists for pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
-		return history, false, err
+		return history, false, cmCsNames, err
 	} else if err == pg.ErrNoRows {
-		return history, false, nil
+		return history, false, cmCsNames, nil
 	}
 	var configData []*ConfigData
 	if configType == repository.CONFIGMAP_TYPE {
@@ -352,7 +351,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(p
 			err = json.Unmarshal([]byte(history.Data), &configList)
 			if err != nil {
 				impl.logger.Debugw("error while Unmarshal", "err", err)
-				return history, false, err
+				return history, false, cmCsNames, err
 			}
 		}
 		configData = configList.ConfigData
@@ -362,15 +361,19 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(p
 			err = json.Unmarshal([]byte(history.Data), &secretList)
 			if err != nil {
 				impl.logger.Debugw("error while Unmarshal", "err", err)
-				return history, false, err
+				return history, false, cmCsNames, err
 			}
 		}
 		configData = secretList.ConfigData
 	}
-	if len(configData) == 0 {
-		return history, false, nil
+	for _, data := range configData {
+		cmCsNames = append(cmCsNames, data.Name)
 	}
-	return history, true, nil
+	if len(configData) == 0 {
+		return history, false, cmCsNames, nil
+	}
+
+	return history, true, cmCsNames, nil
 }
 
 func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*DeployedHistoryComponentMetadataDto, error) {
