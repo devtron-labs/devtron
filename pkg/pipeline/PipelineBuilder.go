@@ -1369,7 +1369,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
 		}
 		//creating history entry for strategy
-		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating strategy history entry", "err", err)
 			return 0, err
@@ -1466,7 +1466,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				return fmt.Errorf("pipeline updated but failed to update one strategy")
 			}
 			//creating history entry for strategy
-			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating strategy history entry", "err", err)
 				return err
@@ -1486,7 +1486,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				return fmt.Errorf("pipeline created but failed to add strategy")
 			}
 			//creating history entry for strategy
-			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating strategy history entry", "err", err)
 				return err

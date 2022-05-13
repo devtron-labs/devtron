@@ -2,6 +2,7 @@ package history
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -11,8 +12,8 @@ import (
 )
 
 type PipelineStrategyHistoryService interface {
-	CreatePipelineStrategyHistory(pipelineStrategy *chartConfig.PipelineStrategy, tx *pg.Tx) (historyModel *repository.PipelineStrategyHistory, err error)
-	CreateStrategyHistoryForDeploymentTrigger(strategy *chartConfig.PipelineStrategy, deployedOn time.Time, deployedBy int32) error
+	CreatePipelineStrategyHistory(pipelineStrategy *chartConfig.PipelineStrategy, pipelineTriggerType pipelineConfig.TriggerType, tx *pg.Tx) (historyModel *repository.PipelineStrategyHistory, err error)
+	CreateStrategyHistoryForDeploymentTrigger(strategy *chartConfig.PipelineStrategy, deployedOn time.Time, deployedBy int32, pipelineTriggerType pipelineConfig.TriggerType) error
 	GetDeploymentDetailsForDeployedStrategyHistory(pipelineId int) ([]*PipelineStrategyHistoryDto, error)
 
 	GetHistoryForDeployedStrategyById(id, pipelineId int) (*HistoryDetailDto, error)
@@ -36,14 +37,15 @@ func NewPipelineStrategyHistoryServiceImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl PipelineStrategyHistoryServiceImpl) CreatePipelineStrategyHistory(pipelineStrategy *chartConfig.PipelineStrategy, tx *pg.Tx) (historyModel *repository.PipelineStrategyHistory, err error) {
+func (impl PipelineStrategyHistoryServiceImpl) CreatePipelineStrategyHistory(pipelineStrategy *chartConfig.PipelineStrategy, pipelineTriggerType pipelineConfig.TriggerType, tx *pg.Tx) (historyModel *repository.PipelineStrategyHistory, err error) {
 	//creating new entry
 	historyModel = &repository.PipelineStrategyHistory{
-		PipelineId: pipelineStrategy.PipelineId,
-		Strategy:   pipelineStrategy.Strategy,
-		Config:     pipelineStrategy.Config,
-		Default:    pipelineStrategy.Default,
-		Deployed:   false,
+		PipelineId:          pipelineStrategy.PipelineId,
+		Strategy:            pipelineStrategy.Strategy,
+		Config:              pipelineStrategy.Config,
+		Default:             pipelineStrategy.Default,
+		Deployed:            false,
+		PipelineTriggerType: pipelineTriggerType,
 		AuditLog: sql.AuditLog{
 			CreatedOn: pipelineStrategy.CreatedOn,
 			CreatedBy: pipelineStrategy.CreatedBy,
@@ -63,16 +65,17 @@ func (impl PipelineStrategyHistoryServiceImpl) CreatePipelineStrategyHistory(pip
 	return historyModel, err
 }
 
-func (impl PipelineStrategyHistoryServiceImpl) CreateStrategyHistoryForDeploymentTrigger(pipelineStrategy *chartConfig.PipelineStrategy, deployedOn time.Time, deployedBy int32) error {
+func (impl PipelineStrategyHistoryServiceImpl) CreateStrategyHistoryForDeploymentTrigger(pipelineStrategy *chartConfig.PipelineStrategy, deployedOn time.Time, deployedBy int32, pipelineTriggerType pipelineConfig.TriggerType) error {
 	//creating new entry
 	historyModel := &repository.PipelineStrategyHistory{
-		PipelineId: pipelineStrategy.PipelineId,
-		Strategy:   pipelineStrategy.Strategy,
-		Config:     pipelineStrategy.Config,
-		Default:    pipelineStrategy.Default,
-		Deployed:   true,
-		DeployedBy: deployedBy,
-		DeployedOn: deployedOn,
+		PipelineId:          pipelineStrategy.PipelineId,
+		Strategy:            pipelineStrategy.Strategy,
+		Config:              pipelineStrategy.Config,
+		Default:             pipelineStrategy.Default,
+		Deployed:            true,
+		DeployedBy:          deployedBy,
+		DeployedOn:          deployedOn,
+		PipelineTriggerType: pipelineTriggerType,
 		AuditLog: sql.AuditLog{
 			CreatedOn: deployedOn,
 			CreatedBy: deployedBy,
@@ -161,6 +164,9 @@ func (impl PipelineStrategyHistoryServiceImpl) GetHistoryForDeployedStrategyById
 			DisplayName: "Strategy configuration",
 			Value:       history.Config,
 		},
+	}
+	if len(history.PipelineTriggerType) > 0 {
+		historyDto.PipelineTriggerType = history.PipelineTriggerType
 	}
 	return historyDto, nil
 }

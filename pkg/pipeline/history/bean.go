@@ -2,6 +2,7 @@ package history
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"time"
 )
 
@@ -33,7 +34,8 @@ type HistoryDetailDto struct {
 	TemplateVersion     string `json:"templateVersion,omitempty"`
 	IsAppMetricsEnabled bool   `json:"isAppMetricsEnabled,omitempty"`
 	//for pipeline strategy
-	Strategy string `json:"strategy,omitempty"`
+	PipelineTriggerType pipelineConfig.TriggerType `json:"pipelineTriggerType"`
+	Strategy            string                     `json:"strategy,omitempty"`
 	//for configmap and secret
 	Type               string               `json:"type,omitempty"`
 	External           bool                 `json:"external"`
