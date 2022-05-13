@@ -1,7 +1,6 @@
 package history
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -66,53 +65,31 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedConfigurationByW
 	deployedConfigurations = append(deployedConfigurations, pipelineStrategyConfiguration)
 
 	//checking if configmap history data exists and get its details
-	configmapHistory, exists, err := impl.configMapHistoryService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId, repository.CONFIGMAP_TYPE)
+	configmapHistory, exists, names, err := impl.configMapHistoryService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId, repository.CONFIGMAP_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in checking if history exists for configmap", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
 	if exists {
 		configmapConfiguration := &DeploymentConfigurationDto{
-			Id:   configmapHistory.Id,
-			Name: CONFIGMAP_TYPE_HISTORY_COMPONENT,
-		}
-		configList := ConfigList{}
-		if len(configmapHistory.Data) > 0 {
-			err := json.Unmarshal([]byte(configmapHistory.Data), &configList)
-			if err != nil {
-				impl.logger.Debugw("error while Unmarshal", "err", err)
-				return nil, err
-			}
-		}
-		var configmapNames []string
-		for _, data := range configList.ConfigData {
-			configmapNames = append(configmapNames, data.Name)
+			Id:                  configmapHistory.Id,
+			Name:                CONFIGMAP_TYPE_HISTORY_COMPONENT,
+			ChildComponentNames: names,
 		}
 		deployedConfigurations = append(deployedConfigurations, configmapConfiguration)
 	}
 
 	//checking if secret history data exists and get its details
-	secretHistory, exists, err := impl.configMapHistoryService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId, repository.SECRET_TYPE)
+	secretHistory, exists, names, err := impl.configMapHistoryService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId, repository.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in checking if history exists for secret", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
 	if exists {
 		secretConfiguration := &DeploymentConfigurationDto{
-			Id:   secretHistory.Id,
-			Name: SECRET_TYPE_HISTORY_COMPONENT,
-		}
-		secretList := SecretList{}
-		if len(secretHistory.Data) > 0 {
-			err := json.Unmarshal([]byte(secretHistory.Data), &secretList)
-			if err != nil {
-				impl.logger.Debugw("error while Unmarshal", "err", err)
-				return nil, err
-			}
-		}
-		var secretNames []string
-		for _, data := range secretList.ConfigData {
-			secretNames = append(secretNames, data.Name)
+			Id:                  secretHistory.Id,
+			Name:                SECRET_TYPE_HISTORY_COMPONENT,
+			ChildComponentNames: names,
 		}
 		deployedConfigurations = append(deployedConfigurations, secretConfiguration)
 	}
