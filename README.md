@@ -65,6 +65,8 @@ Devtron deeply integrates with products across the lifecycle of microservices,i.
 
 Devtron is designed to be modular, and its functionality can be easily extended with the help of integrations.
 
+<p align="center"><img src="https://i.postimg.cc/BJbJqZxp/Readme-Integrations.png"></p>
+
 ### CI/CD integration
 
 [Devtron CI/CD with GitOps](#install-devtron-with-cicd) integration is used to automate the builds and deployments and enables the software development teams to focus on meeting the business requirements, code quality, and security.
