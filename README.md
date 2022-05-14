@@ -205,6 +205,7 @@ Get updates on Devtron's development and chat with project maintainers, contribu
    >
 </a>
 </p>
+
 ## :handshake: Contribute
  
 Check out our [contributing guidelines](CONTRIBUTING.md). Included, are directions for opening issues, coding standards, and notes on our development processes. We deeply appreciate your contribution.
