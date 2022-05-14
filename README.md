@@ -65,7 +65,7 @@ Devtron deeply integrates with products across the lifecycle of microservices,i.
 
 Devtron is designed to be modular, and its functionality can be easily extended with the help of integrations.
 
-<p align="center"><img src="https://i.postimg.cc/BJbJqZxp/Readme-Integrations.png"></p>
+<p align="center"><img src="https://i.postimg.cc/6WLYMm9P/Readme-Integrations-1.png"></p>
 
 ### CI/CD integration
 
