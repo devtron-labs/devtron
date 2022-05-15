@@ -329,7 +329,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateBy
 	historyDto := &HistoryDetailDto{
 		TemplateName:        history.TemplateName,
 		TemplateVersion:     history.TemplateVersion,
-		IsAppMetricsEnabled: history.IsAppMetricsEnabled,
+		IsAppMetricsEnabled: &history.IsAppMetricsEnabled,
 		CodeEditorValue: &HistoryDetailConfig{
 			DisplayName: "values.yaml",
 			Value:       history.Template,

@@ -429,13 +429,14 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 	for _, data := range configData {
 		if data.Name == componentName {
 			config = data
+			break
 		}
 	}
 	historyDto := &HistoryDetailDto{
 		Type:           config.Type,
-		External:       config.External,
+		External:       &config.External,
 		MountPath:      config.MountPath,
-		SubPath:        config.SubPath,
+		SubPath:        &config.SubPath,
 		FilePermission: config.FilePermission,
 		CodeEditorValue: &HistoryDetailConfig{
 			DisplayName: "Data",
@@ -445,12 +446,14 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 	if configType == repository.SECRET_TYPE {
 		historyDto.ExternalSecretType = config.ExternalSecretType
 		historyDto.RoleARN = config.RoleARN
-		externalSecretData, err := json.Marshal(config.ExternalSecret)
-		if err != nil {
-			impl.logger.Errorw("error in marshaling external secret data", "err", err)
-		}
-		if len(externalSecretData) > 0 {
-			historyDto.CodeEditorValue.Value = string(externalSecretData)
+		if config.External {
+			externalSecretData, err := json.Marshal(config.ExternalSecret)
+			if err != nil {
+				impl.logger.Errorw("error in marshaling external secret data", "err", err)
+			}
+			if len(externalSecretData) > 0 {
+				historyDto.CodeEditorValue.Value = string(externalSecretData)
+			}
 		}
 	}
 	return historyDto, nil
