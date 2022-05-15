@@ -1157,6 +1157,9 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 		impl.logger.Errorw("error in saving app level metrics flag", "error", err)
 		return nil, err
 	}
+	//updating audit log details of chart as history service uses it
+	currentChart.UpdatedOn = time.Now()
+	currentChart.UpdatedBy = appMetricRequest.UserId
 	//creating history entry for deployment template
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled)
 	if err != nil {
