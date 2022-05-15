@@ -218,8 +218,8 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 	}
 
 	if string(application.Healthy) != deploymentStatus.Status {
-		if deploymentStatus.Status == app.Status.Health.Status {
-			impl.logger.Debug("not updating same statuses from " + deploymentStatus.Status + " to " + app.Status.Health.Status)
+		if deploymentStatus.Status == string(app.Status.Health.Status) {
+			impl.logger.Debug("not updating same statuses from " + deploymentStatus.Status + " to " + string(app.Status.Health.Status))
 			return isHealthy, nil
 		}
 
@@ -251,7 +251,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 				AppName:   app.Name,
 				AppId:     deploymentStatus.AppId,
 				EnvId:     deploymentStatus.EnvId,
-				Status:    app.Status.Health.Status,
+				Status:    string(app.Status.Health.Status),
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 			}
@@ -1281,7 +1281,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Appli
 		impl.logger.Errorw("error on update cd workflow runner, fetch failed for runner type", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	wfr.Status = app.Status.Health.Status
+	wfr.Status = string(app.Status.Health.Status)
 	wfr.FinishedOn = time.Now()
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
 	if err != nil {

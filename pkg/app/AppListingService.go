@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"net/http"
@@ -29,7 +30,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -437,7 +437,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			}
 			if cdStageRunner != nil {
 				status := cdStageRunner.Status
-				if status == v1alpha1.HealthStatusHealthy {
+				if status == string(health.HealthStatusHealthy) {
 					stopType := releaseMap[pipeline.Id]
 					if stopType {
 						status = application2.HIBERNATING
