@@ -48,7 +48,7 @@ func (impl GitBitbucketClient) GetRepoUrl(repoName string, repoOptions *bitbucke
 		return repoUrl, nil
 	}
 }
-func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, projectKey string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, projectKey, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 
 	repoOptions := &bitbucket.RepositoryOptions{
@@ -91,7 +91,7 @@ func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, 
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	err = impl.createReadme(repoOptions)
+	err = impl.createReadme(repoOptions, userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repoName", repoOptions.RepoSlug, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -140,7 +140,7 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnHttp(repoOptions *bitb
 	}
 	return false, nil
 }
-func (impl GitBitbucketClient) createReadme(repoOptions *bitbucket.RepositoryOptions) error {
+func (impl GitBitbucketClient) createReadme(repoOptions *bitbucket.RepositoryOptions, userName, userEmailId string) error {
 	cfg := &ChartConfig{
 		ChartName:      repoOptions.RepoSlug,
 		ChartLocation:  "",
@@ -148,6 +148,8 @@ func (impl GitBitbucketClient) createReadme(repoOptions *bitbucket.RepositoryOpt
 		FileContent:    "@devtron",
 		ReleaseMessage: "pushing readme",
 		ChartRepoName:  repoOptions.RepoSlug,
+		UserName:       userName,
+		UserEmailId:    userEmailId,
 	}
 	_, err := impl.CommitValues(cfg, repoOptions.Owner)
 	if err != nil {
@@ -192,6 +194,8 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig, bitbucketWorksp
 	}
 	fileName := filepath.Join(config.ChartLocation, config.FileName)
 
+	//bitbucket needs author as - "Name <email-Id>"
+	authorBitbucket := fmt.Sprintf("%s <%s>", config.UserName, config.UserEmailId)
 	repoWriteOptions := &bitbucket.RepositoryBlobWriteOptions{
 		Owner:    bitbucketWorkspaceId,
 		RepoSlug: config.ChartRepoName,
@@ -199,6 +203,7 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig, bitbucketWorksp
 		FileName: fileName,
 		Message:  config.ReleaseMessage,
 		Branch:   "master",
+		Author:   authorBitbucket,
 	}
 	err = impl.client.Repositories.Repository.WriteFileBlob(repoWriteOptions)
 	_ = os.Remove(bitbucketCommitFilePath)

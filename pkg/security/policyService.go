@@ -46,6 +46,8 @@ type PolicyService interface {
 	GetBlockedCVEList(cves []*security.CveStore, clusterId, envId, appId int, isAppstore bool) ([]*security.CveStore, error)
 	VerifyImage(verifyImageRequest *VerifyImageRequest) (map[string][]*VerifyImageResponse, error)
 	GetCvePolicy(id int, userId int32) (*security.CvePolicy, error)
+	GetApplicablePolicy(clusterId, envId, appId int, isAppstore bool) (map[string]*security.CvePolicy, map[security.Severity]*security.CvePolicy, error)
+	HasBlockedCVE(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[security.Severity]*security.CvePolicy) bool
 }
 type PolicyServiceImpl struct {
 	environmentService            cluster.EnvironmentService
@@ -193,7 +195,7 @@ func (impl *PolicyServiceImpl) VerifyImage(verifyImageRequest *VerifyImageReques
 		//np app do nothing
 	}
 
-	cvePolicy, severityPolicy, err := impl.getApplicablePolicy(clusterId, envId, appId, isAppStore)
+	cvePolicy, severityPolicy, err := impl.GetApplicablePolicy(clusterId, envId, appId, isAppStore)
 	if err != nil {
 		impl.logger.Errorw("error in generating applicable policy", "err", err)
 	}
@@ -346,7 +348,7 @@ func (impl *PolicyServiceImpl) enforceCvePolicy(cves []*security.CveStore, cvePo
 	return blockedCVE
 }
 
-func (impl *PolicyServiceImpl) getApplicablePolicy(clusterId, envId, appId int, isAppstore bool) (map[string]*security.CvePolicy, map[security.Severity]*security.CvePolicy, error) {
+func (impl *PolicyServiceImpl) GetApplicablePolicy(clusterId, envId, appId int, isAppstore bool) (map[string]*security.CvePolicy, map[security.Severity]*security.CvePolicy, error) {
 
 	var policyLevel security.PolicyLevel
 	if isAppstore && appId > 0 && envId > 0 && clusterId > 0 {
@@ -700,12 +702,31 @@ func (impl *PolicyServiceImpl) getPolicies(policyLevel security.PolicyLevel, clu
 
 func (impl *PolicyServiceImpl) GetBlockedCVEList(cves []*security.CveStore, clusterId, envId, appId int, isAppstore bool) ([]*security.CveStore, error) {
 
-	cvePolicy, severityPolicy, err := impl.getApplicablePolicy(clusterId, envId, appId, isAppstore)
+	cvePolicy, severityPolicy, err := impl.GetApplicablePolicy(clusterId, envId, appId, isAppstore)
 	if err != nil {
 		return nil, err
 	}
 	blockedCve := impl.enforceCvePolicy(cves, cvePolicy, severityPolicy)
 	return blockedCve, nil
+}
+
+func (impl *PolicyServiceImpl) HasBlockedCVE(cves []*security.CveStore, cvePolicy map[string]*security.CvePolicy, severityPolicy map[security.Severity]*security.CvePolicy) bool {
+	for _, cve := range cves {
+		if policy, ok := cvePolicy[cve.Name]; ok {
+			if policy.Action == security.Allow {
+				continue
+			} else {
+				return true
+			}
+		} else {
+			if severityPolicy[cve.Severity] != nil && severityPolicy[cve.Severity].Action == security.Allow {
+				continue
+			} else {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func (impl *PolicyServiceImpl) GetCvePolicy(id int, userId int32) (*security.CvePolicy, error) {

@@ -59,7 +59,7 @@ type AppStoreDeploymentFullModeService interface {
 	SyncACD(acdAppName string, ctx context.Context)
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
-	GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) string
+	GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error)
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -161,6 +161,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(chartMeta.Name)
+	//getting user name & emailId for commit author data
+	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	requirmentYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),
@@ -168,6 +170,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		ChartLocation:  argocdAppName,
 		ChartRepoName:  gitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
+		UserEmailId:    userEmailId,
+		UserName:       userName,
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
@@ -218,6 +222,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		ChartLocation:  argocdAppName,
 		ChartRepoName:  gitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
+		UserEmailId:    userEmailId,
+		UserName:       userName,
 	}
 	commitHash, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
@@ -307,30 +313,33 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 	return nil
 }
 
-func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) string {
+func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error) {
+	gitOpsRepoName := ""
 	ctx, err := impl.tokenCache.BuildACDSynchContext()
 	if err != nil {
-		impl.logger.Errorw("error in creating acd synch context", "err", err)
-		return ""
+		impl.logger.Errorw("error in creating acd sync context", "err", err)
+		return "", err
 	}
 	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
-	gitOpsRepoName := ""
 	application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {
-		impl.logger.Errorw("no argo app exists", "app", acdAppName)
-		return ""
+		impl.logger.Errorw("no argo app exists", "acdAppName", acdAppName, "err", err)
+		return "", err
 	}
 	if application != nil {
 		gitOpsRepoUrl := application.Spec.Source.RepoURL
 		gitOpsRepoName = impl.chartTemplateService.GetGitOpsRepoNameFromUrl(gitOpsRepoUrl)
 	}
-	return gitOpsRepoName
+	return gitOpsRepoName, nil
 }
 
 func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
 	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
 	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
-		gitOpsRepoName := impl.GetGitOpsRepoName(installAppVersionRequest)
+		gitOpsRepoName, err := impl.GetGitOpsRepoName(installAppVersionRequest)
+		if err != nil {
+			return installAppVersionRequest, err
+		}
 		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	}
 	valuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
@@ -351,6 +360,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVer
 		impl.logger.Errorw("error in marshaling", "err", err)
 		return installAppVersionRequest, err
 	}
+	//getting user name & emailId for commit author data
+	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	valuesConfig := &util.ChartConfig{
 		FileName:       appStoreBean.VALUES_YAML_FILE,
 		FileContent:    string(valuesByte),
@@ -358,6 +369,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVer
 		ChartLocation:  acdAppName,
 		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installAppVersionRequest.AppStoreVersion, installAppVersionRequest.EnvironmentId),
+		UserEmailId:    userEmailId,
+		UserName:       userName,
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {
@@ -397,6 +410,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 	if err != nil {
 		return err
 	}
+	//getting user name & emailId for commit author data
+	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	requirmentYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),
@@ -404,6 +419,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 		ChartLocation:  acdAppName,
 		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, installAppVersionRequest.EnvironmentId),
+		UserEmailId:    userEmailId,
+		UserName:       userName,
 	}
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
 	if err != nil {

@@ -38,28 +38,30 @@ func GetLogger() *zap.SugaredLogger {
 }
 
 type LogConfig struct {
-	Level int `env:"LOG_LEVEL" envDefault:"0"`
+	Level int `env:"LOG_LEVEL" envDefault:"0"` // default info
 }
 
-func init() {
+func InitLogger() (*zap.SugaredLogger, error) {
 	cfg := &LogConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
-		fmt.Println(err)
-		return
+		fmt.Println("failed to parse logger env config: " + err.Error())
+		return nil, err
 	}
 
 	config := zap.NewProductionConfig()
 	config.Level = zap.NewAtomicLevelAt(zapcore.Level(cfg.Level))
 	l, err := config.Build()
 	if err != nil {
-		panic("failed to create the default logger: " + err.Error())
+		fmt.Println("failed to create the default logger: " + err.Error())
+		return nil, err
 	}
 	logger = l.Sugar()
+	return logger, nil
 }
 
-func NewSugardLogger() *zap.SugaredLogger {
-	return logger
+func NewSugardLogger() (*zap.SugaredLogger, error) {
+	return InitLogger()
 }
 
 func NewHttpClient() *http.Client {

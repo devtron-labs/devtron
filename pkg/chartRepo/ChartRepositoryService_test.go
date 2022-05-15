@@ -11,7 +11,7 @@ type ChartRepositoryServiceMock struct {
 }
 
 func TestChartRepositoryServiceImpl_ValidateChartDetails(t *testing.T) {
-	sugaredLogger := util.NewSugardLogger()
+	sugaredLogger, _ := util.NewSugardLogger()
 	impl := &ChartRepositoryServiceImpl{
 		logger:         sugaredLogger,
 		repoRepository: new(ChartRepoRepositoryImplMock),
