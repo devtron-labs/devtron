@@ -1183,7 +1183,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 		return isHealthy, err
 	}
 	if versionHistory.Status != (application2.Healthy) {
-		versionHistory.Status = application.Status.Health.Status
+		versionHistory.Status = string(application.Status.Health.Status)
 		versionHistory.UpdatedOn = time.Now()
 		versionHistory.UpdatedBy = 1
 		impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(versionHistory, tx)
