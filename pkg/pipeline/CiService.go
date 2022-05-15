@@ -261,6 +261,16 @@ func (impl *CiServiceImpl) buildArtifactLocation(ciWorkflowConfig *pipelineConfi
 	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.ciConfig.DefaultArtifactKeyPrefix+"/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWf.Id, savedWf.Id)
 	return ArtifactLocation
 }
+
+func (impl *CiServiceImpl) buildArtifactLocationAzure(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string {
+	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
+	if ciArtifactLocationFormat == "" {
+		ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
+	}
+	ArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
+	return ArtifactLocation
+}
+
 func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger Trigger,
 	ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow,
 	ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript) (*WorkflowRequest, error) {
@@ -425,7 +435,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			AccountName:          impl.ciConfig.AzureAccountName,
 			BlobContainerCiCache: impl.ciConfig.AzureBlobContainerCiCache,
 			AccountKey:           impl.ciConfig.AzureAccountKey,
+			BlobContainerCiLog:   impl.ciConfig.AzureBlobContainerCiLog,
 		}
+		workflowRequest.CiArtifactLocation = impl.buildArtifactLocationAzure(ciWorkflowConfig, savedWf)
 	case BLOB_STORAGE_MINIO:
 		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
