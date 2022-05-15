@@ -11,6 +11,7 @@ require (
 	github.com/argoproj/argo-cd v1.2.3
 	github.com/argoproj/argo-cd/v2 v2.3.3
 	github.com/argoproj/argo-workflows/v3 v3.3.5
+	github.com/argoproj/gitops-engine v0.6.2 // indirect
 	github.com/argoproj/pkg v0.11.1-0.20211203175135-36c59d8fafe0 // indirect
 	github.com/aws/aws-sdk-go v1.42.50
 	github.com/caarlos0/env v3.5.0+incompatible
