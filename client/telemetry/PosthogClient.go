@@ -35,7 +35,7 @@ type PosthogClient struct {
 var (
 	PosthogApiKey        string = ""
 	PosthogEndpoint      string = "https://app.posthog.com"
-	SummaryCronExpr      string = "0 0 * * *" // Run once a day, midnight
+	SummaryCronExpr      string = "* * * * *" // Run once a day, midnight
 	HeartbeatCronExpr    string = "0 0/6 * * *"
 	CacheExpiry          int    = 1440
 	PosthogEncodedApiKey string = ""
@@ -56,7 +56,7 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 		PosthogApiKey = apiKey
 		PosthogEncodedApiKey = encodedApiKey
 	}
-	client, err := posthog.NewWithConfig(PosthogApiKey, posthog.Config{Endpoint: PosthogEndpoint})
+	client, err := posthog.NewWithConfig("phc_QXSiPQFINIbfeG1W8h67mkvoE6PCiyUj1D2oPu21glJ", posthog.Config{Endpoint: PosthogEndpoint})
 	//defer client.Close()
 	if err != nil {
 		logger.Errorw("exception caught while creating posthog client", "err", err)
