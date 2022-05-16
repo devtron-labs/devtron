@@ -6,7 +6,7 @@ import (
 )
 
 type ServerEnvConfig struct {
-	CanServerUpdate                      bool   `env:"CAN_SERVER_UPDATE" envDefault:"true"` // default true
+	DevtronInstallationType              string `env:"DEVTRON_INSTALLATION_TYPE"`
 	InstallerCrdObjectGroupName          string `env:"INSTALLER_CRD_OBJECT_GROUP_NAME" envDefault:"installer.devtron.ai"`
 	InstallerCrdObjectVersion            string `env:"INSTALLER_CRD_OBJECT_VERSION" envDefault:"v1alpha1"`
 	InstallerCrdObjectResource           string `env:"INSTALLER_CRD_OBJECT_RESOURCE" envDefault:"installers"`

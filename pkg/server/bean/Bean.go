@@ -18,10 +18,10 @@
 package serverBean
 
 type ServerInfoDto struct {
-	CurrentVersion  string `json:"currentVersion,notnull"`
-	Status          string `json:"status,notnull" validate:"oneof=healthy upgrading upgradeFailed unknown timeout"`
-	ReleaseName     string `json:"releaseName,notnull"`
-	CanUpdateServer bool   `json:"canUpdateServer,notnull"`
+	CurrentVersion   string `json:"currentVersion,omitempty"`
+	Status           string `json:"status,notnull" validate:"oneof=healthy upgrading upgradeFailed unknown timeout"`
+	ReleaseName      string `json:"releaseName,notnull"`
+	InstallationType string `json:"installationType,notnull" validate:"oneof=oss_kubectl oss_helm enterprise"`
 }
 
 type ServerActionRequestDto struct {
@@ -78,4 +78,12 @@ type AppHealthStatusCode = string
 const (
 	AppHealthStatusProgressing AppHealthStatusCode = "Progressing"
 	AppHealthStatusDegraded    AppHealthStatusCode = "Degraded"
+)
+
+type DevtronInstallationType = string
+
+const (
+	DevtronInstallationTypeOssKubectl DevtronInstallationType = "oss_kubectl"
+	DevtronInstallationTypeOssHelm    DevtronInstallationType = "oss_helm"
+	DevtronInstallationTypeEnterprise DevtronInstallationType = "enterprise"
 )

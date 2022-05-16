@@ -42,4 +42,5 @@ var UserWireSet = wire.NewSet(
 
 	user.NewUserCommonServiceImpl,
 	wire.Bind(new(user.UserCommonService), new(*user.UserCommonServiceImpl)),
+
 )

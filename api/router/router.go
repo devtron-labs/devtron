@@ -102,7 +102,8 @@ type MuxRouter struct {
 	dashboardTelemetryRouter         dashboardEvent.DashboardTelemetryRouter
 	commonDeploymentRouter           appStoreDeployment.CommonDeploymentRouter
 	globalPluginRouter               GlobalPluginRouter
-	externalLinkRouter       externalLink.ExternalLinkRouter
+	externalLinkRouter               externalLink.ExternalLinkRouter
+	selfRegistrationRolesRouter      user.SelfRegistrationRolesRouter
 	moduleRouter                     module.ModuleRouter
 	serverRouter                     server.ServerRouter
 }
@@ -128,7 +129,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
-	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
+	globalPluginRouter GlobalPluginRouter, selfRegistrationRolesRouter user.SelfRegistrationRolesRouter,moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
@@ -187,6 +188,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		commonDeploymentRouter:           commonDeploymentRouter,
 		externalLinkRouter:               externalLinkRouter,
 		globalPluginRouter:               globalPluginRouter,
+		selfRegistrationRolesRouter:      selfRegistrationRolesRouter,
 		moduleRouter:                     moduleRouter,
 		serverRouter:                     serverRouter,
 	}
@@ -364,6 +366,9 @@ func (r MuxRouter) Init() {
 
 	externalLinkRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
 	r.externalLinkRouter.InitExternalLinkRouter(externalLinkRouter)
+
+	selfRegistrationRolesRouter := r.Router.PathPrefix("/orchestrator/self-register").Subrouter()
+	r.selfRegistrationRolesRouter.InitSelfRegistrationRolesRouter(selfRegistrationRolesRouter)
 
 	// module router
 	moduleRouter := r.Router.PathPrefix("/orchestrator/module").Subrouter()

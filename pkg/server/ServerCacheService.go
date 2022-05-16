@@ -20,6 +20,7 @@ package server
 import (
 	"context"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/tidwall/gjson"
@@ -45,23 +46,46 @@ func NewServerCacheServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serve
 		helmAppService:  helmAppService,
 	}
 
-	// fetch current version from helm release
+	// if devtron user type is enterprise, then don't do anything to get current devtron version
+	// if not enterprise, then fetch devtron helm release -
+	// if devtron helm release is found, treat it as OSS Helm user otherwise OSS kubectl user
+	if serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeEnterprise {
+		return impl
+	}
+
+	// devtron helm release identifier
 	appIdentifier := client.AppIdentifier{
 		ClusterId:   1,
 		Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
 		ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
 	}
-	releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), &appIdentifier)
+
+	// check if the release is installed or not
+	isDevtronHelmReleaseInstalled, err := impl.helmAppService.IsReleaseInstalled(context.Background(), &appIdentifier)
 	if err != nil {
-		log.Fatalln("got error in fetching devtron helm release values.", "error", err)
-	}
-	currentVersion := gjson.Get(releaseInfo.GetMergedValues(), impl.serverEnvConfig.DevtronVersionIdentifierInHelmValues).String()
-	if len(currentVersion) == 0 {
-		log.Fatalln("current devtron version found empty")
+		log.Fatalln("not able to check if the devtron helm release exists or not.", "error", err)
 	}
 
-	// store current version in-memory
-	impl.serverDataStore.CurrentVersion = currentVersion
+	// if not installed, treat it as OSS kubectl user
+	// if installed, treat it as OSS helm user and fetch current version
+	if isDevtronHelmReleaseInstalled {
+		serverEnvConfig.DevtronInstallationType = serverBean.DevtronInstallationTypeOssHelm
+
+		// fetch current version from helm release
+		releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), &appIdentifier)
+		if err != nil {
+			log.Fatalln("got error in fetching devtron helm release values.", "error", err)
+		}
+		currentVersion := gjson.Get(releaseInfo.GetMergedValues(), impl.serverEnvConfig.DevtronVersionIdentifierInHelmValues).String()
+		if len(currentVersion) == 0 {
+			log.Fatalln("current devtron version found empty")
+		}
+
+		// store current version in-memory
+		impl.serverDataStore.CurrentVersion = currentVersion
+	} else {
+		serverEnvConfig.DevtronInstallationType = serverBean.DevtronInstallationTypeOssKubectl
+	}
 
 	return impl
 }
