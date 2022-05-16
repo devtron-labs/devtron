@@ -78,17 +78,11 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 }
 
 type TelemetryEventDto struct {
-	UCID           string             `json:"ucid"` //unique client id
-	Timestamp      time.Time          `json:"timestamp"`
-	EventMessage   string             `json:"eventMessage,omitempty"`
-	EventType      TelemetryEventType `json:"eventType"`
-	Summary        *SummaryDto        `json:"summary,omitempty"`
-	ServerVersion  string             `json:"serverVersion,omitempty"`
-	DevtronVersion string             `json:"devtronVersion,omitempty"`
-	DevtronMode    string             `json:"devtronMode,omitempty"`
-}
-
-type SummaryDto struct {
+	UCID         string             `json:"ucid"` //unique client id
+	Timestamp    time.Time          `json:"timestamp"`
+	EventMessage string             `json:"eventMessage,omitempty"`
+	EventType    TelemetryEventType `json:"eventType"`
+	//Summary        *SummaryDto        `json:"summary,omitempty"`
 	ProdAppCount            int    `json:"prodAppCount,omitempty"`
 	NonProdAppCount         int    `json:"nonProdAppCount,omitempty"`
 	UserCount               int    `json:"userCount,omitempty"`
@@ -103,8 +97,29 @@ type SummaryDto struct {
 	RegistryCount           int    `json:"registryCount,omitempty"`
 	HostURL                 bool   `json:"hostURL,omitempty"`
 	SSOLogin                bool   `json:"ssoLogin,omitempty"`
+	ServerVersion           string `json:"serverVersion,omitempty"`
+	DevtronGitVersion       string `json:"devtronGitVersion,omitempty"`
 	DevtronVersion          string `json:"devtronVersion,omitempty"`
+	DevtronMode             string `json:"devtronMode,omitempty"`
 }
+
+//type SummaryDto struct {
+//	ProdAppCount            int    `json:"prodAppCount,omitempty"`
+//	NonProdAppCount         int    `json:"nonProdAppCount,omitempty"`
+//	UserCount               int    `json:"userCount,omitempty"`
+//	EnvironmentCount        int    `json:"environmentCount,omitempty"`
+//	ClusterCount            int    `json:"clusterCount,omitempty"`
+//	CiCountPerDay           int    `json:"ciCountPerDay,omitempty"`
+//	CdCountPerDay           int    `json:"cdCountPerDay,omitempty"`
+//	HelmChartCount          int    `json:"helmChartCount,omitempty"`
+//	SecurityScanCountPerDay int    `json:"securityScanCountPerDay,omitempty"`
+//	GitAccountsCount        int    `json:"gitAccountsCount,omitempty"`
+//	GitOpsCount             int    `json:"gitOpsCount,omitempty"`
+//	RegistryCount           int    `json:"registryCount,omitempty"`
+//	HostURL                 bool   `json:"hostURL,omitempty"`
+//	SSOLogin                bool   `json:"ssoLogin,omitempty"`
+//	DevtronVersion          string `json:"devtronVersion,omitempty"`
+//}
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	ucid, err := impl.getUCID()
@@ -171,23 +186,37 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	}
 
 	devtronVersion := util.GetDevtronVersion()
+	payload.ProdAppCount = prodApps
+	payload.NonProdAppCount = nonProdApps
+	payload.RegistryCount = len(containerRegistry)
+	payload.SSOLogin = ssoSetup
+	payload.GitOpsCount = len(gitOps)
+	payload.UserCount = len(users)
+	payload.EnvironmentCount = len(environments)
+	payload.ClusterCount = len(clusters)
+	payload.CiCountPerDay = len(ciPipeline)
+	payload.CdCountPerDay = len(cdPipeline)
+	payload.GitAccountsCount = len(gitAccounts)
+	payload.GitOpsCount = len(gitOps)
+	payload.HostURL = hostURL
+	payload.DevtronGitVersion = devtronVersion.GitCommit
 
-	summary := &SummaryDto{
-		ProdAppCount:     prodApps,
-		NonProdAppCount:  nonProdApps,
-		UserCount:        len(users),
-		EnvironmentCount: len(environments),
-		ClusterCount:     len(clusters),
-		CiCountPerDay:    len(ciPipeline),
-		CdCountPerDay:    len(cdPipeline),
-		GitAccountsCount: len(gitAccounts),
-		GitOpsCount:      len(gitOps),
-		RegistryCount:    len(containerRegistry),
-		HostURL:          hostURL,
-		SSOLogin:         ssoSetup,
-		DevtronVersion:   devtronVersion.GitCommit,
-	}
-	payload.Summary = summary
+	//summary := &SummaryDto{
+	//	ProdAppCount:     prodApps,
+	//	NonProdAppCount:  nonProdApps,
+	//	UserCount:        len(users),
+	//	EnvironmentCount: len(environments),
+	//	ClusterCount:     len(clusters),
+	//	CiCountPerDay:    len(ciPipeline),
+	//	CdCountPerDay:    len(cdPipeline),
+	//	GitAccountsCount: len(gitAccounts),
+	//	GitOpsCount:      len(gitOps),
+	//	RegistryCount:    len(containerRegistry),
+	//	HostURL:          hostURL,
+	//	SSOLogin:         ssoSetup,
+	//	DevtronVersion:   devtronVersion.GitCommit,
+	//}
+	//payload.Summary = summary
 	payload.DevtronMode = devtronVersion.ServerMode
 	reqBody, err := json.Marshal(payload)
 	if err != nil {

@@ -84,22 +84,26 @@ func (impl *TelemetryEventClientImpl) StopCron() {
 }
 
 type TelemetryEventEA struct {
-	UCID           string             `json:"ucid"` //unique client id
-	Timestamp      time.Time          `json:"timestamp"`
-	EventMessage   string             `json:"eventMessage,omitempty"`
-	EventType      TelemetryEventType `json:"eventType"`
-	Summary        *SummaryEA         `json:"summary,omitempty"`
-	ServerVersion  string             `json:"serverVersion,omitempty"`
-	DevtronVersion string             `json:"devtronVersion,omitempty"`
-	DevtronMode    string             `json:"devtronMode,omitempty"`
+	UCID         string             `json:"ucid"` //unique client id
+	Timestamp    time.Time          `json:"timestamp"`
+	EventMessage string             `json:"eventMessage,omitempty"`
+	EventType    TelemetryEventType `json:"eventType"`
+	//Summary        *SummaryEA         `json:"summary,omitempty"`
+	ServerVersion  string `json:"serverVersion,omitempty"`
+	UserCount      int    `json:"userCount,omitempty"`
+	ClusterCount   int    `json:"clusterCount,omitempty"`
+	HostURL        bool   `json:"hostURL,omitempty"`
+	SSOLogin       bool   `json:"ssoLogin,omitempty"`
+	DevtronVersion string `json:"devtronVersion,omitempty"`
+	DevtronMode    string `json:"devtronMode,omitempty"`
 }
 
-type SummaryEA struct {
-	UserCount    int  `json:"userCount,omitempty"`
-	ClusterCount int  `json:"clusterCount,omitempty"`
-	HostURL      bool `json:"hostURL,omitempty"`
-	SSOLogin     bool `json:"ssoLogin,omitempty"`
-}
+//type SummaryEA struct {
+//	UserCount    int  `json:"userCount,omitempty"`
+//	ClusterCount int  `json:"clusterCount,omitempty"`
+//	HostURL      bool `json:"hostURL,omitempty"`
+//	SSOLogin     bool `json:"ssoLogin,omitempty"`
+//}
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
 const DevtronUniqueClientIdConfigMapKey = "UCID"
@@ -184,14 +188,18 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
+	payload.HostURL = hostURL
+	payload.SSOLogin = ssoSetup
+	payload.UserCount = len(users)
+	payload.ClusterCount = len(clusters)
 
-	summary := &SummaryEA{
-		UserCount:    len(users),
-		ClusterCount: len(clusters),
-		HostURL:      hostURL,
-		SSOLogin:     ssoSetup,
-	}
-	payload.Summary = summary
+	//summary := &SummaryEA{
+	//	UserCount:    len(users),
+	//	ClusterCount: len(clusters),
+	//	HostURL:      hostURL,
+	//	SSOLogin:     ssoSetup,
+	//}
+	//payload.Summary = summary
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
