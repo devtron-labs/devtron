@@ -97,6 +97,8 @@ type SummaryDto struct {
 	GitAccountsCount        int    `json:"gitAccountsCount,omitempty"`
 	GitOpsCount             int    `json:"gitOpsCount,omitempty"`
 	RegistryCount           int    `json:"registryCount,omitempty"`
+	HostURL                 bool   `json:"hostURL,omitempty"`
+	SSOLogin                bool   `json:"ssoLogin,omitempty"`
 	DevtronVersion          string `json:"devtronVersion,omitempty"`
 }
 
@@ -112,7 +114,7 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		return
 	}
 
-	clusters, users, k8sServerVersion := impl.SummaryDetailsForTelemetry()
+	clusters, users, k8sServerVersion, hostURL, ssoSetup := impl.SummaryDetailsForTelemetry()
 	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
@@ -177,6 +179,8 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		GitAccountsCount: len(gitAccounts),
 		GitOpsCount:      len(gitOps),
 		RegistryCount:    len(containerRegistry),
+		HostURL:          hostURL,
+		SSOLogin:         ssoSetup,
 		DevtronVersion:   devtronVersion.GitCommit,
 	}
 	payload.Summary = summary
