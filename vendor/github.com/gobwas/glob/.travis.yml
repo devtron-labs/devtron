@@ -1,15 +1,9 @@
-language: go
-go:
-  - "1.7.X"
-  - "1.8.X"
-  - "1.9.X"
-  - "1.10.X"
-  - master
+sudo: false
 
-matrix:
-  allow_failures:
-    - go: master
-fast_finish: true
+language: go
+
+go:
+  - 1.5.3
 
 script:
   - go test -v ./...

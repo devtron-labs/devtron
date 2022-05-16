@@ -16,7 +16,6 @@
  * Some of the code has been taken from argocd, for them argocd licensing terms apply
  */
 
-
 package middleware
 
 import (
@@ -81,6 +80,24 @@ func NewSessionManager(settings *oidc.Settings, config *client.DexConfig) *Sessi
 
 func (mgr *SessionManager) GetUserSessionDuration() time.Duration {
 	return mgr.settings.UserSessionDuration
+}
+
+func (mgr *SessionManager) UpdateSettings(settings *oidc.Settings, config *client.DexConfig) {
+	mgr.settings = settings
+	mgr.client = &http.Client{
+		Transport: &http.Transport{
+			TLSClientConfig: nil,
+			Proxy:           http.ProxyFromEnvironment,
+			Dial: (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial,
+			TLSHandshakeTimeout:   10 * time.Second,
+			ExpectContinueTimeout: 1 * time.Second,
+		},
+	}
+	mgr.client.Transport = oidc.NewDexRewriteURLRoundTripper(config.DexServerAddress, mgr.client.Transport)
+	mgr.prov = nil //reset provider
 }
 
 // Create creates a new token for a given subject (user) and returns it as a string.
