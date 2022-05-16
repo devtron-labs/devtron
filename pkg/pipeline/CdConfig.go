@@ -42,7 +42,7 @@ type CdConfig struct {
 	TaintValue                 string   `env:"CD_NODE_TAINTS_VALUE" envDefault:"ci"`
 	DefaultBuildLogsBucket     string   `env:"DEFAULT_BUILD_LOGS_BUCKET" `
 	NodeLabelSelector          []string `env:"CD_NODE_LABEL_SELECTOR"`
-	CdArtifactLocationFormat   string   `env:"CD_ARTIFACT_LOCATION_FORMAT" `
+	CdArtifactLocationFormat   string   `env:"CD_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
 	DefaultNamespace           string   `env:"DEFAULT_CD_NAMESPACE"`
 	DefaultImage               string   `env:"DEFAULT_CI_IMAGE" `
 	DefaultTimeout             int64    `env:"DEFAULT_CD_TIMEOUT" envDefault:"3600"`
