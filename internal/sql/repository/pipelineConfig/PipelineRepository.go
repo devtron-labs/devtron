@@ -87,6 +87,7 @@ type PipelineRepository interface {
 	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
+	FindAllPipeline() (pipelines []*Pipeline, err error)
 }
 
 type CiArtifactDTO struct {
@@ -360,5 +361,10 @@ func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndCh
 		Where("ceco.active = ?", true).
 		Where("charts.active = ?", true).
 		Select()
+	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) FindAllPipeline() (pipelines []*Pipeline, err error) {
+	err = impl.dbConnection.Model(&pipelines).Select()
 	return pipelines, err
 }

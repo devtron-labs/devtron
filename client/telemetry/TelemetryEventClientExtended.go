@@ -97,6 +97,11 @@ type TelemetryEventDto struct {
 	RegistryCount           int    `json:"registryCount,omitempty"`
 	HostURL                 bool   `json:"hostURL,omitempty"`
 	SSOLogin                bool   `json:"ssoLogin,omitempty"`
+	CiSetup                 bool   `json:"ciSetup,omitempty"`
+	CdSetup                 bool   `json:"cdSetup,omitempty"`
+	AppSetup                bool   `json:"appSetup,omitempty"`
+	Build                   bool   `json:"build,omitempty"`
+	Deployment              bool   `json:"deployment,omitempty"`
 	ServerVersion           string `json:"serverVersion,omitempty"`
 	DevtronGitVersion       string `json:"devtronGitVersion,omitempty"`
 	DevtronVersion          string `json:"devtronVersion,omitempty"`
@@ -185,6 +190,28 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		return
 	}
 
+	ciSetup := false
+	ciPipelines, err := impl.ciPipelineRepository.FindAllPipeline()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+
+	if len(ciPipelines) > 0 {
+		ciSetup = true
+	}
+
+	cdSetup := false
+	cdPipelines, err := impl.pipelineRepository.FindAllPipeline()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+
+	if len(cdPipelines) > 0 {
+		cdSetup = true
+	}
+
 	devtronVersion := util.GetDevtronVersion()
 	payload.ProdAppCount = prodApps
 	payload.NonProdAppCount = nonProdApps
@@ -200,6 +227,8 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	payload.GitOpsCount = len(gitOps)
 	payload.HostURL = hostURL
 	payload.DevtronGitVersion = devtronVersion.GitCommit
+	payload.CiSetup = ciSetup
+	payload.CdSetup = cdSetup
 
 	//summary := &SummaryDto{
 	//	ProdAppCount:     prodApps,
