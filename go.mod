@@ -1,6 +1,6 @@
 module github.com/devtron-labs/devtron
 
-go 1.18.1
+go 1.18
 
 require (
 	github.com/Azure/azure-storage-blob-go v0.12.0
