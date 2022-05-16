@@ -60,7 +60,8 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		client: client, clusterService: clusterService,
 		K8sUtil: K8sUtil, aCDAuthConfig: aCDAuthConfig,
 		userService: userService, attributeRepo: attributeRepo,
-		PosthogClient: PosthogClient,
+		ssoLoginService: ssoLoginService,
+		PosthogClient:   PosthogClient,
 	}
 
 	watcher.HeartbeatEventForTelemetry()

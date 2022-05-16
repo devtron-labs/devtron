@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
@@ -33,6 +34,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	gitHostRepository repository.GitHostRepository, gitProviderRepository repository.GitProviderRepository,
+	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
@@ -47,14 +49,16 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		gitProviderRepository:         gitProviderRepository,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
-			cron:           cron,
-			logger:         logger,
-			client:         client,
-			clusterService: clusterService,
-			K8sUtil:        K8sUtil,
-			aCDAuthConfig:  aCDAuthConfig,
-			userService:    userService,
-			PosthogClient:  PosthogClient,
+			cron:            cron,
+			logger:          logger,
+			client:          client,
+			clusterService:  clusterService,
+			K8sUtil:         K8sUtil,
+			aCDAuthConfig:   aCDAuthConfig,
+			userService:     userService,
+			attributeRepo:   attributeRepo,
+			ssoLoginService: ssoLoginService,
+			PosthogClient:   PosthogClient,
 		},
 	}
 
