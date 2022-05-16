@@ -609,6 +609,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			AccountName:          impl.cdConfig.AzureAccountName,
 			BlobContainerCiCache: impl.cdConfig.AzureBlobContainerCiCache,
 			AccountKey:           impl.cdConfig.AzureAccountKey,
+			BlobContainerCiLog:   impl.cdConfig.AzureBlobContainerCiLog,
 		}
 	case BLOB_STORAGE_MINIO:
 		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
