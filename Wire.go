@@ -103,6 +103,7 @@ func InitializeApp() (*App, error) {
 	wire.Build(
 		// ----- wireset start
 		sql.PgSqlWireSet,
+		user.SelfRegistrationWireSet,
 		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		AuthWireSet,
