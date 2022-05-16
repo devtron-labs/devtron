@@ -39,6 +39,7 @@ ContainerPort:
 
 ingress:
   enabled: false
+  labels: {}
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
@@ -104,6 +105,8 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
+  annotations: {}
+  labels: {}
 
 server:
   deployment:
