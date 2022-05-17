@@ -79,6 +79,7 @@ type CiPipelineRepository interface {
 	FindCiScriptsByCiPipelineId(ciPipelineId int) ([]*CiPipelineScript, error)
 	SaveCiPipelineScript(ciPipelineScript *CiPipelineScript, tx *pg.Tx) error
 	UpdateCiPipelineScript(script *CiPipelineScript, tx *pg.Tx) error
+	MarkCiPipelineScriptsInactiveByCiPipelineId(ciPipelineId int, tx *pg.Tx) error
 	FindByAppId(appId int) (pipelines []*CiPipeline, err error)
 	//find non deleted pipeline
 	FindById(id int) (pipeline *CiPipeline, err error)
@@ -148,6 +149,18 @@ func (impl CiPipelineRepositoryImpl) UpdateCiPipelineScript(script *CiPipelineSc
 	r, err := tx.Model(script).WherePK().UpdateNotNull()
 	impl.logger.Debugf("total rows saved %d", r.RowsAffected())
 	return err
+}
+
+func (impl CiPipelineRepositoryImpl) MarkCiPipelineScriptsInactiveByCiPipelineId(ciPipelineId int, tx *pg.Tx) error {
+	var script CiPipelineScript
+	_, err := tx.Model(&script).Set("active = ?", false).
+		Where("ci_pipeline_id = ?", ciPipelineId).Update()
+	if err != nil {
+		impl.logger.Errorw("error in marking ciPipelineScript inactive by ciPipelineId", "err", err, "ciPipelineId", ciPipelineId)
+		return err
+
+	}
+	return nil
 }
 
 func (impl CiPipelineRepositoryImpl) FindByAppId(appId int) (pipelines []*CiPipeline, err error) {
