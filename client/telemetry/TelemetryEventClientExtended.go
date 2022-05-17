@@ -3,6 +3,7 @@ package telemetry
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -25,6 +26,9 @@ type TelemetryEventClientImplExtended struct {
 	gitHostRepository             repository.GitHostRepository
 	gitProviderRepository         repository.GitProviderRepository
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
+	appRepository                 app.AppRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
 	*TelemetryEventClientImpl
 }
 
@@ -34,7 +38,8 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
 	gitHostRepository repository.GitHostRepository, gitProviderRepository repository.GitProviderRepository,
-	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
+	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
@@ -48,6 +53,9 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		gitHostRepository:             gitHostRepository,
 		gitProviderRepository:         gitProviderRepository,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
+		appRepository:                 appRepository,
+		cdWorkflowRepository:          cdWorkflowRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
 			cron:            cron,
 			logger:          logger,
@@ -190,6 +198,16 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		return
 	}
 
+	appSetup := false
+	applications, err := impl.appRepository.FindAll()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+	}
+
+	if len(applications) > 0 {
+		appSetup = true
+	}
+
 	ciSetup := false
 	ciPipelines, err := impl.ciPipelineRepository.FindAllPipeline()
 	if err != nil && err != pg.ErrNoRows {
@@ -212,6 +230,20 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		cdSetup = true
 	}
 
+	build := false
+	build, err = impl.ciWorkflowRepository.FetchAllByStatus("Succeeded")
+	if err == nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+
+	deployment := false
+	deployment, err = impl.cdWorkflowRepository.FetchAllByStatus("Succeeded")
+	if err == nil {
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
+	}
+
 	devtronVersion := util.GetDevtronVersion()
 	payload.ProdAppCount = prodApps
 	payload.NonProdAppCount = nonProdApps
@@ -229,6 +261,9 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	payload.DevtronGitVersion = devtronVersion.GitCommit
 	payload.CiSetup = ciSetup
 	payload.CdSetup = cdSetup
+	payload.AppSetup = appSetup
+	payload.Build = build
+	payload.Deployment = deployment
 
 	//summary := &SummaryDto{
 	//	ProdAppCount:     prodApps,
