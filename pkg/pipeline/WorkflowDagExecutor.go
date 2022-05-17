@@ -609,7 +609,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			AccountName:          impl.cdConfig.AzureAccountName,
 			BlobContainerCiCache: impl.cdConfig.AzureBlobContainerCiCache,
 			AccountKey:           impl.cdConfig.AzureAccountKey,
+			BlobContainerCiLog:   impl.cdConfig.AzureBlobContainerCiLog,
 		}
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocationAzure(cdWorkflowConfig, cdWf)
 	case BLOB_STORAGE_MINIO:
 		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
 		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
@@ -621,6 +623,15 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	cdStageWorkflowRequest.DefaultAddressPoolBaseCidr = impl.cdConfig.DefaultAddressPoolBaseCidr
 	cdStageWorkflowRequest.DefaultAddressPoolSize = impl.cdConfig.DefaultAddressPoolSize
 	return cdStageWorkflowRequest, nil
+}
+
+func (impl *WorkflowDagExecutorImpl) buildArtifactLocationAzure(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, savedWf *pipelineConfig.CdWorkflow) string {
+	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
+	if cdArtifactLocationFormat == "" {
+		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
+	}
+	ArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWf.Id, savedWf.Id)
+	return ArtifactLocation
 }
 
 func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string) error {
