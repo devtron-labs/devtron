@@ -6,6 +6,6 @@ jobs:
     steps:
     - uses: actions/checkout@master
     - name: test
-      uses: Anugrahchaturvedi/helm-kubeval-action@master
+      uses: Anugrahchaturvedi/helm-kubeval-action@devtron
       with:
         path: 'scripts/devtron-reference-helm-charts'
