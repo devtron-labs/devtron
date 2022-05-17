@@ -21,6 +21,7 @@
 package main
 
 import (
+	"github.com/devtron-labs/authenticator/middleware"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
@@ -138,8 +139,7 @@ func InitializeApp() (*App, error) {
 		//auth.GetConfig,
 
 		argocdServer.GetConfig,
-		session2.NewSessionServiceClient,
-		wire.Bind(new(session2.ServiceClient), new(*session2.ServiceClientImpl)),
+		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
 		router.NewHelmRouter,

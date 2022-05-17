@@ -33,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	repository5 "github.com/devtron-labs/devtron/client/argocdServer/repository"
-	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -189,9 +188,9 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	sessionManager := middleware.NewSessionManager(settings, dexConfig)
-	sessionServiceClientImpl := session2.NewSessionServiceClient(argoCDSettings)
+	loginService := middleware.NewUserLogin(sessionManager, k8sClient)
 	roleGroupRepositoryImpl := repository2.NewRoleGroupRepositoryImpl(db, sugaredLogger)
-	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl)
+	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, loginService, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl)
 	tokenCache := util2.NewTokenCache(sugaredLogger, acdAuthConfig, userAuthServiceImpl)
 	enforcer := casbin.Create()
 	enforcerImpl := casbin.NewEnforcerImpl(enforcer, sessionManager, sugaredLogger)
