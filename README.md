@@ -35,7 +35,7 @@ Apply Now 👋
 </p>
 <h1></h1>
 
-Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security, cost, debugging, and observability via an intuitive web interface.
+Devtron deeply integrates with products across the lifecycle of microservices,i.e., CI, CD, security debugging, and observability via an intuitive web interface.
 <br>
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
