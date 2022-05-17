@@ -9,3 +9,4 @@ jobs:
       uses: desaintmartin/helm-kubeval-action@master
       with:
         path: 'scripts/devtron-reference-helm-charts'
+        config: 'config_repos'
