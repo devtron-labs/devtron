@@ -9,6 +9,9 @@ metadata:
     app: {{ template ".Chart.Name .name" . }}
     chart: {{ template ".Chart.Name .chart" . }}
     release: {{ .Release.Name }}
+    {{- if .Values.ingress.labels }}
+{{ toYaml .Values.ingress.labels | indent 4 }}
+    {{- end }}
 {{- if .Values.ingress.annotations }}
   annotations:
 {{ toYaml .Values.ingress.annotations | indent 4 }}
