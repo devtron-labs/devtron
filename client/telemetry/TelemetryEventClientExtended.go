@@ -238,7 +238,7 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	}
 
 	deployment := false
-	deployment, err = impl.cdWorkflowRepository.FetchAllByStatus("Succeeded")
+	deployment, err = impl.cdWorkflowRepository.FetchAllByStatus("Healthy")
 	if err == nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
