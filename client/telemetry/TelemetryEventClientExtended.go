@@ -233,15 +233,13 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	build := false
 	build, err = impl.ciWorkflowRepository.FetchAllByStatus("Succeeded")
 	if err == nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		build = true
 	}
 
 	deployment := false
 	deployment, err = impl.cdWorkflowRepository.FetchAllByStatus("Healthy")
 	if err == nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		deployment = true
 	}
 
 	devtronVersion := util.GetDevtronVersion()
