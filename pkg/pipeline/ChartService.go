@@ -916,6 +916,7 @@ type ChartDataInfo struct {
 	ChartVersion    string `json:"chartVersion"`
 	TemporaryFolder string `json:"temporaryFolder"`
 	Description     string `json:"description"`
+	Message         string `json:"message"`
 }
 
 func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
@@ -1343,6 +1344,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		ChartLocation:   "",
 		TemporaryFolder: "",
 		Description:     "",
+		Message:         "",
 	}
 	temporaryChartWorkingDir := filepath.Clean(filepath.Join(refChartDir, dir))
 	err := os.MkdirAll(temporaryChartWorkingDir, os.ModePerm)
@@ -1385,25 +1387,35 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			return chartInfo, err
 		}
 		exists, err := impl.chartRefRepository.CheckIfDataExists(chartName, chartVersion)
+		var errorList error
 		if exists {
 			impl.logger.Errorw("request err, chart name and version exists already in the database")
-			return chartInfo, errors.New("chart name and version exists already in the database")
+			errorList = errors.New("chart name and version exists already in the database")
 		}
 		if err != nil {
 			impl.logger.Errorw("Error in searching the database")
-			return chartInfo, err
+			//return chartInfo, err
+			errorList = errors.Wrap(errorList, err)
 		}
 		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
-		if err != nil {
-			impl.logger.Errorw("error in fetching name and version in Chart yaml", "err", err)
-			return chartInfo, err
-		}
+
 		err = util2.CheckForMissingFiles(currentChartWorkingDir)
 		if err != nil {
 			impl.logger.Errorw("Missing files in the folder", "err", err)
-			return chartInfo, err
+			errorList = errors.Wrap(errorList, err)
+			//return chartInfo, errorList
 		}
+
+		if errorList != nil {
+			return chartInfo, errorList
+		}
+
 		location = chartLocation
+
+		exisitingChart, err := impl.chartRefRepository.FetchChart(chartName)
+		if err == nil {
+			chartInfo.Message = "New Version detected for " + exisitingChart.Name
+		}
 
 		err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, location)))
 		if err != nil {

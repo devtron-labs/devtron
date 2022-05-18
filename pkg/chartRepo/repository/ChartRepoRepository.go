@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"strings"
 )
 
 type Chart struct {
@@ -304,6 +305,7 @@ type ChartRefRepository interface {
 	FindById(id int) (*ChartRef, error)
 	GetAll() ([]*ChartRef, error)
 	CheckIfDataExists(name string, version string) (bool, error)
+	FetchChart(name string) (*ChartRef, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -345,6 +347,15 @@ func (impl ChartRefRepositoryImpl) GetAll() ([]*ChartRef, error) {
 func (impl ChartRefRepositoryImpl) CheckIfDataExists(name string, version string) (bool, error) {
 	repo := &ChartRef{}
 	return impl.dbConnection.Model(repo).
-		Where("name = ?", name).
+		Where("lower(name) = ?", strings.ToLower(name)).
 		Where("version = ? ", version).Exists()
+}
+
+func (impl ChartRefRepositoryImpl) FetchChart(name string) (*ChartRef, error) {
+	repo := &ChartRef{}
+	err := impl.dbConnection.Model(repo).Where("lower(name) = ?", strings.ToLower(name)).Select()
+	if err != nil {
+		return nil, err
+	}
+	return repo, err
 }
