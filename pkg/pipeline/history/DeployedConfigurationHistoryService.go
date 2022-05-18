@@ -11,7 +11,7 @@ import (
 type DeployedConfigurationHistoryService interface {
 	GetDeployedConfigurationByWfrId(pipelineId, wfrId int) ([]*DeploymentConfigurationDto, error)
 	GetDeployedHistoryComponentList(pipelineId, baseConfigId int, historyComponent, historyComponentName string) ([]*DeployedHistoryComponentMetadataDto, error)
-	GetDeployedHistoryComponentDetail(pipelineId, id int, historyComponent, historyComponentName string) (*HistoryDetailDto, error)
+	GetDeployedHistoryComponentDetail(pipelineId, id int, historyComponent, historyComponentName string, userHasAdminAccess bool) (*HistoryDetailDto, error)
 }
 
 type DeployedConfigurationHistoryServiceImpl struct {
@@ -117,7 +117,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedHistoryComponent
 	return historyList, nil
 }
 
-func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedHistoryComponentDetail(pipelineId, id int, historyComponent, historyComponentName string) (*HistoryDetailDto, error) {
+func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedHistoryComponentDetail(pipelineId, id int, historyComponent, historyComponentName string, userHasAdminAccess bool) (*HistoryDetailDto, error) {
 	history := &HistoryDetailDto{}
 	var err error
 	if historyComponent == string(DEPLOYMENT_TEMPLATE_TYPE_HISTORY_COMPONENT) {
@@ -125,9 +125,9 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedHistoryComponent
 	} else if historyComponent == string(PIPELINE_STRATEGY_TYPE_HISTORY_COMPONENT) {
 		history, err = impl.strategyHistoryService.GetHistoryForDeployedStrategyById(id, pipelineId)
 	} else if historyComponent == string(CONFIGMAP_TYPE_HISTORY_COMPONENT) {
-		history, err = impl.configMapHistoryService.GetHistoryForDeployedCMCSById(id, pipelineId, repository.CONFIGMAP_TYPE, historyComponentName)
+		history, err = impl.configMapHistoryService.GetHistoryForDeployedCMCSById(id, pipelineId, repository.CONFIGMAP_TYPE, historyComponentName, userHasAdminAccess)
 	} else if historyComponent == string(SECRET_TYPE_HISTORY_COMPONENT) {
-		history, err = impl.configMapHistoryService.GetHistoryForDeployedCMCSById(id, pipelineId, repository.SECRET_TYPE, historyComponentName)
+		history, err = impl.configMapHistoryService.GetHistoryForDeployedCMCSById(id, pipelineId, repository.SECRET_TYPE, historyComponentName, userHasAdminAccess)
 	} else {
 		return nil, errors.New(fmt.Sprintf("history of %s not supported", historyComponent))
 	}

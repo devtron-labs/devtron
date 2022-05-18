@@ -19,7 +19,7 @@ type ConfigMapHistoryService interface {
 	MergeAppLevelAndEnvLevelConfigs(appLevelConfig *chartConfig.ConfigMapAppModel, envLevelConfig *chartConfig.ConfigMapEnvModel, configType repository.ConfigType, configMapSecretNames []string) (string, error)
 	GetDeploymentDetailsForDeployedCMCSHistory(pipelineId int, configType repository.ConfigType) ([]*ConfigMapAndSecretHistoryDto, error)
 
-	GetHistoryForDeployedCMCSById(id, pipelineId int, configType repository.ConfigType, componentName string) (*HistoryDetailDto, error)
+	GetHistoryForDeployedCMCSById(id, pipelineId int, configType repository.ConfigType, componentName string, userHasAdminAccess bool) (*HistoryDetailDto, error)
 	GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int, configType repository.ConfigType) (history *repository.ConfigmapAndSecretHistory, exists bool, cmCsNames []string, err error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*DeployedHistoryComponentMetadataDto, error)
 }
@@ -397,7 +397,7 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryList(pipelineId, baseC
 	return historyList, nil
 }
 
-func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipelineId int, configType repository.ConfigType, componentName string) (*HistoryDetailDto, error) {
+func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipelineId int, configType repository.ConfigType, componentName string, userHasAdminAccess bool) (*HistoryDetailDto, error) {
 	history, err := impl.configMapHistoryRepository.GetHistoryForDeployedCMCSById(id, pipelineId, configType)
 	if err != nil {
 		impl.logger.Errorw("error in getting histories for cm/cs", "err", err, "id", id, "pipelineId", pipelineId)
@@ -444,6 +444,28 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		},
 	}
 	if configType == repository.SECRET_TYPE {
+		if config.Data != nil {
+			resultMap := make(map[string]string)
+			resultMapFinal := make(map[string]string)
+			err = json.Unmarshal(config.Data, &resultMap)
+			if err != nil {
+				impl.logger.Warnw("unmarshal failed", "error", err)
+			}
+			for key, value := range resultMap {
+				if userHasAdminAccess {
+					resultMapFinal[key] = value
+				} else {
+					//hard-coding values to show them as hidden to user
+					resultMapFinal[key] = "*****"
+				}
+			}
+			resultByte, err := json.Marshal(resultMapFinal)
+			if err != nil {
+				impl.logger.Errorw("error while marshaling request", "err", err)
+				return nil, err
+			}
+			historyDto.CodeEditorValue.Value = string(resultByte)
+		}
 		historyDto.ExternalSecretType = config.ExternalSecretType
 		historyDto.RoleARN = config.RoleARN
 		if config.External {
