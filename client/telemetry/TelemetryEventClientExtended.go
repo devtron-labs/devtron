@@ -116,24 +116,6 @@ type TelemetryEventDto struct {
 	DevtronMode             string `json:"devtronMode,omitempty"`
 }
 
-//type SummaryDto struct {
-//	ProdAppCount            int    `json:"prodAppCount,omitempty"`
-//	NonProdAppCount         int    `json:"nonProdAppCount,omitempty"`
-//	UserCount               int    `json:"userCount,omitempty"`
-//	EnvironmentCount        int    `json:"environmentCount,omitempty"`
-//	ClusterCount            int    `json:"clusterCount,omitempty"`
-//	CiCountPerDay           int    `json:"ciCountPerDay,omitempty"`
-//	CdCountPerDay           int    `json:"cdCountPerDay,omitempty"`
-//	HelmChartCount          int    `json:"helmChartCount,omitempty"`
-//	SecurityScanCountPerDay int    `json:"securityScanCountPerDay,omitempty"`
-//	GitAccountsCount        int    `json:"gitAccountsCount,omitempty"`
-//	GitOpsCount             int    `json:"gitOpsCount,omitempty"`
-//	RegistryCount           int    `json:"registryCount,omitempty"`
-//	HostURL                 bool   `json:"hostURL,omitempty"`
-//	SSOLogin                bool   `json:"ssoLogin,omitempty"`
-//	DevtronVersion          string `json:"devtronVersion,omitempty"`
-//}
-
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	ucid, err := impl.getUCID()
 	if err != nil {
@@ -237,22 +219,6 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	payload.Build = build
 	payload.Deployment = deployment
 
-	//summary := &SummaryDto{
-	//	ProdAppCount:     prodApps,
-	//	NonProdAppCount:  nonProdApps,
-	//	UserCount:        len(users),
-	//	EnvironmentCount: len(environments),
-	//	ClusterCount:     len(clusters),
-	//	CiCountPerDay:    len(ciPipeline),
-	//	CdCountPerDay:    len(cdPipeline),
-	//	GitAccountsCount: len(gitAccounts),
-	//	GitOpsCount:      len(gitOps),
-	//	RegistryCount:    len(containerRegistry),
-	//	HostURL:          hostURL,
-	//	SSOLogin:         ssoSetup,
-	//	DevtronVersion:   devtronVersion.GitCommit,
-	//}
-	//payload.Summary = summary
 	payload.DevtronMode = devtronVersion.ServerMode
 	reqBody, err := json.Marshal(payload)
 	if err != nil {

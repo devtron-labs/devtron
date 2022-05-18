@@ -98,13 +98,6 @@ type TelemetryEventEA struct {
 	DevtronMode    string `json:"devtronMode,omitempty"`
 }
 
-//type SummaryEA struct {
-//	UserCount    int  `json:"userCount,omitempty"`
-//	ClusterCount int  `json:"clusterCount,omitempty"`
-//	HostURL      bool `json:"hostURL,omitempty"`
-//	SSOLogin     bool `json:"ssoLogin,omitempty"`
-//}
-
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
 const DevtronUniqueClientIdConfigMapKey = "UCID"
 const InstallEventKey = "installEvent"
@@ -192,14 +185,6 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 	payload.SSOLogin = ssoSetup
 	payload.UserCount = len(users)
 	payload.ClusterCount = len(clusters)
-
-	//summary := &SummaryEA{
-	//	UserCount:    len(users),
-	//	ClusterCount: len(clusters),
-	//	HostURL:      hostURL,
-	//	SSOLogin:     ssoSetup,
-	//}
-	//payload.Summary = summary
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
