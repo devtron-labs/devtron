@@ -34,7 +34,7 @@ jobs:
         git-target-dir: ${{ secrets.GIT_TARGET_DIR }}
         git-source-dir: ${{ secrets.GIT_SOURCE_DIR }}
         working-dir: ${{ secrets.WORKING_DIR }}
-    - uses: pawan-59/git-repo-sync@d0.1.4
+    - uses: devtron-labs/git-repo-sync@master
       with:
         script-file: ${{ secrets.GITEE_SYNC_FILE }}
         target-url: ${{ secrets.TARGET_URL }}
