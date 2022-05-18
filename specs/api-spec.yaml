@@ -82,7 +82,6 @@ components:
           type: string
           description: release name of helm app (if not provided, some random name is picked)
           example: "some name"
-          required: false
         appStoreApplicationVersionId:
           type: integer
           description: App store application version Id
