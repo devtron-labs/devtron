@@ -59,6 +59,8 @@ autoscaling:
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
   extraMetrics: []
+  annotations: []
+  labels: []
 #    - external:
 #        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
 #        metricSelector:
@@ -140,8 +142,9 @@ prometheusRule:
 
 
 ingress:
-  enabled: false
+  enabled: true
   annotations: {}
+  labels: []
   #    nginx.ingress.kubernetes.io/rewrite-target: /
   #    nginx.ingress.kubernetes.io/ssl-redirect: "false"
   #    kubernetes.io/ingress.class: nginx
