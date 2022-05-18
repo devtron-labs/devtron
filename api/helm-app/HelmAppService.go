@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/api/connector"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
@@ -47,31 +48,34 @@ type HelmAppService interface {
 	GetClusterConf(clusterId int) (*ClusterConfig, error)
 	GetDevtronHelmAppIdentifier() *AppIdentifier
 	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
+	TemplateChart(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (string, error)
 }
 
 type HelmAppServiceImpl struct {
-	logger          *zap.SugaredLogger
-	clusterService  cluster.ClusterService
-	helmAppClient   HelmAppClient
-	pump            connector.Pump
-	enforcerUtil    rbac.EnforcerUtilHelm
-	serverDataStore *serverDataStore.ServerDataStore
-	serverEnvConfig *serverEnvConfig.ServerEnvConfig
+	logger                               *zap.SugaredLogger
+	clusterService                       cluster.ClusterService
+	helmAppClient                        HelmAppClient
+	pump                                 connector.Pump
+	enforcerUtil                         rbac.EnforcerUtilHelm
+	serverDataStore                      *serverDataStore.ServerDataStore
+	serverEnvConfig                      *serverEnvConfig.ServerEnvConfig
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	helmAppClient HelmAppClient,
 	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore,
-	serverEnvConfig *serverEnvConfig.ServerEnvConfig) *HelmAppServiceImpl {
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
-		logger:          Logger,
-		clusterService:  clusterService,
-		helmAppClient:   helmAppClient,
-		pump:            pump,
-		enforcerUtil:    enforcerUtil,
-		serverDataStore: serverDataStore,
-		serverEnvConfig: serverEnvConfig,
+		logger:                               Logger,
+		clusterService:                       clusterService,
+		helmAppClient:                        helmAppClient,
+		pump:                                 pump,
+		enforcerUtil:                         enforcerUtil,
+		serverDataStore:                      serverDataStore,
+		serverEnvConfig:                      serverEnvConfig,
+		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 	}
 }
 
@@ -573,6 +577,24 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ct
 	}
 
 	return response, nil
+}
+
+func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (string, error) {
+	config, err := impl.GetClusterConf(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
+		return "", err
+	}
+
+	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
+
+	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("error in templating chart", "err", err)
+		return "", err
+	}
+
+	return templateChartResponse.GeneratedManifest, nil
 }
 
 type AppIdentifier struct {
