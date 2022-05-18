@@ -5,7 +5,7 @@ info:
 servers:
 - url: /
 paths:
-  /orchestrator/app-store/deployment/application/rollback:
+  /orchestrator/application/rollback:
     put:
       description: Rollback application if the application is installed from the chartStore
       requestBody:
@@ -21,23 +21,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/RollbackReleaseResponse'
           description: application rollback response
-  /orchestrator/application/rollback:
-    put:
-      description: Rollback application if the application is installed externally
-        using helm (external-app)
+  /orchestrator/application/template-chart:
+    post:
+      description: Helm template chart
       requestBody:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RollbackReleaseRequest'
+              $ref: '#/components/schemas/TemplateChartRequest'
         required: true
       responses:
         "200":
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/RollbackReleaseResponse'
-          description: application rollback response
+                $ref: '#/components/schemas/TemplateChartResponse'
+          description: template chart response
 components:
   schemas:
     RollbackReleaseResponse:
@@ -74,4 +73,48 @@ components:
           description: rollback to this version
           example: 10
           type: integer
+      type: object
+    TemplateChartRequest:
+      example:
+        appStoreApplicationVersionId: 10
+        valuesYaml: some values yaml
+        environmentId: 1
+        releaseName: some name
+        namespace: "1"
+        clusterId: 1
+      properties:
+        environmentId:
+          description: environment Id on which helm template would be performed
+          example: 1
+          type: integer
+        clusterId:
+          description: If environmentId is not provided, clusterId should be passed
+          example: 1
+          type: integer
+        namespace:
+          description: If environmentId is not provided, namespace should be passed
+          example: "1"
+          type: string
+        releaseName:
+          description: release name of helm app (if not provided, some random name
+            is picked)
+          example: some name
+          type: string
+        appStoreApplicationVersionId:
+          description: App store application version Id
+          example: 10
+          type: integer
+        valuesYaml:
+          description: Values yaml
+          example: some values yaml
+          type: string
+      type: object
+    TemplateChartResponse:
+      example:
+        manifest: some manifest
+      properties:
+        manifest:
+          description: helm generated manifest
+          example: some manifest
+          type: string
       type: object
