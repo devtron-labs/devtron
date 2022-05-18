@@ -10,24 +10,20 @@
 {{- end }}
 
 3. You can access devtron dashboard with following.
+{{- if $.Values.components.devtron.ingress.enabled }}
 
-{{- if and (eq $.Values.components.devtron.service.type "LoadBalancer") ($.Values.components.devtron.ingress.enabled) }} 
+  {{ printf $.Values.components.devtron.ingress.host }}
+{{- else if eq $.Values.components.devtron.service.type "LoadBalancer" }}
 
-   {{ printf $.Values.components.devtron.ingress.host }}
+  kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+{{- else if eq $.Values.components.devtron.service.type "NodePort" }}
+
+  export PUBLIC_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[2].address}")
+  
+  Your devtron dashboard is available on http://$PUBLIC_IP:{{ .Values.components.devtron.service.nodePort }}
+
+{{- else if eq $.Values.components.devtron.service.type "ClusterIP" }}
+
+  kubectl get svc -n devtroncd devtron-service
 {{- end }}
-{{- if and (eq $.Values.components.devtron.service.type "NodePort") ($.Values.components.devtron.ingress.enabled) }} 
 
-   {{ printf $.Values.components.devtron.ingress.host }}
-{{- end }}
-
-
-{{- if and (eq $.Values.components.devtron.service.type "LoadBalancer") (not $.Values.components.devtron.ingress.enabled ) }}
-
-   kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
-{{- end }}
-{{- if and (eq $.Values.components.devtron.service.type "NodePort") ((not $.Values.components.devtron.ingress.enabled ))}}
-
-   Your devtron dashboard is available on http://PUBLIC_IP:{{ .Values.components.devtron.service.nodePort }}
-
-   kubectl get svc -n devtroncd devtron-service
-{{- end }}
