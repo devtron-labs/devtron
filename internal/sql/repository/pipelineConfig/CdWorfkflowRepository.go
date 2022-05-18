@@ -53,7 +53,7 @@ type CdWorkflowRepository interface {
 	FindLatestCdWorkflowByPipelineIdV2(pipelineIds []int) ([]*CdWorkflow, error)
 	FetchAllCdStagesLatestEntity(pipelineIds []int) ([]*CdWorkflowStatus, error)
 	FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error)
-	FetchAllByStatus(status string) (bool, error)
+	ExistsByStatus(status string) (bool, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -436,7 +436,7 @@ func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntityStatus(wfrIds 
 	return wfrList, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FetchAllByStatus(status string) (bool, error) {
+func (impl *CdWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error) {
 	exists, err := impl.dbConnection.Model(&CdWorkflowRunner{}).
 		Where("status =?", status).
 		Exists()

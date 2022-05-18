@@ -87,7 +87,7 @@ type PipelineRepository interface {
 	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
-	FindAllPipeline() (pipelines []*Pipeline, err error)
+	Exists() (exist bool, err error)
 }
 
 type CiArtifactDTO struct {
@@ -364,7 +364,8 @@ func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndCh
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) FindAllPipeline() (pipelines []*Pipeline, err error) {
-	err = impl.dbConnection.Model(&pipelines).Select()
-	return pipelines, err
+func (impl PipelineRepositoryImpl) Exists() (exist bool, err error) {
+	var pipelines []*Pipeline
+	exist, err = impl.dbConnection.Model(&pipelines).Exists()
+	return exist, err
 }

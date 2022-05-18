@@ -208,39 +208,13 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		appSetup = true
 	}
 
-	ciSetup := false
-	ciPipelines, err := impl.ciPipelineRepository.FindAllPipeline()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
+	ciSetup, err := impl.ciPipelineRepository.Exists()
 
-	if len(ciPipelines) > 0 {
-		ciSetup = true
-	}
+	cdSetup, err := impl.pipelineRepository.Exists()
 
-	cdSetup := false
-	cdPipelines, err := impl.pipelineRepository.FindAllPipeline()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
-	}
+	build, err := impl.ciWorkflowRepository.ExistsByStatus("Succeeded")
 
-	if len(cdPipelines) > 0 {
-		cdSetup = true
-	}
-
-	build := false
-	build, err = impl.ciWorkflowRepository.FetchAllByStatus("Succeeded")
-	if err == nil {
-		build = true
-	}
-
-	deployment := false
-	deployment, err = impl.cdWorkflowRepository.FetchAllByStatus("Healthy")
-	if err == nil {
-		deployment = true
-	}
+	deployment, err := impl.cdWorkflowRepository.ExistsByStatus("Healthy")
 
 	devtronVersion := util.GetDevtronVersion()
 	payload.ProdAppCount = prodApps
