@@ -15,14 +15,19 @@
 
    {{ printf $.Values.components.devtron.ingress.host }}
 {{- end }}
+{{- if and (eq $.Values.components.devtron.service.type "NodePort") ($.Values.components.devtron.ingress.enabled) }} 
+
+   {{ printf $.Values.components.devtron.ingress.host }}
+{{- end }}
+
 
 {{- if and (eq $.Values.components.devtron.service.type "LoadBalancer") (not $.Values.components.devtron.ingress.enabled ) }}
 
    kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
 {{- end }}
-{{- if eq $.Values.components.devtron.service.type "NodePort"}}
+{{- if and (eq $.Values.components.devtron.service.type "NodePort") ((not $.Values.components.devtron.ingress.enabled ))}}
 
-   Your devtron dashboard is available on http://PUBLIC_IP:NodePort
+   Your devtron dashboard is available on http://PUBLIC_IP:{{ .Values.components.devtron.service.nodePort }}
 
    kubectl get svc -n devtroncd devtron-service
 {{- end }}
