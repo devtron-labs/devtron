@@ -37,6 +37,7 @@ type CiWorkflowRepository interface {
 
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
+	ExistsByStatus(status string) (bool, error)
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -215,4 +216,11 @@ func (impl *CiWorkflowRepositoryImpl) FindLastTriggeredWorkflowByArtifactId(ciAr
 		Where("cia.id = ? ", ciArtifactId).
 		Select()
 	return workflow, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error) {
+	exists, err := impl.dbConnection.Model(&CiWorkflow{}).
+		Where("status =?", status).
+		Exists()
+	return exists, err
 }
