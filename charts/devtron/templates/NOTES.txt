@@ -16,22 +16,23 @@
 
 {{- else if eq $.Values.components.devtron.service.type "LoadBalancer" }}
 
-3. You can get url of devtron dashboard by following command
+3. You can get url of devtron dashboard by the following command
 
   kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
 {{- else if eq $.Values.components.devtron.service.type "NodePort" }}
 
-3. You  can get the devtron dashboard by following 
+3. You can get the devtron dashboard by following the steps mentioned below 
 
-   export nodeport=$(kubectl get svc -n devtroncd devtron-service -o jsonpath="{.spec.ports[0].nodePort}")
-   export PUBLIC_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[2].address}")
-
-   Your devtron dashboard is available on http://$PUBLIC_IP:$nodeport/dashboard
+   1. export nodeport=$(kubectl get svc -n devtroncd devtron-service -o jsonpath="{.spec.ports[0].nodePort}")
+   
+   2. Your devtron dashboard is available on   http://PUBLIC_IP:$nodeport/dashboard
+   
+Make sure that your security settings allow incoming connection to your Host machine on the nodeport mentioned. 
  
 
 {{- else if eq $.Values.components.devtron.service.type "ClusterIP" }}
 
-3. You can get the devtron dashboard by following command
+3. You can get the devtron dashboard by the following command
    
    kubectl get svc -n devtroncd devtron-service
    
