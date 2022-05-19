@@ -53,7 +53,7 @@ image:
   pullPolicy: IfNotPresent
 
 autoscaling:
-  enabled: false
+  enabled: true
   MinReplicas: 1
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
