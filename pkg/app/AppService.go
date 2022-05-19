@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
 	"strconv"
 	"strings"
@@ -465,6 +466,27 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		impl.logger.Errorf("invalid req", "err", err, "req", overrideRequest)
 		return 0, err
 	}
+
+	// TODO ADDED - gitops-operation-realign
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
+	if err != nil && pg.ErrNoRows != err {
+		return 0, err
+	}
+	chartMetaData := &chart2.Metadata{
+		Name:    pipeline.App.AppName,
+		Version: chart.ChartVersion,
+	}
+	chartDir, _, err := impl.chartTemplateService.CreateChartOptional(chartMetaData, chart.ReferenceTemplate)
+	if err != nil {
+		return 0, err
+	}
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
+	chartGitAttr, err := impl.chartTemplateService.CloneModifyAndCommitPush(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, chartDir, chart.GitRepoUrl, 1)
+	if err != nil {
+		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
+		return 0, err
+	}
+
 	envOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorf("invalid state", "err", err, "req", overrideRequest)

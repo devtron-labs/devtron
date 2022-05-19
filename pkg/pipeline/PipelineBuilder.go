@@ -1317,12 +1317,12 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	*/
 
 	// TODO REMOVED- gitops-operation-realign
-	/*
+
 			//new pipeline
 			impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
 			name, err := impl.createArgoPipelineIfRequired(ctx, app, pipeline, envOverride)
 		impl.logger.Debugw("argocd application created", "name", name)
-	*/
+
 
 	// Get pipeline override based on Deployment strategy
 	//TODO: mark as created in our db

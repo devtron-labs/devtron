@@ -59,6 +59,7 @@ type ChartTemplateService interface {
 	CreateGitRepositoryForDevtronApps(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
 	CloneModifyAndCommitPush(gitOpsRepoName, baseTemplateName, version, tmpChartLocation string, repoUrl string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
 	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error
+	CreateChartOptional(chartMetaData *chart.Metadata, refChartLocation string) (string, *ChartGitAttribute, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -182,6 +183,33 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 	values.ImageDescriptorTemplate = string(descriptor)
 	chartGitAttr := &ChartGitAttribute{}
 	return values, chartGitAttr, nil
+}
+
+func (impl ChartTemplateServiceImpl) CreateChartOptional(chartMetaData *chart.Metadata, refChartLocation string) (string, *ChartGitAttribute, error) {
+	chartMetaData.ApiVersion = "v1" // ensure always v1
+	dir := impl.GetDir()
+	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
+	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", chartDir)
+	err := os.MkdirAll(chartDir, os.ModePerm) //hack for concurrency handling
+	if err != nil {
+		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
+		return "", nil, err
+	}
+
+	defer impl.CleanDir(chartDir)
+	err = dirCopy.Copy(refChartLocation, chartDir)
+
+	if err != nil {
+		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
+		return "", nil, err
+	}
+	_, _, err = impl.packageChart(chartDir, chartMetaData)
+	if err != nil {
+		impl.logger.Errorw("error in creating archive", "err", err)
+		return "", nil, err
+	}
+	chartGitAttr := &ChartGitAttribute{}
+	return chartDir, chartGitAttr, nil
 }
 
 type ChartGitAttribute struct {
