@@ -1394,15 +1394,14 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		}
 		if err != nil {
 			impl.logger.Errorw("Error in searching the database")
-			//return chartInfo, err
-			errorList = errors.Wrap(errorList, err)
+			return chartInfo, err
 		}
 		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
 
 		err = util2.CheckForMissingFiles(currentChartWorkingDir)
 		if err != nil {
 			impl.logger.Errorw("Missing files in the folder", "err", err)
-			errorList = errors.Wrap(errorList, err)
+			errorList = errors.New(errorList.Error() + ", " + err.Error())
 			//return chartInfo, errorList
 		}
 
