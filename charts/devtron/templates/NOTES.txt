@@ -36,6 +36,9 @@ Make sure that your security settings allow incoming connection to your Host mac
    
    kubectl get svc -n devtroncd devtron-service
    
-   You can port-forward devtron-service in namespace devtroncd to access devtron dashboard.
+   You can port-forward devtron-service in namespace devtroncd to access devtron dashboard. You can use the following command to port forward.
+   
+   kubectl -n devtroncd port-forward svc/devtron-service 8000:80
+   The dashboard should be accesible on http://localhost:8000/
 {{- end }}
 
