@@ -53,8 +53,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 var DefaultPipelineValue = []byte(`{"ConfigMaps":{"enabled":false},"ConfigSecrets":{"enabled":false},"ContainerPort":[],"EnvVariables":[],"GracePeriod":30,"LivenessProbe":{},"MaxSurge":1,"MaxUnavailable":0,"MinReadySeconds":60,"ReadinessProbe":{},"Spec":{"Affinity":{"Values":"nodes","key":""}},"app":"13","appMetrics":false,"args":{},"autoscaling":{},"command":{"enabled":false,"value":[]},"containers":[],"dbMigrationConfig":{"enabled":false},"deployment":{"strategy":{"rolling":{"maxSurge":"25%","maxUnavailable":1}}},"deploymentType":"ROLLING","env":"1","envoyproxy":{"configMapName":"","image":"","resources":{"limits":{"cpu":"50m","memory":"50Mi"},"requests":{"cpu":"50m","memory":"50Mi"}}},"image":{"pullPolicy":"IfNotPresent"},"ingress":{},"ingressInternal":{"annotations":{},"enabled":false,"host":"","path":"","tls":[]},"initContainers":[],"pauseForSecondsBeforeSwitchActive":30,"pipelineName":"","prometheus":{"release":"monitoring"},"rawYaml":[],"releaseVersion":"1","replicaCount":1,"resources":{"limits":{"cpu":"0.05","memory":"50Mi"},"requests":{"cpu":"0.01","memory":"10Mi"}},"secret":{"data":{},"enabled":false},"server":{"deployment":{"image":"","image_tag":""}},"service":{"annotations":{},"type":"ClusterIP"},"servicemonitor":{"additionalLabels":{}},"tolerations":[],"volumeMounts":[],"volumes":[],"waitForSecondsBeforeScalingDown":30}`)
@@ -138,6 +136,7 @@ type PipelineBuilderImpl struct {
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 	chartTemplateService             util.ChartTemplateService
+	chartService                     ChartService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -170,7 +169,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	chartTemplateService util.ChartTemplateService) *PipelineBuilderImpl {
+	chartTemplateService util.ChartTemplateService, chartService ChartService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -205,6 +204,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
 		chartTemplateService:             chartTemplateService,
+		chartService:                     chartService,
 	}
 }
 
@@ -1049,22 +1049,49 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 		}
 	}
 
-	// validation added for pipeline from ACD
-	for _, pipeline := range cdPipelines.Pipelines {
-		envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-		if err != nil {
-			return nil, err
-		}
-		argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
-		_, err = impl.application.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName})
-		appStatus, _ := status.FromError(err)
-		//TODO: check deletionTimeStamp to confirm its being deleted
-		if appStatus.Code() == codes.OK {
-			impl.logger.Infow("argo app already exists", "app", argoAppName, "pipeline", pipeline.Name)
-			return nil, fmt.Errorf("argo app already exists, or delete in progress for previous pipeline")
-		}
+	// TODO ADDED - gitops-operation-realign
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+	if err != nil && pg.ErrNoRows != err {
+		return nil, err
+	}
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
+	chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForDevtronApps(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, 1)
+	if err != nil {
+		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
+		return nil, err
 	}
 
+	chart.GitRepoUrl = chartGitAttr.RepoUrl
+	chart.ChartLocation = chartGitAttr.ChartLocation
+	chart.UpdatedOn = time.Now()
+	chart.UpdatedBy = 1
+	err = impl.chartRepository.Update(chart)
+	if err != nil {
+		return nil, err
+	}
+	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	// TODO REMOVED- gitops-operation-realign
+	// validation added for pipeline from ACD
+	/*
+		for _, pipeline := range cdPipelines.Pipelines {
+			envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+			if err != nil {
+				return nil, err
+			}
+			argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
+			_, err = impl.application.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName})
+			appStatus, _ := status.FromError(err)
+			//TODO: check deletionTimeStamp to confirm its being deleted
+			if appStatus.Code() == codes.OK {
+				impl.logger.Infow("argo app already exists", "app", argoAppName, "pipeline", pipeline.Name)
+				return nil, fmt.Errorf("argo app already exists, or delete in progress for previous pipeline")
+			}
+		}
+	*/
 	for _, pipeline := range cdPipelines.Pipelines {
 		id, err := impl.createCdPipeline(ctx, app, pipeline, cdPipelines.UserId)
 		if err != nil {
@@ -1255,45 +1282,47 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	if err != nil {
 		return 0, err
 	}
-
-	chartRepoName := impl.appService.GetChartRepoName(chart.GitRepoUrl)
-	//getting user name & emailId for commit author data
-	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(userId)
-	chartGitAttr := &util.ChartConfig{
-		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
-		FileContent:    string(DefaultPipelineValue),
-		ChartName:      chart.ChartName,
-		ChartLocation:  chart.ChartLocation,
-		ChartRepoName:  chartRepoName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
-		UserEmailId:    userEmailId,
-		UserName:       userName,
-	}
-	//FIXME: why only bitbucket?
-	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
+	// TODO REMOVED - gitops-operation-realign
+	/*
+		chartRepoName := impl.appService.GetChartRepoName(chart.GitRepoUrl)
+		//getting user name & emailId for commit author data
+		userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(userId)
+		chartGitAttr := &util.ChartConfig{
+			FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
+			FileContent:    string(DefaultPipelineValue),
+			ChartName:      chart.ChartName,
+			ChartLocation:  chart.ChartLocation,
+			ChartRepoName:  chartRepoName,
+			ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
+			UserEmailId:    userEmailId,
+			UserName:       userName,
+		}
+		//FIXME: why only bitbucket?
+		gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+		if err != nil {
+			if err == pg.ErrNoRows {
+				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+			} else {
+				impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
+				return 0, err
+			}
+		}
+		//TODO: other providers dont need this workspaceId
+		//FIXME: change method signature
+		_, err = impl.GitFactory.Client.CommitValues(chartGitAttr, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+		if err != nil {
+			impl.logger.Errorw("error in git commit", "err", err)
 			return 0, err
 		}
-	}
-	//TODO: other providers dont need this workspaceId
-	//FIXME: change method signature
-	_, err = impl.GitFactory.Client.CommitValues(chartGitAttr, gitOpsConfigBitbucket.BitBucketWorkspaceId)
-	if err != nil {
-		impl.logger.Errorw("error in git commit", "err", err)
-		return 0, err
-	}
+	*/
 
-	//new pipeline
-	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
-	name, err := impl.createArgoPipelineIfRequired(ctx, app, pipeline, envOverride)
-	//if err != nil {
-	//	return 0, err
-	//}
-	impl.logger.Debugw("argocd application created", "name", name)
+	// TODO REMOVED- gitops-operation-realign
+	/*
+			//new pipeline
+			impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
+			name, err := impl.createArgoPipelineIfRequired(ctx, app, pipeline, envOverride)
+		impl.logger.Debugw("argocd application created", "name", name)
+	*/
 
 	// Get pipeline override based on Deployment strategy
 	//TODO: mark as created in our db

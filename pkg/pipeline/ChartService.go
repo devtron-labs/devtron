@@ -135,6 +135,7 @@ type ChartService interface {
 	GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
+	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -363,10 +364,11 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	}
 	override = dst.Bytes()
 
-	err = impl.registerInArgo(chartGitAttr, ctx)
+	// TODO REMOVED - gitops-operation-realign
+	/*err = impl.registerInArgo(chartGitAttr, ctx)
 	if err != nil {
 		return nil, err
-	}
+	}*/
 
 	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
@@ -495,10 +497,11 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	}
 	override = dst.Bytes()
 
-	err = impl.registerInArgo(chartGitAttr, ctx)
+	// TODO - gitops-operation-realign
+	/*err = impl.registerInArgo(chartGitAttr, ctx)
 	if err != nil {
 		return nil, err
-	}
+	}*/
 
 	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
@@ -546,7 +549,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	return chartVal, err
 }
 
-func (impl ChartServiceImpl) registerInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
+func (impl ChartServiceImpl) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
 	repo := &v1alpha1.Repository{
 		Repo: chartGitAttribute.RepoUrl,
 	}

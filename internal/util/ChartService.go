@@ -18,7 +18,11 @@
 package util
 
 import (
+	"context"
 	"fmt"
+	repository3 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	repository4 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
@@ -52,6 +56,9 @@ type ChartTemplateService interface {
 	GetUserEmailIdAndNameForGitOpsCommit(userId int32) (emailId, name string)
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
+	CreateGitRepositoryForDevtronApps(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
+	CloneModifyAndCommitPush(gitOpsRepoName, baseTemplateName, version, tmpChartLocation string, repoUrl string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
+	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -62,6 +69,7 @@ type ChartTemplateServiceImpl struct {
 	globalEnvVariables     *util.GlobalEnvVariables
 	gitOpsConfigRepository repository.GitOpsConfigRepository
 	userRepository         repository2.UserRepository
+	repositoryService      repository4.ServiceClient
 }
 
 type ChartValues struct {
@@ -78,7 +86,7 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 	client *http.Client,
 	gitFactory *GitFactory, globalEnvVariables *util.GlobalEnvVariables,
 	gitOpsConfigRepository repository.GitOpsConfigRepository,
-	userRepository repository2.UserRepository) *ChartTemplateServiceImpl {
+	userRepository repository2.UserRepository, repositoryService repository4.ServiceClient) *ChartTemplateServiceImpl {
 	return &ChartTemplateServiceImpl{
 		randSource:             rand.NewSource(time.Now().UnixNano()),
 		logger:                 logger,
@@ -88,7 +96,19 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 		globalEnvVariables:     globalEnvVariables,
 		gitOpsConfigRepository: gitOpsConfigRepository,
 		userRepository:         userRepository,
+		repositoryService:      repositoryService,
 	}
+}
+func (impl ChartTemplateServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error {
+	repo := &v1alpha1.Repository{
+		Repo: chartGitAttribute.RepoUrl,
+	}
+	repo, err := impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: repo, Upsert: true})
+	if err != nil {
+		impl.logger.Errorw("error in creating argo Repository ", "err", err)
+	}
+	impl.logger.Infow("repo registered in argo", "name", chartGitAttribute.RepoUrl)
+	return err
 }
 
 func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, error) {
@@ -145,18 +165,22 @@ func (impl ChartTemplateServiceImpl) CreateChart(chartMetaData *chart.Metadata, 
 		return nil, nil, err
 	}
 	values.Values = valuesYaml
-	gitOpsRepoName := impl.GetGitOpsRepoName(chartMetaData.Name)
-	chartGitAttr, err := impl.createAndPushToGit(gitOpsRepoName, templateName, chartMetaData.Version, chartDir, userId)
-	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
-		return nil, nil, err
-	}
+	// TODO REMOVED - gitops-operation-realign
+	/*
+		gitOpsRepoName := impl.GetGitOpsRepoName(chartMetaData.Name)
+		chartGitAttr, err := impl.createAndPushToGit(gitOpsRepoName, templateName, chartMetaData.Version, chartDir, userId)
+		if err != nil {
+			impl.logger.Errorw("error in pushing chart to git ", "path", archivePath, "err", err)
+			return nil, nil, err
+		}
+	*/
 	descriptor, err := ioutil.ReadFile(filepath.Clean(filepath.Join(chartDir, ".image_descriptor_template.json")))
 	if err != nil {
 		impl.logger.Errorw("error in reading descriptor", "path", chartDir, "err", err)
 		return nil, nil, err
 	}
 	values.ImageDescriptorTemplate = string(descriptor)
+	chartGitAttr := &ChartGitAttribute{}
 	return values, chartGitAttr, nil
 }
 
@@ -164,7 +188,7 @@ type ChartGitAttribute struct {
 	RepoUrl, ChartLocation string
 }
 
-func (impl ChartTemplateServiceImpl) createAndPushToGit(gitOpsRepoName, baseTemplateName, version, tmpChartLocation string, userId int32) (chartGitAttribute *ChartGitAttribute, err error) {
+func (impl ChartTemplateServiceImpl) CreateGitRepositoryForDevtronApps(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error) {
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	gitOpsRepoName = space.ReplaceAllString(gitOpsRepoName, "-")
@@ -182,14 +206,16 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(gitOpsRepoName, baseTemp
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitOpsRepoName, fmt.Sprintf("helm chart for "+gitOpsRepoName), gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey, userName, userEmailId)
-
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
 			return nil, err
 		}
 	}
+	return &ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join(baseTemplateName, version)}, nil
+}
 
+func (impl ChartTemplateServiceImpl) CloneModifyAndCommitPush(gitOpsRepoName, baseTemplateName, version, tmpChartLocation string, repoUrl string, userId int32) (chartGitAttribute *ChartGitAttribute, err error) {
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.GetDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
@@ -216,6 +242,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGit(gitOpsRepoName, baseTemp
 		impl.logger.Errorw("error copying dir", "err", err)
 		return nil, nil
 	}
+	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing git", "err", err)
