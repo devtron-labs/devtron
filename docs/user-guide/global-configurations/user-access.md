@@ -179,7 +179,7 @@ Click on the checkbox of `Create`, if you want the users to create, view, edit, 
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/chart+group+permission_create_3.JPG)
 
-If you want the user to only edit the chart groups, check `Specific chart group` from `Edit` drop-down. By doing this, one more drop-down will come up on the screen from which you can select the chart group for which you want to allow edit permission to the user.
+o permit a user to only edit the chart groups, check Specific chart group from Edit drop-down. In the following field, select the chart group for which you want to grant the user edit permission.
 
 Go to `Edit` drop-down, if you want to `allow` or `deny` users to edit the chart groups.
 
