@@ -892,9 +892,11 @@ func (impl ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId i
 }
 
 type chartRef struct {
-	Id      int    `json:"id"`
-	Version string `json:"version"`
-	Name    string `json:"name"`
+	Id           int    `json:"id"`
+	Version      string `json:"version"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	UserUploaded bool   `json:"userUploaded"`
 }
 
 type chartRefResponse struct {
@@ -928,7 +930,7 @@ func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 	}
 
 	for _, result := range results {
-		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version})
+		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Description: result.ChartDescription, UserUploaded: result.UserUploaded})
 	}
 
 	return chartRefs, nil

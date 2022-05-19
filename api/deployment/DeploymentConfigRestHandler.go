@@ -23,6 +23,7 @@ import (
 type DeploymentConfigRestHandler interface {
 	CreateChartFromFile(w http.ResponseWriter, r *http.Request)
 	SaveChart(w http.ResponseWriter, r *http.Request)
+	GetUploadedCharts(w http.ResponseWriter, r *http.Request)
 }
 
 type DeploymentConfigRestHandlerImpl struct {
@@ -199,4 +200,28 @@ func (handler *DeploymentConfigRestHandlerImpl) SaveChart(w http.ResponseWriter,
 	common.WriteJsonResp(w, err, "Processed successfully", http.StatusOK)
 	return
 
+}
+
+func (handler *DeploymentConfigRestHandlerImpl) GetUploadedCharts(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	charts, err := handler.chartRefRepository.FetchChartsGroupByName(true)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, charts, http.StatusOK)
+	return
 }

@@ -288,15 +288,23 @@ func (impl ChartRepoRepositoryImpl) MarkChartRepoDeleted(chartRepo *ChartRepo, t
 // ------------------------ CHART REF REPOSITORY ---------------
 
 type ChartRef struct {
-	tableName struct{} `sql:"chart_ref" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	Location  string   `sql:"location"`
-	Version   string   `sql:"version"`
-	Active    bool     `sql:"active,notnull"`
-	Default   bool     `sql:"is_default,notnull"`
-	Name      string   `sql:"name"`
-	ChartData []byte   `sql:"chart_data"`
+	tableName        struct{} `sql:"chart_ref" pg:",discard_unknown_columns"`
+	Id               int      `sql:"id,pk"`
+	Location         string   `sql:"location"`
+	Version          string   `sql:"version"`
+	Active           bool     `sql:"active,notnull"`
+	Default          bool     `sql:"is_default,notnull"`
+	Name             string   `sql:"name"`
+	ChartData        []byte   `sql:"chart_data"`
+	ChartDescription string   `sql:"chart_description"`
+	UserUploaded     bool     `sql:"user_uploaded,notnull"`
 	sql.AuditLog
+}
+
+type ChartDto struct {
+	Name             string `sql:"name"`
+	ChartDescription string `sql:"chart_description"`
+	Count            int    `sql:"count"`
 }
 
 type ChartRefRepository interface {
@@ -306,6 +314,7 @@ type ChartRefRepository interface {
 	GetAll() ([]*ChartRef, error)
 	CheckIfDataExists(name string, version string) (bool, error)
 	FetchChart(name string) (*ChartRef, error)
+	FetchChartsGroupByName(userUploaded bool) ([]*ChartDto, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -356,6 +365,15 @@ func (impl ChartRefRepositoryImpl) FetchChart(name string) (*ChartRef, error) {
 	err := impl.dbConnection.Model(repo).Where("lower(name) = ?", strings.ToLower(name)).Select()
 	if err != nil {
 		return nil, err
+	}
+	return repo, err
+}
+
+func (impl ChartRefRepositoryImpl) FetchChartsGroupByName(userUploaded bool) ([]*ChartDto, error) {
+	var repo []*ChartDto
+	_, err := impl.dbConnection.Query(&repo, "Select name, chart_description, Count(*) from chart_ref Where user_uploaded = 1 Group By name;", userUploaded)
+	if err != nil {
+		return repo, err
 	}
 	return repo, err
 }
