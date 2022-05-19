@@ -440,31 +440,32 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		FilePermission: config.FilePermission,
 		CodeEditorValue: &HistoryDetailConfig{
 			DisplayName: "Data",
-			Value:       string(config.Data),
 		},
 	}
 	if configType == repository.SECRET_TYPE {
 		if config.Data != nil {
-			resultMap := make(map[string]string)
-			resultMapFinal := make(map[string]string)
-			err = json.Unmarshal(config.Data, &resultMap)
-			if err != nil {
-				impl.logger.Warnw("unmarshal failed", "error", err)
-			}
-			for key, value := range resultMap {
-				if userHasAdminAccess {
-					resultMapFinal[key] = value
-				} else {
+			if userHasAdminAccess {
+				//sending keys too
+				historyDto.CodeEditorValue.Value = string(config.Data)
+			} else {
+				//removing keys and sending
+				resultMap := make(map[string]string)
+				resultMapFinal := make(map[string]string)
+				err = json.Unmarshal(config.Data, &resultMap)
+				if err != nil {
+					impl.logger.Warnw("unmarshal failed", "error", err)
+				}
+				for key, _ := range resultMap {
 					//hard-coding values to show them as hidden to user
 					resultMapFinal[key] = "*****"
 				}
+				resultByte, err := json.Marshal(resultMapFinal)
+				if err != nil {
+					impl.logger.Errorw("error while marshaling request", "err", err)
+					return nil, err
+				}
+				historyDto.CodeEditorValue.Value = string(resultByte)
 			}
-			resultByte, err := json.Marshal(resultMapFinal)
-			if err != nil {
-				impl.logger.Errorw("error while marshaling request", "err", err)
-				return nil, err
-			}
-			historyDto.CodeEditorValue.Value = string(resultByte)
 		}
 		historyDto.ExternalSecretType = config.ExternalSecretType
 		historyDto.RoleARN = config.RoleARN
