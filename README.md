@@ -112,7 +112,7 @@ Please refer to the document on how to [install Devtron with CI/CD](./docs/setup
 
 #### Installation status
 
-The above install commands for CI/CD integration start Devtron-operator, which takes about 20 minutes to spin up all of the Devtron microservices one by one. You may want to check the status of the installation with the following command:
+The above install command for CI/CD integration starts Devtron-operator, which takes about 20 minutes to spin up all of the Devtron microservices one by one. You can check the status of the installation with the following command:
 
 ```bash
 kubectl -n devtroncd get installers installer-devtron \
