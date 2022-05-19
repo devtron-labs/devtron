@@ -25,7 +25,7 @@
 
    1. export nodeport=$(kubectl get svc -n devtroncd devtron-service -o jsonpath="{.spec.ports[0].nodePort}")
    
-   2. Your devtron dashboard is available on   http://PUBLIC_IP:$nodeport/dashboard
+   2. Your devtron dashboard is available on   http://HOST_IP:$nodeport/dashboard
    
 Make sure that your security settings allow incoming connection to your Host machine on the nodeport mentioned. 
  
