@@ -440,14 +440,12 @@ func (impl ConfigMapHistoryServiceImpl) GetHistoryForDeployedCMCSById(id, pipeli
 		FilePermission: config.FilePermission,
 		CodeEditorValue: &HistoryDetailConfig{
 			DisplayName: "Data",
+			Value:       string(config.Data),
 		},
 	}
 	if configType == repository.SECRET_TYPE {
 		if config.Data != nil {
-			if userHasAdminAccess {
-				//sending keys too
-				historyDto.CodeEditorValue.Value = string(config.Data)
-			} else {
+			if !userHasAdminAccess {
 				//removing keys and sending
 				resultMap := make(map[string]string)
 				resultMapFinal := make(map[string]string)
