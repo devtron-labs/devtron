@@ -9,21 +9,32 @@
    kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
 {{- end }}
 
-3. You can access devtron dashboard with following.
+
 {{- if $.Values.components.devtron.ingress.enabled }}
 
-  {{ printf $.Values.components.devtron.ingress.host }}
+3. Your devtron dashboard will be available for http on http://{{ .Values.components.devtron.ingress.host }}/dashboard or for https on https://{{ .Values.components.devtron.ingress.host }}/dashboard
+
 {{- else if eq $.Values.components.devtron.service.type "LoadBalancer" }}
+
+3. You can get url of devtron dashboard by following command
 
   kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
 {{- else if eq $.Values.components.devtron.service.type "NodePort" }}
 
-  export PUBLIC_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[2].address}")
-  
-  Your devtron dashboard is available on http://$PUBLIC_IP:{{ .Values.components.devtron.service.nodePort }}
+3. You  can get the devtron dashboard by following 
+
+   export nodeport=$(kubectl get svc -n devtroncd devtron-service -o jsonpath="{.spec.ports[0].nodePort}")
+   export PUBLIC_IP=$(kubectl get nodes -o jsonpath="{.items[0].status.addresses[2].address}")
+
+   Your devtron dashboard is available on http://$PUBLIC_IP:$nodeport/dashboard
+ 
 
 {{- else if eq $.Values.components.devtron.service.type "ClusterIP" }}
 
-  kubectl get svc -n devtroncd devtron-service
+3. You can get the devtron dashboard by following command
+   
+   kubectl get svc -n devtroncd devtron-service
+   
+   You can port-forward devtron-service in namespace devtroncd to access devtron dashboard.
 {{- end }}
 
