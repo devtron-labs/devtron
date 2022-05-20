@@ -32,4 +32,6 @@ func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
 
 	helmRouter.Path("/delete").Queries("appId", "{appId}").
 		HandlerFunc(impl.helmAppRestHandler.DeleteApplication).Methods("DELETE")
+
+	helmRouter.Path("/template-chart").HandlerFunc(impl.helmAppRestHandler.TemplateChart).Methods("POST")
 }
