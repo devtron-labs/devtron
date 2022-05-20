@@ -469,16 +469,23 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	}
 
 	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
-
 	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
-
+	chartValues, _, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
 	if err != nil {
 		return nil, err
+	}
+	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
+	if err != nil && pg.ErrNoRows != err {
+		return nil, err
+	}
+	chartLocation := filepath.Join(templateName, version)
+	gitRepoUrl := ""
+	if currentLatestChart.Id > 0 {
+		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
 	override, err := templateRequest.ValuesOverride.MarshalJSON()
 	if err != nil {
@@ -520,8 +527,8 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		ChartVersion:            chartMeta.Version,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
-		ChartLocation:           chartGitAttr.ChartLocation,
-		GitRepoUrl:              chartGitAttr.RepoUrl,
+		ChartLocation:           chartLocation,
+		GitRepoUrl:              gitRepoUrl,
 		ReferenceTemplate:       templateName,
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  false,
