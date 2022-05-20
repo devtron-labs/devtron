@@ -94,6 +94,7 @@ type CiPipelineRepository interface {
 	FetchCiPipelinesForDG(parentId int, childCiPipelineIds []int) (*CiPipeline, int, error)
 	FinDByParentCiPipelineAndAppId(parentCiPipeline int, appIds []int) ([]*CiPipeline, error)
 	FindAllPipelineInLast24Hour() (pipelines []*CiPipeline, err error)
+	Exists() (exist bool, err error)
 }
 type CiPipelineRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -320,4 +321,10 @@ func (impl CiPipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []
 		Where("created_on > ?", time.Now().AddDate(0, 0, -1)).
 		Select()
 	return pipelines, err
+}
+
+func (impl CiPipelineRepositoryImpl) Exists() (exist bool, err error) {
+	var pipelines []*CiPipeline
+	exist, err = impl.dbConnection.Model(&pipelines).Exists()
+	return exist, err
 }
