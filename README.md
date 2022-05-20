@@ -87,15 +87,6 @@ Devtron is designed to be modular, and its functionality can be easily extended 
 
 Before you begin, you must create a [Kubernetes cluster](https://kubernetes.io/docs/tutorials/kubernetes-basics/create-cluster/) (preferably K8s 1.16 or higher) and install [Helm](https://helm.sh/docs/intro/install/).
 
-### Install Devtron
-
-```bash
-helm repo add devtron https://helm.devtron.ai
-
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
-
-```
-
 ### Install Devtron with CI/CD integration
 
 Run the following command to install the latest version of Devtron along with the CI/CD module:
@@ -123,6 +114,15 @@ The command executes with one of the following output messages, indicating the s
 
 * **Downloaded**: The installer has downloaded all the manifests, and installation is in progress.
 * **Applied**: The installer has successfully applied all the manifests, and the installation is complete.
+
+### Install Devtron
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
+
+```
 
 ### Devtron Dashboard
 
