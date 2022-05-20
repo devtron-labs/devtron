@@ -1,5 +1,7 @@
 # Install Devtron
 
+This page helps you to install Devtron without any integrations. Integrations can be added later using [Devtron Stack Manager](./../../user-guide/stack-manager.md).
+
 ## Before you begin
 
 Install [Helm](https://helm.sh/docs/intro/install/) if you haven't done that already!

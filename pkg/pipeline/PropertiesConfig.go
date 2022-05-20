@@ -702,6 +702,9 @@ func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest
 			return nil, err
 		}
 	}
+	//updating audit log details of chart as history service uses it
+	currentChart.UpdatedOn = time.Now()
+	currentChart.UpdatedBy = appMetricRequest.UserId
 	//creating history entry
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled, 0)
 	if err != nil {

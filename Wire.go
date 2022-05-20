@@ -688,6 +688,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history3.ConfigMapHistoryService), new(*history3.ConfigMapHistoryServiceImpl)),
 		history3.NewPipelineStrategyHistoryServiceImpl,
 		wire.Bind(new(history3.PipelineStrategyHistoryService), new(*history3.PipelineStrategyHistoryServiceImpl)),
+
+		history3.NewDeployedConfigurationHistoryServiceImpl,
+		wire.Bind(new(history3.DeployedConfigurationHistoryService), new(*history3.DeployedConfigurationHistoryServiceImpl)),
 		//history ends
 
 		//plugin starts

@@ -101,7 +101,7 @@ type AppServiceImpl struct {
 }
 
 type AppService interface {
-	TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time) (id int, err error)
+	TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32) (id int, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
 	UpdateApplicationStatusAndCheckIsHealthy(application v1alpha1.Application) (bool, error)
 	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId int, pipeline *pipelineConfig.Pipeline, async bool, triggeredAt time.Time) error
@@ -365,8 +365,8 @@ func (impl AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, ar
 		impl.logger.Errorw("error in creating acd synch context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 		return err
 	}
-
-	id, err := impl.TriggerRelease(request, ctx, triggeredAt)
+	//setting deployedBy as 1(system user) since case of auto trigger
+	id, err := impl.TriggerRelease(request, ctx, triggeredAt, 1)
 	if err != nil {
 		impl.logger.Errorw("error in auto  cd pipeline trigger", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 	} else {
@@ -456,7 +456,7 @@ func (impl AppServiceImpl) getDbMigrationOverride(overrideRequest *bean.ValuesOv
 	return confByte, nil
 }
 
-func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time) (id int, err error) {
+func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32) (id int, err error) {
 	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 	}
@@ -583,7 +583,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		configMapJson = nil
 	}
 
-	releaseId, pipelineOverrideId, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, strategy, ctx, triggeredAt)
+	releaseId, pipelineOverrideId, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, strategy, ctx, triggeredAt, deployedBy)
 	if releaseId != 0 {
 		flag, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
 		if err != nil {
@@ -1055,7 +1055,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	dbMigrationOverride []byte,
 	artifact *repository.CiArtifact,
 	pipeline *pipelineConfig.Pipeline, configMapJson []byte, strategy *chartConfig.PipelineStrategy, ctx context.Context,
-	triggeredAt time.Time) (releaseId int, overrideId int, err error) {
+	triggeredAt time.Time, deployedBy int32) (releaseId int, overrideId int, err error) {
 
 	//register release , obtain release id TODO: populate releaseId to template
 	override, err := impl.savePipelineOverride(overrideRequest, envOverride.Id, triggeredAt)
@@ -1144,13 +1144,13 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		PipelineId:             overrideRequest.PipelineId,
 		CiArtifactId:           overrideRequest.CiArtifactId,
 		PipelineMergedValues:   string(merged),
-		AuditLog:               sql.AuditLog{UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+		AuditLog:               sql.AuditLog{UpdatedOn: triggeredAt, UpdatedBy: deployedBy},
 	}
 	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
 	if err != nil {
 		return 0, 0, err
 	}
-	err = impl.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, overrideJson, triggeredAt, pipelineOverride.UpdatedBy)
+	err = impl.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, overrideJson, triggeredAt, deployedBy)
 	if err != nil {
 		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
 		return 0, 0, err
@@ -1366,7 +1366,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
 		return err
 	}
-	err = impl.pipelineStrategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy)
+	err = impl.pipelineStrategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy, pipeline.TriggerType)
 	if err != nil {
 		impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)
 		return err
