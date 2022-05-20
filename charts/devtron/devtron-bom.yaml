@@ -7,7 +7,7 @@ components:
   dashboard:
     image: "quay.io/devtron/dashboard:37926951-240-8617"
   devtron:
-    image: "quay.io/devtron/hyperion:11d3bc2c-282-8589"
+    image: "quay.io/devtron/hyperion:38336f15-282-8704"
   argocdDexServer:
     image: "quay.io/dexidp/dex:v2.25.0"
   kubelink:
