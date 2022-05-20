@@ -40,6 +40,9 @@ func (router AppStoreDeploymentRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/application/install").
 		HandlerFunc(router.appStoreDeploymentRestHandler.InstallApp).Methods("POST")
 
+	configRouter.Path("/application/update").
+		HandlerFunc(router.appStoreDeploymentRestHandler.UpdateInstalledApp).Methods("PUT")
+
 	configRouter.Path("/installed-app/{appStoreId}").
 		HandlerFunc(router.appStoreDeploymentRestHandler.GetInstalledAppsByAppStoreId).Methods("GET")
 

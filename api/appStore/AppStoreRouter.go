@@ -62,8 +62,6 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	router.appStoreDiscoverRouter.Init(appStoreDiscoverSubRouter)
 	// discover router ends
 
-	configRouter.Path("/application/update").
-		HandlerFunc(router.deployRestHandler.UpdateInstalledApp).Methods("PUT")
 	configRouter.Path("/application/exists").
 		HandlerFunc(router.deployRestHandler.CheckAppExists).Methods("POST")
 	configRouter.Path("/group/install").
