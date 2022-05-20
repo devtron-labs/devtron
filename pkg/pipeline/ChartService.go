@@ -304,7 +304,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 	gitRepoUrl := ""
-	chartLocation := ""
 	impl.logger.Debugw("current latest chart in db", "chartId", currentLatestChart.Id)
 	if currentLatestChart.Id > 0 {
 		impl.logger.Debugw("updating env and pipeline config which are currently latest in db", "chartId", currentLatestChart.Id)
@@ -333,7 +332,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 			return nil, err
 		}
 		gitRepoUrl = currentLatestChart.GitRepoUrl
-		chartLocation = currentLatestChart.ChartLocation
 	}
 	// ENDS
 
@@ -348,6 +346,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		return nil, err
 	}
+	chartLocation := filepath.Join(templateName, version)
 	override, err := templateRequest.ValuesOverride.MarshalJSON()
 	if err != nil {
 		return nil, err
