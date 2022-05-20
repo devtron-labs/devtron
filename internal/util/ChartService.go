@@ -196,7 +196,7 @@ func (impl ChartTemplateServiceImpl) CreateChartOptional(chartMetaData *chart.Me
 		return "", nil, err
 	}
 
-	defer impl.CleanDir(chartDir)
+	//defer impl.CleanDir(chartDir)
 	err = dirCopy.Copy(refChartLocation, chartDir)
 
 	if err != nil {
@@ -208,6 +208,7 @@ func (impl ChartTemplateServiceImpl) CreateChartOptional(chartMetaData *chart.Me
 		impl.logger.Errorw("error in creating archive", "err", err)
 		return "", nil, err
 	}
+
 	chartGitAttr := &ChartGitAttribute{}
 	return chartDir, chartGitAttr, nil
 }
