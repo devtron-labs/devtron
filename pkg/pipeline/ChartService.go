@@ -303,6 +303,8 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
 	}
+	gitRepoUrl := ""
+	chartLocation := ""
 	impl.logger.Debugw("current latest chart in db", "chartId", currentLatestChart.Id)
 	if currentLatestChart.Id > 0 {
 		impl.logger.Debugw("updating env and pipeline config which are currently latest in db", "chartId", currentLatestChart.Id)
@@ -330,6 +332,8 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		if err != nil {
 			return nil, err
 		}
+		gitRepoUrl = currentLatestChart.GitRepoUrl
+		chartLocation = currentLatestChart.ChartLocation
 	}
 	// ENDS
 
@@ -340,7 +344,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
+	chartValues, _, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
 	if err != nil {
 		return nil, err
 	}
@@ -384,8 +388,8 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ChartVersion:            chartMeta.Version,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
-		ChartLocation:           chartGitAttr.ChartLocation,
-		GitRepoUrl:              chartGitAttr.RepoUrl,
+		ChartLocation:           chartLocation,
+		GitRepoUrl:              gitRepoUrl,
 		ReferenceTemplate:       templateName,
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  true,
