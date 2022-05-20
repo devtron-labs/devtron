@@ -2,8 +2,57 @@ package history
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"time"
 )
+
+type HistoryComponent string
+
+const (
+	DEPLOYMENT_TEMPLATE_TYPE_HISTORY_COMPONENT HistoryComponent = "DEPLOYMENT_TEMPLATE"
+	CONFIGMAP_TYPE_HISTORY_COMPONENT           HistoryComponent = "CONFIGMAP"
+	SECRET_TYPE_HISTORY_COMPONENT              HistoryComponent = "SECRET"
+	PIPELINE_STRATEGY_TYPE_HISTORY_COMPONENT   HistoryComponent = "PIPELINE_STRATEGY"
+)
+
+type DeploymentConfigurationDto struct {
+	Id                  int              `json:"id,omitempty"`
+	Name                HistoryComponent `json:"name"`
+	ChildComponentNames []string         `json:"childList,omitempty"`
+}
+
+type DeployedHistoryComponentMetadataDto struct {
+	Id               int       `json:"id"`
+	DeployedOn       time.Time `json:"deployedOn"`
+	DeployedBy       string    `json:"deployedBy"` //emailId of user
+	DeploymentStatus string    `json:"deploymentStatus"`
+}
+
+type HistoryDetailDto struct {
+	//for deployment template
+	TemplateName        string `json:"templateName,omitempty"`
+	TemplateVersion     string `json:"templateVersion,omitempty"`
+	IsAppMetricsEnabled *bool  `json:"isAppMetricsEnabled,omitempty"`
+	//for pipeline strategy
+	PipelineTriggerType pipelineConfig.TriggerType `json:"pipelineTriggerType,omitempty"`
+	Strategy            string                     `json:"strategy,omitempty"`
+	//for configmap and secret
+	Type               string               `json:"type,omitempty"`
+	External           *bool                `json:"external,omitempty"`
+	MountPath          string               `json:"mountPath,omitempty"`
+	ExternalSecretType string               `json:"externalType,omitempty"`
+	RoleARN            string               `json:"roleARN,omitempty"`
+	SubPath            *bool                `json:"subPath,omitempty"`
+	FilePermission     string               `json:"filePermission,omitempty"`
+	CodeEditorValue    *HistoryDetailConfig `json:"codeEditorValue"`
+}
+
+type HistoryDetailConfig struct {
+	DisplayName string `json:"displayName"`
+	Value       string `json:"value"`
+}
+
+//history components(deployment template, configMaps, secrets, pipeline strategy) components below
 
 type ConfigMapAndSecretHistoryDto struct {
 	Id         int           `json:"id"`
