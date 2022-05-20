@@ -23,6 +23,7 @@ import (
 	"fmt"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -476,16 +477,20 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		Name:    pipeline.App.AppName,
 		Version: chart.ChartVersion,
 	}
-	chartDir, _, err := impl.chartTemplateService.CreateChartOptional(chartMetaData, chart.ReferenceTemplate)
+	refChart := path.Join("scripts/devtron-reference-helm-charts", chart.ReferenceTemplate)
+	impl.logger.Infow("TRIGGER TEST 1", "refChart", refChart)
+	chartDir, _, err := impl.chartTemplateService.CreateChartOptional(chartMetaData, refChart)
 	if err != nil {
 		return 0, err
 	}
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
+	impl.logger.Infow("TRIGGER TEST 2", "gitOpsRepoName", gitOpsRepoName, "chartDir", chartDir)
 	chartGitAttr, err := impl.chartTemplateService.CloneModifyAndCommitPush(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, chartDir, chart.GitRepoUrl, 1)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
 		return 0, err
 	}
+	impl.logger.Infow("TRIGGER TEST 10", "chartGitAttr", chartGitAttr)
 
 	envOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
 	if err != nil {

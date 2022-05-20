@@ -244,8 +244,15 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForDevtronApps(gitOpsRep
 }
 
 func (impl ChartTemplateServiceImpl) CloneModifyAndCommitPush(gitOpsRepoName, baseTemplateName, version, tmpChartLocation string, repoUrl string, userId int32) (chartGitAttribute *ChartGitAttribute, err error) {
+	impl.logger.Infow("TRIGGER TEST 3", "baseTemplateName", baseTemplateName)
+	impl.logger.Infow("TRIGGER TEST 4", "version", version)
+	impl.logger.Infow("TRIGGER TEST 5", "tmpChartLocation", tmpChartLocation)
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.GetDir())
+	impl.logger.Infow("TRIGGER TEST 6", "chartDir", chartDir)
+
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
+	impl.logger.Infow("TRIGGER TEST 7", "clonedDir", clonedDir)
+
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
 		if err != nil {
@@ -260,6 +267,8 @@ func (impl ChartTemplateServiceImpl) CloneModifyAndCommitPush(gitOpsRepoName, ba
 	}
 
 	dir := filepath.Join(clonedDir, baseTemplateName, version)
+	impl.logger.Infow("TRIGGER TEST 8", "dir", dir)
+
 	err = os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		impl.logger.Errorw("error in making dir", "err", err)
@@ -291,6 +300,7 @@ func (impl ChartTemplateServiceImpl) CloneModifyAndCommitPush(gitOpsRepoName, ba
 		}
 	}
 	impl.logger.Debugw("template committed", "url", repoUrl, "commit", commit)
+	impl.logger.Infow("TRIGGER TEST 9", "clonedDir", clonedDir)
 
 	defer impl.CleanDir(clonedDir)
 	return &ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join(baseTemplateName, version)}, nil
