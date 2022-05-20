@@ -371,7 +371,7 @@ func (impl ChartRefRepositoryImpl) FetchChart(name string) (*ChartRef, error) {
 
 func (impl ChartRefRepositoryImpl) FetchChartsGroupByName(userUploaded bool) ([]*ChartDto, error) {
 	var repo []*ChartDto
-	_, err := impl.dbConnection.Query(&repo, "Select name, chart_description, Count(*) from chart_ref Where user_uploaded = ? Group By name;", userUploaded)
+	_, err := impl.dbConnection.Query(&repo, "Select name, chart_description, Count(name) from chart_ref Where user_uploaded = ? and active = true Group By name, chart_description Having Count(name)>0;", userUploaded)
 	if err != nil {
 		return repo, err
 	}
