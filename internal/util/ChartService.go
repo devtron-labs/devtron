@@ -195,7 +195,7 @@ func (impl ChartTemplateServiceImpl) CreateChartOptional(chartMetaData *chart.Me
 		impl.logger.Errorw("err in creating dir", "dir", chartDir, "err", err)
 		return "", nil, err
 	}
-
+	impl.logger.Infow("TRIGGER TEST 1.1", "chartDir", chartDir, "refchartlocation", refChartLocation)
 	//defer impl.CleanDir(chartDir)
 	err = dirCopy.Copy(refChartLocation, chartDir)
 
