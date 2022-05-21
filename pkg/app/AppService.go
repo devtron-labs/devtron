@@ -532,21 +532,14 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	refChart := path.Join("scripts/devtron-reference-helm-charts", envOverride.Chart.ReferenceTemplate)
-	impl.logger.Infow("TRIGGER TEST 1", "refChart", refChart)
-	chartDir, _, err := impl.chartTemplateService.CreateChartOptional(chartMetaData, refChart)
-	if err != nil {
-		return 0, err
-	}
+	referenceTemplatePath := path.Join("scripts/devtron-reference-helm-charts", envOverride.Chart.ReferenceTemplate)
+	impl.logger.Infow("TRIGGER TEST 1", "referenceTemplatePath", referenceTemplatePath)
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
-	impl.logger.Infow("TRIGGER TEST 2", "gitOpsRepoName", gitOpsRepoName, "chartDir", chartDir)
-	chartGitAttr, err := impl.chartTemplateService.CloneModifyAndCommitPush(gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, chartDir, envOverride.Chart.GitRepoUrl, 1)
+	impl.logger.Infow("TRIGGER TEST 2", "gitOpsRepoName", gitOpsRepoName)
+	_, err = impl.chartTemplateService.CreateChartOptional(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, 1)
 	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
 		return 0, err
 	}
-	impl.logger.Infow("TRIGGER TEST 10", "chartGitAttr", chartGitAttr)
-
 
 	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
 	if err != nil {
