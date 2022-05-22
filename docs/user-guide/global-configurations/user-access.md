@@ -9,46 +9,50 @@ Like any enterprise product, Devtron supports fine grained access control to the
 
 Access can be added to the User either directly or via Groups.
 
-## Access Levels
+## Role-based Access Levels
 
-Devtron supports 5 levels of access
+Devtron supports 5 levels of access:
 
 1. **View**: User with `view` only access has the least privilege. This user can only view combination of environments, applications and helm charts on which access has been granted to the user. This user cannot view sensitive data like secrets used in applications or charts.
 2. **Build and Deploy**: In addition to `view` privilege mentioned in above, user with `build and deploy` permission can build and deploy the image of permitted applications and helm charts to permitted environments.
 3. **Admin**: User with `admin` access can create, edit, delete and view permitted applications in permitted projects.
 4. **Manager**: User with `manager` access can do everything that an `admin` type user can do, in addition they can also give and revoke access of users for the applications and environments of which they are `manager`.
-5. **Super Admin**: User with `super admin` privilege has unrestricted access to all Devtron resources. Super admin can create, modify, delete and view any Devtron resource without any restriction; its like Superman without the weakness of Kryptonite. Super Admin can also add and delete user access across any Devtron resource, add delete git repository credentials, docker registry credentials, cluster and environment.
+5. **Super Admin**: User with `super admin` privilege has unrestricted access to all Devtron resources. Super admin can create, modify, delete and view any Devtron resource without any restriction; its like Superman without the weakness of Kryptonite. Super Admin can also add and delete user access across any Devtron resource, add delete git repository credentials, container registry credentials, cluster and environment.
 
-| Access Level     | View App | Create App | Edit App | Delete App | Trigger App |
-| ---------------- | -------- | ---------- | -------- | ---------- | ----------- |
-| View             | Yes      | No         | No       | No         | No          |
-| Build and Deploy | Yes      | No         | No       | No         | Yes         |
-| Admin            | Yes      | Yes        | Yes      | Yes        | Yes         |
-| Manager          | Yes      | Yes        | Yes      | Yes        | Yes         |
-| Super Admin      | Yes      | Yes        | Yes      | Yes        | Yes         |
+## User Roles And Permissions
 
-<br/>
+### 1. Custom Applications
 
-| Access Level     | View Charts | Install Charts | Edit Charts | Delete Charts |
-| ---------------- | ----------- | -------------- | ----------- | ------------- |
-| View             | Yes         | No             | No          | No            |
+| User Roles     | View       | Create     | Edit     | Delete     | Build & Deploy|
+| :---           | :---:      | :---:      | :---:    | :---:      | :---:         |
+| View             | Yes      | No         | No       | No         | No            |
+| Build and Deploy | Yes      | No         | No       | No         | Yes           |
+| Admin            | Yes      | Yes        | Yes      | Yes        | Yes           |
+| Manager          | Yes      | Yes        | Yes      | Yes        | Yes           |
+| Super Admin      | Yes      | Yes        | Yes      | Yes        | Yes           |
+
+### 2. Helm Charts
+
+| User Roles       | View        | Deploy         | Edit        | Delete        |
+| :---:            |  :---:      |    :---:       |   :---:     |   :---:       |
+| View Only        | Yes         | No             | No          | No            |
 | Build and Deploy | Yes         | No             | No          | No            |
 | Admin            | Yes         | Yes            | Yes         | Yes           |
 | Manager          | Yes         | Yes            | Yes         | Yes           |
 | Super Admin      | Yes         | Yes            | Yes         | Yes           |
 
-<br/>
+#### 3. User Access
 
-| Access Level | Add User Access | Edit User Access | Delete User Access |
-| ------------ | --------------- | ---------------- | ------------------ |
+| User Roles   | Add User Access | Edit User Access | Delete User Access |
+| :---         | :---:           | :---:            | :---:              |
 | Manager      | Yes             | Yes              | Yes                |
 | Super Admin  | Yes             | Yes              | Yes                |
 
-<br/>
+#### 4. Global Configurations
 
-| Access Level | Add Global Config | Edit Global Config | Delete Global Config |
-| ------------ | ----------------- | ------------------ | -------------------- |
-| Super Admin  | Yes               | Yes                |
+| User Role    | Add Global Config | Edit Global Config | Delete Global Config |
+| :---         | :---:             | :---:              | :---:                |
+| Super Admin  | Yes               | Yes                | Yes                  |
 
 To control the access of User and Group-
 
@@ -89,7 +93,7 @@ In the `Email address` box, you have to provide the mail ID of the user to whom 
 
 ### Assign super admin permissions
 
-If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear. Please check [above](#access-levels) to see permission levels.
+If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear. Please check [above](#access-levels) to see permission levels. Only users with super admin permissions can assign super admin permissions to a user.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/add-user-2.jpg)
 
@@ -133,7 +137,7 @@ There are four different view access levels/Role available for both User and Gro
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-access-permission_1.JPG)
 
-You can add multiple rows, for Devtron App Permission.
+You can add multiple rows, for Devtron app permission.
 
 Once you have finished assigning the appropriate permissions for the listed users, Click on `Save`.
 
@@ -167,25 +171,33 @@ There are four different view access levels/Role available for both User and Gro
 
 ### Chart Group Permissions
 
-You can also manage the access of users to Chart Groups in your project. By default, user has the `View` permission for the charts deployed in the environments on which he/she has at least `view` access to any application.
+You can also manage the access of users to Chart Groups in your project.
 
-You can either give the users permission to `Create` or `Edit`.
+**NOTE:** You can only give users the ability to `create` or `edit`, not both.
 
-Click on the checkbox of `Create`, if you want the users to create, view, edit, or delete all the chart groups.
+Click on the checkbox of `Create`, if you want the users to create, view, edit, or delete the chart groups.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/chart+group+permission_create_3.JPG)
 
-Click on the checkbox of `Edit`, if you want to `allow` or `deny` users to edit the chart groups.
+To permit a user to only `edit` the chart groups, check `Specific chart group` from `Edit` drop-down. In the following field, select the chart group for which you want to grant the user edit permission.
 
-Select on `Deny` option from the drop-down menu, if you want to restrict the users to edit the chart groups.
+Go to `Edit` drop-down, if you want to `allow` or `deny` users to edit the chart groups.
+
+Select on `Deny` option from the drop-down, if you want to restrict the users to edit the chart groups.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/chart+group+permission_edit_4.JPG)
 
-Select the `Specific Charts` option from the drop-down menu, and then select the chart groups for which you want to allow users to edit, from the other drop-down menu.
+Select the `Specific Charts` option from the drop-down and then select the chart groups for which you want to allow users to edit, from the other drop-down menu.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/chart+group+permission_edit+specific+chart_5.JPG)
 
 Click on `Save`, once you have configured all the required permissions for the users.
+
+| Action | Permissions |
+| :---   | :---         |
+| View  | Only can view chart groups |
+| Create | Can create, view, edit or delete |
+| Edit | <ul><br/><li>**Deny:** Can't edit chart groups</li><li>**Specific chart groups:** can edit specific chart group</li></ul> |
 
 ### 3. Edit User Permissions
 
@@ -197,9 +209,9 @@ Then you can edit the user permissions here.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/edit+user+permission_devtron+app_2.JPG)
 
-After you have done editing the user permissions. Click on `Save`.
+After you have done editing the user permissions, click on `Save`.
 
-If you want to delete the user/users with particular permissions. Click on `Delete`.
+If you want to delete the user/users with particular permissions, click on `Delete`.
 
 ## Groups
 
@@ -209,7 +221,7 @@ You can select the group which you are creating in the `Group permissions` secti
 
 ### 1. Add new Group
 
-Click on `Add Group`, to create a new group.
+Go to  `Groups` and click on `Add Group`, to create a new group.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/Add+group+permission_dashboard_1.JPG)
 

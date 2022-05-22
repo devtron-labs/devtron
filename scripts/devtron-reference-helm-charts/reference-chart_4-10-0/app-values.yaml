@@ -80,6 +80,7 @@ ReadinessProbe:
 ingress:
   enabled: false
   className: ""
+  labels: {}
   annotations: {}
 #    nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
 #    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
@@ -192,6 +193,8 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 70
   TargetMemoryUtilizationPercentage: 80
+  annotations: {}
+  labels: {}
   behavior: {}
 #    scaleDown:
 #      stabilizationWindowSeconds: 300

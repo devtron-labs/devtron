@@ -5,8 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util"
@@ -25,14 +28,16 @@ import (
 )
 
 type TelemetryEventClientImpl struct {
-	cron           *cron.Cron
-	logger         *zap.SugaredLogger
-	client         *http.Client
-	clusterService cluster.ClusterService
-	K8sUtil        *util2.K8sUtil
-	aCDAuthConfig  *util3.ACDAuthConfig
-	userService    user.UserService
-	PosthogClient  *PosthogClient
+	cron            *cron.Cron
+	logger          *zap.SugaredLogger
+	client          *http.Client
+	clusterService  cluster.ClusterService
+	K8sUtil         *util2.K8sUtil
+	aCDAuthConfig   *util3.ACDAuthConfig
+	userService     user.UserService
+	attributeRepo   repository.AttributesRepository
+	ssoLoginService sso.SSOLoginService
+	PosthogClient   *PosthogClient
 }
 
 type TelemetryEventClient interface {
@@ -44,6 +49,7 @@ type TelemetryEventClient interface {
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
+	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
 	PosthogClient *PosthogClient) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
@@ -53,7 +59,9 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		logger: logger,
 		client: client, clusterService: clusterService,
 		K8sUtil: K8sUtil, aCDAuthConfig: aCDAuthConfig,
-		userService: userService, PosthogClient: PosthogClient,
+		userService: userService, attributeRepo: attributeRepo,
+		ssoLoginService: ssoLoginService,
+		PosthogClient:   PosthogClient,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -76,19 +84,18 @@ func (impl *TelemetryEventClientImpl) StopCron() {
 }
 
 type TelemetryEventEA struct {
-	UCID           string             `json:"ucid"` //unique client id
-	Timestamp      time.Time          `json:"timestamp"`
-	EventMessage   string             `json:"eventMessage,omitempty"`
-	EventType      TelemetryEventType `json:"eventType"`
-	Summary        *SummaryEA         `json:"summary,omitempty"`
-	ServerVersion  string             `json:"serverVersion,omitempty"`
-	DevtronVersion string             `json:"devtronVersion,omitempty"`
-	DevtronMode    string             `json:"devtronMode,omitempty"`
-}
-
-type SummaryEA struct {
-	UserCount    int `json:"userCount,omitempty"`
-	ClusterCount int `json:"clusterCount,omitempty"`
+	UCID         string             `json:"ucid"` //unique client id
+	Timestamp    time.Time          `json:"timestamp"`
+	EventMessage string             `json:"eventMessage,omitempty"`
+	EventType    TelemetryEventType `json:"eventType"`
+	//Summary        *SummaryEA         `json:"summary,omitempty"`
+	ServerVersion  string `json:"serverVersion,omitempty"`
+	UserCount      int    `json:"userCount,omitempty"`
+	ClusterCount   int    `json:"clusterCount,omitempty"`
+	HostURL        bool   `json:"hostURL,omitempty"`
+	SSOLogin       bool   `json:"ssoLogin,omitempty"`
+	DevtronVersion string `json:"devtronVersion,omitempty"`
+	DevtronMode    string `json:"devtronMode,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -116,7 +123,7 @@ const (
 	DashboardLoggedIn            TelemetryEventType = "DashboardLoggedIn"
 )
 
-func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info) {
+func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool) {
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
@@ -139,7 +146,22 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
 	}
-	return clusters, users, k8sServerVersion
+
+	hostURL = false
+
+	attribute, err := impl.attributeRepo.FindByKey(attributes.HostUrlKey)
+	if err == nil && attribute.Id > 0 {
+		hostURL = true
+	}
+
+	ssoSetup = false
+
+	ssoConfig, err := impl.ssoLoginService.GetAll()
+	if err == nil && len(ssoConfig) > 0 {
+		ssoSetup = true
+	}
+
+	return clusters, users, k8sServerVersion, hostURL, ssoSetup
 }
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
@@ -154,17 +176,15 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 		return
 	}
 
-	clusters, users, k8sServerVersion := impl.SummaryDetailsForTelemetry()
+	clusters, users, k8sServerVersion, hostURL, ssoSetup := impl.SummaryDetailsForTelemetry()
 
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
-
-	summary := &SummaryEA{
-		UserCount:    len(users),
-		ClusterCount: len(clusters),
-	}
-	payload.Summary = summary
+	payload.HostURL = hostURL
+	payload.SSOLogin = ssoSetup
+	payload.UserCount = len(users)
+	payload.ClusterCount = len(clusters)
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {

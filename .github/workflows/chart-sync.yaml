@@ -3,9 +3,11 @@ name: chart-sync
 # Controls when the workflow will run
 on:
   # Triggers the workflow on publishing new release
-  release:
-    types: [released]
-
+  pull_request:
+    types:
+      - closed
+    branches:    
+      - 'main'
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
@@ -13,6 +15,7 @@ on:
 jobs:
   # This workflow contains a single job called "build"
   sync:
+    if: github.head_ref == 'release-bot' && github.event.pull_request.merged == true
     # The type of runner that the job will run on
     runs-on: ubuntu-latest
     name: chart-sync
@@ -20,7 +23,7 @@ jobs:
     - uses: actions/checkout@v2
       with:
         fetch-depth: 0
-    - uses: devtron-labs/git-repo-sync@v0.1.9
+    - uses: devtron-labs/git-repo-sync@master
       with:
         script-file: ${{ secrets.CHART_SYNC_SCRIPT_FILE }}
         git-target-repo: ${{ secrets.GIT_TARGET_REPO }}
