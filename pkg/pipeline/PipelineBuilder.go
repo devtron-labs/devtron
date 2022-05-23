@@ -100,6 +100,7 @@ type PipelineBuilder interface {
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
+	FindAllMatchesByAppName(appName string) ([]AppBean, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -2226,4 +2227,23 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 	ciPipeline.PreBuildStage = preStageDetail
 	ciPipeline.PostBuildStage = postStageDetail
 	return ciPipeline, err
+}
+
+func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string) ([]AppBean, error) {
+	var appsRes []AppBean
+	var apps []app2.App
+	var err error
+	if len(appName) == 0 {
+		apps, err = impl.appRepo.FindAll()
+	} else {
+		apps, err = impl.appRepo.FindAllMatchesByAppName(appName)
+	}
+	if err != nil {
+		impl.logger.Errorw("error while fetching app", "err", err)
+		return nil, err
+	}
+	for _, app := range apps {
+		appsRes = append(appsRes, AppBean{Id: app.Id, Name: app.AppName})
+	}
+	return appsRes, err
 }
