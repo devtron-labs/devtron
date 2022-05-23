@@ -24,6 +24,7 @@ import (
 	"github.com/gorilla/mux"
 )
 
+
 type AppStoreRouter interface {
 	Init(configRouter *mux.Router)
 }
