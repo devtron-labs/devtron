@@ -55,7 +55,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
-	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
@@ -156,56 +155,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	return impl, nil
 }
 
-func (impl InstalledAppServiceImpl) updateRequirementDependencies(environment *repository5.Environment, installedAppVersion *repository2.InstalledAppVersions,
-	installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
-
-	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
-	dependency := appStoreBean.Dependency{
-		Name:       appStoreAppVersion.AppStore.Name,
-		Version:    appStoreAppVersion.Version,
-		Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
-	}
-	var dependencies []appStoreBean.Dependency
-	dependencies = append(dependencies, dependency)
-	requirementDependencies := &appStoreBean.Dependencies{
-		Dependencies: dependencies,
-	}
-	requirementDependenciesByte, err := json.Marshal(requirementDependencies)
-	if err != nil {
-		return err
-	}
-	requirementDependenciesByte, err = yaml.JSONToYAML(requirementDependenciesByte)
-	if err != nil {
-		return err
-	}
-	//getting user name & emailId for commit author data
-	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
-	requirmentYamlConfig := &util.ChartConfig{
-		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
-		FileContent:    string(requirementDependenciesByte),
-		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
-		ChartLocation:  argocdAppName,
-		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
-		UserEmailId:    userEmailId,
-		UserName:       userName,
-	}
-	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return err
-		}
-	}
-	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
-	if err != nil {
-		impl.logger.Errorw("error in git commit", "err", err)
-		return err
-	}
-	return nil
-}
 
 func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
