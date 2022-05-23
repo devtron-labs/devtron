@@ -111,7 +111,6 @@ type AppConfigResponse struct {
 	PreviousAppConfig TemplateRequest `json:"previousAppConfig"`
 }
 
-type RefChartDir string
 type DefaultChart string
 
 type ChartService interface {
@@ -145,7 +144,7 @@ type ChartServiceImpl struct {
 	pipelineGroupRepository          app.AppRepository
 	mergeUtil                        util.MergeUtil
 	repositoryService                repository.ServiceClient
-	refChartDir                      RefChartDir
+	refChartDir                      chartRepoRepository.RefChartDir
 	defaultChart                     DefaultChart
 	chartRefRepository               chartRepoRepository.ChartRefRepository
 	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
@@ -164,7 +163,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	chartTemplateService util.ChartTemplateService,
 	repoRepository chartRepoRepository.ChartRepoRepository,
 	pipelineGroupRepository app.AppRepository,
-	refChartDir RefChartDir,
+	refChartDir chartRepoRepository.RefChartDir,
 	defaultChart DefaultChart,
 	mergeUtil util.MergeUtil,
 	repositoryService repository.ServiceClient,
@@ -342,7 +341,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		return nil, err
 	}
-	chartValues, _, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
+	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId)
 	if err != nil {
 		return nil, err
 	}
@@ -467,7 +466,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	if err != nil {
 		return nil, err
 	}
-	chartValues, _, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
+	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId)
 	if err != nil {
 		return nil, err
 	}
