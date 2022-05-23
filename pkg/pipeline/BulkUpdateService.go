@@ -120,7 +120,6 @@ type BulkUpdateServiceImpl struct {
 	chartTemplateService             util.ChartTemplateService
 	mergeUtil                        util.MergeUtil
 	repositoryService                repository.ServiceClient
-	refChartDir                      RefChartDir
 	defaultChart                     DefaultChart
 	chartRefRepository               chartRepoRepository.ChartRefRepository
 	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
@@ -141,7 +140,6 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
 	repoRepository chartRepoRepository.ChartRepoRepository,
-	refChartDir RefChartDir,
 	defaultChart DefaultChart,
 	mergeUtil util.MergeUtil,
 	repositoryService repository.ServiceClient,
@@ -164,7 +162,6 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		chartTemplateService:             chartTemplateService,
 		repoRepository:                   repoRepository,
 		mergeUtil:                        mergeUtil,
-		refChartDir:                      refChartDir,
 		defaultChart:                     defaultChart,
 		repositoryService:                repositoryService,
 		chartRefRepository:               chartRefRepository,

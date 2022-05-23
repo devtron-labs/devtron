@@ -101,6 +101,7 @@ type AppServiceImpl struct {
 	configMapHistoryService          history2.ConfigMapHistoryService
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService
 	chartTemplateService             ChartTemplateService
+	refChartDir                      chartRepoRepository.RefChartDir
 }
 
 type AppService interface {
@@ -141,7 +142,7 @@ func NewAppService(
 	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
-	chartTemplateService ChartTemplateService) *AppServiceImpl {
+	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -178,6 +179,7 @@ func NewAppService(
 		configMapHistoryService:          configMapHistoryService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		chartTemplateService:             chartTemplateService,
+		refChartDir:                      refChartDir,
 	}
 	return appServiceImpl
 }
@@ -567,12 +569,12 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		envOverride.Chart = chart
 	}
 
-	// CHART PUSH STARTS HERE
+	// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
 	chartMetaData := &chart2.Metadata{
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	referenceTemplatePath := path.Join("scripts/devtron-reference-helm-charts", envOverride.Chart.ReferenceTemplate)
+	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
 	_, err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, 1)
 	if err != nil {
@@ -580,6 +582,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		return 0, err
 	}
 
+	// ACD app creation STARTS HERE, it will use existing if already created
 	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
 	name, err := impl.createArgoPipelineIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride)
 	if err != nil {

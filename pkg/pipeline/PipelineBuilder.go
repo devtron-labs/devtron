@@ -969,15 +969,15 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 
 }
 
-func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
-	app, err := impl.appRepo.FindById(cdPipelines.AppId)
+func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
+	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
 	if err != nil {
-		impl.logger.Errorw("app not found", "err", err, "appId", cdPipelines.AppId)
+		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
 		return nil, err
 	}
 
 	envPipelineMap := make(map[int]string)
-	for _, pipeline := range cdPipelines.Pipelines {
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if envPipelineMap[pipeline.EnvironmentId] != "" {
 			err = &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
@@ -988,9 +988,9 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 		}
 		envPipelineMap[pipeline.EnvironmentId] = pipeline.Name
 
-		existingCdPipelinesForEnv, pErr := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(cdPipelines.AppId, pipeline.EnvironmentId)
+		existingCdPipelinesForEnv, pErr := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(pipelineCreateRequest.AppId, pipeline.EnvironmentId)
 		if pErr != nil && !util.IsErrNoRows(pErr) {
-			impl.logger.Errorw("error in fetching cd pipelines ", "err", pErr, "appId", cdPipelines.AppId)
+			impl.logger.Errorw("error in fetching cd pipelines ", "err", pErr, "appId", pipelineCreateRequest.AppId)
 			return nil, pErr
 		}
 		if len(existingCdPipelinesForEnv) > 0 {
@@ -1025,16 +1025,15 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 		return nil, err
 	}
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
-	chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, 1)
+	chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, pipelineCreateRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
 		return nil, err
 	}
-
 	chart.GitRepoUrl = chartGitAttr.RepoUrl
 	chart.ChartLocation = chartGitAttr.ChartLocation
 	chart.UpdatedOn = time.Now()
-	chart.UpdatedBy = 1
+	chart.UpdatedBy = pipelineCreateRequest.UserId
 	err = impl.chartRepository.Update(chart)
 	if err != nil {
 		return nil, err
@@ -1044,8 +1043,8 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 		return nil, err
 	}
 
-	for _, pipeline := range cdPipelines.Pipelines {
-		id, err := impl.createCdPipeline(ctx, app, pipeline, cdPipelines.UserId)
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating pipeline", "name", pipeline.Name, "err", err)
 			return nil, err
@@ -1053,7 +1052,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 		pipeline.Id = id
 	}
 
-	return cdPipelines, nil
+	return pipelineCreateRequest, nil
 }
 
 func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error) {
