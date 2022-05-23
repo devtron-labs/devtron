@@ -1304,7 +1304,7 @@ func (impl *ChartServiceImpl) GetLocationFromChartNameAndVersion(chartName strin
 }
 
 func (impl *ChartServiceImpl) ValidateUploadedFileFormat(fileName string) error {
-	if !strings.HasSuffix(fileName, ".tar.gz") {
+	if !strings.HasSuffix(fileName, ".tgz") {
 		return errors.New("unsupported format")
 	}
 	return nil
@@ -1392,7 +1392,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		var errorList error
 		if exists {
 			impl.logger.Errorw("request err, chart name and version exists already in the database")
-			errorList = errors.New("chart name and version exists already in the database")
+			errorList = errors.New(chartVersion + " of " + chartName + " exists already in the database")
 		}
 		if err != nil {
 			impl.logger.Errorw("Error in searching the database")

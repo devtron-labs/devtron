@@ -86,7 +86,7 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 	err = handler.chartService.ValidateUploadedFileFormat(fileHeader.Filename)
 	if err != nil {
 		handler.Logger.Errorw("request err, Unsupported format", "err", err, "payload", file)
-		common.WriteJsonResp(w, errors.New("Unsupported format file is uploaded, please upload file with .tar.gz extension"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("Unsupported format file is uploaded, please upload file with .tgz extension"), nil, http.StatusBadRequest)
 		return
 	}
 
