@@ -532,6 +532,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
+	impl.logger.Infow("TRIGGER TEST 0", "version", envOverride.Chart.ChartVersion, "referenceTemplate", envOverride.Chart.ReferenceTemplate, "version", envOverride.Chart.ChartVersion, "gitUrl", envOverride.Chart.GitRepoUrl)
 	referenceTemplatePath := path.Join("scripts/devtron-reference-helm-charts", envOverride.Chart.ReferenceTemplate)
 	impl.logger.Infow("TRIGGER TEST 1", "referenceTemplatePath", referenceTemplatePath)
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
