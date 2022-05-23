@@ -240,6 +240,6 @@ func (repo AppRepositoryImpl) FindAppAndProjectByAppName(appName string) (*App, 
 
 func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string) ([]App, error) {
 	var apps []App
-	err := repo.dbConnection.Model(&apps).Where("name ILIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_store = ?", false).Select()
+	err := repo.dbConnection.Model(&apps).Where("app_name ILIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_store = ?", false).Select()
 	return apps, err
 }
