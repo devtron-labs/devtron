@@ -2,7 +2,7 @@
 
 ## Access an external link
 
-The users can access the configured external links from the **App Details** page.
+The users can access the [configured external links](../../user-guide/global-configurations/external-links.md) on the **App Details** page.
 
 1. Select **Applications** from the left navigation pane.
 2. After selecting a configured application, select the **App Details** tab.
