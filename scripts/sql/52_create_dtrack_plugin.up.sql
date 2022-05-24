@@ -50,13 +50,14 @@ fi
 if [ $ToUploadBom == "YES" ]
 then
 	apk add curl
-	curl -v --location --request POST ''$DTrackEndpoint/api/v1/bom'' \
+    cd $OutDirDTrack
+	curl -v --location --request POST "$DTrackEndpoint/api/v1/bom" \
    		--header ''accept: application/json'' \
     	--header "X-Api-Key: $DTrackApiKey" \
-    	--form ''projectName=$DTrackProjectName'' \
+    	--form "projectName=$DTrackProjectName" \
     	--form ''autoCreate="true"'' \
     	--form "projectVersion=$DTrackProjectVersion" \
-    	--form ''bom=@"$OutDirDTrack/bom.json"''
+    	--form ''bom=@"bom.json"''
 fi', 'SHELL', 'f', 'now()', '1', 'now()', '1');
 
 
@@ -135,13 +136,14 @@ cd /devtroncd/$CheckoutPath
 npm install
 cyclonedx-node -o $OutDirDTrack/bom.json
 apk add curl
-curl -v --location --request POST ''$DTrackEndpoint/api/v1/bom'' \
+cd $OutDirDTrack
+curl -v --location --request POST "$DTrackEndpoint/api/v1/bom" \
 	--header ''accept: application/json'' \
 	--header "X-Api-Key: $DTrackApiKey" \
-	--form ''projectName=$DTrackProjectName'' \
+	--form "projectName=$DTrackProjectName" \
 	--form ''autoCreate="true"'' \
 	--form "projectVersion=$DTrackProjectVersion" \
-	--form ''bom=@"$OutDirDTrack/bom.json"''', 'SHELL', 'f', 'now()', '1', 'now()', '1');
+	--form ''bom=@"bom.json"''', 'SHELL', 'f', 'now()', '1', 'now()', '1');
 
 
 INSERT INTO "public"."plugin_step" ("id", "plugin_id", "name", "description", "index", "step_type", "script_id",
@@ -216,13 +218,14 @@ fi
 if [ $ToUploadBom == "YES" ]
 then
 	apk add curl
-	curl -v --location --request POST ''$DTrackEndpoint/api/v1/bom'' \
+    cd $OutDirDTrack
+	curl -v --location --request POST "$DTrackEndpoint/api/v1/bom" \
    		--header ''accept: application/json'' \
     	--header "X-Api-Key: $DTrackApiKey" \
-    	--form ''projectName=$DTrackProjectName'' \
+    	--form "projectName=$DTrackProjectName" \
     	--form ''autoCreate="true"'' \
     	--form "projectVersion=$DTrackProjectVersion" \
-    	--form ''bom=@"$OutDirDTrack/bom.json"''
+    	--form ''bom=@"bom.json"''
 fi', 'SHELL', 'f', 'now()', '1', 'now()', '1');
 
 
