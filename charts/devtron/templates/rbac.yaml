@@ -1,4 +1,3 @@
-{{- if not .Values.installer.modules }}
 apiVersion: v1
 kind: ServiceAccount
 metadata:
@@ -43,4 +42,3 @@ subjects:
   - kind: ServiceAccount
     name: devtron
     namespace: devtroncd
-{{- end }}
