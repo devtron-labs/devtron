@@ -1391,7 +1391,12 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		err = util2.CheckForMissingFiles(currentChartWorkingDir)
 		if err != nil {
 			impl.logger.Errorw("Missing files in the folder", "err", err)
-			errorList = errors.New(errorList.Error() + "; " + err.Error())
+			if errorList != nil {
+				errorList = errors.New(errorList.Error() + "; " + err.Error())
+			} else {
+				errorList = err
+			}
+
 		}
 
 		if errorList != nil {
