@@ -51,12 +51,16 @@ Devtron deeply integrates with products across the lifecycle of microservices,i.
 </details>
 <details><summary> <b>Centralized Access Management</b></summary>
 <br>
+ 
 - Control and give customizable view-only, edit access to users on Project, Environment and Application levels
+
 </details>
 
 <details><summary> <b>Deploy, Manage and Observe on multiple clusters</b></summary>
 <br>
-- Deploy and manage Helm charts, applications across multiple Kubernetes clusters (hosted on multiple clouds/on-prem) right from a single Devtron setup
+
+ - Deploy and manage Helm charts, applications across multiple Kubernetes clusters (hosted on multiple clouds/on-prem) right from a single Devtron setup
+
 </details>
 
 <br>
