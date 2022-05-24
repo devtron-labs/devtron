@@ -1426,8 +1426,8 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		location = chartLocation
 
 		exisitingChart, err := impl.chartRefRepository.FetchChart(chartName)
-		if err == nil {
-			chartInfo.Message = "New Version detected for " + exisitingChart.Name
+		if err == nil && exisitingChart != nil {
+			chartInfo.Message = "New Version detected for " + exisitingChart[0].Name
 		}
 
 		err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, location)))

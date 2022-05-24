@@ -37,11 +37,12 @@ type DeploymentConfigRestHandlerImpl struct {
 }
 
 type DeploymentChartInfo struct {
-	ChartName   string `json:"chartName"`
-	Description string `json:"description"`
-	FileId      string `json:"fileId"`
-	Action      string `json:"action"`
-	Message     string `json:"message"`
+	ChartName    string `json:"chartName"`
+	ChartVersion string `json:"chartVersion"`
+	Description  string `json:"description"`
+	FileId       string `json:"fileId"`
+	Action       string `json:"action"`
+	Message      string `json:"message"`
 }
 
 func NewDeploymentConfigRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, enforcer casbin.Enforcer, validator *validator.Validate,
@@ -140,10 +141,11 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 
 	pathList := strings.Split(chartInfo.TemporaryFolder, "/")
 	chartData := &DeploymentChartInfo{
-		ChartName:   chartInfo.ChartName,
-		Description: chartInfo.Description,
-		FileId:      pathList[len(pathList)-1],
-		Message:     chartInfo.Message,
+		ChartName:    chartInfo.ChartName,
+		ChartVersion: chartInfo.ChartVersion,
+		Description:  chartInfo.Description,
+		FileId:       pathList[len(pathList)-1],
+		Message:      chartInfo.Message,
 	}
 
 	common.WriteJsonResp(w, err, chartData, http.StatusOK)

@@ -304,7 +304,7 @@ type ChartRef struct {
 type ChartDto struct {
 	Name             string `sql:"name"`
 	ChartDescription string `sql:"chart_description"`
-	Count            int    `sql:"count"`
+	Version          string `sql:"version"`
 }
 
 type ChartRefRepository interface {
@@ -313,7 +313,7 @@ type ChartRefRepository interface {
 	FindById(id int) (*ChartRef, error)
 	GetAll() ([]*ChartRef, error)
 	CheckIfDataExists(name string, version string) (bool, error)
-	FetchChart(name string) (*ChartRef, error)
+	FetchChart(name string) ([]*ChartRef, error)
 	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartDto, error)
 }
 type ChartRefRepositoryImpl struct {
@@ -360,18 +360,18 @@ func (impl ChartRefRepositoryImpl) CheckIfDataExists(name string, version string
 		Where("version = ? ", version).Exists()
 }
 
-func (impl ChartRefRepositoryImpl) FetchChart(name string) (*ChartRef, error) {
-	repo := &ChartRef{}
-	err := impl.dbConnection.Model(repo).Where("lower(name) = ?", strings.ToLower(name)).Select()
+func (impl ChartRefRepositoryImpl) FetchChart(name string) ([]*ChartRef, error) {
+	var chartRefs []*ChartRef
+	err := impl.dbConnection.Model(&chartRefs).Where("lower(name) = ?", strings.ToLower(name)).Select()
 	if err != nil {
 		return nil, err
 	}
-	return repo, err
+	return chartRefs, err
 }
 
 func (impl ChartRefRepositoryImpl) FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartDto, error) {
 	var repo []*ChartDto
-	query := "Select name, chart_description, Count(name) from chart_ref Where user_uploaded = ? and active = true Group By name, chart_description Having Count(name)>0;"
+	query := "Select name, chart_description, version from chart_ref Where user_uploaded = ? and active = true;"
 	_, err := impl.dbConnection.Query(&repo, query, userUploaded)
 	if err != nil {
 		return repo, err
