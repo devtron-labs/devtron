@@ -1,5 +1,4 @@
 {{- with .Values.components.postgres }}
-{{- if not $.Values.installer.modules }}
 apiVersion: v1
 kind: Secret
 data:
@@ -48,7 +47,6 @@ metadata:
 data:
   PG_PASSWORD: {{ $Secret }} 
 type: Opaque
-{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap

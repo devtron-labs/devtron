@@ -1,5 +1,4 @@
 {{- with .Values.components.devtron }}
-{{- if not $.Values.installer.modules }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -19,7 +18,6 @@ data:
   PG_DATABASE: orchestrator
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
-{{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
