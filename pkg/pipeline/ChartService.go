@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/constants"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -1404,7 +1405,12 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 
 		if exists {
 			impl.logger.Errorw("request err, chart name and version exists already in the database")
-			return chartInfo, errors.New(chartVersion + " of " + chartName + " exists already in the database")
+			err = &util.ApiError{
+				Code:            constants.ChartCreatedAlreadyExists,
+				InternalMessage: "Chart exists already, try uploading another chart",
+				UserMessage:     fmt.Sprintf("%s of %s exists already in the database", chartVersion, chartName),
+			}
+			return chartInfo, err
 		}
 		if err != nil {
 			impl.logger.Errorw("Error in searching the database")
