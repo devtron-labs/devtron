@@ -1234,6 +1234,7 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 		return false, err
 	}
 	argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
+	impl.logger.Infow("received payload, updateArgoPipeline", "appId", appId, "pipelineName", pipelineName, "envId", envOverride.TargetEnvironment, "argoAppName", argoAppName, "context", ctx)
 	application, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName})
 	if err != nil {
 		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipelineName)
