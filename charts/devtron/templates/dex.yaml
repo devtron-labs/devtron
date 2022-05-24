@@ -56,7 +56,7 @@ spec:
             weight: 5
       containers:
       - command:
-        {{- if and $.Values.installer.modules .Release.IsUpgrade }}
+        {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
         - /shared/argocd-util
         {{- else }}
         - /shared/authenticator
@@ -76,13 +76,13 @@ spec:
       - command:
         - cp
         - -n
-        {{- if and $.Values.installer.modules .Release.IsUpgrade }}
+        {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
         - /usr/local/bin/argocd-util
         {{- else }}
         - /authenticator
         {{- end }}
         - /shared
-        {{- if and $.Values.installer.modules .Release.IsUpgrade }}
+        {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
         image: {{ .cicdAuthenticator }}
         {{- else }}
         image: {{ .authenticator }}

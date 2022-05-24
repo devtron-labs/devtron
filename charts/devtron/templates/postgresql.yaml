@@ -1,5 +1,5 @@
-{{- if not .Values.installer.modules }}
 {{- with .Values.components.postgres }}
+{{- if not $.Values.installer.modules }}
 apiVersion: v1
 kind: Secret
 data:
