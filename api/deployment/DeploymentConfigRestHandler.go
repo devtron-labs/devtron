@@ -111,12 +111,14 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 	}
 
 	chartRefs := &chartRepoRepository.ChartRef{
-		Name:      chartInfo.ChartName,
-		Version:   chartInfo.ChartVersion,
-		Location:  chartInfo.ChartLocation,
-		Active:    true,
-		Default:   false,
-		ChartData: fileBytes,
+		Name:             chartInfo.ChartName,
+		Version:          chartInfo.ChartVersion,
+		Location:         chartInfo.ChartLocation,
+		Active:           true,
+		Default:          false,
+		ChartData:        fileBytes,
+		ChartDescription: chartInfo.Description,
+		UserUploaded:     true,
 		AuditLog: sql.AuditLog{
 			CreatedBy: userId,
 			CreatedOn: time.Now(),
