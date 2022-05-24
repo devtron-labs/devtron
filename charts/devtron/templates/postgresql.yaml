@@ -48,6 +48,7 @@ metadata:
 data:
   PG_PASSWORD: {{ $Secret }} 
 type: Opaque
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -66,7 +67,7 @@ data:
     create database casbin;
     create database git_sensor;
     create database lens;
-    create database clair;
+    create database clairv4;
 ---
 apiVersion: v1
 kind: Service
@@ -213,6 +214,8 @@ spec:
               value: "orchestrator"
             - name: POSTGRESQL_ENABLE_LDAP
               value: "no"
+            - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
+              value: pgaudit, uuid-ossp
           ports:
             - name: tcp-postgresql
               containerPort: 5432
@@ -301,5 +304,4 @@ spec:
         resources:
           requests:
             storage: {{ .persistence.volumeSize }}
-{{- end }}
 {{- end }}
