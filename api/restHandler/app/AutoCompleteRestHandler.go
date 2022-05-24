@@ -27,7 +27,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	teamId := v.Get("teamId")
 	appName := v.Get("appName")
 	handler.Logger.Infow("request payload, GetAppListForAutocomplete", "teamId", teamId)
-	var apps []pipeline.AppBean
+	var apps []*pipeline.AppBean
 	if len(teamId) == 0 {
 		apps, err = handler.pipelineBuilder.FindAllMatchesByAppName(appName)
 		if err != nil {
@@ -51,7 +51,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	}
 
 	token := r.Header.Get("token")
-	var accessedApps []pipeline.AppBean
+	var accessedApps []*pipeline.AppBean
 	// RBAC
 	objects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, app := range apps {
@@ -62,7 +62,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	}
 	// RBAC
 	if len(accessedApps) == 0 {
-		accessedApps = make([]pipeline.AppBean, 0)
+		accessedApps = make([]*pipeline.AppBean, 0)
 	}
 	common.WriteJsonResp(w, err, accessedApps, http.StatusOK)
 }

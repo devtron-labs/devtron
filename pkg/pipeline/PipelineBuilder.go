@@ -85,7 +85,7 @@ type PipelineBuilder interface {
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
 	GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error)
 	FetchArtifactForRollback(cdPipelineId int) (bean.CiArtifactResponse, error)
-	FindAppsByTeamId(teamId int) ([]AppBean, error)
+	FindAppsByTeamId(teamId int) ([]*AppBean, error)
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
@@ -100,7 +100,7 @@ type PipelineBuilder interface {
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
-	FindAllMatchesByAppName(appName string) ([]AppBean, error)
+	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -1857,15 +1857,15 @@ func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMes
 	return mInfo, err
 }
 
-func (impl PipelineBuilderImpl) FindAppsByTeamId(teamId int) ([]AppBean, error) {
-	var appsRes []AppBean
+func (impl PipelineBuilderImpl) FindAppsByTeamId(teamId int) ([]*AppBean, error) {
+	var appsRes []*AppBean
 	apps, err := impl.appRepo.FindAppsByTeamId(teamId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching app", "err", err)
 		return nil, err
 	}
 	for _, app := range apps {
-		appsRes = append(appsRes, AppBean{Id: app.Id, Name: app.AppName})
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
 	}
 	return appsRes, err
 }
@@ -2229,9 +2229,9 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 	return ciPipeline, err
 }
 
-func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string) ([]AppBean, error) {
-	var appsRes []AppBean
-	var apps []app2.App
+func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string) ([]*AppBean, error) {
+	var appsRes []*AppBean
+	var apps []*app2.App
 	var err error
 	if len(appName) == 0 {
 		apps, err = impl.appRepo.FindAll()
@@ -2243,7 +2243,7 @@ func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string) ([]AppBe
 		return nil, err
 	}
 	for _, app := range apps {
-		appsRes = append(appsRes, AppBean{Id: app.Id, Name: app.AppName})
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
 	}
 	return appsRes, err
 }
