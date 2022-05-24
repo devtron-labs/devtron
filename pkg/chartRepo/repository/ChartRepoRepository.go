@@ -314,7 +314,7 @@ type ChartRefRepository interface {
 	GetAll() ([]*ChartRef, error)
 	CheckIfDataExists(name string, version string) (bool, error)
 	FetchChart(name string) (*ChartRef, error)
-	FetchChartsGroupByName(userUploaded bool) ([]*ChartDto, error)
+	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartDto, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -369,9 +369,10 @@ func (impl ChartRefRepositoryImpl) FetchChart(name string) (*ChartRef, error) {
 	return repo, err
 }
 
-func (impl ChartRefRepositoryImpl) FetchChartsGroupByName(userUploaded bool) ([]*ChartDto, error) {
+func (impl ChartRefRepositoryImpl) FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartDto, error) {
 	var repo []*ChartDto
-	_, err := impl.dbConnection.Query(&repo, "Select name, chart_description, Count(name) from chart_ref Where user_uploaded = ? and active = true Group By name, chart_description Having Count(name)>0;", userUploaded)
+	query := "Select name, chart_description, Count(name) from chart_ref Where user_uploaded = ? and active = true Group By name, chart_description Having Count(name)>0;"
+	_, err := impl.dbConnection.Query(&repo, query, userUploaded)
 	if err != nil {
 		return repo, err
 	}

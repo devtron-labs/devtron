@@ -1381,35 +1381,36 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 
 	if location == "" {
 		chartYaml, err := impl.ReadChartMetaDataForLocation(temporaryChartWorkingDir, fileName)
+		var errorList error
+		if err != nil {
+			impl.logger.Errorw("Chart yaml file not found")
+			errorList = err
+		}
+
+		err = util2.CheckForMissingFiles(currentChartWorkingDir)
+		if err != nil {
+			impl.logger.Errorw("Missing files in the folder", "err", err)
+			errorList = errors.New(errorList.Error() + "; " + err.Error())
+		}
+
+		if errorList != nil {
+			return chartInfo, errorList
+		}
+
 		chartName = chartYaml.Name
 		chartVersion = chartYaml.Version
 		chartInfo.Description = chartYaml.Description
-		if err != nil {
-			impl.logger.Errorw("Chart yaml file not found")
-			return chartInfo, err
-		}
 		exists, err := impl.chartRefRepository.CheckIfDataExists(chartName, chartVersion)
-		var errorList error
+
 		if exists {
 			impl.logger.Errorw("request err, chart name and version exists already in the database")
-			errorList = errors.New(chartVersion + " of " + chartName + " exists already in the database")
+			return chartInfo, errors.New(chartVersion + " of " + chartName + " exists already in the database")
 		}
 		if err != nil {
 			impl.logger.Errorw("Error in searching the database")
 			return chartInfo, err
 		}
 		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
-
-		err = util2.CheckForMissingFiles(currentChartWorkingDir)
-		if err != nil {
-			impl.logger.Errorw("Missing files in the folder", "err", err)
-			errorList = errors.New(errorList.Error() + ", " + err.Error())
-			//return chartInfo, errorList
-		}
-
-		if errorList != nil {
-			return chartInfo, errorList
-		}
 
 		location = chartLocation
 
