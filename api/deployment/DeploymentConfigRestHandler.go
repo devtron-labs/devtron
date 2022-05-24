@@ -108,6 +108,7 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 		}
 		if err.Error() == "Chart exists already, try uploading another chart" {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 		common.WriteJsonResp(w, fmt.Errorf(err.Error()), nil, http.StatusBadRequest)
 		return
