@@ -1276,7 +1276,7 @@ func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
 		impl.logger.Errorw("error in finding ref chart by id", "err", err)
 		return err
 	}
-	refChartDir := filepath.Clean(filepath.Join(string(impl.refChartDir), chartRef.Location))
+	refChartDir := filepath.Join(string(impl.refChartDir), chartRef.Location)
 	if _, err := os.Stat(refChartDir); os.IsNotExist(err) {
 		chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
 		if chartInfo.TemporaryFolder != "" {
