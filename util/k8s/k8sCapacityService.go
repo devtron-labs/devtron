@@ -1,6 +1,7 @@
 package k8s
 
 import (
+	"context"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -94,7 +95,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailsByClusterId(cluster
 		return nil, err
 	}
 	clusterDetails := &ClusterCapacityDetails{}
-	nodeList, err := k8sClientSet.CoreV1().Nodes().List(v1.ListOptions{})
+	nodeList, err := k8sClientSet.CoreV1().Nodes().List(context.Background(), v1.ListOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting node list", "err", err)
 		return nil, err
@@ -142,7 +143,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByClusterId(cluste
 	}
 	var nodeCpuUsage map[string]resource.Quantity
 	var nodeMemoryUsage map[string]resource.Quantity
-	nodeMetricsList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(v1.ListOptions{})
+	nodeMetricsList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(context.Background(), v1.ListOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting node metrics", "err", err)
 		return nil, err
@@ -154,13 +155,13 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByClusterId(cluste
 	}
 
 	var nodeDetails []*NodeCapacityDetails
-	nodeList, err := k8sClientSet.CoreV1().Nodes().List(v1.ListOptions{})
+	nodeList, err := k8sClientSet.CoreV1().Nodes().List(context.Background(), v1.ListOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting node list", "err", err)
 		return nil, err
 	}
 	//empty namespace: get pods for all namespaces
-	podList, err := k8sClientSet.CoreV1().Pods("").List(v1.ListOptions{})
+	podList, err := k8sClientSet.CoreV1().Pods("").List(context.Background(), v1.ListOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting pod list", "err", err)
 		return nil, err
