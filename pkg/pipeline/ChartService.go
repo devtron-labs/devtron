@@ -675,7 +675,7 @@ func (impl ChartServiceImpl) getNewVersion(chartRepo, chartName, refChartLocatio
 		return "", err
 	}
 	placeholders := strings.Split(parentVersion, ".")
-	if len(placeholders) != 3 || placeholders[2] != "0" {
+	if len(placeholders) != 3 {
 		return "", fmt.Errorf("invalid parent chart version %s", parentVersion)
 	}
 
