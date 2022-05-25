@@ -11,19 +11,25 @@ import (
 	chartRepo "github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
 	"github.com/devtron-labs/devtron/api/connector"
+	"github.com/devtron-labs/devtron/api/dashboardEvent"
+	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/module"
+	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -34,10 +40,12 @@ import (
 
 func InitializeApp() (*App, error) {
 	wire.Build(
+
 		sql.PgSqlWireSet,
 		user.UserWireSet,
 		sso.SsoConfigWireSet,
 		AuthWireSet,
+		externalLink.ExternalLinkWireSet,
 		team.TeamsWireSet,
 		cluster.ClusterWireSetEa,
 		dashboard.DashboardWireSet,
@@ -47,6 +55,8 @@ func InitializeApp() (*App, error) {
 		appStoreDiscover.AppStoreDiscoverWireSet,
 		appStoreValues.AppStoreValuesWireSet,
 		appStoreDeployment.AppStoreDeploymentWireSet,
+		server.ServerWireSet,
+		module.ModuleWireSet,
 
 		NewApp,
 		NewMuxRouter,
@@ -77,12 +87,23 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
 		app2.NewAppRepositoryImpl,
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
+		repository.NewAttributesRepositoryImpl,
+		wire.Bind(new(repository.AttributesRepository), new(*repository.AttributesRepositoryImpl)),
 		pipelineConfig.NewCiPipelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiPipelineRepository), new(*pipelineConfig.CiPipelineRepositoryImpl)),
 		// // needed for enforcer util ends
 
 		// binding gitops to helm (for hyperion)
 		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
+
+		wire.Value(pipeline.RefChartDir("scripts/devtron-reference-helm-charts")),
+
+		//needed for sending events
+		dashboardEvent.NewDashboardTelemetryRestHandlerImpl,
+		wire.Bind(new(dashboardEvent.DashboardTelemetryRestHandler), new(*dashboardEvent.DashboardTelemetryRestHandlerImpl)),
+		dashboardEvent.NewDashboardTelemetryRouterImpl,
+		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
+			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
 	)
 	return &App{}, nil
 }

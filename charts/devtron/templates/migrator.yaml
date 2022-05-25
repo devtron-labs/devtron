@@ -1,0 +1,92 @@
+{{- if not .Values.installer.modules }}
+{{- with .Values.components.migrator }}
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-migrate-devtron-{{ randAlphaNum 5 | lower }}
+  annotations: {}
+spec:
+  ttlSecondsAfterFinished: 1000
+  template:
+    spec:
+      containers:
+      - name: postgresql-migrate-devtron
+        image: {{ .image }}
+        env:
+        - name: GIT_BRANCH
+          value: {{ .envVars.devtron.GIT_BRANCH }}
+        - name: SCRIPT_LOCATION
+          value: {{ .envVars.devtron.SCRIPT_LOCATION }}
+        - name: GIT_REPO_URL
+          value: {{ .envVars.devtron.GIT_REPO_URL }}
+        - name: DB_TYPE
+          value: postgres
+        - name: DB_USER_NAME
+          value: postgres
+        - name: DB_HOST
+          value: postgresql-postgresql.devtroncd
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: {{ .envVars.devtron.DB_NAME }}
+        - name: MIGRATE_TO_VERSION
+          value: "0"
+        - name: GIT_HASH
+          value: {{ .envVars.devtron.GIT_HASH }}
+        envFrom:
+          - secretRef:
+              name: postgresql-migrator
+      restartPolicy: OnFailure
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-migrate-casbin-{{ randAlphaNum 5 | lower }}
+  annotations: {}
+spec:
+  template:
+    spec:
+      serviceAccountName: devtron
+      containers:
+      - name: devtron-rollout
+        image: "quay.io/devtron/kubectl:latest"
+        command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+      initContainers:
+      - name: postgresql-migrate-casbin
+        image: {{ .image }}
+        env:
+        - name: SCRIPT_LOCATION
+          value: {{ .envVars.casbin.SCRIPT_LOCATION }}
+        - name: GIT_REPO_URL
+          value: {{ .envVars.casbin.GIT_REPO_URL }}
+        - name: DB_TYPE
+          value: postgres
+        - name: DB_USER_NAME
+          value: postgres
+        - name: DB_HOST
+          value: postgresql-postgresql.devtroncd
+        - name: DB_PORT
+          value: "5432"
+        - name: DB_NAME
+          value: {{ .envVars.casbin.DB_NAME }}
+        - name: MIGRATE_TO_VERSION
+          value: "0"
+        - name: GIT_HASH
+          value: {{ .envVars.casbin.GIT_HASH }}
+        - name: GIT_BRANCH
+          value: {{ .envVars.casbin.GIT_BRANCH }}
+        envFrom:
+          - secretRef:
+              name: postgresql-migrator
+        resources:
+          requests:
+            cpu: 0.5
+            memory: 500Mi
+      restartPolicy: OnFailure
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+{{- end }}
+{{- end }}

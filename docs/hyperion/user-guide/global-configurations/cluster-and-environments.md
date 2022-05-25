@@ -24,7 +24,7 @@ Navigate to the `Global Configurations` → `Clusters and Environments` on devtr
    * TLS Certificate
 
 
-![](../../user-guide/global-configurations/images/cluster-1.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/cluster-1.jpg)
 
 ### 1. Name
 
@@ -77,11 +77,11 @@ on saving or update a cluster there is a call to fetch k8s version, it will stor
 
 Check the below screenshots to know how it looks like If you select the `Basic` authentication type
 
-![](../../user-guide/global-configurations/images/cluster-2.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/cluster-2.jpg)
 
 If you select the `Anonymous` authentication type
 
-![](../../user-guide/global-configurations/images/cluster-1.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/cluster-1.jpg)
 
 Now click on `Save Cluster` to save your cluster information.
 
@@ -89,17 +89,17 @@ Now click on `Save Cluster` to save your cluster information.
 
 Your kubernetes cluster gets mapped with the Devtron when you save your kubernetes cluster Configuration. Now the agents of devtron will be installed on your cluster so that the components of devtron can communicate to your cluster. When the agent starts installing on your cluster, you can check the status of the agents in the Cluster & Environment tab also.
 
-![](../../.gitbook/assets/gc-cluster-agents.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/gc-cluster-agents.jpg)
 
 Click on `Details` to check what got installed inside the agents. A new window will be popped up displaying all the details about these agents.
 
-![](../../.gitbook/assets/cluster_gc5.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/cluster_gc5.jpg)
 
 ## Add Environment
 
 Once you have added your cluster in Cluster & Environment, you can add the environment also. Click on `Add Environment`, a window will be opened. Give a name to your environment in the `Environment Name` box and provide a namespace corresponding to your environment in the `Namespace` input box. Now choose if your environment is for Production purposes or for Non-production purposes. Production and Non-production options are only for tagging purposes. Click on `Save` and your environment will be created.
 
-![](../../.gitbook/assets/gc-cluster-add-environment%20%283%29.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/gc-cluster-add-environment.jpg)
 
 You can update an already created environment, Select and click on the environment which you want to update. You can only change Production and Non-production options here.
 
@@ -107,7 +107,7 @@ You can update an already created environment, Select and click on the environme
 
 You can not change the Environment name and Namespace name.
 
-![](../../.gitbook/assets/gc-cluster-update-environment%20%281%29.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/gc-cluster-update-environment.jpg)
 
 Click on `Update` to update your environment.
 

@@ -109,6 +109,7 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		go func(done <-chan struct{}, closed <-chan bool) {
@@ -302,6 +303,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
 	}
+
 	createResp, err := handler.propertiesConfigService.CreateEnvironmentProperties(appId, &envConfigProperties)
 	if err != nil {
 		if err.Error() == bean2.NOCHARTEXIST {
@@ -393,6 +395,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideUpdate(w http.Resp
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
 	}
+
 	createResp, err := handler.propertiesConfigService.UpdateEnvironmentProperties(appId, &envConfigProperties, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "payload", envConfigProperties)
@@ -432,6 +435,7 @@ func (handler PipelineConfigRestHandlerImpl) GetEnvConfigOverride(w http.Respons
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+
 	env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, environmentId, chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetEnvConfigOverride", "err", err, "payload", appId, environmentId, chartRefId)
@@ -679,6 +683,10 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	if len(digests) > 0 {
 		vulnerableMap := make(map[string]bool)
+		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipelineModel.Environment.ClusterId, pipelineModel.EnvironmentId, pipelineModel.AppId, pipelineModel.App.AppStore)
+		if err != nil {
+			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
+		}
 		for _, digest := range digests {
 			if len(digest) > 0 {
 				var cveStores []*security.CveStore
@@ -690,21 +698,15 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 				for _, item := range imageScanResult {
 					cveStores = append(cveStores, &item.CveStore)
 				}
-				blockCveList, err := handler.policyService.GetBlockedCVEList(cveStores, pipelineModel.Environment.ClusterId, pipelineModel.EnvironmentId, pipelineModel.AppId, pipelineModel.App.AppStore)
-				if err != nil {
-					handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
-				}
-				if len(blockCveList) > 0 {
-					vulnerableMap[digest] = true
-				}
+				vulnerableMap[digest] = handler.policyService.HasBlockedCVE(cveStores, cvePolicy, severityPolicy)
 			}
 		}
 		var ciArtifactsFinal []bean.CiArtifactBean
 		for _, item := range ciArtifactResponse.CiArtifacts {
 			if item.ScanEnabled { // skip setting for artifacts which have marked scan disabled, but here deal with same digest
-				if _, ok := vulnerableMap[item.ImageDigest]; ok {
-					item.IsVulnerable = true
-				}
+				//if isVulnerable, ok := vulnerableMap[item.ImageDigest]; ok {
+				item.IsVulnerable = vulnerableMap[item.ImageDigest]
+				//}
 			}
 			ciArtifactsFinal = append(ciArtifactsFinal, item)
 		}
@@ -791,6 +793,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
 	}
+
 	createResp, err := handler.chartService.UpdateAppOverride(&templateRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateAppOverride", "err", err, "payload", templateRequest)

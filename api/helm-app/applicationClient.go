@@ -22,6 +22,9 @@ type HelmAppClient interface {
 	GetDeploymentDetail(ctx context.Context, in *DeploymentDetailRequest) (*DeploymentDetailResponse, error)
 	InstallRelease(ctx context.Context, in *InstallReleaseRequest) (*InstallReleaseResponse, error)
 	UpdateApplicationWithChartInfo(ctx context.Context, in *InstallReleaseRequest) (*UpgradeReleaseResponse, error)
+	IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier) (*BooleanResponse, error)
+	RollbackRelease(ctx context.Context, in *RollbackReleaseRequest) (*BooleanResponse, error)
+	TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error)
 }
 
 type HelmAppClientImpl struct {
@@ -221,4 +224,40 @@ func (impl *HelmAppClientImpl) UpdateApplicationWithChartInfo(ctx context.Contex
 		return nil, err
 	}
 	return updateReleaseResponse, nil
+}
+
+func (impl *HelmAppClientImpl) IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier) (*BooleanResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.IsReleaseInstalled(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (impl *HelmAppClientImpl) RollbackRelease(ctx context.Context, in *RollbackReleaseRequest) (*BooleanResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.RollbackRelease(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (impl *HelmAppClientImpl) TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.TemplateChart(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
 }

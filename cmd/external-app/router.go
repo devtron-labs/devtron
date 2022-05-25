@@ -7,8 +7,12 @@ import (
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
 	"github.com/devtron-labs/devtron/api/chartRepo"
 	"github.com/devtron-labs/devtron/api/cluster"
+	"github.com/devtron-labs/devtron/api/dashboardEvent"
+	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
@@ -36,6 +40,11 @@ type MuxRouter struct {
 	appStoreDiscoverRouter   appStoreDiscover.AppStoreDiscoverRouter
 	appStoreValuesRouter     appStoreValues.AppStoreValuesRouter
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter
+	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
+	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
+	externalLinksRouter      externalLink.ExternalLinkRouter
+	moduleRouter             module.ModuleRouter
+	serverRouter             server.ServerRouter
 	k8sCapacityRouter        k8s.K8sCapacityRouter
 }
 
@@ -54,6 +63,11 @@ func NewMuxRouter(
 	appStoreDiscoverRouter appStoreDiscover.AppStoreDiscoverRouter,
 	appStoreValuesRouter appStoreValues.AppStoreValuesRouter,
 	appStoreDeploymentRouter appStoreDeployment.AppStoreDeploymentRouter,
+	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
+	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter,
+	externalLinkRouter externalLink.ExternalLinkRouter,
+	moduleRouter module.ModuleRouter,
+	serverRouter server.ServerRouter,
 	k8sCapacityRouter k8s.K8sCapacityRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
@@ -72,6 +86,11 @@ func NewMuxRouter(
 		appStoreDiscoverRouter:   appStoreDiscoverRouter,
 		appStoreValuesRouter:     appStoreValuesRouter,
 		appStoreDeploymentRouter: appStoreDeploymentRouter,
+		dashboardTelemetryRouter: dashboardTelemetryRouter,
+		commonDeploymentRouter:   commonDeploymentRouter,
+		externalLinksRouter:      externalLinkRouter,
+		moduleRouter:             moduleRouter,
+		serverRouter:             serverRouter,
 		k8sCapacityRouter:        k8sCapacityRouter,
 	}
 	return r
@@ -127,8 +146,10 @@ func (r *MuxRouter) Init() {
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
 
-	helmApp := r.Router.PathPrefix("/orchestrator/application").Subrouter()
-	r.helmAppRouter.InitAppListRouter(helmApp)
+	applicationSubRouter := r.Router.PathPrefix("/orchestrator/application").Subrouter()
+	r.helmAppRouter.InitAppListRouter(applicationSubRouter)
+	r.commonDeploymentRouter.Init(applicationSubRouter)
+
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
 	k8sCapacityApp := r.Router.PathPrefix("/orchestrator/k8s/capacity").Subrouter()
@@ -153,4 +174,20 @@ func (r *MuxRouter) Init() {
 	appStoreDeploymentSubRouter := r.Router.PathPrefix("/orchestrator/app-store/deployment").Subrouter()
 	r.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)
 	// app-store deployment router ends
+
+	//  dashboard event router starts
+	dashboardTelemetryRouter := r.Router.PathPrefix("/orchestrator/dashboard-event").Subrouter()
+	r.dashboardTelemetryRouter.Init(dashboardTelemetryRouter)
+	// dashboard event router ends
+
+	externalLinkRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
+	r.externalLinksRouter.InitExternalLinkRouter(externalLinkRouter)
+
+	// module router
+	moduleRouter := r.Router.PathPrefix("/orchestrator/module").Subrouter()
+	r.moduleRouter.Init(moduleRouter)
+
+	// server router
+	serverRouter := r.Router.PathPrefix("/orchestrator/server").Subrouter()
+	r.serverRouter.Init(serverRouter)
 }

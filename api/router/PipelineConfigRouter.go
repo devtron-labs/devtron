@@ -27,13 +27,22 @@ type PipelineConfigRouter interface {
 	initPipelineConfigRouter(configRouter *mux.Router)
 }
 type PipelineConfigRouterImpl struct {
-	restHandler            app.PipelineConfigRestHandler
-	appWorkflowRestHandler restHandler.AppWorkflowRestHandler
-	webhookDataRestHandler restHandler.WebhookDataRestHandler
+	restHandler                app.PipelineConfigRestHandler
+	appWorkflowRestHandler     restHandler.AppWorkflowRestHandler
+	webhookDataRestHandler     restHandler.WebhookDataRestHandler
+	pipelineHistoryRestHandler restHandler.PipelineHistoryRestHandler
 }
 
-func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler, appWorkflowRestHandler restHandler.AppWorkflowRestHandler, webhookDataRestHandler restHandler.WebhookDataRestHandler) *PipelineConfigRouterImpl {
-	return &PipelineConfigRouterImpl{restHandler: restHandler, appWorkflowRestHandler: appWorkflowRestHandler, webhookDataRestHandler: webhookDataRestHandler}
+func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler,
+	appWorkflowRestHandler restHandler.AppWorkflowRestHandler,
+	webhookDataRestHandler restHandler.WebhookDataRestHandler,
+	pipelineHistoryRestHandler restHandler.PipelineHistoryRestHandler) *PipelineConfigRouterImpl {
+	return &PipelineConfigRouterImpl{
+		restHandler:                restHandler,
+		appWorkflowRestHandler:     appWorkflowRestHandler,
+		webhookDataRestHandler:     webhookDataRestHandler,
+		pipelineHistoryRestHandler: pipelineHistoryRestHandler,
+	}
 
 }
 
@@ -138,4 +147,16 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/pipeline/suggest/{type}/{appId}").
 		HandlerFunc(router.restHandler.PipelineNameSuggestion).Methods("GET")
+
+	configRouter.Path("/history/deployed-configuration/{appId}/{pipelineId}/{wfrId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedConfigurationsForWorkflow).
+		Methods("GET")
+
+	configRouter.Path("/history/deployed-component/list/{appId}/{pipelineId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedHistoryComponentList).
+		Methods("GET")
+
+	configRouter.Path("/history/deployed-component/detail/{appId}/{pipelineId}/{id}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedHistoryComponentDetail).
+		Methods("GET")
 }

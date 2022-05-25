@@ -1,0 +1,26 @@
+installer:
+  release: "v0.4.4"
+  image: "quay.io/devtron/inception"
+  tag: "acb623ff-185-7117"
+  
+components:
+  dashboard:
+    image: "quay.io/devtron/dashboard:e46df8f6-240-8703"
+  devtron:
+    image: "quay.io/devtron/hyperion:38336f15-282-8704"
+  argocdDexServer:
+    image: "quay.io/dexidp/dex:v2.25.0"
+  kubelink:
+    image: "quay.io/devtron/kubelink:d691bfbb-318-8695"
+  postgres:
+    image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
+  
+  migrator:
+    image: "quay.io/devtron/migrator:6687f572-133-2208"
+    envVars:
+      devtron:
+        GIT_BRANCH: "main"
+        GIT_HASH: "38336f1533c3e77fdd2988e43d4b1056e0e40e03"
+      casbin:
+        GIT_BRANCH: "main"
+        GIT_HASH: "38336f1533c3e77fdd2988e43d4b1056e0e40e03"

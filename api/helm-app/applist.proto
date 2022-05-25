@@ -3,7 +3,7 @@ syntax = "proto3";
 import "google/protobuf/timestamp.proto";
 
 
-option go_package = "github.com/devtron-labs/go-helm-client/bean/grpc/client";
+option go_package = "github.com/devtron-labs/kubelink/bean/grpc/client";
 
 message ClusterConfig {
   string apiServerUrl = 1;
@@ -29,6 +29,9 @@ service ApplicationService {
   rpc GetDeploymentDetail(DeploymentDetailRequest) returns (DeploymentDetailResponse){}
   rpc InstallRelease(InstallReleaseRequest) returns (InstallReleaseResponse){}
   rpc UpgradeReleaseWithChartInfo(InstallReleaseRequest) returns (UpgradeReleaseResponse){}
+  rpc IsReleaseInstalled(ReleaseIdentifier) returns (BooleanResponse){}
+  rpc RollbackRelease(RollbackReleaseRequest) returns (BooleanResponse){}
+  rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
 }
 
 message DeployedAppList {
@@ -82,6 +85,8 @@ message ChartMetadata {
   string home = 3;
   repeated string sources = 4;
   string description = 5;
+  // Contains the rendered templates/NOTES.txt
+  string notes = 6;
 }
 
 message ResourceTreeResponse {
@@ -231,4 +236,17 @@ message InstallReleaseRequest {
 
 message InstallReleaseResponse {
   bool success = 1;
+}
+
+message BooleanResponse {
+  bool result = 1;
+}
+
+message RollbackReleaseRequest {
+  ReleaseIdentifier releaseIdentifier = 1;
+  int32 version = 2;
+}
+
+message TemplateChartResponse {
+  string generatedManifest = 1;
 }

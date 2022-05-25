@@ -2,17 +2,30 @@ package client
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/connector"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
+	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
+	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/ghodss/yaml"
 	"github.com/gogo/protobuf/proto"
+	"github.com/tidwall/gjson"
+	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
 	"net/http"
+	"reflect"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const DEFAULT_CLUSTER = "default_cluster"
@@ -31,26 +44,42 @@ type HelmAppService interface {
 	GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
 	InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error)
 	UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, updateReleaseRequest *InstallReleaseRequest) (*openapi.UpdateReleaseResponse, error)
+	IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error)
+	RollbackRelease(ctx context.Context, app *AppIdentifier, version int32) (bool, error)
+	GetClusterConf(clusterId int) (*ClusterConfig, error)
+	GetDevtronHelmAppIdentifier() *AppIdentifier
+	UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier, chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error)
+	TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error)
 }
 
 type HelmAppServiceImpl struct {
-	logger         *zap.SugaredLogger
-	clusterService cluster.ClusterService
-	helmAppClient  HelmAppClient
-	pump           connector.Pump
-	enforcerUtil   rbac.EnforcerUtilHelm
+	logger                               *zap.SugaredLogger
+	clusterService                       cluster.ClusterService
+	helmAppClient                        HelmAppClient
+	pump                                 connector.Pump
+	enforcerUtil                         rbac.EnforcerUtilHelm
+	serverDataStore                      *serverDataStore.ServerDataStore
+	serverEnvConfig                      *serverEnvConfig.ServerEnvConfig
+	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
+	environmentService                   cluster.EnvironmentService
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	helmAppClient HelmAppClient,
-	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm) *HelmAppServiceImpl {
+	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore,
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
+	environmentService cluster.EnvironmentService) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
-		logger:         Logger,
-		clusterService: clusterService,
-		helmAppClient:  helmAppClient,
-		pump:           pump,
-		enforcerUtil:   enforcerUtil,
+		logger:                               Logger,
+		clusterService:                       clusterService,
+		helmAppClient:                        helmAppClient,
+		pump:                                 pump,
+		enforcerUtil:                         enforcerUtil,
+		serverDataStore:                      serverDataStore,
+		serverEnvConfig:                      serverEnvConfig,
+		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
+		environmentService:                   environmentService,
 	}
 }
 
@@ -132,7 +161,7 @@ func (impl *HelmAppServiceImpl) hibernateResponseAdaptor(in []*HibernateStatus) 
 	return resStatus
 }
 func (impl *HelmAppServiceImpl) HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
-	conf, err := impl.getClusterConf(app.ClusterId)
+	conf, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		return nil, err
 	}
@@ -148,7 +177,7 @@ func (impl *HelmAppServiceImpl) HibernateApplication(ctx context.Context, app *A
 
 func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error) {
 
-	conf, err := impl.getClusterConf(app.ClusterId)
+	conf, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		return nil, err
 	}
@@ -162,7 +191,7 @@ func (impl *HelmAppServiceImpl) UnHibernateApplication(ctx context.Context, app 
 	return response, nil
 }
 
-func (impl *HelmAppServiceImpl) getClusterConf(clusterId int) (*ClusterConfig, error) {
+func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, error) {
 	cluster, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
@@ -176,8 +205,9 @@ func (impl *HelmAppServiceImpl) getClusterConf(clusterId int) (*ClusterConfig, e
 	}
 	return config, nil
 }
+
 func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
-	config, err := impl.getClusterConf(app.ClusterId)
+	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
@@ -188,12 +218,32 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 		ReleaseName:   app.ReleaseName,
 	}
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app detail", "err", err)
+		return nil, err
+	}
+
+	// if application is devtron app helm release,
+	// then for FULL (installer object exists), then status is combination of helm app status and installer object status -
+	// if installer status is not applied then check for timeout and progressing
+	devtronHelmAppIdentifier := impl.GetDevtronHelmAppIdentifier()
+	if app.ClusterId == devtronHelmAppIdentifier.ClusterId && app.Namespace == devtronHelmAppIdentifier.Namespace && app.ReleaseName == devtronHelmAppIdentifier.ReleaseName &&
+		impl.serverDataStore.InstallerCrdObjectExists {
+		if impl.serverDataStore.InstallerCrdObjectStatus != serverBean.InstallerCrdObjectStatusApplied {
+			// if timeout
+			if time.Now().After(appdetail.GetLastDeployed().AsTime().Add(1 * time.Hour)) {
+				appdetail.ApplicationStatus = serverBean.AppHealthStatusDegraded
+			} else {
+				appdetail.ApplicationStatus = serverBean.AppHealthStatusProgressing
+			}
+		}
+	}
 	return appdetail, err
 
 }
 
 func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {
-	config, err := impl.getClusterConf(app.ClusterId)
+	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
@@ -208,7 +258,7 @@ func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *A
 }
 
 func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error) {
-	config, err := impl.getClusterConf(app.ClusterId)
+	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
@@ -223,7 +273,7 @@ func (impl *HelmAppServiceImpl) GetValuesYaml(ctx context.Context, app *AppIdent
 }
 
 func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error) {
-	config, err := impl.getClusterConf(app.ClusterId)
+	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
@@ -255,7 +305,7 @@ func (impl *HelmAppServiceImpl) GetDesiredManifest(ctx context.Context, app *App
 }
 
 func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppIdentifier) (*openapi.UninstallReleaseResponse, error) {
-	config, err := impl.getClusterConf(app.ClusterId)
+	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
@@ -280,7 +330,7 @@ func (impl *HelmAppServiceImpl) DeleteApplication(ctx context.Context, app *AppI
 }
 
 func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppIdentifier, request *openapi.UpdateReleaseRequest) (*openapi.UpdateReleaseResponse, error) {
-	config, err := impl.getClusterConf(app.ClusterId)
+	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
@@ -308,7 +358,7 @@ func (impl *HelmAppServiceImpl) UpdateApplication(ctx context.Context, app *AppI
 }
 
 func (impl *HelmAppServiceImpl) GetDeploymentDetail(ctx context.Context, app *AppIdentifier, version int32) (*openapi.HelmAppDeploymentManifestDetail, error) {
-	config, err := impl.getClusterConf(app.ClusterId)
+	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
 		return nil, err
@@ -338,7 +388,7 @@ func (impl *HelmAppServiceImpl) GetDeploymentDetail(ctx context.Context, app *Ap
 }
 
 func (impl *HelmAppServiceImpl) InstallRelease(ctx context.Context, clusterId int, installReleaseRequest *InstallReleaseRequest) (*InstallReleaseResponse, error) {
-	config, err := impl.getClusterConf(clusterId)
+	config, err := impl.GetClusterConf(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
 		return nil, err
@@ -356,7 +406,7 @@ func (impl *HelmAppServiceImpl) InstallRelease(ctx context.Context, clusterId in
 }
 
 func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfo(ctx context.Context, clusterId int, updateReleaseRequest *InstallReleaseRequest) (*openapi.UpdateReleaseResponse, error) {
-	config, err := impl.getClusterConf(clusterId)
+	config, err := impl.GetClusterConf(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
 		return nil, err
@@ -372,6 +422,221 @@ func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfo(ctx context.Conte
 
 	response := &openapi.UpdateReleaseResponse{
 		Success: &updateReleaseResponse.Success,
+	}
+
+	return response, nil
+}
+
+func (impl *HelmAppServiceImpl) IsReleaseInstalled(ctx context.Context, app *AppIdentifier) (bool, error) {
+	config, err := impl.GetClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
+		return false, err
+	}
+
+	req := &ReleaseIdentifier{
+		ClusterConfig:    config,
+		ReleaseName:      app.ReleaseName,
+		ReleaseNamespace: app.Namespace,
+	}
+
+	apiResponse, err := impl.helmAppClient.IsReleaseInstalled(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in checking if helm release is installed", "err", err)
+		return false, err
+	}
+
+	return apiResponse.Result, nil
+}
+
+func (impl *HelmAppServiceImpl) RollbackRelease(ctx context.Context, app *AppIdentifier, version int32) (bool, error) {
+	config, err := impl.GetClusterConf(app.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", app.ClusterId, "err", err)
+		return false, err
+	}
+
+	req := &RollbackReleaseRequest{
+		ReleaseIdentifier: &ReleaseIdentifier{
+			ClusterConfig:    config,
+			ReleaseName:      app.ReleaseName,
+			ReleaseNamespace: app.Namespace,
+		},
+		Version: version,
+	}
+
+	apiResponse, err := impl.helmAppClient.RollbackRelease(ctx, req)
+	if err != nil {
+		impl.logger.Errorw("error in rollback release", "err", err)
+		return false, err
+	}
+
+	return apiResponse.Result, nil
+}
+
+func (impl *HelmAppServiceImpl) GetDevtronHelmAppIdentifier() *AppIdentifier {
+	return &AppIdentifier{
+		ClusterId:   1,
+		Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
+		ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
+	}
+}
+
+func (impl *HelmAppServiceImpl) UpdateApplicationWithChartInfoWithExtraValues(ctx context.Context, appIdentifier *AppIdentifier,
+	chartRepository *ChartRepository, extraValues map[string]interface{}, extraValuesYamlUrl string, useLatestChartVersion bool) (*openapi.UpdateReleaseResponse, error) {
+
+	// get release info
+	releaseInfo, err := impl.GetValuesYaml(context.Background(), appIdentifier)
+	if err != nil {
+		impl.logger.Errorw("error in fetching helm release info", "err", err)
+		return nil, err
+	}
+
+	// initialise object with original values
+	jsonString := releaseInfo.MergedValues
+
+	// handle extra values
+	// special handling for array
+	if len(extraValues) > 0 {
+		for k, v := range extraValues {
+			var valueI interface{}
+			if reflect.TypeOf(v).Kind() == reflect.Slice {
+				currentValue := gjson.Get(jsonString, k).Value()
+				value := make([]interface{}, 0)
+				if currentValue != nil {
+					value = currentValue.([]interface{})
+				}
+				for _, singleNewVal := range v.([]interface{}) {
+					value = append(value, singleNewVal)
+				}
+				valueI = value
+			} else {
+				valueI = v
+			}
+			jsonString, err = sjson.Set(jsonString, k, valueI)
+			if err != nil {
+				impl.logger.Errorw("error in handing extra values", "err", err)
+				return nil, err
+			}
+		}
+	}
+
+	// convert to byte array
+	mergedValuesJsonByteArr := []byte(jsonString)
+
+	// handle extra values from url
+	if len(extraValuesYamlUrl) > 0 {
+		extraValuesUrlYamlByteArr, err := util2.ReadFromUrlWithRetry(extraValuesYamlUrl)
+		if err != nil {
+			impl.logger.Errorw("error in reading content", "extraValuesYamlUrl", extraValuesYamlUrl, "err", err)
+			return nil, err
+		} else if extraValuesUrlYamlByteArr == nil {
+			impl.logger.Errorw("response is empty from url", "extraValuesYamlUrl", extraValuesYamlUrl)
+			return nil, errors.New("response is empty from values url")
+		}
+
+		extraValuesUrlJsonByteArr, err := yaml.YAMLToJSON(extraValuesUrlYamlByteArr)
+		if err != nil {
+			impl.logger.Errorw("error in converting json to yaml", "err", err)
+			return nil, err
+		}
+
+		mergedValuesJsonByteArr, err = jsonpatch.MergePatch(mergedValuesJsonByteArr, extraValuesUrlJsonByteArr)
+		if err != nil {
+			impl.logger.Errorw("error in json patch of extra values from url", "err", err)
+			return nil, err
+		}
+	}
+
+	// convert JSON to yaml byte array
+	mergedValuesYamlByteArr, err := yaml.JSONToYAML(mergedValuesJsonByteArr)
+	if err != nil {
+		impl.logger.Errorw("error in converting json to yaml", "err", err)
+		return nil, err
+	}
+
+	// update in helm
+	updateReleaseRequest := &InstallReleaseRequest{
+		ReleaseIdentifier: &ReleaseIdentifier{
+			ReleaseName:      appIdentifier.ReleaseName,
+			ReleaseNamespace: appIdentifier.Namespace,
+		},
+		ChartName:       releaseInfo.DeployedAppDetail.ChartName,
+		ValuesYaml:      string(mergedValuesYamlByteArr),
+		ChartRepository: chartRepository,
+	}
+	if !useLatestChartVersion {
+		updateReleaseRequest.ChartVersion = releaseInfo.DeployedAppDetail.ChartVersion
+	}
+
+	updateResponse, err := impl.UpdateApplicationWithChartInfo(ctx, appIdentifier.ClusterId, updateReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("error in upgrading release", "err", err)
+		return nil, err
+	}
+	// update in helm ends
+
+	response := &openapi.UpdateReleaseResponse{
+		Success: updateResponse.Success,
+	}
+
+	return response, nil
+}
+
+func (impl *HelmAppServiceImpl) TemplateChart(ctx context.Context, templateChartRequest *openapi2.TemplateChartRequest) (*openapi2.TemplateChartResponse, error) {
+	appStoreApplicationVersionId := int(*templateChartRequest.AppStoreApplicationVersionId)
+	environmentId := int(*templateChartRequest.EnvironmentId)
+	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreApplicationVersionId)
+	if err != nil {
+		impl.logger.Errorw("Error in fetching app-store application version", "appStoreApplicationVersionId", appStoreApplicationVersionId, "err", err)
+		return nil, err
+	}
+
+	if environmentId > 0 {
+		environment, err := impl.environmentService.FindById(environmentId)
+		if err != nil {
+			impl.logger.Errorw("Error in fetching environment", "environmentId", environmentId, "err", err)
+			return nil, err
+		}
+		templateChartRequest.Namespace = &environment.Namespace
+		clusterIdI32 := int32(environment.ClusterId)
+		templateChartRequest.ClusterId = &clusterIdI32
+	}
+
+	clusterId := int(*templateChartRequest.ClusterId)
+
+	installReleaseRequest := &InstallReleaseRequest{
+		ChartName:    appStoreAppVersion.Name,
+		ChartVersion: appStoreAppVersion.Version,
+		ValuesYaml:   *templateChartRequest.ValuesYaml,
+		ChartRepository: &ChartRepository{
+			Name:     appStoreAppVersion.AppStore.ChartRepo.Name,
+			Url:      appStoreAppVersion.AppStore.ChartRepo.Url,
+			Username: appStoreAppVersion.AppStore.ChartRepo.UserName,
+			Password: appStoreAppVersion.AppStore.ChartRepo.Password,
+		},
+		ReleaseIdentifier: &ReleaseIdentifier{
+			ReleaseNamespace: *templateChartRequest.Namespace,
+			ReleaseName:      *templateChartRequest.ReleaseName,
+		},
+	}
+
+	config, err := impl.GetClusterConf(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cluster detail", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+
+	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
+
+	templateChartResponse, err := impl.helmAppClient.TemplateChart(ctx, installReleaseRequest)
+	if err != nil {
+		impl.logger.Errorw("error in templating chart", "err", err)
+		return nil, err
+	}
+
+	response := &openapi2.TemplateChartResponse{
+		Manifest: &templateChartResponse.GeneratedManifest,
 	}
 
 	return response, nil

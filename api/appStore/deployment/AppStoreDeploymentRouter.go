@@ -38,7 +38,7 @@ func NewAppStoreDeploymentRouterImpl(appStoreDeploymentRestHandler AppStoreDeplo
 func (router AppStoreDeploymentRouterImpl) Init(configRouter *mux.Router) {
 
 	configRouter.Path("/application/install").
-		HandlerFunc(router.appStoreDeploymentRestHandler.CreateInstalledApp).Methods("POST")
+		HandlerFunc(router.appStoreDeploymentRestHandler.InstallApp).Methods("POST")
 
 	configRouter.Path("/installed-app/{appStoreId}").
 		HandlerFunc(router.appStoreDeploymentRestHandler.GetInstalledAppsByAppStoreId).Methods("GET")
@@ -46,4 +46,6 @@ func (router AppStoreDeploymentRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/application/delete/{id}").
 		HandlerFunc(router.appStoreDeploymentRestHandler.DeleteInstalledApp).Methods("DELETE")
 
+	configRouter.Path("/application/helm/link-to-chart-store").
+		HandlerFunc(router.appStoreDeploymentRestHandler.LinkHelmApplicationToChartStore).Methods("PUT")
 }

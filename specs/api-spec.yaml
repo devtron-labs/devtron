@@ -1,0 +1,99 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/application/rollback:
+    put:
+      description: Rollback application if the application is installed from the chartStore
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RollbackReleaseRequest'
+      responses:
+        "200":
+          description: application rollback response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RollbackReleaseResponse"
+  /orchestrator/application/template-chart:
+    post:
+      description: Helm template chart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateChartRequest'
+      responses:
+        "200":
+          description: template chart response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateChartResponse"
+components:
+  schemas:
+    RollbackReleaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+    RollbackReleaseRequest:
+      type: object
+      properties:
+        installedAppId:
+          type: integer
+          description: Installed App Id if the app is installed from chart store
+          example: 1
+        installedAppVersionId:
+          type: integer
+          description: Installed App Version Id if the app is installed from chart store
+          example: 2
+        hAppId:
+          type: string
+          description: helm App Id if the application is installed from using helm (for example "clusterId|namespace|appName" )
+          example: "1|default|someName"
+        version:
+          type: integer
+          description: rollback to this version
+          example: 10
+    TemplateChartRequest:
+      type: object
+      properties:
+        environmentId:
+          type: integer
+          description: environment Id on which helm template would be performed
+          example: 1
+        clusterId:
+          type: integer
+          description: If environmentId is not provided, clusterId should be passed
+          example: 1
+        namespace:
+          type: string
+          description: If environmentId is not provided, namespace should be passed
+          example: 1
+        releaseName:
+          type: string
+          description: release name of helm app (if not provided, some random name is picked)
+          example: "some name"
+        appStoreApplicationVersionId:
+          type: integer
+          description: App store application version Id
+          example: 10
+        valuesYaml:
+          type: string
+          description: Values yaml
+          example: "some values yaml"
+    TemplateChartResponse:
+      type: object
+      properties:
+        manifest:
+          type: string
+          description: helm generated manifest
+          example: "some manifest"

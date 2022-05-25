@@ -7,6 +7,10 @@ image:
 service:
   type: ClusterIP
   #name: "service-1234567890"
+  loadBalancerSourceRanges: []
+  # loadBalancerSourceRanges: 
+  #    - 1.2.3.4/32
+  #    - 1.2.5.6/23
   annotations: {}
     # test1: test2
     # test3: test4
@@ -76,6 +80,7 @@ ReadinessProbe:
 ingress:
   enabled: false
   className: ""
+  labels: {}
   annotations: {}
 #    nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
 #    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
@@ -188,6 +193,8 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 70
   TargetMemoryUtilizationPercentage: 80
+  annotations: {}
+  labels: {}
   behavior: {}
 #    scaleDown:
 #      stabilizationWindowSeconds: 300

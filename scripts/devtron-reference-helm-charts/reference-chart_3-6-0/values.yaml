@@ -32,6 +32,8 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 90
   TargetMemoryUtilizationPercentage: 80
+  annotations: {}
+  labels: {}
 
 secret:
   enabled: false
@@ -79,6 +81,7 @@ servicemonitor:
 
 ingress:
   enabled: false
+  labels: {}
   annotations: {}
 #    nginx.ingress.kubernetes.io/rewrite-target: /
 #    nginx.ingress.kubernetes.io/ssl-redirect: "false"

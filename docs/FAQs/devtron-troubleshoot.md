@@ -106,22 +106,30 @@ If using Firefox -
 1. Goto login page of Devtron and open inspect.
 2. Navigate to storage tab in inspect.
 3. Click on url where Devtron has been installed under `Cookies` tab and you could see an argocd token with its value, something similar to below image.
+
 ![inspect-cookies](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/argocd-cookie.png)
+
 4. Now right click on token, and click on `Delete All Session Cookies` option.
 
 If using Chrome -
 1. Goto login page of Devtron and open inspect.
 2. Navigate to Application tab, and under `Storage` tab click on `Cookies`.
 3. Click on url under `Cookie` and you would be able tto see an argocd token with its value, as shown in the image below.
+
 ![chrome-cookie](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/chrome-cookie.png)
+
 4. Now right click on token and click on `delete` option.
 
 If using Safari -
 1. Goto Safari preferences >> Advanced options and check the show develop menu as shown in the image below.
+
 ![safari-preferences](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/safari-preferences.png)
+
 2. Now goto login page of Devtron and press `option+command+I`. It will open inspect element.
 3. Then navigate to `Storage`, click on `Cookies` and you would be able to see an argocd token with its value as shown in the image below.
+
 ![safari-cookie](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/safari-cookie.png)
+
 4. Now right click on token and select `delete` option.
 
 After clearing `Cookies`, try again to login, you should be able to login now.
@@ -129,7 +137,8 @@ After clearing `Cookies`, try again to login, you should be able to login now.
 
 #### 7. No charts found in Charts Discover Section
 
-In the Devtron's Discover Chart section, if you are not able to see any charts available, goto `Global Configuration` >> `Chart Repositories` and click on `Refresh Chart` at the top-right as shown in the image below. After clicking the button, it might take 4-5mins to show all the charts in `Discover` section depending upon the chart repositories added. 
+In the Devtron's Discover Chart section, if you are not able to see any charts available, goto `Global Configuration` >> `Chart Repositories` and click on `Refresh Chart` at the top-right as shown in the image below. After clicking the button, it might take 4-5mins to show all the charts in `Discover` section depending upon the chart repositories added.
+
 ![charts-not-found](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron-troubleshooting/refresh-charts.png)
 
 
@@ -144,7 +153,103 @@ In `Global Configurations` >> `Cluters & Environments`, if you try to update a c
 
 [Note: If you already have created some environments in that cluster, it needs to be updated again]
 
+#### 9. Postgresql is in crashloop with error - Failed to pull image
+    
+There may be some other pods also in crashloop as they are not able to connect to database. To resolve this issue, you can either [update devtron to latest version](https://docs.devtron.ai/devtron/setup/upgrade) or run the following commands to fix instantly on the same version you are using: 
+```
+kubectl patch -n devtroncd statefulset postgresql-postgresql -p '{"spec":{"template":{"spec":{"initContainers":[{"name":"init-chmod-data","image":"quay.io/devtron/minideb:latest"}],"containers":[{"name":"postgresql-postgresql","image":"quay.io/devtron/postgres:11.3.0-debian-9-r28"}]}}}}'
+```
+Then delete postgresql pod so that it can fetch the updated images:
+```
+kubectl delete pod -n devtroncd postgresql-postgresql-0
+```
+You can also delete other pods which are in crashloop after postgresql is up and running so that they can restart and connect to postgresql and Devtron will be up and running again in a few moments.
 
+#### 10. Unable to fetch the latest commit and not able to trigger auto build.
+
+To solve this, bounce the git-sensor-0 pod.
+```
+kubectl delete pod -n devtroncd git-sensor-0
+```
+#### 11. If you have restricted devtron-service to be accessible on certain IPs only and SSO login isn’t working
+
+Whitelist the NAT-gateway IPs of the cluster (There can be multiple NAT-gateways if your cluster is multi-AZ)
+
+#### 12. If CPU metrics are not showing but memory metrics are visible in graphs.
+
+Do the following:-
+
+1. Go to Grafana and Login with the credentials.
+2. Edit the CPU graphs and remove `image!=””` from the query.
+3. Save the dashboard.
+
+CPU metrics should start showing up in a while.
+
+#### 13. If user not able to upload a file more than specific size. 
+
+`Please use below annotation in ingress`
+```
+nginx.ingress.kubernetes.io/proxy-body-size: 100m
+```
+`Note:- `Where m is is MiB.
+
+#### 14. If AWS Load balancer controller is unable to provision ALB and getting message in alb controller as unauthorized, attach these IAM policy to  the nodegroup IAM Role.
+
+[IAM policy](https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v2.3.1/docs/install/iam_policy.json)
+
+#### 15. When app metrics is not coming on grafana and devtron dashboard, set the value of the following parameter as false in kube prometheus stack values.
+
+```
+serviceMonitorSelectorNilUsesHelmValues: false
+```
+#### 16. Unable to deploy metrics-server using chart on devtron
+
+To solve
+
+Disable certificate validation by passing `--kubelet-insecure-tls` argument to metrics server chart.
+
+#### 17. Unable to delete a database from postgres
+`Description of issue`
+
+ERROR: database `<db-name>` is being accessed by other users
+
+DETAIL: There is 1 other session using the database.
+
+You have to terminate the connections to the database first, for that you can use the command.
+```
+SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'TARGET_DB';
+```
+Then run the command to delete database - `drop databases <db-name>`
+
+#### 18. Unable to login with the auth password (argocd server)
+
+`Debug`
+
+Run the command for Admin Credentials and use it for login in dashboard
+
+`kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d`
+
+If you are getting an error message of  “invalid username or password”, follow the solution to solve it.
+
+`Solution`
+
+Run `kubectl get secret -n devtroncd` and then edit the `argocd-secret`, remove both the admin.password lines.
+
+Run `kubectl delete po your-argocd-server-pod -n devtroncd`, it will create a new pod after deletion and reset your admin password. Re-run the command for admin credentials again to get the new password.
+
+#### 19. After installing Devtron using helm, getting the admin password does not work.(if using windows)
+
+`Debug`
+
+'base64' is not recognized as an internal or external command, operable program or batch file.
+
+`Solution`
+
+The first way  to debug is either install base64 encode and decode into your windows machine and use the appropriate cmd to get the admin password.
+
+The other way is to get the password in the encoded form using the cmd
+
+`kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}'`, further decode it into plaintext using an online [encoder decoder](https://www.base64decode.org/).
 
 
 

@@ -19,12 +19,13 @@ package pubsub
 
 import (
 	"encoding/json"
-	"github.com/devtron-labs/devtron/client/events"
+
+	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/event"
-	"github.com/nats-io/stan.go"
+	"github.com/devtron-labs/devtron/util"
+	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
-	"time"
 )
 
 type CronBasedEventReceiver interface {
@@ -37,17 +38,18 @@ type CronBasedEventReceiverImpl struct {
 	eventService event.EventService
 }
 
-const cronEvents = "CRON_EVENTS"
-const cronEventsGroup = "CRON_EVENTS_GROUP-2"
-const cronEventsDurable = "CRON_EVENTS_DURABLE-2"
-
 func NewCronBasedEventReceiverImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, eventService event.EventService) *CronBasedEventReceiverImpl {
 	cronBasedEventReceiverImpl := &CronBasedEventReceiverImpl{
 		logger:       logger,
 		pubsubClient: pubsubClient,
 		eventService: eventService,
 	}
-	err := cronBasedEventReceiverImpl.Subscribe()
+	err := util.AddStream(cronBasedEventReceiverImpl.pubsubClient.JetStrCtxt, util.KUBEWATCH_STREAM)
+	if err != nil {
+		logger.Errorw("err while adding stream", "err", err)
+		return nil
+	}
+	err = cronBasedEventReceiverImpl.Subscribe()
 	if err != nil {
 		logger.Errorw("err while subscribe", "err", err)
 		return nil
@@ -56,13 +58,13 @@ func NewCronBasedEventReceiverImpl(logger *zap.SugaredLogger, pubsubClient *pubs
 }
 
 func (impl *CronBasedEventReceiverImpl) Subscribe() error {
-	_, err := impl.pubsubClient.Conn.QueueSubscribe(cronEvents, cronEventsGroup, func(msg *stan.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.CRON_EVENTS, util.CRON_EVENTS_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("received cron event")
 		defer msg.Ack()
 		event := client.Event{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &event)
 		if err != nil {
-			impl.logger.Errorw("err", "err", err)
+			impl.logger.Errorw("Error while unmarshalling json data", "error", err)
 			return
 		}
 		err = impl.eventService.HandleEvent(event)
@@ -70,7 +72,7 @@ func (impl *CronBasedEventReceiverImpl) Subscribe() error {
 			impl.logger.Errorw("err while handle event on subscribe", "err", err)
 			return
 		}
-	}, stan.DurableName(cronEventsDurable), stan.StartWithLastReceived(), stan.AckWait(time.Duration(impl.pubsubClient.AckDuration)*time.Second), stan.SetManualAckMode(), stan.MaxInflight(1))
+	}, nats.Durable(util.CRON_EVENTS_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.KUBEWATCH_STREAM))
 
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)

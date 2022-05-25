@@ -24,6 +24,8 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
@@ -85,7 +87,7 @@ type PipelineBuilder interface {
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
 	GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error)
 	FetchArtifactForRollback(cdPipelineId int) (bean.CiArtifactResponse, error)
-	FindAppsByTeamId(teamId int) ([]AppBean, error)
+	FindAppsByTeamId(teamId int) ([]*AppBean, error)
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
@@ -100,36 +102,44 @@ type PipelineBuilder interface {
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
+	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
 }
 
 type PipelineBuilderImpl struct {
-	logger                        *zap.SugaredLogger
-	dbPipelineOrchestrator        DbPipelineOrchestrator
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
-	materialRepo                  pipelineConfig.MaterialRepository
-	appRepo                       app2.AppRepository
-	pipelineRepository            pipelineConfig.PipelineRepository
-	propertiesConfigService       PropertiesConfigService
-	ciTemplateRepository          pipelineConfig.CiTemplateRepository
-	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	application                   application.ServiceClient
-	chartRepository               chartRepoRepository.ChartRepository
-	ciArtifactRepository          repository.CiArtifactRepository
-	ecrConfig                     *EcrConfig
-	envConfigOverrideRepository   chartConfig.EnvConfigOverrideRepository
-	environmentRepository         repository2.EnvironmentRepository
-	pipelineConfigRepository      chartConfig.PipelineConfigRepository
-	mergeUtil                     util.MergeUtil
-	appWorkflowRepository         appWorkflow.AppWorkflowRepository
-	ciConfig                      *CiConfig
-	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	appService                    app.AppService
-	imageScanResultRepository     security.ImageScanResultRepository
-	GitFactory                    *util.GitFactory
-	ArgoK8sClient                 argocdServer.ArgoK8sClient
-	attributesService             attributes.AttributesService
-	aCDAuthConfig                 *util3.ACDAuthConfig
-	gitOpsRepository              repository.GitOpsConfigRepository
+	logger                           *zap.SugaredLogger
+	dbPipelineOrchestrator           DbPipelineOrchestrator
+	dockerArtifactStoreRepository    repository.DockerArtifactStoreRepository
+	materialRepo                     pipelineConfig.MaterialRepository
+	appRepo                          app2.AppRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	propertiesConfigService          PropertiesConfigService
+	ciTemplateRepository             pipelineConfig.CiTemplateRepository
+	ciPipelineRepository             pipelineConfig.CiPipelineRepository
+	application                      application.ServiceClient
+	chartRepository                  chartRepoRepository.ChartRepository
+	ciArtifactRepository             repository.CiArtifactRepository
+	ecrConfig                        *EcrConfig
+	envConfigOverrideRepository      chartConfig.EnvConfigOverrideRepository
+	environmentRepository            repository2.EnvironmentRepository
+	pipelineConfigRepository         chartConfig.PipelineConfigRepository
+	mergeUtil                        util.MergeUtil
+	appWorkflowRepository            appWorkflow.AppWorkflowRepository
+	ciConfig                         *CiConfig
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	appService                       app.AppService
+	imageScanResultRepository        security.ImageScanResultRepository
+	GitFactory                       *util.GitFactory
+	ArgoK8sClient                    argocdServer.ArgoK8sClient
+	attributesService                attributes.AttributesService
+	aCDAuthConfig                    *util3.ACDAuthConfig
+	gitOpsRepository                 repository.GitOpsConfigRepository
+	pipelineStrategyHistoryService   history.PipelineStrategyHistoryService
+	prePostCiScriptHistoryService    history.PrePostCiScriptHistoryService
+	prePostCdScriptHistoryService    history.PrePostCdScriptHistoryService
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
+	appLevelMetricsRepository        repository.AppLevelMetricsRepository
+	pipelineStageService             PipelineStageService
+	chartTemplateService             util.ChartTemplateService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -156,35 +166,49 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	imageScanResultRepository security.ImageScanResultRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
 	GitFactory *util.GitFactory, attributesService attributes.AttributesService,
-	aCDAuthConfig *util3.ACDAuthConfig, gitOpsRepository repository.GitOpsConfigRepository) *PipelineBuilderImpl {
+	aCDAuthConfig *util3.ACDAuthConfig, gitOpsRepository repository.GitOpsConfigRepository,
+	pipelineStrategyHistoryService history.PipelineStrategyHistoryService,
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
+	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
+	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
+	appLevelMetricsRepository repository.AppLevelMetricsRepository,
+	pipelineStageService PipelineStageService,
+	chartTemplateService util.ChartTemplateService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
-		logger:                        logger,
-		dbPipelineOrchestrator:        dbPipelineOrchestrator,
-		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
-		materialRepo:                  materialRepo,
-		appService:                    appService,
-		appRepo:                       pipelineGroupRepo,
-		pipelineRepository:            pipelineRepository,
-		propertiesConfigService:       propertiesConfigService,
-		ciTemplateRepository:          ciTemplateRepository,
-		ciPipelineRepository:          ciPipelineRepository,
-		application:                   application,
-		chartRepository:               chartRepository,
-		ciArtifactRepository:          ciArtifactRepository,
-		ecrConfig:                     ecrConfig,
-		envConfigOverrideRepository:   envConfigOverrideRepository,
-		environmentRepository:         environmentRepository,
-		pipelineConfigRepository:      pipelineConfigRepository,
-		mergeUtil:                     mergeUtil,
-		appWorkflowRepository:         appWorkflowRepository,
-		ciConfig:                      ciConfig,
-		cdWorkflowRepository:          cdWorkflowRepository,
-		imageScanResultRepository:     imageScanResultRepository,
-		ArgoK8sClient:                 ArgoK8sClient,
-		GitFactory:                    GitFactory,
-		attributesService:             attributesService,
-		aCDAuthConfig:                 aCDAuthConfig,
-		gitOpsRepository:              gitOpsRepository,
+		logger:                           logger,
+		dbPipelineOrchestrator:           dbPipelineOrchestrator,
+		dockerArtifactStoreRepository:    dockerArtifactStoreRepository,
+		materialRepo:                     materialRepo,
+		appService:                       appService,
+		appRepo:                          pipelineGroupRepo,
+		pipelineRepository:               pipelineRepository,
+		propertiesConfigService:          propertiesConfigService,
+		ciTemplateRepository:             ciTemplateRepository,
+		ciPipelineRepository:             ciPipelineRepository,
+		application:                      application,
+		chartRepository:                  chartRepository,
+		ciArtifactRepository:             ciArtifactRepository,
+		ecrConfig:                        ecrConfig,
+		envConfigOverrideRepository:      envConfigOverrideRepository,
+		environmentRepository:            environmentRepository,
+		pipelineConfigRepository:         pipelineConfigRepository,
+		mergeUtil:                        mergeUtil,
+		appWorkflowRepository:            appWorkflowRepository,
+		ciConfig:                         ciConfig,
+		cdWorkflowRepository:             cdWorkflowRepository,
+		imageScanResultRepository:        imageScanResultRepository,
+		ArgoK8sClient:                    ArgoK8sClient,
+		GitFactory:                       GitFactory,
+		attributesService:                attributesService,
+		aCDAuthConfig:                    aCDAuthConfig,
+		gitOpsRepository:                 gitOpsRepository,
+		pipelineStrategyHistoryService:   pipelineStrategyHistoryService,
+		prePostCiScriptHistoryService:    prePostCiScriptHistoryService,
+		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
+		pipelineStageService:             pipelineStageService,
+		chartTemplateService:             chartTemplateService,
 	}
 }
 
@@ -351,16 +375,6 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
 		return nil, err
 	}
-	var beforeDockerBuild []*bean.Task
-	var afterDockerBuild []*bean.Task
-	if err := json.Unmarshal([]byte(template.BeforeDockerBuild), &beforeDockerBuild); err != nil {
-		impl.logger.Debugw("error in BeforeDockerBuild json unmarshal", "app", appId, "err", err)
-		return nil, err
-	}
-	if err := json.Unmarshal([]byte(template.AfterDockerBuild), &afterDockerBuild); err != nil {
-		impl.logger.Debugw("error in AfterDockerBuild json unmarshal", "app", appId, "err", err)
-		return nil, err
-	}
 	regHost, err := template.DockerRegistry.GetRegistryLocation()
 	if err != nil {
 		impl.logger.Errorw("invalid reg url", "err", err)
@@ -373,8 +387,6 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		DockerRepository:  template.DockerRepository,
 		DockerRegistry:    template.DockerRegistry.Id,
 		DockerRegistryUrl: regHost,
-		BeforeDockerBuild: beforeDockerBuild,
-		AfterDockerBuild:  afterDockerBuild,
 		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId},
 		Version:           template.Version,
 		CiTemplateName:    template.TemplateName,
@@ -917,6 +929,22 @@ func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*b
 			return nil, err
 		}
 	}
+	if request.CiPipeline.PreBuildStage != nil && request.CiPipeline.PreBuildStage.Id > 0 {
+		//deleting pre stage
+		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting pre stage", "err", err, "preBuildStage", request.CiPipeline.PreBuildStage)
+			return nil, err
+		}
+	}
+	if request.CiPipeline.PostBuildStage != nil && request.CiPipeline.PostBuildStage.Id > 0 {
+		//deleting post stage
+		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting post stage", "err", err, "postBuildStage", request.CiPipeline.PostBuildStage)
+			return nil, err
+		}
+	}
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -1096,6 +1124,20 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 		}
 	}
 
+	if pipeline.PreStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.PRE_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating pre cd script entry", "err", err, "pipeline", pipeline)
+			return err
+		}
+	}
+	if pipeline.PostStageConfig != "" {
+		err = impl.prePostCdScriptHistoryService.CreatePrePostCdScriptHistory(pipeline, tx, repository4.POST_CD_TYPE, false, 0, time.Time{})
+		if err != nil {
+			impl.logger.Errorw("error in creating post cd script entry", "err", err, "pipeline", pipeline)
+			return err
+		}
+	}
 	//delete app from argo cd
 	envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
 	if err != nil {
@@ -1186,7 +1228,7 @@ type Rolling struct {
 	MaxUnavailable int    `json:"maxUnavailable"`
 }
 
-func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.App, pipeline *bean.CDPipelineConfigObject, userID int32) (pipelineRes int, err error) {
+func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.App, pipeline *bean.CDPipelineConfigObject, userId int32) (pipelineRes int, err error) {
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -1199,12 +1241,14 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	if err != nil {
 		return 0, err
 	}
-	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userID, false, models.CHARTSTATUS_NEW, false, pipeline.Namespace, tx)
+	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, pipeline.Namespace, tx)
 	if err != nil {
 		return 0, err
 	}
 
 	chartRepoName := impl.appService.GetChartRepoName(chart.GitRepoUrl)
+	//getting user name & emailId for commit author data
+	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	chartGitAttr := &util.ChartConfig{
 		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
 		FileContent:    string(DefaultPipelineValue),
@@ -1212,6 +1256,8 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		ChartLocation:  chart.ChartLocation,
 		ChartRepoName:  chartRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
+		UserEmailId:    userEmailId,
+		UserName:       userName,
 	}
 	//FIXME: why only bitbucket?
 	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
@@ -1234,14 +1280,14 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	//new pipeline
 	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
 	name, err := impl.createArgoPipelineIfRequired(ctx, app, pipeline, envOverride)
-	if err != nil {
-		return 0, err
-	}
+	//if err != nil {
+	//	return 0, err
+	//}
 	impl.logger.Debugw("argocd application created", "name", name)
 
 	// Get pipeline override based on Deployment strategy
 	//TODO: mark as created in our db
-	pipelineId, err := impl.dbPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userID, tx)
+	pipelineId, err := impl.dbPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx)
 	if err != nil {
 		impl.logger.Errorw("error in ")
 		return 0, err
@@ -1269,14 +1315,26 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			ComponentId:   pipelineId,
 			Type:          "CD_PIPELINE",
 			Active:        true,
-			AuditLog:      sql.AuditLog{CreatedBy: userID, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userID},
+			AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
 		_, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
 		if err != nil {
 			return 0, err
 		}
 	}
-
+	//getting global app metrics for cd pipeline create because env level metrics is not created yet
+	appLevelAppMetricsEnabled := false
+	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(app.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting app level metrics app level", "error", err)
+	} else if err == nil {
+		appLevelAppMetricsEnabled = appLevelMetrics.AppMetrics
+	}
+	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride, tx, appLevelAppMetricsEnabled, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in creating entry for env deployment template history", "err", err, "envOverride", envOverride)
+		return 0, err
+	}
 	// strategies for pipeline ids, there is only one is default
 	defaultCount := 0
 	for _, item := range pipeline.Strategies {
@@ -1293,13 +1351,20 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			Config:     string(item.Config),
 			Default:    item.Default,
 			Deleted:    false,
-			AuditLog:   sql.AuditLog{UpdatedBy: userID, CreatedBy: userID, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			AuditLog:   sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 		}
 		err = impl.pipelineConfigRepository.Save(strategy, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
 			return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
 		}
+		//creating history entry for strategy
+		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
+		if err != nil {
+			impl.logger.Errorw("error in creating strategy history entry", "err", err)
+			return 0, err
+		}
+
 	}
 
 	err = tx.Commit()
@@ -1390,6 +1455,12 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				impl.logger.Errorw("error in updating strategy", "strategy", item.DeploymentTemplate)
 				return fmt.Errorf("pipeline updated but failed to update one strategy")
 			}
+			//creating history entry for strategy
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating strategy history entry", "err", err)
+				return err
+			}
 		} else {
 			strategy := &chartConfig.PipelineStrategy{
 				PipelineId: pipeline.Id,
@@ -1403,6 +1474,12 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 			if err != nil {
 				impl.logger.Errorw("error in saving strategy", "strategy", item.DeploymentTemplate)
 				return fmt.Errorf("pipeline created but failed to add strategy")
+			}
+			//creating history entry for strategy
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
+			if err != nil {
+				impl.logger.Errorw("error in creating strategy history entry", "err", err)
+				return err
 			}
 		}
 	}
@@ -1668,7 +1745,7 @@ func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentI
 	var ciArtifactsResponse bean.CiArtifactResponse
 	var err error
 	artifactMap := make(map[int]int)
-	limit := 30
+	limit := 10
 	ciArtifacts, artifactMap, err = impl.BuildArtifactsForCdStage(cdPipelineId, stage, ciArtifacts, artifactMap, false, limit, parentCdId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)
@@ -1883,15 +1960,15 @@ func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMes
 	return mInfo, err
 }
 
-func (impl PipelineBuilderImpl) FindAppsByTeamId(teamId int) ([]AppBean, error) {
-	var appsRes []AppBean
+func (impl PipelineBuilderImpl) FindAppsByTeamId(teamId int) ([]*AppBean, error) {
+	var appsRes []*AppBean
 	apps, err := impl.appRepo.FindAppsByTeamId(teamId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching app", "err", err)
 		return nil, err
 	}
 	for _, app := range apps {
-		appsRes = append(appsRes, AppBean{Id: app.Id, Name: app.AppName})
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
 	}
 	return appsRes, err
 }
@@ -2244,5 +2321,32 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		ciPipeline.AppWorkflowId = mapping.AppWorkflowId
 	}
 
+	//getting pre stage and post stage details
+	preStageDetail, postStageDetail, err := impl.pipelineStageService.GetCiPipelineStageData(ciPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", ciPipeline.Id)
+		return nil, err
+	}
+	ciPipeline.PreBuildStage = preStageDetail
+	ciPipeline.PostBuildStage = postStageDetail
 	return ciPipeline, err
+}
+
+func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string) ([]*AppBean, error) {
+	var appsRes []*AppBean
+	var apps []*app2.App
+	var err error
+	if len(appName) == 0 {
+		apps, err = impl.appRepo.FindAll()
+	} else {
+		apps, err = impl.appRepo.FindAllMatchesByAppName(appName)
+	}
+	if err != nil {
+		impl.logger.Errorw("error while fetching app", "err", err)
+		return nil, err
+	}
+	for _, app := range apps {
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
+	}
+	return appsRes, err
 }

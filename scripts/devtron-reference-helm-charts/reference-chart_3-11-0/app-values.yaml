@@ -6,6 +6,10 @@ image:
   pullPolicy: IfNotPresent
 service:
   type: ClusterIP
+  loadBalancerSourceRanges: []
+  # loadBalancerSourceRanges: 
+  #    - 1.2.3.4/32
+  #    - 1.2.5.6/23
   #name: "service-1234567890"
   annotations: {}
     # test1: test2
@@ -75,6 +79,7 @@ ReadinessProbe:
 
 ingress:
   enabled: false
+  labels: {}
   annotations:
     nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
     nginx.ingress.kubernetes.io/ssl-redirect: 'false'
@@ -182,6 +187,8 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 70
   TargetMemoryUtilizationPercentage: 80
+  annotations: {}
+  labels: {}
   extraMetrics: []
 #    - external:
 #        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages

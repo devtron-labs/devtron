@@ -1,0 +1,596 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Historical Task definitions
+paths:
+  /orchestrator/app/history/cm/{appId}/{pipelineId}:
+    get:
+      description: fetch deployment details in history for deployed config maps
+      operationId: FetchDeploymentDetailsForDeployedCMHistory
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConfigMapAndSecretHistoryDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/cs/{appId}/{pipelineId}:
+    get:
+      description: fetch deployment details in history for deployed secrets
+      operationId: FetchDeploymentDetailsForDeployedCSHistory
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ConfigMapAndSecretHistoryDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/template/{appId}/{pipelineId}:
+    get:
+      description: fetch deployment details in history for deployed deployment templates
+      operationId: FetchDeploymentDetailsForDeployedTemplatesHistory
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeploymentTemplateHistoryDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/strategy/{appId}/{pipelineId}:
+    get:
+      description: fetch deployment details in history for deployed pipeline strategy
+      operationId: FetchDeploymentDetailsForDeployedStrategyHistory
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PipelineStrategyHistoryDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/cm/{appId}/{pipelineId}/{id}:
+    get:
+      description: fetch history for deployed config map by id
+      operationId: FetchDeployedCMHistoryById
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeploymentDetailsDataType'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/cs/{appId}/{pipelineId}/{id}:
+    get:
+      description: fetch history for deployed secret by id
+      operationId: FetchDeployedCSHistoryById
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeploymentDetailsDataType'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/template/{appId}/{pipelineId}/{id}:
+    get:
+      description: fetch history for deployed deployment template by id
+      operationId: FetchDeployedTemplatesHistoryById
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeploymentDetailsDataType'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /orchestrator/app/history/strategy/{appId}/{pipelineId}/{id}:
+    get:
+      description: fetch history for deployed pipeline strategy by id
+      operationId: FetchDeployedStrategyHistoryById
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DeploymentDetailsDataType'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+
+  /orchestrator/app/history/cd-config/{appId}/{pipelineId}:
+    get:
+      description: fetch history for cd config (pre/post stage config)
+      operationId: FetchDeployedCdConfigHistory
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: pipelineId
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: stage
+          in: query
+          required: true
+          schema:
+            type: string
+            enum:
+              - "PRE_CD"
+              - "POST_CD"
+      responses:
+        '200':
+          description: Successfully return history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/PrePostCdScriptHistoryDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    DeploymentDetailsDataType:
+      type: object
+      properties:
+        id:
+          type: integer
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: integer
+    ConfigMapAndSecretHistoryDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        pipelineId:
+          type: integer
+        dataType:
+          type: string
+        configData:
+          $ref: '#/components/schemas/ConfigData'
+        deployed:
+          type: boolean
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: integer
+
+    DeploymentTemplateHistoryDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        pipelineId:
+          type: integer
+        imageDescriptorTemplate:
+          type: string
+        template:
+          type: string
+        templateName:
+          type: string
+        templateVersion:
+          type: string
+        isAppMetricsEnabled:
+          type: boolean
+        targetEnvironment:
+          type: integer
+        deployed:
+          type: boolean
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: integer
+
+    PipelineStrategyHistoryDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        pipelineId:
+          type: integer
+        strategy:
+          type: string
+        config:
+          type: string
+        default:
+          type: boolean
+        deployed:
+          type: boolean
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: integer
+
+    PrePostCdScriptHistoryDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        pipelineId:
+          type: integer
+        script:
+          type: string
+        stage:
+          type: string
+        configmapSecretNames:
+          $ref: '#/components/schemas/PrePostStageConfigMapSecretNames'
+        configmapData:
+          $ref: '#/components/schemas/ConfigData'
+        secretData:
+          $ref: '#/components/schemas/ConfigData'
+        triggerType:
+          type: string
+        execInEnv:
+          type: boolean
+        deployed:
+          type: boolean
+        deployedOn:
+          type: string
+          format: timestamp
+        deployedBy:
+          type: integer
+
+    PrePostStageConfigMapSecretNames:
+      properties:
+        configMaps:
+          type: array
+          items:
+            type: string
+        secrets:
+          type: array
+          items:
+            type: string
+
+    ConfigData:
+      properties:
+        name:
+          type: string
+        type:
+          type: string
+        external:
+          type: boolean
+        mountPath:
+          type: string
+        data:
+          type: string
+        defaultData:
+          type: string
+        defaultMountPath:
+          type: string
+        global:
+          type: boolean
+        externalType:
+          type: string
+        secretData:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalSecret'
+        defaultSecretData:
+          type: array
+          items:
+            $ref: '#/components/schemas/ExternalSecret'
+        roleArn:
+          type: string
+        subPath:
+          type: boolean
+        filePermission:
+          type: string
+    ExternalSecret:
+      properties:
+        key:
+          type: string
+        name:
+          type: string
+        property:
+          type: string
+        isBinary:
+          type: boolean
+
+    Error:
+      required:
+        - code
+        - message
+      properties:
+        code:
+          type: integer
+          description: Error code
+        message:
+          type: string
+          description: Error message

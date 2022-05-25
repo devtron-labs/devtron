@@ -106,6 +106,9 @@ LivenessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  command:
+    - python
+    - /etc/app/healthcheck.py
   httpHeaders:
     - name: Custom-Header
       value: abc
@@ -121,6 +124,7 @@ LivenessProbe:
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfil the liveness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
 | `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as live. |
+| `command` | The mentioned command is executed to perform the livenessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
@@ -161,6 +165,9 @@ ReadinessProbe:
   successThreshold: 1
   timeoutSeconds: 5
   failureThreshold: 3
+  command:
+    - python
+    - /etc/app/healthcheck.py
   httpHeaders:
     - name: Custom-Header
       value: abc
@@ -176,6 +183,7 @@ ReadinessProbe:
 | `successThreshold` | It defines the number of successes required before a given container is said to fulfill the readiness probe. |
 | `timeoutSeconds` | It defines the time for checking timeout. |
 | `failureThreshold` | It defines the maximum number of failures that are acceptable before a given container is not considered as ready. |
+| `command` | The mentioned command is executed to perform the readinessProbe. If the command returns a non-zero value, it's equivalent to a failed probe. |
 | `httpHeaders` | Custom headers to set in the request. HTTP allows repeated headers,You can override the default headers by defining .httpHeaders for the probe. |
 | `scheme` | Scheme to use for connecting to the host (HTTP or HTTPS). Defaults to HTTP.
 | `tcp` | The kubelet will attempt to open a socket to your container on the specified port. If it can establish a connection, the container is considered healthy. |
@@ -241,9 +249,11 @@ ingress:
   annotations: {}
   hosts:
       - host: example1.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example
       - host: example2.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example2
             - /example2/healthz
@@ -266,8 +276,9 @@ ingress:
 | :--- | :--- |
 | `enabled` | Enable or disable ingress |
 | `annotations` | To configure some options depending on the Ingress controller |
-| `path` | Path name |
 | `host` | Host name |
+| `pathType` | Path in an Ingress is required to have a corresponding path type. Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`. |
+| `path` | Path name |
 | `tls` | It contains security details |
 
 ### Ingress Internal
@@ -282,9 +293,11 @@ ingressInternal:
   annotations: {}
   hosts:
       - host: example1.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example
       - host: example2.com
+        pathType: "ImplementationSpecific"
         paths:
             - /example2
             - /example2/healthz
@@ -295,8 +308,10 @@ ingressInternal:
 | :--- | :--- |
 | `enabled` | Enable or disable ingress |
 | `annotations` | To configure some options depending on the Ingress controller |
-| `path` | Path name |
 | `host` | Host name |
+| `pathType` | Path in an Ingress is required to have a corresponding path type. Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`. |
+| `path` | Path name |
+| `pathType` | Supported path types are `ImplementationSpecific`, `Exact` and `Prefix`.|
 | `tls` | It contains security details |
 
 ### Init Containers
@@ -359,6 +374,15 @@ This defines annotations and the type of service, optionally can define name als
     type: ClusterIP
     annotations: {}
 ```
+| Key | Description |
+| :--- | :--- |
+| `type` | Select the type of service, default `ClusterIP` |
+| `annotations` | Annotations are widely used to attach metadata and configs in Kubernetes. |
+| `name` | Optional field to assign name to service  |
+| `loadBalancerSourceRanges` | If service type is `LoadBalancer`, Provide a list of whitelisted IPs CIDR that will be allowed to use the Load Balancer. |
+
+Note - If `loadBalancerSourceRanges` is not set, Kubernetes allows traffic from 0.0.0.0/0 to the LoadBalancer / Node Security Group(s). 
+
 
 ### Volumes
 
@@ -687,11 +711,11 @@ waitForSecondsBeforeScalingDown: 30
 ```
 Wait for given period of time before scaling down the container.
 
-## 3. Show application metrics
+## 3. Show Application Metrics
 
 If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment_application_metrics.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/application-metrics.jpg)
 
 Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
 

@@ -23,7 +23,6 @@ cronjobConfigs:
 imagePullSecrets:
   - test1
   - test2
-replicaCount: 1
 MinReadySeconds: 5
 MaxSurge: 1
 MaxUnavailable: 0
@@ -47,7 +46,6 @@ ContainerPort:
           regex: '(.*)'
           replacement: myapp
           targetLabel: target_namespace
-
   - name: app1
     port: 8090
     servicePort: 8080
@@ -73,22 +71,6 @@ Spec:
 image:
   pullPolicy: IfNotPresent
 
-autoscaling:
-  enabled: true
-  MinReplicas: 1
-  MaxReplicas: 2
-  TargetCPUUtilizationPercentage: 90
-  TargetMemoryUtilizationPercentage: 80
-  extraMetrics: []
-#    - external:
-#        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
-#        metricSelector:
-#          matchLabels:
-#            resource.labels.subscription_id: echo-read
-#        targetAverageValue: "2"
-#      type: External
-#
-
 secret:
   enabled: false
 
@@ -109,24 +91,6 @@ deploymentType: "RECREATE"
 EnvVariables:
   - name: FLASK_ENV
     value: qa
-
-LivenessProbe:
-  Path: /
-  port: 8080
-  initialDelaySeconds: 20
-  periodSeconds: 10
-  successThreshold: 1
-  timeoutSeconds: 5
-  failureThreshold: 3
-
-ReadinessProbe:
-  Path: /
-  port: 8080
-  initialDelaySeconds: 20
-  periodSeconds: 10
-  successThreshold: 1
-  timeoutSeconds: 5
-  failureThreshold: 3
 
 prometheus:
   release: monitoring
@@ -157,55 +121,6 @@ prometheusRule:
       annotations:
         description: Too many 4XXs
         summary: More than 5% of the all requests did return 4XX, this require your attention
-
-
-ingress:
-  enabled: false
-  annotations: {}
-#    nginx.ingress.kubernetes.io/rewrite-target: /
-#    nginx.ingress.kubernetes.io/ssl-redirect: "false"
-#    kubernetes.io/ingress.class: nginx
-#    kubernetes.io/tls-acme: "true"
-#    nginx.ingress.kubernetes.io/canary: "true"
-#    nginx.ingress.kubernetes.io/canary-weight: "10"
-
-  hosts:
-    - host: chart-example1.local
-      paths:
-        - /example1
-    - host: chart-example2.local
-      paths:
-        - /example2
-        - /example2/healthz
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
-
-ingressInternal:
-  enabled: false
-  annotations: {}
- #    kubernetes.io/ingress.class: nginx
- #    kubernetes.io/tls-acme: "true"
- #    nginx.ingress.kubernetes.io/canary: "true"
- #    nginx.ingress.kubernetes.io/canary-weight: "10"
-
-  hosts:
-    - host: chart-example1.internal
-      paths:
-        - /example1
-    - host: chart-example2.internal
-      paths:
-        - /example2
-        - /example2/healthz
-  tls: []
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
-
-dbMigrationConfig:
-  enabled: false
 
 command:
   enabled: true
@@ -390,17 +305,6 @@ rawYaml: []
 #     app: sample-metrics-app
 #    sessionAffinity: None
 #    type: ClusterIP
-
-envoyproxy:
-  image: envoyproxy/envoy:v1.14.1
-  configMapName: ""
-  resources:
-    limits:
-      cpu: 50m
-      memory: 50Mi
-    requests:
-      cpu: 50m
-      memory: 50Mi
 
 podDisruptionBudget: {}
   #  minAvailable: 1

@@ -53,6 +53,7 @@ type CdWorkflowRepository interface {
 	FindLatestCdWorkflowByPipelineIdV2(pipelineIds []int) ([]*CdWorkflow, error)
 	FetchAllCdStagesLatestEntity(pipelineIds []int) ([]*CdWorkflowStatus, error)
 	FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error)
+	ExistsByStatus(status string) (bool, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -119,7 +120,7 @@ type CdWorkflowRunner struct {
 	tableName    struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
 	Id           int                  `sql:"id,pk"`
 	Name         string               `sql:"name"`
-	WorkflowType bean.WorkflowType  `sql:"workflow_type"` //pre,post,deploy
+	WorkflowType bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
 	ExecutorType WorkflowExecutorType `sql:"executor_type"` //awf, system
 	Status       string               `sql:"status"`
 	PodStatus    string               `sql:"pod_status"`
@@ -307,7 +308,6 @@ func (impl *CdWorkflowRepositoryImpl) FindArtifactByPipelineIdAndRunnerType(pipe
 	return wfrList, err
 }
 
-
 func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error) {
 	wfr := CdWorkflowRunner{}
 	err := impl.dbConnection.
@@ -434,4 +434,11 @@ func (impl *CdWorkflowRepositoryImpl) FetchAllCdStagesLatestEntityStatus(wfrIds 
 	err := impl.dbConnection.Model(&wfrList).Column("cd_workflow_runner.*").
 		Where("cd_workflow_runner.id in (?)", pg.In(wfrIds)).Select()
 	return wfrList, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error) {
+	exists, err := impl.dbConnection.Model(&CdWorkflowRunner{}).
+		Where("status =?", status).
+		Exists()
+	return exists, err
 }

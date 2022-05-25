@@ -24,9 +24,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
@@ -42,6 +42,7 @@ const (
 type UserAuthRepository interface {
 	CreateRole(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error)
 	GetRoleById(id int) (*RoleModel, error)
+	GetRoleByRoles(roles []string) ([]RoleModel, error)
 	GetRolesByUserId(userId int32) ([]RoleModel, error)
 	GetRolesByGroupId(userId int32) ([]*RoleModel, error)
 	GetAllRole() ([]RoleModel, error)
@@ -124,6 +125,17 @@ func (impl UserAuthRepositoryImpl) GetRoleById(id int) (*RoleModel, error) {
 	}
 	return &model, nil
 }
+
+func (impl UserAuthRepositoryImpl) GetRoleByRoles(roles []string) ([]RoleModel, error) {
+	var model []RoleModel
+	err := impl.dbConnection.Model(&model).Where("role IN (?)", pg.In(roles)).Select()
+	if err != nil {
+		impl.Logger.Error(err)
+		return model, err
+	}
+	return model, nil
+}
+
 func (impl UserAuthRepositoryImpl) GetRolesByUserId(userId int32) ([]RoleModel, error) {
 	var models []RoleModel
 	err := impl.dbConnection.Model(&models).
@@ -175,7 +187,7 @@ func (impl UserAuthRepositoryImpl) GetRolesByActionAndAccessType(action string, 
 		err = impl.dbConnection.Model(&models).Where("action = ?", action).
 			Where("access_type is NULL").
 			Select()
-	} else{
+	} else {
 		err = impl.dbConnection.Model(&models).Where("action = ?", action).
 			Where("access_type = ?", accessType).
 			Select()

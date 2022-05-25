@@ -22,19 +22,49 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/credentials/ec2rolecreds"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/ecr"
 	"github.com/juju/errors"
+	"log"
 )
 
 //FIXME: this code is temp
 func CreateEcrRepo(repoName string, reg string, accessKey string, secretKey string) error {
 	region := reg
-	credentials := credentials.NewStaticCredentials(accessKey, secretKey, "")
-	svc := ecr.New(session.New(&aws.Config{
+	//fmt.Printf("repoName %s, reg %s, accessKey %s, secretKey %s\n", repoName, reg, accessKey, secretKey)
+
+	var creds *credentials.Credentials
+
+	if len(accessKey) == 0 || len(secretKey) == 0 {
+		//fmt.Println("empty accessKey or secretKey")
+		sess, err := session.NewSession(&aws.Config{
+			Region: &region,
+		})
+		if err != nil {
+			log.Println(err)
+			return err
+		}
+		creds = ec2rolecreds.NewCredentials(sess)
+	} else {
+		creds = credentials.NewStaticCredentials(accessKey, secretKey, "")
+	}
+
+	sess, err := session.NewSession(&aws.Config{
 		Region:      &region,
-		Credentials: credentials,
-	}))
+		Credentials: creds,
+	})
+	if err != nil {
+		log.Println(err)
+		return err
+	}
+
+	svc := ecr.New(sess)
+
+	if err != nil {
+		log.Println(err)
+		return err
+	}
 	input := &ecr.CreateRepositoryInput{
 		RepositoryName: aws.String(repoName),
 	}
