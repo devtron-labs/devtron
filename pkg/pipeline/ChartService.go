@@ -1433,6 +1433,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 			chartInfo.Message = "New Version detected for " + exisitingChart[0].Name
 		}
 
+	} else {
 		err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, location)))
 		if err != nil {
 			impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
