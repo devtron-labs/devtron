@@ -224,7 +224,7 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndEnvironmentIdV2() (pipeli
 
 func (impl PipelineRepositoryImpl) Delete(id int, tx *pg.Tx) error {
 	pipeline := &Pipeline{}
-	r, err := tx.Model(pipeline).Set("deleted =?", true).Where("id =?", id).Update()
+	r, err := tx.Model(pipeline).Set("deleted =?", true).Set("deployment_app_created =?", false).Where("id =?", id).Update()
 	impl.logger.Debugw("update result", "r-affected", r.RowsAffected(), "r-return", r.RowsReturned(), "model", r.Model())
 	return err
 }
