@@ -189,7 +189,7 @@ func (handler *DeploymentConfigRestHandlerImpl) SaveChart(w http.ResponseWriter,
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-
+		chartRefs.ChartDescription = request.Description
 		err = handler.chartRefRepository.Save(chartRefs)
 		if err != nil {
 			handler.Logger.Errorw("error in saving Chart", "err", err)
