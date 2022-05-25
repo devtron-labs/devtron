@@ -36,6 +36,7 @@ import (
 
 type UserService interface {
 	CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
+	SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
 	UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
@@ -99,6 +100,114 @@ func (impl UserServiceImpl) validateUserRequest(userInfo *bean.UserInfo) (bool, 
 		}
 	}
 	return true, nil
+}
+
+func (impl UserServiceImpl) SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
+	var pass []string
+	var userResponse []*bean.UserInfo
+	emailIds := strings.Split(userInfo.EmailId, ",")
+	dbConnection := impl.userRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	var policies []casbin2.Policy
+	for _, emailId := range emailIds {
+		dbUser, err := impl.userRepository.FetchActiveOrDeletedUserByEmail(emailId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error while fetching user from db", "error", err)
+			return nil, err
+		}
+
+		//if found, update it with new roles
+		if dbUser != nil && dbUser.Id > 0 {
+			return nil, fmt.Errorf("existing user, cant self register")
+		}
+
+		// if not found, create new user
+		userInfo, err = impl.saveUser(userInfo, emailId)
+		if err != nil {
+			err = &util.ApiError{
+				Code:            constants.UserCreateDBFailed,
+				InternalMessage: "failed to create new user in db",
+				UserMessage:     fmt.Sprintf("requested by %d", userInfo.UserId),
+			}
+			return nil, err
+		}
+
+		roles, err := impl.userAuthRepository.GetRoleByRoles(userInfo.Roles)
+		if err != nil {
+			err = &util.ApiError{
+				Code:            constants.UserCreateDBFailed,
+				InternalMessage: "configured roles for selfregister are wrong",
+				UserMessage:     fmt.Sprintf("requested by %d", userInfo.UserId),
+			}
+			return nil, err
+		}
+		for _, roleModel := range roles {
+			userRoleModel := &repository2.UserRoleModel{UserId: userInfo.Id, RoleId: roleModel.Id}
+			userRoleModel, err = impl.userAuthRepository.CreateUserRoleMapping(userRoleModel, tx)
+			if err != nil {
+				return nil, err
+			}
+			policies = append(policies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(roleModel.Role)})
+		}
+
+		pass = append(pass, emailId)
+		userInfo.EmailId = emailId
+		userInfo.Exist = dbUser.Active
+		userResponse = append(userResponse, &bean.UserInfo{Id: userInfo.Id, EmailId: emailId, Groups: userInfo.Groups, RoleFilters: userInfo.RoleFilters, SuperAdmin: userInfo.SuperAdmin})
+	}
+	if len(policies) > 0 {
+		pRes := casbin2.AddPolicy(policies)
+		println(pRes)
+	}
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+	return userResponse, nil
+}
+
+func (impl UserServiceImpl) saveUser(userInfo *bean.UserInfo, emailId string) (*bean.UserInfo, error) {
+	dbConnection := impl.userRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	_, err = impl.validateUserRequest(userInfo)
+	if err != nil {
+		err = &util.ApiError{HttpStatusCode: http.StatusBadRequest, UserMessage: "Invalid request, please provide role filters"}
+		return nil, err
+	}
+
+	//create new user in our db on d basis of info got from google api or hex. assign a basic role
+	model := &repository2.UserModel{
+		EmailId:     emailId,
+		AccessToken: userInfo.AccessToken,
+	}
+	model.Active = true
+	model.CreatedBy = userInfo.UserId
+	model.UpdatedBy = userInfo.UserId
+	model.CreatedOn = time.Now()
+	model.UpdatedOn = time.Now()
+	model, err = impl.userRepository.CreateUser(model, tx)
+	if err != nil {
+		impl.logger.Errorw("error in creating new user", "error", err)
+		return nil, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		return nil, err
+	}
+	userInfo.Id = model.Id
+	return userInfo, nil
 }
 
 func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {

@@ -19,7 +19,11 @@ package pipeline
 
 import (
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"path/filepath"
 	"strconv"
 	"time"
@@ -50,13 +54,17 @@ type CiServiceImpl struct {
 	mergeUtil                     *util.MergeUtil
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
+	pipelineStageService          PipelineStageService
+	userService                   user.UserService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, ciConfig *CiConfig, eventClient client.EventClient,
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService) *CiServiceImpl {
+	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
+	pipelineStageService PipelineStageService,
+	userService user.UserService) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
 		workflowService:               workflowService,
@@ -68,6 +76,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		mergeUtil:                     mergeUtil,
 		ciPipelineRepository:          ciPipelineRepository,
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
+		pipelineStageService:          pipelineStageService,
+		userService:                   userService,
 	}
 }
 
@@ -135,14 +145,6 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 	impl.Logger.Debugw("ci triggered", "wf name ", createdWf.Name, " pipeline ", trigger.PipelineId)
 	middleware.CiTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(trigger.PipelineId)).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
-	//creating entry of ci script history for build details
-	for _, ciPipelineScript := range ciPipelineScripts {
-		_, err = impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, nil, true, trigger.TriggeredBy, time.Now())
-		if err != nil {
-			impl.Logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
-			return 0, err
-		}
-	}
 	return savedCiWf.Id, err
 }
 
@@ -259,6 +261,16 @@ func (impl *CiServiceImpl) buildArtifactLocation(ciWorkflowConfig *pipelineConfi
 	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.ciConfig.DefaultArtifactKeyPrefix+"/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWf.Id, savedWf.Id)
 	return ArtifactLocation
 }
+
+func (impl *CiServiceImpl) buildArtifactLocationAzure(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string {
+	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
+	if ciArtifactLocationFormat == "" {
+		ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
+	}
+	ArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
+	return ArtifactLocation
+}
+
 func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.CiPipeline, trigger Trigger,
 	ciMaterials []*pipelineConfig.CiPipelineMaterial, savedWf *pipelineConfig.CiWorkflow,
 	ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, ciPipelineScripts []*pipelineConfig.CiPipelineScript) (*WorkflowRequest, error) {
@@ -317,7 +329,24 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			afterDockerBuildScripts = append(afterDockerBuildScripts, ciTask)
 		}
 	}
-
+	var preCiSteps []*bean2.StepObject
+	var postCiSteps []*bean2.StepObject
+	var refPluginsData []*bean2.RefPluginObject
+	var err error
+	if !(len(beforeDockerBuildScripts) == 0 && len(afterDockerBuildScripts) == 0) {
+		//found beforeDockerBuildScripts/afterDockerBuildScripts
+		//building preCiSteps & postCiSteps from them, refPluginsData not needed
+		preCiSteps = buildCiStepsDataFromDockerBuildScripts(beforeDockerBuildScripts)
+		postCiSteps = buildCiStepsDataFromDockerBuildScripts(afterDockerBuildScripts)
+	} else {
+		//beforeDockerBuildScripts & afterDockerBuildScripts not found
+		//getting preCiStepsData, postCiStepsData & refPluginsData
+		preCiSteps, postCiSteps, refPluginsData, err = impl.pipelineStageService.BuildPrePostAndRefPluginStepsDataForWfRequest(pipeline.Id)
+		if err != nil {
+			impl.Logger.Errorw("error in getting pre, post & refPlugin steps data for wf request", "err", err, "ciPipelineId", pipeline.Id)
+			return nil, err
+		}
+	}
 	dockerImageTag := impl.buildImageTag(commitHashes, pipeline.Id, savedWf.Id)
 	if ciWorkflowConfig.CiCacheBucket == "" {
 		ciWorkflowConfig.CiCacheBucket = impl.ciConfig.DefaultCacheBucket
@@ -350,6 +379,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if checkoutPath == "" {
 		checkoutPath = "./"
 	}
+	user, err := impl.userService.GetById(trigger.TriggeredBy)
+	if err != nil {
+		impl.Logger.Errorw("unable to find user by id", "err", err, "id", trigger.TriggeredBy)
+		return nil, err
+	}
 	dockerfilePath := filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
 	workflowRequest := &WorkflowRequest{
 		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
@@ -377,13 +411,16 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		WorkflowId:                 savedWf.Id,
 		TriggeredBy:                savedWf.TriggeredBy,
 		CacheLimit:                 impl.ciConfig.CacheLimit,
-		BeforeDockerBuildScripts:   beforeDockerBuildScripts,
-		AfterDockerBuildScripts:    afterDockerBuildScripts,
 		InvalidateCache:            trigger.InvalidateCache,
 		ScanEnabled:                pipeline.ScanEnabled,
 		CloudProvider:              impl.ciConfig.CloudProvider,
 		DefaultAddressPoolBaseCidr: impl.ciConfig.DefaultAddressPoolBaseCidr,
 		DefaultAddressPoolSize:     impl.ciConfig.DefaultAddressPoolSize,
+		PreCiSteps:                 preCiSteps,
+		PostCiSteps:                postCiSteps,
+		RefPlugins:                 refPluginsData,
+		AppName:                    pipeline.App.AppName,
+		TriggerByAuthor:            user.EmailId,
 	}
 
 	switch workflowRequest.CloudProvider {
@@ -398,7 +435,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			AccountName:          impl.ciConfig.AzureAccountName,
 			BlobContainerCiCache: impl.ciConfig.AzureBlobContainerCiCache,
 			AccountKey:           impl.ciConfig.AzureAccountKey,
+			BlobContainerCiLog:   impl.ciConfig.AzureBlobContainerCiLog,
 		}
+		workflowRequest.CiArtifactLocation = impl.buildArtifactLocationAzure(ciWorkflowConfig, savedWf)
 	case BLOB_STORAGE_MINIO:
 		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
@@ -408,6 +447,51 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
 	}
 	return workflowRequest, nil
+}
+
+func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*bean2.StepObject {
+	//before plugin support, few variables were set as env vars in ci-runner
+	//these variables are now moved to global vars in plugin steps, but to avoid error in old scripts adding those variables in payload
+	inputVars := []*bean2.VariableObject{
+		{
+			Name:                  "DOCKER_IMAGE_TAG",
+			Format:                "STRING",
+			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			ReferenceVariableName: "DOCKER_IMAGE_TAG",
+		},
+		{
+			Name:                  "DOCKER_REPOSITORY",
+			Format:                "STRING",
+			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			ReferenceVariableName: "DOCKER_REPOSITORY",
+		},
+		{
+			Name:                  "DOCKER_REGISTRY_URL",
+			Format:                "STRING",
+			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			ReferenceVariableName: "DOCKER_REGISTRY_URL",
+		},
+		{
+			Name:                  "DOCKER_IMAGE",
+			Format:                "STRING",
+			VariableType:          bean2.VARIABLE_TYPE_REF_GLOBAL,
+			ReferenceVariableName: "DOCKER_IMAGE",
+		},
+	}
+	var ciSteps []*bean2.StepObject
+	for _, dockerBuildScript := range dockerBuildScripts {
+		ciStep := &bean2.StepObject{
+			Name:          dockerBuildScript.Name,
+			Index:         dockerBuildScript.Index,
+			Script:        dockerBuildScript.Script,
+			ArtifactPaths: []string{dockerBuildScript.OutputLocation},
+			StepType:      string(repository.PIPELINE_STEP_TYPE_INLINE),
+			ExecutorType:  string(repository2.SCRIPT_TYPE_SHELL),
+			InputVars:     inputVars,
+		}
+		ciSteps = append(ciSteps, ciStep)
+	}
+	return ciSteps
 }
 
 func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id int, wfId int) string {

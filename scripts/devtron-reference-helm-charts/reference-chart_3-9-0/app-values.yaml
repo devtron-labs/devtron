@@ -75,6 +75,7 @@ ReadinessProbe:
 
 ingress:
   enabled: false
+  labels: {}
   annotations:
     nginx.ingress.kubernetes.io/rewrite-target: /$2
     nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
@@ -169,6 +170,8 @@ autoscaling:
   MaxReplicas: 2
   TargetCPUUtilizationPercentage: 70
   TargetMemoryUtilizationPercentage: 80
+  annotations: {}
+  labels: {}
   extraMetrics: []
 #    - external:
 #        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages

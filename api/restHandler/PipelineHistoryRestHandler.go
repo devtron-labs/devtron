@@ -5,7 +5,6 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -16,28 +15,23 @@ import (
 )
 
 type PipelineHistoryRestHandler interface {
-	FetchDeploymentDetailsForDeployedTemplatesHistory(w http.ResponseWriter, r *http.Request)
-	FetchDeploymentDetailsForDeployedStrategyHistory(w http.ResponseWriter, r *http.Request)
-	FetchDeploymentDetailsForDeployedCMHistory(w http.ResponseWriter, r *http.Request)
-	FetchDeploymentDetailsForDeployedCSHistory(w http.ResponseWriter, r *http.Request)
-	FetchDeployedTemplatesHistoryById(w http.ResponseWriter, r *http.Request)
-	FetchDeployedStrategyHistoryById(w http.ResponseWriter, r *http.Request)
-	FetchDeployedCMHistoryById(w http.ResponseWriter, r *http.Request)
-	FetchDeployedCSHistoryById(w http.ResponseWriter, r *http.Request)
-	FetchDeployedPrePostCdScriptHistory(w http.ResponseWriter, r *http.Request)
+	FetchDeployedConfigurationsForWorkflow(w http.ResponseWriter, r *http.Request)
+	FetchDeployedHistoryComponentList(w http.ResponseWriter, r *http.Request)
+	FetchDeployedHistoryComponentDetail(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineHistoryRestHandlerImpl struct {
-	logger                           *zap.SugaredLogger
-	userAuthService                  user.UserService
-	enforcer                         casbin.Enforcer
-	strategyHistoryService           history2.PipelineStrategyHistoryService
-	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService
-	configMapHistoryService          history2.ConfigMapHistoryService
-	prePostCiScriptHistoryService    history2.PrePostCiScriptHistoryService
-	prePostCdScriptHistoryService    history2.PrePostCdScriptHistoryService
-	pipelineBuilder                  pipeline.PipelineBuilder
-	enforcerUtil                     rbac.EnforcerUtil
+	logger                              *zap.SugaredLogger
+	userAuthService                     user.UserService
+	enforcer                            casbin.Enforcer
+	strategyHistoryService              history2.PipelineStrategyHistoryService
+	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
+	configMapHistoryService             history2.ConfigMapHistoryService
+	prePostCiScriptHistoryService       history2.PrePostCiScriptHistoryService
+	prePostCdScriptHistoryService       history2.PrePostCdScriptHistoryService
+	pipelineBuilder                     pipeline.PipelineBuilder
+	enforcerUtil                        rbac.EnforcerUtil
+	deployedConfigurationHistoryService history2.DeployedConfigurationHistoryService
 }
 
 func NewPipelineHistoryRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService,
@@ -47,22 +41,24 @@ func NewPipelineHistoryRestHandlerImpl(logger *zap.SugaredLogger, userAuthServic
 	prePostCiScriptHistoryService history2.PrePostCiScriptHistoryService,
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,
 	pipelineBuilder pipeline.PipelineBuilder,
-	enforcerUtil rbac.EnforcerUtil) *PipelineHistoryRestHandlerImpl {
+	enforcerUtil rbac.EnforcerUtil,
+	deployedConfigurationHistoryService history2.DeployedConfigurationHistoryService) *PipelineHistoryRestHandlerImpl {
 	return &PipelineHistoryRestHandlerImpl{
-		logger:                           logger,
-		userAuthService:                  userAuthService,
-		enforcer:                         enforcer,
-		strategyHistoryService:           strategyHistoryService,
-		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		configMapHistoryService:          configMapHistoryService,
-		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
-		prePostCiScriptHistoryService:    prePostCiScriptHistoryService,
-		pipelineBuilder:                  pipelineBuilder,
-		enforcerUtil:                     enforcerUtil,
+		logger:                              logger,
+		userAuthService:                     userAuthService,
+		enforcer:                            enforcer,
+		strategyHistoryService:              strategyHistoryService,
+		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
+		configMapHistoryService:             configMapHistoryService,
+		prePostCdScriptHistoryService:       prePostCdScriptHistoryService,
+		prePostCiScriptHistoryService:       prePostCiScriptHistoryService,
+		pipelineBuilder:                     pipelineBuilder,
+		enforcerUtil:                        enforcerUtil,
+		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
 	}
 }
 
-func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedTemplatesHistory(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineHistoryRestHandlerImpl) FetchDeployedConfigurationsForWorkflow(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -71,17 +67,23 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedT
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedTemplatesHistory", "err", err, "appId", appId)
+		handler.logger.Errorw("request err, FetchDeployedConfigurationsForWorkflow", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
-		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedTemplatesHistory", "err", err, "pipelineId", pipelineId)
+		handler.logger.Errorw("request err, FetchDeployedConfigurationsForWorkflow", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.logger.Debugw("request payload, FetchDeploymentDetailsForDeployedTemplatesHistory", "pipelineId", pipelineId)
+	wfrId, err := strconv.Atoi(vars["wfrId"])
+	if err != nil {
+		handler.logger.Errorw("request err, FetchDeployedConfigurationsForWorkflow", "err", err, "wfrId", wfrId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.logger.Debugw("request payload, FetchDeployedConfigurationsForWorkflow", "pipelineId", pipelineId, "wfrId", wfrId)
 
 	//RBAC START
 	token := r.Header.Get("token")
@@ -90,22 +92,6 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedT
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	offsetQueryParam := r.URL.Query().Get("offset")
-	offset, err := strconv.Atoi(offsetQueryParam)
-	if offsetQueryParam == "" || err != nil {
-		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedTemplatesHistory", "err", err, "offset", offset)
-		common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
-		return
-	}
-	sizeQueryParam := r.URL.Query().Get("size")
-	limit, err := strconv.Atoi(sizeQueryParam)
-	if sizeQueryParam == "" || err != nil {
-		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedTemplatesHistory", "err", err, "limit", limit)
-		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
-		return
-	}
-
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
@@ -113,16 +99,16 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedT
 	}
 	//RBAC END
 
-	res, err := handler.deploymentTemplateHistoryService.GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit)
+	res, err := handler.deployedConfigurationHistoryService.GetDeployedConfigurationByWfrId(pipelineId, wfrId)
 	if err != nil {
-		handler.logger.Errorw("service err, GetDeploymentDetailsForDeployedTemplateHistory", "err", err, "pipelineId", pipelineId)
+		handler.logger.Errorw("service err, GetDeployedConfigurationByWfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler PipelineHistoryRestHandlerImpl) FetchDeployedTemplatesHistoryById(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentList(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -131,23 +117,99 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeployedTemplatesHistoryById(
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedTemplatesHistoryById", "err", err, "appId", appId)
+		handler.logger.Errorw("request err, FetchDeployedHistoryComponentList", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedTemplatesHistoryById", "err", err, "pipelineId", pipelineId)
+		handler.logger.Errorw("request err, FetchDeployedHistoryComponentList", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	historyComponent := r.URL.Query().Get("historyComponent")
+	if historyComponent == "" || err != nil {
+		handler.logger.Errorw("request err, FetchDeployedHistoryComponentList", "err", err, "historyComponent", historyComponent)
+		common.WriteJsonResp(w, err, "invalid historyComponent", http.StatusBadRequest)
+		return
+	}
+	historyComponentName := r.URL.Query().Get("historyComponentName")
+	if err != nil {
+		handler.logger.Errorw("request err, FetchDeployedHistoryComponentList", "err", err, "historyComponentName", historyComponentName)
+		common.WriteJsonResp(w, err, "invalid historyComponentName", http.StatusBadRequest)
+		return
+	}
+	baseConfigurationIdParam := r.URL.Query().Get("baseConfigurationId")
+	baseConfigurationId, err := strconv.Atoi(baseConfigurationIdParam)
+	if baseConfigurationId == 0 || err != nil {
+		handler.logger.Errorw("request err, FetchDeployedHistoryComponentList", "err", err, "baseConfigurationId", baseConfigurationId)
+		common.WriteJsonResp(w, err, "invalid baseConfigurationId", http.StatusBadRequest)
+		return
+	}
+	handler.logger.Debugw("request payload, FetchDeployedHistoryComponentList", "pipelineId", pipelineId)
+
+	//RBAC START
+	token := r.Header.Get("token")
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC END
+
+	res, err := handler.deployedConfigurationHistoryService.GetDeployedHistoryComponentList(pipelineId, baseConfigurationId, historyComponent, historyComponentName)
+	if err != nil {
+		handler.logger.Errorw("service err, GetDeployedHistoryComponentList", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDetail(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, FetchDeployedHistoryComponentDetail", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	if err != nil {
+		handler.logger.Errorw("request err, FetchDeployedHistoryComponentDetail", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedTemplatesHistoryById", "err", err, "id", id)
+		handler.logger.Errorw("request err, FetchDeployedHistoryComponentDetail", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.logger.Debugw("request payload, FetchDeployedTemplatesHistoryById", "id", id, "pipelineId", pipelineId)
+	historyComponent := r.URL.Query().Get("historyComponent")
+	if historyComponent == "" || err != nil {
+		handler.logger.Errorw("request err, FetchDeployedHistoryComponentDetail", "err", err, "historyComponent", historyComponent)
+		common.WriteJsonResp(w, err, "invalid historyComponent", http.StatusBadRequest)
+		return
+	}
+	historyComponentName := r.URL.Query().Get("historyComponentName")
+	if err != nil {
+		handler.logger.Errorw("request err, FetchDeployedHistoryComponentDetail", "err", err, "historyComponentName", historyComponentName)
+		common.WriteJsonResp(w, err, "invalid historyComponentName", http.StatusBadRequest)
+		return
+	}
+	handler.logger.Debugw("request payload, FetchDeployedHistoryComponentDetail", "pipelineId", pipelineId)
 
 	//RBAC START
 	token := r.Header.Get("token")
@@ -162,337 +224,11 @@ func (handler PipelineHistoryRestHandlerImpl) FetchDeployedTemplatesHistoryById(
 		return
 	}
 	//RBAC END
-
-	res, err := handler.deploymentTemplateHistoryService.GetHistoryForDeployedTemplatesById(id, pipelineId)
+	//checking if user has admin access
+	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
+	res, err := handler.deployedConfigurationHistoryService.GetDeployedHistoryComponentDetail(pipelineId, id, historyComponent, historyComponentName, userHasAdminAccess)
 	if err != nil {
-		handler.logger.Errorw("service err, GetHistoryForDeployedTemplatesById", "err", err, "id", id, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedStrategyHistory(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedStrategyHistory", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedStrategyHistory", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Debugw("request payload, FetchDeploymentDetailsForDeployedStrategyHistory", "pipelineId", pipelineId)
-
-	//RBAC START
-	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//RBAC END
-
-	res, err := handler.strategyHistoryService.GetDeploymentDetailsForDeployedStrategyHistory(pipelineId)
-	if err != nil {
-		handler.logger.Errorw("service err, GetDeploymentDetailsForDeployedStrategyHistory", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler PipelineHistoryRestHandlerImpl) FetchDeployedStrategyHistoryById(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedStrategyHistoryById", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedStrategyHistoryById", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	id, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedStrategyHistoryById", "err", err, "id", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Debugw("request payload, FetchDeployedStrategyHistoryById", "id", id, "pipelineId", pipelineId)
-
-	//RBAC START
-	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//RBAC END
-
-	res, err := handler.strategyHistoryService.GetHistoryForDeployedStrategyById(id, pipelineId)
-	if err != nil {
-		handler.logger.Errorw("service err, GetHistoryForDeployedStrategyById", "err", err, "id", id, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedCMHistory(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedCMHistory", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedCMHistory", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Debugw("request payload, FetchDeploymentDetailsForDeployedCMHistory", "pipelineId", pipelineId)
-
-	//RBAC START
-	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//RBAC END
-
-	res, err := handler.configMapHistoryService.GetDeploymentDetailsForDeployedCMCSHistory(pipelineId, repository.CONFIGMAP_TYPE)
-	if err != nil {
-		handler.logger.Errorw("service err, GetDeploymentDetailsForDeployedCMCSHistory", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler PipelineHistoryRestHandlerImpl) FetchDeployedCMHistoryById(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedCMHistoryById", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedCMHistory", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	id, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedCMHistoryById", "err", err, "id", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Debugw("request payload, FetchDeployedCMHistoryById", "id", id, "pipelineId", pipelineId)
-
-	//RBAC START
-	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//RBAC END
-
-	res, err := handler.configMapHistoryService.GetHistoryForDeployedCMCSById(id, pipelineId, repository.CONFIGMAP_TYPE)
-	if err != nil {
-		handler.logger.Errorw("service err, GetHistoryForDeployedCMCSById", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler PipelineHistoryRestHandlerImpl) FetchDeploymentDetailsForDeployedCSHistory(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedCSHistory", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeploymentDetailsForDeployedCSHistory", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Debugw("request payload, FetchDeploymentDetailsForDeployedCSHistory", "pipelineId", pipelineId)
-
-	//RBAC START
-	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//RBAC END
-
-	res, err := handler.configMapHistoryService.GetDeploymentDetailsForDeployedCMCSHistory(pipelineId, repository.SECRET_TYPE)
-	if err != nil {
-		handler.logger.Errorw("service err, GetDeploymentDetailsForDeployedCMCSHistory", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler PipelineHistoryRestHandlerImpl) FetchDeployedCSHistoryById(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedCSHistoryById", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedCSHistoryById", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	id, err := strconv.Atoi(vars["id"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedCSHistoryById", "err", err, "id", id)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Debugw("request payload, FetchDeployedCSHistoryById", "id", id, "pipelineId", pipelineId)
-
-	//RBAC START
-	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//RBAC END
-
-	res, err := handler.configMapHistoryService.GetHistoryForDeployedCMCSById(id, pipelineId, repository.SECRET_TYPE)
-	if err != nil {
-		handler.logger.Errorw("service err, GetHistoryForDeployedCMCSById", "err", err, "id", id, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
-}
-
-func (handler PipelineHistoryRestHandlerImpl) FetchDeployedPrePostCdScriptHistory(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	vars := mux.Vars(r)
-	appId, err := strconv.Atoi(vars["appId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedPrePostCdScriptHistory", "err", err, "appId", appId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	pipelineId, err := strconv.Atoi(vars["pipelineId"])
-	if err != nil {
-		handler.logger.Errorw("request err, FetchDeployedPrePostCdScriptHistory", "err", err, "pipelineId", pipelineId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	stage := r.URL.Query().Get("stage")
-	handler.logger.Debugw("request payload, FetchDeployedPrePostCdScriptHistory", "pipelineId", pipelineId)
-
-	//RBAC START
-	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//RBAC END
-
-	res, err := handler.prePostCdScriptHistoryService.GetHistoryForDeployedPrePostCdScript(pipelineId, repository.CdStageType(stage))
-	if err != nil {
-		handler.logger.Errorw("service err, GetHistoryForDeployedPrePostCdScript", "err", err, "pipelineId", pipelineId)
+		handler.logger.Errorw("service err, GetDeployedHistoryComponentDetail", "err", err, "pipelineId", pipelineId, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

@@ -20,6 +20,7 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"time"
 )
 
@@ -79,26 +80,28 @@ type CiMaterial struct {
 }
 
 type CiPipeline struct {
-	IsManual                 bool              `json:"isManual"`
-	DockerArgs               map[string]string `json:"dockerArgs"`
-	IsExternal               bool              `json:"isExternal"`
-	ParentCiPipeline         int               `json:"parentCiPipeline"`
-	ParentAppId              int               `json:"parentAppId"`
-	ExternalCiConfig         ExternalCiConfig  `json:"externalCiConfig"`
-	CiMaterial               []*CiMaterial     `json:"ciMaterial,omitempty" validate:"dive,min=1"`
-	Name                     string            `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
-	Id                       int               `json:"id,omitempty" `
-	Version                  string            `json:"version,omitempty"` //matchIf token version in gocd . used for update request
-	Active                   bool              `json:"active,omitempty"`  //pipeline is active or not
-	Deleted                  bool              `json:"deleted,omitempty"`
-	BeforeDockerBuild        []*Task           `json:"beforeDockerBuild,omitempty" validate:"dive"`
-	AfterDockerBuild         []*Task           `json:"afterDockerBuild,omitempty" validate:"dive"`
-	BeforeDockerBuildScripts []*CiScript       `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
-	AfterDockerBuildScripts  []*CiScript       `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
-	LinkedCount              int               `json:"linkedCount"`
-	PipelineType             PipelineType      `json:"pipelineType,omitempty"`
-	ScanEnabled              bool              `json:"scanEnabled,notnull"`
-	AppWorkflowId            int               `json:"appWorkflowId,omitempty"`
+	IsManual                 bool                   `json:"isManual"`
+	DockerArgs               map[string]string      `json:"dockerArgs"`
+	IsExternal               bool                   `json:"isExternal"`
+	ParentCiPipeline         int                    `json:"parentCiPipeline"`
+	ParentAppId              int                    `json:"parentAppId"`
+	ExternalCiConfig         ExternalCiConfig       `json:"externalCiConfig"`
+	CiMaterial               []*CiMaterial          `json:"ciMaterial,omitempty" validate:"dive,min=1"`
+	Name                     string                 `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
+	Id                       int                    `json:"id,omitempty" `
+	Version                  string                 `json:"version,omitempty"` //matchIf token version in gocd . used for update request
+	Active                   bool                   `json:"active,omitempty"`  //pipeline is active or not
+	Deleted                  bool                   `json:"deleted,omitempty"`
+	BeforeDockerBuild        []*Task                `json:"beforeDockerBuild,omitempty" validate:"dive"`
+	AfterDockerBuild         []*Task                `json:"afterDockerBuild,omitempty" validate:"dive"`
+	BeforeDockerBuildScripts []*CiScript            `json:"beforeDockerBuildScripts,omitempty" validate:"dive"`
+	AfterDockerBuildScripts  []*CiScript            `json:"afterDockerBuildScripts,omitempty" validate:"dive"`
+	LinkedCount              int                    `json:"linkedCount"`
+	PipelineType             PipelineType           `json:"pipelineType,omitempty"`
+	ScanEnabled              bool                   `json:"scanEnabled,notnull"`
+	AppWorkflowId            int                    `json:"appWorkflowId,omitempty"`
+	PreBuildStage            *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
+	PostBuildStage           *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
 }
 
 type CiPipelineMin struct {

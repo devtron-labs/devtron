@@ -1157,6 +1157,9 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 		impl.logger.Errorw("error in saving app level metrics flag", "error", err)
 		return nil, err
 	}
+	//updating audit log details of chart as history service uses it
+	currentChart.UpdatedOn = time.Now()
+	currentChart.UpdatedBy = appMetricRequest.UserId
 	//creating history entry for deployment template
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled)
 	if err != nil {
@@ -1377,13 +1380,13 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 
 	if location == "" {
 		chartYaml, err := impl.ReadChartMetaDataForLocation(temporaryChartWorkingDir, fileName)
+		if err != nil {
+			impl.logger.Errorw("Chart yaml file or content not found")
+			return chartInfo, err
+		}
 		chartName = chartYaml.Name
 		chartVersion = chartYaml.Version
 		chartInfo.Description = chartYaml.Description
-		if err != nil {
-			impl.logger.Errorw("Chart yaml file not found")
-			return chartInfo, err
-		}
 		exists, err := impl.chartRefRepository.CheckIfDataExists(chartName, chartVersion)
 		if exists {
 			impl.logger.Errorw("request err, chart name and version exists already in the database")

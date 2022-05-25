@@ -17,8 +17,11 @@ type DeploymentTemplateHistoryService interface {
 	CreateDeploymentTemplateHistoryFromGlobalTemplate(chart *chartRepoRepository.Chart, tx *pg.Tx, IsAppMetricsEnabled bool) error
 	CreateDeploymentTemplateHistoryFromEnvOverrideTemplate(envOverride *chartConfig.EnvConfigOverride, tx *pg.Tx, IsAppMetricsEnabled bool, pipelineId int) error
 	CreateDeploymentTemplateHistoryForDeploymentTrigger(pipeline *pipelineConfig.Pipeline, envOverride *chartConfig.EnvConfigOverride, renderedImageTemplate string, deployedOn time.Time, deployedBy int32) error
-	GetHistoryForDeployedTemplatesById(id, pipelineId int) (*DeploymentTemplateHistoryDto, error)
 	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistoryDto, error)
+
+	GetHistoryForDeployedTemplateById(id, pipelineId int) (*HistoryDetailDto, error)
+	CheckIfHistoryExistsForPipelineIdAndWfrId(pipelineId, wfrId int) (historyId int, exists bool, err error)
+	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error)
 }
 
 type DeploymentTemplateHistoryServiceImpl struct {
@@ -240,35 +243,6 @@ func (impl DeploymentTemplateHistoryServiceImpl) CreateDeploymentTemplateHistory
 	return nil
 }
 
-func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplatesById(id, pipelineId int) (*DeploymentTemplateHistoryDto, error) {
-	history, err := impl.deploymentTemplateHistoryRepository.GetHistoryForDeployedTemplateById(id, pipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in getting deployment template history", "err", err, "id", id, "pipelineId", pipelineId)
-		return nil, err
-	}
-	user, err := impl.userService.GetById(history.DeployedBy)
-	if err != nil {
-		impl.logger.Errorw("unable to find user by id", "err", err, "id", history.Id)
-		return nil, err
-	}
-	historyDto := &DeploymentTemplateHistoryDto{
-		Id:                      history.Id,
-		PipelineId:              history.PipelineId,
-		AppId:                   history.AppId,
-		ImageDescriptorTemplate: history.ImageDescriptorTemplate,
-		Template:                history.Template,
-		TemplateVersion:         history.TemplateVersion,
-		TemplateName:            history.TemplateName,
-		TargetEnvironment:       history.TargetEnvironment,
-		IsAppMetricsEnabled:     history.IsAppMetricsEnabled,
-		Deployed:                history.Deployed,
-		DeployedOn:              history.DeployedOn,
-		DeployedBy:              history.DeployedBy,
-		EmailId:                 user.EmailId,
-	}
-	return historyDto, nil
-}
-
 func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistoryDto, error) {
 	histories, err := impl.deploymentTemplateHistoryRepository.GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit)
 	if err != nil {
@@ -309,4 +283,57 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeploymentDetailsForDeployed
 		}
 	}
 	return historiesDto, nil
+}
+
+func (impl DeploymentTemplateHistoryServiceImpl) CheckIfHistoryExistsForPipelineIdAndWfrId(pipelineId, wfrId int) (historyId int, exists bool, err error) {
+	impl.logger.Debugw("received request, CheckIfHistoryExistsForPipelineIdAndWfrId", "pipelineId", pipelineId, "wfrId", wfrId)
+
+	//checking if history exists for pipelineId and wfrId
+	history, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in checking if history exists for pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
+		return 0, false, err
+	} else if err == pg.ErrNoRows {
+		return 0, false, nil
+	}
+	return history.Id, true, nil
+}
+
+func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error) {
+	impl.logger.Debugw("received request, GetDeployedHistoryList", "pipelineId", pipelineId, "baseConfigId", baseConfigId)
+
+	//checking if history exists for pipelineId and wfrId
+	histories, err := impl.deploymentTemplateHistoryRepository.GetDeployedHistoryList(pipelineId, baseConfigId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting history list for pipelineId and baseConfigId", "err", err, "pipelineId", pipelineId)
+		return nil, err
+	}
+	var historyList []*DeployedHistoryComponentMetadataDto
+	for _, history := range histories {
+		historyList = append(historyList, &DeployedHistoryComponentMetadataDto{
+			Id:               history.Id,
+			DeployedOn:       history.DeployedOn,
+			DeployedBy:       history.DeployedByEmailId,
+			DeploymentStatus: history.DeploymentStatus,
+		})
+	}
+	return historyList, nil
+}
+
+func (impl DeploymentTemplateHistoryServiceImpl) GetHistoryForDeployedTemplateById(id, pipelineId int) (*HistoryDetailDto, error) {
+	history, err := impl.deploymentTemplateHistoryRepository.GetHistoryForDeployedTemplateById(id, pipelineId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment template history", "err", err, "id", id, "pipelineId", pipelineId)
+		return nil, err
+	}
+	historyDto := &HistoryDetailDto{
+		TemplateName:        history.TemplateName,
+		TemplateVersion:     history.TemplateVersion,
+		IsAppMetricsEnabled: &history.IsAppMetricsEnabled,
+		CodeEditorValue: &HistoryDetailConfig{
+			DisplayName: "values.yaml",
+			Value:       history.Template,
+		},
+	}
+	return historyDto, nil
 }

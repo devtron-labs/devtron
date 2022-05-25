@@ -87,7 +87,7 @@ type PipelineBuilder interface {
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
 	GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error)
 	FetchArtifactForRollback(cdPipelineId int) (bean.CiArtifactResponse, error)
-	FindAppsByTeamId(teamId int) ([]AppBean, error)
+	FindAppsByTeamId(teamId int) ([]*AppBean, error)
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
@@ -102,6 +102,7 @@ type PipelineBuilder interface {
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
+	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -137,6 +138,7 @@ type PipelineBuilderImpl struct {
 	prePostCdScriptHistoryService    history.PrePostCdScriptHistoryService
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
+	pipelineStageService             PipelineStageService
 	chartTemplateService             util.ChartTemplateService
 }
 
@@ -170,6 +172,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
+	pipelineStageService PipelineStageService,
 	chartTemplateService util.ChartTemplateService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
@@ -204,6 +207,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		prePostCdScriptHistoryService:    prePostCdScriptHistoryService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
+		pipelineStageService:             pipelineStageService,
 		chartTemplateService:             chartTemplateService,
 	}
 }
@@ -371,16 +375,6 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
 		return nil, err
 	}
-	var beforeDockerBuild []*bean.Task
-	var afterDockerBuild []*bean.Task
-	if err := json.Unmarshal([]byte(template.BeforeDockerBuild), &beforeDockerBuild); err != nil {
-		impl.logger.Debugw("error in BeforeDockerBuild json unmarshal", "app", appId, "err", err)
-		return nil, err
-	}
-	if err := json.Unmarshal([]byte(template.AfterDockerBuild), &afterDockerBuild); err != nil {
-		impl.logger.Debugw("error in AfterDockerBuild json unmarshal", "app", appId, "err", err)
-		return nil, err
-	}
 	regHost, err := template.DockerRegistry.GetRegistryLocation()
 	if err != nil {
 		impl.logger.Errorw("invalid reg url", "err", err)
@@ -393,8 +387,6 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		DockerRepository:  template.DockerRepository,
 		DockerRegistry:    template.DockerRegistry.Id,
 		DockerRegistryUrl: regHost,
-		BeforeDockerBuild: beforeDockerBuild,
-		AfterDockerBuild:  afterDockerBuild,
 		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId},
 		Version:           template.Version,
 		CiTemplateName:    template.TemplateName,
@@ -937,21 +929,19 @@ func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*b
 			return nil, err
 		}
 	}
-	for _, ciScript := range request.CiPipeline.BeforeDockerBuildScripts {
-		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, BEFORE_DOCKER_BUILD, request.CiPipeline)
-		//creating history entry
-		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+	if request.CiPipeline.PreBuildStage != nil && request.CiPipeline.PreBuildStage.Id > 0 {
+		//deleting pre stage
+		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			impl.logger.Errorw("error in deleting pre stage", "err", err, "preBuildStage", request.CiPipeline.PreBuildStage)
 			return nil, err
 		}
 	}
-	for _, ciScript := range request.CiPipeline.AfterDockerBuildScripts {
-		ciPipelineScript := impl.dbPipelineOrchestrator.BuildCiPipelineScript(request.UserId, ciScript, AFTER_DOCKER_BUILD, request.CiPipeline)
-		//creating history entry
-		_, err := impl.prePostCiScriptHistoryService.CreatePrePostCiScriptHistory(ciPipelineScript, tx, false, 0, time.Time{})
+	if request.CiPipeline.PostBuildStage != nil && request.CiPipeline.PostBuildStage.Id > 0 {
+		//deleting post stage
+		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
 		if err != nil {
-			impl.logger.Errorw("error in creating ci script history entry", "err", err, "ciPipelineScript", ciPipelineScript)
+			impl.logger.Errorw("error in deleting post stage", "err", err, "postBuildStage", request.CiPipeline.PostBuildStage)
 			return nil, err
 		}
 	}
@@ -1369,7 +1359,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
 		}
 		//creating history entry for strategy
-		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating strategy history entry", "err", err)
 			return 0, err
@@ -1466,7 +1456,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				return fmt.Errorf("pipeline updated but failed to update one strategy")
 			}
 			//creating history entry for strategy
-			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating strategy history entry", "err", err)
 				return err
@@ -1486,7 +1476,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				return fmt.Errorf("pipeline created but failed to add strategy")
 			}
 			//creating history entry for strategy
-			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating strategy history entry", "err", err)
 				return err
@@ -1970,15 +1960,15 @@ func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMes
 	return mInfo, err
 }
 
-func (impl PipelineBuilderImpl) FindAppsByTeamId(teamId int) ([]AppBean, error) {
-	var appsRes []AppBean
+func (impl PipelineBuilderImpl) FindAppsByTeamId(teamId int) ([]*AppBean, error) {
+	var appsRes []*AppBean
 	apps, err := impl.appRepo.FindAppsByTeamId(teamId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching app", "err", err)
 		return nil, err
 	}
 	for _, app := range apps {
-		appsRes = append(appsRes, AppBean{Id: app.Id, Name: app.AppName})
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
 	}
 	return appsRes, err
 }
@@ -2331,5 +2321,32 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		ciPipeline.AppWorkflowId = mapping.AppWorkflowId
 	}
 
+	//getting pre stage and post stage details
+	preStageDetail, postStageDetail, err := impl.pipelineStageService.GetCiPipelineStageData(ciPipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", ciPipeline.Id)
+		return nil, err
+	}
+	ciPipeline.PreBuildStage = preStageDetail
+	ciPipeline.PostBuildStage = postStageDetail
 	return ciPipeline, err
+}
+
+func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string) ([]*AppBean, error) {
+	var appsRes []*AppBean
+	var apps []*app2.App
+	var err error
+	if len(appName) == 0 {
+		apps, err = impl.appRepo.FindAll()
+	} else {
+		apps, err = impl.appRepo.FindAllMatchesByAppName(appName)
+	}
+	if err != nil {
+		impl.logger.Errorw("error while fetching app", "err", err)
+		return nil, err
+	}
+	for _, app := range apps {
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
+	}
+	return appsRes, err
 }
