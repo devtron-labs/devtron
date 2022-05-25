@@ -66,6 +66,7 @@ spec:
       restartPolicy: Always
 {{- if $.Values.hostAliases }}
        hostAliases:
+{{- end }}
 {{ toYaml .Values.hostAliases | indent 8 }}
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
       affinity:
