@@ -46,7 +46,7 @@ type AppRepository interface {
 	FindAppsByTeamId(teamId int) ([]App, error)
 	FindAppsByTeamIds(teamId []int, appType string) ([]App, error)
 	FindAppsByTeamName(teamName string) ([]App, error)
-	FindAll() ([]App, error)
+	FindAll() ([]*App, error)
 	FindAppsByEnvironmentId(environmentId int) ([]App, error)
 	FindAllActiveAppsWithTeam() ([]*App, error)
 	CheckAppExists(appNames []string) ([]*App, error)
@@ -56,6 +56,7 @@ type AppRepository interface {
 	FindAppAndProjectByAppId(appId int) (*App, error)
 	FindAppAndProjectByAppName(appName string) (*App, error)
 	GetConnection() *pg.DB
+	FindAllMatchesByAppName(appName string) ([]*App, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -160,8 +161,8 @@ func (repo AppRepositoryImpl) FindAppsByTeamName(teamName string) ([]App, error)
 	return apps, err
 }
 
-func (repo AppRepositoryImpl) FindAll() ([]App, error) {
-	var apps []App
+func (repo AppRepositoryImpl) FindAll() ([]*App, error) {
+	var apps []*App
 	err := repo.dbConnection.Model(&apps).Where("active = ?", true).Where("app_store = ?", false).Select()
 	return apps, err
 }
@@ -235,4 +236,10 @@ func (repo AppRepositoryImpl) FindAppAndProjectByAppName(appName string) (*App, 
 		Where("app.active=?", true).
 		Select()
 	return app, err
+}
+
+func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string) ([]*App, error) {
+	var apps []*App
+	err := repo.dbConnection.Model(&apps).Where("app_name ILIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_store = ?", false).Select()
+	return apps, err
 }

@@ -1380,13 +1380,13 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 
 	if location == "" {
 		chartYaml, err := impl.ReadChartMetaDataForLocation(temporaryChartWorkingDir, fileName)
+		if err != nil {
+			impl.logger.Errorw("Chart yaml file or content not found")
+			return chartInfo, err
+		}
 		chartName = chartYaml.Name
 		chartVersion = chartYaml.Version
 		chartInfo.Description = chartYaml.Description
-		if err != nil {
-			impl.logger.Errorw("Chart yaml file not found")
-			return chartInfo, err
-		}
 		exists, err := impl.chartRefRepository.CheckIfDataExists(chartName, chartVersion)
 		if exists {
 			impl.logger.Errorw("request err, chart name and version exists already in the database")
