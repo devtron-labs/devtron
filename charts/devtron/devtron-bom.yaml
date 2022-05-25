@@ -1,11 +1,11 @@
 installer:
-  release: "v0.4.4"
+  release: "v0.4.5"
   image: "quay.io/devtron/inception"
   tag: "acb623ff-185-7117"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:e46df8f6-240-8703"
+    image: "quay.io/devtron/dashboard:8c3c47c8-240-8803"
   devtron:
     image: "quay.io/devtron/hyperion:38336f15-282-8704"
   argocdDexServer:
