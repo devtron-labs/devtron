@@ -910,6 +910,12 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
+
+	object = handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(ciPipeline.AppId, pipelineId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceAdmin, casbin.ActionTrigger, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
 	//RBAC
 
 	resp, err := handler.ciHandler.CancelBuild(workflowId)
