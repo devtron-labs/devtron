@@ -1271,16 +1271,13 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 }
 
 func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
-	impl.logger.Infow("Check chart Exists")
 	chartRefValue, err := impl.chartRefRepository.FindById(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in finding ref chart by id", "err", err)
 		return err
 	}
 	refChartLocation := filepath.Join(string(impl.refChartDir), chartRefValue.Location)
-	impl.logger.Infow("Location info: ", "refChartLocation: ", refChartLocation, "impl refchartDir: ", string(impl.refChartDir), "chartref Location: ", chartRefValue.Location)
 	if _, err := os.Stat(refChartLocation); os.IsNotExist(err) {
-		impl.logger.Infow("Extract missing ")
 		chartInfo, err := impl.ExtractChartIfMissing(chartRefValue.ChartData, string(impl.refChartDir), chartRefValue.Location)
 		if chartInfo.TemporaryFolder != "" {
 			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
