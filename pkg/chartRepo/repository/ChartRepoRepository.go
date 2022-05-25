@@ -285,7 +285,7 @@ func (impl ChartRepoRepositoryImpl) MarkChartRepoDeleted(chartRepo *ChartRepo, t
 }
 
 // ------------------------ CHART REF REPOSITORY ---------------
-
+type RefChartDir string
 type ChartRef struct {
 	tableName struct{} `sql:"chart_ref" pg:",discard_unknown_columns"`
 	Id        int      `sql:"id,pk"`

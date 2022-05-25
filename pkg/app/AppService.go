@@ -21,7 +21,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
+	"path"
 	"strconv"
 	"strings"
 	"time"
@@ -98,6 +100,7 @@ type AppServiceImpl struct {
 	configMapHistoryService          history2.ConfigMapHistoryService
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService
 	chartTemplateService             ChartTemplateService
+	refChartDir                      chartRepoRepository.RefChartDir
 }
 
 type AppService interface {
@@ -138,7 +141,7 @@ func NewAppService(
 	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
-	chartTemplateService ChartTemplateService) *AppServiceImpl {
+	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -175,8 +178,59 @@ func NewAppService(
 		configMapHistoryService:          configMapHistoryService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		chartTemplateService:             chartTemplateService,
+		refChartDir:                      refChartDir,
 	}
 	return appServiceImpl
+}
+func (impl AppServiceImpl) getValuesFileForEnv(environmentId int) string {
+	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
+}
+func (impl AppServiceImpl) createArgoApplicationIfRequired(appId int, appName string, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
+	//repo has been registered while helm create
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	if err != nil {
+		impl.logger.Errorw("no chart found ", "app", appId)
+		return "", err
+	}
+	envModel, err := impl.envRepository.FindById(envConfigOverride.TargetEnvironment)
+	if err != nil {
+		return "", err
+	}
+	argoAppName := fmt.Sprintf("%s-%s", appName, envModel.Name)
+	if pipeline.DeploymentAppCreated {
+		return argoAppName, nil
+	} else {
+		//create
+		appNamespace := envConfigOverride.Namespace
+		if appNamespace == "" {
+			appNamespace = "default"
+		}
+		namespace := argocdServer.DevtronInstalationNs
+		appRequest := &argocdServer.AppTemplate{
+			ApplicationName: argoAppName,
+			Namespace:       namespace,
+			TargetNamespace: appNamespace,
+			TargetServer:    envModel.Cluster.ServerUrl,
+			Project:         "default",
+			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
+			RepoPath:        chart.ChartLocation,
+			RepoUrl:         chart.GitRepoUrl,
+		}
+
+		argoAppName, err := impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
+		if err != nil {
+			return "", err
+		}
+		pipeline.DeploymentAppCreated = true
+		pipeline.UpdatedOn = time.Now()
+		pipeline.UpdatedBy = userId
+		err = impl.pipelineRepository.UpdateCdPipeline(pipeline)
+		if err != nil {
+			impl.logger.Errorw("error on updating cd pipeline for setting deployment app created", "err", err)
+			return "", err
+		}
+		return argoAppName, nil
+	}
 }
 
 func (impl AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.ReleaseStatusUpdateRequest) (bool, error) {
@@ -377,19 +431,6 @@ func (impl AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, ar
 
 func (impl AppServiceImpl) buildACDSynchContext() (acdContext context.Context, err error) {
 	return impl.tokenCache.BuildACDSynchContext()
-	/*token, found := impl.tokenCache.Cache.Get("token")
-	if !found {
-		token, err := impl.userAuthService.HandleLogin(impl.acdAuthConfig.ACDUsername, impl.acdAuthConfig.ACDPassword)
-		if err != nil {
-			impl.logger.Errorw("error while acd login", "err", err)
-			return nil, err
-		}
-		impl.tokenCache.Cache.Set("token", token, cache.NoExpiration)
-	}
-	token, _ = impl.tokenCache.Cache.Get("token")
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", token)
-	return ctx, nil*/
 }
 
 func (impl AppServiceImpl) getDbMigrationOverride(overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, isRollback bool) (overrideJson []byte, err error) {
@@ -465,6 +506,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		impl.logger.Errorf("invalid req", "err", err, "req", overrideRequest)
 		return 0, err
 	}
+
 	envOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorf("invalid state", "err", err, "req", overrideRequest)
@@ -518,11 +560,35 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	} else if envOverride.Id > 0 && !envOverride.IsOverride {
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
 		if err != nil {
-			impl.logger.Errorf("invalid state", "err", err, "req", overrideRequest)
+			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 			return 0, err
 		}
 		envOverride.Chart = chart
 	}
+
+	// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
+	chartMetaData := &chart2.Metadata{
+		Name:    pipeline.App.AppName,
+		Version: envOverride.Chart.ChartVersion,
+	}
+	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
+	_, err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, 1)
+	if err != nil {
+		impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
+		return 0, err
+	}
+
+	// ACD app creation STARTS HERE, it will use existing if already created
+	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
+	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride, pipeline, deployedBy)
+	if err != nil {
+		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
+		return 0, err
+	}
+	impl.logger.Debugw("argocd application created", "name", name)
+
+	// ENDS HERE
 
 	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
 	if err != nil {

@@ -75,6 +75,7 @@ import (
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
@@ -134,7 +135,7 @@ func InitializeApp() (*App, error) {
 		//sql.NewDbConnection,
 		//app.GetACDAuthConfig,
 		util3.GetACDAuthConfig,
-		wire.Value(pipeline.RefChartDir("scripts/devtron-reference-helm-charts")),
+		wire.Value(chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(pipeline.DefaultChart("reference-app-rolling")),
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
