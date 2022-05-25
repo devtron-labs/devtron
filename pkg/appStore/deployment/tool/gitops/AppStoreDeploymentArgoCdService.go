@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"

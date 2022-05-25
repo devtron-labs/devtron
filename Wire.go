@@ -21,6 +21,7 @@
 package main
 
 import (
+	"github.com/devtron-labs/authenticator/middleware"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
@@ -78,7 +79,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
-	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/event"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
@@ -140,13 +140,10 @@ func InitializeApp() (*App, error) {
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
 		session.SettingsManager,
 		session.CDSettingsManager,
-		session.SessionManager,
 		//auth.GetConfig,
 
-		dex.GetConfig,
 		argocdServer.GetConfig,
-		session2.NewSessionServiceClient,
-		wire.Bind(new(session2.ServiceClient), new(*session2.ServiceClientImpl)),
+		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
 		router.NewHelmRouter,

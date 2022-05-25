@@ -1,19 +1,17 @@
 package bitbucket
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
-
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
-
-	"bytes"
-	"io"
-	"mime/multipart"
-	"os"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -151,6 +149,7 @@ func injectClient(a *auth) *Client {
 		BranchRestrictions: &BranchRestrictions{c: c},
 		Webhooks:           &Webhooks{c: c},
 		Downloads:          &Downloads{c: c},
+		DeployKeys:         &DeployKeys{c: c},
 	}
 	c.Users = &Users{c: c}
 	c.User = &User{c: c}

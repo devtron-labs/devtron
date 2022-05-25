@@ -33,7 +33,6 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	repository7 "github.com/devtron-labs/devtron/client/argocdServer/repository"
-	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -77,7 +76,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
-	"github.com/devtron-labs/devtron/pkg/dex"
 	"github.com/devtron-labs/devtron/pkg/event"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
 	"github.com/devtron-labs/devtron/pkg/git"
@@ -111,6 +109,8 @@ import (
 )
 
 import (
+	_ "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	_ "github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	_ "github.com/lib/pq"
 )
 
@@ -191,9 +191,9 @@ func InitializeApp() (*App, error) {
 		return nil, err
 	}
 	sessionManager := middleware.NewSessionManager(settings, dexConfig)
-	sessionServiceClientImpl := session2.NewSessionServiceClient(argoCDSettings)
+	loginService := middleware.NewUserLogin(sessionManager, k8sClient)
 	roleGroupRepositoryImpl := repository2.NewRoleGroupRepositoryImpl(db, sugaredLogger)
-	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl)
+	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, loginService, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl)
 	tokenCache := util2.NewTokenCache(sugaredLogger, acdAuthConfig, userAuthServiceImpl)
 	enforcer := casbin.Create()
 	enforcerImpl := casbin.NewEnforcerImpl(enforcer, sessionManager, sugaredLogger)
@@ -272,12 +272,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	config2, err := dex.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-	sessionSessionManager := session.SessionManager(settingsManager, config2)
-	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, sessionSessionManager, attributesRepositoryImpl)
+	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
 	appLabelRepositoryImpl := pipelineConfig.NewAppLabelRepositoryImpl(db)
 	appLabelServiceImpl := app2.NewAppLabelServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl)
 	prePostCiScriptHistoryRepositoryImpl := repository4.NewPrePostCiScriptHistoryRepositoryImpl(sugaredLogger, db)

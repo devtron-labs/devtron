@@ -78,6 +78,8 @@ type Connection interface {
 	// SetIdleTimeout sets the amount of time the connection may remain idle before
 	// it is automatically closed.
 	SetIdleTimeout(timeout time.Duration)
+	// RemoveStreams can be used to remove a set of streams from the Connection.
+	RemoveStreams(streams ...Stream)
 }
 
 // Stream represents a bidirectional communications channel that is part of an
@@ -135,15 +137,11 @@ func commaSeparatedHeaderValues(header []string) []string {
 func Handshake(req *http.Request, w http.ResponseWriter, serverProtocols []string) (string, error) {
 	clientProtocols := commaSeparatedHeaderValues(req.Header[http.CanonicalHeaderKey(HeaderProtocolVersion)])
 	if len(clientProtocols) == 0 {
-		// Kube 1.0 clients didn't support subprotocol negotiation.
-		// TODO require clientProtocols once Kube 1.0 is no longer supported
-		return "", nil
+		return "", fmt.Errorf("unable to upgrade: %s is required", HeaderProtocolVersion)
 	}
 
 	if len(serverProtocols) == 0 {
-		// Kube 1.0 servers didn't support subprotocol negotiation. This is mainly for testing.
-		// TODO require serverProtocols once Kube 1.0 is no longer supported
-		return "", nil
+		panic(fmt.Errorf("unable to upgrade: serverProtocols is required"))
 	}
 
 	negotiatedProtocol := negotiateProtocol(clientProtocols, serverProtocols)

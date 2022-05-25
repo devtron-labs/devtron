@@ -34,8 +34,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/aws/aws-sdk-go/service/autoscaling"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -218,8 +218,8 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 	}
 
 	if string(application.Healthy) != deploymentStatus.Status {
-		if deploymentStatus.Status == app.Status.Health.Status {
-			impl.logger.Debug("not updating same statuses from " + deploymentStatus.Status + " to " + app.Status.Health.Status)
+		if deploymentStatus.Status == string(app.Status.Health.Status) {
+			impl.logger.Debug("not updating same statuses from " + deploymentStatus.Status + " to " + string(app.Status.Health.Status))
 			return isHealthy, nil
 		}
 
@@ -251,7 +251,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 				AppName:   app.Name,
 				AppId:     deploymentStatus.AppId,
 				EnvId:     deploymentStatus.EnvId,
-				Status:    app.Status.Health.Status,
+				Status:    string(app.Status.Health.Status),
 				CreatedOn: time.Now(),
 				UpdatedOn: time.Now(),
 			}
@@ -1234,6 +1234,7 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 		return false, err
 	}
 	argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
+	impl.logger.Infow("received payload, updateArgoPipeline", "appId", appId, "pipelineName", pipelineName, "envId", envOverride.TargetEnvironment, "argoAppName", argoAppName, "context", ctx)
 	application, err := impl.acdClient.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName})
 	if err != nil {
 		impl.logger.Errorw("no argo app exists", "app", argoAppName, "pipeline", pipelineName)
@@ -1281,7 +1282,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app v1alpha1.Appli
 		impl.logger.Errorw("error on update cd workflow runner, fetch failed for runner type", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	wfr.Status = app.Status.Health.Status
+	wfr.Status = string(app.Status.Health.Status)
 	wfr.FinishedOn = time.Now()
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
 	if err != nil {

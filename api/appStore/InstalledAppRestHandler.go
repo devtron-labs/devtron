@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"

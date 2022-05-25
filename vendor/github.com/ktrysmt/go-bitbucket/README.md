@@ -20,7 +20,7 @@ go get github.com/ktrysmt/go-bitbucket
 
 ## Usage
 
-create a pullrequest
+### create a pullrequest
 
 ```go
 package main
@@ -52,9 +52,9 @@ func main() {
 }
 ```
 
-create a repository
+### create a repository
 
-```
+```go
 package main
 
 import (

@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
@@ -28,8 +29,8 @@ import (
 	"strings"
 	"time"
 
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -303,7 +304,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 			return
 		}
-		if resp.Status == v1alpha1.HealthStatusHealthy {
+		if resp.Status == string(health.HealthStatusHealthy) {
 			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
 			if err != nil {
 				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
@@ -313,7 +314,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		}
 		handler.logger.Debugf("FetchAppDetails, time elapsed %s in fetching application %s for environment %s", elapsed, appId, envId)
 
-		if resp.Status == v1alpha1.HealthStatusDegraded {
+		if resp.Status == string(health.HealthStatusDegraded) {
 			count, err := handler.appListingService.GetReleaseCount(appId, envId)
 			if err != nil {
 				handler.logger.Errorw("service err, FetchAppDetails, release count", "err", err, "app", appId, "env", envId)
@@ -397,7 +398,7 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 					healthStatus := resp.Application.Status.Health.Status
 					status := AppStatus{
 						name:       pipelineName,
-						status:     healthStatus,
+						status:     string(healthStatus),
 						message:    resp.Application.Status.Health.Message,
 						err:        nil,
 						conditions: resp.Application.Status.Conditions,
@@ -446,7 +447,7 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 		if triggerView[i].Status == "" {
 			triggerView[i].Status = "Unknown"
 		}
-		if triggerView[i].Status == v1alpha1.HealthStatusDegraded {
+		if triggerView[i].Status == string(health.HealthStatusDegraded) {
 			triggerView[i].Status = "Not Deployed"
 		}
 	}

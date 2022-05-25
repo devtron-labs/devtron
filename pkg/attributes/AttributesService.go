@@ -18,7 +18,6 @@
 package attributes
 
 import (
-	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -45,15 +44,13 @@ type AttributesDto struct {
 
 type AttributesServiceImpl struct {
 	logger               *zap.SugaredLogger
-	sessionManager       *session.SessionManager
 	attributesRepository repository.AttributesRepository
 }
 
-func NewAttributesServiceImpl(logger *zap.SugaredLogger, sessionManager *session.SessionManager,
+func NewAttributesServiceImpl(logger *zap.SugaredLogger,
 	attributesRepository repository.AttributesRepository) *AttributesServiceImpl {
 	serviceImpl := &AttributesServiceImpl{
 		logger:               logger,
-		sessionManager:       sessionManager,
 		attributesRepository: attributesRepository,
 	}
 	return serviceImpl
