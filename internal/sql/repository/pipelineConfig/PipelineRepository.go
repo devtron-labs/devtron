@@ -58,6 +58,7 @@ type Pipeline struct {
 	PostStageConfigMapSecretNames string      `sql:"post_stage_config_map_secret_names"` // secret names
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
+	DeploymentAppCreated          bool        `sql:"deployment_app_created,notnull"`
 	Environment                   repository.Environment
 	sql.AuditLog
 }
@@ -88,6 +89,7 @@ type PipelineRepository interface {
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 	Exists() (exist bool, err error)
+	UpdateCdPipeline(pipeline *Pipeline) error
 }
 
 type CiArtifactDTO struct {
@@ -368,4 +370,8 @@ func (impl PipelineRepositoryImpl) Exists() (exist bool, err error) {
 	var pipelines []*Pipeline
 	exist, err = impl.dbConnection.Model(&pipelines).Exists()
 	return exist, err
+}
+func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
+	err := impl.dbConnection.Update(pipeline)
+	return err
 }

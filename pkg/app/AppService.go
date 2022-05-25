@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
-	"net/http"
 	"net/url"
 	"path"
 	"strconv"
@@ -186,7 +185,7 @@ func NewAppService(
 func (impl AppServiceImpl) getValuesFileForEnv(environmentId int) string {
 	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
 }
-func (impl AppServiceImpl) createArgoApplicationIfRequired(appId int, appName string, envConfigOverride *chartConfig.EnvConfigOverride) (string, error) {
+func (impl AppServiceImpl) createArgoApplicationIfRequired(appId int, appName string, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
 	//repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
@@ -198,20 +197,9 @@ func (impl AppServiceImpl) createArgoApplicationIfRequired(appId int, appName st
 		return "", err
 	}
 	argoAppName := fmt.Sprintf("%s-%s", appName, envModel.Name)
-
-	appResponse, err := impl.ArgoK8sClient.GetArgoApplication(impl.acdAuthConfig.ACDConfigMapNamespace, argoAppName, envModel.Cluster)
-	appStatus := 0
-	if err != nil && appResponse != nil {
-		appStatus = int(appResponse["code"].(float64))
-	}
-	impl.logger.Infow("testing cd pipeline acd check", "appStatus", appStatus)
-
-	// if no error found it means argo app already exists
-	//FIXME: check different from pipelinebuilder line 976
-	if err == nil && appResponse != nil {
-		impl.logger.Infow("argo app already exists", "app", argoAppName)
+	if pipeline.DeploymentAppCreated {
 		return argoAppName, nil
-	} else if appStatus == http.StatusNotFound {
+	} else {
 		//create
 		appNamespace := envConfigOverride.Namespace
 		if appNamespace == "" {
@@ -228,12 +216,21 @@ func (impl AppServiceImpl) createArgoApplicationIfRequired(appId int, appName st
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
 		}
-		return impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
-	} else {
-		impl.logger.Errorw("err in checking application on argo cd", "err", err)
-		return "", err
-	}
 
+		argoAppName, err := impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
+		if err != nil {
+			return "", err
+		}
+		pipeline.DeploymentAppCreated = true
+		pipeline.UpdatedOn = time.Now()
+		pipeline.UpdatedBy = userId
+		err = impl.pipelineRepository.UpdateCdPipeline(pipeline)
+		if err != nil {
+			impl.logger.Errorw("error on updating cd pipeline for setting deployment app created", "err", err)
+			return "", err
+		}
+		return argoAppName, nil
+	}
 }
 
 func (impl AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.ReleaseStatusUpdateRequest) (bool, error) {
@@ -584,7 +581,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 
 	// ACD app creation STARTS HERE, it will use existing if already created
 	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
-	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride)
+	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride, pipeline, deployedBy)
 	if err != nil {
 		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
 		return 0, err
