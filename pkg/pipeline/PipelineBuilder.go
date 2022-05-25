@@ -139,6 +139,7 @@ type PipelineBuilderImpl struct {
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 	pipelineStageService             PipelineStageService
 	chartTemplateService             util.ChartTemplateService
+	chartRefRepository               chartRepoRepository.ChartRefRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -172,7 +173,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	pipelineStageService PipelineStageService,
-	chartTemplateService util.ChartTemplateService) *PipelineBuilderImpl {
+	chartTemplateService util.ChartTemplateService, chartRefRepository chartRepoRepository.ChartRefRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -208,6 +209,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
 		pipelineStageService:             pipelineStageService,
 		chartTemplateService:             chartTemplateService,
+		chartRefRepository:               chartRefRepository,
 	}
 }
 
@@ -2056,9 +2058,16 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		impl.logger.Errorf("invalid state", "err", err, "appId", appId)
 		return pipelineStrategiesResponse, err
 	}
+	chartInfo, err := impl.chartRefRepository.FindById(chart.ChartRefId)
+	if err != nil {
+		impl.logger.Errorf("invalid chart", "err", err, "appId", appId)
+		return pipelineStrategiesResponse, err
+	}
+
 	if chart.Id == 0 {
 		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
 	}
+
 	pipelineOverride := chart.PipelineOverride
 	rollingConfig, err := impl.filterDeploymentTemplate("ROLLING", pipelineOverride)
 	if err != nil {
@@ -2069,6 +2078,10 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		Config:             []byte(rollingConfig),
 		Default:            true,
 	})
+	if chartInfo.UserUploaded {
+		impl.logger.Errorw("chart version parsing", "err", err)
+		return pipelineStrategiesResponse, err
+	}
 	bgConfig, err := impl.filterDeploymentTemplate("BLUE-GREEN", pipelineOverride)
 	if err != nil {
 		return pipelineStrategiesResponse, err
