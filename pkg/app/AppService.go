@@ -183,10 +183,10 @@ func NewAppService(
 	}
 	return appServiceImpl
 }
-func getValuesFileForEnv(environmentId int) string {
+func (impl AppServiceImpl) getValuesFileForEnv(environmentId int) string {
 	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
 }
-func (impl AppServiceImpl) createArgoPipelineIfRequired(appId int, appName string, envConfigOverride *chartConfig.EnvConfigOverride) (string, error) {
+func (impl AppServiceImpl) createArgoApplicationIfRequired(appId int, appName string, envConfigOverride *chartConfig.EnvConfigOverride) (string, error) {
 	//repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
@@ -224,7 +224,7 @@ func (impl AppServiceImpl) createArgoPipelineIfRequired(appId int, appName strin
 			TargetNamespace: appNamespace,
 			TargetServer:    envModel.Cluster.ServerUrl,
 			Project:         "default",
-			ValuesFile:      getValuesFileForEnv(envModel.Id),
+			ValuesFile:      impl.getValuesFileForEnv(envModel.Id),
 			RepoPath:        chart.ChartLocation,
 			RepoUrl:         chart.GitRepoUrl,
 		}
@@ -584,7 +584,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 
 	// ACD app creation STARTS HERE, it will use existing if already created
 	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
-	name, err := impl.createArgoPipelineIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride)
+	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride)
 	if err != nil {
 		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
 		return 0, err

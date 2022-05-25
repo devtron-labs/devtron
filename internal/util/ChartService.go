@@ -106,6 +106,7 @@ func (impl ChartTemplateServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitA
 	repo, err := impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
 		impl.logger.Errorw("error in creating argo Repository ", "err", err)
+		return err
 	}
 	impl.logger.Infow("repo registered in argo", "name", chartGitAttribute.RepoUrl)
 	return err
