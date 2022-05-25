@@ -64,6 +64,7 @@ spec:
 {{- if $.Values.hostAliases }}
        hostAliases:
 {{ toYaml .Values.hostAliases | indent 8 }}
+{{- end }}
 {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
       affinity:
         nodeAffinity:
