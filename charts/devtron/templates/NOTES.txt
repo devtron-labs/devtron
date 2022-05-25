@@ -1,45 +1,54 @@
 
-1. Run the following command to get the default admin password. Default username is admin
+1. Run the following command to get the password for the default admin user:
 
    kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
-{{- if $.Values.components.devtron.ingress.enabled }}
 
-2. Your devtron dashboard will be available for http on http://{{ .Values.components.devtron.ingress.host }}/dashboard or for https on https://{{ .Values.components.devtron.ingress.host }}/dashboard
+{{- if $.Values.components }}
+{{- if $.Values.components.devtron }}
+{{- if $.Values.components.devtron.ingress }}
+{{- if $.Values.components.devtron.ingress.enabled }}
+2. The Devtron dashboard URL for 
+
+- http is: http://{{ .Values.components.devtron.ingress.host }}/dashboard
+- https is https://{{ .Values.components.devtron.ingress.host }}/dashboard
+
+{{- end }}
+{{- end }}
+{{- end }}
 
 {{- else if eq $.Values.components.devtron.service.type "LoadBalancer" }}
-
-2. You can get url of devtron dashboard by the following command
-
-  kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+2. Run the following command to get the dashboard URL for the service type:
+   LoadBalancer
+   
+   kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+   
 {{- else if eq $.Values.components.devtron.service.type "NodePort" }}
-
-2. You can get the devtron dashboard by following the steps mentioned below 
+2. Run the following commands to get the dashboard URL for the service type:
+   NodePort
 
    a. export nodeport=$(kubectl get svc -n devtroncd devtron-service -o jsonpath="{.spec.ports[0].nodePort}")
    
-   b. Run the following command to get Devtron dashboard URL 
-   
-      echo http://HOST_IP:$nodeport/dashboard
-   
-Make sure that your security settings allow incoming connection to your Host machine on the nodeport mentioned. 
- 
+   b. Run the following command to get Devtron dashboard URL: echo http://HOST_IP:$nodeport/dashboard
+
+   Make sure that your security settings allow incoming connection to your Host machine on the nodeport mentioned.
 
 {{- else if eq $.Values.components.devtron.service.type "ClusterIP" }}
-
-2. You can get the devtron dashboard by the following command
+2. Run the following commands to get the dashboard URL for the service type:
+   ClusterIP
    
-   kubectl get svc -n devtroncd devtron-service
+   kubectl get svc -n devtroncd devtron-service   
    
    You can port-forward devtron-service in namespace devtroncd to access devtron dashboard. You can use the following command to port forward.
-   
+      
    kubectl -n devtroncd port-forward svc/devtron-service 8000:80
+
    The dashboard should be accesible on http://localhost:8000/
 {{- end }}
 
 {{- if $.Values.installer.modules }}
-
-3. You can watch the progress of Devtron microservices installation by the following command
+3. To track the progress of Devtron microservices installation, run the following command:
 
    kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.status}'
+
 {{- end }}
 
