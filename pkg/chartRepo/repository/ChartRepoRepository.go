@@ -302,9 +302,9 @@ type ChartRef struct {
 }
 
 type ChartDto struct {
-	Name             string `sql:"name"`
-	ChartDescription string `sql:"chart_description"`
-	Version          string `sql:"version"`
+	Name             string `json:"name"`
+	ChartDescription string `json:"chartDescription"`
+	Version          string `json:"version"`
 }
 
 type ChartRefRepository interface {
