@@ -32,6 +32,26 @@ data:
                 requests:
                   cpu: 0.02
                   memory: 50Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
     ---
     apiVersion: apps/v1
     kind: Deployment
@@ -49,6 +69,26 @@ data:
                 requests:
                   cpu: 0.02
                   memory: 100Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
     ---
     apiVersion: apps/v1
     kind: Deployment
@@ -66,6 +106,26 @@ data:
                 requests:
                   cpu: 0.5
                   memory: 1Gi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
     ---
     apiVersion: apps/v1
     kind: Deployment
@@ -83,6 +143,26 @@ data:
                 requests:
                   cpu: 0.3
                   memory: 400Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
     ---
     apiVersion: apps/v1
     kind: StatefulSet
@@ -100,6 +180,26 @@ data:
                 requests:
                   cpu: 1
                   memory: 2Gi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -125,6 +225,26 @@ data:
                 requests:
                   cpu: 0.3
                   memory: 3Gi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
     ---
     apiVersion: v1
     kind: Secret
@@ -160,6 +280,26 @@ data:
                 requests:
                   cpu: 0.02
                   memory: 50Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -193,6 +333,26 @@ data:
     #                value: "3001"
     #              - name: "POLLER_INTERVAL_MILLISECONDS"
     #                value: "10000"
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -226,6 +386,26 @@ data:
                 requests:
                   cpu: 0.1
                   memory: 2.5Gi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
         volumeClaimTemplates:
         - spec:
             resources:
@@ -265,6 +445,26 @@ data:
                 requests:
                   cpu: 0.02
                   memory: 200Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -296,6 +496,26 @@ data:
     #                value: give-value
     #              - name: DEVTRON_APP_NAME
     #                value: guard
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -341,6 +561,26 @@ data:
     #                valueFrom:
     #                  fieldRef:
     #                    fieldPath: metadata.name
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -385,6 +625,26 @@ data:
                 requests:
                   cpu: 0.05
                   memory: 50Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -409,6 +669,26 @@ data:
                 limits:
                   cpu: 0.02
                   memory: 150Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -442,6 +722,26 @@ data:
                 requests:
                   cpu: 0.02
                   memory: 50Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -472,6 +772,26 @@ data:
             - resources:
                 requests:
                   memory: 100Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -501,6 +821,26 @@ data:
             - resources:
                 requests:
                   memory: 100Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
     ---
     apiVersion: batch/v1
     kind: Job
@@ -538,6 +878,26 @@ data:
                 requests:
                   cpu: 0.01
                   memory: 30Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -562,6 +922,26 @@ data:
                 requests:
                   cpu: 0.05
                   memory: 20Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -586,6 +966,26 @@ data:
                 requests:
                   cpu: 0.1
                   memory: 50Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 #             env:
 #             - name: POD_NAME
 #                valueFrom:
@@ -625,6 +1025,26 @@ data:
                 requests:
                   cpu: 0.02
                   memory: 100Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
     #              env:
     #              - name: CONFIG_HASH
     #                value: f64a7abec5f850c3393a5f3a1efb3a3c62fbcb6530cc3c6807028c41677fc3ec
@@ -698,6 +1118,26 @@ data:
                 requests:
                   cpu: 1
                   memory: 600Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -722,6 +1162,26 @@ data:
                 requests:
                   cpu: 0.25
                   memory: 800Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
             volumeClaimTemplates:
               spec:
                 resources:
@@ -751,6 +1211,26 @@ data:
                 limits:
                   cpu: 0.02
                   memory: 50Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -775,6 +1255,26 @@ data:
                 requests:
                   cpu: 0.01
                   memory: 30Mi
+            {{- if and $.Values.global.nodeSelector .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if .nodeSelector }}
+            nodeSelector:
+              {{- toYaml .nodeSelector | nindent 14 }}
+            {{- else if $.Values.global.nodeSelector }}
+            nodeSelector:
+              {{- toYaml $.Values.global.nodeSelector | nindent 14 }}
+            {{- end }}
+            {{- if and $.Values.global.tolerations .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if .tolerations }}
+            tolerations:
+              {{- toYaml .tolerations | nindent 14 }}
+            {{- else if $.Values.global.tolerations }}
+            tolerations:
+              {{- toYaml $.Values.global.tolerations | nindent 14 }}
+            {{- end }}
     #            - env:
     #              - name: ARGO_NAMESPACE
     #                valueFrom:

@@ -38,6 +38,26 @@ spec:
           - secretRef:
               name: postgresql-migrator
       restartPolicy: OnFailure
+      {{- if and $.Values.global.nodeSelector .nodeSelector }}
+      nodeSelector:
+        {{- toYaml .nodeSelector | nindent 8 }}
+      {{- else if .nodeSelector }}
+      nodeSelector:
+        {{- toYaml .nodeSelector | nindent 8 }}
+      {{- else if $.Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml $.Values.global.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if and $.Values.global.tolerations .tolerations }}
+      tolerations:
+        {{- toYaml .tolerations | nindent 8 }}
+      {{- else if .tolerations }}
+      tolerations:
+        {{- toYaml .tolerations | nindent 8 }}
+      {{- else if $.Values.global.tolerations }}
+      tolerations:
+        {{- toYaml $.Values.global.tolerations | nindent 8 }}
+      {{- end }}
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 ---
@@ -86,6 +106,26 @@ spec:
             cpu: 0.5
             memory: 500Mi
       restartPolicy: OnFailure
+      {{- if and $.Values.global.nodeSelector .nodeSelector }}
+      nodeSelector:
+        {{- toYaml .nodeSelector | nindent 8 }}
+      {{- else if .nodeSelector }}
+      nodeSelector:
+        {{- toYaml .nodeSelector | nindent 8 }}
+      {{- else if $.Values.global.nodeSelector }}
+      nodeSelector:
+        {{- toYaml $.Values.global.nodeSelector | nindent 8 }}
+      {{- end }}
+      {{- if and $.Values.global.tolerations .tolerations }}
+      tolerations:
+        {{- toYaml .tolerations | nindent 8 }}
+      {{- else if .tolerations }}
+      tolerations:
+        {{- toYaml .tolerations | nindent 8 }}
+      {{- else if $.Values.global.tolerations }}
+      tolerations:
+        {{- toYaml $.Values.global.tolerations | nindent 8 }}
+      {{- end }}
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 {{- end }}

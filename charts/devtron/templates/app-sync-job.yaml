@@ -19,6 +19,8 @@ spec:
             - secretRef:
                 name: devtron-secret
           restartPolicy: OnFailure
+          nodeSelector: {}
+          tolerations: []
       backoffLimit: 4
       activeDeadlineSeconds: 120
 ---
@@ -48,4 +50,6 @@ spec:
             - secretRef:
                 name: devtron-secret
           restartPolicy: Never
+          nodeSelector: {}
+          tolerations: []
       backoffLimit: 4
