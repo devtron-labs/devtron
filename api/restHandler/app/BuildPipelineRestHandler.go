@@ -676,8 +676,10 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 
 	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(appId, pipelineId)
 	// RBAC check if CD pipeline is present
+	handler.Logger.Infow("Test logs", " pipeline id ", pipelineId, "Environment Id ", pipelineData.EnvironmentId)
 	if handler.appWorkflowService.CheckCdPipelineById(pipelineId) {
 		object := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(pipelineId, pipelineData.EnvironmentId)
+		handler.Logger.Infow("Test logs", " object ", object)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceAdmin, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
