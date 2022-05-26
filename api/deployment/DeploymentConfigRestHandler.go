@@ -224,7 +224,7 @@ func (handler *DeploymentConfigRestHandlerImpl) GetUploadedCharts(w http.Respons
 		return
 	}
 
-	charts, err := handler.chartRefRepository.FetchChartInfoByUploadFlag(true)
+	charts, err := handler.chartService.FetchChartInfoByFlag(true)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

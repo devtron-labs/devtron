@@ -301,12 +301,6 @@ type ChartRef struct {
 	sql.AuditLog
 }
 
-type ChartDto struct {
-	Name             string `json:"name"`
-	ChartDescription string `json:"chartDescription"`
-	Version          string `json:"version"`
-}
-
 type ChartRefRepository interface {
 	Save(chartRepo *ChartRef) error
 	GetDefault() (*ChartRef, error)
@@ -314,7 +308,7 @@ type ChartRefRepository interface {
 	GetAll() ([]*ChartRef, error)
 	CheckIfDataExists(name string, version string) (bool, error)
 	FetchChart(name string) ([]*ChartRef, error)
-	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartDto, error)
+	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -369,10 +363,11 @@ func (impl ChartRefRepositoryImpl) FetchChart(name string) ([]*ChartRef, error) 
 	return chartRefs, err
 }
 
-func (impl ChartRefRepositoryImpl) FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartDto, error) {
-	var repo []*ChartDto
-	query := "Select name, chart_description, version from chart_ref Where user_uploaded = ? and active = true;"
-	_, err := impl.dbConnection.Query(&repo, query, userUploaded)
+func (impl ChartRefRepositoryImpl) FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error) {
+	var repo []*ChartRef
+	err := impl.dbConnection.Model(&repo).
+		Where("user_uploaded = ?", userUploaded).
+		Where("active = ?", true).Select()
 	if err != nil {
 		return repo, err
 	}

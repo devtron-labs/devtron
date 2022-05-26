@@ -136,6 +136,7 @@ type ChartService interface {
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
+	FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -920,6 +921,12 @@ type ChartDataInfo struct {
 	Message         string `json:"message"`
 }
 
+type ChartDto struct {
+	Name             string `json:"name"`
+	ChartDescription string `json:"chartDescription"`
+	Version          string `json:"version"`
+}
+
 func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 	var chartRefs []chartRef
 	results, err := impl.chartRefRepository.GetAll()
@@ -1443,4 +1450,21 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 	chartInfo.ChartName = chartName
 	chartInfo.ChartVersion = chartVersion
 	return chartInfo, nil
+}
+
+func (impl ChartServiceImpl) FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error) {
+	repo, err := impl.chartRefRepository.FetchChartInfoByUploadFlag(userUploaded)
+	if err != nil {
+		return nil, err
+	}
+	var chartDtos []*ChartDto
+	for _, ref := range repo {
+		chartDto := &ChartDto{
+			Name:             ref.Name,
+			ChartDescription: ref.ChartDescription,
+			Version:          ref.Version,
+		}
+		chartDtos = append(chartDtos, chartDto)
+	}
+	return chartDtos, err
 }

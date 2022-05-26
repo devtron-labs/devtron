@@ -1966,6 +1966,11 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
 	}
 
+	if chartInfo.UserUploaded {
+		impl.logger.Errorw("invalid for custom charts", "err", err)
+		return pipelineStrategiesResponse, err
+	}
+
 	pipelineOverride := chart.PipelineOverride
 	rollingConfig, err := impl.filterDeploymentTemplate("ROLLING", pipelineOverride)
 	if err != nil {
@@ -1976,10 +1981,7 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		Config:             []byte(rollingConfig),
 		Default:            true,
 	})
-	if chartInfo.UserUploaded {
-		impl.logger.Errorw("chart version parsing", "err", err)
-		return pipelineStrategiesResponse, err
-	}
+
 	bgConfig, err := impl.filterDeploymentTemplate("BLUE-GREEN", pipelineOverride)
 	if err != nil {
 		return pipelineStrategiesResponse, err
