@@ -137,6 +137,7 @@ type ChartService interface {
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 	FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error)
+	CheckCustomChartByAppId(id int) (bool, error)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -1467,4 +1468,16 @@ func (impl ChartServiceImpl) FetchChartInfoByFlag(userUploaded bool) ([]*ChartDt
 		chartDtos = append(chartDtos, chartDto)
 	}
 	return chartDtos, err
+}
+
+func (impl ChartServiceImpl) CheckCustomChartByAppId(id int) (bool, error) {
+	chartInfo, err := impl.chartRepository.FindLatestChartForAppByAppId(id)
+	if err != nil {
+		return false, err
+	}
+	chartData, err := impl.chartRefRepository.FindById(chartInfo.ChartRefId)
+	if err != nil {
+		return false, err
+	}
+	return chartData.UserUploaded, err
 }
