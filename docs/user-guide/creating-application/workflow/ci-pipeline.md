@@ -6,9 +6,9 @@
 
 A CI Pipeline can be created in one of the three ways:
 
-* [Continuous Integration](#1-continuous-integration)
-* [Linked CI Pipeline](#2.-linked-ci-pipeline)
-* [Incoming Webhook](#3.-incoming-webhook)
+* Continous Integration
+* Linked CI Pipeline
+* Incoming Webhook
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/workflow-ci.jpg)
 

@@ -6,7 +6,7 @@ Git Repository is used to pull your application source code during the CI step. 
 2. Git Repo URL
 3. Checkout Path
 
-Devtron also supports multiple git repositories in a single deployment. We will discuss this in detail in the multi git option [below](git-material.md#4-multi-git).
+Devtron also supports multiple git repositories in a single deployment. We will discuss this in detail in the multi git option [below](#5-multi-git).
 
 ![](../../.gitbook/assets/create-app-git-account.gif)
 
