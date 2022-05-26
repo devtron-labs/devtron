@@ -98,6 +98,7 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		ChartRefId              int    `sql:"chart_ref_id,notnull"`
 		ChartVersion            string `sql:"chart_version,notnull"`
 		GitRepoUrl              string `sql:"git_repo_url"`
+		ReferenceTemplate       string `sql:"reference_template"`
 	}
 
 	query := "SELECT " +
@@ -110,6 +111,7 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		" ch.global_override as global_override, ch.chart_version as chart_version," +
 		" ch.image_descriptor_template as image_descriptor_template," +
 		" en.environment_name as environment_name, ec.is_override, ch.chart_ref_id" +
+		", ch.reference_template" +
 		" FROM chart_env_config_override ec" +
 		" LEFT JOIN charts ch on ec.chart_id=ch.id" +
 		" LEFT JOIN environment en on en.id=ec.target_environment" +
@@ -128,6 +130,7 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		ChartRefId:              environmentConfig.ChartRefId,
 		ChartVersion:            environmentConfig.ChartVersion,
 		GitRepoUrl:              environmentConfig.GitRepoUrl,
+		ReferenceTemplate:       environmentConfig.ReferenceTemplate,
 	}
 	env := &repository.Environment{
 		Name: environmentConfig.EnvironmentName,

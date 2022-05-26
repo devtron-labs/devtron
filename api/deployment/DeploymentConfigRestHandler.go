@@ -31,7 +31,7 @@ type DeploymentConfigRestHandlerImpl struct {
 	userAuthService    user.UserService
 	enforcer           casbin.Enforcer
 	validator          *validator.Validate
-	refChartDir        pipeline.RefChartDir
+	refChartDir        chartRepoRepository.RefChartDir
 	chartService       pipeline.ChartService
 	chartRefRepository chartRepoRepository.ChartRefRepository
 }
@@ -46,7 +46,7 @@ type DeploymentChartInfo struct {
 }
 
 func NewDeploymentConfigRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, enforcer casbin.Enforcer, validator *validator.Validate,
-	refChartDir pipeline.RefChartDir, chartService pipeline.ChartService, chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigRestHandlerImpl {
+	refChartDir chartRepoRepository.RefChartDir, chartService pipeline.ChartService, chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigRestHandlerImpl {
 	return &DeploymentConfigRestHandlerImpl{
 		Logger:             Logger,
 		userAuthService:    userAuthService,

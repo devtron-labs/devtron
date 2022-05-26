@@ -112,7 +112,6 @@ type AppConfigResponse struct {
 	PreviousAppConfig TemplateRequest `json:"previousAppConfig"`
 }
 
-type RefChartDir string
 type DefaultChart string
 
 type ChartService interface {
@@ -136,6 +135,7 @@ type ChartService interface {
 	GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
+	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -145,7 +145,7 @@ type ChartServiceImpl struct {
 	pipelineGroupRepository          app.AppRepository
 	mergeUtil                        util.MergeUtil
 	repositoryService                repository.ServiceClient
-	refChartDir                      RefChartDir
+	refChartDir                      chartRepoRepository.RefChartDir
 	defaultChart                     DefaultChart
 	chartRefRepository               chartRepoRepository.ChartRefRepository
 	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
@@ -164,7 +164,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	chartTemplateService util.ChartTemplateService,
 	repoRepository chartRepoRepository.ChartRepoRepository,
 	pipelineGroupRepository app.AppRepository,
-	refChartDir RefChartDir,
+	refChartDir chartRepoRepository.RefChartDir,
 	defaultChart DefaultChart,
 	mergeUtil util.MergeUtil,
 	repositoryService repository.ServiceClient,
@@ -303,6 +303,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
 	}
+	gitRepoUrl := ""
 	impl.logger.Debugw("current latest chart in db", "chartId", currentLatestChart.Id)
 	if currentLatestChart.Id > 0 {
 		impl.logger.Debugw("updating env and pipeline config which are currently latest in db", "chartId", currentLatestChart.Id)
@@ -330,6 +331,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		if err != nil {
 			return nil, err
 		}
+		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
 	// ENDS
 
@@ -340,10 +342,11 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
+	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId)
 	if err != nil {
 		return nil, err
 	}
+	chartLocation := filepath.Join(templateName, version)
 	override, err := templateRequest.ValuesOverride.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -363,12 +366,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 	override = dst.Bytes()
-
-	err = impl.registerInArgo(chartGitAttr, ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
 		ChartRepoId:             chartRepo.Id,
@@ -383,8 +380,8 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ChartVersion:            chartMeta.Version,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
-		ChartLocation:           chartGitAttr.ChartLocation,
-		GitRepoUrl:              chartGitAttr.RepoUrl,
+		ChartLocation:           chartLocation,
+		GitRepoUrl:              gitRepoUrl,
 		ReferenceTemplate:       templateName,
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  true,
@@ -465,16 +462,23 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	}
 
 	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
-
 	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
-
+	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId)
 	if err != nil {
 		return nil, err
+	}
+	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
+	if err != nil && pg.ErrNoRows != err {
+		return nil, err
+	}
+	chartLocation := filepath.Join(templateName, version)
+	gitRepoUrl := ""
+	if currentLatestChart.Id > 0 {
+		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
 	override, err := templateRequest.ValuesOverride.MarshalJSON()
 	if err != nil {
@@ -495,12 +499,6 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 	override = dst.Bytes()
-
-	err = impl.registerInArgo(chartGitAttr, ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
 		ChartRepoId:             chartRepo.Id,
@@ -515,8 +513,8 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		ChartVersion:            chartMeta.Version,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
-		ChartLocation:           chartGitAttr.ChartLocation,
-		GitRepoUrl:              chartGitAttr.RepoUrl,
+		ChartLocation:           chartLocation,
+		GitRepoUrl:              gitRepoUrl,
 		ReferenceTemplate:       templateName,
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  false,
@@ -547,7 +545,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	return chartVal, err
 }
 
-func (impl ChartServiceImpl) registerInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
+func (impl ChartServiceImpl) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
 	repo := &v1alpha1.Repository{
 		Repo: chartGitAttribute.RepoUrl,
 	}
@@ -1161,6 +1159,9 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 		impl.logger.Errorw("error in saving app level metrics flag", "error", err)
 		return nil, err
 	}
+	//updating audit log details of chart as history service uses it
+	currentChart.UpdatedOn = time.Now()
+	currentChart.UpdatedBy = appMetricRequest.UserId
 	//creating history entry for deployment template
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled)
 	if err != nil {
@@ -1384,7 +1385,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		chartYaml, err := impl.ReadChartMetaDataForLocation(temporaryChartWorkingDir, fileName)
 		var errorList error
 		if err != nil {
-			impl.logger.Errorw("Chart yaml file not found")
+			impl.logger.Errorw("Chart yaml file or content not found")
 			errorList = err
 		}
 

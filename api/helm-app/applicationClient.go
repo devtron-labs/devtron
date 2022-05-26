@@ -24,6 +24,7 @@ type HelmAppClient interface {
 	UpdateApplicationWithChartInfo(ctx context.Context, in *InstallReleaseRequest) (*UpgradeReleaseResponse, error)
 	IsReleaseInstalled(ctx context.Context, in *ReleaseIdentifier) (*BooleanResponse, error)
 	RollbackRelease(ctx context.Context, in *RollbackReleaseRequest) (*BooleanResponse, error)
+	TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error)
 }
 
 type HelmAppClientImpl struct {
@@ -243,6 +244,18 @@ func (impl *HelmAppClientImpl) RollbackRelease(ctx context.Context, in *Rollback
 		return nil, err
 	}
 	response, err := applicationClient.RollbackRelease(ctx, in)
+	if err != nil {
+		return nil, err
+	}
+	return response, nil
+}
+
+func (impl *HelmAppClientImpl) TemplateChart(ctx context.Context, in *InstallReleaseRequest) (*TemplateChartResponse, error) {
+	applicationClient, err := impl.getApplicationClient()
+	if err != nil {
+		return nil, err
+	}
+	response, err := applicationClient.TemplateChart(ctx, in)
 	if err != nil {
 		return nil, err
 	}

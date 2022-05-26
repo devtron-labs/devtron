@@ -19,6 +19,22 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/RollbackReleaseResponse"
+  /orchestrator/application/template-chart:
+    post:
+      description: Helm template chart
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TemplateChartRequest'
+      responses:
+        "200":
+          description: template chart response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TemplateChartResponse"
 components:
   schemas:
     RollbackReleaseResponse:
@@ -47,3 +63,37 @@ components:
           type: integer
           description: rollback to this version
           example: 10
+    TemplateChartRequest:
+      type: object
+      properties:
+        environmentId:
+          type: integer
+          description: environment Id on which helm template would be performed
+          example: 1
+        clusterId:
+          type: integer
+          description: If environmentId is not provided, clusterId should be passed
+          example: 1
+        namespace:
+          type: string
+          description: If environmentId is not provided, namespace should be passed
+          example: 1
+        releaseName:
+          type: string
+          description: release name of helm app (if not provided, some random name is picked)
+          example: "some name"
+        appStoreApplicationVersionId:
+          type: integer
+          description: App store application version Id
+          example: 10
+        valuesYaml:
+          type: string
+          description: Values yaml
+          example: "some values yaml"
+    TemplateChartResponse:
+      type: object
+      properties:
+        manifest:
+          type: string
+          description: helm generated manifest
+          example: "some manifest"

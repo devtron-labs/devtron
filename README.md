@@ -69,15 +69,15 @@ Devtron is designed to be modular, and its functionality can be easily extended 
 
 [Devtron CI/CD with GitOps](#install-devtron-with-cicd-integration) integration is used to automate the builds and deployments and enables the software development teams to focus on meeting the business requirements, code quality, and security.
 
-* Devtron leverages Kubernetes auto-scaling and centralized caching to give you unlimited cost-efficient CI workers
-* Supports pre-CI and post-CI integrations for code quality monitoring
-* Seamlessly integrates with Clair for image vulnerability scanning
+* Devtron leverages Kubernetes auto-scaling and centralized caching to give you unlimited cost-efficient CI workers.
+* Supports pre-CI and post-CI integrations for code quality monitoring.
+* Seamlessly integrates with Clair for image vulnerability scanning.
 * Supports different deployment strategies: Blue/Green, Rolling, Canary, and Recreate.
-* Implements GitOps to manage the state of Kubernetes applications
-* Integrates with ArgoCD for continuous deployment
-* Checks logs, events, and manifests or exec inside containers for debugging
+* Implements GitOps to manage the state of Kubernetes applications,
+* Integrates with ArgoCD for continuous deployment.
+* Checks logs, events, and manifests or exec inside containers for debugging.
 * Provides deployment metrics like; deployment frequency, lead time, change failure rate, and mean-time recovery.
-* Seamlessly integration with Grafana for continuous application metrics like CPU and memory usage, status code, throughput, and latency on the dashboard
+* Seamlessly integrates with Grafana for continuous application metrics like CPU and memory usage, status code, throughput, and latency on the dashboard.
 
 ## Architecture
 
@@ -86,15 +86,6 @@ Devtron is designed to be modular, and its functionality can be easily extended 
 ## Installation
 
 Before you begin, you must create a [Kubernetes cluster](https://kubernetes.io/docs/tutorials/kubernetes-basics/create-cluster/) (preferably K8s 1.16 or higher) and install [Helm](https://helm.sh/docs/intro/install/).
-
-### Install Devtron
-
-```bash
-helm repo add devtron https://helm.devtron.ai
-
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
-
-```
 
 ### Install Devtron with CI/CD integration
 
@@ -110,11 +101,9 @@ helm install devtron devtron/devtron-operator \
 
 Please refer to the document on how to [install Devtron with CI/CD](./docs/setup/install/install-devtron-with-cicd.md) for more information.
 
-<br>
+#### Installation status
 
-### Installation status
-
-The install commands start Devtron-operator, which takes about 20 minutes to spin up all of the Devtron microservices one by one. You can use the following command to check the status of the installation:
+The above install command for CI/CD integration starts Devtron-operator, which takes about 20 minutes to spin up all of the Devtron microservices one by one. You can check the status of the installation with the following command:
 
 ```bash
 kubectl -n devtroncd get installers installer-devtron \
@@ -125,6 +114,15 @@ The command executes with one of the following output messages, indicating the s
 
 * **Downloaded**: The installer has downloaded all the manifests, and installation is in progress.
 * **Applied**: The installer has successfully applied all the manifests, and the installation is complete.
+
+### Install Devtron
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
+
+```
 
 ### Devtron Dashboard
 

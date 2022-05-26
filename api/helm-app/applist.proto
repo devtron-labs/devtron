@@ -31,6 +31,7 @@ service ApplicationService {
   rpc UpgradeReleaseWithChartInfo(InstallReleaseRequest) returns (UpgradeReleaseResponse){}
   rpc IsReleaseInstalled(ReleaseIdentifier) returns (BooleanResponse){}
   rpc RollbackRelease(RollbackReleaseRequest) returns (BooleanResponse){}
+  rpc TemplateChart(InstallReleaseRequest) returns (TemplateChartResponse){}
 }
 
 message DeployedAppList {
@@ -244,4 +245,8 @@ message BooleanResponse {
 message RollbackReleaseRequest {
   ReleaseIdentifier releaseIdentifier = 1;
   int32 version = 2;
+}
+
+message TemplateChartResponse {
+  string generatedManifest = 1;
 }

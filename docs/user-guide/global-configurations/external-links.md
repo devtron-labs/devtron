@@ -66,29 +66,27 @@ Before you begin, configure an application in the Devtron dashboard.
                 <li>{appId}</li>
                 <li>{envId}</li>
                 <li>{namespace}</li>
-                <li>{podName}</li>
-                <li>{containerName}</li>
+                <li>{podName}: If used, the link will only be visible at the pod level on the <a href="https://docs.devtron.ai/devtron/user-guide/app-details">App details</a> page. </li>
+                <li>{containerName}: If used, the link will only be visible at the container level on the <a href="https://docs.devtron.ai/devtron/user-guide/app-details">App details</a> page. </li>
             </ul>
-            <b>Note: URL template is dynamically generated from the env variables provided at the time of adding the link.</b><br></br>
-            For example:
-            <code>https://www.grafana.com/grafana/devtroncd/demo-app/details/24/prod/191/details/my-pod-name</code>
+            <b>Note: The env variables will be dynamically replaced by the values that you used to configure the link.            
         </td>
     </tr>
 </table>
 
-> Tip: To add multiple links, select **+ Add another** at the top-left corner.
+> Note: To add multiple links, select **+ Add another** at the top-left corner.
 
-5. Select **Save**.
+Select **Save**.
 
 ## Access an external link
 
-The users (admin and others) can [access the configured external link](././../creating-application/app-details.md) from the **App details** page.
+The users (admin and others) can access the configured external link from the [App details](././../creating-application/app-details.md) page.
 
 ## Manage external links
 
 On this page, the configured external links can be filtered/searched, as well as edited/deleted.
 
-1. Select `Global Configurations > External links`.
+Select `Global Configurations > External links`.
 
 ![Manage external links](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/manage-external-links.png)
 
