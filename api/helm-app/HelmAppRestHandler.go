@@ -308,7 +308,6 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-
 func (handler *HelmAppRestHandlerImpl) TemplateChart(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -349,15 +348,19 @@ func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) 
 		return nil
 	}
 
+	chartInfo := installedApp.InstallAppVersionChartDTO
+
 	return &InstalledAppInfo{
 		AppId:                 installedApp.AppId,
 		EnvironmentName:       installedApp.EnvironmentName,
 		AppOfferingMode:       installedApp.AppOfferingMode,
 		InstalledAppId:        installedApp.InstalledAppId,
 		InstalledAppVersionId: installedApp.InstalledAppVersionId,
-		AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+		AppStoreChartId:       chartInfo.AppStoreChartId,
 		ClusterId:             installedApp.ClusterId,
 		EnvironmentId:         installedApp.EnvironmentId,
+		AppStoreChartRepoName: chartInfo.InstallAppVersionChartRepoDTO.RepoName,
+		AppStoreChartName:     chartInfo.ChartName,
 	}
 }
 
@@ -385,4 +388,6 @@ type InstalledAppInfo struct {
 	AppOfferingMode       string `json:"appOfferingMode"`
 	ClusterId             int    `json:"clusterId"`
 	EnvironmentId         int    `json:"environmentId"`
+	AppStoreChartRepoName string `json:"appStoreChartRepoName"`
+	AppStoreChartName     string `json:"appStoreChartName"`
 }
