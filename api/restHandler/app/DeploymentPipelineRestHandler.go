@@ -1461,8 +1461,9 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	//Get Env ID
 
-	object := handler.enforcerUtil.GetAppRBACByAppIdAndPipelineId(appId, pipelineId)
+	object := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(appId, pipelineId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceAdmin, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return

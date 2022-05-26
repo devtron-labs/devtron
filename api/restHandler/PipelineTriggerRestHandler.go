@@ -197,6 +197,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopDeploymentGroup(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
 	token := r.Header.Get("token")
 	// RBAC enforcer applying
 	object := handler.enforcerUtil.GetTeamRBACByCiPipelineId(dg.CiPipelineId)
