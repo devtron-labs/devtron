@@ -106,10 +106,10 @@ helm install devtron devtron/devtron-operator \
 kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
 ```
 
-**credentials**:
+**Credentials**:
 
-**UserName**: `admin` <br>
-**password**: Run the following command to get the admin password
+**UserName**:  `admin` <br>
+**Password**:   Run the following command to get the admin password
 ```bash
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
