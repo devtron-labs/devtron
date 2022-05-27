@@ -3,24 +3,9 @@ info:
   title: Devtron Labs
   version: 1.0.0
 servers:
-- url: /
+  - url: /
 paths:
   /orchestrator/api-token:
-    delete:
-      description: Delete api-token
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/DeleteApiTokenRequest'
-        required: true
-      responses:
-        "200":
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ActionResponse'
-          description: Api-token delete response
     get:
       description: Get All active Api Tokens
       responses:
@@ -49,8 +34,38 @@ paths:
               schema:
                 $ref: '#/components/schemas/ActionResponse'
           description: Api-token creation response
+  /orchestrator/api-token/{id}:
+    delete:
+      description: Delete api-token
+      parameters:
+        - description: api-token Id
+          explode: false
+          in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+          style: simple
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActionResponse'
+          description: Api-token delete response
     put:
       description: Update api-token
+      parameters:
+        - description: api-token Id
+          explode: false
+          in: path
+          name: id
+          required: true
+          schema:
+            format: int64
+            type: integer
+          style: simple
       requestBody:
         content:
           application/json:
@@ -147,13 +162,7 @@ components:
       example:
         expireAtInMs: 12344546
         description: some description
-        id: 1
       properties:
-        id:
-          description: Id of api-token
-          example: 1
-          nullable: false
-          type: integer
         description:
           description: Description of api-token
           example: some description
@@ -163,16 +172,6 @@ components:
           description: Expiration time of api-token in milliseconds
           example: 12344546
           format: int64
-          type: integer
-      type: object
-    DeleteApiTokenRequest:
-      example:
-        id: 1
-      properties:
-        id:
-          description: Id of api-token
-          example: 1
-          nullable: false
           type: integer
       type: object
     ActionResponse:

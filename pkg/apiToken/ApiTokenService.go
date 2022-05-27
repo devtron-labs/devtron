@@ -18,11 +18,15 @@
 package apiToken
 
 import (
+	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"go.uber.org/zap"
 )
 
 type ApiTokenService interface {
-	CreateApiToken(apiTokenDto *ApiTokenDto, createdBy int32) error
+	GetAllActiveApiTokens() ([]*openapi.ApiToken, error)
+	CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32) (*openapi.ActionResponse, error)
+	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.ActionResponse, error)
+	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
 }
 
 type ApiTokenServiceImpl struct {
@@ -37,15 +41,18 @@ func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenRepository ApiTok
 	}
 }
 
-func (impl ApiTokenServiceImpl) CreateApiToken(apiTokenDto *ApiTokenDto, createdBy int32) error {
+func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, error){
+	return nil, nil
+}
 
-	// step-1 - check if the name exists in the DB, if yes - throw error
+func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32) (*openapi.ActionResponse, error){
+	return nil, nil
+}
 
-	// step-2 - create a token (using dex logic)
+func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.ActionResponse, error){
+	return nil, nil
+}
 
-	// step-3 - save entry in user
-
-	// step-4 - save entry in api_token
-
-	return nil
+func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error){
+	return nil, nil
 }

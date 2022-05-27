@@ -32,8 +32,17 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ActionResponse"
+  /orchestrator/api-token/{id}:
     put:
       description: Update api-token
+      parameters:
+        - name: id
+          in: path
+          description: api-token Id
+          required: true
+          schema:
+            type: integer
+            format: int64
       requestBody:
         required: true
         content:
@@ -49,12 +58,14 @@ paths:
                 $ref: "#/components/schemas/ActionResponse"
     delete:
       description: Delete api-token
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/DeleteApiTokenRequest"
+      parameters:
+        - name: id
+          in: path
+          description: api-token Id
+          required: true
+          schema:
+            type: integer
+            format: int64
       responses:
         "200":
           description: Api-token delete response
@@ -130,11 +141,6 @@ components:
     UpdateApiTokenRequest:
       type: object
       properties:
-        id:
-          type: integer
-          description: Id of api-token
-          example: 1
-          nullable: false
         description:
           type: string
           description: Description of api-token
@@ -145,14 +151,6 @@ components:
           description: Expiration time of api-token in milliseconds
           example: "12344546"
           format: int64
-    DeleteApiTokenRequest:
-      type: object
-      properties:
-        id:
-          type: integer
-          description: Id of api-token
-          example: 1
-          nullable: false
     ActionResponse:
       type: object
       properties:
