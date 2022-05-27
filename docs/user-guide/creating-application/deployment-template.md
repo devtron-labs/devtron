@@ -20,7 +20,7 @@ You can select a chart in one of the following ways:
 
 ## Select chart from custom charts
 
-Custom charts are added by a super admin from the [custom charts](./../global-configurations/custom-charts.md) section.
+Custom charts are added by a super admin from the [custom charts](../global-configurations/custom-charts.md) section.
 
 Users can select the available custom charts from the drop-down list.
 
