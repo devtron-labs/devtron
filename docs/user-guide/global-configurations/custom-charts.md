@@ -12,9 +12,9 @@ For any use case not addressed by the default helm charts, you can upload your o
 
 ## Prerequisites
 
-1. A valid [helm chart](#1-how-to-create-a-helm-chart), which contains `Chart.yaml` file with name and version fields.
-2. [Image descriptor template file - `.image_descriptor_template.json`](#2-create-the-image-descriptor-template-file---image_descriptor_templatejson).
-3. [Custom chart packaged in the `*.tgz` format](#3-package-the-custom-chart-in-the-tgz-format).
+1. A valid helm chart, which contains `Chart.yaml` file with name and version fields.
+2. Image descriptor template file - `.image_descriptor_template.json`.
+3. Custom chart packaged in the `*.tgz` format.
 
 ### 1. How to create a helm chart
 
@@ -104,7 +104,7 @@ The above command will create a `my-custom-chart-0.1.0.tgz` file.
 
 * On the Devtron dashboard, select **Global Configurations > Custom charts**.
 * Select **Import Chart**.
-* Choose **Select tar.gz file...** and upload the [packaged custom chart](#3-package-the-custom-chart-in-the-tgz-format) in the `*.tgz` format.
+* Choose **Select tar.gz file...** and upload the packaged custom chart in the `*.tgz` format.
 
 ![Selecting custom chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/Chart+pre-requisites.png)
 
@@ -118,7 +118,7 @@ The uploaded archive will be validated against:
 
 - Supported archive template should be in `*.tgz` format.
 - `Chart.yaml` must include the name and the version number.
-- `image_descriptor_template.json` file should be present and the field format must match the format listed in the [image builder template](#step-2-create-the-image-builder-template-file) section.
+- `image_descriptor_template.json` file should be present and the field format must match the format listed in the image builder template section.
 
 The following are the validation results:
 
@@ -129,13 +129,13 @@ The following are the validation results:
 | **New version detected** | You are uploading a newer version of an existing chart | Enter a **Description** and select **Save** to continue uploading, or **Cancel upload**. |
 | **Already exists** | There already exists a chart with the same version. | <ul><li>Edit the version and re-upload the same chart using **Upload another chart**.</li><li>Upload a new chart with a new name using  **Upload another chart**.</li><li>**Cancel upload**.</li></ul> |
 
-![Chart validated](./images/uploading-chart/List%20-%20Empty-2.png)
+![Chart validated](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/List+-+Empty-2.png)
 
-![Unsupported template](./images/uploading-chart/List%20-%20Empty.png)
+![Unsupported template](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/List+-+Empty.png)
 
-![New version detected](./images/uploading-chart/List%20-%20Empty-3.png)
+![New version detected](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/List+-+Empty-3.png)
 
-![Already exists](./images/uploading-chart/List%20-%20Empty-1.png)
+![Already exists](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/List+-+Empty-1.png)
 
 ## View the custom charts
 
@@ -146,7 +146,7 @@ To view a list of available custom charts, go to  **Global Configurations > Cust
 * The charts can be searched with their name, version, or description.
 * New [custom charts can be uploaded](#uploading-a-custom-chart) by selecting **Upload chart**.
 
-![Custom charts](./images/uploading-chart/custom-charts-lists.png)
+![Custom charts](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/custom-charts-lists.png)
 
 ## Use the custom chart in an application
 
