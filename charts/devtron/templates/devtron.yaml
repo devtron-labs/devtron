@@ -46,12 +46,16 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
+          {{- if $.Values.installer.modules }}
           {{ range $.Values.installer.modules }}
           {{- if and (eq . "cicd") ($.Release.IsUpgrade) }}
           image: {{ $.Values.components.devtron.cicdImage }}
           {{- else }}
           image: {{ $.Values.components.devtron.image }}
           {{- end }}
+          {{- end }}
+          {{- else }}
+          image: {{ $.Values.components.devtron.image }}
           {{- end }}
           imagePullPolicy: {{ .imagePullPolicy }}
           ports:
