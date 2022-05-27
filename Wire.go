@@ -51,7 +51,6 @@ import (
 	eClient "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/client/grafana"
-	jClient "github.com/devtron-labs/devtron/client/jira"
 	"github.com/devtron-labs/devtron/client/lens"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
@@ -83,7 +82,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/event"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
-	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -91,7 +89,6 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	"github.com/devtron-labs/devtron/pkg/plugin"
 	repository6 "github.com/devtron-labs/devtron/pkg/plugin/repository"
-	"github.com/devtron-labs/devtron/pkg/projectManagementService/jira"
 	"github.com/devtron-labs/devtron/pkg/security"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -238,22 +235,7 @@ func InitializeApp() (*App, error) {
 		pipeline.NewPropertiesConfigServiceImpl,
 		wire.Bind(new(pipeline.PropertiesConfigService), new(*pipeline.PropertiesConfigServiceImpl)),
 
-		router.NewProjectManagementRouterImpl,
-		wire.Bind(new(router.ProjectManagementRouter), new(*router.ProjectManagementRouterImpl)),
-
-		restHandler.NewJiraRestHandlerImpl,
-		wire.Bind(new(restHandler.JiraRestHandler), new(*restHandler.JiraRestHandlerImpl)),
-
-		jira2.NewProjectManagementServiceImpl,
-		wire.Bind(new(jira2.ProjectManagementService), new(*jira2.ProjectManagementServiceImpl)),
-
-		jira.NewAccountServiceImpl,
-		wire.Bind(new(jira.AccountService), new(*jira.AccountServiceImpl)),
-
 		util.NewHttpClient,
-
-		jClient.NewJiraClientImpl,
-		wire.Bind(new(jClient.JiraClient), new(*jClient.JiraClientImpl)),
 
 		eClient.NewEventRESTClientImpl,
 		wire.Bind(new(eClient.EventClient), new(*eClient.EventRESTClientImpl)),
@@ -262,11 +244,6 @@ func InitializeApp() (*App, error) {
 
 		eClient.NewEventSimpleFactoryImpl,
 		wire.Bind(new(eClient.EventFactory), new(*eClient.EventSimpleFactoryImpl)),
-
-		repository.NewJiraAccountRepositoryImpl,
-		wire.Bind(new(repository.JiraAccountRepository), new(*repository.JiraAccountRepositoryImpl)),
-		jira.NewAccountValidatorImpl,
-		wire.Bind(new(jira.AccountValidator), new(*jira.AccountValidatorImpl)),
 
 		repository.NewCiArtifactRepositoryImpl,
 		wire.Bind(new(repository.CiArtifactRepository), new(*repository.CiArtifactRepositoryImpl)),

@@ -130,8 +130,6 @@ DROP TABLE "public"."git_web_hook" CASCADE;
 
 DROP TABLE "public"."events" CASCADE;
 
-DROP TABLE "public"."project_management_tool_config" CASCADE;
-
 DROP TABLE "public"."app_env_linkouts" CASCADE;
 
 DROP TABLE "public"."git_material" CASCADE;
