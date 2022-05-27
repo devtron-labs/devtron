@@ -12,10 +12,6 @@
 - http is: http://{{ .Values.components.devtron.ingress.host }}/dashboard
 - https is https://{{ .Values.components.devtron.ingress.host }}/dashboard
 
-{{- end }}
-{{- end }}
-{{- end }}
-
 {{- else if eq $.Values.components.devtron.service.type "LoadBalancer" }}
 2. Run the following command to get the dashboard URL for the service type:
    LoadBalancer
@@ -43,6 +39,9 @@
    kubectl -n devtroncd port-forward svc/devtron-service 8000:80
 
    The dashboard should be accesible on http://localhost:8000/
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end }}
 
 {{- if $.Values.installer.modules }}
