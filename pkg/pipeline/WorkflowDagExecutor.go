@@ -1022,7 +1022,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
 		}
 
-		releaseId, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt)
+		releaseId, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
 		//	return after error handling
 		/*if err != nil {
 			return 0, err

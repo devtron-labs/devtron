@@ -1,0 +1,95 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/app/autocomplete:
+    get:
+      description: list of namespaces group by clusters
+      parameters:
+        - in: query
+          name: appName
+          example: "abc"
+          description: app name, wildcard query
+          required: false
+          allowEmptyValue: true
+          schema:
+            type: string
+        - in: query
+          name: teamId
+          example: "1"
+          description: project id
+          required: false
+          allowEmptyValue: false
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: app list
+                    items:
+                      $ref: '#/components/schemas/App'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+# components mentioned below
+components:
+  schemas:
+    App:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: app id
+        name:
+          type: string
+          description: app name
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message

@@ -25,7 +25,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
@@ -62,12 +61,12 @@ type ChartRepositoryRestHandlerImpl struct {
 	validator              *validator.Validate
 	deleteService          delete2.DeleteService
 	chartRefRepository     chartRepoRepository.ChartRefRepository
-	refChartDir            pipeline.RefChartDir
+	refChartDir            chartRepoRepository.RefChartDir
 }
 
 func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, chartRepositoryService chartRepo.ChartRepositoryService,
 	enforcer casbin.Enforcer, validator *validator.Validate, deleteService delete2.DeleteService,
-	chartRefRepository chartRepoRepository.ChartRefRepository, refChartDir pipeline.RefChartDir) *ChartRepositoryRestHandlerImpl {
+	chartRefRepository chartRepoRepository.ChartRefRepository, refChartDir chartRepoRepository.RefChartDir) *ChartRepositoryRestHandlerImpl {
 	return &ChartRepositoryRestHandlerImpl{
 		Logger:                 Logger,
 		chartRepositoryService: chartRepositoryService,
