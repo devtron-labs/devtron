@@ -40,6 +40,11 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
+  {{- if $.Release.IsUpgrade }}
+  minReadySeconds: 700
+  {{- else }}
+  minReadySeconds: 60
+  {{- end }}
   template:
     metadata:
       labels:

@@ -34,7 +34,11 @@ spec:
       app: devtron
       release: devtron
   replicas: 1
+  {{- if $.Release.IsUpgrade }}
+  minReadySeconds: 700
+  {{- else }}
   minReadySeconds: 60
+  {{- end }}
   template:
     metadata:
       labels:
