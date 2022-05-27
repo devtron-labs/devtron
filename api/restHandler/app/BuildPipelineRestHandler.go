@@ -676,7 +676,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 
 	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(appId, pipelineId)
 	// RBAC check if CD pipeline is present
-	handler.Logger.Infow("Test logs", " pipeline id ", pipelineId, "Environment Id ", pipelineData.EnvironmentId)
+	handler.Logger.Infow("Test logs", " pipeline id ", pipelineId, "pipelineData ", pipelineData)
 	if handler.appWorkflowService.CheckCdPipelineById(pipelineId) {
 		object := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(pipelineId, pipelineData.EnvironmentId)
 		handler.Logger.Infow("Test logs", " object ", object)

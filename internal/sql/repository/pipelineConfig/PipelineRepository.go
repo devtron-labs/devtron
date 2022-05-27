@@ -380,7 +380,8 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pip
 		Where("deleted = ?", false).
 		Select()
 	return pipeline, err
-  
+}
+
 func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 	err := impl.dbConnection.Update(pipeline)
 	return err
