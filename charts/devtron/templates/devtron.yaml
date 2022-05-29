@@ -36,6 +36,7 @@ spec:
   replicas: 1
   {{- if $.Release.IsUpgrade }}
   minReadySeconds: 700
+  progressDeadlineSeconds: 800
   {{- else }}
   minReadySeconds: 60
   {{- end }}
