@@ -42,6 +42,7 @@ spec:
       app.kubernetes.io/name: argocd-dex-server
   {{- if $.Release.IsUpgrade }}
   minReadySeconds: 700
+  progressDeadlineSeconds: 800
   {{- else }}
   minReadySeconds: 60
   {{- end }}
