@@ -5,6 +5,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
@@ -57,6 +58,7 @@ func InitializeApp() (*App, error) {
 		appStoreDeployment.AppStoreDeploymentWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
+		apiToken.ApiTokenWireSet,
 
 		NewApp,
 		NewMuxRouter,
