@@ -5,34 +5,46 @@
 -- Dumped from database version 11.3
 -- Dumped by pg_dump version 11.3
 
-SET statement_timeout = 0;
-SET lock_timeout = 0;
-SET idle_in_transaction_session_timeout = 0;
-SET client_encoding = 'UTF8';
-SET standard_conforming_strings = on;
-SET check_function_bodies = false;
-SET xmloption = content;
-SET client_min_messages = warning;
-SET row_security = off;
+SET
+statement_timeout = 0;
+SET
+lock_timeout = 0;
+SET
+idle_in_transaction_session_timeout = 0;
+SET
+client_encoding = 'UTF8';
+SET
+standard_conforming_strings = on;
+SET
+check_function_bodies = false;
+SET
+xmloption = content;
+SET
+client_min_messages = warning;
+SET
+row_security = off;
 
-SET default_tablespace = '';
+SET
+default_tablespace = '';
 
-SET default_with_oids = false;
+SET
+default_with_oids = false;
 
 --
 -- Name: app; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.app (
-    id integer NOT NULL,
-    app_name character varying(250) NOT NULL,
-    active boolean NOT NULL,
+CREATE TABLE public.app
+(
+    id         integer                  NOT NULL,
+    app_name   character varying(250)   NOT NULL,
+    active     boolean                  NOT NULL,
     created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
+    created_by integer                  NOT NULL,
     updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
-    team_id integer,
-    app_store boolean DEFAULT false
+    updated_by integer                  NOT NULL,
+    team_id    integer,
+    app_store  boolean DEFAULT false
 );
 
 
@@ -42,17 +54,18 @@ ALTER TABLE public.app OWNER TO postgres;
 -- Name: app_env_linkouts; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.app_env_linkouts (
-    id integer NOT NULL,
-    app_id integer,
+CREATE TABLE public.app_env_linkouts
+(
+    id             integer                NOT NULL,
+    app_id         integer,
     environment_id integer,
-    link text,
-    description text,
-    name character varying(100) NOT NULL,
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    created_by integer,
-    updated_by integer
+    link           text,
+    description    text,
+    name           character varying(100) NOT NULL,
+    created_on     timestamp with time zone,
+    updated_on     timestamp with time zone,
+    created_by     integer,
+    updated_by     integer
 );
 
 
@@ -67,8 +80,7 @@ CREATE SEQUENCE public.app_env_linkouts_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.app_env_linkouts_id_seq OWNER TO postgres;
@@ -89,8 +101,7 @@ CREATE SEQUENCE public.app_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.app_id_seq OWNER TO postgres;
@@ -106,14 +117,15 @@ ALTER SEQUENCE public.app_id_seq OWNED BY public.app.id;
 -- Name: app_level_metrics; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.app_level_metrics (
-    id integer NOT NULL,
-    app_id integer NOT NULL,
-    app_metrics boolean NOT NULL,
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    created_by integer,
-    updated_by integer,
+CREATE TABLE public.app_level_metrics
+(
+    id            integer NOT NULL,
+    app_id        integer NOT NULL,
+    app_metrics   boolean NOT NULL,
+    created_on    timestamp with time zone,
+    updated_on    timestamp with time zone,
+    created_by    integer,
+    updated_by    integer,
     infra_metrics boolean DEFAULT true
 );
 
@@ -129,8 +141,7 @@ CREATE SEQUENCE public.app_level_metrics_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.app_level_metrics_id_seq OWNER TO postgres;
@@ -146,14 +157,15 @@ ALTER SEQUENCE public.app_level_metrics_id_seq OWNED BY public.app_level_metrics
 -- Name: app_store; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.app_store (
-    id integer NOT NULL,
-    name character varying(250) NOT NULL,
-    chart_repo_id integer,
-    active boolean NOT NULL,
+CREATE TABLE public.app_store
+(
+    id                 integer                  NOT NULL,
+    name               character varying(250)   NOT NULL,
+    chart_repo_id      integer,
+    active             boolean                  NOT NULL,
     chart_git_location character varying(250),
-    created_on timestamp with time zone NOT NULL,
-    updated_on timestamp with time zone NOT NULL
+    created_on         timestamp with time zone NOT NULL,
+    updated_on         timestamp with time zone NOT NULL
 );
 
 
@@ -163,28 +175,29 @@ ALTER TABLE public.app_store OWNER TO postgres;
 -- Name: app_store_application_version; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.app_store_application_version (
-    id integer NOT NULL,
-    version character varying(250),
-    app_version character varying(250),
-    created timestamp with time zone,
-    deprecated boolean,
-    description text,
-    digest character varying(250),
-    icon character varying(250),
-    name character varying(100),
-    home character varying(100),
-    source character varying(250),
-    values_yaml json NOT NULL,
-    chart_yaml json NOT NULL,
+CREATE TABLE public.app_store_application_version
+(
+    id           integer                  NOT NULL,
+    version      character varying(250),
+    app_version  character varying(250),
+    created      timestamp with time zone,
+    deprecated   boolean,
+    description  text,
+    digest       character varying(250),
+    icon         character varying(250),
+    name         character varying(100),
+    home         character varying(100),
+    source       character varying(250),
+    values_yaml  json                     NOT NULL,
+    chart_yaml   json                     NOT NULL,
     app_store_id integer,
-    latest boolean DEFAULT false,
-    created_on timestamp with time zone NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    raw_values text,
-    readme text,
-    created_by integer,
-    updated_by integer
+    latest       boolean DEFAULT false,
+    created_on   timestamp with time zone NOT NULL,
+    updated_on   timestamp with time zone NOT NULL,
+    raw_values   text,
+    readme       text,
+    created_by   integer,
+    updated_by   integer
 );
 
 
@@ -199,8 +212,7 @@ CREATE SEQUENCE public.app_store_application_version_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.app_store_application_version_id_seq OWNER TO postgres;
@@ -221,8 +233,7 @@ CREATE SEQUENCE public.app_store_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.app_store_id_seq OWNER TO postgres;
@@ -238,17 +249,18 @@ ALTER SEQUENCE public.app_store_id_seq OWNED BY public.app_store.id;
 -- Name: app_store_version_values; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.app_store_version_values (
-    id integer NOT NULL,
-    name character varying(100),
-    values_yaml text NOT NULL,
+CREATE TABLE public.app_store_version_values
+(
+    id                               integer                  NOT NULL,
+    name                             character varying(100),
+    values_yaml                      text                     NOT NULL,
     app_store_application_version_id integer,
-    deleted boolean DEFAULT false NOT NULL,
-    created_by integer,
-    updated_by integer,
-    created_on timestamp with time zone NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    reference_type character varying(50)
+    deleted                          boolean DEFAULT false    NOT NULL,
+    created_by                       integer,
+    updated_by                       integer,
+    created_on                       timestamp with time zone NOT NULL,
+    updated_on                       timestamp with time zone NOT NULL,
+    reference_type                   character varying(50)
 );
 
 
@@ -263,8 +275,7 @@ CREATE SEQUENCE public.app_store_version_values_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.app_store_version_values_id_seq OWNER TO postgres;
@@ -280,16 +291,17 @@ ALTER SEQUENCE public.app_store_version_values_id_seq OWNED BY public.app_store_
 -- Name: app_workflow; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.app_workflow (
-    id integer NOT NULL,
-    name character varying(100) NOT NULL,
-    app_id integer NOT NULL,
+CREATE TABLE public.app_workflow
+(
+    id           integer                NOT NULL,
+    name         character varying(100) NOT NULL,
+    app_id       integer                NOT NULL,
     workflow_dag text,
-    active boolean,
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    created_by integer,
-    updated_by integer
+    active       boolean,
+    created_on   timestamp with time zone,
+    updated_on   timestamp with time zone,
+    created_by   integer,
+    updated_by   integer
 );
 
 
@@ -304,8 +316,7 @@ CREATE SEQUENCE public.app_workflow_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.app_workflow_id_seq OWNER TO postgres;
@@ -325,8 +336,7 @@ CREATE SEQUENCE public.app_workflow_mapping_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.app_workflow_mapping_id_seq OWNER TO postgres;
@@ -335,18 +345,19 @@ ALTER TABLE public.app_workflow_mapping_id_seq OWNER TO postgres;
 -- Name: app_workflow_mapping; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.app_workflow_mapping (
-    id integer DEFAULT nextval('public.app_workflow_mapping_id_seq'::regclass) NOT NULL,
-    type character varying(100),
-    component_id integer,
-    parent_id integer,
-    app_workflow_id integer NOT NULL,
-    active boolean,
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    created_by integer,
-    updated_by integer,
-    parent_type character varying(100)
+CREATE TABLE public.app_workflow_mapping
+(
+    id              integer DEFAULT nextval('public.app_workflow_mapping_id_seq'::regclass) NOT NULL,
+    type            character varying(100),
+    component_id    integer,
+    parent_id       integer,
+    app_workflow_id integer                                                                 NOT NULL,
+    active          boolean,
+    created_on      timestamp with time zone,
+    updated_on      timestamp with time zone,
+    created_by      integer,
+    updated_by      integer,
+    parent_type     character varying(100)
 );
 
 
@@ -360,8 +371,7 @@ CREATE SEQUENCE public.casbin_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.casbin_id_seq OWNER TO postgres;
@@ -374,8 +384,7 @@ CREATE SEQUENCE public.casbin_role_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.casbin_role_id_seq OWNER TO postgres;
@@ -384,14 +393,15 @@ ALTER TABLE public.casbin_role_id_seq OWNER TO postgres;
 -- Name: cd_workflow; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.cd_workflow (
-    id integer NOT NULL,
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    created_by integer,
-    updated_by integer,
-    ci_artifact_id integer NOT NULL,
-    pipeline_id integer NOT NULL,
+CREATE TABLE public.cd_workflow
+(
+    id              integer NOT NULL,
+    created_on      timestamp with time zone,
+    updated_on      timestamp with time zone,
+    created_by      integer,
+    updated_by      integer,
+    ci_artifact_id  integer NOT NULL,
+    pipeline_id     integer NOT NULL,
     workflow_status character varying(256)
 );
 
@@ -402,23 +412,24 @@ ALTER TABLE public.cd_workflow OWNER TO postgres;
 -- Name: cd_workflow_config; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.cd_workflow_config (
-    id integer NOT NULL,
-    cd_timeout integer,
-    min_cpu character varying(256),
-    max_cpu character varying(256),
-    min_mem character varying(256),
-    max_mem character varying(256),
-    min_storage character varying(256),
-    max_storage character varying(256),
-    min_eph_storage character varying(256),
-    max_eph_storage character varying(256),
-    cd_cache_bucket character varying(256),
-    cd_cache_region character varying(256),
-    cd_image character varying(256),
-    wf_namespace character varying(256),
-    cd_pipeline_id integer,
-    logs_bucket character varying(256),
+CREATE TABLE public.cd_workflow_config
+(
+    id                          integer NOT NULL,
+    cd_timeout                  integer,
+    min_cpu                     character varying(256),
+    max_cpu                     character varying(256),
+    min_mem                     character varying(256),
+    max_mem                     character varying(256),
+    min_storage                 character varying(256),
+    max_storage                 character varying(256),
+    min_eph_storage             character varying(256),
+    max_eph_storage             character varying(256),
+    cd_cache_bucket             character varying(256),
+    cd_cache_region             character varying(256),
+    cd_image                    character varying(256),
+    wf_namespace                character varying(256),
+    cd_pipeline_id              integer,
+    logs_bucket                 character varying(256),
     cd_artifact_location_format character varying(256)
 );
 
@@ -434,8 +445,7 @@ CREATE SEQUENCE public.cd_workflow_config_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.cd_workflow_config_id_seq OWNER TO postgres;
@@ -456,8 +466,7 @@ CREATE SEQUENCE public.cd_workflow_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.cd_workflow_id_seq OWNER TO postgres;
@@ -473,20 +482,21 @@ ALTER SEQUENCE public.cd_workflow_id_seq OWNED BY public.cd_workflow.id;
 -- Name: cd_workflow_runner; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.cd_workflow_runner (
-    id integer NOT NULL,
-    name character varying(256) NOT NULL,
-    workflow_type character varying(256) NOT NULL,
-    executor_type character varying(256) NOT NULL,
-    status character varying(256),
-    pod_status character varying(256),
-    message character varying(256),
-    started_on timestamp with time zone,
-    finished_on timestamp with time zone,
-    namespace character varying(256),
-    log_file_path character varying(256),
-    triggered_by integer,
-    cd_workflow_id integer NOT NULL
+CREATE TABLE public.cd_workflow_runner
+(
+    id             integer                NOT NULL,
+    name           character varying(256) NOT NULL,
+    workflow_type  character varying(256) NOT NULL,
+    executor_type  character varying(256) NOT NULL,
+    status         character varying(256),
+    pod_status     character varying(256),
+    message        character varying(256),
+    started_on     timestamp with time zone,
+    finished_on    timestamp with time zone,
+    namespace      character varying(256),
+    log_file_path  character varying(256),
+    triggered_by   integer,
+    cd_workflow_id integer                NOT NULL
 );
 
 
@@ -501,8 +511,7 @@ CREATE SEQUENCE public.cd_workflow_runner_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.cd_workflow_runner_id_seq OWNER TO postgres;
@@ -518,22 +527,23 @@ ALTER SEQUENCE public.cd_workflow_runner_id_seq OWNED BY public.cd_workflow_runn
 -- Name: chart_env_config_override; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.chart_env_config_override (
-    id integer NOT NULL,
-    chart_id integer,
+CREATE TABLE public.chart_env_config_override
+(
+    id                 integer                  NOT NULL,
+    chart_id           integer,
     target_environment integer,
-    env_override_yaml text NOT NULL,
-    status character varying(50) NOT NULL,
-    reviewed boolean NOT NULL,
-    active boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
-    namespace character varying(250),
-    latest boolean DEFAULT false NOT NULL,
-    previous boolean DEFAULT false NOT NULL,
-    is_override boolean
+    env_override_yaml  text                     NOT NULL,
+    status             character varying(50)    NOT NULL,
+    reviewed           boolean                  NOT NULL,
+    active             boolean                  NOT NULL,
+    created_on         timestamp with time zone NOT NULL,
+    created_by         integer                  NOT NULL,
+    updated_on         timestamp with time zone NOT NULL,
+    updated_by         integer                  NOT NULL,
+    namespace          character varying(250),
+    latest             boolean DEFAULT false    NOT NULL,
+    previous           boolean DEFAULT false    NOT NULL,
+    is_override        boolean
 );
 
 
@@ -548,8 +558,7 @@ CREATE SEQUENCE public.chart_env_config_override_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.chart_env_config_override_id_seq OWNER TO postgres;
@@ -565,14 +574,15 @@ ALTER SEQUENCE public.chart_env_config_override_id_seq OWNED BY public.chart_env
 -- Name: chart_group; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.chart_group (
-    id integer NOT NULL,
-    name character varying(250) NOT NULL,
+CREATE TABLE public.chart_group
+(
+    id          integer                  NOT NULL,
+    name        character varying(250)   NOT NULL,
     description text,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    created_on  timestamp with time zone NOT NULL,
+    created_by  integer                  NOT NULL,
+    updated_on  timestamp with time zone NOT NULL,
+    updated_by  integer                  NOT NULL
 );
 
 
@@ -582,17 +592,18 @@ ALTER TABLE public.chart_group OWNER TO postgres;
 -- Name: chart_group_deployment; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.chart_group_deployment (
-    id integer NOT NULL,
-    chart_group_id integer NOT NULL,
-    chart_group_entry_id integer,
-    installed_app_id integer NOT NULL,
+CREATE TABLE public.chart_group_deployment
+(
+    id                    integer                  NOT NULL,
+    chart_group_id        integer                  NOT NULL,
+    chart_group_entry_id  integer,
+    installed_app_id      integer                  NOT NULL,
     group_installation_id character varying(250),
-    deleted boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    deleted               boolean                  NOT NULL,
+    created_on            timestamp with time zone NOT NULL,
+    created_by            integer                  NOT NULL,
+    updated_on            timestamp with time zone NOT NULL,
+    updated_by            integer                  NOT NULL
 );
 
 
@@ -607,8 +618,7 @@ CREATE SEQUENCE public.chart_group_deployment_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.chart_group_deployment_id_seq OWNER TO postgres;
@@ -624,16 +634,17 @@ ALTER SEQUENCE public.chart_group_deployment_id_seq OWNED BY public.chart_group_
 -- Name: chart_group_entry; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.chart_group_entry (
-    id integer NOT NULL,
-    app_store_values_version_id integer,
+CREATE TABLE public.chart_group_entry
+(
+    id                               integer                  NOT NULL,
+    app_store_values_version_id      integer,
     app_store_application_version_id integer,
-    chart_group_id integer,
-    deleted boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    chart_group_id                   integer,
+    deleted                          boolean                  NOT NULL,
+    created_on                       timestamp with time zone NOT NULL,
+    created_by                       integer                  NOT NULL,
+    updated_on                       timestamp with time zone NOT NULL,
+    updated_by                       integer                  NOT NULL
 );
 
 
@@ -648,8 +659,7 @@ CREATE SEQUENCE public.chart_group_entry_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.chart_group_entry_id_seq OWNER TO postgres;
@@ -670,8 +680,7 @@ CREATE SEQUENCE public.chart_group_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.chart_group_id_seq OWNER TO postgres;
@@ -691,8 +700,7 @@ CREATE SEQUENCE public.id_seq_chart_ref
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.id_seq_chart_ref OWNER TO postgres;
@@ -701,12 +709,13 @@ ALTER TABLE public.id_seq_chart_ref OWNER TO postgres;
 -- Name: chart_ref; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.chart_ref (
-    id integer DEFAULT nextval('public.id_seq_chart_ref'::regclass) NOT NULL,
-    location character varying(250),
-    version character varying(250),
+CREATE TABLE public.chart_ref
+(
+    id         integer DEFAULT nextval('public.id_seq_chart_ref'::regclass) NOT NULL,
+    location   character varying(250),
+    version    character varying(250),
     is_default boolean,
-    active boolean,
+    active     boolean,
     created_on timestamp with time zone,
     created_by integer,
     updated_on timestamp with time zone,
@@ -720,17 +729,18 @@ ALTER TABLE public.chart_ref OWNER TO postgres;
 -- Name: chart_repo; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.chart_repo (
-    id integer NOT NULL,
-    name character varying(250) NOT NULL,
-    url character varying(250) NOT NULL,
-    is_default boolean NOT NULL,
-    active boolean NOT NULL,
+CREATE TABLE public.chart_repo
+(
+    id         integer                  NOT NULL,
+    name       character varying(250)   NOT NULL,
+    url        character varying(250)   NOT NULL,
+    is_default boolean                  NOT NULL,
+    active     boolean                  NOT NULL,
     created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
+    created_by integer                  NOT NULL,
     updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
-    external boolean DEFAULT false
+    updated_by integer                  NOT NULL,
+    external   boolean DEFAULT false
 );
 
 
@@ -745,8 +755,7 @@ CREATE SEQUENCE public.chart_repo_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.chart_repo_id_seq OWNER TO postgres;
@@ -762,33 +771,34 @@ ALTER SEQUENCE public.chart_repo_id_seq OWNED BY public.chart_repo.id;
 -- Name: charts; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.charts (
-    id integer NOT NULL,
-    app_id integer,
-    chart_repo_id integer,
-    chart_name character varying(250) NOT NULL,
-    chart_version character varying(250) NOT NULL,
-    chart_repo character varying(250) NOT NULL,
-    chart_repo_url character varying(250) NOT NULL,
-    git_repo_url character varying(250) NOT NULL,
-    chart_location character varying(250) NOT NULL,
-    status character varying(50) NOT NULL,
-    active boolean NOT NULL,
-    reference_template character varying(250) NOT NULL,
-    values_yaml text NOT NULL,
-    global_override text NOT NULL,
-    environment_override text,
-    release_override text NOT NULL,
-    user_overrides text,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
+CREATE TABLE public.charts
+(
+    id                        integer                  NOT NULL,
+    app_id                    integer,
+    chart_repo_id             integer,
+    chart_name                character varying(250)   NOT NULL,
+    chart_version             character varying(250)   NOT NULL,
+    chart_repo                character varying(250)   NOT NULL,
+    chart_repo_url            character varying(250)   NOT NULL,
+    git_repo_url              character varying(250)   NOT NULL,
+    chart_location            character varying(250)   NOT NULL,
+    status                    character varying(50)    NOT NULL,
+    active                    boolean                  NOT NULL,
+    reference_template        character varying(250)   NOT NULL,
+    values_yaml               text                     NOT NULL,
+    global_override           text                     NOT NULL,
+    environment_override      text,
+    release_override          text                     NOT NULL,
+    user_overrides            text,
+    created_on                timestamp with time zone NOT NULL,
+    created_by                integer                  NOT NULL,
+    updated_on                timestamp with time zone NOT NULL,
+    updated_by                integer                  NOT NULL,
     image_descriptor_template text,
-    latest boolean DEFAULT false NOT NULL,
-    chart_ref_id integer NOT NULL,
-    pipeline_override text DEFAULT '{}'::text NOT NULL,
-    previous boolean DEFAULT false NOT NULL
+    latest                    boolean DEFAULT false    NOT NULL,
+    chart_ref_id              integer                  NOT NULL,
+    pipeline_override         text    DEFAULT '{}'::text NOT NULL,
+    previous                  boolean DEFAULT false    NOT NULL
 );
 
 
@@ -803,8 +813,7 @@ CREATE SEQUENCE public.charts_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.charts_id_seq OWNER TO postgres;
@@ -820,21 +829,22 @@ ALTER SEQUENCE public.charts_id_seq OWNED BY public.charts.id;
 -- Name: ci_artifact; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.ci_artifact (
-    id integer NOT NULL,
-    image character varying(250),
-    image_digest character varying(250),
-    material_info text,
-    data_source character varying(50),
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
-    pipeline_id integer,
-    ci_workflow_id integer,
+CREATE TABLE public.ci_artifact
+(
+    id                 integer                  NOT NULL,
+    image              character varying(250),
+    image_digest       character varying(250),
+    material_info      text,
+    data_source        character varying(50),
+    created_on         timestamp with time zone NOT NULL,
+    created_by         integer                  NOT NULL,
+    updated_on         timestamp with time zone NOT NULL,
+    updated_by         integer                  NOT NULL,
+    pipeline_id        integer,
+    ci_workflow_id     integer,
     parent_ci_artifact integer,
-    scan_enabled boolean DEFAULT false NOT NULL,
-    scanned boolean DEFAULT false NOT NULL
+    scan_enabled       boolean DEFAULT false    NOT NULL,
+    scanned            boolean DEFAULT false    NOT NULL
 );
 
 
@@ -849,8 +859,7 @@ CREATE SEQUENCE public.ci_artifact_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.ci_artifact_id_seq OWNER TO postgres;
@@ -866,23 +875,24 @@ ALTER SEQUENCE public.ci_artifact_id_seq OWNED BY public.ci_artifact.id;
 -- Name: ci_pipeline; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.ci_pipeline (
-    id integer NOT NULL,
-    app_id integer,
-    ci_template_id integer,
-    name character varying(250),
-    version character varying(250),
-    active boolean NOT NULL,
-    deleted boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
-    manual boolean DEFAULT false NOT NULL,
-    external boolean DEFAULT false,
-    docker_args text,
+CREATE TABLE public.ci_pipeline
+(
+    id                 integer                  NOT NULL,
+    app_id             integer,
+    ci_template_id     integer,
+    name               character varying(250),
+    version            character varying(250),
+    active             boolean                  NOT NULL,
+    deleted            boolean                  NOT NULL,
+    created_on         timestamp with time zone NOT NULL,
+    created_by         integer                  NOT NULL,
+    updated_on         timestamp with time zone NOT NULL,
+    updated_by         integer                  NOT NULL,
+    manual             boolean DEFAULT false    NOT NULL,
+    external           boolean DEFAULT false,
+    docker_args        text,
     parent_ci_pipeline integer,
-    scan_enabled boolean DEFAULT false NOT NULL
+    scan_enabled       boolean DEFAULT false    NOT NULL
 );
 
 
@@ -897,8 +907,7 @@ CREATE SEQUENCE public.ci_pipeline_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.ci_pipeline_id_seq OWNER TO postgres;
@@ -914,22 +923,23 @@ ALTER SEQUENCE public.ci_pipeline_id_seq OWNED BY public.ci_pipeline.id;
 -- Name: ci_pipeline_material; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.ci_pipeline_material (
-    id integer NOT NULL,
+CREATE TABLE public.ci_pipeline_material
+(
+    id              integer                  NOT NULL,
     git_material_id integer,
-    ci_pipeline_id integer,
-    path character varying(250),
-    checkout_path character varying(250),
-    type character varying(250),
-    value character varying(250),
-    scm_id character varying(250),
-    scm_name character varying(250),
-    scm_version character varying(250),
-    active boolean,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    ci_pipeline_id  integer,
+    path            character varying(250),
+    checkout_path   character varying(250),
+    type            character varying(250),
+    value           character varying(250),
+    scm_id          character varying(250),
+    scm_name        character varying(250),
+    scm_version     character varying(250),
+    active          boolean,
+    created_on      timestamp with time zone NOT NULL,
+    created_by      integer                  NOT NULL,
+    updated_on      timestamp with time zone NOT NULL,
+    updated_by      integer                  NOT NULL
 );
 
 
@@ -944,8 +954,7 @@ CREATE SEQUENCE public.ci_pipeline_material_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.ci_pipeline_material_id_seq OWNER TO postgres;
@@ -961,19 +970,20 @@ ALTER SEQUENCE public.ci_pipeline_material_id_seq OWNED BY public.ci_pipeline_ma
 -- Name: ci_pipeline_scripts; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.ci_pipeline_scripts (
-    id integer NOT NULL,
-    name character varying(256) NOT NULL,
-    index integer NOT NULL,
-    ci_pipeline_id integer NOT NULL,
-    script text,
-    stage character varying(256),
+CREATE TABLE public.ci_pipeline_scripts
+(
+    id              integer                NOT NULL,
+    name            character varying(256) NOT NULL,
+    index           integer                NOT NULL,
+    ci_pipeline_id  integer                NOT NULL,
+    script          text,
+    stage           character varying(256),
     output_location character varying(256),
-    active boolean,
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    created_by integer,
-    updated_by integer
+    active          boolean,
+    created_on      timestamp with time zone,
+    updated_on      timestamp with time zone,
+    created_by      integer,
+    updated_by      integer
 );
 
 
@@ -988,8 +998,7 @@ CREATE SEQUENCE public.ci_pipeline_scripts_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.ci_pipeline_scripts_id_seq OWNER TO postgres;
@@ -1005,23 +1014,24 @@ ALTER SEQUENCE public.ci_pipeline_scripts_id_seq OWNED BY public.ci_pipeline_scr
 -- Name: ci_template; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.ci_template (
-    id integer NOT NULL,
-    app_id integer,
-    docker_registry_id character varying(250),
-    docker_repository character varying(250),
-    dockerfile_path character varying(250),
-    args text,
+CREATE TABLE public.ci_template
+(
+    id                  integer                  NOT NULL,
+    app_id              integer,
+    docker_registry_id  character varying(250),
+    docker_repository   character varying(250),
+    dockerfile_path     character varying(250),
+    args                text,
     before_docker_build text,
-    after_docker_build text,
-    template_name character varying(250),
-    version character varying(250),
-    active boolean,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
-    git_material_id integer
+    after_docker_build  text,
+    template_name       character varying(250),
+    version             character varying(250),
+    active              boolean,
+    created_on          timestamp with time zone NOT NULL,
+    created_by          integer                  NOT NULL,
+    updated_on          timestamp with time zone NOT NULL,
+    updated_by          integer                  NOT NULL,
+    git_material_id     integer
 );
 
 
@@ -1036,8 +1046,7 @@ CREATE SEQUENCE public.ci_template_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.ci_template_id_seq OWNER TO postgres;
@@ -1053,19 +1062,20 @@ ALTER SEQUENCE public.ci_template_id_seq OWNED BY public.ci_template.id;
 -- Name: ci_workflow; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.ci_workflow (
-    id integer NOT NULL,
-    name character varying(250) NOT NULL,
-    status character varying(50),
-    pod_status character varying(50),
-    message character varying(250),
-    started_on timestamp with time zone,
-    finished_on timestamp with time zone,
-    namespace character varying(250),
-    log_file_path character varying(250),
-    git_triggers json,
-    triggered_by integer NOT NULL,
-    ci_pipeline_id integer NOT NULL,
+CREATE TABLE public.ci_workflow
+(
+    id                   integer                NOT NULL,
+    name                 character varying(250) NOT NULL,
+    status               character varying(50),
+    pod_status           character varying(50),
+    message              character varying(250),
+    started_on           timestamp with time zone,
+    finished_on          timestamp with time zone,
+    namespace            character varying(250),
+    log_file_path        character varying(250),
+    git_triggers         json,
+    triggered_by         integer                NOT NULL,
+    ci_pipeline_id       integer                NOT NULL,
     ci_artifact_location character varying(256)
 );
 
@@ -1076,23 +1086,24 @@ ALTER TABLE public.ci_workflow OWNER TO postgres;
 -- Name: ci_workflow_config; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.ci_workflow_config (
-    id integer NOT NULL,
-    ci_timeout bigint,
-    min_cpu character varying(250),
-    max_cpu character varying(250),
-    min_mem character varying(250),
-    max_mem character varying(250),
-    min_storage character varying(250),
-    max_storage character varying(250),
-    min_eph_storage character varying(250),
-    max_eph_storage character varying(250),
-    ci_cache_bucket character varying(250),
-    ci_cache_region character varying(250),
-    ci_image character varying(250),
-    wf_namespace character varying(250),
-    logs_bucket character varying(250),
-    ci_pipeline_id integer NOT NULL,
+CREATE TABLE public.ci_workflow_config
+(
+    id                          integer NOT NULL,
+    ci_timeout                  bigint,
+    min_cpu                     character varying(250),
+    max_cpu                     character varying(250),
+    min_mem                     character varying(250),
+    max_mem                     character varying(250),
+    min_storage                 character varying(250),
+    max_storage                 character varying(250),
+    min_eph_storage             character varying(250),
+    max_eph_storage             character varying(250),
+    ci_cache_bucket             character varying(250),
+    ci_cache_region             character varying(250),
+    ci_image                    character varying(250),
+    wf_namespace                character varying(250),
+    logs_bucket                 character varying(250),
+    ci_pipeline_id              integer NOT NULL,
     ci_artifact_location_format character varying(256)
 );
 
@@ -1108,8 +1119,7 @@ CREATE SEQUENCE public.ci_workflow_config_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.ci_workflow_config_id_seq OWNER TO postgres;
@@ -1130,8 +1140,7 @@ CREATE SEQUENCE public.ci_workflow_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.ci_workflow_id_seq OWNER TO postgres;
@@ -1147,22 +1156,23 @@ ALTER SEQUENCE public.ci_workflow_id_seq OWNED BY public.ci_workflow.id;
 -- Name: cluster; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.cluster (
-    id integer NOT NULL,
-    cluster_name character varying(250) NOT NULL,
-    active boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
-    server_url character varying(250),
-    config json,
+CREATE TABLE public.cluster
+(
+    id                  integer                  NOT NULL,
+    cluster_name        character varying(250)   NOT NULL,
+    active              boolean                  NOT NULL,
+    created_on          timestamp with time zone NOT NULL,
+    created_by          integer                  NOT NULL,
+    updated_on          timestamp with time zone NOT NULL,
+    updated_by          integer                  NOT NULL,
+    server_url          character varying(250),
+    config              json,
     prometheus_endpoint character varying(250),
-    cd_argo_setup boolean DEFAULT false,
-    p_username character varying(250),
-    p_password character varying(250),
-    p_tls_client_cert text,
-    p_tls_client_key text
+    cd_argo_setup       boolean DEFAULT false,
+    p_username          character varying(250),
+    p_password          character varying(250),
+    p_tls_client_cert   text,
+    p_tls_client_key    text
 );
 
 
@@ -1172,18 +1182,19 @@ ALTER TABLE public.cluster OWNER TO postgres;
 -- Name: cluster_accounts; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.cluster_accounts (
-    id integer NOT NULL,
-    account character varying(250) NOT NULL,
-    config json NOT NULL,
-    cluster_id integer NOT NULL,
-    namespace character varying(250) NOT NULL,
+CREATE TABLE public.cluster_accounts
+(
+    id         integer                  NOT NULL,
+    account    character varying(250)   NOT NULL,
+    config     json                     NOT NULL,
+    cluster_id integer                  NOT NULL,
+    namespace  character varying(250)   NOT NULL,
     is_default boolean DEFAULT false,
-    active boolean DEFAULT true NOT NULL,
+    active     boolean DEFAULT true     NOT NULL,
     created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
+    created_by integer                  NOT NULL,
     updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    updated_by integer                  NOT NULL
 );
 
 
@@ -1198,8 +1209,7 @@ CREATE SEQUENCE public.cluster_accounts_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.cluster_accounts_id_seq OWNER TO postgres;
@@ -1215,17 +1225,18 @@ ALTER SEQUENCE public.cluster_accounts_id_seq OWNED BY public.cluster_accounts.i
 -- Name: cluster_helm_config; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.cluster_helm_config (
-    id integer NOT NULL,
-    cluster_id integer NOT NULL,
-    tiller_url character varying(250),
+CREATE TABLE public.cluster_helm_config
+(
+    id          integer                  NOT NULL,
+    cluster_id  integer                  NOT NULL,
+    tiller_url  character varying(250),
     tiller_cert character varying,
-    tiller_key character varying,
-    active boolean DEFAULT true NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    tiller_key  character varying,
+    active      boolean DEFAULT true     NOT NULL,
+    created_on  timestamp with time zone NOT NULL,
+    created_by  integer                  NOT NULL,
+    updated_on  timestamp with time zone NOT NULL,
+    updated_by  integer                  NOT NULL
 );
 
 
@@ -1240,8 +1251,7 @@ CREATE SEQUENCE public.cluster_helm_config_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.cluster_helm_config_id_seq OWNER TO postgres;
@@ -1262,8 +1272,7 @@ CREATE SEQUENCE public.cluster_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.cluster_id_seq OWNER TO postgres;
@@ -1283,8 +1292,7 @@ CREATE SEQUENCE public.cluster_installed_apps_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.cluster_installed_apps_id_seq OWNER TO postgres;
@@ -1293,14 +1301,15 @@ ALTER TABLE public.cluster_installed_apps_id_seq OWNER TO postgres;
 -- Name: cluster_installed_apps; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.cluster_installed_apps (
-    id integer DEFAULT nextval('public.cluster_installed_apps_id_seq'::regclass) NOT NULL,
-    cluster_id integer,
+CREATE TABLE public.cluster_installed_apps
+(
+    id               integer DEFAULT nextval('public.cluster_installed_apps_id_seq'::regclass) NOT NULL,
+    cluster_id       integer,
     installed_app_id integer,
-    created_by integer,
-    created_on timestamp with time zone,
-    updated_by integer,
-    updated_on timestamp with time zone
+    created_by       integer,
+    created_on       timestamp with time zone,
+    updated_by       integer,
+    updated_on       timestamp with time zone
 );
 
 
@@ -1314,8 +1323,7 @@ CREATE SEQUENCE public.id_seq_config_map_app_level
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.id_seq_config_map_app_level OWNER TO postgres;
@@ -1324,15 +1332,16 @@ ALTER TABLE public.id_seq_config_map_app_level OWNER TO postgres;
 -- Name: config_map_app_level; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.config_map_app_level (
-    id integer DEFAULT nextval('public.id_seq_config_map_app_level'::regclass),
-    app_id integer NOT NULL,
+CREATE TABLE public.config_map_app_level
+(
+    id              integer DEFAULT nextval('public.id_seq_config_map_app_level'::regclass),
+    app_id          integer NOT NULL,
     config_map_data text,
-    secret_data text,
-    created_on timestamp with time zone,
-    created_by integer,
-    updated_on timestamp with time zone,
-    updated_by integer
+    secret_data     text,
+    created_on      timestamp with time zone,
+    created_by      integer,
+    updated_on      timestamp with time zone,
+    updated_by      integer
 );
 
 
@@ -1346,8 +1355,7 @@ CREATE SEQUENCE public.id_seq_config_map_env_level
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.id_seq_config_map_env_level OWNER TO postgres;
@@ -1356,16 +1364,17 @@ ALTER TABLE public.id_seq_config_map_env_level OWNER TO postgres;
 -- Name: config_map_env_level; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.config_map_env_level (
-    id integer DEFAULT nextval('public.id_seq_config_map_env_level'::regclass),
-    app_id integer NOT NULL,
-    environment_id integer NOT NULL,
+CREATE TABLE public.config_map_env_level
+(
+    id              integer DEFAULT nextval('public.id_seq_config_map_env_level'::regclass),
+    app_id          integer NOT NULL,
+    environment_id  integer NOT NULL,
     config_map_data text,
-    secret_data text,
-    created_on timestamp with time zone,
-    created_by integer,
-    updated_on timestamp with time zone,
-    updated_by integer
+    secret_data     text,
+    created_on      timestamp with time zone,
+    created_by      integer,
+    updated_on      timestamp with time zone,
+    updated_by      integer
 );
 
 
@@ -1379,8 +1388,7 @@ CREATE SEQUENCE public.id_seq_config_map_pipeline_level
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.id_seq_config_map_pipeline_level OWNER TO postgres;
@@ -1389,17 +1397,18 @@ ALTER TABLE public.id_seq_config_map_pipeline_level OWNER TO postgres;
 -- Name: config_map_pipeline_level; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.config_map_pipeline_level (
-    id integer DEFAULT nextval('public.id_seq_config_map_pipeline_level'::regclass),
-    app_id integer NOT NULL,
-    environment_id integer NOT NULL,
-    pipeline_id integer NOT NULL,
+CREATE TABLE public.config_map_pipeline_level
+(
+    id              integer DEFAULT nextval('public.id_seq_config_map_pipeline_level'::regclass),
+    app_id          integer NOT NULL,
+    environment_id  integer NOT NULL,
+    pipeline_id     integer NOT NULL,
     config_map_data text,
-    secret_data text,
-    created_on timestamp with time zone,
-    created_by integer,
-    updated_on timestamp with time zone,
-    updated_by integer
+    secret_data     text,
+    created_on      timestamp with time zone,
+    created_by      integer,
+    updated_on      timestamp with time zone,
+    updated_by      integer
 );
 
 
@@ -1413,8 +1422,7 @@ CREATE SEQUENCE public.cve_policy_control_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.cve_policy_control_id_seq OWNER TO postgres;
@@ -1423,20 +1431,21 @@ ALTER TABLE public.cve_policy_control_id_seq OWNER TO postgres;
 -- Name: cve_policy_control; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.cve_policy_control (
-    id integer DEFAULT nextval('public.cve_policy_control_id_seq'::regclass) NOT NULL,
-    global boolean,
-    cluster_id integer,
-    env_id integer,
-    app_id integer,
+CREATE TABLE public.cve_policy_control
+(
+    id           integer DEFAULT nextval('public.cve_policy_control_id_seq'::regclass) NOT NULL,
+    global       boolean,
+    cluster_id   integer,
+    env_id       integer,
+    app_id       integer,
     cve_store_id character varying(255),
-    action integer,
-    severity integer,
-    deleted boolean,
-    created_on timestamp with time zone,
-    created_by integer,
-    updated_on timestamp with time zone,
-    updated_by integer
+    action       integer,
+    severity     integer,
+    deleted      boolean,
+    created_on   timestamp with time zone,
+    created_by   integer,
+    updated_on   timestamp with time zone,
+    updated_by   integer
 );
 
 
@@ -1446,16 +1455,17 @@ ALTER TABLE public.cve_policy_control OWNER TO postgres;
 -- Name: cve_store; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.cve_store (
-    name character varying(255) NOT NULL,
-    severity integer,
-    package character varying(255),
-    version character varying(255),
+CREATE TABLE public.cve_store
+(
+    name          character varying(255) NOT NULL,
+    severity      integer,
+    package       character varying(255),
+    version       character varying(255),
     fixed_version character varying(255),
-    created_on timestamp with time zone,
-    created_by integer,
-    updated_on timestamp with time zone,
-    updated_by integer
+    created_on    timestamp with time zone,
+    created_by    integer,
+    updated_on    timestamp with time zone,
+    updated_by    integer
 );
 
 
@@ -1465,20 +1475,21 @@ ALTER TABLE public.cve_store OWNER TO postgres;
 -- Name: db_config; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.db_config (
-    id integer NOT NULL,
-    name character varying(250) NOT NULL,
-    type character varying(250) NOT NULL,
-    host character varying(250) NOT NULL,
-    port character varying(250) NOT NULL,
-    db_name character varying(250) NOT NULL,
-    user_name character varying(250) NOT NULL,
-    password character varying(250) NOT NULL,
-    active boolean NOT NULL,
+CREATE TABLE public.db_config
+(
+    id         integer                  NOT NULL,
+    name       character varying(250)   NOT NULL,
+    type       character varying(250)   NOT NULL,
+    host       character varying(250)   NOT NULL,
+    port       character varying(250)   NOT NULL,
+    db_name    character varying(250)   NOT NULL,
+    user_name  character varying(250)   NOT NULL,
+    password   character varying(250)   NOT NULL,
+    active     boolean                  NOT NULL,
     created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
+    created_by integer                  NOT NULL,
     updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    updated_by integer                  NOT NULL
 );
 
 
@@ -1493,8 +1504,7 @@ CREATE SEQUENCE public.db_config_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.db_config_id_seq OWNER TO postgres;
@@ -1510,18 +1520,19 @@ ALTER SEQUENCE public.db_config_id_seq OWNED BY public.db_config.id;
 -- Name: db_migration_config; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.db_migration_config (
-    id integer NOT NULL,
-    db_config_id integer NOT NULL,
-    pipeline_id integer NOT NULL,
-    git_material_id integer NOT NULL,
-    script_source character varying(250) NOT NULL,
-    migration_tool character varying(250) NOT NULL,
-    active boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+CREATE TABLE public.db_migration_config
+(
+    id              integer                  NOT NULL,
+    db_config_id    integer                  NOT NULL,
+    pipeline_id     integer                  NOT NULL,
+    git_material_id integer                  NOT NULL,
+    script_source   character varying(250)   NOT NULL,
+    migration_tool  character varying(250)   NOT NULL,
+    active          boolean                  NOT NULL,
+    created_on      timestamp with time zone NOT NULL,
+    created_by      integer                  NOT NULL,
+    updated_on      timestamp with time zone NOT NULL,
+    updated_by      integer                  NOT NULL
 );
 
 
@@ -1536,8 +1547,7 @@ CREATE SEQUENCE public.db_migration_config_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.db_migration_config_id_seq OWNER TO postgres;
@@ -1553,19 +1563,20 @@ ALTER SEQUENCE public.db_migration_config_id_seq OWNED BY public.db_migration_co
 -- Name: deployment_group; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.deployment_group (
-    id integer NOT NULL,
-    name character varying(250) NOT NULL,
-    status character varying(50),
-    app_count integer,
-    no_of_apps text,
+CREATE TABLE public.deployment_group
+(
+    id             integer                  NOT NULL,
+    name           character varying(250)   NOT NULL,
+    status         character varying(50),
+    app_count      integer,
+    no_of_apps     text,
     environment_id integer,
     ci_pipeline_id integer,
-    active boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    active         boolean                  NOT NULL,
+    created_on     timestamp with time zone NOT NULL,
+    created_by     integer                  NOT NULL,
+    updated_on     timestamp with time zone NOT NULL,
+    updated_by     integer                  NOT NULL
 );
 
 
@@ -1575,15 +1586,16 @@ ALTER TABLE public.deployment_group OWNER TO postgres;
 -- Name: deployment_group_app; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.deployment_group_app (
-    id integer NOT NULL,
+CREATE TABLE public.deployment_group_app
+(
+    id                  integer                  NOT NULL,
     deployment_group_id integer,
-    app_id integer,
-    active boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    app_id              integer,
+    active              boolean                  NOT NULL,
+    created_on          timestamp with time zone NOT NULL,
+    created_by          integer                  NOT NULL,
+    updated_on          timestamp with time zone NOT NULL,
+    updated_by          integer                  NOT NULL
 );
 
 
@@ -1598,8 +1610,7 @@ CREATE SEQUENCE public.deployment_group_app_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.deployment_group_app_id_seq OWNER TO postgres;
@@ -1620,8 +1631,7 @@ CREATE SEQUENCE public.deployment_group_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.deployment_group_id_seq OWNER TO postgres;
@@ -1637,14 +1647,15 @@ ALTER SEQUENCE public.deployment_group_id_seq OWNED BY public.deployment_group.i
 -- Name: deployment_status; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.deployment_status (
-    id integer NOT NULL,
-    app_name character varying(250) NOT NULL,
-    status character varying(50) NOT NULL,
+CREATE TABLE public.deployment_status
+(
+    id         integer                NOT NULL,
+    app_name   character varying(250) NOT NULL,
+    status     character varying(50)  NOT NULL,
     created_on timestamp with time zone,
     updated_on timestamp with time zone,
-    app_id integer,
-    env_id integer
+    app_id     integer,
+    env_id     integer
 );
 
 
@@ -1659,8 +1670,7 @@ CREATE SEQUENCE public.deployment_status_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.deployment_status_id_seq OWNER TO postgres;
@@ -1676,22 +1686,23 @@ ALTER SEQUENCE public.deployment_status_id_seq OWNED BY public.deployment_status
 -- Name: docker_artifact_store; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.docker_artifact_store (
-    id character varying(250) NOT NULL,
-    plugin_id character varying(250) NOT NULL,
-    registry_url character varying(250) NOT NULL,
-    registry_type character varying(250) NOT NULL,
-    aws_accesskey_id character varying(250),
+CREATE TABLE public.docker_artifact_store
+(
+    id                   character varying(250)   NOT NULL,
+    plugin_id            character varying(250)   NOT NULL,
+    registry_url         character varying(250)   NOT NULL,
+    registry_type        character varying(250)   NOT NULL,
+    aws_accesskey_id     character varying(250),
     aws_secret_accesskey character varying(250),
-    aws_region character varying(250),
-    username character varying(250),
-    password character varying(250),
-    is_default boolean NOT NULL,
-    active boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    aws_region           character varying(250),
+    username             character varying(250),
+    password             character varying(250),
+    is_default           boolean                  NOT NULL,
+    active               boolean                  NOT NULL,
+    created_on           timestamp with time zone NOT NULL,
+    created_by           integer                  NOT NULL,
+    updated_on           timestamp with time zone NOT NULL,
+    updated_by           integer                  NOT NULL
 );
 
 
@@ -1701,15 +1712,16 @@ ALTER TABLE public.docker_artifact_store OWNER TO postgres;
 -- Name: env_level_app_metrics; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.env_level_app_metrics (
-    id integer NOT NULL,
-    app_id integer NOT NULL,
-    env_id integer NOT NULL,
-    app_metrics boolean,
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    created_by integer,
-    updated_by integer,
+CREATE TABLE public.env_level_app_metrics
+(
+    id            integer NOT NULL,
+    app_id        integer NOT NULL,
+    env_id        integer NOT NULL,
+    app_metrics   boolean,
+    created_on    timestamp with time zone,
+    updated_on    timestamp with time zone,
+    created_by    integer,
+    updated_by    integer,
     infra_metrics boolean DEFAULT true
 );
 
@@ -1725,8 +1737,7 @@ CREATE SEQUENCE public.env_level_app_metrics_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.env_level_app_metrics_id_seq OWNER TO postgres;
@@ -1742,17 +1753,18 @@ ALTER SEQUENCE public.env_level_app_metrics_id_seq OWNED BY public.env_level_app
 -- Name: environment; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.environment (
-    id integer NOT NULL,
-    environment_name character varying(250) NOT NULL,
-    cluster_id integer NOT NULL,
-    active boolean DEFAULT true NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
-    "default" boolean DEFAULT false NOT NULL,
-    namespace character varying(250),
+CREATE TABLE public.environment
+(
+    id                    integer                  NOT NULL,
+    environment_name      character varying(250)   NOT NULL,
+    cluster_id            integer                  NOT NULL,
+    active                boolean DEFAULT true     NOT NULL,
+    created_on            timestamp with time zone NOT NULL,
+    created_by            integer                  NOT NULL,
+    updated_on            timestamp with time zone NOT NULL,
+    updated_by            integer                  NOT NULL,
+    "default"             boolean DEFAULT false    NOT NULL,
+    namespace             character varying(250),
     grafana_datasource_id integer
 );
 
@@ -1768,8 +1780,7 @@ CREATE SEQUENCE public.environment_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.environment_id_seq OWNER TO postgres;
@@ -1785,9 +1796,10 @@ ALTER SEQUENCE public.environment_id_seq OWNED BY public.environment.id;
 -- Name: event; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.event (
-    id integer NOT NULL,
-    event_type character varying(100) NOT NULL,
+CREATE TABLE public.event
+(
+    id          integer                NOT NULL,
+    event_type  character varying(100) NOT NULL,
     description character varying(250)
 );
 
@@ -1803,8 +1815,7 @@ CREATE SEQUENCE public.event_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.event_id_seq OWNER TO postgres;
@@ -1820,23 +1831,24 @@ ALTER SEQUENCE public.event_id_seq OWNED BY public.event.id;
 -- Name: events; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.events (
-    id integer NOT NULL,
-    namespace character varying(250),
-    kind character varying(250),
-    component character varying(250),
-    host character varying(250),
-    reason character varying(250),
-    status character varying(250),
-    name character varying(250),
-    message character varying(250),
-    resource_revision character varying(250),
+CREATE TABLE public.events
+(
+    id                  integer                  NOT NULL,
+    namespace           character varying(250),
+    kind                character varying(250),
+    component           character varying(250),
+    host                character varying(250),
+    reason              character varying(250),
+    status              character varying(250),
+    name                character varying(250),
+    message             character varying(250),
+    resource_revision   character varying(250),
     creation_time_stamp timestamp with time zone,
-    uid character varying(250),
-    pipeline_name character varying(250),
-    release_version character varying(250),
-    created_on timestamp with time zone NOT NULL,
-    created_by character varying(250) NOT NULL
+    uid                 character varying(250),
+    pipeline_name       character varying(250),
+    release_version     character varying(250),
+    created_on          timestamp with time zone NOT NULL,
+    created_by          character varying(250)   NOT NULL
 );
 
 
@@ -1851,8 +1863,7 @@ CREATE SEQUENCE public.events_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.events_id_seq OWNER TO postgres;
@@ -1868,15 +1879,16 @@ ALTER SEQUENCE public.events_id_seq OWNED BY public.events.id;
 -- Name: external_ci_pipeline; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.external_ci_pipeline (
-    id integer NOT NULL,
-    ci_pipeline_id integer NOT NULL,
-    access_token character varying(256) NOT NULL,
-    active boolean,
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    created_by integer,
-    updated_by integer
+CREATE TABLE public.external_ci_pipeline
+(
+    id             integer                NOT NULL,
+    ci_pipeline_id integer                NOT NULL,
+    access_token   character varying(256) NOT NULL,
+    active         boolean,
+    created_on     timestamp with time zone,
+    updated_on     timestamp with time zone,
+    created_by     integer,
+    updated_by     integer
 );
 
 
@@ -1891,8 +1903,7 @@ CREATE SEQUENCE public.external_ci_pipeline_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.external_ci_pipeline_id_seq OWNER TO postgres;
@@ -1908,18 +1919,19 @@ ALTER SEQUENCE public.external_ci_pipeline_id_seq OWNED BY public.external_ci_pi
 -- Name: git_material; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.git_material (
-    id integer NOT NULL,
-    app_id integer,
+CREATE TABLE public.git_material
+(
+    id              integer                  NOT NULL,
+    app_id          integer,
     git_provider_id integer,
-    active boolean NOT NULL,
-    name character varying(250),
-    url character varying(250),
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
-    checkout_path character varying(250)
+    active          boolean                  NOT NULL,
+    name            character varying(250),
+    url             character varying(250),
+    created_on      timestamp with time zone NOT NULL,
+    created_by      integer                  NOT NULL,
+    updated_on      timestamp with time zone NOT NULL,
+    updated_by      integer                  NOT NULL,
+    checkout_path   character varying(250)
 );
 
 
@@ -1934,8 +1946,7 @@ CREATE SEQUENCE public.git_material_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.git_material_id_seq OWNER TO postgres;
@@ -1951,20 +1962,21 @@ ALTER SEQUENCE public.git_material_id_seq OWNED BY public.git_material.id;
 -- Name: git_provider; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.git_provider (
-    id integer NOT NULL,
-    name character varying(250) NOT NULL,
-    url character varying(250) NOT NULL,
-    user_name character varying(25),
-    password character varying(250),
-    ssh_key character varying(250),
+CREATE TABLE public.git_provider
+(
+    id           integer                  NOT NULL,
+    name         character varying(250)   NOT NULL,
+    url          character varying(250)   NOT NULL,
+    user_name    character varying(25),
+    password     character varying(250),
+    ssh_key      character varying(250),
     access_token character varying(250),
-    auth_mode character varying(250),
-    active boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    auth_mode    character varying(250),
+    active       boolean                  NOT NULL,
+    created_on   timestamp with time zone NOT NULL,
+    created_by   integer                  NOT NULL,
+    updated_on   timestamp with time zone NOT NULL,
+    updated_by   integer                  NOT NULL
 );
 
 
@@ -1979,8 +1991,7 @@ CREATE SEQUENCE public.git_provider_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.git_provider_id_seq OWNER TO postgres;
@@ -1996,15 +2007,16 @@ ALTER SEQUENCE public.git_provider_id_seq OWNED BY public.git_provider.id;
 -- Name: git_web_hook; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.git_web_hook (
-    id integer NOT NULL,
-    ci_material_id integer NOT NULL,
+CREATE TABLE public.git_web_hook
+(
+    id              integer NOT NULL,
+    ci_material_id  integer NOT NULL,
     git_material_id integer NOT NULL,
-    type character varying(250),
-    value character varying(250),
-    active boolean,
-    last_seen_hash character varying(250),
-    created_on timestamp with time zone
+    type            character varying(250),
+    value           character varying(250),
+    active          boolean,
+    last_seen_hash  character varying(250),
+    created_on      timestamp with time zone
 );
 
 
@@ -2019,8 +2031,7 @@ CREATE SEQUENCE public.git_web_hook_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.git_web_hook_id_seq OWNER TO postgres;
@@ -2036,15 +2047,16 @@ ALTER SEQUENCE public.git_web_hook_id_seq OWNED BY public.git_web_hook.id;
 -- Name: helm_values; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.helm_values (
-    app_name character varying(250) NOT NULL,
-    environment character varying(250) NOT NULL,
-    values_yaml text NOT NULL,
-    active boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+CREATE TABLE public.helm_values
+(
+    app_name    character varying(250)   NOT NULL,
+    environment character varying(250)   NOT NULL,
+    values_yaml text                     NOT NULL,
+    active      boolean                  NOT NULL,
+    created_on  timestamp with time zone NOT NULL,
+    created_by  integer                  NOT NULL,
+    updated_on  timestamp with time zone NOT NULL,
+    updated_by  integer                  NOT NULL
 );
 
 
@@ -2058,8 +2070,7 @@ CREATE SEQUENCE public.id_seq_pconfig
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.id_seq_pconfig OWNER TO postgres;
@@ -2072,8 +2083,7 @@ CREATE SEQUENCE public.image_scan_deploy_info_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.image_scan_deploy_info_id_seq OWNER TO postgres;
@@ -2082,17 +2092,18 @@ ALTER TABLE public.image_scan_deploy_info_id_seq OWNER TO postgres;
 -- Name: image_scan_deploy_info; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.image_scan_deploy_info (
-    id integer DEFAULT nextval('public.image_scan_deploy_info_id_seq'::regclass) NOT NULL,
+CREATE TABLE public.image_scan_deploy_info
+(
+    id                              integer DEFAULT nextval('public.image_scan_deploy_info_id_seq'::regclass) NOT NULL,
     image_scan_execution_history_id integer[],
-    scan_object_meta_id integer,
-    object_type character varying(255),
-    cluster_id integer,
-    env_id integer,
-    created_on timestamp without time zone,
-    created_by integer,
-    updated_on timestamp without time zone,
-    updated_by integer
+    scan_object_meta_id             integer,
+    object_type                     character varying(255),
+    cluster_id                      integer,
+    env_id                          integer,
+    created_on                      timestamp without time zone,
+    created_by                      integer,
+    updated_on                      timestamp without time zone,
+    updated_by                      integer
 );
 
 
@@ -2106,8 +2117,7 @@ CREATE SEQUENCE public.image_scan_execution_history_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.image_scan_execution_history_id_seq OWNER TO postgres;
@@ -2116,12 +2126,13 @@ ALTER TABLE public.image_scan_execution_history_id_seq OWNER TO postgres;
 -- Name: image_scan_execution_history; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.image_scan_execution_history (
-    id integer DEFAULT nextval('public.image_scan_execution_history_id_seq'::regclass) NOT NULL,
-    image character varying(255),
+CREATE TABLE public.image_scan_execution_history
+(
+    id             integer DEFAULT nextval('public.image_scan_execution_history_id_seq'::regclass) NOT NULL,
+    image          character varying(255),
     execution_time timestamp with time zone,
-    executed_by integer,
-    image_hash character varying(255)
+    executed_by    integer,
+    image_hash     character varying(255)
 );
 
 
@@ -2135,8 +2146,7 @@ CREATE SEQUENCE public.image_scan_execution_result_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.image_scan_execution_result_id_seq OWNER TO postgres;
@@ -2145,10 +2155,11 @@ ALTER TABLE public.image_scan_execution_result_id_seq OWNER TO postgres;
 -- Name: image_scan_execution_result; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.image_scan_execution_result (
-    id integer DEFAULT nextval('public.image_scan_execution_result_id_seq'::regclass) NOT NULL,
-    image_scan_execution_history_id integer NOT NULL,
-    cve_store_name character varying(255) NOT NULL
+CREATE TABLE public.image_scan_execution_result
+(
+    id                              integer DEFAULT nextval('public.image_scan_execution_result_id_seq'::regclass) NOT NULL,
+    image_scan_execution_history_id integer                                                                        NOT NULL,
+    cve_store_name                  character varying(255)                                                         NOT NULL
 );
 
 
@@ -2162,8 +2173,7 @@ CREATE SEQUENCE public.image_scan_object_meta_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.image_scan_object_meta_id_seq OWNER TO postgres;
@@ -2172,11 +2182,12 @@ ALTER TABLE public.image_scan_object_meta_id_seq OWNER TO postgres;
 -- Name: image_scan_object_meta; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.image_scan_object_meta (
-    id integer DEFAULT nextval('public.image_scan_object_meta_id_seq'::regclass) NOT NULL,
-    name character varying(255),
-    type character varying(255),
-    image character varying(255),
+CREATE TABLE public.image_scan_object_meta
+(
+    id     integer DEFAULT nextval('public.image_scan_object_meta_id_seq'::regclass) NOT NULL,
+    name   character varying(255),
+    type   character varying(255),
+    image  character varying(255),
     active boolean
 );
 
@@ -2187,19 +2198,20 @@ ALTER TABLE public.image_scan_object_meta OWNER TO postgres;
 -- Name: installed_app_versions; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.installed_app_versions (
-    id integer NOT NULL,
-    installed_app_id integer,
+CREATE TABLE public.installed_app_versions
+(
+    id                               integer NOT NULL,
+    installed_app_id                 integer,
     app_store_application_version_id integer,
-    values_yaml json NOT NULL,
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    created_by integer,
-    updated_by integer,
-    values_yaml_raw text,
-    active boolean DEFAULT true,
-    reference_value_id integer,
-    reference_value_kind character varying(250)
+    values_yaml                      json    NOT NULL,
+    created_on                       timestamp with time zone,
+    updated_on                       timestamp with time zone,
+    created_by                       integer,
+    updated_by                       integer,
+    values_yaml_raw                  text,
+    active                           boolean DEFAULT true,
+    reference_value_id               integer,
+    reference_value_kind             character varying(250)
 );
 
 
@@ -2214,8 +2226,7 @@ CREATE SEQUENCE public.installed_app_versions_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.installed_app_versions_id_seq OWNER TO postgres;
@@ -2231,16 +2242,17 @@ ALTER SEQUENCE public.installed_app_versions_id_seq OWNED BY public.installed_ap
 -- Name: installed_apps; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.installed_apps (
-    id integer NOT NULL,
-    app_id integer,
+CREATE TABLE public.installed_apps
+(
+    id             integer                  NOT NULL,
+    app_id         integer,
     environment_id integer,
-    created_by integer,
-    updated_by integer,
-    created_on timestamp with time zone NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    active boolean DEFAULT true,
-    status integer DEFAULT 0 NOT NULL
+    created_by     integer,
+    updated_by     integer,
+    created_on     timestamp with time zone NOT NULL,
+    updated_on     timestamp with time zone NOT NULL,
+    active         boolean DEFAULT true,
+    status         integer DEFAULT 0        NOT NULL
 );
 
 
@@ -2255,8 +2267,7 @@ CREATE SEQUENCE public.installed_apps_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.installed_apps_id_seq OWNER TO postgres;
@@ -2272,14 +2283,15 @@ ALTER SEQUENCE public.installed_apps_id_seq OWNED BY public.installed_apps.id;
 -- Name: job_event; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.job_event (
-    id integer NOT NULL,
+CREATE TABLE public.job_event
+(
+    id                 integer                NOT NULL,
     event_trigger_time character varying(100) NOT NULL,
-    name character varying(150) NOT NULL,
-    status character varying(150) NOT NULL,
-    message character varying(250),
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone
+    name               character varying(150) NOT NULL,
+    status             character varying(150) NOT NULL,
+    message            character varying(250),
+    created_on         timestamp with time zone,
+    updated_on         timestamp with time zone
 );
 
 
@@ -2294,8 +2306,7 @@ CREATE SEQUENCE public.job_event_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.job_event_id_seq OWNER TO postgres;
@@ -2311,16 +2322,17 @@ ALTER SEQUENCE public.job_event_id_seq OWNED BY public.job_event.id;
 -- Name: notification_settings; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.notification_settings (
-    id integer NOT NULL,
-    app_id integer,
-    env_id integer,
-    pipeline_id integer,
+CREATE TABLE public.notification_settings
+(
+    id            integer               NOT NULL,
+    app_id        integer,
+    env_id        integer,
+    pipeline_id   integer,
     pipeline_type character varying(50) NOT NULL,
-    event_type_id integer NOT NULL,
-    config json NOT NULL,
-    view_id integer NOT NULL,
-    team_id integer
+    event_type_id integer               NOT NULL,
+    config        json                  NOT NULL,
+    view_id       integer               NOT NULL,
+    team_id       integer
 );
 
 
@@ -2335,8 +2347,7 @@ CREATE SEQUENCE public.notification_settings_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.notification_settings_id_seq OWNER TO postgres;
@@ -2352,9 +2363,10 @@ ALTER SEQUENCE public.notification_settings_id_seq OWNED BY public.notification_
 -- Name: notification_settings_view; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.notification_settings_view (
-    id integer NOT NULL,
-    config json NOT NULL,
+CREATE TABLE public.notification_settings_view
+(
+    id         integer NOT NULL,
+    config     json    NOT NULL,
     created_on timestamp with time zone,
     updated_on timestamp with time zone,
     created_by integer,
@@ -2373,8 +2385,7 @@ CREATE SEQUENCE public.notification_settings_view_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.notification_settings_view_id_seq OWNER TO postgres;
@@ -2390,13 +2401,14 @@ ALTER SEQUENCE public.notification_settings_view_id_seq OWNED BY public.notifica
 -- Name: notification_templates; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.notification_templates (
-    id integer NOT NULL,
-    channel_type character varying(100) NOT NULL,
-    node_type character varying(50) NOT NULL,
-    event_type_id integer NOT NULL,
-    template_name character varying(250) NOT NULL,
-    template_payload text NOT NULL
+CREATE TABLE public.notification_templates
+(
+    id               integer                NOT NULL,
+    channel_type     character varying(100) NOT NULL,
+    node_type        character varying(50)  NOT NULL,
+    event_type_id    integer                NOT NULL,
+    template_name    character varying(250) NOT NULL,
+    template_payload text                   NOT NULL
 );
 
 
@@ -2411,8 +2423,7 @@ CREATE SEQUENCE public.notification_templates_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.notification_templates_id_seq OWNER TO postgres;
@@ -2428,17 +2439,18 @@ ALTER SEQUENCE public.notification_templates_id_seq OWNED BY public.notification
 -- Name: notifier_event_log; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.notifier_event_log (
-    id integer NOT NULL,
-    destination character varying(250) NOT NULL,
-    source_id integer,
-    pipeline_type character varying(100) NOT NULL,
-    event_type_id integer NOT NULL,
-    correlation_id character varying(250) NOT NULL,
-    payload text,
-    is_notification_sent boolean NOT NULL,
-    event_time timestamp with time zone NOT NULL,
-    created_at timestamp with time zone NOT NULL
+CREATE TABLE public.notifier_event_log
+(
+    id                   integer                  NOT NULL,
+    destination          character varying(250)   NOT NULL,
+    source_id            integer,
+    pipeline_type        character varying(100)   NOT NULL,
+    event_type_id        integer                  NOT NULL,
+    correlation_id       character varying(250)   NOT NULL,
+    payload              text,
+    is_notification_sent boolean                  NOT NULL,
+    event_time           timestamp with time zone NOT NULL,
+    created_at           timestamp with time zone NOT NULL
 );
 
 
@@ -2453,8 +2465,7 @@ CREATE SEQUENCE public.notifier_event_log_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.notifier_event_log_id_seq OWNER TO postgres;
@@ -2470,28 +2481,29 @@ ALTER SEQUENCE public.notifier_event_log_id_seq OWNED BY public.notifier_event_l
 -- Name: pipeline; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.pipeline (
-    id integer NOT NULL,
-    app_id integer,
-    ci_pipeline_id integer,
-    trigger_type character varying(250) NOT NULL,
-    environment_id integer,
-    deployment_template character varying(250),
-    pipeline_name character varying(250) NOT NULL,
-    deleted boolean NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
-    pipeline_override text DEFAULT '{}'::text,
-    pre_stage_config_yaml text,
-    post_stage_config_yaml text,
-    pre_trigger_type character varying(250),
-    post_trigger_type character varying(250),
-    pre_stage_config_map_secret_names text,
+CREATE TABLE public.pipeline
+(
+    id                                 integer                  NOT NULL,
+    app_id                             integer,
+    ci_pipeline_id                     integer,
+    trigger_type                       character varying(250)   NOT NULL,
+    environment_id                     integer,
+    deployment_template                character varying(250),
+    pipeline_name                      character varying(250)   NOT NULL,
+    deleted                            boolean                  NOT NULL,
+    created_on                         timestamp with time zone NOT NULL,
+    created_by                         integer                  NOT NULL,
+    updated_on                         timestamp with time zone NOT NULL,
+    updated_by                         integer                  NOT NULL,
+    pipeline_override                  text    DEFAULT '{}'::text,
+    pre_stage_config_yaml              text,
+    post_stage_config_yaml             text,
+    pre_trigger_type                   character varying(250),
+    post_trigger_type                  character varying(250),
+    pre_stage_config_map_secret_names  text,
     post_stage_config_map_secret_names text,
-    run_pre_stage_in_env boolean DEFAULT false,
-    run_post_stage_in_env boolean DEFAULT false
+    run_pre_stage_in_env               boolean DEFAULT false,
+    run_post_stage_in_env              boolean DEFAULT false
 );
 
 
@@ -2501,23 +2513,24 @@ ALTER TABLE public.pipeline OWNER TO postgres;
 -- Name: pipeline_config_override; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.pipeline_config_override (
-    id integer NOT NULL,
-    request_identifier character varying(250) NOT NULL,
-    env_config_override_id integer,
-    pipeline_override_yaml text NOT NULL,
-    merged_values_yaml text NOT NULL,
-    status character varying(50) NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL,
-    git_hash character varying(250),
-    ci_artifact_id integer,
-    pipeline_id integer,
+CREATE TABLE public.pipeline_config_override
+(
+    id                       integer                  NOT NULL,
+    request_identifier       character varying(250)   NOT NULL,
+    env_config_override_id   integer,
+    pipeline_override_yaml   text                     NOT NULL,
+    merged_values_yaml       text                     NOT NULL,
+    status                   character varying(50)    NOT NULL,
+    created_on               timestamp with time zone NOT NULL,
+    created_by               integer                  NOT NULL,
+    updated_on               timestamp with time zone NOT NULL,
+    updated_by               integer                  NOT NULL,
+    git_hash                 character varying(250),
+    ci_artifact_id           integer,
+    pipeline_id              integer,
     pipeline_release_counter integer,
-    cd_workflow_id integer,
-    deployment_type integer DEFAULT 0
+    cd_workflow_id           integer,
+    deployment_type          integer DEFAULT 0
 );
 
 
@@ -2532,8 +2545,7 @@ CREATE SEQUENCE public.pipeline_config_override_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.pipeline_config_override_id_seq OWNER TO postgres;
@@ -2554,8 +2566,7 @@ CREATE SEQUENCE public.pipeline_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.pipeline_id_seq OWNER TO postgres;
@@ -2571,17 +2582,18 @@ ALTER SEQUENCE public.pipeline_id_seq OWNED BY public.pipeline.id;
 -- Name: pipeline_strategy; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.pipeline_strategy (
-    id integer NOT NULL,
-    strategy character varying(250) NOT NULL,
-    config text,
-    created_by integer,
-    updated_by integer,
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    deleted boolean,
-    "default" boolean NOT NULL,
-    pipeline_id integer NOT NULL
+CREATE TABLE public.pipeline_strategy
+(
+    id          integer                NOT NULL,
+    strategy    character varying(250) NOT NULL,
+    config      text,
+    created_by  integer,
+    updated_by  integer,
+    created_on  timestamp with time zone,
+    updated_on  timestamp with time zone,
+    deleted     boolean,
+    "default"   boolean                NOT NULL,
+    pipeline_id integer                NOT NULL
 );
 
 
@@ -2596,8 +2608,7 @@ CREATE SEQUENCE public.pipeline_strategy_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.pipeline_strategy_id_seq OWNER TO postgres;
@@ -2607,66 +2618,21 @@ ALTER TABLE public.pipeline_strategy_id_seq OWNER TO postgres;
 --
 
 ALTER SEQUENCE public.pipeline_strategy_id_seq OWNED BY public.pipeline_strategy.id;
-
-
---
--- Name: project_management_tool_config; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.project_management_tool_config (
-    id integer NOT NULL,
-    user_name character varying(250) NOT NULL,
-    account_url character varying(250) NOT NULL,
-    auth_token character varying(250) NOT NULL,
-    commit_message_regex character varying(250) NOT NULL,
-    final_issue_status character varying(250) NOT NULL,
-    pipeline_stage character varying(250) NOT NULL,
-    pipeline_id integer NOT NULL,
-    created_on timestamp with time zone NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
-    updated_by integer NOT NULL
-);
-
-
-ALTER TABLE public.project_management_tool_config OWNER TO postgres;
-
---
--- Name: project_management_tool_config_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
---
-
-CREATE SEQUENCE public.project_management_tool_config_id_seq
-    AS integer
-    START WITH 1
-    INCREMENT BY 1
-    NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
-
-
-ALTER TABLE public.project_management_tool_config_id_seq OWNER TO postgres;
-
---
--- Name: project_management_tool_config_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
---
-
-ALTER SEQUENCE public.project_management_tool_config_id_seq OWNED BY public.project_management_tool_config.id;
-
-
 --
 -- Name: role_group; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.role_group (
-    id integer NOT NULL,
-    name character varying(100) NOT NULL,
+CREATE TABLE public.role_group
+(
+    id          integer                  NOT NULL,
+    name        character varying(100)   NOT NULL,
     casbin_name character varying(100),
     description text,
-    created_by integer,
-    updated_by integer,
-    created_on timestamp with time zone NOT NULL,
-    updated_on timestamp with time zone NOT NULL,
-    active boolean DEFAULT true NOT NULL
+    created_by  integer,
+    updated_by  integer,
+    created_on  timestamp with time zone NOT NULL,
+    updated_on  timestamp with time zone NOT NULL,
+    active      boolean DEFAULT true     NOT NULL
 );
 
 
@@ -2681,8 +2647,7 @@ CREATE SEQUENCE public.role_group_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.role_group_id_seq OWNER TO postgres;
@@ -2698,14 +2663,15 @@ ALTER SEQUENCE public.role_group_id_seq OWNED BY public.role_group.id;
 -- Name: role_group_role_mapping; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.role_group_role_mapping (
-    id integer NOT NULL,
-    role_group_id integer NOT NULL,
-    role_id integer NOT NULL,
-    created_by integer,
-    updated_by integer,
-    created_on timestamp with time zone NOT NULL,
-    updated_on timestamp with time zone NOT NULL
+CREATE TABLE public.role_group_role_mapping
+(
+    id            integer                  NOT NULL,
+    role_group_id integer                  NOT NULL,
+    role_id       integer                  NOT NULL,
+    created_by    integer,
+    updated_by    integer,
+    created_on    timestamp with time zone NOT NULL,
+    updated_on    timestamp with time zone NOT NULL
 );
 
 
@@ -2720,8 +2686,7 @@ CREATE SEQUENCE public.role_group_role_mapping_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.role_group_role_mapping_id_seq OWNER TO postgres;
@@ -2741,8 +2706,7 @@ CREATE SEQUENCE public.roles_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.roles_id_seq OWNER TO postgres;
@@ -2751,18 +2715,19 @@ ALTER TABLE public.roles_id_seq OWNER TO postgres;
 -- Name: roles; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.roles (
-    id integer DEFAULT nextval('public.roles_id_seq'::regclass) NOT NULL,
-    role character varying(100) NOT NULL,
-    team character varying(100),
+CREATE TABLE public.roles
+(
+    id          integer DEFAULT nextval('public.roles_id_seq'::regclass) NOT NULL,
+    role        character varying(100)                                   NOT NULL,
+    team        character varying(100),
     environment text,
     entity_name text,
-    action character varying(100),
-    created_by integer,
-    created_on timestamp without time zone,
-    updated_by integer,
-    updated_on timestamp without time zone,
-    entity character varying(100)
+    action      character varying(100),
+    created_by  integer,
+    created_on  timestamp without time zone,
+    updated_by  integer,
+    updated_on  timestamp without time zone,
+    entity      character varying(100)
 );
 
 
@@ -2772,21 +2737,22 @@ ALTER TABLE public.roles OWNER TO postgres;
 -- Name: ses_config; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.ses_config (
-    id integer NOT NULL,
-    region character varying(50) NOT NULL,
-    access_key character varying(250) NOT NULL,
+CREATE TABLE public.ses_config
+(
+    id                integer                NOT NULL,
+    region            character varying(50)  NOT NULL,
+    access_key        character varying(250) NOT NULL,
     secret_access_key character varying(250) NOT NULL,
-    session_token character varying(250),
-    from_email character varying(250) NOT NULL,
-    config_name character varying(250),
-    description character varying(500),
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    created_by integer,
-    updated_by integer,
-    owner_id integer,
-    "default" boolean
+    session_token     character varying(250),
+    from_email        character varying(250) NOT NULL,
+    config_name       character varying(250),
+    description       character varying(500),
+    created_on        timestamp with time zone,
+    updated_on        timestamp with time zone,
+    created_by        integer,
+    updated_by        integer,
+    owner_id          integer,
+    "default"         boolean
 );
 
 
@@ -2801,8 +2767,7 @@ CREATE SEQUENCE public.ses_config_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.ses_config_id_seq OWNER TO postgres;
@@ -2818,17 +2783,18 @@ ALTER SEQUENCE public.ses_config_id_seq OWNED BY public.ses_config.id;
 -- Name: slack_config; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.slack_config (
-    id integer NOT NULL,
+CREATE TABLE public.slack_config
+(
+    id           integer                NOT NULL,
     web_hook_url character varying(250) NOT NULL,
-    config_name character varying(250) NOT NULL,
-    description character varying(500),
-    created_on timestamp with time zone,
-    updated_on timestamp with time zone,
-    created_by integer,
-    updated_by integer,
-    owner_id integer,
-    team_id integer
+    config_name  character varying(250) NOT NULL,
+    description  character varying(500),
+    created_on   timestamp with time zone,
+    updated_on   timestamp with time zone,
+    created_by   integer,
+    updated_by   integer,
+    owner_id     integer,
+    team_id      integer
 );
 
 
@@ -2843,8 +2809,7 @@ CREATE SEQUENCE public.slack_config_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.slack_config_id_seq OWNER TO postgres;
@@ -2860,14 +2825,15 @@ ALTER SEQUENCE public.slack_config_id_seq OWNED BY public.slack_config.id;
 -- Name: team; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.team (
-    id integer NOT NULL,
-    name character varying(250) NOT NULL,
-    active boolean NOT NULL,
+CREATE TABLE public.team
+(
+    id         integer                  NOT NULL,
+    name       character varying(250)   NOT NULL,
+    active     boolean                  NOT NULL,
     created_on timestamp with time zone NOT NULL,
-    created_by integer NOT NULL,
+    created_by integer                  NOT NULL,
     updated_on timestamp with time zone NOT NULL,
-    updated_by integer NOT NULL
+    updated_by integer                  NOT NULL
 );
 
 
@@ -2882,8 +2848,7 @@ CREATE SEQUENCE public.team_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.team_id_seq OWNER TO postgres;
@@ -2903,8 +2868,7 @@ CREATE SEQUENCE public.user_roles_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.user_roles_id_seq OWNER TO postgres;
@@ -2913,10 +2877,11 @@ ALTER TABLE public.user_roles_id_seq OWNER TO postgres;
 -- Name: user_roles; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.user_roles (
-    id integer DEFAULT nextval('public.user_roles_id_seq'::regclass) NOT NULL,
-    user_id integer NOT NULL,
-    role_id integer NOT NULL,
+CREATE TABLE public.user_roles
+(
+    id         integer DEFAULT nextval('public.user_roles_id_seq'::regclass) NOT NULL,
+    user_id    integer                                                       NOT NULL,
+    role_id    integer                                                       NOT NULL,
     created_by integer,
     created_on timestamp without time zone,
     updated_by integer,
@@ -2934,8 +2899,7 @@ CREATE SEQUENCE public.users_id_seq
     START WITH 1
     INCREMENT BY 1
     NO MINVALUE
-    NO MAXVALUE
-    CACHE 1;
+    NO MAXVALUE CACHE 1;
 
 
 ALTER TABLE public.users_id_seq OWNER TO postgres;
@@ -2944,18 +2908,19 @@ ALTER TABLE public.users_id_seq OWNER TO postgres;
 -- Name: users; Type: TABLE; Schema: public; Owner: postgres
 --
 
-CREATE TABLE public.users (
-    id integer DEFAULT nextval('public.users_id_seq'::regclass) NOT NULL,
-    fname text,
-    lname text,
-    password text,
+CREATE TABLE public.users
+(
+    id           integer DEFAULT nextval('public.users_id_seq'::regclass) NOT NULL,
+    fname        text,
+    lname        text,
+    password     text,
     access_token text,
-    created_on timestamp without time zone,
-    email_id character varying(100) NOT NULL,
-    created_by integer,
-    updated_by integer,
-    updated_on timestamp without time zone,
-    active boolean DEFAULT true NOT NULL
+    created_on   timestamp without time zone,
+    email_id     character varying(100)                                   NOT NULL,
+    created_by   integer,
+    updated_by   integer,
+    updated_on   timestamp without time zone,
+    active       boolean DEFAULT true                                     NOT NULL
 );
 
 
@@ -3302,14 +3267,6 @@ ALTER TABLE ONLY public.pipeline_config_override ALTER COLUMN id SET DEFAULT nex
 --
 
 ALTER TABLE ONLY public.pipeline_strategy ALTER COLUMN id SET DEFAULT nextval('public.pipeline_strategy_id_seq'::regclass);
-
-
---
--- Name: project_management_tool_config id; Type: DEFAULT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.project_management_tool_config ALTER COLUMN id SET DEFAULT nextval('public.project_management_tool_config_id_seq'::regclass);
-
 
 --
 -- Name: role_group id; Type: DEFAULT; Schema: public; Owner: postgres
@@ -3786,13 +3743,6 @@ SELECT pg_catalog.setval('public.pipeline_id_seq', 1, false);
 --
 
 SELECT pg_catalog.setval('public.pipeline_strategy_id_seq', 1, false);
-
-
---
--- Name: project_management_tool_config_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
---
-
-SELECT pg_catalog.setval('public.project_management_tool_config_id_seq', 1, false);
 
 
 --
@@ -4409,15 +4359,6 @@ ALTER TABLE ONLY public.pipeline
 
 ALTER TABLE ONLY public.pipeline_strategy
     ADD CONSTRAINT pipeline_strategy_pkey PRIMARY KEY (id);
-
-
---
--- Name: project_management_tool_config project_management_tool_config_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.project_management_tool_config
-    ADD CONSTRAINT project_management_tool_config_pkey PRIMARY KEY (id);
-
 
 --
 -- Name: role_group role_group_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
@@ -5413,48 +5354,59 @@ ALTER TABLE ONLY public.slack_config
     ADD CONSTRAINT users_fkey FOREIGN KEY (owner_id) REFERENCES public.users(id);
 
 
-INSERT INTO "public"."chart_ref" ("id", "location", "version", "is_default", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
-('10', 'reference-chart_3-9-0', '3.9.0', 't', 't', 'now()', '1', 'now()', '1'),
-('9', 'reference-chart_3-8-0', '3.8.0', 'f', 'f', 'now()', '1', 'now()', '1'),
-('1', 'reference-app-rolling', '2.0.0', 'f', 'f', 'now()', '1', 'now()', '1'),
-('2', 'reference-chart_3-1-0', '3.1.0', 'f', 'f', 'now()', '1', 'now()', '1'),
-('3', 'reference-chart_3-2-0', '3.2.0', 'f', 'f', 'now()', '1', 'now()', '1'),
-('4', 'reference-chart_3-3-0', '3.3.0', 'f', 'f', 'now()', '1', 'now()', '1'),
-('5', 'reference-chart_3-4-0', '3.4.0', 'f', 'f', 'now()', '1', 'now()', '1'),
-('6', 'reference-chart_3-5-0', '3.5.0', 'f', 'f', 'now()', '1', 'now()', '1'),
-('7', 'reference-chart_3-6-0', '3.6.0', 'f', 'f', 'now()', '1', 'now()', '1'),
-('8', 'reference-chart_3-7-0', '3.7.0', 'f', 'f', 'now()', '1', 'now()', '1');
+INSERT INTO "public"."chart_ref" ("id", "location", "version", "is_default", "active", "created_on", "created_by",
+                                  "updated_on", "updated_by")
+VALUES ('10', 'reference-chart_3-9-0', '3.9.0', 't', 't', 'now()', '1', 'now()', '1'),
+       ('9', 'reference-chart_3-8-0', '3.8.0', 'f', 'f', 'now()', '1', 'now()', '1'),
+       ('1', 'reference-app-rolling', '2.0.0', 'f', 'f', 'now()', '1', 'now()', '1'),
+       ('2', 'reference-chart_3-1-0', '3.1.0', 'f', 'f', 'now()', '1', 'now()', '1'),
+       ('3', 'reference-chart_3-2-0', '3.2.0', 'f', 'f', 'now()', '1', 'now()', '1'),
+       ('4', 'reference-chart_3-3-0', '3.3.0', 'f', 'f', 'now()', '1', 'now()', '1'),
+       ('5', 'reference-chart_3-4-0', '3.4.0', 'f', 'f', 'now()', '1', 'now()', '1'),
+       ('6', 'reference-chart_3-5-0', '3.5.0', 'f', 'f', 'now()', '1', 'now()', '1'),
+       ('7', 'reference-chart_3-6-0', '3.6.0', 'f', 'f', 'now()', '1', 'now()', '1'),
+       ('8', 'reference-chart_3-7-0', '3.7.0', 'f', 'f', 'now()', '1', 'now()', '1');
 
 
 
-INSERT INTO "public"."chart_repo" ("id", "name", "url", "is_default", "active", "created_on", "created_by", "updated_on", "updated_by", "external") VALUES
-('1', 'default-chartmuseum', 'http://devtron-chartmuseum.devtroncd:8080/', 't', 't', 'now()', '1', 'now()', '1', 'f'),
-('2', 'devtron', 'https://helm.devtron.ai', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('3', 'jetstack', 'https://charts.jetstack.io', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('4', 'elastic', 'https://helm.elastic.co', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('5', 'autoscaler', 'https://kubernetes.github.io/autoscaler', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('6', 'fluent', 'https://fluent.github.io/helm-charts', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('7', 'nginx-ingress', 'https://kubernetes.github.io/ingress-nginx', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('8', 'metrics-server', 'https://kubernetes-sigs.github.io/metrics-server', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('9', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('10', 'bitnami', 'https://charts.bitnami.com/bitnami', 'f', 't', 'now()', '1', 'now()', '1', 't');
+INSERT INTO "public"."chart_repo" ("id", "name", "url", "is_default", "active", "created_on", "created_by",
+                                   "updated_on", "updated_by", "external")
+VALUES ('1', 'default-chartmuseum', 'http://devtron-chartmuseum.devtroncd:8080/', 't', 't', 'now()', '1', 'now()', '1',
+        'f'),
+       ('2', 'devtron', 'https://helm.devtron.ai', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+       ('3', 'jetstack', 'https://charts.jetstack.io', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+       ('4', 'elastic', 'https://helm.elastic.co', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+       ('5', 'autoscaler', 'https://kubernetes.github.io/autoscaler', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+       ('6', 'fluent', 'https://fluent.github.io/helm-charts', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+       ('7', 'nginx-ingress', 'https://kubernetes.github.io/ingress-nginx', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+       ('8', 'metrics-server', 'https://kubernetes-sigs.github.io/metrics-server', 'f', 't', 'now()', '1', 'now()', '1',
+        't'),
+       ('9', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts', 'f', 't', 'now()', '1',
+        'now()', '1', 't'),
+       ('10', 'bitnami', 'https://charts.bitnami.com/bitnami', 'f', 't', 'now()', '1', 'now()', '1', 't');
 
 
-INSERT INTO "public"."cluster" ("id", "cluster_name", "active", "created_on", "created_by", "updated_on", "updated_by", "server_url", "config", "prometheus_endpoint", "cd_argo_setup", "p_username", "p_password", "p_tls_client_cert", "p_tls_client_key") VALUES
-('1', 'default_cluster', 't', 'now()', '1', 'now()', '1', 'https://kubernetes.default.svc', '{}', NULL, 'f', NULL, NULL, NULL, NULL);
+INSERT INTO "public"."cluster" ("id", "cluster_name", "active", "created_on", "created_by", "updated_on", "updated_by",
+                                "server_url", "config", "prometheus_endpoint", "cd_argo_setup", "p_username",
+                                "p_password", "p_tls_client_cert", "p_tls_client_key")
+VALUES ('1', 'default_cluster', 't', 'now()', '1', 'now()', '1', 'https://kubernetes.default.svc', '{}', NULL, 'f',
+        NULL, NULL, NULL, NULL);
 
-INSERT INTO "public"."cve_policy_control" ("id", "global", "cluster_id", "env_id", "app_id", "cve_store_id", "action", "severity", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
-('1', 't', NULL, NULL, NULL, NULL, '1', '2', 'f', 'now()', '1', 'now()', '1'),
-('2', 't', NULL, NULL, NULL, NULL, '1', '1', 'f', 'now()', '1', 'now()', '1'),
-('3', 't', NULL, NULL, NULL, NULL, '1', '0', 'f', 'now()', '1', 'now()', '1');
+INSERT INTO "public"."cve_policy_control" ("id", "global", "cluster_id", "env_id", "app_id", "cve_store_id", "action",
+                                           "severity", "deleted", "created_on", "created_by", "updated_on",
+                                           "updated_by")
+VALUES ('1', 't', NULL, NULL, NULL, NULL, '1', '2', 'f', 'now()', '1', 'now()', '1'),
+       ('2', 't', NULL, NULL, NULL, NULL, '1', '1', 'f', 'now()', '1', 'now()', '1'),
+       ('3', 't', NULL, NULL, NULL, NULL, '1', '0', 'f', 'now()', '1', 'now()', '1');
 
-INSERT INTO "public"."event" ("id", "event_type", "description") VALUES
-('1', 'TRIGGER', ''),
-('2', 'SUCCESS', ''),
-('3', 'FAIL', '');
+INSERT INTO "public"."event" ("id", "event_type", "description")
+VALUES ('1', 'TRIGGER', ''),
+       ('2', 'SUCCESS', ''),
+       ('3', 'FAIL', '');
 
-INSERT INTO "public"."notification_templates" ("id", "channel_type", "node_type", "event_type_id", "template_name", "template_payload") VALUES
-('1', 'slack', 'CI', '1', 'CI trigger template', '{
+INSERT INTO "public"."notification_templates" ("id", "channel_type", "node_type", "event_type_id", "template_name",
+                                               "template_payload")
+VALUES ('1', 'slack', 'CI', '1', 'CI trigger template', '{
     "text": ":arrow_forward: Build pipeline Triggered |  {{#ciMaterials}} Branch > {{branch}} {{/ciMaterials}} | Application > {{appName}}",
     "blocks": [{
             "type": "section",
@@ -5521,12 +5473,12 @@ INSERT INTO "public"."notification_templates" ("id", "channel_type", "node_type"
         }
     ]
 }'),
-('2', 'ses', 'CI', '1', 'CI trigger ses template', '{"from": "{{fromEmail}}",
+       ('2', 'ses', 'CI', '1', 'CI trigger ses template', '{"from": "{{fromEmail}}",
  "to": "{{toEmail}}",
  "subject": "CI triggered for app: {{appName}}",
  "html": "<b>CI triggered on pipeline: {{pipelineName}}</b>"
 }'),
-('3', 'slack', 'CI', '2', 'CI success template', '{
+       ('3', 'slack', 'CI', '2', 'CI success template', '{
   "text": ":tada: Build pipeline Successful |  {{#ciMaterials}} Branch > {{branch}} {{/ciMaterials}} | Application > {{appName}}",
   "blocks": [
     {
@@ -5597,12 +5549,12 @@ INSERT INTO "public"."notification_templates" ("id", "channel_type", "node_type"
     }
   ]
 }'),
-('4', 'ses', 'CI', '2', 'CI success ses template', '{"from": "{{fromEmail}}",
+       ('4', 'ses', 'CI', '2', 'CI success ses template', '{"from": "{{fromEmail}}",
  "to": "{{toEmail}}",
  "subject": "CI success for app: {{appName}}",
  "html": "<b>CI success on pipeline: {{pipelineName}}</b><br><b>docker image: {{{dockerImageUrl}}}</b><br><b>Source: {{source}}</b><br>"
 }'),
-('5', 'slack', 'CI', '3', 'CI fail template', '{
+       ('5', 'slack', 'CI', '3', 'CI fail template', '{
     "text": ":x: Build pipeline Failed |  {{#ciMaterials}} Branch > {{branch}} {{/ciMaterials}} | Application > {{appName}}",
     "blocks": [{
             "type": "section",
@@ -5669,12 +5621,12 @@ INSERT INTO "public"."notification_templates" ("id", "channel_type", "node_type"
         }
     ]
 }'),
-('6', 'ses', 'CI', '3', 'CI failed ses template', '{"from": "{{fromEmail}}",
+       ('6', 'ses', 'CI', '3', 'CI failed ses template', '{"from": "{{fromEmail}}",
  "to": "{{toEmail}}",
  "subject": "CI failed for app: {{appName}}",
  "html": "<b>CI failed on pipeline: {{pipelineName}}</b><br><b>build name: {{buildName}}</b><br><b>Pod status: {{podStatus}}</b><br><b>message: {{message}}</b>"
 }'),
-('7', 'slack', 'CD', '1', 'CD trigger template', '{
+       ('7', 'slack', 'CD', '1', 'CD trigger template', '{
     "text": ":arrow_forward: Deployment pipeline Triggered |  {{#ciMaterials}} Branch > {{branch}} {{/ciMaterials}} | Application > {{appName}}",
     "blocks": [{
             "type": "section",
@@ -5765,12 +5717,12 @@ INSERT INTO "public"."notification_templates" ("id", "channel_type", "node_type"
         }
     ]
 }'),
-('8', 'ses', 'CD', '1', 'CD trigger ses template', '{"from": "{{fromEmail}}",
+       ('8', 'ses', 'CD', '1', 'CD trigger ses template', '{"from": "{{fromEmail}}",
  "to": "{{toEmail}}",
  "subject": "CD triggered for app: {{appName}} on environment: {{environmentName}}",
  "html": "<b>CD triggered for app: {{appName}} on environment: {{environmentName}}</b> <br> <b>Docker image: {{{dockerImageUrl}}}</b> <br> <b>Source snapshot: {{source}}</b> <br> <b>pipeline: {{pipelineName}}</b>"
 }'),
-('9', 'slack', 'CD', '2', 'CD success template', '{
+       ('9', 'slack', 'CD', '2', 'CD success template', '{
     "text": ":tada: Deployment pipeline Successful |  {{#ciMaterials}} Branch > {{branch}} {{/ciMaterials}} | Application > {{appName}}",
     "blocks": [{
             "type": "section",
@@ -5861,12 +5813,12 @@ INSERT INTO "public"."notification_templates" ("id", "channel_type", "node_type"
         }
     ]
 }'),
-('10', 'ses', 'CD', '2', 'CD success ses template', '{"from": "{{fromEmail}}",
+       ('10', 'ses', 'CD', '2', 'CD success ses template', '{"from": "{{fromEmail}}",
  "to": "{{toEmail}}",
  "subject": "CD success for app: {{appName}} on environment: {{environmentName}}",
  "html": "<b>CD success for app: {{appName}} on environment: {{environmentName}}</b>"
 }'),
-('11', 'slack', 'CD', '3', 'CD failed template', '{
+       ('11', 'slack', 'CD', '3', 'CD failed template', '{
     "text": ":x: Deployment pipeline Failed |  {{#ciMaterials}} Branch > {{branch}} {{/ciMaterials}} | Application > {{appName}}",
     "blocks": [{
             "type": "section",
@@ -5957,31 +5909,34 @@ INSERT INTO "public"."notification_templates" ("id", "channel_type", "node_type"
         }
     ]
 }'),
-('12', 'ses', 'CD', '3', 'CD failed ses template', '{"from": "{{fromEmail}}",
+       ('12', 'ses', 'CD', '3', 'CD failed ses template', '{"from": "{{fromEmail}}",
  "to": "{{toEmail}}",
  "subject": "CD failed for app: {{appName}} on environment: {{environmentName}}",
  "html": "<b>CD failed for app: {{appName}} on environment: {{environmentName}}</b>"
 }');
 
-INSERT INTO "public"."roles" ("id", "role", "team", "environment", "entity_name", "action", "created_by", "created_on", "updated_by", "updated_on", "entity") VALUES
-('1', 'role:super-admin___', NULL, NULL, NULL, 'super-admin', NULL, NULL, NULL, NULL, NULL);
+INSERT INTO "public"."roles" ("id", "role", "team", "environment", "entity_name", "action", "created_by", "created_on",
+                              "updated_by", "updated_on", "entity")
+VALUES ('1', 'role:super-admin___', NULL, NULL, NULL, 'super-admin', NULL, NULL, NULL, NULL, NULL);
 
-INSERT INTO "public"."users" ("id", "fname", "lname", "password", "access_token", "created_on", "email_id", "created_by", "updated_by", "updated_on", "active") VALUES
-('1', NULL, NULL, NULL, NULL, NULL, 'system', NULL, NULL, NULL, 't'),
-('2', NULL, NULL, NULL, NULL, NULL, 'admin', NULL, NULL, NULL, 't');
+INSERT INTO "public"."users" ("id", "fname", "lname", "password", "access_token", "created_on", "email_id",
+                              "created_by", "updated_by", "updated_on", "active")
+VALUES ('1', NULL, NULL, NULL, NULL, NULL, 'system', NULL, NULL, NULL, 't'),
+       ('2', NULL, NULL, NULL, NULL, NULL, 'admin', NULL, NULL, NULL, 't');
 
-INSERT INTO "public"."user_roles" ("id", "user_id", "role_id", "created_by", "created_on", "updated_by", "updated_on") VALUES
-('1', '2', '1', NULL, NULL, NULL, NULL);
+INSERT INTO "public"."user_roles" ("id", "user_id", "role_id", "created_by", "created_on", "updated_by", "updated_on")
+VALUES ('1', '2', '1', NULL, NULL, NULL, NULL);
 
-INSERT INTO "public"."git_provider" ("id", "name", "url", "user_name", "password", "ssh_key", "access_token", "auth_mode", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
-('1', 'Github Public', 'github.com', NULL, NULL, NULL, NULL, 'ANONYMOUS', 't', 'now()', '1', 'now()', '1');
+INSERT INTO "public"."git_provider" ("id", "name", "url", "user_name", "password", "ssh_key", "access_token",
+                                     "auth_mode", "active", "created_on", "created_by", "updated_on", "updated_by")
+VALUES ('1', 'Github Public', 'github.com', NULL, NULL, NULL, NULL, 'ANONYMOUS', 't', 'now()', '1', 'now()', '1');
 
-INSERT INTO "public"."team" ("id", "name", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
-('1', 'devtron-demo', 't', 'now()', '1', 'now()', '1');
+INSERT INTO "public"."team" ("id", "name", "active", "created_on", "created_by", "updated_on", "updated_by")
+VALUES ('1', 'devtron-demo', 't', 'now()', '1', 'now()', '1');
 
-INSERT INTO "public"."environment" ("id", "environment_name", "cluster_id", "active", "created_on", "created_by", "updated_on", "updated_by", "default", "namespace", "grafana_datasource_id") VALUES
-
-('1', 'devtron-demo', '1', 't', 'now()', '1', 'now()', '1', 'f', 'devtron-demo', '1');
+INSERT INTO "public"."environment" ("id", "environment_name", "cluster_id", "active", "created_on", "created_by",
+                                    "updated_on", "updated_by", "default", "namespace", "grafana_datasource_id")
+VALUES ('1', 'devtron-demo', '1', 't', 'now()', '1', 'now()', '1', 'f', 'devtron-demo', '1');
 
 --
 -- PostgreSQL database dump complete

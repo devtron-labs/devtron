@@ -59,7 +59,6 @@ type MuxRouter struct {
 	UserAuthRouter                   user.UserAuthRouter
 	ApplicationRouter                ApplicationRouter
 	CDRouter                         CDRouter
-	ProjectManagementRouter          ProjectManagementRouter
 	GitProviderRouter                GitProviderRouter
 	GitHostRouter                    GitHostRouter
 	DockerRegRouter                  DockerRegRouter
@@ -112,7 +111,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	MigrateDbRouter MigrateDbRouter, AppListingRouter AppListingRouter,
 	EnvironmentClusterMappingsRouter cluster.EnvironmentRouter, ClusterRouter cluster.ClusterRouter,
 	WebHookRouter WebhookRouter, UserAuthRouter user.UserAuthRouter, ApplicationRouter ApplicationRouter,
-	CDRouter CDRouter, ProjectManagementRouter ProjectManagementRouter,
+	CDRouter CDRouter,
 	GitProviderRouter GitProviderRouter, GitHostRouter GitHostRouter,
 	DockerRegRouter DockerRegRouter,
 	NotificationRouter NotificationRouter,
@@ -129,7 +128,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
-	globalPluginRouter GlobalPluginRouter, selfRegistrationRolesRouter user.SelfRegistrationRolesRouter,moduleRouter module.ModuleRouter,
+	globalPluginRouter GlobalPluginRouter, selfRegistrationRolesRouter user.SelfRegistrationRolesRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
@@ -143,7 +142,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		UserAuthRouter:                   UserAuthRouter,
 		ApplicationRouter:                ApplicationRouter,
 		CDRouter:                         CDRouter,
-		ProjectManagementRouter:          ProjectManagementRouter,
 		DockerRegRouter:                  DockerRegRouter,
 		GitProviderRouter:                GitProviderRouter,
 		GitHostRouter:                    GitHostRouter,
@@ -256,9 +254,6 @@ func (r MuxRouter) Init() {
 
 	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
 	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
-
-	projectManagementRouter := r.Router.PathPrefix("/orchestrator/project-management").Subrouter()
-	r.ProjectManagementRouter.InitProjectManagementRouter(projectManagementRouter)
 
 	gitRouter := r.Router.PathPrefix("/orchestrator/git").Subrouter()
 	r.GitProviderRouter.InitGitProviderRouter(gitRouter)
