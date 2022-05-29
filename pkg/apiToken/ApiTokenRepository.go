@@ -28,14 +28,14 @@ import (
 type ApiToken struct {
 	tableName    struct{}  `sql:"api_token"`
 	Id           int       `sql:"id,pk"`
-	UserId       int       `sql:"user_id, notnull"`
+	UserId       int32     `sql:"user_id, notnull"`
 	Name         string    `sql:"name, notnull"`
 	Description  string    `sql:"description, notnull"`
 	ExpireAtInMs int64     `sql:"expire_at_in_ms"`
 	Token        string    `sql:"token, notnull"`
 	LastUsedAt   time.Time `sql:"last_used_at"`
 	LastUsedByIp string    `sql:"last_used_by_ip"`
-	User         repository.UserModel
+	User         *repository.UserModel
 	sql.AuditLog
 }
 
@@ -75,22 +75,22 @@ func (impl ApiTokenRepositoryImpl) FindAllActive() ([]*ApiToken, error) {
 }
 
 func (impl ApiTokenRepositoryImpl) FindActiveById(id int) (*ApiToken, error) {
-	var apiToken *ApiToken
-	err := impl.dbConnection.Model(&apiToken).
+	apiToken := &ApiToken{}
+	err := impl.dbConnection.Model(apiToken).
 		Column("api_token.*").
 		Relation("User", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("active IS TRUE"), nil
 		}).
-		Where("id = ?", id).
+		Where("api_token.id = ?", id).
 		Select()
 	return apiToken, err
 }
 
 func (impl ApiTokenRepositoryImpl) FindByName(name string) (*ApiToken, error) {
-	var apiToken *ApiToken
-	err := impl.dbConnection.Model(&apiToken).
+	apiToken := &ApiToken{}
+	err := impl.dbConnection.Model(apiToken).
 		Column("api_token.*").
-		Where("name = ?", name).
+		Where("api_token.name = ?", name).
 		Select()
 	return apiToken, err
 }

@@ -16,10 +16,11 @@ CREATE TABLE "public"."api_token"
     "created_by"      int4,
     "updated_on"      timestamptz,
     "updated_by"      int4,
-    CONSTRAINT "api_token_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users" ("id"),
     PRIMARY KEY ("id")
 );
 
+-- add foreign key
+ALTER TABLE "public"."api_token" ADD FOREIGN KEY ("user_id") REFERENCES "public"."users"("id");
 
 -- Sequence and defined type
 CREATE SEQUENCE IF NOT EXISTS id_seq_api_token_secret;

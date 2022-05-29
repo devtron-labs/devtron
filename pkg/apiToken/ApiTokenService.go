@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
+	"github.com/google/uuid"
 	"go.uber.org/zap"
 	"strings"
 	"time"
@@ -95,8 +96,8 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		impl.logger.Errorw("error while getting api token by name", "name", name, "error", err)
 		return nil, err
 	}
-	if apiToken != nil {
-		return nil, errors.New(fmt.Sprintf("name `%s` is already used. please use another name", name))
+	if apiToken != nil && apiToken.Id > 0 {
+		return nil, errors.New(fmt.Sprintf("name '%s' is already used. please use another name", name))
 	}
 
 	// step-2 - Create user using email
@@ -116,13 +117,13 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	if createUserResponseLength != 1 {
 		return nil, errors.New(fmt.Sprintf("some error while creating user. length of createUserResponse expected 1. found %d", createUserResponseLength))
 	}
-	userId := createUserResponse[0].UserId
+	userId := createUserResponse[0].Id
 
 	// step-3 - Create API token
 	// create token using email
-	token := ""
+	token := uuid.New().String()
 	apiTokenSaveRequest := &ApiToken{
-		UserId:       int(userId),
+		UserId:       userId,
 		Name:         name,
 		Description:  *request.Description,
 		ExpireAtInMs: *request.ExpireAtInMs,
@@ -146,18 +147,18 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 
 	// step-1 - check if the api-token exists, if not exists - throw error
 	apiToken, err := impl.apiTokenRepository.FindActiveById(apiTokenId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows{
 		impl.logger.Errorw("error while getting api token by id", "apiTokenId", apiTokenId, "error", err)
 		return nil, err
 	}
-	if apiToken == nil {
-		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId `%d` is not found", apiTokenId))
+	if apiToken == nil || apiToken.Id == 0 {
+		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
 	}
 
 	// step-2 - If expires_at is not same, then token needs to be generated again
 	if *request.ExpireAtInMs != apiToken.ExpireAtInMs {
 		// regenerate token
-		apiToken.Token = ""
+		apiToken.Token = uuid.New().String()
 	}
 
 	// step-3 - update in DB
@@ -182,17 +183,17 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 
 	// step-1 - check if the api-token exists, if not exists - throw error
 	apiToken, err := impl.apiTokenRepository.FindActiveById(apiTokenId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows{
 		impl.logger.Errorw("error while getting api token by id", "apiTokenId", apiTokenId, "error", err)
 		return nil, err
 	}
-	if apiToken == nil {
-		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId `%d` is not found", apiTokenId))
+	if apiToken == nil || apiToken.Id == 0 {
+		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
 	}
 
 	// step-2 inactivate user corresponds to this api-token
 	deleteUserRequest := bean.UserInfo{
-		Id: int32(apiToken.UserId),
+		Id:     apiToken.UserId,
 		UserId: deletedBy,
 	}
 	success, err := impl.userService.DeleteUser(&deleteUserRequest)
@@ -201,7 +202,7 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 		return nil, err
 	}
 	if !success {
-		return nil, errors.New(fmt.Sprintf("Couldn't in-activate user corresponds to apiTokenId `%d`", apiTokenId))
+		return nil, errors.New(fmt.Sprintf("Couldn't in-activate user corresponds to apiTokenId '%d'", apiTokenId))
 	}
 
 	return &openapi.ActionResponse{

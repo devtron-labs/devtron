@@ -106,6 +106,15 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	if len(*request.Name) == 0 {
+		common.WriteJsonResp(w, errors.New("name cannot be blank in the request"), nil, http.StatusBadRequest)
+		return
+	}
+	if len(*request.Description) == 0 {
+		common.WriteJsonResp(w, errors.New("description cannot be blank in the request"), nil, http.StatusBadRequest)
+		return
+	}
+
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
@@ -157,6 +166,11 @@ func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	if len(*request.Description) == 0 {
+		common.WriteJsonResp(w, errors.New("description cannot be blank in the request"), nil, http.StatusBadRequest)
+		return
+	}
+
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
