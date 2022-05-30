@@ -4,7 +4,7 @@
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: postgresql-migrate-devtron-{{ randAlphaNum 5 | lower }}
+  name: postgresql-migrate-devtron-{{ randAlphaNum 4 | lower }}
   annotations: {}
 spec:
   ttlSecondsAfterFinished: 1000
