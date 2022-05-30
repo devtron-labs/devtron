@@ -211,7 +211,7 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId i
 	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
 	if err != nil {
 		impl.logger.Error(err)
-		return ""
+		return fmt.Sprintf("%s/%s", "", "")
 	}
 	application, err := impl.appRepo.FindById(pipeline.AppId)
 	if err != nil {
