@@ -89,7 +89,7 @@ type PipelineRepository interface {
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 	Exists() (exist bool, err error)
-	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) (Pipeline, error)
+	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	UpdateCdPipeline(pipeline *Pipeline) error
 }
 
@@ -373,15 +373,14 @@ func (impl PipelineRepositoryImpl) Exists() (exist bool, err error) {
 	return exist, err
 }
 
-func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pipelineId int) (Pipeline, error) {
-	var pipeline Pipeline
-	err := impl.dbConnection.Model(&pipeline).
+func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	err := impl.dbConnection.Model(&pipelines).
 		Where("app_id = ?", appId).
 		Where("ci_pipeline_id = ?", pipelineId).
 		Where("deleted = ?", false).
-		Limit(1).
 		Select()
-	return pipeline, err
+	return pipelines, err
 }
 
 func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
