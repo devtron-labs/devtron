@@ -1344,7 +1344,16 @@ func (impl ChartServiceImpl) ReadChartMetaDataForLocation(chartDir string, fileN
 		impl.logger.Errorw("Missing values in yaml file either name or version", "err", err)
 		return nil, errors.New("Missing values in yaml file either name or version")
 	}
-	return &chartYaml, nil
+	ver := strings.Split(chartYaml.Version, ".")
+	if len(ver) == 3 {
+		for _, verObject := range ver {
+			if _, err := strconv.ParseInt(verObject, 10, 64); err != nil {
+				return nil, errors.New("Version should contain integers (Ex: 1.1.0)")
+			}
+		}
+		return &chartYaml, nil
+	}
+	return nil, errors.New("Version should be of length 3 integers with dot seperated (Ex: 1.1.0)")
 }
 
 func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error) {
