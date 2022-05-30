@@ -1,5 +1,5 @@
 installer:
-  release: "v0.4.7"
+  release: "v0.4.8"
   image: "quay.io/devtron/inception"
   tag: "acb623ff-185-7117"
   
@@ -20,7 +20,7 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "35702e690d6ffb8e61904de33a7f98082cbd2db2"
+        GIT_HASH: "3d41b12146d1a1d1168cc5ee9777f9bfab76aeed"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "35702e690d6ffb8e61904de33a7f98082cbd2db2"
+        GIT_HASH: "3d41b12146d1a1d1168cc5ee9777f9bfab76aeed"
