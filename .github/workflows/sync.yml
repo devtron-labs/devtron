@@ -2,7 +2,7 @@ name: chart-sync
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on publishing new release
+  # Triggers the workflow on publishing new release on main branch and in charts directory only
   push:
     branches:    
       - 'main'
