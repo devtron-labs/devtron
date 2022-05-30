@@ -287,7 +287,7 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowByName(name string, appId int)
 	return *appWorkflowDto, err
 }
 
-func (impl AppWorkflowServiceImpl) CheckCdPipelineById(id int) bool {
+func (impl AppWorkflowServiceImpl) CheckCdPipelineByCiPipelineId(id int) bool {
 	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCIPipelineId(id)
 
 	if err == nil && appWorkflowMapping != nil {
