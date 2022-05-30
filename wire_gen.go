@@ -6,6 +6,7 @@
 package main
 
 import (
+	"github.com/devtron-labs/authenticator/apiToken"
 	client2 "github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/authenticator/middleware"
 	apiToken2 "github.com/devtron-labs/devtron/api/apiToken"
@@ -192,7 +193,8 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	sessionManager := middleware.NewSessionManager(settings, dexConfig)
+	apiTokenSecretStore := apiTokenAuth.InitApiTokenSecretStore()
+	sessionManager := middleware.NewSessionManager(settings, dexConfig, apiTokenSecretStore)
 	sessionServiceClientImpl := session2.NewSessionServiceClient(argoCDSettings)
 	roleGroupRepositoryImpl := repository2.NewRoleGroupRepositoryImpl(db, sugaredLogger)
 	userAuthServiceImpl := user.NewUserAuthServiceImpl(userAuthRepositoryImpl, sessionManager, sessionServiceClientImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl)
@@ -583,8 +585,10 @@ func InitializeApp() (*App, error) {
 	serverRestHandlerImpl := server2.NewServerRestHandlerImpl(sugaredLogger, serverServiceImpl, userServiceImpl, enforcerImpl, validate)
 	serverRouterImpl := server2.NewServerRouterImpl(serverRestHandlerImpl)
 	apiTokenSecretRepositoryImpl := apiToken.NewApiTokenSecretRepositoryImpl(db)
-	apiTokenSecretStore := apiToken.InitApiTokenSecretStore()
-	apiTokenSecretServiceImpl := apiToken.NewApiTokenSecretServiceImpl(sugaredLogger, apiTokenSecretRepositoryImpl, apiTokenSecretStore)
+	apiTokenSecretServiceImpl, err := apiToken.NewApiTokenSecretServiceImpl(sugaredLogger, apiTokenSecretRepositoryImpl, apiTokenSecretStore)
+	if err != nil {
+		return nil, err
+	}
 	apiTokenRepositoryImpl := apiToken.NewApiTokenRepositoryImpl(db)
 	apiTokenServiceImpl := apiToken.NewApiTokenServiceImpl(sugaredLogger, apiTokenSecretServiceImpl, userServiceImpl, apiTokenRepositoryImpl)
 	apiTokenRestHandlerImpl := apiToken2.NewApiTokenRestHandlerImpl(sugaredLogger, apiTokenServiceImpl, userServiceImpl, enforcerImpl, validate)

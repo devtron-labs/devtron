@@ -1,4 +1,4 @@
-package apiToken
+package apiTokenAuth
 
 type ApiTokenSecretStore struct {
 	Secret string

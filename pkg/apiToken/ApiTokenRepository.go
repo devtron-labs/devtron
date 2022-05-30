@@ -77,7 +77,7 @@ func (impl ApiTokenRepositoryImpl) FindAllActive() ([]*ApiToken, error) {
 func (impl ApiTokenRepositoryImpl) FindActiveById(id int) (*ApiToken, error) {
 	apiToken := &ApiToken{}
 	err := impl.dbConnection.Model(apiToken).
-		Column("api_token.*").
+		Column("api_token.*", "User").
 		Relation("User", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("active IS TRUE"), nil
 		}).

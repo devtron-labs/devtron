@@ -26,8 +26,8 @@ type ApiTokenSecret struct {
 	tableName struct{}  `sql:"api_token_secret"`
 	Id        int       `sql:"id,pk"`
 	Secret    string    `sql:"secret,notnull"`
-	CreatedOn time.Time `sql:"created_on,notnull,type:timestamptz"`
-	UpdatedOn time.Time `sql:"updated_on,type:timestamptz"`
+	CreatedOn time.Time `sql:"created_on,notnull"`
+	UpdatedOn time.Time `sql:"updated_on"`
 }
 
 type ApiTokenSecretRepository interface {
@@ -43,8 +43,8 @@ func NewApiTokenSecretRepositoryImpl(dbConnection *pg.DB) *ApiTokenSecretReposit
 }
 
 func (impl ApiTokenSecretRepositoryImpl) Get() (*ApiTokenSecret, error) {
-	var apiTokenSecret *ApiTokenSecret
-	err := impl.dbConnection.Model(&apiTokenSecret).
+	apiTokenSecret := &ApiTokenSecret{}
+	err := impl.dbConnection.Model(apiTokenSecret).
 		Select()
 	return apiTokenSecret, err
 }

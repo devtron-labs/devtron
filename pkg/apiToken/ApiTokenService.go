@@ -20,12 +20,13 @@ package apiToken
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/bean"
 	openapi "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
-	"github.com/google/uuid"
+	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
 	"strings"
 	"time"
@@ -55,6 +56,11 @@ func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService Api
 }
 
 const API_TOKEN_USER_EMAIL_PREFIX = "api-token:"
+
+type ApiTokenCustomClaims struct {
+	Email string `json:"email"`
+	jwt.RegisteredClaims
+}
 
 func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, error) {
 	impl.logger.Info("Getting all active api tokens")
@@ -100,14 +106,21 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		return nil, errors.New(fmt.Sprintf("name '%s' is already used. please use another name", name))
 	}
 
-	// step-2 - Create user using email
+	// step-2 - Build email
 	// removing comma from email as user-service expects multiple emailIds separated from comma. since this is single email Id, hence removing comma
 	emailSuffix := strings.ReplaceAll(name, ",", "")
 	email := fmt.Sprintf("%s%s", API_TOKEN_USER_EMAIL_PREFIX, emailSuffix)
+
+	// step-3 - Build token
+	token, err := impl.createApiJwtToken(email, *request.ExpireAtInMs)
+	if err != nil {
+		return nil, err
+	}
+
+	// step-4 - Create user using email
 	createUserRequest := bean.UserInfo{
 		EmailId: email,
 	}
-
 	createUserResponse, err := impl.userService.CreateUser(&createUserRequest)
 	if err != nil {
 		impl.logger.Errorw("error while creating user for api-token", "email", email, "error", err)
@@ -119,9 +132,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	}
 	userId := createUserResponse[0].Id
 
-	// step-3 - Create API token
-	// create token using email
-	token := uuid.New().String()
+	// step-5 - Save API token
 	apiTokenSaveRequest := &ApiToken{
 		UserId:       userId,
 		Name:         name,
@@ -147,7 +158,7 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 
 	// step-1 - check if the api-token exists, if not exists - throw error
 	apiToken, err := impl.apiTokenRepository.FindActiveById(apiTokenId)
-	if err != nil && err != pg.ErrNoRows{
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while getting api token by id", "apiTokenId", apiTokenId, "error", err)
 		return nil, err
 	}
@@ -158,7 +169,11 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 	// step-2 - If expires_at is not same, then token needs to be generated again
 	if *request.ExpireAtInMs != apiToken.ExpireAtInMs {
 		// regenerate token
-		apiToken.Token = uuid.New().String()
+		token, err := impl.createApiJwtToken(apiToken.User.EmailId, *request.ExpireAtInMs)
+		if err != nil {
+			return nil, err
+		}
+		apiToken.Token = token
 	}
 
 	// step-3 - update in DB
@@ -183,7 +198,7 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 
 	// step-1 - check if the api-token exists, if not exists - throw error
 	apiToken, err := impl.apiTokenRepository.FindActiveById(apiTokenId)
-	if err != nil && err != pg.ErrNoRows{
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while getting api token by id", "apiTokenId", apiTokenId, "error", err)
 		return nil, err
 	}
@@ -209,4 +224,31 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 		Success: &success,
 	}, nil
 
+}
+
+func (impl ApiTokenServiceImpl) createApiJwtToken( email string, expireAtInMs int64) (string, error) {
+	secretByteArr, err := impl.apiTokenSecretService.GetApiTokenSecretByteArr()
+	if err != nil {
+		impl.logger.Errorw("error while getting api token secret", "error", err)
+		return "", err
+	}
+
+	registeredClaims := jwt.RegisteredClaims{
+		Issuer: middleware.ApiTokenClaimIssuer,
+	}
+	if expireAtInMs > 0 {
+		registeredClaims.ExpiresAt = jwt.NewNumericDate(time.Unix(expireAtInMs/1000, 0))
+	}
+
+	claims := &ApiTokenCustomClaims{
+		email,
+		registeredClaims,
+	}
+	unsignedToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	token, err := unsignedToken.SignedString(secretByteArr)
+	if err != nil {
+		impl.logger.Errorw("error while signing api-token", "error", err)
+		return "", err
+	}
+	return token, nil
 }

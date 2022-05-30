@@ -19,35 +19,52 @@ package apiToken
 
 import (
 	"errors"
+	apiTokenAuth "github.com/devtron-labs/authenticator/apiToken"
 	"go.uber.org/zap"
 )
 
 type ApiTokenSecretService interface {
-	GetApiTokenSecret() (string, error)
+	GetApiTokenSecretByteArr() ([]byte, error)
 }
 
 type ApiTokenSecretServiceImpl struct {
 	logger                   *zap.SugaredLogger
 	apiTokenSecretRepository ApiTokenSecretRepository
-	apiTokenSecretStore      *ApiTokenSecretStore
+	apiTokenSecretStore      *apiTokenAuth.ApiTokenSecretStore
 }
 
-func NewApiTokenSecretServiceImpl(logger *zap.SugaredLogger, apiTokenSecretRepository ApiTokenSecretRepository, apiTokenSecretStore *ApiTokenSecretStore) *ApiTokenSecretServiceImpl {
-	return &ApiTokenSecretServiceImpl{
+func NewApiTokenSecretServiceImpl(logger *zap.SugaredLogger, apiTokenSecretRepository ApiTokenSecretRepository, apiTokenSecretStore *apiTokenAuth.ApiTokenSecretStore) (*ApiTokenSecretServiceImpl, error) {
+	impl := &ApiTokenSecretServiceImpl{
 		logger:                   logger,
 		apiTokenSecretRepository: apiTokenSecretRepository,
 		apiTokenSecretStore:      apiTokenSecretStore,
 	}
+
+	// get secret from db and store
+	secret, err := impl.getApiSecretFromDb()
+	if err != nil {
+		return nil, err
+	}
+	impl.apiTokenSecretStore.Secret = secret
+
+	return impl, nil
 }
 
-func (impl ApiTokenSecretServiceImpl) GetApiTokenSecret() (string, error) {
+func (impl ApiTokenSecretServiceImpl) GetApiTokenSecretByteArr() ([]byte, error) {
 	impl.logger.Info("Getting api token secret")
 
-	// return from local if found
-	if len(impl.apiTokenSecretStore.Secret) > 0 {
-		return impl.apiTokenSecretStore.Secret, nil
+	// return from local
+	// if found empty, throw error
+	if len(impl.apiTokenSecretStore.Secret) == 0 {
+		errorMsg := "secret found empty"
+		impl.logger.Error(errorMsg)
+		return nil, errors.New(errorMsg)
 	}
 
+	return []byte(impl.apiTokenSecretStore.Secret), nil
+}
+
+func (impl ApiTokenSecretServiceImpl) getApiSecretFromDb() (string, error) {
 	// get from db
 	apiTokenSecret, err := impl.apiTokenSecretRepository.Get()
 	if err != nil {
@@ -55,13 +72,16 @@ func (impl ApiTokenSecretServiceImpl) GetApiTokenSecret() (string, error) {
 		return "", err
 	}
 	if apiTokenSecret == nil {
-		error := "api token secret from DB found nil"
-		impl.logger.Error(error)
-		return "", errors.New(error)
+		errorMsg := "api token secret from DB found nil"
+		impl.logger.Error(errorMsg)
+		return "", errors.New(errorMsg)
+	}
+	secret := apiTokenSecret.Secret
+	if len(secret) == 0 {
+		errorMsg := "api token secret from DB found empty"
+		impl.logger.Error(errorMsg)
+		return "", errors.New(errorMsg)
 	}
 
-	// set locally
-	secret := apiTokenSecret.Secret
-	impl.apiTokenSecretStore.Secret = secret
 	return secret, nil
 }
