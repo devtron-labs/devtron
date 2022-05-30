@@ -86,7 +86,7 @@ Second section is ***configs*** and has following properties
 | **EXTERNAL_SECRET_AMAZON_REGION** | AWS region for secret manager to pick |  |
 | **PROMETHEUS_URL** | url of prometheus where all cluster data is stored, if this is wrong, you will not be able to see application metrics like cpu, ram, http status code, latency and throughput |  |
 
-example of DEX_CONFIG is
+example of DEX_CONFIG isss
 
     DEX_CONFIG: |-
       connectors:
