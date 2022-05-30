@@ -47,6 +47,7 @@ type AppStoreDeploymentRestHandler interface {
 	DeleteInstalledApp(w http.ResponseWriter, r *http.Request)
 	LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request)
 	UpdateInstalledApp(w http.ResponseWriter, r *http.Request)
+	GetInstalledAppVersion(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
@@ -380,4 +381,42 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	installedAppId, err := strconv.Atoi(vars["installedAppVersionId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetInstalledAppVersion", "err", err, "installedAppVersionId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	handler.Logger.Infow("request payload, GetInstalledAppVersion", "installedAppVersionId", installedAppId)
+	dto, err := handler.appStoreDeploymentService.GetInstalledAppVersion(installedAppId, userId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetInstalledAppVersion", "err", err, "installedAppVersionId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	//rbac block starts from here
+	var rbacObject string
+	if dto.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(dto.ClusterId, dto.Namespace, dto.AppName)
+	} else {
+		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(dto.AppName, dto.EnvironmentId)
+	}
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rbac block ends here
+
+	common.WriteJsonResp(w, err, dto, http.StatusOK)
 }

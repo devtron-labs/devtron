@@ -66,7 +66,6 @@ const (
 )
 
 type InstalledAppService interface {
-	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error)
 	DeployBulk(chartGroupInstallRequest *appStoreBean.ChartGroupInstallRequest) (*appStoreBean.ChartGroupInstallAppRes, error)
 	performDeployStage(appId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
@@ -153,35 +152,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		return nil, err
 	}
 	return impl, nil
-}
-
-
-func (impl InstalledAppServiceImpl) GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
-	app, err := impl.installedAppRepository.GetInstalledAppVersion(id)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return nil, err
-	}
-	installAppVersion := &appStoreBean.InstallAppVersionDTO{
-		InstalledAppId:     app.InstalledAppId,
-		AppName:            app.InstalledApp.App.AppName,
-		AppId:              app.InstalledApp.App.Id,
-		Id:                 app.Id,
-		TeamId:             app.InstalledApp.App.TeamId,
-		EnvironmentId:      app.InstalledApp.EnvironmentId,
-		ValuesOverrideYaml: app.ValuesYaml,
-		Readme:             app.AppStoreApplicationVersion.Readme,
-		ReferenceValueKind: app.ReferenceValueKind,
-		ReferenceValueId:   app.ReferenceValueId,
-		AppStoreVersion:    app.AppStoreApplicationVersionId, //check viki
-		Status:             app.InstalledApp.Status,
-		AppStoreId:         app.AppStoreApplicationVersion.AppStoreId,
-		AppStoreName:       app.AppStoreApplicationVersion.AppStore.Name,
-		Deprecated:         app.AppStoreApplicationVersion.Deprecated,
-		GitOpsRepoName:     app.InstalledApp.GitOpsRepoName,
-		UserId:             userId,
-	}
-	return installAppVersion, err
 }
 
 func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) (openapi.AppList, error) {
@@ -371,7 +341,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		return nil, err
 	}*/
 
-	installedAppVersion, err := impl.GetInstalledAppVersion(installedAppVersionId, userId)
+	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
 	if err != nil {
 		return nil, err
 	}

@@ -71,8 +71,6 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 		Methods("GET")
 	configRouter.Path("/installed-app").
 		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
-	configRouter.Path("/application/version/{installedAppVersionId}").
-		HandlerFunc(router.deployRestHandler.GetInstalledAppVersion).Methods("GET")
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
 }
