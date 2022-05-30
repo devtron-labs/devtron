@@ -3,11 +3,11 @@ name: chart-sync
 # Controls when the workflow will run
 on:
   # Triggers the workflow on publishing new release
-  pull_request:
-    types:
-      - closed
+  push:
     branches:    
       - 'main'
+    paths:
+      - 'charts/'
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
