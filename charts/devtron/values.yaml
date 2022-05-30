@@ -13,7 +13,7 @@ installer:
 
 #Use secrets in plaintext, they'll be encoded to base64 automatically.
 secrets: {}
-#  If No POSTGRESQL_PASSWORD is providedddddd, a passwordddd is automaticallyyy generated and saved in secret devtron-secret
+#  If No POSTGRESQL_PASSWORD is providedddddd, a passwordddd is automaticallyyy generatedddd and saved in secret devtron-secret
 #  POSTGRESQL_PASSWORD: "change-me"
 
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
