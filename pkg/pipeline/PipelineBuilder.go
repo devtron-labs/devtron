@@ -2022,9 +2022,9 @@ type PipelineStrategy struct {
 
 func (impl PipelineBuilderImpl) GetEnvironmentByCdPipelineId(pipelineId int) (int, error) {
 	dbPipeline, err := impl.pipelineRepository.FindById(pipelineId)
-	if err != nil && errors.IsNotFound(err) {
+	if err != nil || dbPipeline == nil {
 		impl.logger.Errorw("error in fetching pipeline", "err", err)
-		return -1, err
+		return 0, err
 	}
 	return dbPipeline.EnvironmentId, err
 }
