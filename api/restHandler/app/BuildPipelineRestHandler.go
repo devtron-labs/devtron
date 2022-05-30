@@ -178,7 +178,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	environmentIds := make([]int, len(pipelineData))
+	var environmentIds []int
 	for _, pipeline := range pipelineData {
 		environmentIds = append(environmentIds, pipeline.EnvironmentId)
 	}
@@ -699,7 +699,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	environmentIds := make([]int, len(pipelineData))
+	var environmentIds []int
 	for _, pipeline := range pipelineData {
 		environmentIds = append(environmentIds, pipeline.EnvironmentId)
 	}
@@ -946,7 +946,7 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		environmentIds := make([]int, len(pipelineData))
+		var environmentIds []int
 		for _, pipeline := range pipelineData {
 			environmentIds = append(environmentIds, pipeline.EnvironmentId)
 		}
