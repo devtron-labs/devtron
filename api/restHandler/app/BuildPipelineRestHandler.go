@@ -174,11 +174,21 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 
 	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(patchRequest.AppId, patchRequest.CiPipeline.Id)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	environmentIds := make([]int, len(pipelineData))
+	for _, pipeline := range pipelineData {
+		environmentIds = append(environmentIds, pipeline.EnvironmentId)
+	}
 	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(patchRequest.CiPipeline.Id) {
-		envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(patchRequest.CiPipeline.Id, pipelineData.EnvironmentId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
+		for _, envId := range environmentIds {
+			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(patchRequest.CiPipeline.Id, envId)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
 		}
 	}
 
@@ -685,12 +695,21 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 	}
 
 	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(appId, pipelineId)
-	// RBAC check if CD pipeline is present
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	environmentIds := make([]int, len(pipelineData))
+	for _, pipeline := range pipelineData {
+		environmentIds = append(environmentIds, pipeline.EnvironmentId)
+	}
 	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(pipelineId) {
-		object := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(pipelineId, pipelineData.EnvironmentId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
+		for _, envId := range environmentIds {
+			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(pipelineId, envId)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
 		}
 	}
 
@@ -927,10 +946,18 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		object = handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(pipelineId, pipelineData.EnvironmentId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-			return
+		environmentIds := make([]int, len(pipelineData))
+		for _, pipeline := range pipelineData {
+			environmentIds = append(environmentIds, pipeline.EnvironmentId)
+		}
+		if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(pipelineId) {
+			for _, envId := range environmentIds {
+				envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(pipelineId, envId)
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+					common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+					return
+				}
+			}
 		}
 	}
 
