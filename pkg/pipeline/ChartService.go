@@ -1146,6 +1146,11 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 		return nil, err
 	}
 	// validate app metrics compatibility
+	refChart, err := impl.chartRefRepository.FindById(currentChart.ChartRefId)
+	if err != nil {
+		impl.logger.Error(err)
+		return nil, err
+	}
 	if appMetricRequest.IsAppMetricsEnabled == true {
 		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.ChartVersion)
 		if err != nil {
@@ -1153,7 +1158,7 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 			return nil, err
 		}
 
-		if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
+		if !refChart.UserUploaded && !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
 			err = &util.ApiError{
 				InternalMessage: "chart version in not compatible for app metrics",
 				UserMessage:     "chart version in not compatible for app metrics",
