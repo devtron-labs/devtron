@@ -101,6 +101,7 @@ type PipelineBuilder interface {
 
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
 	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
+	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -2017,6 +2018,15 @@ type PipelineStrategy struct {
 	DeploymentTemplate pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING"` //
 	Config             json.RawMessage                   `json:"config"`
 	Default            bool                              `json:"default"`
+}
+
+func (impl PipelineBuilderImpl) GetEnvironmentByCdPipelineId(pipelineId int) (int, error) {
+	dbPipeline, err := impl.pipelineRepository.FindById(pipelineId)
+	if err != nil || dbPipeline == nil {
+		impl.logger.Errorw("error in fetching pipeline", "err", err)
+		return 0, err
+	}
+	return dbPipeline.EnvironmentId, err
 }
 
 func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error) {

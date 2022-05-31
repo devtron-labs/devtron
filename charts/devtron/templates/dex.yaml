@@ -1,4 +1,3 @@
-{{- if not .Values.installer.modules }}
 {{- with .Values.components.argocdDexServer }}
 apiVersion: v1
 kind: Service
@@ -41,6 +40,12 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
+  {{- if $.Release.IsUpgrade }}
+  minReadySeconds: 700
+  progressDeadlineSeconds: 800
+  {{- else }}
+  minReadySeconds: 60
+  {{- end }}
   template:
     metadata:
       labels:
@@ -57,7 +62,11 @@ spec:
             weight: 5
       containers:
       - command:
+        {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
+        - /shared/argocd-util
+        {{- else }}
         - /shared/authenticator
+        {{- end }}
         - rundex
         image: {{ .image }}
         imagePullPolicy: {{ .imagePullPolicy }}
@@ -73,9 +82,17 @@ spec:
       - command:
         - cp
         - -n
+        {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
+        - /usr/local/bin/argocd-util
+        {{- else }}
         - /authenticator
+        {{- end }}
         - /shared
-        image: quay.io/devtron/authenticator:415f5470-279-6520
+        {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
+        image: {{ .cicdAuthenticator }}
+        {{- else }}
+        image: {{ .authenticator }}
+        {{- end }}
         imagePullPolicy: IfNotPresent
         name: copyutil
         volumeMounts:
@@ -138,5 +155,4 @@ roleRef:
 subjects:
 - kind: ServiceAccount
   name: argocd-dex-server
-{{- end }}
 {{- end }}

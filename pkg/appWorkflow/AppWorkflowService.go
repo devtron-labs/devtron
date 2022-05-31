@@ -38,6 +38,7 @@ type AppWorkflowService interface {
 	SaveAppWorkflowMapping(wf AppWorkflowMappingDto) (AppWorkflowMappingDto, error)
 	FindAppWorkflowMapping(workflowId int) ([]AppWorkflowMappingDto, error)
 	FindAppWorkflowMappingByComponent(id int, compType string) ([]*appWorkflow.AppWorkflowMapping, error)
+	CheckCdPipelineByCiPipelineId(id int) bool
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
 }
 
@@ -284,4 +285,13 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowByName(name string, appId int)
 		Name:  appWorkflow.Name,
 	}
 	return *appWorkflowDto, err
+}
+
+func (impl AppWorkflowServiceImpl) CheckCdPipelineByCiPipelineId(id int) bool {
+	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCIPipelineId(id)
+
+	if err == nil && appWorkflowMapping != nil {
+		return true
+	}
+	return false
 }

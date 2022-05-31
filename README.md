@@ -98,8 +98,23 @@ helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd}
 ```
+### Access Devtron
 
-Please refer to the document on how to [install Devtron with CI/CD](./docs/setup/install/install-devtron-with-cicd.md) for more information.
+**URL**: Use the following command to get the dashboard URL:
+
+```bash
+kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+```
+
+**Credentials**:
+
+**UserName**:  `admin` <br>
+**Password**:   Run the following command to get the admin password
+```bash
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+```
+
+Please refer to the document for more information on how to [access the Devtron Dashboard](./docs/setup/install/install-devtron-with-cicd.md/#access-devtron-dashboard).
 
 #### Installation status
 
@@ -124,23 +139,6 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 
 ```
 
-### Devtron Dashboard
-
-Use the following command to get the dashboard URL:
-
-```bash
-kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
-```
-
-#### Dashboard credentials
-
-For admin login, use the username:`admin`, and run the following command to get the admin password:
-
-```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
-```
-
-Please refer to the document for more information on how to [access the Devtron Dashboard](./docs/setup/install/install-devtron-with-cicd.md/#access-devtron-dashboard).
 
 ## :blue_heart: Technology
  
