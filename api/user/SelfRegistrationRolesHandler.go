@@ -1,8 +1,6 @@
 package user
 
 import (
-	"encoding/json"
-	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
@@ -17,27 +15,29 @@ type SelfRegistrationRolesHandler interface {
 type SelfRegistrationRolesHandlerImpl struct {
 	logger                       *zap.SugaredLogger
 	selfRegistrationRolesService user.SelfRegistrationRolesService
+	userService                  user.UserService
 }
 
 func NewSelfRegistrationRolesHandlerImpl(logger *zap.SugaredLogger,
-	selfRegistrationRolesService user.SelfRegistrationRolesService) *SelfRegistrationRolesHandlerImpl {
+	selfRegistrationRolesService user.SelfRegistrationRolesService,
+	userService user.UserService) *SelfRegistrationRolesHandlerImpl {
 	return &SelfRegistrationRolesHandlerImpl{
 		logger:                       logger,
 		selfRegistrationRolesService: selfRegistrationRolesService,
+		userService:                  userService,
 	}
 }
 
 func (impl *SelfRegistrationRolesHandlerImpl) SelfRegister(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	email, err := impl.userService.GetEmailFromToken(token)
 
-	decoder := json.NewDecoder(r.Body)
-	var userInfo bean.UserInfo
-	err := decoder.Decode(&userInfo)
 	if err != nil {
-		impl.logger.Errorw("request err, selfRegister", "err", err, "payload", userInfo)
+		impl.logger.Errorw("request err, selfRegister", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.selfRegistrationRolesService.SelfRegister(userInfo.EmailId)
+	impl.selfRegistrationRolesService.SelfRegister(email)
 	common.WriteJsonResp(w, nil, map[string]string{"status": "ok"}, http.StatusOK)
 }
 
