@@ -606,16 +606,17 @@ func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (strin
 			refChartLocation := filepath.Join(string(impl.refChartDir), chartRef.Location)
 			if _, err := os.Stat(refChartLocation); os.IsNotExist(err) {
 				chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
-				if chartInfo.TemporaryFolder != "" {
-					err1 := os.RemoveAll(chartInfo.TemporaryFolder)
-					if err1 != nil {
-						impl.logger.Errorw("error in deleting temp dir ", "err", err)
-					}
-				}
 				if err != nil {
 					impl.logger.Errorw("Error regarding uploaded chart", "err", err)
+					if chartInfo != nil && chartInfo.TemporaryFolder != "" {
+						err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+						if err1 != nil {
+							impl.logger.Errorw("error in deleting temp dir ", "err", err)
+						}
+					}
 					return "", "", err, ""
 				}
+
 			}
 		}
 		template = chartRef.Location
@@ -1308,7 +1309,7 @@ func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
 	refChartLocation := filepath.Join(string(impl.refChartDir), chartRefValue.Location)
 	if _, err := os.Stat(refChartLocation); os.IsNotExist(err) {
 		chartInfo, err := impl.ExtractChartIfMissing(chartRefValue.ChartData, string(impl.refChartDir), chartRefValue.Location)
-		if chartInfo.TemporaryFolder != "" {
+		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
 			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
 			if err1 != nil {
 				impl.logger.Errorw("error in deleting temp dir ", "err", err)
