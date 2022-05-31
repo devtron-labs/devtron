@@ -423,3 +423,8 @@ serviceAccount:
   ##
   annotations:
      kubernetes.io/service-account.name: build-robot
+hostAliases: []
+#  - ip: "127.0.0.1"
+#    hostnames:
+#    - "foo.local"
+
