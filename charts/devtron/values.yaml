@@ -75,8 +75,9 @@ components:
   argocdDexServer:
     image: "quay.io/dexidp/dex:v2.25.0"
     imagePullPolicy: IfNotPresent
-    authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
-    cicdAuthenticator: "quay.io/argoproj/argocd:v1.8.1"
+    initContainer:
+      authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
+      cicdAuthenticator: "quay.io/argoproj/argocd:v1.8.1"
 
   kubelink:
     image: "quay.io/devtron/kubelink:d691bfbb-318-8695"
@@ -86,7 +87,7 @@ components:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     imagePullPolicy: "IfNotPresent"
     persistence:
-      volumeSize: "10Gi"
+      volumeSize: "20Gi"
 
   migrator:
     image: "quay.io/devtron/migrator:6687f572-133-2208"
