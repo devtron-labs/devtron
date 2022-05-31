@@ -602,6 +602,17 @@ func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (strin
 			if err != nil {
 				return "", "", err, ""
 			}
+		} else if chartRef.UserUploaded {
+			refChartLocation := filepath.Join(string(impl.refChartDir), chartRef.Location)
+			if _, err := os.Stat(refChartLocation); os.IsNotExist(err) {
+				chartInfo, _ := impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
+				if chartInfo.TemporaryFolder != "" {
+					err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+					if err1 != nil {
+						impl.logger.Errorw("error in deleting temp dir ", "err", err)
+					}
+				}
+			}
 		}
 		template = chartRef.Location
 		version = chartRef.Version
