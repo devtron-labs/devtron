@@ -602,7 +602,7 @@ func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (strin
 			if err != nil {
 				return "", "", err, ""
 			}
-		} else if chartRef != nil {
+		} else if chartRef.UserUploaded {
 			refChartLocation := filepath.Join(string(impl.refChartDir), chartRef.Location)
 			if _, err := os.Stat(refChartLocation); os.IsNotExist(err) {
 				chartInfo, _ := impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
