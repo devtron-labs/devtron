@@ -566,30 +566,33 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		envOverride.Chart = chart
 	}
 
-	// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
-	chartMetaData := &chart2.Metadata{
-		Name:    pipeline.App.AppName,
-		Version: envOverride.Chart.ChartVersion,
-	}
-	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
-	_, err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, 1)
-	if err != nil {
-		impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
-		return 0, err
-	}
+	if pipeline.DeploymentAppType == "acd" {
+		// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
+		chartMetaData := &chart2.Metadata{
+			Name:    pipeline.App.AppName,
+			Version: envOverride.Chart.ChartVersion,
+		}
+		referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
+		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
+		_, err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, 1)
+		if err != nil {
+			impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
+			return 0, err
+		}
 
-	// ACD app creation STARTS HERE, it will use existing if already created
-	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
-	name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride, pipeline, deployedBy)
-	if err != nil {
-		impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
-		return 0, err
+		// ACD app creation STARTS HERE, it will use existing if already created
+		impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
+		name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride, pipeline, deployedBy)
+		if err != nil {
+			impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
+			return 0, err
+		}
+		impl.logger.Debugw("argocd application created", "name", name)
+		// ENDS HERE
+	} else if pipeline.DeploymentAppType == "helm" {
+		// TODO - gitops optional
+		// TODO - make kubelink call for install helm chart, pass tar file and updated values to the api with namespace and release name.
 	}
-	impl.logger.Debugw("argocd application created", "name", name)
-
-	// ENDS HERE
-
 	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
 	if err != nil {
 		return 0, err

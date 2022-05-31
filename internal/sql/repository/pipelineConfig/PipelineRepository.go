@@ -59,6 +59,7 @@ type Pipeline struct {
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
 	DeploymentAppCreated          bool        `sql:"deployment_app_created,notnull"`
+	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
 	Environment                   repository.Environment
 	sql.AuditLog
 }
