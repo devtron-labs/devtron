@@ -108,7 +108,7 @@ func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error
 	var userModel []UserModel
 	err := impl.dbConnection.Model(&userModel).
 		Where("active = ?", true).
-		Where("user_type != ?", bean.USER_TYPE_API_TOKEN).
+		Where("user_type is NULL or user_type != ?", bean.USER_TYPE_API_TOKEN).
 		Order("updated_on desc").Select()
 	return userModel, err
 }
