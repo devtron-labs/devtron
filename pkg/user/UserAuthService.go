@@ -412,7 +412,7 @@ func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func
 
 func WhitelistChecker(url string) bool {
 	urls := []string{
-		"/health",
+		"/orchestrator/health",
 		"/metrics",
 		"/orchestrator/webhook/ci/gocd/artifact",
 		"/orchestrator/webhook/ext-ci/",
