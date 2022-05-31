@@ -10,7 +10,7 @@ keywords:
   - argocd
   - Hyperion
 engine: gotpl
-version: 0.22.11
+version: 0.22.12
 sources:
   - https://github.com/devtron-labs/charts
 maintainers:
