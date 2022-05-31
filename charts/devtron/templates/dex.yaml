@@ -89,9 +89,9 @@ spec:
         {{- end }}
         - /shared
         {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
-        image: {{ .cicdAuthenticator }}
+        image: {{ .initContainer.cicdAuthenticator }}
         {{- else }}
-        image: {{ .authenticator }}
+        image: {{ .initContainer.authenticator }}
         {{- end }}
         imagePullPolicy: IfNotPresent
         name: copyutil
