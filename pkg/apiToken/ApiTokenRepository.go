@@ -22,19 +22,16 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
-	"time"
 )
 
 type ApiToken struct {
-	tableName    struct{}  `sql:"api_token"`
-	Id           int       `sql:"id,pk"`
-	UserId       int32     `sql:"user_id, notnull"`
-	Name         string    `sql:"name, notnull"`
-	Description  string    `sql:"description, notnull"`
-	ExpireAtInMs int64     `sql:"expire_at_in_ms"`
-	Token        string    `sql:"token, notnull"`
-	LastUsedAt   time.Time `sql:"last_used_at"`
-	LastUsedByIp string    `sql:"last_used_by_ip"`
+	tableName    struct{} `sql:"api_token"`
+	Id           int      `sql:"id,pk"`
+	UserId       int32    `sql:"user_id, notnull"`
+	Name         string   `sql:"name, notnull"`
+	Description  string   `sql:"description, notnull"`
+	ExpireAtInMs int64    `sql:"expire_at_in_ms"`
+	Token        string   `sql:"token, notnull"`
 	User         *repository.UserModel
 	sql.AuditLog
 }
@@ -66,7 +63,7 @@ func (impl ApiTokenRepositoryImpl) Update(apiToken *ApiToken) error {
 func (impl ApiTokenRepositoryImpl) FindAllActive() ([]*ApiToken, error) {
 	var apiTokens []*ApiToken
 	err := impl.dbConnection.Model(&apiTokens).
-		Column("api_token.*").
+		Column("api_token.*", "User").
 		Relation("User", func(q *orm.Query) (query *orm.Query, err error) {
 			return q.Where("active IS TRUE"), nil
 		}).

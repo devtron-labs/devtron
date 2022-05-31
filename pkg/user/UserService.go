@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
@@ -46,7 +47,7 @@ type UserService interface {
 	DeleteUser(userInfo *bean.UserInfo) (bool, error)
 	CheckUserRoles(id int32) ([]string, error)
 	SyncOrchestratorToCasbin() (bool, error)
-	GetUserByToken(token string) (int32, error)
+	GetUserByToken(token string) (int32, string, error)
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 	UserExists(emailId string) bool
@@ -289,6 +290,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	model := &repository2.UserModel{
 		EmailId:     emailId,
 		AccessToken: userInfo.AccessToken,
+		UserType:    userInfo.UserType,
 	}
 	model.Active = true
 	model.CreatedBy = userInfo.UserId
@@ -815,8 +817,9 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	return response, nil
 }
 
+// GetAll excluding API token user
 func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
-	model, err := impl.userRepository.GetAll()
+	model, err := impl.userRepository.GetAllExcludingApiTokenUser()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
@@ -875,25 +878,32 @@ func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, erro
 	response := &bean.UserInfo{
 		Id:          model.Id,
 		EmailId:     model.EmailId,
+		UserType:    model.UserType,
 		AccessToken: model.AccessToken,
 		RoleFilters: roleFilters,
 	}
 
 	return response, nil
 }
+
 func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 	token := r.Header.Get("token")
-	return impl.GetUserByToken(token)
+	userId, userType, err := impl.GetUserByToken(token)
+	// if user is of api-token type, then update lastUsedBy and lastUsedAt
+	if err == nil && userType == bean.USER_TYPE_API_TOKEN {
+		go impl.updateLastUsedAtOfUser(r, userId)
+	}
+	return userId, err
 }
 
-func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
+func (impl UserServiceImpl) GetUserByToken(token string) (int32, string, error) {
 	if token == "" {
 		impl.logger.Infow("no token provided", "token", token)
 		err := &util.ApiError{
 			Code:            constants.UserNoTokenProvided,
 			InternalMessage: "no token provided",
 		}
-		return http.StatusUnauthorized, err
+		return http.StatusUnauthorized, "", err
 	}
 
 	//claims, err := impl.sessionManager.VerifyToken(token)
@@ -906,12 +916,12 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 			InternalMessage: "failed to verify token",
 			UserMessage:     fmt.Sprintf("token verification failed while getting logged in user: %s", token),
 		}
-		return http.StatusUnauthorized, err
+		return http.StatusUnauthorized, "", err
 	}
 	mapClaims, err := jwt.MapClaims(claims)
 	if err != nil {
 		impl.logger.Errorw("failed to MapClaims", "error", err)
-		return http.StatusUnauthorized, err
+		return http.StatusUnauthorized, "", err
 	}
 
 	email := jwt.GetField(mapClaims, "email")
@@ -929,9 +939,9 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 			InternalMessage: "user not found for token",
 			UserMessage:     fmt.Sprintf("no user found against provided token: %s", token),
 		}
-		return http.StatusUnauthorized, err
+		return http.StatusUnauthorized, "", err
 	}
-	return userInfo.Id, nil
+	return userInfo.Id, userInfo.UserType, nil
 }
 
 func (impl UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {
@@ -1082,4 +1092,31 @@ func (impl UserServiceImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
 		return err
 	}
 	return nil
+}
+
+func (impl UserServiceImpl) updateLastUsedAtOfUser(r *http.Request, userId int32){
+	clientIp := util2.GetClientIP(r)
+	user, err := impl.userRepository.GetById(userId)
+	if err != nil {
+		impl.logger.Errorw("error in updating user with last used at", "err", err)
+		return
+	}
+
+	tx, err := impl.userRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error in getting db connection", "err", err)
+		return
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	user.LastUsedAt = time.Now()
+	user.LastUsedByIp = clientIp
+
+	_, err = impl.userRepository.UpdateUser(user, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating user with last used at", "err", err)
+		return
+	}
+	tx.Commit()
 }

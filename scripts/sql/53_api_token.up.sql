@@ -10,8 +10,6 @@ CREATE TABLE "public"."api_token"
     "description"     text        NOT NULL,
     "expire_at_in_ms" bigint, -- null means never
     "token"           text        NOT NULL UNIQUE,
-    "last_used_at"    timestamptz,
-    "last_used_by_ip" varchar(50),
     "created_on"      timestamptz NOT NULL,
     "created_by"      int4,
     "updated_on"      timestamptz,
@@ -38,3 +36,12 @@ CREATE TABLE "public"."api_token_secret"
 ---- Insert master data into api_token_secret
 INSERT INTO api_token_secret (secret, created_on)
 VALUES (MD5(random()::text), NOW());
+
+-- add column user_type in user table
+ALTER TABLE users ADD COLUMN user_type varchar(250);
+
+-- add column last_used_at in user table
+ALTER TABLE users ADD COLUMN last_used_at timestamptz;
+
+-- add column last_used_by_ip in user table
+ALTER TABLE users ADD COLUMN last_used_by_ip varchar(256);

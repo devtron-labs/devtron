@@ -72,8 +72,9 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 
 	var apiTokens []*openapi.ApiToken
 	for _, apiTokenFromDb := range apiTokensFromDb {
+		apiTokenFromDbUser := apiTokenFromDb.User
 		apiTokenIdI32 := int32(apiTokenFromDb.Id)
-		lastUsedAtStr := apiTokenFromDb.LastUsedAt.String()
+		lastUsedAtStr := apiTokenFromDbUser.LastUsedAt.String()
 		updatedAtStr := apiTokenFromDb.UpdatedOn.String()
 		apiToken := &openapi.ApiToken{
 			Id:           &apiTokenIdI32,
@@ -83,7 +84,7 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 			ExpireAtInMs: &apiTokenFromDb.ExpireAtInMs,
 			Token:        &apiTokenFromDb.Token,
 			LastUsedAt:   &lastUsedAtStr,
-			LastUsedByIp: &apiTokenFromDb.LastUsedByIp,
+			LastUsedByIp: &apiTokenFromDbUser.LastUsedByIp,
 			UpdatedAt:    &updatedAtStr,
 		}
 		apiTokens = append(apiTokens, apiToken)
@@ -119,7 +120,8 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 
 	// step-4 - Create user using email
 	createUserRequest := bean.UserInfo{
-		EmailId: email,
+		EmailId:  email,
+		UserType: bean.USER_TYPE_API_TOKEN,
 	}
 	createUserResponse, err := impl.userService.CreateUser(&createUserRequest)
 	if err != nil {
@@ -226,7 +228,7 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 
 }
 
-func (impl ApiTokenServiceImpl) createApiJwtToken( email string, expireAtInMs int64) (string, error) {
+func (impl ApiTokenServiceImpl) createApiJwtToken(email string, expireAtInMs int64) (string, error) {
 	secretByteArr, err := impl.apiTokenSecretService.GetApiTokenSecretByteArr()
 	if err != nil {
 		impl.logger.Errorw("error while getting api token secret", "error", err)
