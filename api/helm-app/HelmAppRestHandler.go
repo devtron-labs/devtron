@@ -299,46 +299,12 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	}
 	//RBAC enforcer Ends
 
-	installedApp, err := handler.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	// update application externally
+	res, err := handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, request)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	updateReleaseRequest := &InstallReleaseRequest{
-		ValuesYaml: request.GetValuesYaml(),
-		ReleaseIdentifier: &ReleaseIdentifier{
-			ReleaseNamespace: appIdentifier.Namespace,
-			ReleaseName:      appIdentifier.ReleaseName,
-		},
-	}
-
-	var res *openapi.UpdateReleaseResponse
-
-	if installedApp != nil {
-		chartInfo := installedApp.InstallAppVersionChartDTO
-		chartRepoInfo := chartInfo.InstallAppVersionChartRepoDTO
-		updateReleaseRequest.ChartName = chartInfo.ChartName
-		updateReleaseRequest.ChartVersion = chartInfo.ChartVersion
-		updateReleaseRequest.ChartRepository = &ChartRepository{
-			Name:     chartRepoInfo.RepoName,
-			Url:      chartRepoInfo.RepoUrl,
-			Username: chartRepoInfo.UserName,
-			Password: chartRepoInfo.Password,
-		}
-		res, err = handler.helmAppService.UpdateApplicationWithChartInfo(context.Background(), appIdentifier.ClusterId, updateReleaseRequest)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-	} else {
-		res, err = handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, request)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-	}
-
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -382,15 +348,19 @@ func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) 
 		return nil
 	}
 
+	chartInfo := installedApp.InstallAppVersionChartDTO
+
 	return &InstalledAppInfo{
 		AppId:                 installedApp.AppId,
 		EnvironmentName:       installedApp.EnvironmentName,
 		AppOfferingMode:       installedApp.AppOfferingMode,
 		InstalledAppId:        installedApp.InstalledAppId,
 		InstalledAppVersionId: installedApp.InstalledAppVersionId,
-		AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+		AppStoreChartId:       chartInfo.AppStoreChartId,
 		ClusterId:             installedApp.ClusterId,
 		EnvironmentId:         installedApp.EnvironmentId,
+		AppStoreChartRepoName: chartInfo.InstallAppVersionChartRepoDTO.RepoName,
+		AppStoreChartName:     chartInfo.ChartName,
 	}
 }
 
@@ -418,4 +388,6 @@ type InstalledAppInfo struct {
 	AppOfferingMode       string `json:"appOfferingMode"`
 	ClusterId             int    `json:"clusterId"`
 	EnvironmentId         int    `json:"environmentId"`
+	AppStoreChartRepoName string `json:"appStoreChartRepoName"`
+	AppStoreChartName     string `json:"appStoreChartName"`
 }
