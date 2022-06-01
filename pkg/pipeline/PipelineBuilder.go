@@ -139,6 +139,7 @@ type PipelineBuilderImpl struct {
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 	pipelineStageService             PipelineStageService
 	chartTemplateService             util.ChartTemplateService
+	chartRefRepository               chartRepoRepository.ChartRefRepository
 	chartService                     ChartService
 }
 
@@ -172,7 +173,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	pipelineStageService PipelineStageService,
+	pipelineStageService PipelineStageService, chartRefRepository chartRepoRepository.ChartRefRepository,
 	chartTemplateService util.ChartTemplateService, chartService ChartService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
@@ -209,6 +210,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
 		pipelineStageService:             pipelineStageService,
 		chartTemplateService:             chartTemplateService,
+		chartRefRepository:               chartRefRepository,
 		chartService:                     chartService,
 	}
 }
@@ -1955,9 +1957,21 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		impl.logger.Errorf("invalid state", "err", err, "appId", appId)
 		return pipelineStrategiesResponse, err
 	}
+	chartInfo, err := impl.chartRefRepository.FindById(chart.ChartRefId)
+	if err != nil {
+		impl.logger.Errorf("invalid chart", "err", err, "appId", appId)
+		return pipelineStrategiesResponse, err
+	}
+
 	if chart.Id == 0 {
 		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
 	}
+
+	if chartInfo.UserUploaded {
+		impl.logger.Errorw("invalid for custom charts", "err", err)
+		return pipelineStrategiesResponse, err
+	}
+
 	pipelineOverride := chart.PipelineOverride
 	rollingConfig, err := impl.filterDeploymentTemplate("ROLLING", pipelineOverride)
 	if err != nil {
@@ -1968,6 +1982,7 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		Config:             []byte(rollingConfig),
 		Default:            true,
 	})
+
 	bgConfig, err := impl.filterDeploymentTemplate("BLUE-GREEN", pipelineOverride)
 	if err != nil {
 		return pipelineStrategiesResponse, err

@@ -146,12 +146,16 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		return
 	}
 	handler.Logger.Infow("request payload, CreateCdPipeline", "payload", cdPipeline)
-	err = handler.validator.Struct(cdPipeline)
-	if err != nil {
-		handler.Logger.Errorw("validation err, CreateCdPipeline", "err", err, "payload", cdPipeline)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	userUploaded, err := handler.chartService.CheckCustomChartByAppId(cdPipeline.AppId)
+	if !userUploaded {
+		err = handler.validator.Struct(cdPipeline)
+		if err != nil {
+			handler.Logger.Errorw("validation err, CreateCdPipeline", "err", err, "payload", cdPipeline)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
+
 	handler.Logger.Debugw("pipeline create request ", "req", cdPipeline)
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(cdPipeline.AppId)
