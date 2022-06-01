@@ -101,7 +101,7 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 	chartInfo, err := handler.chartService.ExtractChartIfMissing(fileBytes, string(handler.refChartDir), "")
 
 	if err != nil {
-		if chartInfo.TemporaryFolder != "" {
+		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
 			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
 			if err1 != nil {
 				handler.Logger.Errorw("error in deleting temp dir ", "err", err1)
