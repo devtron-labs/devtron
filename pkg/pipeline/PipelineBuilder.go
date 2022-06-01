@@ -1952,20 +1952,25 @@ func (impl PipelineBuilderImpl) GetAppList() ([]AppBean, error) {
 
 func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error) {
 	pipelineStrategiesResponse := PipelineStrategiesResponse{}
-	pipelineStrategiesResponse.UserUploaded = false
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorf("invalid state", "err", err, "appId", appId)
 		return pipelineStrategiesResponse, err
 	}
+
+	if chart.Id == 0 {
+		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
+	}
+
 	chartInfo, err := impl.chartRefRepository.FindById(chart.ChartRefId)
 	if err != nil {
 		impl.logger.Errorf("invalid chart", "err", err, "appId", appId)
 		return pipelineStrategiesResponse, err
 	}
 
-	if chart.Id == 0 {
-		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
+	if chartInfo.UserUploaded {
+		impl.logger.Errorw("invalid for custom charts", "err", err)
+		return pipelineStrategiesResponse, err
 	}
 
 	pipelineOverride := chart.PipelineOverride
@@ -1978,12 +1983,6 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		Config:             []byte(rollingConfig),
 		Default:            true,
 	})
-
-	if chartInfo.UserUploaded {
-		impl.logger.Errorw("invalid for custom charts", "err", err)
-		pipelineStrategiesResponse.UserUploaded = chartInfo.UserUploaded
-		return pipelineStrategiesResponse, err
-	}
 
 	bgConfig, err := impl.filterDeploymentTemplate("BLUE-GREEN", pipelineOverride)
 	if err != nil {
@@ -2030,7 +2029,6 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 
 type PipelineStrategiesResponse struct {
 	PipelineStrategy []PipelineStrategy `json:"pipelineStrategy"`
-	UserUploaded     bool               `json:"userUploaded"`
 }
 type PipelineStrategy struct {
 	DeploymentTemplate pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING"` //
