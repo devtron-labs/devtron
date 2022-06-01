@@ -17,6 +17,23 @@ func NewK8sCapacityRouterImpl(k8sCapacityRestHandler K8sCapacityRestHandler) *K8
 	}
 }
 
-func (impl *K8sCapacityRouterImpl) InitK8sCapacityRouter(k8sAppRouter *mux.Router) {
+func (impl *K8sCapacityRouterImpl) InitK8sCapacityRouter(k8sCapacityRouter *mux.Router) {
 
+	k8sCapacityRouter.Path("/cluster/list").
+		HandlerFunc(impl.k8sCapacityRestHandler.GetClusterList).Methods("GET")
+
+	k8sCapacityRouter.Path("/cluster/{clusterId}").
+		HandlerFunc(impl.k8sCapacityRestHandler.GetClusterDetail).Methods("GET")
+
+	k8sCapacityRouter.Path("/node/list").
+		HandlerFunc(impl.k8sCapacityRestHandler.GetNodeList).Methods("GET")
+
+	k8sCapacityRouter.Path("/node").
+		HandlerFunc(impl.k8sCapacityRestHandler.GetNodeDetail).Methods("GET")
+
+	k8sCapacityRouter.Path("/node/manifest").
+		HandlerFunc(impl.k8sCapacityRestHandler.GetNodeManifest).Methods("GET")
+
+	k8sCapacityRouter.Path("/node/manifest").
+		HandlerFunc(impl.k8sCapacityRestHandler.UpdateNodeManifest).Methods("PUT")
 }
