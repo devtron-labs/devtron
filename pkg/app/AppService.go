@@ -21,8 +21,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -101,6 +103,8 @@ type AppServiceImpl struct {
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService
 	chartTemplateService             ChartTemplateService
 	refChartDir                      chartRepoRepository.RefChartDir
+	chartRefRepository               chartRepoRepository.ChartRefRepository
+	chartService                     pipeline.ChartService
 }
 
 type AppService interface {
@@ -141,7 +145,8 @@ func NewAppService(
 	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
-	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir) *AppServiceImpl {
+	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir,
+	chartService pipeline.ChartService, chartRefRepository chartRepoRepository.ChartRefRepository) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -179,6 +184,8 @@ func NewAppService(
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		chartTemplateService:             chartTemplateService,
 		refChartDir:                      refChartDir,
+		chartRefRepository:               chartRefRepository,
+		chartService:                     chartService,
 	}
 	return appServiceImpl
 }
@@ -571,8 +578,28 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
+	userUploaded := false
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
+	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
+		chartData, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+		userUploaded = chartData.UserUploaded
+		if err != nil {
+			impl.logger.Errorw("err in getting chart info", "err", err)
+			return 0, err
+		}
+		chartInfo, err := impl.chartService.ExtractChartIfMissing(chartData.ChartData, string(impl.refChartDir), chartData.Location)
+		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
+			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+			if err1 != nil {
+				impl.logger.Errorw("error in deleting temp dir ", "err", err)
+			}
+		}
+		if err != nil {
+			impl.logger.Errorw("Error regarding uploaded chart", "err", err)
+			return 0, err
+		}
+	}
 	_, err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, 1)
 	if err != nil {
 		impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
@@ -636,10 +663,12 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		return 0, err
 	}
 
-	valid, err := impl.validateVersionForStrategy(envOverride, strategy)
-	if err != nil || !valid {
-		impl.logger.Errorw("error in validating pipeline strategy ", "strategy", strategy.Strategy, "err", err)
-		return 0, err
+	if !userUploaded {
+		valid, err := impl.validateVersionForStrategy(envOverride, strategy)
+		if err != nil || !valid {
+			impl.logger.Errorw("error in validating pipeline strategy ", "strategy", strategy.Strategy, "err", err)
+			return 0, err
+		}
 	}
 
 	chartVersion := envOverride.Chart.ChartVersion
