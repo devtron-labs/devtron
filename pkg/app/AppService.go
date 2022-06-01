@@ -1098,12 +1098,16 @@ func (impl AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfig
 		appMetrics = envLevelMetrics.AppMetrics
 	}
 
+	deploymentStrategy := ""
+	if strategy != nil {
+		deploymentStrategy = string(strategy.Strategy)
+	}
 	releaseAttribute := ReleaseAttributes{
 		Name:           imageTag[0],
 		Tag:            imageTag[1],
 		PipelineName:   pipeline.Name,
 		ReleaseVersion: strconv.Itoa(pipelineOverride.PipelineReleaseCounter),
-		DeploymentType: string(strategy.Strategy),
+		DeploymentType: deploymentStrategy,
 		App:            appId,
 		Env:            envId,
 		AppMetrics:     appMetrics,
