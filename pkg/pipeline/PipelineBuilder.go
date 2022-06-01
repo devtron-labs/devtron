@@ -1952,6 +1952,7 @@ func (impl PipelineBuilderImpl) GetAppList() ([]AppBean, error) {
 
 func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStrategiesResponse, error) {
 	pipelineStrategiesResponse := PipelineStrategiesResponse{}
+	pipelineStrategiesResponse.UserUploaded = false
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorf("invalid state", "err", err, "appId", appId)
@@ -1980,6 +1981,7 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 
 	if chartInfo.UserUploaded {
 		impl.logger.Errorw("invalid for custom charts", "err", err)
+		pipelineStrategiesResponse.UserUploaded = chartInfo.UserUploaded
 		return pipelineStrategiesResponse, err
 	}
 
@@ -2028,6 +2030,7 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 
 type PipelineStrategiesResponse struct {
 	PipelineStrategy []PipelineStrategy `json:"pipelineStrategy"`
+	UserUploaded     bool               `json:"userUploaded"`
 }
 type PipelineStrategy struct {
 	DeploymentTemplate pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING"` //
