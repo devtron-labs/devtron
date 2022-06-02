@@ -1452,10 +1452,13 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
 		return err
 	}
-	err = impl.pipelineStrategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy, pipeline.TriggerType)
-	if err != nil {
-		impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)
-		return err
+	if strategy != nil && strategy.Strategy != "" {
+		err = impl.pipelineStrategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy, pipeline.TriggerType)
+		if err != nil {
+			impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)
+			return err
+		}
 	}
+
 	return nil
 }
