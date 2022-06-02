@@ -67,9 +67,14 @@ func (impl PipelineStrategyHistoryServiceImpl) CreatePipelineStrategyHistory(pip
 
 func (impl PipelineStrategyHistoryServiceImpl) CreateStrategyHistoryForDeploymentTrigger(pipelineStrategy *chartConfig.PipelineStrategy, deployedOn time.Time, deployedBy int32, pipelineTriggerType pipelineConfig.TriggerType) error {
 	//creating new entry
+	var strategy pipelineConfig.DeploymentTemplate
+	impl.logger.Infow("CreateStrategyHistoryForDeploymentTrigger test", "pipelineStrategy: ", pipelineStrategy)
+	if pipelineStrategy != nil && pipelineStrategy.Strategy != "" {
+		strategy = pipelineStrategy.Strategy
+	}
 	historyModel := &repository.PipelineStrategyHistory{
 		PipelineId:          pipelineStrategy.PipelineId,
-		Strategy:            pipelineStrategy.Strategy,
+		Strategy:            strategy,
 		Config:              pipelineStrategy.Config,
 		Default:             pipelineStrategy.Default,
 		Deployed:            true,
