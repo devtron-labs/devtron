@@ -335,13 +335,21 @@ components:
       properties:
         name:
           type: string
-        usage:
-          type: string
         capacity:
+          type: string
+        allocatable:
+          type: string
+        usage:
           type: string
         request:
           type: string
-        limits:
+        limit:
+          type: string
+        usagePercentage:
+          type: string
+        requestPercentage:
+          type: string
+        limitPercentage:
           type: string
     LabelTaintObject:
       type: object
