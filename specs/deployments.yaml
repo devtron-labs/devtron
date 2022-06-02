@@ -3,9 +3,9 @@ info:
   version: 1.0.0
   title: Devtron Labs
 paths:
-  /orchestrator/deployment/template/upload:
+  /orchestrator/deployment/template/validate:
     post:
-      description: upload template file from this api.
+      description: upload template file from this api to validate.
       requestBody:
         description: form-data as request body
         required: true
@@ -16,6 +16,36 @@ paths:
                 binaryFile:
                   type: object
                   description: zipped chart template file
+      responses:
+        '200':
+          description: template file upload response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  schema:
+                    $ref: '#/components/schemas/UploadTemplateResponse'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /orchestrator/deployment/template/upload:
+    put:
+      description: upload template file from this api.
+      requestBody:
+        description: form-data as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadTemplateRequest'
+
       responses:
         '200':
           description: template file upload response
@@ -39,8 +69,55 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /orchestrator/deployment/template/fetch:
+    get:
+      summary: Returns all charts
+      description: all the chart template uploaded by user
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Chart'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
 components:
   schemas:
+    UploadTemplateRequest:
+      type: object
+      properties:
+        fileId:
+          type: string
+        action:
+          type: string
+    UploadTemplateResponse:
+      type: object
+      properties:
+        chartName:
+          type: string
+        description:
+          type: string
+        fileId:
+          type: string
+        action:
+          type: string
+        message:
+          type: string
+    Chart:
+      type: object
+      properties:
+        name:
+          type: string
+        description:
+          type: string
+        count:
+          type: integer
     ErrorResponse:
       required:
         - code

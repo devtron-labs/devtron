@@ -23,6 +23,7 @@ import (
 type DeploymentConfigRestHandler interface {
 	CreateChartFromFile(w http.ResponseWriter, r *http.Request)
 	SaveChart(w http.ResponseWriter, r *http.Request)
+	GetUploadedCharts(w http.ResponseWriter, r *http.Request)
 }
 
 type DeploymentConfigRestHandlerImpl struct {
@@ -36,10 +37,12 @@ type DeploymentConfigRestHandlerImpl struct {
 }
 
 type DeploymentChartInfo struct {
-	ChartName   string `json:"chartName"`
-	Description string `json:"description"`
-	FileId      string `json:"fileId"`
-	Action      string `json:"action"`
+	ChartName    string `json:"chartName"`
+	ChartVersion string `json:"chartVersion"`
+	Description  string `json:"description"`
+	FileId       string `json:"fileId"`
+	Action       string `json:"action"`
+	Message      string `json:"message"`
 }
 
 func NewDeploymentConfigRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, enforcer casbin.Enforcer, validator *validator.Validate,
@@ -84,7 +87,7 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 	err = handler.chartService.ValidateUploadedFileFormat(fileHeader.Filename)
 	if err != nil {
 		handler.Logger.Errorw("request err, Unsupported format", "err", err, "payload", file)
-		common.WriteJsonResp(w, errors.New("Unsupported format file is uploaded, please upload file with .tar.gz extension"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, errors.New("Unsupported format file is uploaded, please upload file with .tgz extension"), nil, http.StatusBadRequest)
 		return
 	}
 
@@ -98,23 +101,29 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 	chartInfo, err := handler.chartService.ExtractChartIfMissing(fileBytes, string(handler.refChartDir), "")
 
 	if err != nil {
-		if chartInfo.TemporaryFolder != "" {
+		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
 			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
 			if err1 != nil {
 				handler.Logger.Errorw("error in deleting temp dir ", "err", err1)
 			}
+		}
+		if err.Error() == "Chart exists already, try uploading another chart" {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
 		}
 		common.WriteJsonResp(w, fmt.Errorf(err.Error()), nil, http.StatusBadRequest)
 		return
 	}
 
 	chartRefs := &chartRepoRepository.ChartRef{
-		Name:      chartInfo.ChartName,
-		Version:   chartInfo.ChartVersion,
-		Location:  chartInfo.ChartLocation,
-		Active:    true,
-		Default:   false,
-		ChartData: fileBytes,
+		Name:             chartInfo.ChartName,
+		Version:          chartInfo.ChartVersion,
+		Location:         chartInfo.ChartLocation,
+		Active:           true,
+		Default:          false,
+		ChartData:        fileBytes,
+		ChartDescription: chartInfo.Description,
+		UserUploaded:     true,
 		AuditLog: sql.AuditLog{
 			CreatedBy: userId,
 			CreatedOn: time.Now(),
@@ -132,9 +141,11 @@ func (handler *DeploymentConfigRestHandlerImpl) CreateChartFromFile(w http.Respo
 
 	pathList := strings.Split(chartInfo.TemporaryFolder, "/")
 	chartData := &DeploymentChartInfo{
-		ChartName:   chartInfo.ChartName,
-		Description: chartInfo.Description,
-		FileId:      pathList[len(pathList)-1],
+		ChartName:    chartInfo.ChartName,
+		ChartVersion: chartInfo.ChartVersion,
+		Description:  chartInfo.Description,
+		FileId:       pathList[len(pathList)-1],
+		Message:      chartInfo.Message,
 	}
 
 	common.WriteJsonResp(w, err, chartData, http.StatusOK)
@@ -178,7 +189,7 @@ func (handler *DeploymentConfigRestHandlerImpl) SaveChart(w http.ResponseWriter,
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
-
+		chartRefs.ChartDescription = request.Description
 		err = handler.chartRefRepository.Save(chartRefs)
 		if err != nil {
 			handler.Logger.Errorw("error in saving Chart", "err", err)
@@ -197,4 +208,28 @@ func (handler *DeploymentConfigRestHandlerImpl) SaveChart(w http.ResponseWriter,
 	common.WriteJsonResp(w, err, "Processed successfully", http.StatusOK)
 	return
 
+}
+
+func (handler *DeploymentConfigRestHandlerImpl) GetUploadedCharts(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	charts, err := handler.chartService.FetchChartInfoByFlag(true)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, nil, charts, http.StatusOK)
+	return
 }

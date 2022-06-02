@@ -45,6 +45,7 @@ type EnforcerUtil interface {
 	GetHelmObject(appId int, envId int) string
 	GetHelmObjectByAppNameAndEnvId(appName string, envId int) string
 	GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) string
+	GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int, envId int) string
 }
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
@@ -195,6 +196,24 @@ func (impl EnforcerUtilImpl) GetEnvRBACNameByCiPipelineIdAndEnvId(ciPipelineId i
 		return fmt.Sprintf("%s/%s", "", "")
 	}
 	application, err := impl.appRepo.FindById(ciPipeline.AppId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", "")
+	}
+	appName := application.AppName
+	env, err := impl.environmentRepository.FindById(envId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", strings.ToLower(appName))
+	}
+	return fmt.Sprintf("%s/%s", strings.ToLower(env.EnvironmentIdentifier), strings.ToLower(appName))
+}
+
+func (impl EnforcerUtilImpl) GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int, envId int) string {
+	pipeline, err := impl.pipelineRepository.FindById(cdPipelineId)
+	if err != nil {
+		impl.logger.Error(err)
+		return fmt.Sprintf("%s/%s", "", "")
+	}
+	application, err := impl.appRepo.FindById(pipeline.AppId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s", "", "")
 	}

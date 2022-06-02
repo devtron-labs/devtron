@@ -146,12 +146,16 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		return
 	}
 	handler.Logger.Infow("request payload, CreateCdPipeline", "payload", cdPipeline)
-	err = handler.validator.Struct(cdPipeline)
-	if err != nil {
-		handler.Logger.Errorw("validation err, CreateCdPipeline", "err", err, "payload", cdPipeline)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	userUploaded, err := handler.chartService.CheckCustomChartByAppId(cdPipeline.AppId)
+	if !userUploaded {
+		err = handler.validator.Struct(cdPipeline)
+		if err != nil {
+			handler.Logger.Errorw("validation err, CreateCdPipeline", "err", err, "payload", cdPipeline)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
+
 	handler.Logger.Debugw("pipeline create request ", "req", cdPipeline)
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(cdPipeline.AppId)
@@ -1472,6 +1476,19 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseWr
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+
+	envId, err := handler.pipelineBuilder.GetEnvironmentByCdPipelineId(pipelineId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	envObject := handler.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipelineId, envId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
 	ciConf, err := handler.pipelineBuilder.GetCdPipelineById(pipelineId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
