@@ -209,27 +209,27 @@ components:
           type: integer
         name:
           type: string
-        noOfNodes:
+        nodeCount:
           type: integer
-        status:
-          type: string
         nodeErrors:
-          type: integer
+          type: array
+          items:
+            type: string
         nodeK8sVersions:
           type: array
           items:
             type: string
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ResourceDetailObject'
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
     ClusterCapacityDetailDto:
       type: object
       properties:
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ResourceDetailObject'
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
     NodeCapacityDto:
       type: object
       properties:
@@ -251,10 +251,10 @@ components:
           type: integer
         taints:
           type: integer
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ResourceDetailObject'
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
         age:
           type: string
     NodeCapacityDetailObject:
@@ -276,7 +276,11 @@ components:
           type: string
         externalIp:
           type: string
-        resources:
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        additionalResources:
           type: array
           items:
             $ref: '#/components/schemas/ResourceDetailObject'
@@ -311,10 +315,10 @@ components:
           type: string
         namespace:
           type: string
-        resources:
-          type: array
-          items:
-            $ref: '#/components/schemas/ResourceDetailObject'
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
         age:
           type: string
     NodeManifestUpdateDto:
