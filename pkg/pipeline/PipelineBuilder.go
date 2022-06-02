@@ -1130,38 +1130,39 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 			return err
 		}
 	}
-	//delete app from argo cd
-	envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-	if err != nil {
-		return err
-	}
-	argoAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envModel.Name)
-	req := &application2.ApplicationDeleteRequest{
-		Name: &argoAppName,
-	}
-	if _, err := impl.application.Delete(ctx, req); err != nil {
-		impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
-
-		if forceDelete {
-			impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
-		} else {
-			//statusError, _ := err.(*errors2.StatusError)
-			if strings.Contains(err.Error(), "code = NotFound") {
-				err = &util.ApiError{
-					UserMessage:     "Could not delete as application not found in argocd",
-					InternalMessage: err.Error(),
-				}
-			} else {
-				err = &util.ApiError{
-					UserMessage:     "Could not delete application",
-					InternalMessage: err.Error(),
-				}
-			}
+	//delete app from argo cd, if created
+	if pipeline.DeploymentAppCreated == true {
+		envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+		if err != nil {
 			return err
 		}
-	}
-	impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", argoAppName)
+		argoAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envModel.Name)
+		req := &application2.ApplicationDeleteRequest{
+			Name: &argoAppName,
+		}
+		if _, err := impl.application.Delete(ctx, req); err != nil {
+			impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
+			if forceDelete {
+				impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
+			} else {
+				//statusError, _ := err.(*errors2.StatusError)
+				if strings.Contains(err.Error(), "code = NotFound") {
+					err = &util.ApiError{
+						UserMessage:     "Could not delete as application not found in argocd",
+						InternalMessage: err.Error(),
+					}
+				} else {
+					err = &util.ApiError{
+						UserMessage:     "Could not delete application",
+						InternalMessage: err.Error(),
+					}
+				}
+				return err
+			}
+		}
+		impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", argoAppName)
+	}
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in committing db transaction", "err", err)
