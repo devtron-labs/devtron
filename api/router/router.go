@@ -106,6 +106,7 @@ type MuxRouter struct {
 	selfRegistrationRolesRouter      user.SelfRegistrationRolesRouter
 	moduleRouter                     module.ModuleRouter
 	serverRouter                     server.ServerRouter
+	k8sCapacityRouter                k8s.K8sCapacityRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -129,8 +130,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
-	globalPluginRouter GlobalPluginRouter, selfRegistrationRolesRouter user.SelfRegistrationRolesRouter,moduleRouter module.ModuleRouter,
-	serverRouter server.ServerRouter) *MuxRouter {
+	globalPluginRouter GlobalPluginRouter, selfRegistrationRolesRouter user.SelfRegistrationRolesRouter, moduleRouter module.ModuleRouter,
+	serverRouter server.ServerRouter, k8sCapacityRouter k8s.K8sCapacityRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -191,6 +192,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		selfRegistrationRolesRouter:      selfRegistrationRolesRouter,
 		moduleRouter:                     moduleRouter,
 		serverRouter:                     serverRouter,
+		k8sCapacityRouter:                k8sCapacityRouter,
 	}
 	return r
 }
@@ -377,4 +379,7 @@ func (r MuxRouter) Init() {
 	// server router
 	serverRouter := r.Router.PathPrefix("/orchestrator/server").Subrouter()
 	r.serverRouter.Init(serverRouter)
+
+	k8sCapacityApp := r.Router.PathPrefix("/orchestrator/k8s/capacity").Subrouter()
+	r.k8sCapacityRouter.InitK8sCapacityRouter(k8sCapacityApp)
 }

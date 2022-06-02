@@ -247,9 +247,9 @@ components:
             type: string
         k8sVersion:
           type: string
-        pods:
+        podCount:
           type: integer
-        taints:
+        taintCount:
           type: integer
         cpu:
           $ref: '#/components/schemas/ResourceDetailObject'

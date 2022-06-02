@@ -152,6 +152,7 @@ func (r *MuxRouter) Init() {
 
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
+
 	k8sCapacityApp := r.Router.PathPrefix("/orchestrator/k8s/capacity").Subrouter()
 	r.k8sCapacityRouter.InitK8sCapacityRouter(k8sCapacityApp)
 

@@ -178,8 +178,10 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(clusterId int) (
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
 		return nil, err
 	}
-	configMap := cluster.Config
-	bearerToken := configMap["bearer_token"]
+	//configMap := cluster.Config
+	//bearerToken := configMap["bearer_token"]
+	cluster.ServerUrl = "https://api.demo.devtron.info"
+	bearerToken := "eyJhbGciOiJSUzI1NiIsImtpZCI6Inp4OVhUNU9IdWZXelY3WWhRc0Z3Q21zeDk5eTdSMFpkYXN1bzFLZk1ZNEkifQ.eyJpc3MiOiJrdWJlcm5ldGVzL3NlcnZpY2VhY2NvdW50Iiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9uYW1lc3BhY2UiOiJkZXZ0cm9uY2QiLCJrdWJlcm5ldGVzLmlvL3NlcnZpY2VhY2NvdW50L3NlY3JldC5uYW1lIjoiY2QtdXNlci10b2tlbi13NG5xNCIsImt1YmVybmV0ZXMuaW8vc2VydmljZWFjY291bnQvc2VydmljZS1hY2NvdW50Lm5hbWUiOiJjZC11c2VyIiwia3ViZXJuZXRlcy5pby9zZXJ2aWNlYWNjb3VudC9zZXJ2aWNlLWFjY291bnQudWlkIjoiMWFmMTRjNGMtOGYzOC00ZmYxLTgyOTEtMDRlYWI0OTNjZWM3Iiwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50OmRldnRyb25jZDpjZC11c2VyIn0.iHXJOGv4Lw-4GzHTsvqrrCvYBTNCqm9ssYo0kWFMgf5WAWDLVbj0__9vvrhcfLbAmvCE1HahCt1-FQJMZA8NqHv1gJi95j5QgLCRFyvTARgmQRfLELHYIOdaEPN2IRM4G6J1ApTWINoDK26vJbi8Tuisg5aVKwVw4kCPLPc1IMVsnwRE719hlmLqZ5P4pIFjZivrN-jqkE9GqsmZ9ssDJrWPrsYp688zmhoib9jC07XqrT2qqa1CJAgoZ8fP94Dg5deifO-o32wLHkubgboiScONeIcFEubnUwwT5RwduOiEu4OiREYSpW7NMCA3zG-pRugwhqS-38DafU1QsqYkLBQrB8EQbPn3hoYx6n7iCWGYAY7SX_DZNOBd1sVy0f3PXR4yMwo1NOalMO_S3HWqv5TNG-adWKJyVcIq6dABmbrnYGw8z2ctu11HFbUxYUNmHB1aR1T5FdNZIjD0cvu49Xi5pyGYXHMO6TjJIjvhd8K6gJFbjoa6RjET3fN8CiZDG7sizOQZbr2tlVHQP55VTOu4YEfmSjsV8q5ueJYDA7UkNN3jyxP-8a_n-qtXIx4-AeE2VLhJEU8iwbS6288248uRYAUs1KvvNYq5d2C1u0H7ApjjaMN-rRGRxfAa_akex8i6_H-9F3CgtNNhvsBE9QQeNbGNm1qGpRQUKYjt3S4"
 	var restConfig *rest.Config
 	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
 		restConfig, err = rest.InClusterConfig()
@@ -239,4 +241,3 @@ func (impl *K8sApplicationServiceImpl) GetResourceInfo() (*ResourceInfo, error) 
 	response := &ResourceInfo{PodName: pod.Name}
 	return response, nil
 }
-
