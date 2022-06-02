@@ -1957,15 +1957,14 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		impl.logger.Errorf("invalid state", "err", err, "appId", appId)
 		return pipelineStrategiesResponse, err
 	}
-
-	if chart.Id == 0 {
-		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
-	}
-
 	chartInfo, err := impl.chartRefRepository.FindById(chart.ChartRefId)
 	if err != nil {
 		impl.logger.Errorf("invalid chart", "err", err, "appId", appId)
 		return pipelineStrategiesResponse, err
+	}
+
+	if chart.Id == 0 {
+		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
 	}
 
 	if chartInfo.UserUploaded {

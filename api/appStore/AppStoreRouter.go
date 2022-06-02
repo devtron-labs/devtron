@@ -62,8 +62,6 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	router.appStoreDiscoverRouter.Init(appStoreDiscoverSubRouter)
 	// discover router ends
 
-	configRouter.Path("/application/update").
-		HandlerFunc(router.deployRestHandler.UpdateInstalledApp).Methods("PUT")
 	configRouter.Path("/application/exists").
 		HandlerFunc(router.deployRestHandler.CheckAppExists).Methods("POST")
 	configRouter.Path("/group/install").
@@ -73,8 +71,6 @@ func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
 		Methods("GET")
 	configRouter.Path("/installed-app").
 		HandlerFunc(router.deployRestHandler.GetAllInstalledApp).Methods("GET")
-	configRouter.Path("/application/version/{installedAppVersionId}").
-		HandlerFunc(router.deployRestHandler.GetInstalledAppVersion).Methods("GET")
 	configRouter.Path("/cluster-component/install/{clusterId}").
 		HandlerFunc(router.deployRestHandler.DefaultComponentInstallation).Methods("POST")
 }
