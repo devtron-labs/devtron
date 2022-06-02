@@ -18,11 +18,14 @@
 package app
 
 import (
+	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
+	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -590,6 +593,17 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		impl.logger.Debugw("argocd application created", "name", name)
 		// ENDS HERE
 	} else if pipeline.DeploymentAppType == "helm" {
+
+		file, err := os.Open("archivePath")
+		reader, err := gzip.NewReader(file)
+		if err != nil {
+			fmt.Println("There is a problem with os.Open")
+		}
+		//tr := tar.NewReader(reader)
+		// read the complete content of the file h.Name into the bs []byte
+		bs, err := ioutil.ReadAll(reader)
+		// convert the []byte to a string
+		fmt.Println(bs)
 		// TODO - gitops optional
 		// TODO - make kubelink call for install helm chart, pass tar file and updated values to the api with namespace and release name.
 	}
