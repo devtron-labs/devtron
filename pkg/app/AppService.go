@@ -576,10 +576,11 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		Version: envOverride.Chart.ChartVersion,
 	}
 	userUploaded := false
+	var chartData *chartRepoRepository.ChartRef
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
 	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
-		chartData, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+		chartData, err = impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
 		userUploaded = chartData.UserUploaded
 		if err != nil {
 			impl.logger.Errorw("err in getting chart info", "err", err)
