@@ -28,6 +28,7 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
+	"strconv"
 	"strings"
 	"time"
 )
@@ -96,16 +97,22 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32) (*openapi.ActionResponse, error) {
 	impl.logger.Infow("Creating API token", "request", request, "createdBy", createdBy)
 
-	// step-1 - check if the name exists, if exists - throw error
+	// step-1 - check if the name exists, if exists with active user - throw error
 	name := request.GetName()
 	apiToken, err := impl.apiTokenRepository.FindByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while getting api token by name", "name", name, "error", err)
 		return nil, err
 	}
+	var apiTokenExists bool
 	if apiToken != nil && apiToken.Id > 0 {
-		return nil, errors.New(fmt.Sprintf("name '%s' is already used. please use another name", name))
+		apiTokenExists = true
+		if apiToken.User.Active {
+			return nil, errors.New(fmt.Sprintf("name '%s' is already used. please use another name", name))
+		}
 	}
+
+	impl.logger.Info(fmt.Sprintf("apiTokenExists : %s", strconv.FormatBool(apiTokenExists)))
 
 	// step-2 - Build email
 	// removing comma from email as user-service expects multiple emailIds separated from comma. since this is single email Id, hence removing comma
@@ -120,6 +127,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 
 	// step-4 - Create user using email
 	createUserRequest := bean.UserInfo{
+		UserId: createdBy,
 		EmailId:  email,
 		UserType: bean.USER_TYPE_API_TOKEN,
 	}
@@ -134,16 +142,26 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	}
 	userId := createUserResponse[0].Id
 
-	// step-5 - Save API token
+	// step-5 - Save API token (update or save)
 	apiTokenSaveRequest := &ApiToken{
 		UserId:       userId,
 		Name:         name,
 		Description:  *request.Description,
 		ExpireAtInMs: *request.ExpireAtInMs,
 		Token:        token,
-		AuditLog:     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: createdBy, UpdatedOn: time.Now()},
+		AuditLog:     sql.AuditLog{UpdatedOn: time.Now()},
 	}
-	err = impl.apiTokenRepository.Save(apiTokenSaveRequest)
+	if apiTokenExists {
+		apiTokenSaveRequest.Id = apiToken.Id
+		apiTokenSaveRequest.CreatedBy = apiToken.CreatedBy
+		apiTokenSaveRequest.CreatedOn = apiToken.CreatedOn
+		apiTokenSaveRequest.UpdatedBy = createdBy
+		err = impl.apiTokenRepository.Update(apiTokenSaveRequest)
+	}else{
+		apiTokenSaveRequest.CreatedBy = createdBy
+		apiTokenSaveRequest.CreatedOn = time.Now()
+		err = impl.apiTokenRepository.Save(apiTokenSaveRequest)
+	}
 	if err != nil {
 		impl.logger.Errorw("error while saving api-token into DB", "error", err)
 		return nil, err

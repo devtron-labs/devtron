@@ -258,6 +258,7 @@ func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *
 	}
 	if dbUser.Active == false {
 		updateUserInfo = &bean.UserInfo{Id: dbUser.Id}
+		userInfo.Id = dbUser.Id
 	}
 	updateUserInfo.RoleFilters = impl.mergeRoleFilter(updateUserInfo.RoleFilters, userInfo.RoleFilters)
 	updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)

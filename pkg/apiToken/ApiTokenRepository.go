@@ -86,7 +86,7 @@ func (impl ApiTokenRepositoryImpl) FindActiveById(id int) (*ApiToken, error) {
 func (impl ApiTokenRepositoryImpl) FindByName(name string) (*ApiToken, error) {
 	apiToken := &ApiToken{}
 	err := impl.dbConnection.Model(apiToken).
-		Column("api_token.*").
+		Column("api_token.*", "User").
 		Where("api_token.name = ?", name).
 		Select()
 	return apiToken, err
