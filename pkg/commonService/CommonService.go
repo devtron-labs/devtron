@@ -79,7 +79,7 @@ type GlobalChecklist struct {
 }
 
 type ChartChecklist struct {
-	GitOps      int `json:"gitOps,omitempty"`
+	GitOps      int `json:"gitOps"`
 	Project     int `json:"project"`
 	Environment int `json:"environment"`
 }
