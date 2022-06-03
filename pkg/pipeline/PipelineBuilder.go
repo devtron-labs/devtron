@@ -1233,6 +1233,14 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	if err != nil {
 		return 0, err
 	}
+	chartData, err := impl.chartRefRepository.FindById(chart.ChartRefId)
+	if err != nil {
+		return 0, err
+	}
+	if chartData.UserUploaded {
+		values := chart.Values
+		impl.logger.Infow("Test values ", "values", values)
+	}
 	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, pipeline.Namespace, tx)
 	if err != nil {
 		return 0, err
