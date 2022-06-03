@@ -18,14 +18,12 @@
 package app
 
 import (
-	"compress/gzip"
 	"context"
 	"encoding/json"
 	"fmt"
-	"io/ioutil"
+	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
-	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -104,6 +102,7 @@ type AppServiceImpl struct {
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService
 	chartTemplateService             ChartTemplateService
 	refChartDir                      chartRepoRepository.RefChartDir
+	helmAppClient                    client2.HelmAppClient
 }
 
 type AppService interface {
@@ -144,7 +143,8 @@ func NewAppService(
 	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
-	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir) *AppServiceImpl {
+	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir,
+	helmAppClient client2.HelmAppClient) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -182,6 +182,7 @@ func NewAppService(
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		chartTemplateService:             chartTemplateService,
 		refChartDir:                      refChartDir,
+		helmAppClient:                    helmAppClient,
 	}
 	return appServiceImpl
 }
@@ -552,13 +553,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 				return 0, err
 			}
 		}
-
-		env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
-		if err != nil {
-			impl.logger.Errorw("unable to find env", "err", err)
-			return 0, err
-		}
-		envOverride.Environment = env
 		envOverride.Chart = chart
 	} else if envOverride.Id > 0 && !envOverride.IsOverride {
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
@@ -568,16 +562,22 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		}
 		envOverride.Chart = chart
 	}
+	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
+	if err != nil {
+		impl.logger.Errorw("unable to find env", "err", err)
+		return 0, err
+	}
+	envOverride.Environment = env
 
+	chartMetaData := &chart2.Metadata{
+		Name:    pipeline.App.AppName,
+		Version: envOverride.Chart.ChartVersion,
+	}
+	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 	if pipeline.DeploymentAppType == "acd" {
 		// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
-		chartMetaData := &chart2.Metadata{
-			Name:    pipeline.App.AppName,
-			Version: envOverride.Chart.ChartVersion,
-		}
-		referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
-		_, err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, 1)
+		_, err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, overrideRequest.UserId, pipeline.DeploymentAppType)
 		if err != nil {
 			impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
 			return 0, err
@@ -592,21 +592,8 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		}
 		impl.logger.Debugw("argocd application created", "name", name)
 		// ENDS HERE
-	} else if pipeline.DeploymentAppType == "helm" {
-
-		file, err := os.Open("archivePath")
-		reader, err := gzip.NewReader(file)
-		if err != nil {
-			fmt.Println("There is a problem with os.Open")
-		}
-		//tr := tar.NewReader(reader)
-		// read the complete content of the file h.Name into the bs []byte
-		bs, err := ioutil.ReadAll(reader)
-		// convert the []byte to a string
-		fmt.Println(bs)
-		// TODO - gitops optional
-		// TODO - make kubelink call for install helm chart, pass tar file and updated values to the api with namespace and release name.
 	}
+
 	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
 	if err != nil {
 		return 0, err
@@ -627,6 +614,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 
 	//fetch pipeline config from strategy table, if pipeline is automatic fetch always default, else depends on request
 	var strategy *chartConfig.PipelineStrategy
+
 	//forceTrigger true if CD triggered Auto, triggered occurred from CI
 	if overrideRequest.ForceTrigger {
 		strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
@@ -666,7 +654,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		configMapJson = nil
 	}
 
-	releaseId, pipelineOverrideId, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, strategy, ctx, triggeredAt, deployedBy)
+	releaseId, pipelineOverrideId, mergeAndSave, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, strategy, ctx, triggeredAt, deployedBy)
 	if releaseId != 0 {
 		flag, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
 		if err != nil {
@@ -707,6 +695,36 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		go impl.WriteCDTriggerEvent(overrideRequest, pipeline, envOverride, materialInfoMap, artifact, releaseId, pipelineOverrideId)
 		if artifact.ScanEnabled {
 			_ = impl.MarkImageScanDeployed(overrideRequest.AppId, envOverride.TargetEnvironment, artifact.ImageDigest, pipeline.Environment.ClusterId)
+		}
+
+		if pipeline.DeploymentAppType == "" {
+			referenceChartByte := envOverride.Chart.ReferenceChart
+			if len(envOverride.Chart.ReferenceChart) == 0 {
+				refChartByte, err := impl.chartTemplateService.GetByteArrayRefChart(chartMetaData, referenceTemplatePath)
+				if err != nil {
+					impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
+					return 0, err
+				}
+				ch := envOverride.Chart
+				ch.ReferenceChart = refChartByte
+				err = impl.chartRepository.Update(ch)
+				if err != nil {
+					impl.logger.Errorf("invalid state", "err", err, "req", overrideRequest)
+					return 0, err
+				}
+				referenceChartByte = refChartByte
+			}
+
+			releaseName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
+			helmInstallRequest := &client2.HelmInstallCustomRequest{
+				ValuesYaml:        mergeAndSave,
+				Chunk:             &client2.Chunk{Content: referenceChartByte},
+				ReleaseIdentifier: &client2.ReleaseIdentifier{ReleaseName: releaseName, ReleaseNamespace: envOverride.Namespace, ClusterConfig: &client2.ClusterConfig{ClusterName: envOverride.Environment.Cluster.ClusterName}}}
+			_, err := impl.helmAppClient.HelmInstallCustom(ctx, helmInstallRequest)
+			if err != nil {
+				impl.logger.Errorw("error in helm install custom chart", "err", err)
+				return 0, err
+			}
 		}
 	}
 	middleware.CdTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(pipeline.EnvironmentId), strconv.Itoa(pipeline.Id)).Inc()
@@ -1138,17 +1156,17 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	dbMigrationOverride []byte,
 	artifact *repository.CiArtifact,
 	pipeline *pipelineConfig.Pipeline, configMapJson []byte, strategy *chartConfig.PipelineStrategy, ctx context.Context,
-	triggeredAt time.Time, deployedBy int32) (releaseId int, overrideId int, err error) {
+	triggeredAt time.Time, deployedBy int32) (releaseId int, overrideId int, mergedValues string, err error) {
 
 	//register release , obtain release id TODO: populate releaseId to template
 	override, err := impl.savePipelineOverride(overrideRequest, envOverride.Id, triggeredAt)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, "", err
 	}
 	//TODO: check status and apply lock
 	overrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipeline, override, strategy)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, "", err
 	}
 
 	//merge three values on the fly
@@ -1158,12 +1176,12 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	if !envOverride.IsOverride {
 		merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), []byte(envOverride.Chart.GlobalOverride))
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, "", err
 		}
 	} else {
 		merged, err = impl.mergeUtil.JsonPatch([]byte("{}"), []byte(envOverride.EnvOverrideValues))
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, "", err
 		}
 	}
 
@@ -1171,22 +1189,22 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	if strategy != nil && len(strategy.Config) > 0 {
 		merged, err = impl.mergeUtil.JsonPatch(merged, []byte(strategy.Config))
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, "", err
 		}
 	}
 	merged, err = impl.mergeUtil.JsonPatch(merged, dbMigrationOverride)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, "", err
 	}
 	merged, err = impl.mergeUtil.JsonPatch(merged, []byte(overrideJson))
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, "", err
 	}
 
 	if configMapJson != nil {
 		merged, err = impl.mergeUtil.JsonPatch(merged, configMapJson)
 		if err != nil {
-			return 0, 0, err
+			return 0, 0, "", err
 		}
 	}
 
@@ -1211,13 +1229,13 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
-			return 0, 0, err
+			return 0, 0, "", err
 		}
 	}
 	commitHash, err := impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		return 0, 0, err
+		return 0, 0, "", err
 	}
 	pipelineOverride := &chartConfig.PipelineOverride{
 		Id:                     override.Id,
@@ -1231,14 +1249,15 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	}
 	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
 	if err != nil {
-		return 0, 0, err
+		return 0, 0, "", err
 	}
 	err = impl.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, overrideJson, triggeredAt, deployedBy)
 	if err != nil {
 		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
-		return 0, 0, err
+		return 0, 0, "", err
 	}
-	return override.PipelineReleaseCounter, override.Id, nil
+	mergedValues = string(merged)
+	return override.PipelineReleaseCounter, override.Id, mergedValues, nil
 }
 
 func (impl AppServiceImpl) savePipelineOverride(overrideRequest *bean.ValuesOverrideRequest, envOverrideId int, triggeredAt time.Time) (override *chartConfig.PipelineOverride, err error) {

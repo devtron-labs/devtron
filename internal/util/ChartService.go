@@ -18,6 +18,7 @@
 package util
 
 import (
+	"compress/gzip"
 	"context"
 	"fmt"
 	repository3 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
@@ -58,7 +59,8 @@ type ChartTemplateService interface {
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
 	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error
-	BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) (*ChartGitAttribute, error)
+	BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32, pipelineType string) (*ChartGitAttribute, error)
+	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -176,7 +178,45 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 	return values, chartGitAttr, nil
 }
 
-func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) (*ChartGitAttribute, error) {
+func (impl ChartTemplateServiceImpl) GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error) {
+	chartMetaData.ApiVersion = "v1" // ensure always v1
+	dir := impl.GetDir()
+	tempReferenceTemplateDir := filepath.Join(string(impl.chartWorkingDir), dir)
+	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", tempReferenceTemplateDir)
+	err := os.MkdirAll(tempReferenceTemplateDir, os.ModePerm) //hack for concurrency handling
+	if err != nil {
+		impl.logger.Errorw("err in creating dir", "dir", tempReferenceTemplateDir, "err", err)
+		return nil, err
+	}
+	defer impl.CleanDir(tempReferenceTemplateDir)
+	err = dirCopy.Copy(referenceTemplatePath, tempReferenceTemplateDir)
+
+	if err != nil {
+		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
+		return nil, err
+	}
+	activePath, _, err := impl.packageChart(tempReferenceTemplateDir, chartMetaData)
+	if err != nil {
+		impl.logger.Errorw("error in creating archive", "err", err)
+		return nil, err
+	}
+	file, err := os.Open(*activePath)
+	reader, err := gzip.NewReader(file)
+	if err != nil {
+		fmt.Println("There is a problem with os.Open")
+		return nil, err
+	}
+	//tr := tar.NewReader(reader)
+	// read the complete content of the file h.Name into the bs []byte
+	bs, err := ioutil.ReadAll(reader)
+	if err != nil {
+		fmt.Println("There is a problem with readAll")
+		return nil, err
+	}
+	return bs, nil
+}
+
+func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32, pipelineType string) (*ChartGitAttribute, error) {
 	impl.logger.Debugw("package chart and push to git", "gitOpsRepoName", gitOpsRepoName, "version", version, "referenceTemplate", referenceTemplate, "repoUrl", repoUrl)
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
@@ -200,12 +240,14 @@ func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *c
 		return nil, err
 	}
 
-	chartGitAttr, err := impl.pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl, userId)
-	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
-		return nil, err
+	if pipelineType == "acd" {
+		chartGitAttr, err := impl.pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl, userId)
+		if err != nil {
+			impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
+			return nil, err
+		}
 	}
-	return chartGitAttr, nil
+	return nil, nil
 }
 
 type ChartGitAttribute struct {
