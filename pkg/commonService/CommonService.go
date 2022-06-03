@@ -185,7 +185,7 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 	}
 
 	if gitOps.Id > 0 {
-		//chartChecklist.GitOps = 1
+		chartChecklist.GitOps = 1
 		//appChecklist.GitOps = 1
 	}
 	if len(dockerReg.Id) > 0 {
