@@ -361,3 +361,7 @@ tolerations: []
 #    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
 
 appMetrics: false
+hostAliases: []
+#  - ip: "127.0.0.1"
+#    hostnames:
+#    - "foo.local"

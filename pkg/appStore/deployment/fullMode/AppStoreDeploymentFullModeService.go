@@ -59,7 +59,7 @@ type AppStoreDeploymentFullModeService interface {
 	SyncACD(acdAppName string, ctx context.Context)
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
-	GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error)
+	GetGitOpsRepoName(appName string, environmentName string) (string, error)
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -313,14 +313,14 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 	return nil
 }
 
-func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error) {
+func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(appName string, environmentName string) (string, error) {
 	gitOpsRepoName := ""
 	ctx, err := impl.tokenCache.BuildACDSynchContext()
 	if err != nil {
 		impl.logger.Errorw("error in creating acd sync context", "err", err)
 		return "", err
 	}
-	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
+	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
 	application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {
 		impl.logger.Errorw("no argo app exists", "acdAppName", acdAppName, "err", err)
@@ -336,7 +336,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVe
 func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
 	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
 	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
-		gitOpsRepoName, err := impl.GetGitOpsRepoName(installAppVersionRequest)
+		gitOpsRepoName, err := impl.GetGitOpsRepoName(installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
 		if err != nil {
 			return installAppVersionRequest, err
 		}

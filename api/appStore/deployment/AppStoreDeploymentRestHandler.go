@@ -46,6 +46,8 @@ type AppStoreDeploymentRestHandler interface {
 	GetInstalledAppsByAppStoreId(w http.ResponseWriter, r *http.Request)
 	DeleteInstalledApp(w http.ResponseWriter, r *http.Request)
 	LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request)
+	UpdateInstalledApp(w http.ResponseWriter, r *http.Request)
+	GetInstalledAppVersion(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
@@ -312,4 +314,109 @@ func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStor
 	}
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var request appStoreBean.InstallAppVersionDTO
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, UpdateInstalledApp", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, UpdateInstalledApp", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	handler.Logger.Infow("request payload, UpdateInstalledApp", "payload", request)
+	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(request.InstalledAppId)
+	if err != nil {
+		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	
+	//rbac block starts from here
+	var rbacObject string
+	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+	} else {
+		rbacObject = handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
+	}
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rbac block ends here
+
+
+	request.UserId = userId
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	ctx = context.WithValue(r.Context(), "token", token)
+	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(ctx, &request)
+	if err != nil {
+		if strings.Contains(err.Error(), "application spec is invalid") {
+			err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "application spec is invalid, please check provided chart values"}
+		}
+		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	installedAppId, err := strconv.Atoi(vars["installedAppVersionId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, GetInstalledAppVersion", "err", err, "installedAppVersionId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	handler.Logger.Infow("request payload, GetInstalledAppVersion", "installedAppVersionId", installedAppId)
+	dto, err := handler.appStoreDeploymentService.GetInstalledAppVersion(installedAppId, userId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetInstalledAppVersion", "err", err, "installedAppVersionId", installedAppId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	//rbac block starts from here
+	var rbacObject string
+	if dto.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(dto.ClusterId, dto.Namespace, dto.AppName)
+	} else {
+		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(dto.AppName, dto.EnvironmentId)
+	}
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+	//rbac block ends here
+
+	common.WriteJsonResp(w, err, dto, http.StatusOK)
 }
