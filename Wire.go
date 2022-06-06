@@ -593,16 +593,16 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.AttributesRouter), new(*router.AttributesRouterImpl)),
 		restHandler.NewAttributesRestHandlerImpl,
 		wire.Bind(new(restHandler.AttributesRestHandler), new(*restHandler.AttributesRestHandlerImpl)),
-
-		router.NewCommonRouterImpl,
-		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
-		restHandler.NewCommonRestHanlderImpl,
-		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
 		attributes.NewAttributesServiceImpl,
 		wire.Bind(new(attributes.AttributesService), new(*attributes.AttributesServiceImpl)),
 		repository.NewAttributesRepositoryImpl,
 		wire.Bind(new(repository.AttributesRepository), new(*repository.AttributesRepositoryImpl)),
 
+		router.NewCommonRouterImpl,
+		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
+		restHandler.NewCommonRestHanlderImpl,
+		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
+		
 		util.NewGitCliUtil,
 
 		router.NewTelemetryRouterImpl,
