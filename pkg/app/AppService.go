@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
 	"os"
@@ -103,6 +104,7 @@ type AppServiceImpl struct {
 	chartTemplateService             ChartTemplateService
 	refChartDir                      chartRepoRepository.RefChartDir
 	chartRefRepository               chartRepoRepository.ChartRefRepository
+	chartService                     pipeline.ChartService
 }
 
 type AppService interface {
@@ -144,7 +146,7 @@ func NewAppService(
 	configMapHistoryService history2.ConfigMapHistoryService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
 	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir,
-	chartRefRepository chartRepoRepository.ChartRefRepository) *AppServiceImpl {
+	chartRefRepository chartRepoRepository.ChartRefRepository, chartService pipeline.ChartService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -183,6 +185,7 @@ func NewAppService(
 		chartTemplateService:             chartTemplateService,
 		refChartDir:                      refChartDir,
 		chartRefRepository:               chartRefRepository,
+		chartService:                     chartService,
 	}
 	return appServiceImpl
 }
@@ -579,15 +582,29 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	var chartData *chartRepoRepository.ChartRef
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
-	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
-		impl.logger.Infow("Deployment template is missing")
-	}
+
 	chartData, err = impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
-	userUploaded = chartData.UserUploaded
 	if err != nil {
 		impl.logger.Errorw("err in getting chart info", "err", err)
 		return 0, err
 	}
+	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
+		impl.logger.Infow("Deployment template is missing")
+		chartInfo, err := impl.chartService.ExtractChartIfMissing(chartData.ChartData, string(impl.refChartDir), chartData.Location)
+		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
+			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+			if err1 != nil {
+				impl.logger.Errorw("error in deleting temp dir ", "err", err)
+			}
+		}
+		if err != nil {
+			impl.logger.Errorw("Error regarding uploaded chart", "err", err)
+			return 0, err
+		}
+	}
+
+	userUploaded = chartData.UserUploaded
+
 	_, err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, 1)
 	if err != nil {
 		impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
