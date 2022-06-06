@@ -75,6 +75,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
@@ -597,6 +598,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
 		restHandler.NewCommonRestHanlderImpl,
 		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
+		attributes.NewAttributesServiceImpl,
+		wire.Bind(new(attributes.AttributesService), new(*attributes.AttributesServiceImpl)),
+		repository.NewAttributesRepositoryImpl,
+		wire.Bind(new(repository.AttributesRepository), new(*repository.AttributesRepositoryImpl)),
+
 		util.NewGitCliUtil,
 
 		router.NewTelemetryRouterImpl,
