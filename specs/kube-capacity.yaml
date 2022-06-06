@@ -370,8 +370,8 @@ components:
       properties:
         type:
           type: string
-        status:
-          type: string
+        haveIssue:
+          type: boolean
         reason:
           type: string
         message:
