@@ -253,11 +253,9 @@ message TemplateChartResponse {
 }
 
 message HelmInstallCustomRequest {
-    string chartName = 1;
-    string namespace = 2;
-    string valuesYaml = 3;
-    Chunk chunk = 4;
-    ReleaseIdentifier releaseIdentifier = 5;
+    string valuesYaml = 1;
+    Chunk chunk = 2;
+    ReleaseIdentifier releaseIdentifier = 3;
 }
 
 message HelmInstallCustomResponse {

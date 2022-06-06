@@ -718,10 +718,21 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			}
 
 			releaseName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
+			bearerToken := envOverride.Environment.Cluster.Config["bearer_token"]
+			releaseIdentifier := &client2.ReleaseIdentifier{
+				ReleaseName:      releaseName,
+				ReleaseNamespace: envOverride.Namespace,
+				ClusterConfig: &client2.ClusterConfig{
+					ClusterName:  envOverride.Environment.Cluster.ClusterName,
+					Token:        bearerToken,
+					ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
+				},
+			}
 			helmInstallRequest := &client2.HelmInstallCustomRequest{
 				ValuesYaml:        mergeAndSave,
 				Chunk:             &client2.Chunk{Content: referenceChartByte},
-				ReleaseIdentifier: &client2.ReleaseIdentifier{ReleaseName: releaseName, ReleaseNamespace: envOverride.Namespace, ClusterConfig: &client2.ClusterConfig{ClusterName: envOverride.Environment.Cluster.ClusterName}}}
+				ReleaseIdentifier: releaseIdentifier,
+			}
 			_, err := impl.helmAppClient.HelmInstallCustom(ctx, helmInstallRequest)
 			if err != nil {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
