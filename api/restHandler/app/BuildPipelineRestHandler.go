@@ -172,6 +172,26 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+
+	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(patchRequest.AppId, patchRequest.CiPipeline.Id)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	var environmentIds []int
+	for _, pipeline := range pipelineData {
+		environmentIds = append(environmentIds, pipeline.EnvironmentId)
+	}
+	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(patchRequest.CiPipeline.Id) {
+		for _, envId := range environmentIds {
+			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(patchRequest.CiPipeline.Id, envId)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+		}
+	}
+
 	createResp, err := handler.pipelineBuilder.PatchCiPipeline(&patchRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
@@ -659,7 +679,9 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	handler.Logger.Infow("request payload, GetCIPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
+
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
 		handler.Logger.Infow("service error, GetCIPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
@@ -671,6 +693,26 @@ func (handler PipelineConfigRestHandlerImpl) GetCIPipelineById(w http.ResponseWr
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+
+	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(appId, pipelineId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	var environmentIds []int
+	for _, pipeline := range pipelineData {
+		environmentIds = append(environmentIds, pipeline.EnvironmentId)
+	}
+	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(pipelineId) {
+		for _, envId := range environmentIds {
+			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(pipelineId, envId)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+		}
+	}
+
 	ciPipeline, err := handler.pipelineBuilder.GetCiPipelineById(pipelineId)
 	if err != nil {
 		handler.Logger.Infow("service error, GetCIPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
@@ -898,6 +940,27 @@ func (handler PipelineConfigRestHandlerImpl) CancelWorkflow(w http.ResponseWrite
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
+	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(pipelineId) {
+		pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(ciPipeline.AppId, pipelineId)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		var environmentIds []int
+		for _, pipeline := range pipelineData {
+			environmentIds = append(environmentIds, pipeline.EnvironmentId)
+		}
+		if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(pipelineId) {
+			for _, envId := range environmentIds {
+				envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(pipelineId, envId)
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+					common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+					return
+				}
+			}
+		}
+	}
+
 	//RBAC
 
 	resp, err := handler.ciHandler.CancelBuild(workflowId)

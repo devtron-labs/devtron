@@ -1,4 +1,3 @@
-{{- if not .Values.installer.modules }}
 {{- with .Values.components.devtron }}
 ---
 apiVersion: v1
@@ -35,7 +34,12 @@ spec:
       app: devtron
       release: devtron
   replicas: 1
+  {{- if $.Release.IsUpgrade }}
+  minReadySeconds: 700
+  progressDeadlineSeconds: 800
+  {{- else }}
   minReadySeconds: 60
+  {{- end }}
   template:
     metadata:
       labels:
@@ -47,7 +51,17 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: {{ .image }}
+          {{- if $.Values.installer.modules }}
+          {{ range $.Values.installer.modules }}
+          {{- if and (eq . "cicd") ($.Release.IsUpgrade) }}
+          image: {{ $.Values.components.devtron.cicdImage }}
+          {{- else }}
+          image: {{ $.Values.components.devtron.image }}
+          {{- end }}
+          {{- end }}
+          {{- else }}
+          image: {{ $.Values.components.devtron.image }}
+          {{- end }}
           imagePullPolicy: {{ .imagePullPolicy }}
           ports:
             - name: devtron
@@ -88,6 +102,5 @@ spec:
   selector:
     matchLabels:
       app: devtron
-{{- end }}
 {{- end }}
 {{- end }}
