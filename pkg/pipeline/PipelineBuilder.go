@@ -1026,7 +1026,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
 		return nil, err
 	}
