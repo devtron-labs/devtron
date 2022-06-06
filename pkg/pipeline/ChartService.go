@@ -138,6 +138,7 @@ type ChartService interface {
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 	FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error)
 	CheckCustomChartByAppId(id int) (bool, error)
+	CheckCustomChartByChartId(id int) (bool, error)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -1506,6 +1507,14 @@ func (impl ChartServiceImpl) CheckCustomChartByAppId(id int) (bool, error) {
 		return false, err
 	}
 	chartData, err := impl.chartRefRepository.FindById(chartInfo.ChartRefId)
+	if err != nil {
+		return false, err
+	}
+	return chartData.UserUploaded, err
+}
+
+func (impl ChartServiceImpl) CheckCustomChartByChartId(id int) (bool, error) {
+	chartData, err := impl.chartRefRepository.FindById(id)
 	if err != nil {
 		return false, err
 	}
