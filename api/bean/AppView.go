@@ -107,6 +107,7 @@ type DeploymentDetailContainer struct {
 	K8sVersion                    string          `json:"k8sVersion"`
 	CiArtifactId                  int             `json:"ciArtifactId"`
 	ClusterId                     int             `json:"clusterId"`
+	DeploymentAppType             string          `json:"deploymentAppType"`
 }
 
 type AppDetailContainer struct {
