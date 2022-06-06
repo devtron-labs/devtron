@@ -1213,31 +1213,34 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
 
-	chartRepoName := impl.GetChartRepoName(envOverride.Chart.GitRepoUrl)
-	//getting user name & emailId for commit author data
-	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)
-	chartGitAttr := &ChartConfig{
-		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
-		FileContent:    string(merged),
-		ChartName:      envOverride.Chart.ChartName,
-		ChartLocation:  envOverride.Chart.ChartLocation,
-		ChartRepoName:  chartRepoName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
-		UserName:       userName,
-		UserEmailId:    userEmailId,
-	}
-	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
+	commitHash := ""
+	if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		chartRepoName := impl.GetChartRepoName(envOverride.Chart.GitRepoUrl)
+		//getting user name & emailId for commit author data
+		userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)
+		chartGitAttr := &ChartConfig{
+			FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
+			FileContent:    string(merged),
+			ChartName:      envOverride.Chart.ChartName,
+			ChartLocation:  envOverride.Chart.ChartLocation,
+			ChartRepoName:  chartRepoName,
+			ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", override.Id, envOverride.TargetEnvironment),
+			UserName:       userName,
+			UserEmailId:    userEmailId,
+		}
+		gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+		if err != nil {
+			if err == pg.ErrNoRows {
+				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+			} else {
+				return 0, 0, "", err
+			}
+		}
+		commitHash, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+		if err != nil {
+			impl.logger.Errorw("error in git commit", "err", err)
 			return 0, 0, "", err
 		}
-	}
-	commitHash, err := impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfigBitbucket.BitBucketWorkspaceId)
-	if err != nil {
-		impl.logger.Errorw("error in git commit", "err", err)
-		return 0, 0, "", err
 	}
 	pipelineOverride := &chartConfig.PipelineOverride{
 		Id:                     override.Id,
