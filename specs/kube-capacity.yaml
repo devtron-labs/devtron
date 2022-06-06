@@ -259,8 +259,6 @@ components:
           $ref: '#/components/schemas/ResourceDetailObject'
         age:
           type: string
-        resourceVersion:
-          type: string
     NodeCapacityDetailObject:
       type: object
       properties:
@@ -310,7 +308,9 @@ components:
             $ref: '#/components/schemas/PodCapacityDto'
         manifest:
           type: string
-        resourceVersion:
+        version:
+          type: string
+        kind:
           type: string
     NodeError:
       type: object
