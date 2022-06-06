@@ -128,7 +128,7 @@ ingressInternal:
   #    hosts:
   #      - chart-example.local
 
-workingDir: /app
+workingDir: {}
 
 command:
   enabled: false

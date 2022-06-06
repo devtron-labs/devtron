@@ -230,7 +230,7 @@ ingressInternal:
 dbMigrationConfig:
   enabled: false
 
-workingDir: /app
+workingDir: {}
 
 command:
   enabled: false
