@@ -28,8 +28,8 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/golang-jwt/jwt/v4"
 	"go.uber.org/zap"
+	"regexp"
 	"strconv"
-	"strings"
 	"time"
 )
 
@@ -44,19 +44,24 @@ type ApiTokenServiceImpl struct {
 	logger                *zap.SugaredLogger
 	apiTokenSecretService ApiTokenSecretService
 	userService           user.UserService
+	userAuditService      user.UserAuditService
 	apiTokenRepository    ApiTokenRepository
 }
 
-func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService ApiTokenSecretService, userService user.UserService, apiTokenRepository ApiTokenRepository) *ApiTokenServiceImpl {
+func NewApiTokenServiceImpl(logger *zap.SugaredLogger, apiTokenSecretService ApiTokenSecretService, userService user.UserService, userAuditService user.UserAuditService,
+	apiTokenRepository ApiTokenRepository) *ApiTokenServiceImpl {
 	return &ApiTokenServiceImpl{
 		logger:                logger,
 		apiTokenSecretService: apiTokenSecretService,
 		userService:           userService,
+		userAuditService:      userAuditService,
 		apiTokenRepository:    apiTokenRepository,
 	}
 }
 
-const API_TOKEN_USER_EMAIL_PREFIX = "api-token:"
+const API_TOKEN_USER_EMAIL_PREFIX = "API-TOKEN:"
+
+var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
 
 type ApiTokenCustomClaims struct {
 	Email string `json:"email"`
@@ -73,20 +78,28 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 
 	var apiTokens []*openapi.ApiToken
 	for _, apiTokenFromDb := range apiTokensFromDb {
-		apiTokenFromDbUser := apiTokenFromDb.User
+		userId := apiTokenFromDb.User.Id
+		latestAuditLog, err := impl.userAuditService.GetLatestByUserId(userId)
+		if err != nil {
+			impl.logger.Errorw("error while getting latest audit log", "error", err)
+			return nil, err
+		}
+
 		apiTokenIdI32 := int32(apiTokenFromDb.Id)
-		lastUsedAtStr := apiTokenFromDbUser.LastUsedAt.String()
 		updatedAtStr := apiTokenFromDb.UpdatedOn.String()
 		apiToken := &openapi.ApiToken{
 			Id:           &apiTokenIdI32,
-			UserId:       &apiTokenFromDb.User.Id,
+			UserId:       &userId,
 			Name:         &apiTokenFromDb.Name,
 			Description:  &apiTokenFromDb.Description,
 			ExpireAtInMs: &apiTokenFromDb.ExpireAtInMs,
 			Token:        &apiTokenFromDb.Token,
-			LastUsedAt:   &lastUsedAtStr,
-			LastUsedByIp: &apiTokenFromDbUser.LastUsedByIp,
 			UpdatedAt:    &updatedAtStr,
+		}
+		if latestAuditLog != nil {
+			lastUsedAtStr := latestAuditLog.CreatedOn.String()
+			apiToken.LastUsedAt = &lastUsedAtStr
+			apiToken.LastUsedByIp = &latestAuditLog.ClientIp
 		}
 		apiTokens = append(apiTokens, apiToken)
 	}
@@ -97,8 +110,13 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32) (*openapi.ActionResponse, error) {
 	impl.logger.Infow("Creating API token", "request", request, "createdBy", createdBy)
 
-	// step-1 - check if the name exists, if exists with active user - throw error
 	name := request.GetName()
+	// check if name contains some characters which are not allowed
+	if invalidCharsInApiTokenName.MatchString(name) {
+		return nil, errors.New(fmt.Sprintf("name '%s' contains either white-space or comma, which is not allowed", name))
+	}
+
+	// step-1 - check if the name exists, if exists with active user - throw error
 	apiToken, err := impl.apiTokenRepository.FindByName(name)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while getting api token by name", "name", name, "error", err)
@@ -115,9 +133,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	impl.logger.Info(fmt.Sprintf("apiTokenExists : %s", strconv.FormatBool(apiTokenExists)))
 
 	// step-2 - Build email
-	// removing comma from email as user-service expects multiple emailIds separated from comma. since this is single email Id, hence removing comma
-	emailSuffix := strings.ReplaceAll(name, ",", "")
-	email := fmt.Sprintf("%s%s", API_TOKEN_USER_EMAIL_PREFIX, emailSuffix)
+	email := fmt.Sprintf("%s%s", API_TOKEN_USER_EMAIL_PREFIX, name)
 
 	// step-3 - Build token
 	token, err := impl.createApiJwtToken(email, *request.ExpireAtInMs)
@@ -127,7 +143,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 
 	// step-4 - Create user using email
 	createUserRequest := bean.UserInfo{
-		UserId: createdBy,
+		UserId:   createdBy,
 		EmailId:  email,
 		UserType: bean.USER_TYPE_API_TOKEN,
 	}
@@ -157,7 +173,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		apiTokenSaveRequest.CreatedOn = apiToken.CreatedOn
 		apiTokenSaveRequest.UpdatedBy = createdBy
 		err = impl.apiTokenRepository.Update(apiTokenSaveRequest)
-	}else{
+	} else {
 		apiTokenSaveRequest.CreatedBy = createdBy
 		apiTokenSaveRequest.CreatedOn = time.Now()
 		err = impl.apiTokenRepository.Save(apiTokenSaveRequest)

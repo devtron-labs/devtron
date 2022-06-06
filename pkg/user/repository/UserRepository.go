@@ -25,7 +25,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"time"
 )
 
 type UserRepository interface {
@@ -58,8 +57,6 @@ type UserModel struct {
 	AccessToken  string    `sql:"access_token"`
 	Active       bool      `sql:"active,notnull"`
 	UserType     string    `sql:"user_type"`
-	LastUsedAt   time.Time `sql:"last_used_at"`
-	LastUsedByIp string    `sql:"last_used_by_ip"`
 	sql.AuditLog
 }
 

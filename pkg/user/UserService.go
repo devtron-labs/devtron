@@ -62,13 +62,14 @@ type UserServiceImpl struct {
 	roleGroupRepository repository2.RoleGroupRepository
 	sessionManager2     *middleware.SessionManager
 	userCommonService   UserCommonService
+	userAuditService    UserAuditService
 }
 
 func NewUserServiceImpl(userAuthRepository repository2.UserAuthRepository,
 	logger *zap.SugaredLogger,
 	userRepository repository2.UserRepository,
 	userGroupRepository repository2.RoleGroupRepository,
-	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService) *UserServiceImpl {
+	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
 		userAuthRepository:  userAuthRepository,
 		logger:              logger,
@@ -76,6 +77,7 @@ func NewUserServiceImpl(userAuthRepository repository2.UserAuthRepository,
 		roleGroupRepository: userGroupRepository,
 		sessionManager2:     sessionManager2,
 		userCommonService:   userCommonService,
+		userAuditService:    userAuditService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -892,7 +894,7 @@ func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 	userId, userType, err := impl.GetUserByToken(token)
 	// if user is of api-token type, then update lastUsedBy and lastUsedAt
 	if err == nil && userType == bean.USER_TYPE_API_TOKEN {
-		go impl.updateLastUsedAtOfUser(r, userId)
+		go impl.saveUserAudit(r, userId)
 	}
 	return userId, err
 }
@@ -1110,29 +1112,12 @@ func (impl UserServiceImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
 	return nil
 }
 
-func (impl UserServiceImpl) updateLastUsedAtOfUser(r *http.Request, userId int32){
+func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 	clientIp := util2.GetClientIP(r)
-	user, err := impl.userRepository.GetById(userId)
-	if err != nil {
-		impl.logger.Errorw("error in updating user with last used at", "err", err)
-		return
+	userAudit := &UserAudit{
+		UserId:    userId,
+		ClientIp:  clientIp,
+		CreatedOn: time.Now(),
 	}
-
-	tx, err := impl.userRepository.GetConnection().Begin()
-	if err != nil {
-		impl.logger.Errorw("error in getting db connection", "err", err)
-		return
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-
-	user.LastUsedAt = time.Now()
-	user.LastUsedByIp = clientIp
-
-	_, err = impl.userRepository.UpdateUser(user, tx)
-	if err != nil {
-		impl.logger.Errorw("error in updating user with last used at", "err", err)
-		return
-	}
-	tx.Commit()
+	impl.userAuditService.Save(userAudit)
 }

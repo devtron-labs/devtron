@@ -40,8 +40,21 @@ VALUES (MD5(random()::text), NOW());
 -- add column user_type in user table
 ALTER TABLE users ADD COLUMN user_type varchar(250);
 
--- add column last_used_at in user table
-ALTER TABLE users ADD COLUMN last_used_at timestamptz;
+-- Sequence and defined type
+CREATE SEQUENCE IF NOT EXISTS id_seq_user_audit;
 
--- add column last_used_by_ip in user table
-ALTER TABLE users ADD COLUMN last_used_by_ip varchar(256);
+-- Table Definition
+CREATE TABLE "public"."user_audit"
+(
+    "id"         int4         NOT NULL DEFAULT nextval('id_seq_user_audit'::regclass),
+    "user_id"    int4         NOT NULL,
+    "client_ip"  varchar(256) NOT NULL,
+    "created_on" timestamptz  NOT NULL,
+    PRIMARY KEY ("id")
+);
+
+-- add foreign key
+ALTER TABLE "public"."user_audit" ADD FOREIGN KEY ("user_id") REFERENCES "public"."users" ("id");
+
+--- Create index on user_audit.user_id
+CREATE INDEX user_audit_user_id_IX ON public.user_audit (user_id);

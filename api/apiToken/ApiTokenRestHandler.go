@@ -89,6 +89,13 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// handle super-admin RBAC
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
 	// decode request
 	decoder := json.NewDecoder(r.Body)
 	var request *openapi.CreateApiTokenRequest
@@ -115,14 +122,6 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 		return
 	}
 
-
-	// handle super-admin RBAC
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
 	// service call
 	res, err := impl.apiTokenService.CreateApiToken(request, userId)
 	if err != nil {
@@ -137,6 +136,13 @@ func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *htt
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// handle super-admin RBAC
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
@@ -171,14 +177,6 @@ func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *htt
 		return
 	}
 
-
-	// handle super-admin RBAC
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
 	res, err := impl.apiTokenService.UpdateApiToken(apiTokenId, request, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, UpdateApiToken", "err", err, "apiTokenId", apiTokenId, "request", request)
@@ -195,19 +193,19 @@ func (impl ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *htt
 		return
 	}
 
+	// handle super-admin RBAC
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
 	// get api-token Id
 	vars := mux.Vars(r)
 	apiTokenId, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		impl.logger.Errorw("request err in getting apiTokenId in DeleteApiToken", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	// handle super-admin RBAC
-	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
