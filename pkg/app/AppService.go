@@ -225,14 +225,6 @@ func (impl AppServiceImpl) createArgoApplicationIfRequired(appId int, appName st
 		if err != nil {
 			return "", err
 		}
-		pipeline.DeploymentAppCreated = true
-		pipeline.UpdatedOn = time.Now()
-		pipeline.UpdatedBy = userId
-		err = impl.pipelineRepository.UpdateCdPipeline(pipeline)
-		if err != nil {
-			impl.logger.Errorw("error on updating cd pipeline for setting deployment app created", "err", err)
-			return "", err
-		}
 		return argoAppName, nil
 	}
 }
@@ -739,9 +731,26 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 				return 0, err
 			}
 		}
+		_, err = impl.updatePipeline(pipeline, overrideRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in update cd pipeline", "err", err)
+			return 0, err
+		}
 	}
 	middleware.CdTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(pipeline.EnvironmentId), strconv.Itoa(pipeline.Id)).Inc()
 	return releaseId, saveErr
+}
+
+func (impl AppServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, userId int32) (bool, error) {
+	pipeline.DeploymentAppCreated = true
+	pipeline.UpdatedOn = time.Now()
+	pipeline.UpdatedBy = userId
+	err := impl.pipelineRepository.UpdateCdPipeline(pipeline)
+	if err != nil {
+		impl.logger.Errorw("error on updating cd pipeline for setting deployment app created", "err", err)
+		return false, err
+	}
+	return true, nil
 }
 
 func (impl AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error {
