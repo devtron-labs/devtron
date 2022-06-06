@@ -222,6 +222,8 @@ ingressInternal:
 dbMigrationConfig:
   enabled: false
 
+workingDir: /app
+
 command:
   enabled: false
   value: []

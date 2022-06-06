@@ -182,6 +182,7 @@ spec:
               containerPort: {{ .port  }}
               protocol: TCP
           {{- end}}
+          workingDir: {{ $.Values.workingDir }}
 {{- if and $.Values.command.value $.Values.command.enabled}}
           command:
 {{ toYaml $.Values.command.value | indent 12 -}}

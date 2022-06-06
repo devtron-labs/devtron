@@ -10,6 +10,8 @@ Spec:
   key: ""
   Values: nodes
 
+workingDir: /app
+
 autoscaling:
   enabled: false
   MinReplicas: 1
