@@ -115,7 +115,31 @@ func (handler *K8sCapacityRestHandlerImpl) GetNodeList(w http.ResponseWriter, r 
 }
 
 func (handler *K8sCapacityRestHandlerImpl) GetNodeDetail(w http.ResponseWriter, r *http.Request) {
-
+	vars := mux.Vars(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	clusterId, err := strconv.Atoi(vars["clusterId"])
+	if err != nil {
+		handler.logger.Errorw("request err, GetNodeList", "err", err, "clusterId", clusterId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	nodeList, err := handler.k8sCapacityService.GetNodeCapacityDetailsListByClusterId(clusterId)
+	if err != nil {
+		handler.logger.Errorw("error in getting node detail list by clusterId", "err", err, "clusterId", clusterId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, nodeList, http.StatusOK)
 }
 
 func (handler *K8sCapacityRestHandlerImpl) GetNodeManifest(w http.ResponseWriter, r *http.Request) {

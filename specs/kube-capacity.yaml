@@ -219,6 +219,8 @@ components:
           type: array
           items:
             type: string
+        errorInNodeListing:
+          type: boolean
         cpu:
           $ref: '#/components/schemas/ResourceDetailObject'
         memory:
