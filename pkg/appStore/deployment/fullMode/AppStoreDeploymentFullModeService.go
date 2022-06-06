@@ -36,6 +36,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	repository2 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/session"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -77,6 +78,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	globalEnvVariables                   *util3.GlobalEnvVariables
 	installedAppRepository               repository4.InstalledAppRepository
 	tokenCache                           *util2.TokenCache
+	sessionManager                       *session.SessionManager
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -88,7 +90,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
 	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables,
-	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache) *AppStoreDeploymentFullModeServiceImpl {
+	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache, sessionManager *session.SessionManager) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -104,6 +106,9 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		globalEnvVariables:                   globalEnvVariables,
 		installedAppRepository:               installedAppRepository,
 		tokenCache:                           tokenCache,
+		// injecting sessionManager here - in full mode, some place is needed to inject sessionManager
+		// otherwise wire gives error. FIXME
+		sessionManager:                       sessionManager,
 	}
 }
 

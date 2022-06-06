@@ -280,12 +280,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	config2, err := dex.GetConfig()
-	if err != nil {
-		return nil, err
-	}
-	sessionSessionManager := session.SessionManager(settingsManager, config2)
-	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, sessionSessionManager, attributesRepositoryImpl)
+	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
 	appLabelRepositoryImpl := pipelineConfig.NewAppLabelRepositoryImpl(db)
 	appLabelServiceImpl := app2.NewAppLabelServiceImpl(appLabelRepositoryImpl, sugaredLogger, appRepositoryImpl, userRepositoryImpl)
 	prePostCiScriptHistoryRepositoryImpl := repository4.NewPrePostCiScriptHistoryRepositoryImpl(sugaredLogger, db)
@@ -419,7 +414,12 @@ func InitializeApp() (*App, error) {
 	appStoreVersionValuesRepositoryImpl := appStoreValuesRepository.NewAppStoreVersionValuesRepositoryImpl(sugaredLogger, db)
 	appStoreValuesServiceImpl := service.NewAppStoreValuesServiceImpl(sugaredLogger, appStoreApplicationVersionRepositoryImpl, installedAppRepositoryImpl, appStoreVersionValuesRepositoryImpl)
 	chartGroupDeploymentRepositoryImpl := repository8.NewChartGroupDeploymentRepositoryImpl(db, sugaredLogger)
-	appStoreDeploymentFullModeServiceImpl := appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl(sugaredLogger, chartTemplateServiceImpl, refChartProxyDir, repositoryServiceClientImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, serviceClientImpl, argoK8sClientImpl, gitFactory, acdAuthConfig, gitOpsConfigRepositoryImpl, globalEnvVariables, installedAppRepositoryImpl, tokenCache)
+	config2, err := dex.GetConfig()
+	if err != nil {
+		return nil, err
+	}
+	sessionSessionManager := session.SessionManager(settingsManager, config2)
+	appStoreDeploymentFullModeServiceImpl := appStoreDeploymentFullMode.NewAppStoreDeploymentFullModeServiceImpl(sugaredLogger, chartTemplateServiceImpl, refChartProxyDir, repositoryServiceClientImpl, appStoreApplicationVersionRepositoryImpl, environmentRepositoryImpl, serviceClientImpl, argoK8sClientImpl, gitFactory, acdAuthConfig, gitOpsConfigRepositoryImpl, globalEnvVariables, installedAppRepositoryImpl, tokenCache, sessionSessionManager)
 	clusterInstalledAppsRepositoryImpl := repository8.NewClusterInstalledAppsRepositoryImpl(db, sugaredLogger)
 	helmClientConfig, err := client4.GetConfig()
 	if err != nil {
@@ -586,8 +586,7 @@ func InitializeApp() (*App, error) {
 	serverServiceImpl := server.NewServerServiceImpl(sugaredLogger, serverActionAuditLogRepositoryImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig, helmAppServiceImpl)
 	serverRestHandlerImpl := server2.NewServerRestHandlerImpl(sugaredLogger, serverServiceImpl, userServiceImpl, enforcerImpl, validate)
 	serverRouterImpl := server2.NewServerRouterImpl(serverRestHandlerImpl)
-	apiTokenSecretRepositoryImpl := apiToken.NewApiTokenSecretRepositoryImpl(db)
-	apiTokenSecretServiceImpl, err := apiToken.NewApiTokenSecretServiceImpl(sugaredLogger, apiTokenSecretRepositoryImpl, apiTokenSecretStore)
+	apiTokenSecretServiceImpl, err := apiToken.NewApiTokenSecretServiceImpl(sugaredLogger, attributesServiceImpl, apiTokenSecretStore)
 	if err != nil {
 		return nil, err
 	}

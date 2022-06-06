@@ -41,6 +41,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/discover/service"
 	"github.com/devtron-labs/devtron/pkg/appStore/values/repository"
 	service2 "github.com/devtron-labs/devtron/pkg/appStore/values/service"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -240,8 +241,8 @@ func InitializeApp() (*App, error) {
 	serverServiceImpl := server.NewServerServiceImpl(sugaredLogger, serverActionAuditLogRepositoryImpl, serverDataStoreServerDataStore, serverEnvConfigServerEnvConfig, helmAppServiceImpl)
 	serverRestHandlerImpl := server2.NewServerRestHandlerImpl(sugaredLogger, serverServiceImpl, userServiceImpl, enforcerImpl, validate)
 	serverRouterImpl := server2.NewServerRouterImpl(serverRestHandlerImpl)
-	apiTokenSecretRepositoryImpl := apiToken.NewApiTokenSecretRepositoryImpl(db)
-	apiTokenSecretServiceImpl, err := apiToken.NewApiTokenSecretServiceImpl(sugaredLogger, apiTokenSecretRepositoryImpl, apiTokenSecretStore)
+	attributesServiceImpl := attributes.NewAttributesServiceImpl(sugaredLogger, attributesRepositoryImpl)
+	apiTokenSecretServiceImpl, err := apiToken.NewApiTokenSecretServiceImpl(sugaredLogger, attributesServiceImpl, apiTokenSecretStore)
 	if err != nil {
 		return nil, err
 	}

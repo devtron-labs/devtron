@@ -20,6 +20,7 @@ package apiToken
 import (
 	"errors"
 	apiTokenAuth "github.com/devtron-labs/authenticator/apiToken"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"go.uber.org/zap"
 )
 
@@ -28,15 +29,15 @@ type ApiTokenSecretService interface {
 }
 
 type ApiTokenSecretServiceImpl struct {
-	logger                   *zap.SugaredLogger
-	apiTokenSecretRepository ApiTokenSecretRepository
-	apiTokenSecretStore      *apiTokenAuth.ApiTokenSecretStore
+	logger              *zap.SugaredLogger
+	attributesService   attributes.AttributesService
+	apiTokenSecretStore *apiTokenAuth.ApiTokenSecretStore
 }
 
-func NewApiTokenSecretServiceImpl(logger *zap.SugaredLogger, apiTokenSecretRepository ApiTokenSecretRepository, apiTokenSecretStore *apiTokenAuth.ApiTokenSecretStore) (*ApiTokenSecretServiceImpl, error) {
+func NewApiTokenSecretServiceImpl(logger *zap.SugaredLogger, attributesService attributes.AttributesService, apiTokenSecretStore *apiTokenAuth.ApiTokenSecretStore) (*ApiTokenSecretServiceImpl, error) {
 	impl := &ApiTokenSecretServiceImpl{
 		logger:                   logger,
-		apiTokenSecretRepository: apiTokenSecretRepository,
+		attributesService: attributesService,
 		apiTokenSecretStore:      apiTokenSecretStore,
 	}
 
@@ -66,7 +67,7 @@ func (impl ApiTokenSecretServiceImpl) GetApiTokenSecretByteArr() ([]byte, error)
 
 func (impl ApiTokenSecretServiceImpl) getApiSecretFromDb() (string, error) {
 	// get from db
-	apiTokenSecret, err := impl.apiTokenSecretRepository.Get()
+	apiTokenSecret, err := impl.attributesService.GetByKey(attributes.API_SECRET_KEY)
 	if err != nil {
 		impl.logger.Errorw("error while getting api token secret from DB", "error", err)
 		return "", err
@@ -76,7 +77,7 @@ func (impl ApiTokenSecretServiceImpl) getApiSecretFromDb() (string, error) {
 		impl.logger.Error(errorMsg)
 		return "", errors.New(errorMsg)
 	}
-	secret := apiTokenSecret.Secret
+	secret := apiTokenSecret.Value
 	if len(secret) == 0 {
 		errorMsg := "api token secret from DB found empty"
 		impl.logger.Error(errorMsg)
