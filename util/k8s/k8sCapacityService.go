@@ -3,14 +3,17 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
 	metav1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/duration"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
 	"strings"
@@ -26,20 +29,25 @@ type K8sCapacityService interface {
 	GetClusterCapacityDetailList() ([]*ClusterCapacityDetail, error)
 	GetClusterCapacityDetailById(clusterId int, callForList bool) (*ClusterCapacityDetail, error)
 	GetNodeCapacityDetailsListByClusterId(clusterId int) ([]*NodeCapacityDetail, error)
+	GetNodeCapacityDetailByNameAndClusterId(clusterId int, name string) (*NodeCapacityDetail, error)
+	UpdateNodeManifest(request *NodeManifestUpdateDto) (*application.ManifestResponse, error)
 }
 type K8sCapacityServiceImpl struct {
 	logger                *zap.SugaredLogger
 	clusterService        cluster.ClusterService
 	k8sApplicationService K8sApplicationService
+	k8sClientService      application.K8sClientService
 }
 
 func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
-	k8sApplicationService K8sApplicationService) *K8sCapacityServiceImpl {
+	k8sApplicationService K8sApplicationService,
+	k8sClientService application.K8sClientService) *K8sCapacityServiceImpl {
 	return &K8sCapacityServiceImpl{
 		logger:                Logger,
 		clusterService:        clusterService,
 		k8sApplicationService: k8sApplicationService,
+		k8sClientService:      k8sClientService,
 	}
 }
 
@@ -204,13 +212,61 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByClusterId(cluste
 	}
 	var nodeDetails []*NodeCapacityDetail
 	for _, node := range nodeList.Items {
-		nodeDetail := impl.GetNodeDetail(node, nodeResourceUsage, podList, true)
+		nodeDetail, err := impl.getNodeDetail(&node, nodeResourceUsage, podList, true, restConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting node detail for list", "err", err)
+			return nil, err
+		}
 		nodeDetails = append(nodeDetails, nodeDetail)
 	}
 	return nodeDetails, nil
 }
 
-func (impl *K8sCapacityServiceImpl) GetNodeDetail(node metav1.Node, nodeResourceUsage map[string]metav1.ResourceList, podList *metav1.PodList, callFromList bool) *NodeCapacityDetail {
+func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndClusterId(clusterId int, name string) (*NodeCapacityDetail, error) {
+	//getting rest config by clusterId
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
+	//getting kubernetes clientSet by rest config
+	k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+		return nil, err
+	}
+	//getting metrics clientSet by rest config
+	metricsClientSet, err := metrics.NewForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting metrics client set", "err", err)
+		return nil, err
+	}
+	nodeMetrics, err := metricsClientSet.MetricsV1beta1().NodeMetricses().Get(context.Background(), name, v1.GetOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in getting node metrics", "err", err)
+		return nil, err
+	}
+	node, err := k8sClientSet.CoreV1().Nodes().Get(context.Background(), name, v1.GetOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in getting node list", "err", err)
+		return nil, err
+	}
+	//empty namespace: get pods for all namespaces
+	podList, err := k8sClientSet.CoreV1().Pods("").List(context.Background(), v1.ListOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in getting pod list", "err", err)
+		return nil, err
+	}
+	nodeResourceUsage := make(map[string]metav1.ResourceList)
+	nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
+	nodeDetail, err := impl.getNodeDetail(node, nodeResourceUsage, podList, false, restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting node detail", "err", err)
+		return nil, err
+	}
+	return nodeDetail, nil
+}
+func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourceUsage map[string]metav1.ResourceList, podList *metav1.PodList, callForList bool, restConfig *rest.Config) (*NodeCapacityDetail, error) {
 	cpuAllocatable := node.Status.Allocatable[metav1.ResourceCPU]
 	memoryAllocatable := node.Status.Allocatable[metav1.ResourceMemory]
 	podCount := 0
@@ -219,7 +275,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeDetail(node metav1.Node, nodeResource
 	var podDetailList []*PodCapacityDetail
 	for _, pod := range podList.Items {
 		if pod.Spec.NodeName == node.Name {
-			if callFromList {
+			if callForList {
 				podCount++
 			} else {
 				requests, limits := resourcehelper.PodRequestsAndLimits(&pod)
@@ -230,17 +286,16 @@ func (impl *K8sCapacityServiceImpl) GetNodeDetail(node metav1.Node, nodeResource
 		}
 	}
 	nodeDetail := &NodeCapacityDetail{
-		Name:            node.Name,
-		K8sVersion:      node.Status.NodeInfo.KubeletVersion,
-		Errors:          findNodeErrors(node),
-		InternalIp:      getNodeInternalIP(node),
-		ExternalIp:      getNodeExternalIP(node),
-		Unschedulable:   node.Spec.Unschedulable,
-		Roles:           findNodeRoles(node),
-		ResourceVersion: node.ResourceVersion,
+		Name:          node.Name,
+		K8sVersion:    node.Status.NodeInfo.KubeletVersion,
+		Errors:        findNodeErrors(node),
+		InternalIp:    getNodeInternalIP(node),
+		ExternalIp:    getNodeExternalIP(node),
+		Unschedulable: node.Spec.Unschedulable,
+		Roles:         findNodeRoles(node),
 	}
 	nodeUsageResourceList := nodeResourceUsage[node.Name]
-	if callFromList {
+	if callForList {
 		// assigning additional data for node listing api call
 		nodeDetail.Status = findNodeStatus(node)
 		nodeDetail.Age = translateTimestampSince(node.CreationTimestamp)
@@ -261,13 +316,20 @@ func (impl *K8sCapacityServiceImpl) GetNodeDetail(node metav1.Node, nodeResource
 
 	} else {
 		//update data for node detail api call
-		updateAdditionalDetailForNode(nodeDetail, node, nodeLimitsResourceList, nodeRequestsResourceList, nodeUsageResourceList, podDetailList)
+		err := impl.updateAdditionalDetailForNode(nodeDetail, node, nodeLimitsResourceList, nodeRequestsResourceList, nodeUsageResourceList, podDetailList, restConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting updating data for node detail", "err", err)
+			return nil, err
+		}
 	}
-	return nodeDetail
+	return nodeDetail, nil
 }
 
-func updateAdditionalDetailForNode(nodeDetail *NodeCapacityDetail, node metav1.Node, nodeLimitsResourceList metav1.ResourceList,
-	nodeRequestsResourceList metav1.ResourceList, nodeUsageResourceList metav1.ResourceList, podDetailList []*PodCapacityDetail) {
+func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *NodeCapacityDetail, node *metav1.Node,
+	nodeLimitsResourceList metav1.ResourceList, nodeRequestsResourceList metav1.ResourceList,
+	nodeUsageResourceList metav1.ResourceList, podDetailList []*PodCapacityDetail, restConfig *rest.Config) error {
+	nodeDetail.Version = node.APIVersion
+	nodeDetail.Kind = node.Kind
 	nodeDetail.Pods = podDetailList
 	nodeDetail.CreatedAt = node.CreationTimestamp.String()
 	var labels []*LabelAnnotationTaintObject
@@ -342,8 +404,49 @@ func updateAdditionalDetailForNode(nodeDetail *NodeCapacityDetail, node metav1.N
 		}
 		nodeDetail.Resources = append(nodeDetail.Resources, r)
 	}
+	//getting manifest
+	manifestRequest := &application.K8sRequestBean{
+		ResourceIdentifier: application.ResourceIdentifier{
+			Name: node.Name,
+			GroupVersionKind: schema.GroupVersionKind{
+				Version: node.APIVersion,
+				Kind:    node.Kind,
+			},
+		},
+	}
+	manifestResponse, err := impl.k8sClientService.GetResource(restConfig, manifestRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting node manifest", "err", err)
+		return err
+	}
+	nodeDetail.Manifest = manifestResponse.Manifest
+	return nil
 }
 
+func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(request *NodeManifestUpdateDto) (*application.ManifestResponse, error) {
+	//getting rest config by clusterId
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(request.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
+		return nil, err
+	}
+	manifestUpdateReq := &application.K8sRequestBean{
+		ResourceIdentifier: application.ResourceIdentifier{
+			Name: request.Name,
+			GroupVersionKind: schema.GroupVersionKind{
+				Version: request.Version,
+				Kind:    request.Kind,
+			},
+		},
+		Patch: request.ManifestPatch,
+	}
+	manifestResponse, err := impl.k8sClientService.UpdateResource(restConfig, manifestUpdateReq)
+	if err != nil {
+		impl.logger.Errorw("error in updating node manifest", "err", err)
+		return nil, err
+	}
+	return manifestResponse, nil
+}
 func getPodDetail(pod metav1.Pod, cpuAllocatable resource.Quantity, memoryAllocatable resource.Quantity, limits metav1.ResourceList, requests metav1.ResourceList) *PodCapacityDetail {
 	cpuLimits, cpuLimitsOk := limits[metav1.ResourceCPU]
 	cpuRequests, cpuRequestsOk := requests[metav1.ResourceCPU]
@@ -394,7 +497,7 @@ func translateTimestampSince(timestamp v1.Time) string {
 	return duration.HumanDuration(time.Since(timestamp.Time))
 }
 
-func findNodeRoles(node metav1.Node) []string {
+func findNodeRoles(node *metav1.Node) []string {
 	roles := sets.NewString()
 	for k, v := range node.Labels {
 		switch {
@@ -413,7 +516,7 @@ func findNodeRoles(node metav1.Node) []string {
 	}
 }
 
-func findNodeStatus(node metav1.Node) string {
+func findNodeStatus(node *metav1.Node) string {
 	conditionMap := make(map[metav1.NodeConditionType]*metav1.NodeCondition)
 	//Valid conditions to be updated with update at kubernetes end
 	NodeAllValidConditions := []metav1.NodeConditionType{metav1.NodeReady}
@@ -436,7 +539,7 @@ func findNodeStatus(node metav1.Node) string {
 	return status
 }
 
-func findNodeErrors(node metav1.Node) map[metav1.NodeConditionType]string {
+func findNodeErrors(node *metav1.Node) map[metav1.NodeConditionType]string {
 	conditionMap := make(map[metav1.NodeConditionType]*metav1.NodeCondition)
 	NodeAllErrorConditions := []metav1.NodeConditionType{metav1.NodeMemoryPressure, metav1.NodeDiskPressure, metav1.NodeNetworkUnavailable, metav1.NodePIDPressure}
 	for _, condition := range node.Status.Conditions {
@@ -453,7 +556,7 @@ func findNodeErrors(node metav1.Node) map[metav1.NodeConditionType]string {
 	return conditionErrorMap
 }
 
-func getNodeExternalIP(node metav1.Node) string {
+func getNodeExternalIP(node *metav1.Node) string {
 	for _, address := range node.Status.Addresses {
 		if address.Type == metav1.NodeExternalIP {
 			return address.Address
@@ -462,7 +565,7 @@ func getNodeExternalIP(node metav1.Node) string {
 	return "<none>"
 }
 
-func getNodeInternalIP(node metav1.Node) string {
+func getNodeInternalIP(node *metav1.Node) string {
 	for _, address := range node.Status.Addresses {
 		if address.Type == metav1.NodeInternalIP {
 			return address.Address

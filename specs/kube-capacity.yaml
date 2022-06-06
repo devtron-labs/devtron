@@ -135,12 +135,12 @@ paths:
           required: true
           schema:
             type: integer
-        - name: resourceVersion
+        - name: name
           in: query
-          required: false
+          required: true
           schema:
             type: string
-            description: resource version of node
+            description: names of node
       responses:
         '200':
           description: Successfully return node detail
@@ -181,7 +181,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/NodeManifestUpdateDto'
+                $ref: '#/components/schemas/NodeManifestUpdateResponse'
         '400':
           description: Bad Request. Input Validation error/wrong request body.
           content:
@@ -333,9 +333,18 @@ components:
       properties:
         clusterId:
           type: integer
-        nodeName:
+        name:
           type: string
-        nodeManifestPatch:
+        manifestPatch:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+    NodeManifestUpdateResponse:
+      type: object
+      properties:
+        manifest:
           type: string
     ResourceDetailObject:
       type: object

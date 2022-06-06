@@ -31,9 +31,6 @@ func (impl *K8sCapacityRouterImpl) InitK8sCapacityRouter(k8sCapacityRouter *mux.
 	k8sCapacityRouter.Path("/node").
 		HandlerFunc(impl.k8sCapacityRestHandler.GetNodeDetail).Methods("GET")
 
-	k8sCapacityRouter.Path("/node/manifest").
-		HandlerFunc(impl.k8sCapacityRestHandler.GetNodeManifest).Methods("GET")
-
-	k8sCapacityRouter.Path("/node/manifest").
+	k8sCapacityRouter.Path("/node").
 		HandlerFunc(impl.k8sCapacityRestHandler.UpdateNodeManifest).Methods("PUT")
 }
