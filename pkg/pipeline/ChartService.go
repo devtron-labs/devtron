@@ -1518,5 +1518,5 @@ func (impl ChartServiceImpl) CheckCustomChartByChartId(id int) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return chartData.UserUploaded, err
+	return chartData.UserUploaded, nil
 }
