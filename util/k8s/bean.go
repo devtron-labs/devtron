@@ -20,18 +20,19 @@ type NodeCapacityDetails struct {
 	Cpu        *ResourceDetailObject `json:"cpu"`
 	Memory     *ResourceDetailObject `json:"memory"`
 	Age        string                `json:"age"`
-
-	StatusReasonMap map[string]string `json:"statusReasonMap"`
+	Errors     []string              `json:"errors"`
 }
 
 type ResourceDetailObject struct {
-	ResourceName string `json:"name,omitempty"`
-	Usage        string `json:"usage,omitempty"`
-	Capacity     string `json:"capacity,omitempty"`
-	Request      string `json:"request,omitempty"`
-	Limit        string `json:"limit,omitempty"`
-	Allocatable  string `json:"allocatable,omitempty"`
-	Available    string `json:"available,omitempty"`
+	ResourceName      string `json:"name,omitempty"`
+	Capacity          string `json:"capacity,omitempty"`
+	Allocatable       string `json:"allocatable,omitempty"`
+	Usage             string `json:"usage,omitempty"`
+	Request           string `json:"request,omitempty"`
+	Limit             string `json:"limit,omitempty"`
+	UsagePercentage   string `json:"usagePercentage,omitempty"`
+	RequestPercentage string `json:"requestPercentage,omitempty"`
+	LimitPercentage   string `json:"limitPercentage,omitempty"`
 }
 
 type ResourceMetric struct {

@@ -135,12 +135,12 @@ paths:
           required: true
           schema:
             type: integer
-        - name: name
+        - name: resourceVersion
           in: query
           required: false
           schema:
-            type: integer
-            description: name of node
+            type: string
+            description: resource version of node
       responses:
         '200':
           description: Successfully return node detail
@@ -244,7 +244,7 @@ components:
         errors:
           type: array
           items:
-            type: string
+            $ref: '#/components/schemas/NodeError'
         k8sVersion:
           type: string
         podCount:
@@ -256,6 +256,8 @@ components:
         memory:
           $ref: '#/components/schemas/ResourceDetailObject'
         age:
+          type: string
+        resourceVersion:
           type: string
     NodeCapacityDetailObject:
       type: object
@@ -276,11 +278,7 @@ components:
           type: string
         externalIp:
           type: string
-        cpu:
-          $ref: '#/components/schemas/ResourceDetailObject'
-        memory:
-          $ref: '#/components/schemas/ResourceDetailObject'
-        additionalResources:
+        resources:
           type: array
           items:
             $ref: '#/components/schemas/ResourceDetailObject'
@@ -302,12 +300,19 @@ components:
             $ref: '#/components/schemas/NodeConditionObject'
         errors:
           type: array
+          items:
+            $ref: '#/components/schemas/NodeError'
         pods:
           type: array
           items:
             $ref: '#/components/schemas/PodCapacityDto'
         manifest:
           type: string
+        resourceVersion:
+          type: string
+    NodeError:
+      type: object
+      description: map of conditionType(key) and error(value)
     PodCapacityDto:
       type: object
       properties:
@@ -366,7 +371,7 @@ components:
         type:
           type: string
         status:
-          type: boolean
+          type: string
         reason:
           type: string
         message:

@@ -5,11 +5,21 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
+	metav1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/duration"
+	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
 	metrics "k8s.io/metrics/pkg/client/clientset/versioned"
+	"strings"
+	"time"
+)
+
+const (
+	labelNodeRolePrefix = "node-role.kubernetes.io/"
+	nodeLabelRole       = "kubernetes.io/role"
 )
 
 type K8sCapacityService interface {
@@ -74,6 +84,8 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 	}
 	var clusterCpuCapacity resource.Quantity
 	var clusterMemoryCapacity resource.Quantity
+	var clusterCpuAllocatable resource.Quantity
+	var clusterMemoryAllocatable resource.Quantity
 	nodeCount := 0
 	nodesK8sVersionMap := make(map[string]bool)
 	var nodesK8sVersion []string
@@ -87,6 +99,8 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 		}
 		clusterCpuCapacity.Add(node.Status.Capacity["cpu"])
 		clusterMemoryCapacity.Add(node.Status.Capacity["memory"])
+		clusterCpuAllocatable.Add(node.Status.Allocatable["cpu"])
+		clusterMemoryAllocatable.Add(node.Status.Allocatable["memory"])
 	}
 	clusterDetail.Cpu = &ResourceDetailObject{
 		Capacity: clusterCpuCapacity.String(),
@@ -135,10 +149,12 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 			clusterMemoryLimits.Add(limits["memory"])
 			clusterMemoryRequests.Add(requests["memory"])
 		}
-		clusterDetail.Cpu.Request = clusterCpuRequests.String()
-		clusterDetail.Cpu.Limit = clusterCpuLimits.String()
-		clusterDetail.Memory.Request = clusterMemoryRequests.String()
-		clusterDetail.Memory.Limit = clusterMemoryLimits.String()
+		clusterDetail.Cpu.RequestPercentage = convertToPercentage(clusterCpuRequests, clusterCpuAllocatable)
+		clusterDetail.Cpu.LimitPercentage = convertToPercentage(clusterCpuLimits, clusterCpuAllocatable)
+		clusterDetail.Cpu.UsagePercentage = convertToPercentage(clusterCpuUsage, clusterCpuAllocatable)
+		clusterDetail.Memory.RequestPercentage = convertToPercentage(clusterMemoryRequests, clusterMemoryAllocatable)
+		clusterDetail.Memory.LimitPercentage = convertToPercentage(clusterMemoryLimits, clusterMemoryAllocatable)
+		clusterDetail.Memory.UsagePercentage = convertToPercentage(clusterMemoryUsage, clusterMemoryAllocatable)
 	}
 	return clusterDetail, nil
 }
@@ -192,24 +208,34 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByClusterId(cluste
 				tmpPodCount++
 			}
 		}
-		cpuCapacity := node.Status.Capacity["cpu"]
-		memoryCapacity := node.Status.Capacity["memory"]
 		cpuAllocatable := node.Status.Allocatable["cpu"]
 		memoryAllocatable := node.Status.Allocatable["memory"]
+		//TODO: add node status, errors
 		nodeDetail := &NodeCapacityDetails{
-			Name:              node.Name,
-			PodCount:          tmpPodCount,
-			TaintCount:        len(node.Spec.Taints),
-			CpuCapacity:       cpuCapacity.String(),
-			MemoryCapacity:    memoryCapacity.String(),
-			CpuAllocatable:    cpuAllocatable.String(),
-			MemoryAllocatable: memoryAllocatable.String(),
+			Name:       node.Name,
+			PodCount:   tmpPodCount,
+			TaintCount: len(node.Spec.Taints),
+			K8sVersion: node.Status.NodeInfo.KubeletVersion,
+			Cpu: &ResourceDetailObject{
+				Allocatable: cpuAllocatable.String(),
+			},
+			Memory: &ResourceDetailObject{
+				Allocatable: memoryAllocatable.String(),
+			},
+			Age: translateTimestampSince(node.CreationTimestamp),
 		}
+		roles := findNodeRoles(node)
+		if len(roles) == 0 {
+			roles = []string{"<none>"}
+		}
+		nodeDetail.Roles = roles
 		if cpuUsage, ok := nodeCpuUsage[node.Name]; ok {
-			nodeDetail.CpuUsage = cpuUsage.String()
+			nodeDetail.Cpu.Usage = cpuUsage.String()
+			nodeDetail.Cpu.UsagePercentage = convertToPercentage(cpuUsage, cpuAllocatable)
 		}
 		if memoryUsage, ok := nodeMemoryUsage[node.Name]; ok {
-			nodeDetail.MemoryUsage = memoryUsage.String()
+			nodeDetail.Memory.Usage = memoryUsage.String()
+			nodeDetail.Memory.UsagePercentage = convertToPercentage(memoryUsage, memoryAllocatable)
 		}
 		nodeDetails = append(nodeDetails, nodeDetail)
 	}
@@ -222,5 +248,46 @@ func convertToPercentage(actual, allocatable resource.Quantity) string {
 		utilPercent = float64(actual.MilliValue()) / float64(allocatable.MilliValue()) * 100
 	}
 	return fmt.Sprintf("%d%%%%", int64(utilPercent))
+}
 
+func translateTimestampSince(timestamp v1.Time) string {
+	if timestamp.IsZero() {
+		return "<unknown>"
+	}
+	return duration.HumanDuration(time.Since(timestamp.Time))
+}
+
+func findNodeRoles(node metav1.Node) []string {
+	roles := sets.NewString()
+	for k, v := range node.Labels {
+		switch {
+		case strings.HasPrefix(k, labelNodeRolePrefix):
+			if role := strings.TrimPrefix(k, labelNodeRolePrefix); len(role) > 0 {
+				roles.Insert(role)
+			}
+		case k == nodeLabelRole && v != "":
+			roles.Insert(v)
+		}
+	}
+	return roles.List()
+}
+
+func findNodeStatus(node metav1.Node) string {
+	conditionMap := make(map[metav1.NodeConditionType]*metav1.NodeCondition)
+	NodeAllValidConditions := []metav1.NodeConditionType{metav1.NodeReady}
+	for _, condition := range node.Status.Conditions {
+		conditionMap[condition.Type] = &condition
+	}
+	var status string
+	for _, validCondition := range NodeAllValidConditions {
+		if condition, ok := conditionMap[validCondition]; ok {
+			if condition.Status == metav1.ConditionTrue {
+				status = string(condition.Type)
+			}
+		}
+	}
+	if len(status) == 0 {
+		status = "Unknown"
+	}
+	return status
 }
