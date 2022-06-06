@@ -437,6 +437,7 @@ type CDPipelineConfigObject struct {
 	CdArgoSetup                   bool                              `json:"isClusterCdActive"`
 	ParentPipelineId              int                               `json:"parentPipelineId"`
 	ParentPipelineType            string                            `json:"parentPipelineType"`
+	DeploymentAppType             string                            `json:"deploymentAppType"`
 	//Downstream         []int                             `json:"downstream"` //PipelineCounter of downstream	(for future reference only)
 }
 

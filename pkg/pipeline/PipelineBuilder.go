@@ -1024,30 +1024,44 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		}
 	}
 
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
-	if err != nil && pg.ErrNoRows != err {
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
 		return nil, err
 	}
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
-	chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, pipelineCreateRequest.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
-		return nil, err
-	}
-	chart.GitRepoUrl = chartGitAttr.RepoUrl
-	chart.ChartLocation = chartGitAttr.ChartLocation
-	chart.UpdatedOn = time.Now()
-	chart.UpdatedBy = pipelineCreateRequest.UserId
-	err = impl.chartRepository.Update(chart)
-	if err != nil {
-		return nil, err
-	}
-	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
-	if err != nil {
-		return nil, err
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+		if err != nil && pg.ErrNoRows != err {
+			return nil, err
+		}
+		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
+		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, pipelineCreateRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
+			return nil, err
+		}
+		chart.GitRepoUrl = chartGitAttr.RepoUrl
+		chart.ChartLocation = chartGitAttr.ChartLocation
+		chart.UpdatedOn = time.Now()
+		chart.UpdatedBy = pipelineCreateRequest.UserId
+		err = impl.chartRepository.Update(chart)
+		if err != nil {
+			return nil, err
+		}
+		err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if isGitOpsConfigured {
+			pipeline.DeploymentAppType = pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_ACD
+		} else {
+			pipeline.DeploymentAppType = pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_HELM
+		}
 		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating pipeline", "name", pipeline.Name, "err", err)

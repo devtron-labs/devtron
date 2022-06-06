@@ -574,7 +574,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		Version: envOverride.Chart.ChartVersion,
 	}
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
-	if pipeline.DeploymentAppType == "acd" {
+	if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
 		_, err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, overrideRequest.UserId, pipeline.DeploymentAppType)
@@ -656,15 +656,17 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 
 	releaseId, pipelineOverrideId, mergeAndSave, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, strategy, ctx, triggeredAt, deployedBy)
 	if releaseId != 0 {
-		flag, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in updating argocd  app ", "err", err)
-			return 0, err
-		}
-		if flag {
-			impl.logger.Debug("argocd successfully updated")
-		} else {
-			impl.logger.Debug("argocd failed to update, ignoring it")
+		if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			flag, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
+			if err != nil {
+				impl.logger.Errorw("error in updating argocd  app ", "err", err)
+				return 0, err
+			}
+			if flag {
+				impl.logger.Debug("argocd successfully updated")
+			} else {
+				impl.logger.Debug("argocd failed to update, ignoring it")
+			}
 		}
 
 		deploymentStatus := &repository.DeploymentStatus{
@@ -697,19 +699,19 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			_ = impl.MarkImageScanDeployed(overrideRequest.AppId, envOverride.TargetEnvironment, artifact.ImageDigest, pipeline.Environment.ClusterId)
 		}
 
-		if pipeline.DeploymentAppType == "" {
+		if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_HELM {
 			referenceChartByte := envOverride.Chart.ReferenceChart
 			if len(envOverride.Chart.ReferenceChart) == 0 {
 				refChartByte, err := impl.chartTemplateService.GetByteArrayRefChart(chartMetaData, referenceTemplatePath)
 				if err != nil {
-					impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
+					impl.logger.Errorw("ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
 					return 0, err
 				}
 				ch := envOverride.Chart
 				ch.ReferenceChart = refChartByte
 				err = impl.chartRepository.Update(ch)
 				if err != nil {
-					impl.logger.Errorf("invalid state", "err", err, "req", overrideRequest)
+					impl.logger.Errorw("chart update error", "err", err, "req", overrideRequest)
 					return 0, err
 				}
 				referenceChartByte = refChartByte
