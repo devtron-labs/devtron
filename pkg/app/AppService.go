@@ -146,7 +146,7 @@ func NewAppService(
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
 	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
-	//chartService pipeline.ChartService,
+	chartService chart.ChartService,
 ) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
@@ -186,7 +186,7 @@ func NewAppService(
 		chartTemplateService:             chartTemplateService,
 		refChartDir:                      refChartDir,
 		chartRefRepository:               chartRefRepository,
-		//chartService:                     chartService,
+		chartService:                     chartService,
 	}
 	return appServiceImpl
 }
