@@ -86,22 +86,19 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		return
 	}
 	chartRefId := templateRequest.ChartRefId
-	userUploaded, err := handler.chartService.CheckCustomChartByChartId(chartRefId)
 
-	if !userUploaded {
-		validate, err2 := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
-		if !validate {
-			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
-			return
-		}
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
+	if !validate {
+		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+		return
+	}
 
-		handler.Logger.Infow("request payload, ConfigureDeploymentTemplateForApp", "payload", templateRequest)
-		err = handler.validator.Struct(templateRequest)
-		if err != nil {
-			handler.Logger.Errorw("validation err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
+	handler.Logger.Infow("request payload, ConfigureDeploymentTemplateForApp", "payload", templateRequest)
+	err = handler.validator.Struct(templateRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(templateRequest.AppId)
@@ -490,6 +487,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 
 	appConfigResponse := make(map[string]interface{})
 	appConfigResponse["globalConfig"] = nil
+
+	err = handler.chartService.CheckChartExists(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
+		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
+		return
+	}
 
 	schema, readme, err := handler.chartService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
 	if err != nil {

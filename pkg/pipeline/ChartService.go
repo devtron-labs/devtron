@@ -212,6 +212,11 @@ func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefI
 	}
 	var schemaByte []byte
 	var readmeByte []byte
+	err = impl.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, nil, err
+	}
 	schemaByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "schema.json")))
 	if err != nil {
 		impl.logger.Errorw("error in reading schema.json file for refChart", "err", err, "chartRefId", chartRefId)
@@ -234,30 +239,45 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 	if err != nil {
 		return nil, err
 	}
-	appOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
+	var appOverrideByte, envOverrideByte []byte
+	appOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
 	if err != nil {
 		return nil, err
-	}
-	appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "env-values.yaml")))
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
-	if err != nil {
-		return nil, err
+	} else {
+		appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	merged, err := impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
+	envOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "env-values.yaml")))
 	if err != nil {
 		return nil, err
+	} else {
+		envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	messages := make(map[string]interface{})
+	var merged []byte
+	if appOverrideByte == nil && envOverrideByte == nil {
+		return messages, nil
+	} else if appOverrideByte == nil || envOverrideByte == nil {
+		if appOverrideByte == nil {
+			merged = appOverrideByte
+		} else {
+			merged = envOverrideByte
+		}
+	} else {
+		merged, err = impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	appOverride := json.RawMessage(merged)
-	messages := make(map[string]interface{})
 	messages["defaultAppOverride"] = appOverride
 	return messages, nil
 }
@@ -1270,6 +1290,12 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}
 }
 
 func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error) {
+	err := impl.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("refChartDir Not Found", "err", err)
+		return nil, err
+	}
+
 	refChartDir, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
