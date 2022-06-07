@@ -87,13 +87,13 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterDetail(w http.ResponseWrite
 }
 
 func (handler *K8sCapacityRestHandlerImpl) GetNodeList(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
+	vars := r.URL.Query()
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	clusterId, err := strconv.Atoi(vars["clusterId"])
+	clusterId, err := strconv.Atoi(vars.Get("clusterId"))
 	if err != nil {
 		handler.logger.Errorw("request err, GetNodeList", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -115,19 +115,19 @@ func (handler *K8sCapacityRestHandlerImpl) GetNodeList(w http.ResponseWriter, r 
 }
 
 func (handler *K8sCapacityRestHandlerImpl) GetNodeDetail(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
+	vars := r.URL.Query()
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	clusterId, err := strconv.Atoi(vars["clusterId"])
+	clusterId, err := strconv.Atoi(vars.Get("clusterId"))
 	if err != nil {
 		handler.logger.Errorw("request err, GetNodeDetail", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	name := vars["name"]
+	name := vars.Get("name")
 	if err != nil {
 		handler.logger.Errorw("request err, GetNodeDetail", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
