@@ -52,22 +52,23 @@ func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger,
 }
 
 func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList() ([]*ClusterCapacityDetail, error) {
-	clusters, err := impl.clusterService.FindAll()
+	//todo remove this hardcoding for default cluster
+	cluster, err := impl.clusterService.FindById(1)
 	if err != nil {
 		impl.logger.Errorw("error in getting all clusters", "err", err)
 		return nil, err
 	}
 	var clustersDetails []*ClusterCapacityDetail
-	for _, cluster := range clusters {
-		clusterCapacityDetail, err := impl.GetClusterCapacityDetailById(cluster.Id, true)
-		if err != nil {
-			impl.logger.Errorw("error in getting cluster capacity details by id", "err", err)
-			return nil, err
-		}
-		clusterCapacityDetail.Id = cluster.Id
-		clusterCapacityDetail.Name = cluster.ClusterName
-		clustersDetails = append(clustersDetails, clusterCapacityDetail)
+	//for _, cluster := range []clusters {
+	clusterCapacityDetail, err := impl.GetClusterCapacityDetailById(cluster.Id, true)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster capacity details by id", "err", err)
+		return nil, err
 	}
+	clusterCapacityDetail.Id = cluster.Id
+	clusterCapacityDetail.Name = cluster.ClusterName
+	clustersDetails = append(clustersDetails, clusterCapacityDetail)
+	//}
 	return clustersDetails, nil
 }
 
