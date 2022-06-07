@@ -92,7 +92,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 		if !callForList {
 			return nil, errorInNodeListing
 		} else {
-			clusterDetail.ErrorInNodeListing = errorInNodeListing
+			clusterDetail.ErrorInNodeListing = errorInNodeListing.Error()
 			return clusterDetail, nil
 		}
 	}
@@ -103,20 +103,25 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 	var clusterMemoryAllocatable resource.Quantity
 	nodeCount := 0
 	nodesK8sVersionMap := make(map[string]bool)
+	nodeErrors := make(map[string]string)
 	var nodesK8sVersion []string
 	for _, node := range nodeList.Items {
-		if callForList {
-			nodeCount += 1
-			if _, ok := nodesK8sVersionMap[node.Status.NodeInfo.KubeletVersion]; !ok {
-				nodesK8sVersionMap[node.Status.NodeInfo.KubeletVersion] = true
-				nodesK8sVersion = append(nodesK8sVersion, node.Status.NodeInfo.KubeletVersion)
-			}
+		errorsInNode := findNodeErrors(&node)
+		for _, v := range errorsInNode {
+			nodeErrors[node.Name] = v
+		}
+		nodeCount += 1
+		if _, ok := nodesK8sVersionMap[node.Status.NodeInfo.KubeletVersion]; !ok {
+			nodesK8sVersionMap[node.Status.NodeInfo.KubeletVersion] = true
+			nodesK8sVersion = append(nodesK8sVersion, node.Status.NodeInfo.KubeletVersion)
 		}
 		clusterCpuCapacity.Add(node.Status.Capacity[metav1.ResourceCPU])
 		clusterMemoryCapacity.Add(node.Status.Capacity[metav1.ResourceMemory])
 		clusterCpuAllocatable.Add(node.Status.Allocatable[metav1.ResourceCPU])
 		clusterMemoryAllocatable.Add(node.Status.Allocatable[metav1.ResourceMemory])
 	}
+	clusterDetail.NodeErrors = nodeErrors
+	clusterDetail.NodeK8sVersions = nodesK8sVersion
 	clusterDetail.Cpu = &ResourceDetailObject{
 		Capacity: clusterCpuCapacity.String(),
 	}
@@ -125,9 +130,8 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 	}
 	if callForList {
 		//assigning additional data for cluster listing api call
-		//setting value as nil because we already handled error case after node listing call
-		clusterDetail.ErrorInNodeListing = nil
-		clusterDetail.NodeK8sVersions = nodesK8sVersion
+		//setting value as empty because we already handled error case after node listing call
+		clusterDetail.ErrorInNodeListing = ""
 		clusterDetail.NodeCount = nodeCount
 	} else {
 		//update data for cluster detail api call

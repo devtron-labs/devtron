@@ -8,10 +8,10 @@ import (
 type ClusterCapacityDetail struct {
 	Id                 int                   `json:"id"`
 	Name               string                `json:"name"`
-	ErrorInNodeListing error                 `json:"errorInNodeListing"`
+	ErrorInNodeListing string                `json:"errorInNodeListing,omitempty"`
 	NodeCount          int                   `json:"nodeCount,omitempty"`
-	NodeErrors         []string              `json:"nodeErrors,omitempty"`
-	NodeK8sVersions    []string              `json:"nodeK8sVersions,omitempty"`
+	NodeErrors         map[string]string     `json:"nodeErrors"`
+	NodeK8sVersions    []string              `json:"nodeK8sVersions"`
 	Cpu                *ResourceDetailObject `json:"cpu"`
 	Memory             *ResourceDetailObject `json:"memory"`
 }
