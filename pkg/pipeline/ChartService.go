@@ -1275,6 +1275,25 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
 		return nil, err
 	}
+	chartData, err := impl.chartRefRepository.FindById(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
+		return nil, err
+	}
+	if _, err := os.Stat(refChartDir); os.IsNotExist(err) {
+		impl.logger.Infow("Deployment template is missing")
+		chartInfo, err := impl.ExtractChartIfMissing(chartData.ChartData, string(impl.refChartDir), chartData.Location)
+		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
+			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+			if err1 != nil {
+				impl.logger.Errorw("error in deleting temp dir ", "err", err)
+			}
+		}
+		if err != nil {
+			impl.logger.Errorw("Error regarding uploaded chart", "err", err)
+			return nil, err
+		}
+	}
 	fileStatus := filepath.Join(refChartDir, "schema.json")
 	if _, err := os.Stat(fileStatus); os.IsNotExist(err) {
 		impl.logger.Errorw("Schema File Not Found err, JsonSchemaExtractFromFile", err)

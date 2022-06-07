@@ -490,6 +490,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 	appConfigResponse := make(map[string]interface{})
 	appConfigResponse["globalConfig"] = nil
 
+	err = handler.chartService.CheckChartExists(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
+		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
+		return
+	}
+
 	schema, readme, err := handler.chartService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
 	if err != nil {
 		handler.Logger.Errorw("err in getting schema and readme, GetDeploymentTemplate", "err", err, "appId", appId, "chartRefId", chartRefId)
