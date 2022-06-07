@@ -413,6 +413,7 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		}
 		nodeDetail.Resources = append(nodeDetail.Resources, r)
 	}
+	impl.logger.Infow("node manifest fetch request", "version", node.APIVersion, "kind", node.Kind, "name", node.Name)
 	//getting manifest
 	manifestRequest := &application.K8sRequestBean{
 		ResourceIdentifier: application.ResourceIdentifier{
