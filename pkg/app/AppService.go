@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
-	"os"
 	"path"
 	"strconv"
 	"strings"
@@ -588,19 +587,10 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		impl.logger.Errorw("err in getting chart info", "err", err)
 		return 0, err
 	}
-	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
-		impl.logger.Infow("Deployment template is missing")
-		chartInfo, err := impl.chartService.ExtractChartIfMissing(chartData.ChartData, string(impl.refChartDir), chartData.Location)
-		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
-			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
-			if err1 != nil {
-				impl.logger.Errorw("error in deleting temp dir ", "err", err)
-			}
-		}
-		if err != nil {
-			impl.logger.Errorw("Error regarding uploaded chart", "err", err)
-			return 0, err
-		}
+	err = impl.chartService.CheckChartExists(envOverride.Chart.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("err in getting chart info", "err", err)
+		return 0, err
 	}
 
 	userUploaded = chartData.UserUploaded
