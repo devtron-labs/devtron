@@ -32,7 +32,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ActionResponse'
+                $ref: '#/components/schemas/CreateApiTokenResponse'
           description: Api-token creation response
   /orchestrator/api-token/{id}:
     delete:
@@ -77,12 +77,13 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/ActionResponse'
+                $ref: '#/components/schemas/UpdateApiTokenResponse'
           description: Api-token update response
 components:
   schemas:
     ApiToken:
       example:
+        userIdentifier: some email
         expireAtInMs: 12344546
         lastUsedAt: some date
         lastUsedByIp: some ip
@@ -103,6 +104,11 @@ components:
           example: 1
           nullable: false
           type: integer
+        userIdentifier:
+          description: EmailId of that api-token user
+          example: some email
+          nullable: false
+          type: string
         name:
           description: Name of api-token
           example: some name
@@ -182,4 +188,42 @@ components:
           description: success or failure
           example: true
           type: boolean
+      type: object
+    CreateApiTokenResponse:
+      example:
+        userIdentifier: some email
+        success: true
+        userId: 1
+        token: some token
+      properties:
+        success:
+          description: success or failure
+          example: true
+          type: boolean
+        token:
+          description: Token of that api-token
+          example: some token
+          type: string
+        userId:
+          description: User Id associated with api-token
+          example: 1
+          type: integer
+        userIdentifier:
+          description: EmailId of that api-token user
+          example: some email
+          type: string
+      type: object
+    UpdateApiTokenResponse:
+      example:
+        success: true
+        token: some token
+      properties:
+        success:
+          description: success or failure
+          example: true
+          type: boolean
+        token:
+          description: Token of that api-token
+          example: some token
+          type: string
       type: object

@@ -6,6 +6,7 @@ Name | Type | Description | Notes
 ------------ | ------------- | ------------- | -------------
 **Id** | Pointer to **int32** | Id of api-token | [optional] 
 **UserId** | Pointer to **int32** | User Id associated with api-token | [optional] 
+**UserIdentifier** | Pointer to **string** | EmailId of that api-token user | [optional] 
 **Name** | Pointer to **string** | Name of api-token | [optional] 
 **Description** | Pointer to **string** | Description of api-token | [optional] 
 **ExpireAtInMs** | Pointer to **int64** | Expiration time of api-token in milliseconds | [optional] 
@@ -82,6 +83,31 @@ SetUserId sets UserId field to given value.
 `func (o *ApiToken) HasUserId() bool`
 
 HasUserId returns a boolean if a field has been set.
+
+### GetUserIdentifier
+
+`func (o *ApiToken) GetUserIdentifier() string`
+
+GetUserIdentifier returns the UserIdentifier field if non-nil, zero value otherwise.
+
+### GetUserIdentifierOk
+
+`func (o *ApiToken) GetUserIdentifierOk() (*string, bool)`
+
+GetUserIdentifierOk returns a tuple with the UserIdentifier field if it's non-nil, zero value otherwise
+and a boolean to check if the value has been set.
+
+### SetUserIdentifier
+
+`func (o *ApiToken) SetUserIdentifier(v string)`
+
+SetUserIdentifier sets UserIdentifier field to given value.
+
+### HasUserIdentifier
+
+`func (o *ApiToken) HasUserIdentifier() bool`
+
+HasUserIdentifier returns a boolean if a field has been set.
 
 ### GetName
 

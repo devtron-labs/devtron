@@ -144,7 +144,7 @@ No authorization required
 
 ## OrchestratorApiTokenIdPut
 
-> ActionResponse OrchestratorApiTokenIdPut(ctx, id).UpdateApiTokenRequest(updateApiTokenRequest).Execute()
+> UpdateApiTokenResponse OrchestratorApiTokenIdPut(ctx, id).UpdateApiTokenRequest(updateApiTokenRequest).Execute()
 
 
 
@@ -173,7 +173,7 @@ func main() {
         fmt.Fprintf(os.Stderr, "Error when calling `DefaultApi.OrchestratorApiTokenIdPut``: %v\n", err)
         fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
     }
-    // response from `OrchestratorApiTokenIdPut`: ActionResponse
+    // response from `OrchestratorApiTokenIdPut`: UpdateApiTokenResponse
     fmt.Fprintf(os.Stdout, "Response from `DefaultApi.OrchestratorApiTokenIdPut`: %v\n", resp)
 }
 ```
@@ -198,7 +198,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**ActionResponse**](ActionResponse.md)
+[**UpdateApiTokenResponse**](UpdateApiTokenResponse.md)
 
 ### Authorization
 
@@ -216,7 +216,7 @@ No authorization required
 
 ## OrchestratorApiTokenPost
 
-> ActionResponse OrchestratorApiTokenPost(ctx).CreateApiTokenRequest(createApiTokenRequest).Execute()
+> CreateApiTokenResponse OrchestratorApiTokenPost(ctx).CreateApiTokenRequest(createApiTokenRequest).Execute()
 
 
 
@@ -244,7 +244,7 @@ func main() {
         fmt.Fprintf(os.Stderr, "Error when calling `DefaultApi.OrchestratorApiTokenPost``: %v\n", err)
         fmt.Fprintf(os.Stderr, "Full HTTP response: %v\n", r)
     }
-    // response from `OrchestratorApiTokenPost`: ActionResponse
+    // response from `OrchestratorApiTokenPost`: CreateApiTokenResponse
     fmt.Fprintf(os.Stdout, "Response from `DefaultApi.OrchestratorApiTokenPost`: %v\n", resp)
 }
 ```
@@ -264,7 +264,7 @@ Name | Type | Description  | Notes
 
 ### Return type
 
-[**ActionResponse**](ActionResponse.md)
+[**CreateApiTokenResponse**](CreateApiTokenResponse.md)
 
 ### Authorization
 

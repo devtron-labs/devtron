@@ -35,8 +35,8 @@ import (
 
 type ApiTokenService interface {
 	GetAllActiveApiTokens() ([]*openapi.ApiToken, error)
-	CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32) (*openapi.ActionResponse, error)
-	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.ActionResponse, error)
+	CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32) (*openapi.CreateApiTokenResponse, error)
+	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.UpdateApiTokenResponse, error)
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
 }
 
@@ -88,13 +88,14 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 		apiTokenIdI32 := int32(apiTokenFromDb.Id)
 		updatedAtStr := apiTokenFromDb.UpdatedOn.String()
 		apiToken := &openapi.ApiToken{
-			Id:           &apiTokenIdI32,
-			UserId:       &userId,
-			Name:         &apiTokenFromDb.Name,
-			Description:  &apiTokenFromDb.Description,
-			ExpireAtInMs: &apiTokenFromDb.ExpireAtInMs,
-			Token:        &apiTokenFromDb.Token,
-			UpdatedAt:    &updatedAtStr,
+			Id:             &apiTokenIdI32,
+			UserId:         &userId,
+			UserIdentifier: &apiTokenFromDb.User.EmailId,
+			Name:           &apiTokenFromDb.Name,
+			Description:    &apiTokenFromDb.Description,
+			ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
+			Token:          &apiTokenFromDb.Token,
+			UpdatedAt:      &updatedAtStr,
 		}
 		if latestAuditLog != nil {
 			lastUsedAtStr := latestAuditLog.CreatedOn.String()
@@ -107,7 +108,7 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 	return apiTokens, nil
 }
 
-func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32) (*openapi.ActionResponse, error) {
+func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32) (*openapi.CreateApiTokenResponse, error) {
 	impl.logger.Infow("Creating API token", "request", request, "createdBy", createdBy)
 
 	name := request.GetName()
@@ -184,12 +185,15 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 	}
 
 	success := true
-	return &openapi.ActionResponse{
-		Success: &success,
+	return &openapi.CreateApiTokenResponse{
+		Success:        &success,
+		Token:          &token,
+		UserId:         &userId,
+		UserIdentifier: &email,
 	}, nil
 }
 
-func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.ActionResponse, error) {
+func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.UpdateApiTokenResponse, error) {
 	impl.logger.Infow("Updating API token", "request", request, "updatedBy", updatedBy, "apiTokenId", apiTokenId)
 
 	// step-1 - check if the api-token exists, if not exists - throw error
@@ -224,8 +228,9 @@ func (impl ApiTokenServiceImpl) UpdateApiToken(apiTokenId int, request *openapi.
 	}
 
 	success := true
-	return &openapi.ActionResponse{
+	return &openapi.UpdateApiTokenResponse{
 		Success: &success,
+		Token:   &apiToken.Token,
 	}, nil
 }
 

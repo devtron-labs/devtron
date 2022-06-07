@@ -20,6 +20,8 @@ type ApiToken struct {
 	Id *int32 `json:"id,omitempty"`
 	// User Id associated with api-token
 	UserId *int32 `json:"userId,omitempty"`
+	// EmailId of that api-token user
+	UserIdentifier *string `json:"userIdentifier,omitempty"`
 	// Name of api-token
 	Name *string `json:"name,omitempty"`
 	// Description of api-token
@@ -115,6 +117,38 @@ func (o *ApiToken) HasUserId() bool {
 // SetUserId gets a reference to the given int32 and assigns it to the UserId field.
 func (o *ApiToken) SetUserId(v int32) {
 	o.UserId = &v
+}
+
+// GetUserIdentifier returns the UserIdentifier field value if set, zero value otherwise.
+func (o *ApiToken) GetUserIdentifier() string {
+	if o == nil || o.UserIdentifier == nil {
+		var ret string
+		return ret
+	}
+	return *o.UserIdentifier
+}
+
+// GetUserIdentifierOk returns a tuple with the UserIdentifier field value if set, nil otherwise
+// and a boolean to check if the value has been set.
+func (o *ApiToken) GetUserIdentifierOk() (*string, bool) {
+	if o == nil || o.UserIdentifier == nil {
+		return nil, false
+	}
+	return o.UserIdentifier, true
+}
+
+// HasUserIdentifier returns a boolean if a field has been set.
+func (o *ApiToken) HasUserIdentifier() bool {
+	if o != nil && o.UserIdentifier != nil {
+		return true
+	}
+
+	return false
+}
+
+// SetUserIdentifier gets a reference to the given string and assigns it to the UserIdentifier field.
+func (o *ApiToken) SetUserIdentifier(v string) {
+	o.UserIdentifier = &v
 }
 
 // GetName returns the Name field value if set, zero value otherwise.
@@ -348,6 +382,9 @@ func (o ApiToken) MarshalJSON() ([]byte, error) {
 	}
 	if o.UserId != nil {
 		toSerialize["userId"] = o.UserId
+	}
+	if o.UserIdentifier != nil {
+		toSerialize["userIdentifier"] = o.UserIdentifier
 	}
 	if o.Name != nil {
 		toSerialize["name"] = o.Name

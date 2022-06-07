@@ -31,7 +31,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionResponse"
+                $ref: "#/components/schemas/CreateApiTokenResponse"
   /orchestrator/api-token/{id}:
     put:
       description: Update api-token
@@ -55,7 +55,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ActionResponse"
+                $ref: "#/components/schemas/UpdateApiTokenResponse"
     delete:
       description: Delete api-token
       parameters:
@@ -87,6 +87,11 @@ components:
           type: integer
           description: User Id associated with api-token
           example: 1
+          nullable: false
+        userIdentifier:
+          type: string
+          description: EmailId of that api-token user
+          example: "some email"
           nullable: false
         name:
           type: string
@@ -158,3 +163,33 @@ components:
           type: boolean
           description: success or failure
           example: true
+    CreateApiTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+        token:
+          type: string
+          description: Token of that api-token
+          example: "some token"
+        userId:
+          type: integer
+          description: User Id associated with api-token
+          example: 1
+        userIdentifier:
+          type: string
+          description: EmailId of that api-token user
+          example: "some email"
+    UpdateApiTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+        token:
+          type: string
+          description: Token of that api-token
+          example: "some token"
