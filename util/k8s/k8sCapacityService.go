@@ -350,8 +350,9 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *NodeCapacityDetail, node *metav1.Node,
 	nodeLimitsResourceList metav1.ResourceList, nodeRequestsResourceList metav1.ResourceList,
 	nodeUsageResourceList metav1.ResourceList, podDetailList []*PodCapacityDetail, restConfig *rest.Config) error {
-	nodeDetail.Version = node.APIVersion
-	nodeDetail.Kind = node.Kind
+	//TODO : confirm about empty node.typemeta response obj and remove hardcoding if needed
+	nodeDetail.Version = "v1"
+	nodeDetail.Kind = "Node"
 	nodeDetail.Pods = podDetailList
 	nodeDetail.CreatedAt = node.CreationTimestamp.String()
 
@@ -423,9 +424,8 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		ResourceIdentifier: application.ResourceIdentifier{
 			Name: node.Name,
 			GroupVersionKind: schema.GroupVersionKind{
-				Group:   "",
-				Version: node.APIVersion,
-				Kind:    node.Kind,
+				Version: nodeDetail.Version,
+				Kind:    nodeDetail.Kind,
 			},
 		},
 	}
