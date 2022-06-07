@@ -278,8 +278,8 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 	cpuAllocatable := node.Status.Allocatable[metav1.ResourceCPU]
 	memoryAllocatable := node.Status.Allocatable[metav1.ResourceMemory]
 	podCount := 0
-	var nodeRequestsResourceList metav1.ResourceList
-	var nodeLimitsResourceList metav1.ResourceList
+	nodeRequestsResourceList := make(metav1.ResourceList)
+	nodeLimitsResourceList := make(metav1.ResourceList)
 	var podDetailList []*PodCapacityDetail
 	for _, pod := range podList.Items {
 		if pod.Spec.NodeName == node.Name {
@@ -495,7 +495,7 @@ func convertToPercentage(actual, allocatable *resource.Quantity) string {
 	if allocatable.MilliValue() > 0 {
 		utilPercent = float64(actual.MilliValue()) / float64(allocatable.MilliValue()) * 100
 	}
-	return fmt.Sprintf("%d%%%%", int64(utilPercent))
+	return fmt.Sprintf("%d%%", int64(utilPercent))
 }
 
 func translateTimestampSince(timestamp v1.Time) string {
