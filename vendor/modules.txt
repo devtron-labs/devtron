@@ -169,8 +169,9 @@ github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/devtron-labs/authenticator v0.4.19 => github.com/nishant-d/authenticator v0.4.20
+# github.com/devtron-labs/authenticator v0.4.19 => github.com/nishant-d/authenticator v0.4.29
 ## explicit
+github.com/devtron-labs/authenticator/apiToken
 github.com/devtron-labs/authenticator/client
 github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
@@ -1111,4 +1112,4 @@ xorm.io/builder
 # xorm.io/core v0.7.2
 ## explicit
 xorm.io/core
-# github.com/devtron-labs/authenticator => github.com/nishant-d/authenticator v0.4.20
+# github.com/devtron-labs/authenticator => github.com/nishant-d/authenticator v0.4.29
