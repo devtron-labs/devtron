@@ -19,6 +19,7 @@ package router
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	"github.com/devtron-labs/devtron/api/chartRepo"
@@ -106,6 +107,7 @@ type MuxRouter struct {
 	selfRegistrationRolesRouter      user.SelfRegistrationRolesRouter
 	moduleRouter                     module.ModuleRouter
 	serverRouter                     server.ServerRouter
+	apiTokenRouter                   apiToken.ApiTokenRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -129,8 +131,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
-	globalPluginRouter GlobalPluginRouter, selfRegistrationRolesRouter user.SelfRegistrationRolesRouter,moduleRouter module.ModuleRouter,
-	serverRouter server.ServerRouter) *MuxRouter {
+	globalPluginRouter GlobalPluginRouter, selfRegistrationRolesRouter user.SelfRegistrationRolesRouter, moduleRouter module.ModuleRouter,
+	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -191,6 +193,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		selfRegistrationRolesRouter:      selfRegistrationRolesRouter,
 		moduleRouter:                     moduleRouter,
 		serverRouter:                     serverRouter,
+		apiTokenRouter:                   apiTokenRouter,
 	}
 	return r
 }
@@ -377,4 +380,8 @@ func (r MuxRouter) Init() {
 	// server router
 	serverRouter := r.Router.PathPrefix("/orchestrator/server").Subrouter()
 	r.serverRouter.Init(serverRouter)
+
+	// api-token router
+	apiTokenRouter := r.Router.PathPrefix("/orchestrator/api-token").Subrouter()
+	r.apiTokenRouter.InitApiTokenRouter(apiTokenRouter)
 }

@@ -21,6 +21,7 @@
 package main
 
 import (
+	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
@@ -123,6 +124,7 @@ func InitializeApp() (*App, error) {
 		appStoreDeployment.AppStoreDeploymentWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
+		apiToken.ApiTokenWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -600,6 +602,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
 		restHandler.NewCommonRestHanlderImpl,
 		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
+		
 		util.NewGitCliUtil,
 
 		router.NewTelemetryRouterImpl,

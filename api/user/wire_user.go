@@ -10,6 +10,8 @@ import (
 //depends on sql,validate,logger
 
 var UserWireSet = wire.NewSet(
+	UserAuditWireSet,
+
 	NewUserAuthRouterImpl,
 	wire.Bind(new(UserAuthRouter), new(*UserAuthRouterImpl)),
 	NewUserAuthHandlerImpl,
