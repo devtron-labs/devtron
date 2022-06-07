@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -141,6 +142,7 @@ type PipelineBuilderImpl struct {
 	chartTemplateService             util.ChartTemplateService
 	chartRefRepository               chartRepoRepository.ChartRefRepository
 	chartService                     ChartService
+	helmAppService                   client.HelmAppService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -174,7 +176,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	pipelineStageService PipelineStageService, chartRefRepository chartRepoRepository.ChartRefRepository,
-	chartTemplateService util.ChartTemplateService, chartService ChartService) *PipelineBuilderImpl {
+	chartTemplateService util.ChartTemplateService, chartService ChartService,
+	helmAppService client.HelmAppService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -212,6 +215,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		chartTemplateService:             chartTemplateService,
 		chartRefRepository:               chartRefRepository,
 		chartService:                     chartService,
+		helmAppService:                   helmAppService,
 	}
 }
 
@@ -1146,36 +1150,48 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	}
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
-		envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-		if err != nil {
-			return err
-		}
-		argoAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envModel.Name)
-		req := &application2.ApplicationDeleteRequest{
-			Name: &argoAppName,
-		}
-		if _, err := impl.application.Delete(ctx, req); err != nil {
-			impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
+		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+		if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			req := &application2.ApplicationDeleteRequest{
+				Name: &deploymentAppName,
+			}
+			if _, err := impl.application.Delete(ctx, req); err != nil {
+				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
-			if forceDelete {
-				impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
-			} else {
-				//statusError, _ := err.(*errors2.StatusError)
-				if strings.Contains(err.Error(), "code = NotFound") {
-					err = &util.ApiError{
-						UserMessage:     "Could not delete as application not found in argocd",
-						InternalMessage: err.Error(),
-					}
+				if forceDelete {
+					impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
 				} else {
-					err = &util.ApiError{
-						UserMessage:     "Could not delete application",
-						InternalMessage: err.Error(),
+					//statusError, _ := err.(*errors2.StatusError)
+					if strings.Contains(err.Error(), "code = NotFound") {
+						err = &util.ApiError{
+							UserMessage:     "Could not delete as application not found in argocd",
+							InternalMessage: err.Error(),
+						}
+					} else {
+						err = &util.ApiError{
+							UserMessage:     "Could not delete application",
+							InternalMessage: err.Error(),
+						}
 					}
+					return err
 				}
+			}
+			impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", deploymentAppName)
+		} else if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_HELM {
+			appIdentifier := &client.AppIdentifier{
+				ClusterId:   pipeline.Environment.ClusterId,
+				ReleaseName: deploymentAppName,
+				Namespace:   pipeline.Environment.Namespace,
+			}
+			deleteResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
+			if err != nil {
+				impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
 				return err
 			}
+			if deleteResponse == nil || !deleteResponse.GetSuccess() {
+				return errors.New("delete application response unsuccessful")
+			}
 		}
-		impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", argoAppName)
 	}
 	err = tx.Commit()
 	if err != nil {

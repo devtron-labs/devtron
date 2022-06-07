@@ -659,6 +659,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			} else {
 				impl.logger.Debug("argocd failed to update, ignoring it")
 			}
+			impl.synchCD(pipeline, ctx, overrideRequest, envOverride)
 		}
 
 		deploymentStatus := &repository.DeploymentStatus{
@@ -685,7 +686,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		if err != nil {
 			return 0, err
 		}
-		impl.synchCD(pipeline, ctx, overrideRequest, envOverride)
 		go impl.WriteCDTriggerEvent(overrideRequest, pipeline, envOverride, materialInfoMap, artifact, releaseId, pipelineOverrideId)
 		if artifact.ScanEnabled {
 			_ = impl.MarkImageScanDeployed(overrideRequest.AppId, envOverride.TargetEnvironment, artifact.ImageDigest, pipeline.Environment.ClusterId)
