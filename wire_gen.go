@@ -559,7 +559,7 @@ func InitializeApp() (*App, error) {
 	globalPluginRouterImpl := router.NewGlobalPluginRouter(sugaredLogger, globalPluginRestHandlerImpl)
 	selfRegistrationRolesRepositoryImpl := repository2.NewSelfRegistrationRolesRepositoryImpl(db, sugaredLogger)
 	selfRegistrationRolesServiceImpl := user.NewSelfRegistrationRolesServiceImpl(sugaredLogger, selfRegistrationRolesRepositoryImpl, userServiceImpl)
-	selfRegistrationRolesHandlerImpl := user2.NewSelfRegistrationRolesHandlerImpl(sugaredLogger, selfRegistrationRolesServiceImpl)
+	selfRegistrationRolesHandlerImpl := user2.NewSelfRegistrationRolesHandlerImpl(sugaredLogger, selfRegistrationRolesServiceImpl, userServiceImpl)
 	selfRegistrationRolesRouterImpl := user2.NewSelfRegistrationRolesRouterImpl(sugaredLogger, selfRegistrationRolesHandlerImpl)
 	moduleRepositoryImpl := module.NewModuleRepositoryImpl(db)
 	moduleActionAuditLogRepositoryImpl := module.NewModuleActionAuditLogRepositoryImpl(db)

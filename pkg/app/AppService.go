@@ -579,15 +579,18 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	var chartData *chartRepoRepository.ChartRef
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
-	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
-		chartData, err = impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
-		userUploaded = chartData.UserUploaded
-		if err != nil {
-			impl.logger.Errorw("err in getting chart info", "err", err)
-			return 0, err
-		}
 
+	chartData, err = impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("err in getting chart info", "err", err)
+		return 0, err
 	}
+	if _, err := os.Stat(referenceTemplatePath); os.IsNotExist(err) {
+		impl.logger.Infow("Deployment template is missing")
+	}
+
+	userUploaded = chartData.UserUploaded
+
 	_, err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, 1)
 	if err != nil {
 		impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
@@ -1453,7 +1456,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
 		return err
 	}
-	if strategy != nil && strategy.Strategy != "" {
+	if strategy != nil {
 		err = impl.pipelineStrategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy, pipeline.TriggerType)
 		if err != nil {
 			impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)

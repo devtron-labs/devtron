@@ -234,30 +234,45 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 	if err != nil {
 		return nil, err
 	}
-	appOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
+	var appOverrideByte, envOverrideByte []byte
+	appOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
 	if err != nil {
-		return nil, err
-	}
-	appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "env-values.yaml")))
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
-	if err != nil {
-		return nil, err
+		impl.logger.Infow("App values yaml file not found", "error ", err)
+	} else {
+		appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	merged, err := impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
+	envOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "env-values.yaml")))
 	if err != nil {
-		return nil, err
+		impl.logger.Infow("Env values yaml file not found", "error ", err)
+	} else {
+		envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
+		if err != nil {
+			return nil, err
+		}
+	}
+	messages := make(map[string]interface{})
+	var merged []byte
+	if appOverrideByte == nil && envOverrideByte == nil {
+		return messages, nil
+	} else if appOverrideByte == nil || envOverrideByte == nil {
+		if appOverrideByte == nil {
+			merged = appOverrideByte
+		} else {
+			merged = envOverrideByte
+		}
+	} else {
+		merged, err = impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	appOverride := json.RawMessage(merged)
-	messages := make(map[string]interface{})
+
 	messages["defaultAppOverride"] = appOverride
 	return messages, nil
 }
