@@ -86,22 +86,20 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		return
 	}
 	chartRefId := templateRequest.ChartRefId
-	userUploaded, err := handler.chartService.CheckCustomChartByChartId(chartRefId)
+	//userUploaded, err := handler.chartService.CheckCustomChartByChartId(chartRefId)
 
-	if !userUploaded {
-		validate, err2 := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
-		if !validate {
-			common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
-			return
-		}
+	validate, err2 := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
+	if !validate {
+		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
+		return
+	}
 
-		handler.Logger.Infow("request payload, ConfigureDeploymentTemplateForApp", "payload", templateRequest)
-		err = handler.validator.Struct(templateRequest)
-		if err != nil {
-			handler.Logger.Errorw("validation err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
+	handler.Logger.Infow("request payload, ConfigureDeploymentTemplateForApp", "payload", templateRequest)
+	err = handler.validator.Struct(templateRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 
 	token := r.Header.Get("token")
