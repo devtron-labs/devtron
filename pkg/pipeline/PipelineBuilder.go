@@ -1050,7 +1050,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 			ch.ChartLocation = chartGitAttr.ChartLocation
 			ch.UpdatedOn = time.Now()
 			ch.UpdatedBy = pipelineCreateRequest.UserId
-			err = impl.chartRepository.Update(chart)
+			err = impl.chartRepository.Update(ch)
 			if err != nil {
 				return nil, err
 			}
