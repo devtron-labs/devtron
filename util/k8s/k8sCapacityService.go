@@ -89,7 +89,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 	if errorInNodeListing != nil {
 		impl.logger.Errorw("error in getting node list", "err", errorInNodeListing)
 		if !callForList {
-			return nil, err
+			return nil, errorInNodeListing
 		}
 	}
 	impl.logger.Infow("received node list", "nodeList", nodeList, "clusterId", clusterId)
