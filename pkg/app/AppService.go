@@ -21,7 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
 	"path"
@@ -103,7 +103,7 @@ type AppServiceImpl struct {
 	chartTemplateService             ChartTemplateService
 	refChartDir                      chartRepoRepository.RefChartDir
 	chartRefRepository               chartRepoRepository.ChartRefRepository
-	chartService                     pipeline.ChartService
+	chartService                     chart.ChartService
 }
 
 type AppService interface {
@@ -145,7 +145,9 @@ func NewAppService(
 	configMapHistoryService history2.ConfigMapHistoryService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
 	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir,
-	chartRefRepository chartRepoRepository.ChartRefRepository, chartService pipeline.ChartService) *AppServiceImpl {
+	chartRefRepository chartRepoRepository.ChartRefRepository,
+	//chartService pipeline.ChartService,
+) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -184,7 +186,7 @@ func NewAppService(
 		chartTemplateService:             chartTemplateService,
 		refChartDir:                      refChartDir,
 		chartRefRepository:               chartRefRepository,
-		chartService:                     chartService,
+		//chartService:                     chartService,
 	}
 	return appServiceImpl
 }

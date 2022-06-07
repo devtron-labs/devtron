@@ -15,7 +15,7 @@
  *
  */
 
-package pipeline
+package chart
 
 import (
 	"bytes"
@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/constants"
+	//"github.com/devtron-labs/devtron/pkg/pipeline"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -1124,47 +1125,6 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 	}
 
 	return true, nil
-}
-
-//Deprecated
-func (impl ChartServiceImpl) filterDeploymentTemplateForBackground(deploymentTemplate pipelineConfig.DeploymentTemplate, pipelineOverride string) (string, error) {
-	var deploymentType DeploymentType
-	err := json.Unmarshal([]byte(pipelineOverride), &deploymentType)
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return "", err
-	}
-	if pipelineConfig.DEPLOYMENT_TEMPLATE_BLUE_GREEN == deploymentTemplate {
-		newDeploymentType := DeploymentType{
-			Deployment: Deployment{
-				Strategy: Strategy{
-					BlueGreen: deploymentType.Deployment.Strategy.BlueGreen,
-				},
-			},
-		}
-		pipelineOverrideBytes, err := json.Marshal(newDeploymentType)
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-			return "", err
-		}
-		pipelineOverride = string(pipelineOverrideBytes)
-	} else if pipelineConfig.DEPLOYMENT_TEMPLATE_ROLLING == deploymentTemplate {
-		newDeploymentType := DeploymentType{
-			Deployment: Deployment{
-				Strategy: Strategy{
-					Rolling: deploymentType.Deployment.Strategy.Rolling,
-				},
-			},
-		}
-		pipelineOverrideBytes, err := json.Marshal(newDeploymentType)
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-			return "", err
-		}
-		pipelineOverride = string(pipelineOverrideBytes)
-		return pipelineOverride, nil
-	}
-	return pipelineOverride, nil
 }
 
 func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error) {
