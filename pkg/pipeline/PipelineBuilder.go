@@ -1045,13 +1045,15 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		return nil, err
 	}
 	for _, ch := range charts {
-		ch.GitRepoUrl = chartGitAttr.RepoUrl
-		ch.ChartLocation = chartGitAttr.ChartLocation
-		ch.UpdatedOn = time.Now()
-		ch.UpdatedBy = pipelineCreateRequest.UserId
-		err = impl.chartRepository.Update(chart)
-		if err != nil {
-			return nil, err
+		if len(ch.GitRepoUrl) == 0 {
+			ch.GitRepoUrl = chartGitAttr.RepoUrl
+			ch.ChartLocation = chartGitAttr.ChartLocation
+			ch.UpdatedOn = time.Now()
+			ch.UpdatedBy = pipelineCreateRequest.UserId
+			err = impl.chartRepository.Update(chart)
+			if err != nil {
+				return nil, err
+			}
 		}
 	}
 
