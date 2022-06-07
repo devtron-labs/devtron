@@ -8,7 +8,7 @@ import (
 type ClusterCapacityDetail struct {
 	Id                 int                   `json:"id"`
 	Name               string                `json:"name"`
-	ErrorInNodeListing *bool                 `json:"errorInNodeListing,omitempty"`
+	ErrorInNodeListing error                 `json:"errorInNodeListing"`
 	NodeCount          int                   `json:"nodeCount,omitempty"`
 	NodeErrors         []string              `json:"nodeErrors,omitempty"`
 	NodeK8sVersions    []string              `json:"nodeK8sVersions,omitempty"`
