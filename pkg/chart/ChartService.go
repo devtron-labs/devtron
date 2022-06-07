@@ -243,7 +243,7 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 	var appOverrideByte, envOverrideByte []byte
 	appOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
 	if err != nil {
-		return nil, err
+		impl.logger.Infow("App values yaml file is missing")
 	} else {
 		appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
 		if err != nil {
@@ -253,7 +253,7 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 
 	envOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "env-values.yaml")))
 	if err != nil {
-		return nil, err
+		impl.logger.Infow("Env values yaml file is missing")
 	} else {
 		envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
 		if err != nil {
@@ -267,9 +267,9 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 		return messages, nil
 	} else if appOverrideByte == nil || envOverrideByte == nil {
 		if appOverrideByte == nil {
-			merged = appOverrideByte
-		} else {
 			merged = envOverrideByte
+		} else {
+			merged = appOverrideByte
 		}
 	} else {
 		merged, err = impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
