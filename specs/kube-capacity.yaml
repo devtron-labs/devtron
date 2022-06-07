@@ -7,13 +7,6 @@ paths:
     get:
       description: get list of clusters
       operationId: GetClusterList
-      parameters:
-        - name: names
-          in: query
-          required: false
-          schema:
-            type: integer
-            description: pipe separated values of names on which filter is to be applied (ex - test-cluster|devtron-cluster|demo-cluster)
       responses:
         '200':
           description: Successfully return list of cluster
@@ -86,18 +79,6 @@ paths:
           required: true
           schema:
             type: integer
-        - name: names
-          in: query
-          required: false
-          schema:
-            type: integer
-            description: pipe separated values of names on which filter is to be applied (ex - test-node|node1|node2)
-        - name: labels
-          in: query
-          required: false
-          schema:
-            type: integer
-            description: pipe separated values of labels on which filter is to be applied (ex - test|test1|test2)
       responses:
         '200':
           description: Successfully return list of node
@@ -140,7 +121,7 @@ paths:
           required: true
           schema:
             type: string
-            description: names of node
+            description: name of node
       responses:
         '200':
           description: Successfully return node detail
@@ -259,6 +240,10 @@ components:
           $ref: '#/components/schemas/ResourceDetailObject'
         age:
           type: string
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelTaintObject'
     NodeCapacityDetailObject:
       type: object
       properties:

@@ -285,6 +285,14 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 			}
 		}
 	}
+	var labels []*LabelAnnotationTaintObject
+	for k, v := range node.Labels {
+		labelObj := &LabelAnnotationTaintObject{
+			Key:   k,
+			Value: v,
+		}
+		labels = append(labels, labelObj)
+	}
 	nodeDetail := &NodeCapacityDetail{
 		Name:          node.Name,
 		K8sVersion:    node.Status.NodeInfo.KubeletVersion,
@@ -293,6 +301,7 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 		ExternalIp:    getNodeExternalIP(node),
 		Unschedulable: node.Spec.Unschedulable,
 		Roles:         findNodeRoles(node),
+		Labels:        labels,
 	}
 	nodeUsageResourceList := nodeResourceUsage[node.Name]
 	if callForList {
@@ -332,15 +341,6 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 	nodeDetail.Kind = node.Kind
 	nodeDetail.Pods = podDetailList
 	nodeDetail.CreatedAt = node.CreationTimestamp.String()
-	var labels []*LabelAnnotationTaintObject
-	for k, v := range node.Labels {
-		labelObj := &LabelAnnotationTaintObject{
-			Key:   k,
-			Value: v,
-		}
-		labels = append(labels, labelObj)
-	}
-	nodeDetail.Labels = labels
 
 	var annotations []*LabelAnnotationTaintObject
 	for k, v := range node.Annotations {
