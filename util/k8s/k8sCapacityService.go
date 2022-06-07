@@ -417,6 +417,7 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		ResourceIdentifier: application.ResourceIdentifier{
 			Name: node.Name,
 			GroupVersionKind: schema.GroupVersionKind{
+				Group:   "",
 				Version: node.APIVersion,
 				Kind:    node.Kind,
 			},
@@ -442,6 +443,7 @@ func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(request *NodeManifestUpda
 		ResourceIdentifier: application.ResourceIdentifier{
 			Name: request.Name,
 			GroupVersionKind: schema.GroupVersionKind{
+				Group:   "",
 				Version: request.Version,
 				Kind:    request.Kind,
 			},
