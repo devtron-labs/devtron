@@ -1,5 +1,5 @@
 installer:
-  release: "v0.4.10"
+  release: "v0.4.11"
   image: "quay.io/devtron/inception"
   tag: "acb623ff-185-7117"
   
