@@ -1042,6 +1042,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 	// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
 	err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
 	if err != nil {
+		impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
 		return nil, err
 	}
 
