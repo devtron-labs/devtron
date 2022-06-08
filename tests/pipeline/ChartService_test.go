@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -26,7 +27,7 @@ func setup() {
 	dbConnection, _ := sql.NewDbConnection(config, logger)
 	bulkUpdateRepository := bulkUpdate.NewBulkUpdateRepository(dbConnection, logger)
 	bulkUpdateService = pipeline.NewBulkUpdateServiceImpl(bulkUpdateRepository, nil, nil, nil, nil, "",
-		pipeline.DefaultChart(""), util.MergeUtil{}, nil, nil, nil, nil, nil,
+		chart.DefaultChart(""), util.MergeUtil{}, nil, nil, nil, nil, nil,
 		nil, nil, nil, nil, nil)
 }
 

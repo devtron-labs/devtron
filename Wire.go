@@ -76,6 +76,7 @@ import (
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
@@ -139,7 +140,7 @@ func InitializeApp() (*App, error) {
 		util3.GetACDAuthConfig,
 		wire.Value(chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
-		wire.Value(pipeline.DefaultChart("reference-app-rolling")),
+		wire.Value(chart.DefaultChart("reference-app-rolling")),
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
 		session.SettingsManager,
 		session.CDSettingsManager,
@@ -216,8 +217,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.DockerArtifactStoreRepository), new(*repository.DockerArtifactStoreRepositoryImpl)),
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
-		pipeline.NewChartServiceImpl,
-		wire.Bind(new(pipeline.ChartService), new(*pipeline.ChartServiceImpl)),
+		chart.NewChartServiceImpl,
+		wire.Bind(new(chart.ChartService), new(*chart.ChartServiceImpl)),
 		pipeline.NewBulkUpdateServiceImpl,
 		wire.Bind(new(pipeline.BulkUpdateService), new(*pipeline.BulkUpdateServiceImpl)),
 

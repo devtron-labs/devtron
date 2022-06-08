@@ -252,4 +252,18 @@ The other way is to get the password in the encoded form using the cmd
 `kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}'`, further decode it into plaintext using an online [encoder decoder](https://www.base64decode.org/).
 
 
-
+#### 20. Getting `UPGRADE FAILED: cannot patch "postgresql-postgresql"` while upgrading Devtron to newer versions
+`Debug:`
+1. Make sure to [annotate and label](https://docs.devtron.ai/devtron/setup/upgrade/devtron-upgrade-0.3.x-0.4.x#3.-annotate-and-label-all-the-devtron-resources) all the Devtron resources.
+2. Description of error
+```bash
+Error: UPGRADE FAILED: cannot patch "postgresql-postgresql" with kind StatefulSet: StatefulSet.apps "postgresql-postgresql" is invalid: spec: Forbidden: updates to statefulset spec for fields other than 'replicas', 'template', 'updateStrategy' and 'minReadySeconds' are forbidden
+```
+`Solution:`
+Verify if annotations & lables are set to all k8s resources in `devtroncd` namespace and add `--set components.postgres.persistence.volumeSize=20Gi` parameter in Devtron upgrade command.
+```bash
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+-f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/devtron-bom.yaml \
+--set installer.modules={cicd} --reuse-values \
+--set components.postgres.persistence.volumeSize=20Gi
+```

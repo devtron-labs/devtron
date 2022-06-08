@@ -15,7 +15,7 @@
  *
  */
 
-package pipeline
+package chart
 
 import (
 	"bytes"
@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/constants"
+	//"github.com/devtron-labs/devtron/pkg/pipeline"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -138,6 +139,7 @@ type ChartService interface {
 	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 	FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error)
 	CheckCustomChartByAppId(id int) (bool, error)
+	CheckCustomChartByChartId(id int) (bool, error)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -211,6 +213,11 @@ func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefI
 	}
 	var schemaByte []byte
 	var readmeByte []byte
+	err = impl.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, nil, err
+	}
 	schemaByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "schema.json")))
 	if err != nil {
 		impl.logger.Errorw("error in reading schema.json file for refChart", "err", err, "chartRefId", chartRefId)
@@ -233,30 +240,45 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 	if err != nil {
 		return nil, err
 	}
-	appOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
+	var appOverrideByte, envOverrideByte []byte
+	appOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
 	if err != nil {
-		return nil, err
-	}
-	appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "env-values.yaml")))
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
-	if err != nil {
-		return nil, err
+		impl.logger.Infow("App values yaml file is missing")
+	} else {
+		appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	merged, err := impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
+	envOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "env-values.yaml")))
 	if err != nil {
-		return nil, err
+		impl.logger.Infow("Env values yaml file is missing")
+	} else {
+		envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	messages := make(map[string]interface{})
+	var merged []byte
+	if appOverrideByte == nil && envOverrideByte == nil {
+		return messages, nil
+	} else if appOverrideByte == nil || envOverrideByte == nil {
+		if appOverrideByte == nil {
+			merged = envOverrideByte
+		} else {
+			merged = appOverrideByte
+		}
+	} else {
+		merged, err = impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	appOverride := json.RawMessage(merged)
-	messages := make(map[string]interface{})
 	messages["defaultAppOverride"] = appOverride
 	return messages, nil
 }
@@ -1105,47 +1127,6 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 	return true, nil
 }
 
-//Deprecated
-func (impl ChartServiceImpl) filterDeploymentTemplateForBackground(deploymentTemplate pipelineConfig.DeploymentTemplate, pipelineOverride string) (string, error) {
-	var deploymentType DeploymentType
-	err := json.Unmarshal([]byte(pipelineOverride), &deploymentType)
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return "", err
-	}
-	if pipelineConfig.DEPLOYMENT_TEMPLATE_BLUE_GREEN == deploymentTemplate {
-		newDeploymentType := DeploymentType{
-			Deployment: Deployment{
-				Strategy: Strategy{
-					BlueGreen: deploymentType.Deployment.Strategy.BlueGreen,
-				},
-			},
-		}
-		pipelineOverrideBytes, err := json.Marshal(newDeploymentType)
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-			return "", err
-		}
-		pipelineOverride = string(pipelineOverrideBytes)
-	} else if pipelineConfig.DEPLOYMENT_TEMPLATE_ROLLING == deploymentTemplate {
-		newDeploymentType := DeploymentType{
-			Deployment: Deployment{
-				Strategy: Strategy{
-					Rolling: deploymentType.Deployment.Strategy.Rolling,
-				},
-			},
-		}
-		pipelineOverrideBytes, err := json.Marshal(newDeploymentType)
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-			return "", err
-		}
-		pipelineOverride = string(pipelineOverrideBytes)
-		return pipelineOverride, nil
-	}
-	return pipelineOverride, nil
-}
-
 func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error) {
 	currentChart, err := impl.chartRepository.FindLatestChartForAppByAppId(appMetricRequest.AppId)
 	if err != nil && pg.ErrNoRows != err {
@@ -1269,6 +1250,12 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}
 }
 
 func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error) {
+	err := impl.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("refChartDir Not Found", "err", err)
+		return nil, err
+	}
+
 	refChartDir, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
@@ -1510,4 +1497,12 @@ func (impl ChartServiceImpl) CheckCustomChartByAppId(id int) (bool, error) {
 		return false, err
 	}
 	return chartData.UserUploaded, err
+}
+
+func (impl ChartServiceImpl) CheckCustomChartByChartId(id int) (bool, error) {
+	chartData, err := impl.chartRefRepository.FindById(id)
+	if err != nil {
+		return false, err
+	}
+	return chartData.UserUploaded, nil
 }
