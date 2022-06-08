@@ -1,0 +1,195 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/api-token:
+    get:
+      description: Get All active Api Tokens
+      responses:
+        "200":
+          description: Successfully fetched active API tokens links
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApiToken"
+    post:
+      description: Create api-token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: "#/components/schemas/CreateApiTokenRequest"
+      responses:
+        "200":
+          description: Api-token creation response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreateApiTokenResponse"
+  /orchestrator/api-token/{id}:
+    put:
+      description: Update api-token
+      parameters:
+        - name: id
+          in: path
+          description: api-token Id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateApiTokenRequest"
+      responses:
+        "200":
+          description: Api-token update response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UpdateApiTokenResponse"
+    delete:
+      description: Delete api-token
+      parameters:
+        - name: id
+          in: path
+          description: api-token Id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Api-token delete response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ActionResponse"
+components:
+  schemas:
+    ApiToken:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Id of api-token
+          example: 1
+          nullable: false
+        userId:
+          type: integer
+          description: User Id associated with api-token
+          example: 1
+          nullable: false
+        userIdentifier:
+          type: string
+          description: EmailId of that api-token user
+          example: "some email"
+          nullable: false
+        name:
+          type: string
+          description: Name of api-token
+          example: "some name"
+          nullable: false
+        description:
+          type: string
+          description: Description of api-token
+          example: "some description"
+          nullable: false
+        expireAtInMs:
+          type: integer
+          description: Expiration time of api-token in milliseconds
+          example: "12344546"
+          format: int64
+        token:
+          type: string
+          description: Token of that api-token
+          example: "some token"
+          nullable: false
+        lastUsedAt:
+          type: string
+          description: Date of Last used of this token
+          example: "some date"
+        lastUsedByIp:
+          type: string
+          description: token last used by IP
+          example: "some ip"
+        updatedAt:
+          type: string
+          description: token last updatedAt
+          example: "some date"
+    CreateApiTokenRequest:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of api-token
+          example: "some name"
+          nullable: false
+        description:
+          type: string
+          description: Description of api-token
+          example: "some description"
+          nullable: false
+        expireAtInMs:
+          type: integer
+          description: Expiration time of api-token in milliseconds
+          example: "12344546"
+          format: int64
+    UpdateApiTokenRequest:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of api-token
+          example: "some description"
+          nullable: false
+        expireAtInMs:
+          type: integer
+          description: Expiration time of api-token in milliseconds
+          example: "12344546"
+          format: int64
+    ActionResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+    CreateApiTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+        token:
+          type: string
+          description: Token of that api-token
+          example: "some token"
+        userId:
+          type: integer
+          description: User Id associated with api-token
+          example: 1
+        userIdentifier:
+          type: string
+          description: EmailId of that api-token user
+          example: "some email"
+    UpdateApiTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+        token:
+          type: string
+          description: Token of that api-token
+          example: "some token"
