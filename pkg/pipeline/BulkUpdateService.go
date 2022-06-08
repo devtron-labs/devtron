@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -120,8 +121,7 @@ type BulkUpdateServiceImpl struct {
 	chartTemplateService             util.ChartTemplateService
 	mergeUtil                        util.MergeUtil
 	repositoryService                repository.ServiceClient
-	refChartDir                      RefChartDir
-	defaultChart                     DefaultChart
+	defaultChart                     chart.DefaultChart
 	chartRefRepository               chartRepoRepository.ChartRefRepository
 	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
 	pipelineConfigRepository         chartConfig.PipelineConfigRepository
@@ -141,8 +141,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService,
 	repoRepository chartRepoRepository.ChartRepoRepository,
-	refChartDir RefChartDir,
-	defaultChart DefaultChart,
+	defaultChart chart.DefaultChart,
 	mergeUtil util.MergeUtil,
 	repositoryService repository.ServiceClient,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
@@ -164,7 +163,6 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		chartTemplateService:             chartTemplateService,
 		repoRepository:                   repoRepository,
 		mergeUtil:                        mergeUtil,
-		refChartDir:                      refChartDir,
 		defaultChart:                     defaultChart,
 		repositoryService:                repositoryService,
 		chartRefRepository:               chartRefRepository,

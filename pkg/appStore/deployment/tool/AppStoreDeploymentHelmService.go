@@ -25,6 +25,10 @@ type AppStoreDeploymentHelmService interface {
 	RollbackRelease(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, deploymentVersion int32) (*appStoreBean.InstallAppVersionDTO, bool, error)
 	GetDeploymentHistory(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO) (*client.HelmAppDeploymentHistory, error)
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, version int32) (*openapi.HelmAppDeploymentManifestDetail, error)
+	GetGitOpsRepoName(appName string, environmentName string) (string, error)
+	OnUpdateRepoInInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
+	UpdateRequirementDependencies(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
+	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error)
 }
 
 type AppStoreDeploymentHelmServiceImpl struct {
@@ -33,16 +37,18 @@ type AppStoreDeploymentHelmServiceImpl struct {
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentRepository                clusterRepository.EnvironmentRepository
 	helmAppClient                        client.HelmAppClient
+	installedAppRepository               repository.InstalledAppRepository
 }
 
 func NewAppStoreDeploymentHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentRepository clusterRepository.EnvironmentRepository, helmAppClient client.HelmAppClient) *AppStoreDeploymentHelmServiceImpl {
+	environmentRepository clusterRepository.EnvironmentRepository, helmAppClient client.HelmAppClient, installedAppRepository repository.InstalledAppRepository) *AppStoreDeploymentHelmServiceImpl {
 	return &AppStoreDeploymentHelmServiceImpl{
 		Logger:                               logger,
 		helmAppService:                       helmAppService,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		environmentRepository:                environmentRepository,
 		helmAppClient:                        helmAppClient,
+		installedAppRepository:               installedAppRepository,
 	}
 }
 
@@ -224,4 +230,63 @@ func (impl *AppStoreDeploymentHelmServiceImpl) GetDeploymentHistoryInfo(ctx cont
 	}
 
 	return response, nil
+}
+
+func (impl *AppStoreDeploymentHelmServiceImpl) GetGitOpsRepoName(appName string, environmentName string) (string, error) {
+	return "", errors.New("method GetGitOpsRepoName not implemented")
+}
+
+func (impl *AppStoreDeploymentHelmServiceImpl) OnUpdateRepoInInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
+	err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest.InstalledAppId, installAppVersionRequest.AppStoreVersion, installAppVersionRequest.ValuesOverrideYaml)
+	return installAppVersionRequest, err
+}
+
+func (impl *AppStoreDeploymentHelmServiceImpl) UpdateRequirementDependencies(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error {
+	return errors.New("method UpdateRequirementDependencies not implemented")
+}
+
+func (impl *AppStoreDeploymentHelmServiceImpl) UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error) {
+	err := impl.updateApplicationWithChartInfo(ctx, installAppVersionRequest.InstalledAppId, installAppVersionRequest.AppStoreVersion, installAppVersionRequest.ValuesOverrideYaml)
+	return installAppVersionRequest, err
+}
+
+func (impl *AppStoreDeploymentHelmServiceImpl) updateApplicationWithChartInfo(ctx context.Context, installedAppId int, appStoreApplicationVersionId int, valuesOverrideYaml string) error {
+
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installedAppId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting in installedApp", "installedAppId", installedAppId, "err", err)
+		return err
+	}
+	appStoreApplicationVersion, err := impl.appStoreApplicationVersionRepository.FindById(appStoreApplicationVersionId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting in appStoreApplicationVersion", "appStoreApplicationVersionId", appStoreApplicationVersionId, "err", err)
+		return err
+	}
+
+	chartRepo := appStoreApplicationVersion.AppStore.ChartRepo
+
+	updateReleaseRequest := &client.InstallReleaseRequest{
+		ValuesYaml: valuesOverrideYaml,
+		ReleaseIdentifier: &client.ReleaseIdentifier{
+			ReleaseNamespace: installedApp.Environment.Namespace,
+			ReleaseName:      installedApp.App.AppName,
+		},
+		ChartName:    appStoreApplicationVersion.Name,
+		ChartVersion: appStoreApplicationVersion.Version,
+		ChartRepository: &client.ChartRepository{
+			Name:     chartRepo.Name,
+			Url:      chartRepo.Url,
+			Username: chartRepo.UserName,
+			Password: chartRepo.Password,
+		},
+	}
+	res, err := impl.helmAppService.UpdateApplicationWithChartInfo(ctx, installedApp.Environment.ClusterId, updateReleaseRequest)
+	if err != nil {
+		impl.Logger.Errorw("error in updating helm application", "err", err)
+		return err
+	}
+	if !res.GetSuccess() {
+		return errors.New("helm application update unsuccessful")
+	}
+	return nil
 }

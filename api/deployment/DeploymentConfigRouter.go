@@ -21,4 +21,6 @@ func (router DeploymentConfigRouterImpl) Init(configRouter *mux.Router) {
 		HandlerFunc(router.deploymentRestHandler.CreateChartFromFile).Methods("POST")
 	configRouter.Path("/upload").
 		HandlerFunc(router.deploymentRestHandler.SaveChart).Methods("PUT")
+	configRouter.Path("/fetch").
+		HandlerFunc(router.deploymentRestHandler.GetUploadedCharts).Methods("GET")
 }

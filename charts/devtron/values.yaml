@@ -1,7 +1,7 @@
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.4.4" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.4.9" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: acb623ff-185-7117
   source: "github" # Available options are github and gitee
@@ -43,11 +43,12 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
-    image: "quay.io/devtron/dashboard:e46df8f6-240-8703"
+    image: "quay.io/devtron/dashboard:c8b8d431-240-8910"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:38336f15-282-8704"
+    image: "quay.io/devtron/hyperion:3d41b121-280-8899"
+    cicdImage: "quay.io/devtron/devtron:3d41b121-324-8898"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -72,8 +73,11 @@ components:
       #      - devtron.example.com
 
   argocdDexServer:
-    image: quay.io/dexidp/dex:v2.25.0
+    image: "quay.io/dexidp/dex:v2.25.0"
     imagePullPolicy: IfNotPresent
+    initContainer:
+      authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
+      cicdAuthenticator: "quay.io/argoproj/argocd:v1.8.1"
 
   kubelink:
     image: "quay.io/devtron/kubelink:d691bfbb-318-8695"
@@ -83,7 +87,7 @@ components:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     imagePullPolicy: "IfNotPresent"
     persistence:
-      volumeSize: "10Gi"
+      volumeSize: "20Gi"
 
   migrator:
     image: "quay.io/devtron/migrator:6687f572-133-2208"
@@ -93,10 +97,10 @@ components:
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "38336f1533c3e77fdd2988e43d4b1056e0e40e03"
+        GIT_HASH: "3d41b12146d1a1d1168cc5ee9777f9bfab76aeed"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "38336f1533c3e77fdd2988e43d4b1056e0e40e03"
+        GIT_HASH: "3d41b12146d1a1d1168cc5ee9777f9bfab76aeed"

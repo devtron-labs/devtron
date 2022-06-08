@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"strings"
 )
 
 type Chart struct {
@@ -64,7 +65,7 @@ type ChartRepository interface {
 	FindChartByAppIdAndRefId(appId int, chartRefId int) (chart *Chart, err error)
 	FindNoLatestChartForAppByAppId(appId int) ([]*Chart, error)
 	FindPreviousChartByAppId(appId int) (chart *Chart, err error)
-	FindByGirRepoUrl(gitRepoUrl string) (chart *Chart, err error)
+	FindByGitRepoUrl(gitRepoUrl string) (chart *Chart, err error)
 }
 
 func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
@@ -195,10 +196,15 @@ func (repositoryImpl ChartRepositoryImpl) FindById(id int) (chart *Chart, err er
 	return chart, err
 }
 
-func (repositoryImpl ChartRepositoryImpl) FindByGirRepoUrl(gitRepoUrl string) (chart *Chart, err error) {
+func (repositoryImpl ChartRepositoryImpl) FindByGitRepoUrl(gitRepoUrl string) (chart *Chart, err error) {
 	chart = &Chart{}
 	err = repositoryImpl.dbConnection.Model(chart).
-		Where("git_repo_url = ?", gitRepoUrl).Where("active=true").Where("latest=true").Select()
+		Join("INNER JOIN app ON app.id=app_id ").
+		Where("app.active = ?", true).
+		Where("chart.git_repo_url = ?", gitRepoUrl).
+		Where("chart.active = ?", true).
+		Where("chart.latest = ?", true).
+		Select()
 	return chart, err
 }
 
@@ -285,16 +291,18 @@ func (impl ChartRepoRepositoryImpl) MarkChartRepoDeleted(chartRepo *ChartRepo, t
 }
 
 // ------------------------ CHART REF REPOSITORY ---------------
-
+type RefChartDir string
 type ChartRef struct {
-	tableName struct{} `sql:"chart_ref" pg:",discard_unknown_columns"`
-	Id        int      `sql:"id,pk"`
-	Location  string   `sql:"location"`
-	Version   string   `sql:"version"`
-	Active    bool     `sql:"active,notnull"`
-	Default   bool     `sql:"is_default,notnull"`
-	Name      string   `sql:"name"`
-	ChartData []byte   `sql:"chart_data"`
+	tableName        struct{} `sql:"chart_ref" pg:",discard_unknown_columns"`
+	Id               int      `sql:"id,pk"`
+	Location         string   `sql:"location"`
+	Version          string   `sql:"version"`
+	Active           bool     `sql:"active,notnull"`
+	Default          bool     `sql:"is_default,notnull"`
+	Name             string   `sql:"name"`
+	ChartData        []byte   `sql:"chart_data"`
+	ChartDescription string   `sql:"chart_description"`
+	UserUploaded     bool     `sql:"user_uploaded,notnull"`
 	sql.AuditLog
 }
 
@@ -304,6 +312,8 @@ type ChartRefRepository interface {
 	FindById(id int) (*ChartRef, error)
 	GetAll() ([]*ChartRef, error)
 	CheckIfDataExists(name string, version string) (bool, error)
+	FetchChart(name string) ([]*ChartRef, error)
+	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
 }
 type ChartRefRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -345,6 +355,26 @@ func (impl ChartRefRepositoryImpl) GetAll() ([]*ChartRef, error) {
 func (impl ChartRefRepositoryImpl) CheckIfDataExists(name string, version string) (bool, error) {
 	repo := &ChartRef{}
 	return impl.dbConnection.Model(repo).
-		Where("name = ?", name).
+		Where("lower(name) = ?", strings.ToLower(name)).
 		Where("version = ? ", version).Exists()
+}
+
+func (impl ChartRefRepositoryImpl) FetchChart(name string) ([]*ChartRef, error) {
+	var chartRefs []*ChartRef
+	err := impl.dbConnection.Model(&chartRefs).Where("lower(name) = ?", strings.ToLower(name)).Select()
+	if err != nil {
+		return nil, err
+	}
+	return chartRefs, err
+}
+
+func (impl ChartRefRepositoryImpl) FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error) {
+	var repo []*ChartRef
+	err := impl.dbConnection.Model(&repo).
+		Where("user_uploaded = ?", userUploaded).
+		Where("active = ?", true).Select()
+	if err != nil {
+		return repo, err
+	}
+	return repo, err
 }

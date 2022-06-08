@@ -41,6 +41,7 @@ type UserService interface {
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
 
+	GetEmailFromToken(token string) (string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
 	GetByIds(ids []int32) ([]bean.UserInfo, error)
 	DeleteUser(userInfo *bean.UserInfo) (bool, error)
@@ -887,38 +888,9 @@ func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 }
 
 func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
-	if token == "" {
-		impl.logger.Infow("no token provided", "token", token)
-		err := &util.ApiError{
-			Code:            constants.UserNoTokenProvided,
-			InternalMessage: "no token provided",
-		}
-		return http.StatusUnauthorized, err
-	}
-
-	//claims, err := impl.sessionManager.VerifyToken(token)
-	claims, err := impl.sessionManager2.VerifyToken(token)
-
+	email, err := impl.GetEmailFromToken(token)
 	if err != nil {
-		impl.logger.Errorw("failed to verify token", "error", err)
-		err := &util.ApiError{
-			Code:            constants.UserNoTokenProvided,
-			InternalMessage: "failed to verify token",
-			UserMessage:     fmt.Sprintf("token verification failed while getting logged in user: %s", token),
-		}
 		return http.StatusUnauthorized, err
-	}
-	mapClaims, err := jwt.MapClaims(claims)
-	if err != nil {
-		impl.logger.Errorw("failed to MapClaims", "error", err)
-		return http.StatusUnauthorized, err
-	}
-
-	email := jwt.GetField(mapClaims, "email")
-	sub := jwt.GetField(mapClaims, "sub")
-
-	if email == "" && (sub == "admin" || sub == "admin:login") {
-		email = "admin"
 	}
 
 	userInfo, err := impl.GetUserByEmail(email)
@@ -932,6 +904,50 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 		return http.StatusUnauthorized, err
 	}
 	return userInfo.Id, nil
+}
+
+func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {
+	if token == "" {
+		impl.logger.Infow("no token provided", "token", token)
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "no token provided",
+		}
+		return "", err
+	}
+
+	//claims, err := impl.sessionManager.VerifyToken(token)
+	claims, err := impl.sessionManager2.VerifyToken(token)
+
+	if err != nil {
+		impl.logger.Errorw("failed to verify token", "error", err)
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "failed to verify token",
+			UserMessage:     "token verification failed while getting logged in user",
+		}
+		return "", err
+	}
+
+	mapClaims, err := jwt.MapClaims(claims)
+	if err != nil {
+		impl.logger.Errorw("failed to MapClaims", "error", err)
+		err := &util.ApiError{
+			Code:            constants.UserNoTokenProvided,
+			InternalMessage: "token invalid",
+			UserMessage:     "token verification failed while parsing token",
+		}
+		return "", err
+	}
+
+	email := jwt.GetField(mapClaims, "email")
+	sub := jwt.GetField(mapClaims, "sub")
+
+	if email == "" && (sub == "admin" || sub == "admin:login") {
+		email = "admin"
+	}
+
+	return email, nil
 }
 
 func (impl UserServiceImpl) GetByIds(ids []int32) ([]bean.UserInfo, error) {
