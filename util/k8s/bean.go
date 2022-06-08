@@ -18,8 +18,8 @@ type ClusterCapacityDetail struct {
 
 type NodeCapacityDetail struct {
 	Name          string                              `json:"name"`
-	Version       string                              `json:"version"`
-	Kind          string                              `json:"kind"`
+	Version       string                              `json:"version,omitempty"`
+	Kind          string                              `json:"kind,omitempty"`
 	Roles         []string                            `json:"roles"`
 	K8sVersion    string                              `json:"k8sVersion"`
 	Cpu           *ResourceDetailObject               `json:"cpu,omitempty"`

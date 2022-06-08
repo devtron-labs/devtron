@@ -382,7 +382,7 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 			Value:  taint.Value,
 			Effect: string(taint.Effect),
 		}
-		annotations = append(annotations, taintObj)
+		taints = append(taints, taintObj)
 	}
 	nodeDetail.Taints = taints
 	//Valid conditions to be updated with update at kubernetes end
@@ -417,7 +417,7 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		}
 		if limitsOk {
 			r.Limit = limits.String()
-			r.Limit = convertToPercentage(&limits, &allocatable)
+			r.LimitPercentage = convertToPercentage(&limits, &allocatable)
 		}
 		if requestsOk {
 			r.Request = requests.String()
@@ -429,7 +429,6 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		}
 		nodeDetail.Resources = append(nodeDetail.Resources, r)
 	}
-	impl.logger.Infow("node manifest fetch request", "version", node.APIVersion, "kind", node.Kind, "name", node.Name)
 	//getting manifest
 	manifestRequest := &application.K8sRequestBean{
 		ResourceIdentifier: application.ResourceIdentifier{
@@ -567,10 +566,10 @@ func findNodeStatus(node *metav1.Node) string {
 }
 
 func findNodeErrors(node *metav1.Node) map[metav1.NodeConditionType]string {
-	conditionMap := make(map[metav1.NodeConditionType]*metav1.NodeCondition)
+	conditionMap := make(map[metav1.NodeConditionType]metav1.NodeCondition)
 	NodeAllErrorConditions := []metav1.NodeConditionType{metav1.NodeMemoryPressure, metav1.NodeDiskPressure, metav1.NodeNetworkUnavailable, metav1.NodePIDPressure}
 	for _, condition := range node.Status.Conditions {
-		conditionMap[condition.Type] = &condition
+		conditionMap[condition.Type] = condition
 	}
 	conditionErrorMap := make(map[metav1.NodeConditionType]string)
 	for _, errorCondition := range NodeAllErrorConditions {
