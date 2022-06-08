@@ -230,11 +230,10 @@ ingressInternal:
 dbMigrationConfig:
   enabled: false
 
-workingDir: {}
-
 command:
+  workingDir: /app
   enabled: false
-  value: []
+  value: ["ls"]
 
 args:
   enabled: false
