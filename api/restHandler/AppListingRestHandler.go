@@ -21,8 +21,10 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
@@ -66,6 +68,8 @@ type AppListingRestHandlerImpl struct {
 	enforcerUtil           rbac.EnforcerUtil
 	deploymentGroupService deploymentGroup.DeploymentGroupService
 	userService            user.UserService
+	helmAppClient          client.HelmAppClient
+	clusterService         cluster.ClusterService
 }
 
 type AppStatus struct {
@@ -82,7 +86,8 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	enforcer casbin.Enforcer,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
-	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService) *AppListingRestHandlerImpl {
+	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
+	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:            application,
 		appListingService:      appListingService,
@@ -93,6 +98,8 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		enforcerUtil:           enforcerUtil,
 		deploymentGroupService: deploymentGroupService,
 		userService:            userService,
+		helmAppClient:          helmAppClient,
+		clusterService:         clusterService,
 	}
 	return appListingHandler
 }
@@ -255,6 +262,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+
 	envId, err := strconv.Atoi(vars["env-id"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -325,9 +333,44 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		appDetail.ResourceTree = resp
 		handler.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
 	} else {
+		config, err := handler.GetClusterConf(appDetail.ClusterId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching cluster detail", "err", err)
+		}
+		req := &client.AppDetailRequest{
+			ClusterConfig: config,
+			Namespace:     appDetail.Namespace,
+			ReleaseName:   fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName),
+		}
+		appdetail, err := handler.helmAppClient.GetAppDetail(context.Background(), req)
+		if err != nil {
+			handler.logger.Errorw("error in fetching app detail", "err", err)
+		}
+		handler.logger.Info(appdetail.ResourceTreeResponse)
+		rt := &application.ResourceTreeResponse{
+			Status: appdetail.ApplicationStatus,
+			//PodMetadata: appdetail.ResourceTreeResponse.PodMetadata,
+
+		}
+		appDetail.ResourceTree = rt
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+}
+
+func (handler *AppListingRestHandlerImpl) GetClusterConf(clusterId int) (*client.ClusterConfig, error) {
+	cluster, err := handler.clusterService.FindById(clusterId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching cluster detail", "err", err)
+		return nil, err
+	}
+	config := &client.ClusterConfig{
+		ApiServerUrl: cluster.ServerUrl,
+		Token:        cluster.Config["bearer_token"],
+		ClusterId:    int32(cluster.Id),
+		ClusterName:  cluster.ClusterName,
+	}
+	return config, nil
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWriter, r *http.Request) {
