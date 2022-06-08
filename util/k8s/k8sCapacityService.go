@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -96,7 +97,6 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 			return clusterDetail, nil
 		}
 	}
-	impl.logger.Infow("received node list", "nodeList", nodeList, "clusterId", clusterId)
 	var clusterCpuCapacity resource.Quantity
 	var clusterMemoryCapacity resource.Quantity
 	var clusterCpuAllocatable resource.Quantity
@@ -152,7 +152,6 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 			impl.logger.Errorw("error in getting pod list", "err", err)
 			return nil, err
 		}
-		impl.logger.Infow("received pod list", "podList", podList, "clusterId", clusterId)
 		var clusterCpuUsage resource.Quantity
 		var clusterMemoryUsage resource.Quantity
 		var clusterCpuLimits resource.Quantity
@@ -209,14 +208,12 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByClusterId(cluste
 		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
-	impl.logger.Infow("received node list", "nodeList", nodeList, "clusterId", clusterId)
 	//empty namespace: get pods for all namespaces
 	podList, err := k8sClientSet.CoreV1().Pods("").List(context.Background(), v1.ListOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting pod list", "err", err)
 		return nil, err
 	}
-	impl.logger.Infow("received pod list", "podList", podList, "clusterId", clusterId)
 	nodeResourceUsage := make(map[string]metav1.ResourceList)
 	for _, nodeMetrics := range nodeMetricsList.Items {
 		nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
@@ -262,14 +259,17 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndClusterId(clus
 		impl.logger.Errorw("error in getting node list", "err", err)
 		return nil, err
 	}
-	impl.logger.Infow("received node", "node", node, "clusterId", clusterId)
+	marshaledNode, err := json.Marshal(node)
+	if err != nil {
+		impl.logger.Errorw("error in node marshaling", "err", err)
+	}
+	impl.logger.Infow("received node", "marshaledNode", marshaledNode, "clusterId", clusterId)
 	//empty namespace: get pods for all namespaces
 	podList, err := k8sClientSet.CoreV1().Pods("").List(context.Background(), v1.ListOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting pod list", "err", err)
 		return nil, err
 	}
-	impl.logger.Infow("received pod list", "podList", podList, "clusterId", clusterId)
 	nodeResourceUsage := make(map[string]metav1.ResourceList)
 	nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
 	nodeDetail, err := impl.getNodeDetail(node, nodeResourceUsage, podList, false, restConfig)
