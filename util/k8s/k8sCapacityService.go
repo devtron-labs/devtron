@@ -315,14 +315,14 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 		Unschedulable: node.Spec.Unschedulable,
 		Roles:         findNodeRoles(node),
 		Labels:        labels,
+		Status:        findNodeStatus(node),
+		TaintCount:    len(node.Spec.Taints),
 	}
 	nodeUsageResourceList := nodeResourceUsage[node.Name]
 	if callForList {
 		// assigning additional data for node listing api call
-		nodeDetail.Status = findNodeStatus(node)
 		nodeDetail.Age = translateTimestampSince(node.CreationTimestamp)
 		nodeDetail.PodCount = podCount
-		nodeDetail.TaintCount = len(node.Spec.Taints)
 		cpuUsage := nodeUsageResourceList[metav1.ResourceCPU]
 		memoryUsage := nodeUsageResourceList[metav1.ResourceMemory]
 		nodeDetail.Cpu = &ResourceDetailObject{
@@ -402,7 +402,8 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		usage, usageOk := nodeUsageResourceList[resourceName]
 		capacity := nodeCapacityResourceList[resourceName]
 		r := &ResourceDetailObject{
-			Capacity: capacity.String(),
+			ResourceName: string(resourceName),
+			Capacity:     capacity.String(),
 		}
 		if limitsOk {
 			r.Limit = limits.String()
