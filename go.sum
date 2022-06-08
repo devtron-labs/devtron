@@ -193,6 +193,8 @@ github.com/caarlos0/env/v6 v6.7.2/go.mod h1:FE0jGiAnQqtv2TenJ4KTa8+/T2Ss8kdS5s1V
 github.com/casbin/casbin v1.9.1 h1:ucjbS5zTrmSLtH4XogqOG920Poe6QatdXtz1FEbApeM=
 github.com/casbin/casbin v1.9.1/go.mod h1:z8uPsfBJGUsnkagrt3G8QvjgTKFMBJ32UP8HpZllfog=
 github.com/casbin/casbin/v2 v2.1.2/go.mod h1:YcPU1XXisHhLzuxH9coDNf2FbKpjGlbCg3n9yuLkIJQ=
+github.com/casbin/casbin/v2 v2.39.1 h1:TatfPL1hByffzPs610HL8+gBjCisAtEhjVhpIsbZ+ws=
+github.com/casbin/casbin/v2 v2.39.1/go.mod h1:sEL80qBYTbd+BPeL4iyvwYzFT3qwLaESq5aFKVLbLfA=
 github.com/casbin/xorm-adapter v1.0.1-0.20190716004226-a317737a1007 h1:KEBrEhQjSCzUt5bQKxX8ZbS3S46sRnzOmwemTOu+LLQ=
 github.com/casbin/xorm-adapter v1.0.1-0.20190716004226-a317737a1007/go.mod h1:6sy40UQdWR0blO1DJdEzbcu6rcEW89odCMcEdoB1qdM=
 github.com/cenkalti/backoff v2.2.1+incompatible/go.mod h1:90ReRw6GdpyfrHakVjL/QHaoyV4aDUVVkXQJJJ3NXXM=
@@ -725,8 +727,8 @@ github.com/jung-kurt/gofpdf v1.0.3-0.20190309125859-24315acbbda5/go.mod h1:7Id9E
 github.com/k0kubun/colorstring v0.0.0-20150214042306-9440f1994b88/go.mod h1:3w7q1U84EfirKl04SVQ/s7nPm1ZPhiXd34z40TNz36k=
 github.com/k0kubun/pp v2.3.0+incompatible/go.mod h1:GWse8YhT0p8pT4ir3ZgBbfZild3tgzSScAn6HmfYukg=
 github.com/karrick/godirwalk v1.16.1/go.mod h1:j4mkqPuvaLI8mp1DroR3P6ad7cyYd4c1qeJ3RV7ULlk=
-github.com/kartik-579/authenticator v0.4.28 h1:8ycQj3nK7Lqz0sF7M09TQbtbQX6tquwruVmYOjmxV8c=
-github.com/kartik-579/authenticator v0.4.28/go.mod h1:pywHrsXFWAkkuST8wR1uABqVvIyI/4eUpw/+EMnqJJM=
+github.com/kartik-579/authenticator v0.4.30 h1:iSyr96jXprbFBgvrkpEnriGsJ1P8ijpem90FEuccczc=
+github.com/kartik-579/authenticator v0.4.30/go.mod h1:pywHrsXFWAkkuST8wR1uABqVvIyI/4eUpw/+EMnqJJM=
 github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51 h1:Z9n2FFNUXsshfwJMBgNA0RU6/i7WVaAegv3PtuIHPMs=
 github.com/kballard/go-shellquote v0.0.0-20180428030007-95032a82bc51/go.mod h1:CzGEWj7cYgsdH8dAjBGEr58BoE7ScuLd+fwFZ44+/x8=
 github.com/kevinburke/ssh_config v0.0.0-20190725054713-01f96b0aa0cd/go.mod h1:CT57kijsi8u/K/BOFA39wgDQJ9CxiF4nAY/ojJ6r6mM=

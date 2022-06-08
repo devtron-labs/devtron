@@ -19,6 +19,7 @@ package router
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	"github.com/devtron-labs/devtron/api/chartRepo"
@@ -106,6 +107,7 @@ type MuxRouter struct {
 	selfRegistrationRolesRouter      user.SelfRegistrationRolesRouter
 	moduleRouter                     module.ModuleRouter
 	serverRouter                     server.ServerRouter
+	apiTokenRouter                   apiToken.ApiTokenRouter
 	k8sCapacityRouter                k8s.K8sCapacityRouter
 }
 
@@ -131,7 +133,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
 	globalPluginRouter GlobalPluginRouter, selfRegistrationRolesRouter user.SelfRegistrationRolesRouter, moduleRouter module.ModuleRouter,
-	serverRouter server.ServerRouter, k8sCapacityRouter k8s.K8sCapacityRouter) *MuxRouter {
+	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter, k8sCapacityRouter k8s.K8sCapacityRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                           mux.NewRouter(),
 		HelmRouter:                       HelmRouter,
@@ -192,6 +194,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		selfRegistrationRolesRouter:      selfRegistrationRolesRouter,
 		moduleRouter:                     moduleRouter,
 		serverRouter:                     serverRouter,
+		apiTokenRouter:                   apiTokenRouter,
 		k8sCapacityRouter:                k8sCapacityRouter,
 	}
 	return r
@@ -379,6 +382,10 @@ func (r MuxRouter) Init() {
 	// server router
 	serverRouter := r.Router.PathPrefix("/orchestrator/server").Subrouter()
 	r.serverRouter.Init(serverRouter)
+
+	// api-token router
+	apiTokenRouter := r.Router.PathPrefix("/orchestrator/api-token").Subrouter()
+	r.apiTokenRouter.InitApiTokenRouter(apiTokenRouter)
 
 	k8sCapacityApp := r.Router.PathPrefix("/orchestrator/k8s/capacity").Subrouter()
 	r.k8sCapacityRouter.InitK8sCapacityRouter(k8sCapacityApp)

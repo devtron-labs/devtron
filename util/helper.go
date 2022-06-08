@@ -128,39 +128,9 @@ func HttpRequest(url string) (map[string]interface{}, error) {
 }
 
 func CheckForMissingFiles(chartLocation string) error {
-	listofFiles := [1]string{"chart"}
-
-	missingFilesMap := map[string]bool{
-		".image_descriptor_template.json": true,
-		"chart":                           true,
-	}
-
-	files, err := ioutil.ReadDir(chartLocation)
-	if err != nil {
-		return err
-	}
-
-	for _, file := range files {
-		if !file.IsDir() {
-			name := strings.ToLower(file.Name())
-			if name == listofFiles[0]+".yaml" || name == listofFiles[0]+".yml" {
-				missingFilesMap[listofFiles[0]] = false
-			} else if name == ".image_descriptor_template.json" {
-				missingFilesMap[".image_descriptor_template.json"] = false
-			}
-		}
-	}
-
-	if len(missingFilesMap) != 0 {
-		missingFiles := make([]string, 0, len(missingFilesMap))
-		for k, v := range missingFilesMap {
-			if v {
-				missingFiles = append(missingFiles, k)
-			}
-		}
-		if len(missingFiles) != 0 {
-			return errors.New("Missing files " + strings.Join(missingFiles, ",") + " yaml or yml files")
-		}
+	imageDescriptorPath := filepath.Clean(filepath.Join(chartLocation, ".image_descriptor_template.json"))
+	if _, err := os.Stat(imageDescriptorPath); os.IsNotExist(err) {
+		return errors.New(".image_descriptor_template.json file not present in the directory")
 	}
 	return nil
 }
@@ -195,7 +165,16 @@ func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
 		case tar.TypeReg:
 			outFile, err := os.Create(filepath.Join(chartDir, header.Name))
 			if err != nil {
-				return err
+				dirName := filepath.Dir(header.Name)
+				if _, err1 := os.Stat(filepath.Join(chartDir, dirName)); os.IsNotExist(err1) {
+					if err1 = os.Mkdir(filepath.Join(chartDir, dirName), 0755); err1 != nil {
+						return err1
+					}
+					outFile, err = os.Create(filepath.Join(chartDir, header.Name))
+					if err != nil {
+						return err
+					}
+				}
 			}
 			if _, err := io.Copy(outFile, tarReader); err != nil {
 				return err

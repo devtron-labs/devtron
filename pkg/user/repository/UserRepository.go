@@ -32,7 +32,7 @@ type UserRepository interface {
 	UpdateUser(userModel *UserModel, tx *pg.Tx) (*UserModel, error)
 	GetById(id int32) (*UserModel, error)
 	GetByIdIncludeDeleted(id int32) (*UserModel, error)
-	GetAll() ([]UserModel, error)
+	GetAllExcludingApiTokenUser() ([]UserModel, error)
 	FetchActiveUserByEmail(email string) (bean.UserInfo, error)
 	FetchUserDetailByEmail(email string) (bean.UserInfo, error)
 	GetByIds(ids []int32) ([]UserModel, error)
@@ -51,13 +51,15 @@ func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, ) *Us
 }
 
 type UserModel struct {
-	TableName   struct{} `sql:"users"`
-	Id          int32    `sql:"id,pk"`
-	EmailId     string   `sql:"email_id,notnull"`
-	AccessToken string   `sql:"access_token"`
-	Active      bool     `sql:"active,notnull"`
+	TableName    struct{}  `sql:"users"`
+	Id           int32     `sql:"id,pk"`
+	EmailId      string    `sql:"email_id,notnull"`
+	AccessToken  string    `sql:"access_token"`
+	Active       bool      `sql:"active,notnull"`
+	UserType     string    `sql:"user_type"`
 	sql.AuditLog
 }
+
 type UserRoleModel struct {
 	TableName struct{} `sql:"user_roles"`
 	Id        int      `sql:"id,pk"`
@@ -99,16 +101,19 @@ func (impl UserRepositoryImpl) GetByIdIncludeDeleted(id int32) (*UserModel, erro
 	return &model, err
 }
 
-func (impl UserRepositoryImpl) GetAll() ([]UserModel, error) {
+func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error) {
 	var userModel []UserModel
-	err := impl.dbConnection.Model(&userModel).Where("active = ?", true).Order("updated_on desc").Select()
+	err := impl.dbConnection.Model(&userModel).
+		Where("active = ?", true).
+		Where("user_type is NULL or user_type != ?", bean.USER_TYPE_API_TOKEN).
+		Order("updated_on desc").Select()
 	return userModel, err
 }
 
 func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserInfo, error) {
 	var users bean.UserInfo
 
-	query := "SELECT u.id, u.email_id, u.access_token FROM users u" +
+	query := "SELECT u.id, u.email_id, u.access_token, u.user_type FROM users u" +
 		" WHERE u.active = true and u.email_id ILIKE ? order by u.updated_on desc"
 	_, err := impl.dbConnection.Query(&users, query, email)
 	if err != nil {
@@ -124,7 +129,7 @@ func (impl UserRepositoryImpl) FetchUserDetailByEmail(email string) (bean.UserIn
 	var users []bean.UserRole
 	var userFinal bean.UserInfo
 
-	query := "SELECT u.id, u.email_id, r.role FROM users u" +
+	query := "SELECT u.id, u.email_id, u.user_type, r.role FROM users u" +
 		" INNER JOIN user_roles ur ON ur.user_id=u.id" +
 		" INNER JOIN roles r ON r.id=ur.role_id" +
 		" WHERE u.email_id= ? and u.active = true" +

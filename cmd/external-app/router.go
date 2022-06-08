@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
@@ -45,6 +46,7 @@ type MuxRouter struct {
 	externalLinksRouter      externalLink.ExternalLinkRouter
 	moduleRouter             module.ModuleRouter
 	serverRouter             server.ServerRouter
+	apiTokenRouter           apiToken.ApiTokenRouter
 	k8sCapacityRouter        k8s.K8sCapacityRouter
 }
 
@@ -67,7 +69,7 @@ func NewMuxRouter(
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter,
 	externalLinkRouter externalLink.ExternalLinkRouter,
 	moduleRouter module.ModuleRouter,
-	serverRouter server.ServerRouter,
+	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
 	k8sCapacityRouter k8s.K8sCapacityRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
@@ -91,6 +93,7 @@ func NewMuxRouter(
 		externalLinksRouter:      externalLinkRouter,
 		moduleRouter:             moduleRouter,
 		serverRouter:             serverRouter,
+		apiTokenRouter:           apiTokenRouter,
 		k8sCapacityRouter:        k8sCapacityRouter,
 	}
 	return r
@@ -191,4 +194,8 @@ func (r *MuxRouter) Init() {
 	// server router
 	serverRouter := r.Router.PathPrefix("/orchestrator/server").Subrouter()
 	r.serverRouter.Init(serverRouter)
+
+	// api-token router
+	apiTokenRouter := r.Router.PathPrefix("/orchestrator/api-token").Subrouter()
+	r.apiTokenRouter.InitApiTokenRouter(apiTokenRouter)
 }
