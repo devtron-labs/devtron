@@ -1034,16 +1034,15 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
 		return nil, err
 	}
-	chart.GitRepoUrl = chartGitAttr.RepoUrl
-	chart.ChartLocation = chartGitAttr.ChartLocation
-	chart.UpdatedOn = time.Now()
-	chart.UpdatedBy = pipelineCreateRequest.UserId
-	err = impl.chartRepository.Update(chart)
+	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
 	if err != nil {
 		return nil, err
 	}
-	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+
+	// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
+	err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
 	if err != nil {
+		impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
 		return nil, err
 	}
 
@@ -2272,4 +2271,24 @@ func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string) ([]*AppB
 		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
 	}
 	return appsRes, err
+}
+
+func (impl PipelineBuilderImpl) updateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error {
+	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
+	if err != nil && pg.ErrNoRows != err {
+		return err
+	}
+	for _, ch := range charts {
+		if len(ch.GitRepoUrl) == 0 {
+			ch.GitRepoUrl = chartGitAttribute.RepoUrl
+			ch.ChartLocation = chartGitAttribute.ChartLocation
+			ch.UpdatedOn = time.Now()
+			ch.UpdatedBy = userId
+			err = impl.chartRepository.Update(ch)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
