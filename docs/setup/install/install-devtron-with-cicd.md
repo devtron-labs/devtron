@@ -148,6 +148,10 @@ kubectl delete -n argo -f https://raw.githubusercontent.com/devtron-labs/devtron
 kubectl delete ns devtroncd devtron-cd devtron-ci devtron-demo
 ```
 
+## What's next
+
+[Configurations](installation-configuration.md)
+
 ### FAQs
 
 <details>
