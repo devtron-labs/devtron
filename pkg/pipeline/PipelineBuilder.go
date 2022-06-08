@@ -979,12 +979,21 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 }
 
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		return nil, err
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
+
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
 		return nil, err
 	}
-
 	envPipelineMap := make(map[int]string)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if envPipelineMap[pipeline.EnvironmentId] != "" {
@@ -1027,16 +1036,18 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 			}
 			return nil, err
 		}
+
+		if !isGitOpsConfigured && (len(pipeline.PreStage.Config) > 0 || len(pipeline.PostStage.Config) > 0) {
+			err = &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: "pre or post stage not allowed without gitops configuration",
+				UserMessage:     "pre or post stage not allowed without gitops configuration",
+			}
+			return nil, err
+		}
 	}
 
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
-		return nil, err
-	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
+	if isGitOpsConfigured {
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 		if err != nil && pg.ErrNoRows != err {
 			return nil, err
@@ -1047,15 +1058,15 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 			impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
 			return nil, err
 		}
-	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+		err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
 		if err != nil {
 			return nil, err
 		}
 
-	// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
-	err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
+		// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
+		err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
 		if err != nil {
-		impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
+			impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
 			return nil, err
 		}
 	}

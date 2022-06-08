@@ -736,26 +736,118 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 
 			releaseName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
 			bearerToken := envOverride.Environment.Cluster.Config["bearer_token"]
-			releaseIdentifier := &client2.ReleaseIdentifier{
-				ReleaseName:      releaseName,
-				ReleaseNamespace: envOverride.Namespace,
-				ClusterConfig: &client2.ClusterConfig{
-					ClusterName:  envOverride.Environment.Cluster.ClusterName,
-					Token:        bearerToken,
-					ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
-				},
+			isSuccess := false
+			if pipeline.DeploymentAppCreated {
+				req := &client2.UpgradeReleaseRequest{
+					ReleaseIdentifier: &client2.ReleaseIdentifier{
+						ReleaseName:      releaseName,
+						ReleaseNamespace: envOverride.Namespace,
+						ClusterConfig: &client2.ClusterConfig{
+							ClusterName:  envOverride.Environment.Cluster.ClusterName,
+							Token:        bearerToken,
+							ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
+						},
+					},
+					ValuesYaml: mergeAndSave,
+				}
+
+				updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
+				if err != nil {
+					impl.logger.Errorw("error in updating helm application", "err", err)
+					//return nil, err
+				}
+				isSuccess = updateApplicationResponse.Success
+			} else {
+				releaseIdentifier := &client2.ReleaseIdentifier{
+					ReleaseName:      releaseName,
+					ReleaseNamespace: envOverride.Namespace,
+					ClusterConfig: &client2.ClusterConfig{
+						ClusterName:  envOverride.Environment.Cluster.ClusterName,
+						Token:        bearerToken,
+						ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
+					},
+				}
+				helmInstallRequest := &client2.HelmInstallCustomRequest{
+					ValuesYaml:        mergeAndSave,
+					Chunk:             &client2.Chunk{Content: referenceChartByte},
+					ReleaseIdentifier: releaseIdentifier,
+				}
+				helmResponse, err := impl.helmAppClient.HelmInstallCustom(ctx, helmInstallRequest)
+				if err != nil {
+					impl.logger.Errorw("error in helm install custom chart", "err", err)
+					//return 0, err
+				}
+				isSuccess = helmResponse.Success
 			}
-			helmInstallRequest := &client2.HelmInstallCustomRequest{
-				ValuesYaml:        mergeAndSave,
-				Chunk:             &client2.Chunk{Content: referenceChartByte},
-				ReleaseIdentifier: releaseIdentifier,
+
+			// update deployment status, used in deployment history
+			deploymentStatus := &repository.DeploymentStatus{
+				AppName:   pipeline.App.AppName + "-" + envOverride.Environment.Name,
+				AppId:     pipeline.AppId,
+				EnvId:     pipeline.EnvironmentId,
+				Status:    repository.NewDeployment,
+				CreatedOn: triggeredAt,
+				UpdatedOn: triggeredAt,
 			}
-			_, err := impl.helmAppClient.HelmInstallCustom(ctx, helmInstallRequest)
+			if isSuccess {
+				deploymentStatus.Status = repository.Success
+			} else {
+				deploymentStatus.Status = repository.Failure
+			}
+			dbConnection := impl.pipelineRepository.GetConnection()
+			tx, err := dbConnection.Begin()
 			if err != nil {
-				impl.logger.Errorw("error in helm install custom chart", "err", err)
+				return 0, err
+			}
+			// Rollback tx on error.
+			defer tx.Rollback()
+			err = impl.appListingRepository.SaveNewDeployment(deploymentStatus, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving new deployment history", "req", overrideRequest, "err", err)
+				return 0, err
+			}
+			err = tx.Commit()
+			if err != nil {
+				return 0, err
+			}
+
+			//update workflow runner status, used in app workflow view
+			cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_PRE)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("err", "err", err)
+				return 0, nil
+			}
+			cdWorkflowId := cdWf.CdWorkflowId
+			if cdWf.CdWorkflowId == 0 {
+				cdWf := &pipelineConfig.CdWorkflow{
+					CiArtifactId: overrideRequest.CiArtifactId,
+					PipelineId:   overrideRequest.PipelineId,
+					AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+				}
+				err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
+				if err != nil {
+					impl.logger.Errorw("err", "err", err)
+					return 0, err
+				}
+				cdWorkflowId = cdWf.Id
+			}
+			runner := &pipelineConfig.CdWorkflowRunner{
+				Name:         pipeline.Name,
+				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+				Status:       v1alpha1.HealthStatusHealthy,
+				TriggeredBy:  overrideRequest.UserId,
+				StartedOn:    triggeredAt,
+				CdWorkflowId: cdWorkflowId,
+			}
+			err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+			if err != nil {
+				impl.logger.Errorw("err", "err", err)
 				return 0, err
 			}
 		}
+
+		//update cd pipeline to mark deployment app created
 		_, err = impl.updatePipeline(pipeline, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in update cd pipeline", "err", err)

@@ -347,12 +347,26 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 			handler.logger.Errorw("error in fetching app detail", "err", err)
 		}
 		handler.logger.Info(appdetail.ResourceTreeResponse)
-		rt := &application.ResourceTreeResponse{
-			Status: appdetail.ApplicationStatus,
-			//PodMetadata: appdetail.ResourceTreeResponse.PodMetadata,
 
+		/*		var podmdata []*application.PodMetadata
+				for _, item := range appdetail.ResourceTreeResponse.PodMetadata {
+					podmdata = append(podmdata, &application.PodMetadata{
+						Name:           item.Name,
+						UID:            item.Uid,
+						//Containers: append([]*string{}, item.Containers...),
+						//InitContainers: item.InitContainers,
+						IsNew:          item.IsNew,
+					})
+				}*/
+		rt := &application.ResourceTreeResponse{
+			ApplicationTree:         nil,
+			NewGenerationReplicaSet: "",
+			Status:                  appdetail.ApplicationStatus,
+			PodMetadata:             nil,
+			Conditions:              nil,
 		}
 		appDetail.ResourceTree = rt
+		//appDetail.AppDetail = appdetail
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
