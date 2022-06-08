@@ -58,7 +58,7 @@ type ChartTemplateService interface {
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
 	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error
-	BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) (*ChartGitAttribute, error)
+	BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -176,7 +176,7 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 	return values, chartGitAttr, nil
 }
 
-func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) (*ChartGitAttribute, error) {
+func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error {
 	impl.logger.Debugw("package chart and push to git", "gitOpsRepoName", gitOpsRepoName, "version", version, "referenceTemplate", referenceTemplate, "repoUrl", repoUrl)
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
@@ -185,27 +185,27 @@ func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *c
 	err := os.MkdirAll(tempReferenceTemplateDir, os.ModePerm) //hack for concurrency handling
 	if err != nil {
 		impl.logger.Errorw("err in creating dir", "dir", tempReferenceTemplateDir, "err", err)
-		return nil, err
+		return err
 	}
 	defer impl.CleanDir(tempReferenceTemplateDir)
 	err = dirCopy.Copy(referenceTemplatePath, tempReferenceTemplateDir)
 
 	if err != nil {
 		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
-		return nil, err
+		return err
 	}
 	_, _, err = impl.packageChart(tempReferenceTemplateDir, chartMetaData)
 	if err != nil {
 		impl.logger.Errorw("error in creating archive", "err", err)
-		return nil, err
+		return err
 	}
 
-	chartGitAttr, err := impl.pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl, userId)
+	err = impl.pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl, userId)
 	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
-		return nil, err
+		impl.logger.Errorw("error in pushing chart to git ", "err", err)
+		return err
 	}
-	return chartGitAttr, nil
+	return nil
 }
 
 type ChartGitAttribute struct {
@@ -239,20 +239,19 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 	return &ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join(baseTemplateName, version)}, nil
 }
 
-func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (chartGitAttribute *ChartGitAttribute, err error) {
-	chartGitAttribute = &ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join(referenceTemplate, version)}
+func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.GetDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
 		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
-			return chartGitAttribute, err
+			return err
 		}
 	} else {
 		err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
 		if err != nil {
-			return chartGitAttribute, err
+			return err
 		}
 	}
 
@@ -260,12 +259,12 @@ func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenc
 	err = os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		impl.logger.Errorw("error in making dir", "err", err)
-		return chartGitAttribute, err
+		return err
 	}
 	err = dirCopy.Copy(tempReferenceTemplateDir, dir)
 	if err != nil {
 		impl.logger.Errorw("error copying dir", "err", err)
-		return chartGitAttribute, err
+		return err
 	}
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
@@ -274,22 +273,22 @@ func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenc
 		impl.logger.Warn("re-trying, taking pull and then push again")
 		err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
 		if err != nil {
-			return chartGitAttribute, err
+			return err
 		}
 		err = dirCopy.Copy(tempReferenceTemplateDir, dir)
 		if err != nil {
 			impl.logger.Errorw("error copying dir", "err", err)
-			return chartGitAttribute, err
+			return err
 		}
 		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
-			return chartGitAttribute, err
+			return err
 		}
 	}
 	impl.logger.Debugw("template committed", "url", repoUrl, "commit", commit)
 	defer impl.CleanDir(clonedDir)
-	return chartGitAttribute, nil
+	return nil
 }
 
 func (impl ChartTemplateServiceImpl) getValues(directory string) (values *ChartValues, err error) {
