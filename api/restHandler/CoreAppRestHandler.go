@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -73,7 +74,7 @@ type CoreAppRestHandlerImpl struct {
 	appLabelService         app.AppLabelService
 	pipelineBuilder         pipeline.PipelineBuilder
 	gitRegistryService      pipeline.GitRegistryConfig
-	chartService            pipeline.ChartService
+	chartService            chart.ChartService
 	configMapService        pipeline.ConfigMapService
 	appListingService       app.AppListingService
 	propertiesConfigService pipeline.PropertiesConfigService
@@ -90,7 +91,7 @@ type CoreAppRestHandlerImpl struct {
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
 	enforcer casbin.Enforcer, appLabelService app.AppLabelService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
-	chartService pipeline.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
+	chartService chart.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
@@ -1262,7 +1263,7 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 func (handler CoreAppRestHandlerImpl) createDeploymentTemplate(ctx context.Context, appId int, deploymentTemplate *appBean.DeploymentTemplate, userId int32) (error, int) {
 	handler.logger.Infow("Create App - creating deployment template", "appId", appId, "DeploymentTemplate", deploymentTemplate)
 
-	createDeploymentTemplateRequest := pipeline.TemplateRequest{
+	createDeploymentTemplateRequest := chart.TemplateRequest{
 		AppId:               appId,
 		ChartRefId:          deploymentTemplate.ChartRefId,
 		IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
@@ -1286,7 +1287,7 @@ func (handler CoreAppRestHandlerImpl) createDeploymentTemplate(ctx context.Conte
 	}
 
 	//updating app metrics
-	appMetricsRequest := pipeline.AppMetricEnableDisableRequest{
+	appMetricsRequest := chart.AppMetricEnableDisableRequest{
 		AppId:               appId,
 		UserId:              userId,
 		IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
@@ -1712,7 +1713,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	}
 
 	//updating app metrics
-	appMetricsRequest := &pipeline.AppMetricEnableDisableRequest{
+	appMetricsRequest := &chart.AppMetricEnableDisableRequest{
 		AppId:               appId,
 		UserId:              userId,
 		EnvironmentId:       envId,

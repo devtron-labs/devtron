@@ -19,7 +19,7 @@ package restHandler
 
 import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
@@ -33,11 +33,11 @@ type ChartRefRestHandler interface {
 }
 
 type ChartRefRestHandlerImpl struct {
-	chartService pipeline.ChartService
+	chartService chart.ChartService
 	logger       *zap.SugaredLogger
 }
 
-func NewChartRefRestHandlerImpl(chartService pipeline.ChartService, logger *zap.SugaredLogger) *ChartRefRestHandlerImpl {
+func NewChartRefRestHandlerImpl(chartService chart.ChartService, logger *zap.SugaredLogger) *ChartRefRestHandlerImpl {
 	handler := &ChartRefRestHandlerImpl{chartService: chartService, logger: logger}
 	return handler
 }

@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"io"
 	"net/http"
 	"strconv"
@@ -89,7 +90,7 @@ type PipelineConfigRestHandlerImpl struct {
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	ciHandler               pipeline.CiHandler
 	Logger                  *zap.SugaredLogger
-	chartService            pipeline.ChartService
+	chartService            chart.ChartService
 	propertiesConfigService pipeline.PropertiesConfigService
 	dbMigrationService      pipeline.DbMigrationService
 	application             application.ServiceClient
@@ -113,7 +114,7 @@ type PipelineConfigRestHandlerImpl struct {
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
-	chartService pipeline.ChartService,
+	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	dbMigrationService pipeline.DbMigrationService,
 	application application.ServiceClient,

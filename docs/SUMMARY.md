@@ -10,12 +10,12 @@
   * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
   * [Ingress setup for devtron installation](setup/install/ingress-setup.md)
-* [Devtron Upgrade](setup/upgrade/README.md)
-  * [Update Devtron from UI](setup/upgrade/upgrade-devtron-ui.md)
-  * [v0.3.x - v0.4.x](setup/upgrade/devtron-upgrade-0.3.x-0.4.x.md)
-  * [v0.3.x - v0.3.x](setup/upgrade/devtron-upgrade-0.3.x-0.3.x.md)
-  * [v0.2.x - v0.3.x](setup/upgrade/devtron-upgrade-0.2.x-0.3.x.md)
-
+  * [Devtron Upgrade](setup/upgrade/README.md)
+    * [Update Devtron from Devtron UI](setup/upgrade/upgrade-devtron-ui.md)
+    * [0.4.x-0.4.x](setup/upgrade/devtron-upgrade-0.4.x-0.4.x.md)
+    * [0.3.x-0.4.x](setup/upgrade/devtron-upgrade-0.3.x-0.4.x.md)
+    * [0.3.x-0.3.x](setup/upgrade/devtron-upgrade-0.3.x-0.3.x.md)
+    * [0.2.x-0.3.x](setup/upgrade/devtron-upgrade-0.2.x-0.3.x.md)
 ### Usage
 
 * [Applications](user-guide/applications.md)

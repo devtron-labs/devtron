@@ -474,6 +474,10 @@ github.com/nats-io/nuid v1.0.1/go.mod h1:19wcPz3Ph3q0Jbyiqsd0kePYG7A95tJPxeL+1OS
 github.com/niemeyer/pretty v0.0.0-20200227124842-a10e7caefd8e/go.mod h1:zD1mROLANZcx1PVRCS0qkT7pwLkGfwJo4zjcN/Tysno=
 github.com/nishant-d/authenticator v0.4.20 h1:5oQCykopEzjUy59EdBOZ8/2zg0PlXFndPACgcNLWBkM=
 github.com/nishant-d/authenticator v0.4.20/go.mod h1:cCro6RXcQXchb7ne18o84Y4mLCFn2flt6YdIamHJfh8=
+github.com/nishant-d/authenticator v0.4.28 h1:54sSKwBcIhVlHls0+RqYX1Qvrr3ZGyCuVeHOA08TxrA=
+github.com/nishant-d/authenticator v0.4.28/go.mod h1:cCro6RXcQXchb7ne18o84Y4mLCFn2flt6YdIamHJfh8=
+github.com/nishant-d/authenticator v0.4.29 h1:renbiaWSZ2SAPzBggRW1a9107z5ZvVvEhiEZvRx2ZGU=
+github.com/nishant-d/authenticator v0.4.29/go.mod h1:cCro6RXcQXchb7ne18o84Y4mLCFn2flt6YdIamHJfh8=
 github.com/nu7hatch/gouuid v0.0.0-20131221200532-179d4d0c4d8d/go.mod h1:YUTz3bUH2ZwIWBy3CJBeOBEugqcmXREj14T+iG/4k4U=
 github.com/onsi/ginkgo v0.0.0-20170829012221-11459a886d9c/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=
 github.com/onsi/ginkgo v1.6.0/go.mod h1:lLunBs/Ym6LB5Z9jYTR76FiuTmxDTDusOGeTQH+WWjE=

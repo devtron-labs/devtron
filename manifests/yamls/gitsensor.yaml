@@ -54,7 +54,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: git-sensor
-          image: "quay.io/devtron/git-sensor:b842d963-200-8479"
+          image: "quay.io/devtron/git-sensor:92ea8184-200-9020"
           ports:
             - containerPort: 8080
               name: sensor
