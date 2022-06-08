@@ -6,14 +6,14 @@ import (
 )
 
 type ClusterCapacityDetail struct {
-	Id                 int                   `json:"id,omitempty"`
-	Name               string                `json:"name,omitempty"`
-	ErrorInNodeListing string                `json:"errorInNodeListing,omitempty"`
-	NodeCount          int                   `json:"nodeCount,omitempty"`
-	NodeErrors         map[string]string     `json:"nodeErrors"`
-	NodeK8sVersions    []string              `json:"nodeK8sVersions"`
-	Cpu                *ResourceDetailObject `json:"cpu"`
-	Memory             *ResourceDetailObject `json:"memory"`
+	Id                 int                                   `json:"id,omitempty"`
+	Name               string                                `json:"name,omitempty"`
+	ErrorInNodeListing string                                `json:"errorInNodeListing,omitempty"`
+	NodeCount          int                                   `json:"nodeCount,omitempty"`
+	NodeErrors         map[metav1.NodeConditionType][]string `json:"nodeErrors"`
+	NodeK8sVersions    []string                              `json:"nodeK8sVersions"`
+	Cpu                *ResourceDetailObject                 `json:"cpu"`
+	Memory             *ResourceDetailObject                 `json:"memory"`
 }
 
 type NodeCapacityDetail struct {

@@ -2,7 +2,6 @@ package k8s
 
 import (
 	"context"
-	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -103,12 +102,18 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 	var clusterMemoryAllocatable resource.Quantity
 	nodeCount := 0
 	nodesK8sVersionMap := make(map[string]bool)
-	nodeErrors := make(map[string]string)
+	//map of node condition and name of all nodes that condition is true on
+	nodeErrors := make(map[metav1.NodeConditionType][]string)
 	var nodesK8sVersion []string
 	for _, node := range nodeList.Items {
 		errorsInNode := findNodeErrors(&node)
-		for _, v := range errorsInNode {
-			nodeErrors[node.Name] = v
+		for conditionName := range errorsInNode {
+			if nodeNames, ok := nodeErrors[conditionName]; ok {
+				nodeNames = append(nodeNames, node.Name)
+				nodeErrors[conditionName] = nodeNames
+			} else {
+				nodeErrors[conditionName] = []string{node.Name}
+			}
 		}
 		nodeCount += 1
 		if _, ok := nodesK8sVersionMap[node.Status.NodeInfo.KubeletVersion]; !ok {
@@ -265,11 +270,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndClusterId(clus
 		impl.logger.Errorw("error in getting node list", "err", err)
 		return nil, err
 	}
-	marshaledNode, err := json.Marshal(node)
-	if err != nil {
-		impl.logger.Errorw("error in node marshaling", "err", err)
-	}
-	impl.logger.Infow("received node", "marshaledNode", marshaledNode, "clusterId", clusterId)
+
 	//empty namespace: get pods for all namespaces
 	podList, err := k8sClientSet.CoreV1().Pods("").List(context.Background(), v1.ListOptions{})
 	if err != nil {
@@ -399,6 +400,7 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		} else {
 			conditionObj.HaveIssue = true
 		}
+		conditions = append(conditions, conditionObj)
 	}
 	nodeDetail.Conditions = conditions
 
