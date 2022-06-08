@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -140,7 +141,7 @@ type PipelineBuilderImpl struct {
 	pipelineStageService             PipelineStageService
 	chartTemplateService             util.ChartTemplateService
 	chartRefRepository               chartRepoRepository.ChartRefRepository
-	chartService                     ChartService
+	chartService                     chart.ChartService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -174,7 +175,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	pipelineStageService PipelineStageService, chartRefRepository chartRepoRepository.ChartRefRepository,
-	chartTemplateService util.ChartTemplateService, chartService ChartService) *PipelineBuilderImpl {
+	chartTemplateService util.ChartTemplateService, chartService chart.ChartService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,

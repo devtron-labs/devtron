@@ -20,6 +20,7 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -78,7 +79,7 @@ type PropertiesConfigService interface {
 	ResetEnvironmentProperties(id int) (bool, error)
 	CreateEnvironmentPropertiesWithNamespace(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
 
-	EnvMetricsEnableDisable(appMetricRequest *AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
+	EnvMetricsEnableDisable(appMetricRequest *chartService.AppMetricEnableDisableRequest) (*chartService.AppMetricEnableDisableRequest, error)
 }
 type PropertiesConfigServiceImpl struct {
 	logger                           *zap.SugaredLogger
@@ -266,7 +267,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 	}
 
 	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
-		appMetricsRequest := AppMetricEnableDisableRequest{UserId: environmentProperties.UserId, AppId: appId, EnvironmentId: environmentProperties.EnvironmentId, IsAppMetricsEnabled: false}
+		appMetricsRequest := chartService.AppMetricEnableDisableRequest{UserId: environmentProperties.UserId, AppId: appId, EnvironmentId: environmentProperties.EnvironmentId, IsAppMetricsEnabled: false}
 		_, err = impl.EnvMetricsEnableDisable(&appMetricsRequest)
 		if err != nil {
 			impl.logger.Errorw("err while disable app metrics for lower versions", "err", err, "appId", appId, "chartMajorVersion", chartMajorVersion, "chartMinorVersion", chartMinorVersion)
@@ -341,7 +342,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 	}
 
 	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
-		appMetricsRequest := AppMetricEnableDisableRequest{UserId: propertiesRequest.UserId, AppId: appId, EnvironmentId: oldEnvOverride.TargetEnvironment, IsAppMetricsEnabled: false}
+		appMetricsRequest := chartService.AppMetricEnableDisableRequest{UserId: propertiesRequest.UserId, AppId: appId, EnvironmentId: oldEnvOverride.TargetEnvironment, IsAppMetricsEnabled: false}
 		_, err = impl.EnvMetricsEnableDisable(&appMetricsRequest)
 		if err != nil {
 			impl.logger.Errorw("err while disable app metrics for lower versions", err)
@@ -377,7 +378,7 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 }
 
 func (impl PropertiesConfigServiceImpl) buildAppMetricsJson() ([]byte, error) {
-	appMetricsEnabled := AppMetricsEnabled{
+	appMetricsEnabled := chartService.AppMetricsEnabled{
 		AppMetrics: true,
 	}
 	appMetricsJson, err := json.Marshal(appMetricsEnabled)
@@ -636,7 +637,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 	return environmentProperties, nil
 }
 
-func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest *AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error) {
+func (impl PropertiesConfigServiceImpl) EnvMetricsEnableDisable(appMetricRequest *chartService.AppMetricEnableDisableRequest) (*chartService.AppMetricEnableDisableRequest, error) {
 	// validate app metrics compatibility
 	var currentChart *chartConfig.EnvConfigOverride
 	var err error

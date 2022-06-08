@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
 	"path"
@@ -101,6 +102,8 @@ type AppServiceImpl struct {
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService
 	chartTemplateService             ChartTemplateService
 	refChartDir                      chartRepoRepository.RefChartDir
+	chartRefRepository               chartRepoRepository.ChartRefRepository
+	chartService                     chart.ChartService
 }
 
 type AppService interface {
@@ -141,7 +144,10 @@ func NewAppService(
 	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
-	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir) *AppServiceImpl {
+	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir,
+	chartRefRepository chartRepoRepository.ChartRefRepository,
+	chartService chart.ChartService,
+) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -179,6 +185,8 @@ func NewAppService(
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		chartTemplateService:             chartTemplateService,
 		refChartDir:                      refChartDir,
+		chartRefRepository:               chartRefRepository,
+		chartService:                     chartService,
 	}
 	return appServiceImpl
 }
@@ -571,8 +579,24 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
+	userUploaded := false
+	var chartData *chartRepoRepository.ChartRef
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
+
+	chartData, err = impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("err in getting chart info", "err", err)
+		return 0, err
+	}
+	err = impl.chartService.CheckChartExists(envOverride.Chart.ChartRefId)
+	if err != nil {
+		impl.logger.Errorw("err in getting chart info", "err", err)
+		return 0, err
+	}
+
+	userUploaded = chartData.UserUploaded
+
 	_, err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
 	if err != nil {
 		impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
@@ -636,10 +660,12 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		return 0, err
 	}
 
-	valid, err := impl.validateVersionForStrategy(envOverride, strategy)
-	if err != nil || !valid {
-		impl.logger.Errorw("error in validating pipeline strategy ", "strategy", strategy.Strategy, "err", err)
-		return 0, err
+	if !userUploaded {
+		valid, err := impl.validateVersionForStrategy(envOverride, strategy)
+		if err != nil || !valid {
+			impl.logger.Errorw("error in validating pipeline strategy ", "strategy", strategy.Strategy, "err", err)
+			return 0, err
+		}
 	}
 
 	chartVersion := envOverride.Chart.ChartVersion
@@ -1082,12 +1108,16 @@ func (impl AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfig
 		appMetrics = envLevelMetrics.AppMetrics
 	}
 
+	deploymentStrategy := ""
+	if strategy != nil {
+		deploymentStrategy = string(strategy.Strategy)
+	}
 	releaseAttribute := ReleaseAttributes{
 		Name:           imageTag[0],
 		Tag:            imageTag[1],
 		PipelineName:   pipeline.Name,
 		ReleaseVersion: strconv.Itoa(pipelineOverride.PipelineReleaseCounter),
-		DeploymentType: string(strategy.Strategy),
+		DeploymentType: deploymentStrategy,
 		App:            appId,
 		Env:            envId,
 		AppMetrics:     appMetrics,
@@ -1432,10 +1462,12 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		impl.logger.Errorw("error in creating CM/CS history for deployment trigger", "err", err)
 		return err
 	}
-	err = impl.pipelineStrategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy, pipeline.TriggerType)
-	if err != nil {
-		impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)
-		return err
+	if strategy != nil {
+		err = impl.pipelineStrategyHistoryService.CreateStrategyHistoryForDeploymentTrigger(strategy, deployedOn, deployedBy, pipeline.TriggerType)
+		if err != nil {
+			impl.logger.Errorw("error in creating strategy history for deployment trigger", "err", err)
+			return err
+		}
 	}
 	return nil
 }

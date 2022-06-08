@@ -315,40 +315,44 @@ func (impl ChartTemplateServiceImpl) getValues(directory string) (values *ChartV
 				appOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
 				if err != nil {
 					impl.logger.Errorw("failed reading data from file", "err", err)
-				}
-				appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
-				if err != nil {
-					return nil, err
+				} else {
+					appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 			if name == "env-values.yaml" || name == "env-values.yml" {
 				envOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
 				if err != nil {
 					impl.logger.Errorw("failed reading data from file", "err", err)
-				}
-				envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
-				if err != nil {
-					return nil, err
+				} else {
+					envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 			if name == "release-values.yaml" || name == "release-values.yml" {
 				releaseOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
 				if err != nil {
 					impl.logger.Errorw("failed reading data from file", "err", err)
-				}
-				releaseOverrideByte, err = yaml.YAMLToJSON(releaseOverrideByte)
-				if err != nil {
-					return nil, err
+				} else {
+					releaseOverrideByte, err = yaml.YAMLToJSON(releaseOverrideByte)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 			if name == "pipeline-values.yaml" || name == "pipeline-values.yml" {
 				pipelineOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
 				if err != nil {
 					impl.logger.Errorw("failed reading data from file", "err", err)
-				}
-				pipelineOverrideByte, err = yaml.YAMLToJSON(pipelineOverrideByte)
-				if err != nil {
-					return nil, err
+				} else {
+					pipelineOverrideByte, err = yaml.YAMLToJSON(pipelineOverrideByte)
+					if err != nil {
+						return nil, err
+					}
 				}
 			}
 		}
