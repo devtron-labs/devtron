@@ -260,12 +260,12 @@ func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenc
 	err = os.MkdirAll(dir, os.ModePerm)
 	if err != nil {
 		impl.logger.Errorw("error in making dir", "err", err)
-		return chartGitAttribute, nil
+		return chartGitAttribute, err
 	}
 	err = dirCopy.Copy(tempReferenceTemplateDir, dir)
 	if err != nil {
 		impl.logger.Errorw("error copying dir", "err", err)
-		return chartGitAttribute, nil
+		return chartGitAttribute, err
 	}
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
