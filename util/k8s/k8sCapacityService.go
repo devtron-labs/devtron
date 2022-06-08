@@ -231,8 +231,14 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByClusterId(cluste
 }
 
 func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndClusterId(clusterId int, name string) (*NodeCapacityDetail, error) {
+	//getting cluster
+	cluster, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by Id", "err", err, "clusterId", clusterId)
+		return nil, err
+	}
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(clusterId)
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByCluster(cluster)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", clusterId)
 		return nil, err
@@ -277,6 +283,8 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndClusterId(clus
 		impl.logger.Errorw("error in getting node detail", "err", err)
 		return nil, err
 	}
+	//updating cluster name
+	nodeDetail.ClusterName = cluster.ClusterName
 	return nodeDetail, nil
 }
 func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourceUsage map[string]metav1.ResourceList, podList *metav1.PodList, callForList bool, restConfig *rest.Config) (*NodeCapacityDetail, error) {

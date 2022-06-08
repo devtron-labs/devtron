@@ -37,10 +37,10 @@ type NodeCapacityDetail struct {
 	Annotations   []*LabelAnnotationTaintObject       `json:"annotations,omitempty"`
 	Taints        []*LabelAnnotationTaintObject       `json:"taints,omitempty"`
 	Conditions    []*NodeConditionObject              `json:"conditions,omitempty"`
-	Resources     []*ResourceDetailObject             `json:"resources"`
-	Pods          []*PodCapacityDetail                `json:"pods"`
+	Resources     []*ResourceDetailObject             `json:"resources,omitempty"`
+	Pods          []*PodCapacityDetail                `json:"pods,omitempty"`
 	Manifest      unstructured.Unstructured           `json:"manifest,omitempty"`
-	CLusterName   string                              `json:"ClusterName,omitempty"`
+	ClusterName   string                              `json:"clusterName,omitempty"`
 }
 
 type PodCapacityDetail struct {

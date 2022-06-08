@@ -28,6 +28,7 @@ type K8sApplicationService interface {
 	ValidateResourceRequest(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error)
 	GetResourceInfo() (*ResourceInfo, error)
 	GetRestConfigByClusterId(clusterId int) (*rest.Config, error)
+	GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger           *zap.SugaredLogger
@@ -181,6 +182,23 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(clusterId int) (
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
 	var restConfig *rest.Config
+	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
+		restConfig, err = rest.InClusterConfig()
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
+			return nil, err
+		}
+	} else {
+		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
+	}
+	return restConfig, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error) {
+	configMap := cluster.Config
+	bearerToken := configMap["bearer_token"]
+	var restConfig *rest.Config
+	var err error
 	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
 		restConfig, err = rest.InClusterConfig()
 		if err != nil {
