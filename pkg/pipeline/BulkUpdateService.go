@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -206,15 +207,21 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 	deploymentTemplateImpactedObjects := []*DeploymentTemplateImpactedObjectsResponseForOneApp{}
 	configMapImpactedObjects := []*CmAndSecretImpactedObjectsResponseForOneApp{}
 	secretImpactedObjects := []*CmAndSecretImpactedObjectsResponseForOneApp{}
-
-	if len(bulkUpdatePayload.Includes.Names) == 0 {
+	var appNameIncludes []string
+	var appNameExcludes []string
+	if bulkUpdatePayload.Includes == nil || len(bulkUpdatePayload.Includes.Names) == 0 {
 		return impactedObjectsResponse, nil
+	} else {
+		appNameIncludes = bulkUpdatePayload.Includes.Names
+	}
+	if bulkUpdatePayload.Excludes != nil && len(bulkUpdatePayload.Excludes.Names) > 0 {
+		appNameExcludes = bulkUpdatePayload.Excludes.Names
 	}
 	if bulkUpdatePayload.Global {
 		//For Deployment Template
 		if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil {
 			appsGlobalDT, err := impl.bulkUpdateRepository.
-				FindDeploymentTemplateBulkAppNameForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
+				FindDeploymentTemplateBulkAppNameForGlobal(appNameIncludes, appNameExcludes)
 			if err != nil {
 				impl.logger.Errorw("error in fetching bulk app names for global", "err", err)
 				return nil, err
@@ -230,7 +237,7 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 
 		//For ConfigMap
 		if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 {
-			configMapAppModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, bulkUpdatePayload.ConfigMap.Spec.Names)
+			configMapAppModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForGlobal(appNameIncludes, appNameExcludes, bulkUpdatePayload.ConfigMap.Spec.Names)
 			if err != nil {
 				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 				return nil, err
@@ -263,7 +270,7 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 		}
 		//For Secret
 		if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 {
-			secretAppModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, bulkUpdatePayload.Secret.Spec.Names)
+			secretAppModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForGlobal(appNameIncludes, appNameExcludes, bulkUpdatePayload.Secret.Spec.Names)
 			if err != nil {
 				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 				return nil, err
@@ -300,7 +307,7 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 		//For Deployment Template
 		if bulkUpdatePayload.DeploymentTemplate != nil && bulkUpdatePayload.DeploymentTemplate.Spec != nil {
 			appsNotGlobalDT, err := impl.bulkUpdateRepository.
-				FindDeploymentTemplateBulkAppNameForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
+				FindDeploymentTemplateBulkAppNameForEnv(appNameIncludes, appNameExcludes, envId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching bulk app names for env", "err", err)
 				return nil, err
@@ -316,7 +323,7 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 		}
 		//For ConfigMap
 		if bulkUpdatePayload.ConfigMap != nil && bulkUpdatePayload.ConfigMap.Spec != nil && len(bulkUpdatePayload.ConfigMap.Spec.Names) != 0 {
-			configMapEnvModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId, bulkUpdatePayload.ConfigMap.Spec.Names)
+			configMapEnvModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, bulkUpdatePayload.ConfigMap.Spec.Names)
 			if err != nil {
 				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 				return nil, err
@@ -351,7 +358,7 @@ func (impl BulkUpdateServiceImpl) GetBulkAppName(bulkUpdatePayload *BulkUpdatePa
 		}
 		//For Secret
 		if bulkUpdatePayload.Secret != nil && bulkUpdatePayload.Secret.Spec != nil && len(bulkUpdatePayload.Secret.Spec.Names) != 0 {
-			secretEnvModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId, bulkUpdatePayload.Secret.Spec.Names)
+			secretEnvModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, bulkUpdatePayload.Secret.Spec.Names)
 			if err != nil {
 				impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 				return nil, err
@@ -400,9 +407,16 @@ func (impl BulkUpdateServiceImpl) ApplyJsonPatch(patch jsonpatch.Patch, target s
 }
 func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload *BulkUpdatePayload) *DeploymentTemplateBulkUpdateResponse {
 	deploymentTemplateBulkUpdateResponse := &DeploymentTemplateBulkUpdateResponse{}
-	if len(bulkUpdatePayload.Includes.Names) == 0 {
+	var appNameIncludes []string
+	var appNameExcludes []string
+	if bulkUpdatePayload.Includes == nil || len(bulkUpdatePayload.Includes.Names) == 0 {
 		deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, "Please don't leave includes.names array empty")
 		return deploymentTemplateBulkUpdateResponse
+	} else {
+		appNameIncludes = bulkUpdatePayload.Includes.Names
+	}
+	if bulkUpdatePayload.Excludes != nil && len(bulkUpdatePayload.Excludes.Names) > 0 {
+		appNameExcludes = bulkUpdatePayload.Excludes.Names
 	}
 	deploymentTemplatePatchJson := []byte(bulkUpdatePayload.DeploymentTemplate.Spec.PatchJson)
 	deploymentTemplatePatch, err := jsonpatch.DecodePatch(deploymentTemplatePatchJson)
@@ -412,7 +426,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 	}
 	var charts []*chartRepoRepository.Chart
 	if bulkUpdatePayload.Global {
-		charts, err = impl.bulkUpdateRepository.FindBulkChartsByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names)
+		charts, err = impl.bulkUpdateRepository.FindBulkChartsByAppNameSubstring(appNameIncludes, appNameExcludes)
 		if err != nil {
 			impl.logger.Error("error in fetching charts by app name substring")
 			deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
@@ -471,7 +485,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 	}
 	var chartsEnv []*chartConfig.EnvConfigOverride
 	for _, envId := range bulkUpdatePayload.EnvIds {
-		chartsEnv, err = impl.bulkUpdateRepository.FindBulkChartsEnvByAppNameSubstring(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId)
+		chartsEnv, err = impl.bulkUpdateRepository.FindBulkChartsEnvByAppNameSubstring(appNameIncludes, appNameExcludes, envId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching charts(for env) by app name substring", "err", err)
 			deploymentTemplateBulkUpdateResponse.Message = append(deploymentTemplateBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for envId = %d , %s", envId, err.Error()))
@@ -545,16 +559,24 @@ func (impl BulkUpdateServiceImpl) BulkUpdateDeploymentTemplate(bulkUpdatePayload
 
 func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpdatePayload) *CmAndSecretBulkUpdateResponse {
 	configMapBulkUpdateResponse := &CmAndSecretBulkUpdateResponse{}
-	if len(bulkUpdatePayload.Includes.Names) == 0 {
+	var appNameIncludes []string
+	var appNameExcludes []string
+	if bulkUpdatePayload.Includes == nil || len(bulkUpdatePayload.Includes.Names) == 0 {
 		configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, "Please don't leave includes.names array empty")
 		return configMapBulkUpdateResponse
+	} else {
+		appNameIncludes = bulkUpdatePayload.Includes.Names
 	}
+	if bulkUpdatePayload.Excludes != nil && len(bulkUpdatePayload.Excludes.Names) > 0 {
+		appNameExcludes = bulkUpdatePayload.Excludes.Names
+	}
+
 	if bulkUpdatePayload.Global {
 		configMapSpecNames := make(map[string]bool)
 		for _, name := range bulkUpdatePayload.ConfigMap.Spec.Names {
 			configMapSpecNames[name] = true
 		}
-		configMapAppModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, bulkUpdatePayload.ConfigMap.Spec.Names)
+		configMapAppModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForGlobal(appNameIncludes, appNameExcludes, bulkUpdatePayload.ConfigMap.Spec.Names)
 		if err != nil {
 			impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 			configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
@@ -646,7 +668,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 		for _, name := range bulkUpdatePayload.ConfigMap.Spec.Names {
 			configMapSpecNames[name] = true
 		}
-		configMapEnvModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId, bulkUpdatePayload.ConfigMap.Spec.Names)
+		configMapEnvModels, err := impl.bulkUpdateRepository.FindCMBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, bulkUpdatePayload.ConfigMap.Spec.Names)
 		if err != nil {
 			impl.logger.Errorw("error in fetching bulk app model for env", "err", err)
 			configMapBulkUpdateResponse.Message = append(configMapBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for env: %d , %s", envId, err.Error()))
@@ -742,16 +764,24 @@ func (impl BulkUpdateServiceImpl) BulkUpdateConfigMap(bulkUpdatePayload *BulkUpd
 }
 func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdatePayload) *CmAndSecretBulkUpdateResponse {
 	secretBulkUpdateResponse := &CmAndSecretBulkUpdateResponse{}
-	if len(bulkUpdatePayload.Includes.Names) == 0 {
+	var appNameIncludes []string
+	var appNameExcludes []string
+	if bulkUpdatePayload.Includes == nil || len(bulkUpdatePayload.Includes.Names) == 0 {
 		secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, "Please don't leave includes.names array empty")
 		return secretBulkUpdateResponse
+	} else {
+		appNameIncludes = bulkUpdatePayload.Includes.Names
 	}
+	if bulkUpdatePayload.Excludes != nil && len(bulkUpdatePayload.Excludes.Names) > 0 {
+		appNameExcludes = bulkUpdatePayload.Excludes.Names
+	}
+
 	if bulkUpdatePayload.Global {
 		secretSpecNames := make(map[string]bool)
 		for _, name := range bulkUpdatePayload.Secret.Spec.Names {
 			secretSpecNames[name] = true
 		}
-		secretAppModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForGlobal(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, bulkUpdatePayload.Secret.Spec.Names)
+		secretAppModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForGlobal(appNameIncludes, appNameExcludes, bulkUpdatePayload.Secret.Spec.Names)
 		if err != nil {
 			impl.logger.Errorw("error in fetching bulk app model for global", "err", err)
 			secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps globally : %s", err.Error()))
@@ -769,6 +799,12 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 							keyNames := gjson.Get(secretPatchJsonString, "#.path")
 							for j, keyName := range keyNames.Array() {
 								secretPatchJsonString, _ = sjson.Set(secretPatchJsonString, fmt.Sprintf("%d.path", j), fmt.Sprintf("/secrets/%d/data%s", i, keyName.String()))
+							}
+							//updating values to their base64 equivalent, on secret save/update operation this logic is implemented on FE
+							values := gjson.Get(secretPatchJsonString, "#.value")
+							for j, value := range values.Array() {
+								base64EncodedValue := base64.StdEncoding.EncodeToString([]byte(value.String()))
+								secretPatchJsonString, _ = sjson.Set(secretPatchJsonString, fmt.Sprintf("%d.value", j), base64EncodedValue)
 							}
 							secretPatchJson := []byte(secretPatchJsonString)
 							secretPatch, err := jsonpatch.DecodePatch(secretPatchJson)
@@ -802,7 +838,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 					if _, ok := messageSecretNamesMap["Updated Successfully"]; ok {
 						err := impl.bulkUpdateRepository.BulkUpdateSecretDataForGlobalById(secretAppModel.Id, secretAppModel.SecretData)
 						if err != nil {
-							impl.logger.Errorw("error in bulk updating charts", "err", err)
+							impl.logger.Errorw("error in bulk updating secrets", "err", err)
 							messageSecretNamesMap[fmt.Sprintf("Error in updating in db : %s", err.Error())] = messageSecretNamesMap["Updated Successfully"]
 							delete(messageSecretNamesMap, "Updated Successfully")
 						}
@@ -843,7 +879,7 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 		for _, name := range bulkUpdatePayload.Secret.Spec.Names {
 			secretSpecNames[name] = true
 		}
-		secretEnvModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForEnv(bulkUpdatePayload.Includes.Names, bulkUpdatePayload.Excludes.Names, envId, bulkUpdatePayload.Secret.Spec.Names)
+		secretEnvModels, err := impl.bulkUpdateRepository.FindSecretBulkAppModelForEnv(appNameIncludes, appNameExcludes, envId, bulkUpdatePayload.Secret.Spec.Names)
 		if err != nil {
 			impl.logger.Errorw("error in fetching bulk app model for env", "err", err)
 			secretBulkUpdateResponse.Message = append(secretBulkUpdateResponse.Message, fmt.Sprintf("Unable to bulk update apps for env: %d , %s", envId, err.Error()))
@@ -861,6 +897,12 @@ func (impl BulkUpdateServiceImpl) BulkUpdateSecret(bulkUpdatePayload *BulkUpdate
 							keyNames := gjson.Get(secretPatchJsonString, "#.path")
 							for j, keyName := range keyNames.Array() {
 								secretPatchJsonString, _ = sjson.Set(secretPatchJsonString, fmt.Sprintf("%d.path", j), fmt.Sprintf("/secrets/%d/data%s", i, keyName.String()))
+							}
+							//updating values to their base64 equivalent, on secret save/update operation this logic is implemented on FE
+							values := gjson.Get(secretPatchJsonString, "#.value")
+							for j, value := range values.Array() {
+								base64EncodedValue := base64.StdEncoding.EncodeToString([]byte(value.String()))
+								secretPatchJsonString, _ = sjson.Set(secretPatchJsonString, fmt.Sprintf("%d.value", j), base64EncodedValue)
 							}
 							secretPatchJson := []byte(secretPatchJsonString)
 							secretPatch, err := jsonpatch.DecodePatch(secretPatchJson)
