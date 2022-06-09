@@ -376,6 +376,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 			fmt.Printf("Error: %s", err)
 			return
 		}
+		dat["status"] = appdetail.ReleaseStatus.Status
 		appDetail.ResourceTree = dat
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
