@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -139,7 +140,8 @@ type PipelineBuilderImpl struct {
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 	pipelineStageService             PipelineStageService
 	chartTemplateService             util.ChartTemplateService
-	chartService                     ChartService
+	chartRefRepository               chartRepoRepository.ChartRefRepository
+	chartService                     chart.ChartService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -172,8 +174,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	pipelineStageService PipelineStageService,
-	chartTemplateService util.ChartTemplateService, chartService ChartService) *PipelineBuilderImpl {
+	pipelineStageService PipelineStageService, chartRefRepository chartRepoRepository.ChartRefRepository,
+	chartTemplateService util.ChartTemplateService, chartService chart.ChartService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -209,6 +211,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
 		pipelineStageService:             pipelineStageService,
 		chartTemplateService:             chartTemplateService,
+		chartRefRepository:               chartRefRepository,
 		chartService:                     chartService,
 	}
 }
@@ -1032,16 +1035,15 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
 		return nil, err
 	}
-	chart.GitRepoUrl = chartGitAttr.RepoUrl
-	chart.ChartLocation = chartGitAttr.ChartLocation
-	chart.UpdatedOn = time.Now()
-	chart.UpdatedBy = pipelineCreateRequest.UserId
-	err = impl.chartRepository.Update(chart)
+	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
 	if err != nil {
 		return nil, err
 	}
-	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+
+	// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
+	err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
 	if err != nil {
+		impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
 		return nil, err
 	}
 
@@ -1128,38 +1130,39 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 			return err
 		}
 	}
-	//delete app from argo cd
-	envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-	if err != nil {
-		return err
-	}
-	argoAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envModel.Name)
-	req := &application2.ApplicationDeleteRequest{
-		Name: &argoAppName,
-	}
-	if _, err := impl.application.Delete(ctx, req); err != nil {
-		impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
-
-		if forceDelete {
-			impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
-		} else {
-			//statusError, _ := err.(*errors2.StatusError)
-			if strings.Contains(err.Error(), "code = NotFound") {
-				err = &util.ApiError{
-					UserMessage:     "Could not delete as application not found in argocd",
-					InternalMessage: err.Error(),
-				}
-			} else {
-				err = &util.ApiError{
-					UserMessage:     "Could not delete application",
-					InternalMessage: err.Error(),
-				}
-			}
+	//delete app from argo cd, if created
+	if pipeline.DeploymentAppCreated == true {
+		envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
+		if err != nil {
 			return err
 		}
-	}
-	impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", argoAppName)
+		argoAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envModel.Name)
+		req := &application2.ApplicationDeleteRequest{
+			Name: &argoAppName,
+		}
+		if _, err := impl.application.Delete(ctx, req); err != nil {
+			impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
+			if forceDelete {
+				impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
+			} else {
+				//statusError, _ := err.(*errors2.StatusError)
+				if strings.Contains(err.Error(), "code = NotFound") {
+					err = &util.ApiError{
+						UserMessage:     "Could not delete as application not found in argocd",
+						InternalMessage: err.Error(),
+					}
+				} else {
+					err = &util.ApiError{
+						UserMessage:     "Could not delete application",
+						InternalMessage: err.Error(),
+					}
+				}
+				return err
+			}
+		}
+		impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", argoAppName)
+	}
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in committing db transaction", "err", err)
@@ -1955,9 +1958,21 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		impl.logger.Errorf("invalid state", "err", err, "appId", appId)
 		return pipelineStrategiesResponse, err
 	}
+	chartInfo, err := impl.chartRefRepository.FindById(chart.ChartRefId)
+	if err != nil {
+		impl.logger.Errorf("invalid chart", "err", err, "appId", appId)
+		return pipelineStrategiesResponse, err
+	}
+
 	if chart.Id == 0 {
 		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
 	}
+
+	if chartInfo.UserUploaded {
+		impl.logger.Errorw("invalid for custom charts", "err", err)
+		return pipelineStrategiesResponse, err
+	}
+
 	pipelineOverride := chart.PipelineOverride
 	rollingConfig, err := impl.filterDeploymentTemplate("ROLLING", pipelineOverride)
 	if err != nil {
@@ -1968,6 +1983,7 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		Config:             []byte(rollingConfig),
 		Default:            true,
 	})
+
 	bgConfig, err := impl.filterDeploymentTemplate("BLUE-GREEN", pipelineOverride)
 	if err != nil {
 		return pipelineStrategiesResponse, err
@@ -2256,4 +2272,24 @@ func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string) ([]*AppB
 		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
 	}
 	return appsRes, err
+}
+
+func (impl PipelineBuilderImpl) updateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error {
+	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
+	if err != nil && pg.ErrNoRows != err {
+		return err
+	}
+	for _, ch := range charts {
+		if len(ch.GitRepoUrl) == 0 {
+			ch.GitRepoUrl = chartGitAttribute.RepoUrl
+			ch.ChartLocation = chartGitAttribute.ChartLocation
+			ch.UpdatedOn = time.Now()
+			ch.UpdatedBy = userId
+			err = impl.chartRepository.Update(ch)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

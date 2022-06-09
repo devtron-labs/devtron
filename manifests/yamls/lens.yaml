@@ -221,7 +221,7 @@ spec:
             - name: envoy-config-volume
               mountPath: /etc/envoy-config/
         - name: lens
-          image: "quay.io/devtron/lens:f4c11d88-333-8279"
+          image: "quay.io/devtron/lens:f90752ab-333-9019"
           imagePullPolicy: IfNotPresent
           ports:
             - name: app

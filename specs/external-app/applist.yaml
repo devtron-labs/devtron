@@ -699,6 +699,12 @@ components:
         environmentId:
           type: number
           description: Environment Id
+        appStoreChartRepoName:
+          type: string
+          description: App store Chart Repo name
+        appStoreChartName:
+          type: string
+          description: App store Chart name
     ReleaseAndInstalledAppInfo:
       type: object
       properties:

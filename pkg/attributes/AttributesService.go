@@ -18,7 +18,6 @@
 package attributes
 
 import (
-	"github.com/argoproj/argo-cd/util/session"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -33,7 +32,10 @@ type AttributesService interface {
 	GetByKey(key string) (*AttributesDto, error)
 }
 
-const HostUrlKey string = "url"
+const (
+	HostUrlKey string = "url"
+	API_SECRET_KEY string = "apiTokenSecret"
+)
 
 type AttributesDto struct {
 	Id     int    `json:"id"`
@@ -45,15 +47,12 @@ type AttributesDto struct {
 
 type AttributesServiceImpl struct {
 	logger               *zap.SugaredLogger
-	sessionManager       *session.SessionManager
 	attributesRepository repository.AttributesRepository
 }
 
-func NewAttributesServiceImpl(logger *zap.SugaredLogger, sessionManager *session.SessionManager,
-	attributesRepository repository.AttributesRepository) *AttributesServiceImpl {
+func NewAttributesServiceImpl(logger *zap.SugaredLogger, attributesRepository repository.AttributesRepository) *AttributesServiceImpl {
 	serviceImpl := &AttributesServiceImpl{
 		logger:               logger,
-		sessionManager:       sessionManager,
 		attributesRepository: attributesRepository,
 	}
 	return serviceImpl

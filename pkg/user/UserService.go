@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
@@ -47,7 +48,7 @@ type UserService interface {
 	DeleteUser(userInfo *bean.UserInfo) (bool, error)
 	CheckUserRoles(id int32) ([]string, error)
 	SyncOrchestratorToCasbin() (bool, error)
-	GetUserByToken(token string) (int32, error)
+	GetUserByToken(token string) (int32, string, error)
 	IsSuperAdmin(userId int) (bool, error)
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 	UserExists(emailId string) bool
@@ -61,13 +62,14 @@ type UserServiceImpl struct {
 	roleGroupRepository repository2.RoleGroupRepository
 	sessionManager2     *middleware.SessionManager
 	userCommonService   UserCommonService
+	userAuditService    UserAuditService
 }
 
 func NewUserServiceImpl(userAuthRepository repository2.UserAuthRepository,
 	logger *zap.SugaredLogger,
 	userRepository repository2.UserRepository,
 	userGroupRepository repository2.RoleGroupRepository,
-	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService) *UserServiceImpl {
+	sessionManager2 *middleware.SessionManager, userCommonService UserCommonService, userAuditService UserAuditService) *UserServiceImpl {
 	serviceImpl := &UserServiceImpl{
 		userAuthRepository:  userAuthRepository,
 		logger:              logger,
@@ -75,6 +77,7 @@ func NewUserServiceImpl(userAuthRepository repository2.UserAuthRepository,
 		roleGroupRepository: userGroupRepository,
 		sessionManager2:     sessionManager2,
 		userCommonService:   userCommonService,
+		userAuditService:    userAuditService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -257,6 +260,7 @@ func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *
 	}
 	if dbUser.Active == false {
 		updateUserInfo = &bean.UserInfo{Id: dbUser.Id}
+		userInfo.Id = dbUser.Id
 	}
 	updateUserInfo.RoleFilters = impl.mergeRoleFilter(updateUserInfo.RoleFilters, userInfo.RoleFilters)
 	updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
@@ -290,6 +294,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	model := &repository2.UserModel{
 		EmailId:     emailId,
 		AccessToken: userInfo.AccessToken,
+		UserType:    userInfo.UserType,
 	}
 	model.Active = true
 	model.CreatedBy = userInfo.UserId
@@ -816,8 +821,9 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	return response, nil
 }
 
+// GetAll excluding API token user
 func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
-	model, err := impl.userRepository.GetAll()
+	model, err := impl.userRepository.GetAllExcludingApiTokenUser()
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
 		return nil, err
@@ -876,6 +882,7 @@ func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, erro
 	response := &bean.UserInfo{
 		Id:          model.Id,
 		EmailId:     model.EmailId,
+		UserType:    model.UserType,
 		AccessToken: model.AccessToken,
 		RoleFilters: roleFilters,
 	}
@@ -884,13 +891,18 @@ func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, erro
 }
 func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
 	token := r.Header.Get("token")
-	return impl.GetUserByToken(token)
+	userId, userType, err := impl.GetUserByToken(token)
+	// if user is of api-token type, then update lastUsedBy and lastUsedAt
+	if err == nil && userType == bean.USER_TYPE_API_TOKEN {
+		go impl.saveUserAudit(r, userId)
+	}
+	return userId, err
 }
 
-func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
+func (impl UserServiceImpl) GetUserByToken(token string) (int32, string, error) {
 	email, err := impl.GetEmailFromToken(token)
 	if err != nil {
-		return http.StatusUnauthorized, err
+		return http.StatusUnauthorized, "", err
 	}
 
 	userInfo, err := impl.GetUserByEmail(email)
@@ -901,9 +913,9 @@ func (impl UserServiceImpl) GetUserByToken(token string) (int32, error) {
 			InternalMessage: "user not found for token",
 			UserMessage:     fmt.Sprintf("no user found against provided token: %s", token),
 		}
-		return http.StatusUnauthorized, err
+		return http.StatusUnauthorized, "", err
 	}
-	return userInfo.Id, nil
+	return userInfo.Id, userInfo.UserType, nil
 }
 
 func (impl UserServiceImpl) GetEmailFromToken(token string) (string, error) {
@@ -1098,4 +1110,14 @@ func (impl UserServiceImpl) UpdateTriggerPolicyForTerminalAccess() (err error) {
 		return err
 	}
 	return nil
+}
+
+func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
+	clientIp := util2.GetClientIP(r)
+	userAudit := &UserAudit{
+		UserId:    userId,
+		ClientIp:  clientIp,
+		CreatedOn: time.Now(),
+	}
+	impl.userAuditService.Save(userAudit)
 }
