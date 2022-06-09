@@ -385,22 +385,24 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		taints = append(taints, taintObj)
 	}
 	nodeDetail.Taints = taints
-	//Valid conditions to be updated with update at kubernetes end
-	NodeAllValidConditionsMap := map[metav1.NodeConditionType]bool{metav1.NodeReady: true}
+	//map of {conditionType : isErrorCondition }, Valid/Non-error conditions to be updated with update at kubernetes end
+	NodeAllConditionsMap := map[metav1.NodeConditionType]bool{metav1.NodeReady: false, metav1.NodeMemoryPressure: true,
+		metav1.NodeDiskPressure: true, metav1.NodeNetworkUnavailable: true, metav1.NodePIDPressure: true}
 	var conditions []*NodeConditionObject
 	for _, condition := range node.Status.Conditions {
-		conditionObj := &NodeConditionObject{
-			Type:    string(condition.Type),
-			Reason:  condition.Reason,
-			Message: condition.Message,
+		if isErrorCondition, ok := NodeAllConditionsMap[condition.Type]; ok {
+			conditionObj := &NodeConditionObject{
+				Type:    string(condition.Type),
+				Reason:  condition.Reason,
+				Message: condition.Message,
+			}
+			if (!isErrorCondition && condition.Status == metav1.ConditionTrue) || (isErrorCondition && condition.Status == metav1.ConditionFalse) {
+				conditionObj.HaveIssue = false
+			} else {
+				conditionObj.HaveIssue = true
+			}
+			conditions = append(conditions, conditionObj)
 		}
-		_, ok := NodeAllValidConditionsMap[condition.Type]
-		if (ok && condition.Status == metav1.ConditionTrue) || (!ok && condition.Status == metav1.ConditionFalse) {
-			conditionObj.HaveIssue = false
-		} else {
-			conditionObj.HaveIssue = true
-		}
-		conditions = append(conditions, conditionObj)
 	}
 	nodeDetail.Conditions = conditions
 
