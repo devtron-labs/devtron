@@ -1,5 +1,7 @@
  # Docker Build Configuration
 
+**Please configure Global configurations > Container Registries to configure Docker Build Config**
+
 In the previous step, we discussed `Git Configurations`. In this section, we will provide information on the `Docker Build Configuration`.
 
 Docker build configuration is used to create and push docker images in the docker registry of your application. You will provide all the docker related information to build and push docker images in this step.

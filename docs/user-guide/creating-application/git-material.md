@@ -1,5 +1,7 @@
 # Git Repository
 
+**Please configure Global configurations > Git Accounts to configure Git Repository**
+
 Git Repository is used to pull your application source code during the CI step. Select `Git Repository` section of the  `App Configuration`. Inside `Git Repository` when you click on `Add Git Repository` you will see three options as shown below:
 
 1. Git Provider
