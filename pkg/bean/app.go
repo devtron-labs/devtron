@@ -102,6 +102,7 @@ type CiPipeline struct {
 	AppWorkflowId            int                    `json:"appWorkflowId,omitempty"`
 	PreBuildStage            *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
 	PostBuildStage           *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
+	BranchRegex              string                 `json:"BranchRegex,omitempty"`
 }
 
 type CiPipelineMin struct {
