@@ -330,7 +330,18 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 				resp.Status = app.NotDeployed
 			}
 		}
-		appDetail.ResourceTree = resp
+		//appDetail.ResourceTree = resp
+		b, err := json.Marshal(resp)
+		if err != nil {
+			fmt.Printf("Error: %s", err)
+			return
+		}
+		var dat map[string]interface{}
+		if err := json.Unmarshal(b, &dat); err != nil {
+			fmt.Printf("Error: %s", err)
+			return
+		}
+		appDetail.ResourceTree = dat
 		handler.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
 	} else {
 		config, err := handler.GetClusterConf(appDetail.ClusterId)
@@ -347,26 +358,25 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 			handler.logger.Errorw("error in fetching app detail", "err", err)
 		}
 		handler.logger.Info(appdetail.ResourceTreeResponse)
-
-		/*		var podmdata []*application.PodMetadata
-				for _, item := range appdetail.ResourceTreeResponse.PodMetadata {
-					podmdata = append(podmdata, &application.PodMetadata{
-						Name:           item.Name,
-						UID:            item.Uid,
-						//Containers: append([]*string{}, item.Containers...),
-						//InitContainers: item.InitContainers,
-						IsNew:          item.IsNew,
-					})
-				}*/
-		rt := &application.ResourceTreeResponse{
+		/*rt := &application.ResourceTreeResponse{
 			ApplicationTree:         nil,
 			NewGenerationReplicaSet: "",
 			Status:                  appdetail.ApplicationStatus,
 			PodMetadata:             nil,
 			Conditions:              nil,
 		}
-		appDetail.ResourceTree = rt
-		//appDetail.AppDetail = appdetail
+		appDetail.ResourceTree = rt*/
+		b, err := json.Marshal(appdetail.ResourceTreeResponse)
+		if err != nil {
+			fmt.Printf("Error: %s", err)
+			return
+		}
+		var dat map[string]interface{}
+		if err := json.Unmarshal(b, &dat); err != nil {
+			fmt.Printf("Error: %s", err)
+			return
+		}
+		appDetail.ResourceTree = dat
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)

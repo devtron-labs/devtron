@@ -360,11 +360,21 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
 				UserMessage:     "app detail fetched, failed to get resource tree from acd",
 			}
-			appDetail.ResourceTree = &application.ResourceTreeResponse{}
+			appDetail.ResourceTree = map[string]interface{}{}
 			common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 			return
 		}
-		appDetail.ResourceTree = resp
+		b, err := json.Marshal(resp)
+		if err != nil {
+			fmt.Printf("Error: %s", err)
+			return
+		}
+		var dat map[string]interface{}
+		if err := json.Unmarshal(b, &dat); err != nil {
+			fmt.Printf("Error: %s", err)
+			return
+		}
+		appDetail.ResourceTree = dat
 		handler.Logger.Debugf("application %s in environment %s had status %+v\n", installedAppId, envId, resp)
 	} else {
 		handler.Logger.Infow("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
