@@ -364,20 +364,24 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 			common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 			return
 		}
-		b, err := json.Marshal(resp)
-		if err != nil {
-			fmt.Printf("Error: %s", err)
-			return
-		}
-		var dat map[string]interface{}
-		if err := json.Unmarshal(b, &dat); err != nil {
-			fmt.Printf("Error: %s", err)
-			return
-		}
-		appDetail.ResourceTree = dat
+		appDetail.ResourceTree = common.ConvertResourceTree(resp)
 		handler.Logger.Debugf("application %s in environment %s had status %+v\n", installedAppId, envId, resp)
 	} else {
 		handler.Logger.Infow("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+}
+
+func (handler *InstalledAppRestHandlerImpl) convertResourceTree(resp interface{}) map[string]interface{} {
+	var dat map[string]interface{}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		handler.Logger.Errorw("error on marshal resource tree", "err", err)
+		return dat
+	}
+	if err := json.Unmarshal(b, &dat); err != nil {
+		handler.Logger.Errorw("error on unmarshal resource tree", "err", err)
+		return dat
+	}
+	return dat
 }

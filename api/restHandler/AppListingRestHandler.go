@@ -574,7 +574,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				resp.Status = app.NotDeployed
 			}
 		}
-		appDetail.ResourceTree = handler.convertResourceTree(resp)
+		appDetail.ResourceTree = common.ConvertResourceTree(resp)
 		handler.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
 	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType ==util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		config, err := handler.GetClusterConf(appDetail.ClusterId)
@@ -591,7 +591,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			handler.logger.Errorw("error in fetching app detail", "err", err)
 		}
 		if detail != nil {
-			resourceTree := handler.convertResourceTree(detail.ResourceTreeResponse)
+			resourceTree := common.ConvertResourceTree(detail.ResourceTreeResponse)
 			resourceTree["status"] = detail.ReleaseStatus.Status
 			appDetail.ResourceTree = resourceTree
 			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
@@ -603,20 +603,6 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	return appDetail
-}
-
-func (handler AppListingRestHandlerImpl) convertResourceTree(resp interface{}) map[string]interface{} {
-	var dat map[string]interface{}
-	b, err := json.Marshal(resp)
-	if err != nil {
-		fmt.Printf("Error: %s", err)
-		return dat
-	}
-	if err := json.Unmarshal(b, &dat); err != nil {
-		fmt.Printf("Error: %s", err)
-		return dat
-	}
-	return dat
 }
 
 func (handler *AppListingRestHandlerImpl) GetClusterConf(clusterId int) (*client.ClusterConfig, error) {

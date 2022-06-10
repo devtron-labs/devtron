@@ -72,13 +72,13 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 			errorsResp = append(errorsResp, errorResp)
 		}
 		response.Errors = errorsResp
-	} else if errStatus, ok := err.(*errors2.StatusError);ok{
+	} else if errStatus, ok := err.(*errors2.StatusError); ok {
 		apiErr := &util.ApiError{}
 		apiErr.Code = strconv.Itoa(int(errStatus.ErrStatus.Code))
 		apiErr.InternalMessage = errStatus.Error()
 		apiErr.UserMessage = errStatus.Error()
 		response.Errors = []*util.ApiError{apiErr}
-	} else{
+	} else {
 		apiErr := &util.ApiError{}
 		apiErr.Code = "000" // 000=unknown
 		apiErr.InternalMessage = errors.Details(err)
@@ -159,4 +159,18 @@ func contains(s []*string, e *string) bool {
 		}
 	}
 	return false
+}
+
+func ConvertResourceTree(resp interface{}) map[string]interface{} {
+	var dat map[string]interface{}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	if err := json.Unmarshal(b, &dat); err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	return dat
 }
