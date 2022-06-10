@@ -205,15 +205,15 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 
 	if len(appIds) < 50 {
 		payload.AppCount = len(appIds)
-		payload.AppsWithGitRepoConfigured, err = impl.materialRepository.FindAllByAppIds(appIds)
+		payload.AppsWithGitRepoConfigured, err = impl.materialRepository.FindNumberOfAppsWithGitRepo(appIds)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		}
-		payload.AppsWithDockerConfigured, err = impl.ciTemplateRepository.FindCount(appIds)
+		payload.AppsWithDockerConfigured, err = impl.ciTemplateRepository.FindNumberOfAppsWithDockerConfigured(appIds)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		}
-		payload.AppsWithDeploymentTemplateConfigured, err = impl.chartRepository.FindCount(appIds)
+		payload.AppsWithDeploymentTemplateConfigured, err = impl.chartRepository.FindNumberOfAppsWithDeploymentTemplate(appIds)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		}

@@ -66,7 +66,7 @@ type ChartRepository interface {
 	FindNoLatestChartForAppByAppId(appId int) ([]*Chart, error)
 	FindPreviousChartByAppId(appId int) (chart *Chart, err error)
 	FindByGitRepoUrl(gitRepoUrl string) (chart *Chart, err error)
-	FindCount(appIds []int) (int, error)
+	FindNumberOfAppsWithDeploymentTemplate(appIds []int) (int, error)
 }
 
 func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
@@ -209,7 +209,7 @@ func (repositoryImpl ChartRepositoryImpl) FindByGitRepoUrl(gitRepoUrl string) (c
 	return chart, err
 }
 
-func (repositoryImpl ChartRepositoryImpl) FindCount(appIds []int) (int, error) {
+func (repositoryImpl ChartRepositoryImpl) FindNumberOfAppsWithDeploymentTemplate(appIds []int) (int, error) {
 	var count int
 	query := "select count(distinct app_id) from ci_pipeline where app_id in (?);"
 	_, err := repositoryImpl.dbConnection.Query(&count, query, pg.In(appIds))

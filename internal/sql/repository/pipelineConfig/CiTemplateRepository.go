@@ -51,7 +51,7 @@ type CiTemplateRepository interface {
 	FindByAppId(appId int) (ciTemplate *CiTemplate, err error)
 	Update(material *CiTemplate) error
 	FindByDockerRegistryId(dockerRegistryId string) (ciTemplates []*CiTemplate, err error)
-	FindCount(appIds []int) (int, error)
+	FindNumberOfAppsWithDockerConfigured(appIds []int) (int, error)
 }
 
 type CiTemplateRepositoryImpl struct {
@@ -95,7 +95,7 @@ func (impl CiTemplateRepositoryImpl) FindByDockerRegistryId(dockerRegistryId str
 	return ciTemplates, err
 }
 
-func (impl CiTemplateRepositoryImpl) FindCount(appIds []int) (int, error) {
+func (impl CiTemplateRepositoryImpl) FindNumberOfAppsWithDockerConfigured(appIds []int) (int, error) {
 	var count int
 	query := "select count(distinct app_id) from ci_pipeline where app_id in (?);"
 	_, err := impl.dbConnection.Query(&count, query, pg.In(appIds))
