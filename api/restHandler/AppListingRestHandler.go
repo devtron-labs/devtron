@@ -343,7 +343,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		}
 		appDetail.ResourceTree = dat
 		handler.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
-	} else {
+	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		config, err := handler.GetClusterConf(appDetail.ClusterId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching cluster detail", "err", err)
@@ -357,28 +357,25 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		if err != nil {
 			handler.logger.Errorw("error in fetching app detail", "err", err)
 		}
-		handler.logger.Info(appdetail.ResourceTreeResponse)
-		/*rt := &application.ResourceTreeResponse{
-			ApplicationTree:         nil,
-			NewGenerationReplicaSet: "",
-			Status:                  appdetail.ApplicationStatus,
-			PodMetadata:             nil,
-			Conditions:              nil,
+		if appdetail != nil {
+			b, err := json.Marshal(appdetail.ResourceTreeResponse)
+			if err != nil {
+				fmt.Printf("Error: %s", err)
+				return
+			}
+			var dat map[string]interface{}
+			if err := json.Unmarshal(b, &dat); err != nil {
+				fmt.Printf("Error: %s", err)
+				return
+			}
+			dat["status"] = appdetail.ReleaseStatus.Status
+			appDetail.ResourceTree = dat
+			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
+		} else {
+			appDetail.ResourceTree = map[string]interface{}{}
 		}
-		appDetail.ResourceTree = rt*/
-		b, err := json.Marshal(appdetail.ResourceTreeResponse)
-		if err != nil {
-			fmt.Printf("Error: %s", err)
-			return
-		}
-		var dat map[string]interface{}
-		if err := json.Unmarshal(b, &dat); err != nil {
-			fmt.Printf("Error: %s", err)
-			return
-		}
-		dat["status"] = appdetail.ReleaseStatus.Status
-		appDetail.ResourceTree = dat
-		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
+	} else {
+		appDetail.ResourceTree = map[string]interface{}{}
 	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
