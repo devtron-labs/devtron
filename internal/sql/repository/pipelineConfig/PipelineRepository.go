@@ -367,15 +367,6 @@ func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndCh
 	return pipelines, err
 }
 
-func (impl CiPipelineRepositoryImpl) FindNumberOfAppsWithCdPipeline() (count int, err error) {
-	query := "select count(distinct app_id) from pipeline;"
-	_, err = impl.dbConnection.Query(&count, query)
-	if err != nil {
-		return 0, err
-	}
-	return count, nil
-}
-
 func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
@@ -389,4 +380,13 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pip
 func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 	err := impl.dbConnection.Update(pipeline)
 	return err
+}
+
+func (impl PipelineRepositoryImpl) FindNumberOfAppsWithCdPipeline() (count int, err error) {
+	query := "select count(distinct app_id) from pipeline;"
+	_, err = impl.dbConnection.Query(&count, query)
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
