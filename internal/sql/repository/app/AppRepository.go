@@ -57,7 +57,6 @@ type AppRepository interface {
 	FindAppAndProjectByAppName(appName string) (*App, error)
 	GetConnection() *pg.DB
 	FindAllMatchesByAppName(appName string) ([]*App, error)
-	FindAllApps() ([]*App, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -243,16 +242,4 @@ func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string) ([]*App, e
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Where("app_name ILIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_store = ?", false).Select()
 	return apps, err
-}
-
-func (repo AppRepositoryImpl) FindAllApps() ([]*App, error) {
-	var appIds []*App
-	err := repo.dbConnection.Model(&appIds).
-		Column("id").
-		Where("app_store = ?", false).
-		Select()
-	if err != nil {
-		return nil, err
-	}
-	return appIds, nil
 }
