@@ -575,7 +575,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	userUploaded := false
 	var chartData *chartRepoRepository.ChartRef
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
-	if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if pipeline.DeploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD {
 		// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
 
@@ -591,8 +591,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		}
 
 		userUploaded = chartData.UserUploaded
-
-		err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, overrideRequest.UserId, pipeline.DeploymentAppType)
+		err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
 			return 0, err
@@ -673,7 +672,8 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 
 	releaseId, pipelineOverrideId, mergeAndSave, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, strategy, ctx, triggeredAt, deployedBy)
 	if releaseId != 0 {
-		if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		//updating the acd app with updated values and sync operation
+		if pipeline.DeploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD {
 			flag, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
 			if err != nil {
 				impl.logger.Errorw("error in updating argocd  app ", "err", err)
@@ -711,138 +711,12 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		if err != nil {
 			return 0, err
 		}
-		go impl.WriteCDTriggerEvent(overrideRequest, pipeline, envOverride, materialInfoMap, artifact, releaseId, pipelineOverrideId)
-		if artifact.ScanEnabled {
-			_ = impl.MarkImageScanDeployed(overrideRequest.AppId, envOverride.TargetEnvironment, artifact.ImageDigest, pipeline.Environment.ClusterId)
-		}
 
-		if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_HELM {
-			referenceChartByte := envOverride.Chart.ReferenceChart
-			if len(envOverride.Chart.ReferenceChart) == 0 {
-				refChartByte, err := impl.chartTemplateService.GetByteArrayRefChart(chartMetaData, referenceTemplatePath)
-				if err != nil {
-					impl.logger.Errorw("ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
-					return 0, err
-				}
-				ch := envOverride.Chart
-				ch.ReferenceChart = refChartByte
-				err = impl.chartRepository.Update(ch)
-				if err != nil {
-					impl.logger.Errorw("chart update error", "err", err, "req", overrideRequest)
-					return 0, err
-				}
-				referenceChartByte = refChartByte
-			}
-
-			releaseName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
-			bearerToken := envOverride.Environment.Cluster.Config["bearer_token"]
-			isSuccess := false
-			if pipeline.DeploymentAppCreated {
-				req := &client2.UpgradeReleaseRequest{
-					ReleaseIdentifier: &client2.ReleaseIdentifier{
-						ReleaseName:      releaseName,
-						ReleaseNamespace: envOverride.Namespace,
-						ClusterConfig: &client2.ClusterConfig{
-							ClusterName:  envOverride.Environment.Cluster.ClusterName,
-							Token:        bearerToken,
-							ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
-						},
-					},
-					ValuesYaml: mergeAndSave,
-				}
-
-				updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
-				if err != nil {
-					impl.logger.Errorw("error in updating helm application", "err", err)
-					//return nil, err
-				}
-				isSuccess = updateApplicationResponse.Success
-			} else {
-				releaseIdentifier := &client2.ReleaseIdentifier{
-					ReleaseName:      releaseName,
-					ReleaseNamespace: envOverride.Namespace,
-					ClusterConfig: &client2.ClusterConfig{
-						ClusterName:  envOverride.Environment.Cluster.ClusterName,
-						Token:        bearerToken,
-						ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
-					},
-				}
-				helmInstallRequest := &client2.HelmInstallCustomRequest{
-					ValuesYaml:        mergeAndSave,
-					Chunk:             &client2.Chunk{Content: referenceChartByte},
-					ReleaseIdentifier: releaseIdentifier,
-				}
-				helmResponse, err := impl.helmAppClient.HelmInstallCustom(ctx, helmInstallRequest)
-				if err != nil {
-					impl.logger.Errorw("error in helm install custom chart", "err", err)
-					//return 0, err
-				}
-				isSuccess = helmResponse.Success
-			}
-
-			// update deployment status, used in deployment history
-			deploymentStatus := &repository.DeploymentStatus{
-				AppName:   pipeline.App.AppName + "-" + envOverride.Environment.Name,
-				AppId:     pipeline.AppId,
-				EnvId:     pipeline.EnvironmentId,
-				Status:    repository.NewDeployment,
-				CreatedOn: triggeredAt,
-				UpdatedOn: triggeredAt,
-			}
-			if isSuccess {
-				deploymentStatus.Status = repository.Success
-			} else {
-				deploymentStatus.Status = repository.Failure
-			}
-			dbConnection := impl.pipelineRepository.GetConnection()
-			tx, err := dbConnection.Begin()
+		//for helm type cd pipeline, create install helm application, update deployment status, update workflow runner for app detail status.
+		if pipeline.DeploymentAppType == PIPELINE_DEPLOYMENT_TYPE_HELM {
+			_, err = impl.createHelmAppForCdPipeline(overrideRequest, envOverride, referenceTemplatePath, chartMetaData, triggeredAt, pipeline, mergeAndSave, ctx)
 			if err != nil {
-				return 0, err
-			}
-			// Rollback tx on error.
-			defer tx.Rollback()
-			err = impl.appListingRepository.SaveNewDeployment(deploymentStatus, tx)
-			if err != nil {
-				impl.logger.Errorw("error in saving new deployment history", "req", overrideRequest, "err", err)
-				return 0, err
-			}
-			err = tx.Commit()
-			if err != nil {
-				return 0, err
-			}
-
-			//update workflow runner status, used in app workflow view
-			cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_PRE)
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("err", "err", err)
-				return 0, nil
-			}
-			cdWorkflowId := cdWf.CdWorkflowId
-			if cdWf.CdWorkflowId == 0 {
-				cdWf := &pipelineConfig.CdWorkflow{
-					CiArtifactId: overrideRequest.CiArtifactId,
-					PipelineId:   overrideRequest.PipelineId,
-					AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
-				}
-				err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
-				if err != nil {
-					impl.logger.Errorw("err", "err", err)
-					return 0, err
-				}
-				cdWorkflowId = cdWf.Id
-			}
-			runner := &pipelineConfig.CdWorkflowRunner{
-				Name:         pipeline.Name,
-				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-				Status:       v1alpha1.HealthStatusHealthy,
-				TriggeredBy:  overrideRequest.UserId,
-				StartedOn:    triggeredAt,
-				CdWorkflowId: cdWorkflowId,
-			}
-			err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
-			if err != nil {
-				impl.logger.Errorw("err", "err", err)
+				impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 				return 0, err
 			}
 		}
@@ -850,24 +724,17 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		//update cd pipeline to mark deployment app created
 		_, err = impl.updatePipeline(pipeline, overrideRequest.UserId)
 		if err != nil {
-			impl.logger.Errorw("error in update cd pipeline", "err", err)
+			impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
 			return 0, err
+		}
+
+		go impl.WriteCDTriggerEvent(overrideRequest, pipeline, envOverride, materialInfoMap, artifact, releaseId, pipelineOverrideId)
+		if artifact.ScanEnabled {
+			_ = impl.MarkImageScanDeployed(overrideRequest.AppId, envOverride.TargetEnvironment, artifact.ImageDigest, pipeline.Environment.ClusterId)
 		}
 	}
 	middleware.CdTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(pipeline.EnvironmentId), strconv.Itoa(pipeline.Id)).Inc()
 	return releaseId, saveErr
-}
-
-func (impl AppServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, userId int32) (bool, error) {
-	pipeline.DeploymentAppCreated = true
-	pipeline.UpdatedOn = time.Now()
-	pipeline.UpdatedBy = userId
-	err := impl.pipelineRepository.UpdateCdPipeline(pipeline)
-	if err != nil {
-		impl.logger.Errorw("error on updating cd pipeline for setting deployment app created", "err", err)
-		return false, err
-	}
-	return true, nil
 }
 
 func (impl AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error {
@@ -1355,7 +1222,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
 
 	commitHash := ""
-	if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if pipeline.DeploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD {
 		chartRepoName := impl.GetChartRepoName(envOverride.Chart.GitRepoUrl)
 		//getting user name & emailId for commit author data
 		userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)
@@ -1622,4 +1489,155 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 		}
 	}
 	return nil
+}
+
+func (impl AppServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, userId int32) (bool, error) {
+	pipeline.DeploymentAppCreated = true
+	pipeline.UpdatedOn = time.Now()
+	pipeline.UpdatedBy = userId
+	err := impl.pipelineRepository.UpdateCdPipeline(pipeline)
+	if err != nil {
+		impl.logger.Errorw("error on updating cd pipeline for setting deployment app created", "err", err)
+		return false, err
+	}
+	return true, nil
+}
+
+func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.ValuesOverrideRequest,
+	envOverride *chartConfig.EnvConfigOverride, referenceTemplatePath string, chartMetaData *chart2.Metadata,
+	triggeredAt time.Time, pipeline *pipelineConfig.Pipeline, mergeAndSave string, ctx context.Context) (bool, error) {
+	if pipeline.DeploymentAppType == PIPELINE_DEPLOYMENT_TYPE_HELM {
+		referenceChartByte := envOverride.Chart.ReferenceChart
+		// here updating reference chart into database.
+		if len(envOverride.Chart.ReferenceChart) == 0 {
+			refChartByte, err := impl.chartTemplateService.GetByteArrayRefChart(chartMetaData, referenceTemplatePath)
+			if err != nil {
+				impl.logger.Errorw("ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
+				return false, err
+			}
+			ch := envOverride.Chart
+			ch.ReferenceChart = refChartByte
+			ch.UpdatedOn = time.Now()
+			ch.UpdatedBy = overrideRequest.UserId
+			err = impl.chartRepository.Update(ch)
+			if err != nil {
+				impl.logger.Errorw("chart update error", "err", err, "req", overrideRequest)
+				return false, err
+			}
+			referenceChartByte = refChartByte
+		}
+
+		releaseName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
+		bearerToken := envOverride.Environment.Cluster.Config["bearer_token"]
+		isSuccess := false
+		if pipeline.DeploymentAppCreated {
+			req := &client2.UpgradeReleaseRequest{
+				ReleaseIdentifier: &client2.ReleaseIdentifier{
+					ReleaseName:      releaseName,
+					ReleaseNamespace: envOverride.Namespace,
+					ClusterConfig: &client2.ClusterConfig{
+						ClusterName:  envOverride.Environment.Cluster.ClusterName,
+						Token:        bearerToken,
+						ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
+					},
+				},
+				ValuesYaml: mergeAndSave,
+			}
+
+			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
+			if err != nil {
+				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
+				return false, err
+			}
+			isSuccess = updateApplicationResponse.Success
+		} else {
+			releaseIdentifier := &client2.ReleaseIdentifier{
+				ReleaseName:      releaseName,
+				ReleaseNamespace: envOverride.Namespace,
+				ClusterConfig: &client2.ClusterConfig{
+					ClusterName:  envOverride.Environment.Cluster.ClusterName,
+					Token:        bearerToken,
+					ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
+				},
+			}
+			helmInstallRequest := &client2.HelmInstallCustomRequest{
+				ValuesYaml:        mergeAndSave,
+				Chunk:             &client2.Chunk{Content: referenceChartByte},
+				ReleaseIdentifier: releaseIdentifier,
+			}
+			helmResponse, err := impl.helmAppClient.HelmInstallCustom(ctx, helmInstallRequest)
+			if err != nil {
+				impl.logger.Errorw("error in helm install custom chart", "err", err)
+				return false, err
+			}
+			isSuccess = helmResponse.Success
+		}
+
+		// update deployment status, used in deployment history
+		deploymentStatus := &repository.DeploymentStatus{
+			AppName:   pipeline.App.AppName + "-" + envOverride.Environment.Name,
+			AppId:     pipeline.AppId,
+			EnvId:     pipeline.EnvironmentId,
+			Status:    repository.NewDeployment,
+			CreatedOn: triggeredAt,
+			UpdatedOn: triggeredAt,
+		}
+		if isSuccess {
+			deploymentStatus.Status = repository.Success
+		} else {
+			deploymentStatus.Status = repository.Failure
+		}
+		dbConnection := impl.pipelineRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			return false, err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		err = impl.appListingRepository.SaveNewDeployment(deploymentStatus, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving new deployment history", "req", overrideRequest, "err", err)
+			return false, err
+		}
+		err = tx.Commit()
+		if err != nil {
+			return false, err
+		}
+
+		//update workflow runner status, used in app workflow view
+		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_PRE)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("err on fetching cd workflow", "err", err)
+			return false, err
+		}
+		cdWorkflowId := cdWf.CdWorkflowId
+		if cdWf.CdWorkflowId == 0 {
+			cdWf := &pipelineConfig.CdWorkflow{
+				CiArtifactId: overrideRequest.CiArtifactId,
+				PipelineId:   overrideRequest.PipelineId,
+				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
+			}
+			err := impl.cdWorkflowRepository.SaveWorkFlow(cdWf)
+			if err != nil {
+				impl.logger.Errorw("err on updating cd workflow for status update", "err", err)
+				return false, err
+			}
+			cdWorkflowId = cdWf.Id
+		}
+		runner := &pipelineConfig.CdWorkflowRunner{
+			Name:         pipeline.Name,
+			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+			Status:       v1alpha1.HealthStatusHealthy,
+			TriggeredBy:  overrideRequest.UserId,
+			StartedOn:    triggeredAt,
+			CdWorkflowId: cdWorkflowId,
+		}
+		err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		if err != nil {
+			impl.logger.Errorw("err on updating cd workflow runner for status update", "err", err)
+			return false, err
+		}
+	}
+	return true, nil
 }

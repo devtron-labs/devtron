@@ -23,7 +23,6 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
@@ -280,120 +279,8 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-
-	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		//RBAC enforcer Ends
-		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
-		query := &application2.ResourcesQuery{
-			ApplicationName: &acdAppName,
-		}
-		ctx, cancel := context.WithCancel(r.Context())
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
-		ctx = context.WithValue(ctx, "token", token)
-		defer cancel()
-		start := time.Now()
-		resp, err := handler.application.ResourceTree(ctx, query)
-		elapsed := time.Since(start)
-		if err != nil {
-			handler.logger.Errorw("service err, FetchAppDetails, resource tree", "err", err, "app", appId, "env", envId)
-			err = &util.ApiError{
-				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
-				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
-			}
-			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-			return
-		}
-		if resp.Status == v1alpha1.HealthStatusHealthy {
-			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
-			} else if status {
-				resp.Status = application.HIBERNATING
-			}
-		}
-		handler.logger.Debugf("FetchAppDetails, time elapsed %s in fetching application %s for environment %s", elapsed, appId, envId)
-
-		if resp.Status == v1alpha1.HealthStatusDegraded {
-			count, err := handler.appListingService.GetReleaseCount(appId, envId)
-			if err != nil {
-				handler.logger.Errorw("service err, FetchAppDetails, release count", "err", err, "app", appId, "env", envId)
-			} else if count == 0 {
-				resp.Status = app.NotDeployed
-			}
-		}
-		//appDetail.ResourceTree = resp
-		b, err := json.Marshal(resp)
-		if err != nil {
-			fmt.Printf("Error: %s", err)
-			return
-		}
-		var dat map[string]interface{}
-		if err := json.Unmarshal(b, &dat); err != nil {
-			fmt.Printf("Error: %s", err)
-			return
-		}
-		appDetail.ResourceTree = dat
-		handler.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
-	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_HELM {
-		config, err := handler.GetClusterConf(appDetail.ClusterId)
-		if err != nil {
-			handler.logger.Errorw("error in fetching cluster detail", "err", err)
-		}
-		req := &client.AppDetailRequest{
-			ClusterConfig: config,
-			Namespace:     appDetail.Namespace,
-			ReleaseName:   fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName),
-		}
-		appdetail, err := handler.helmAppClient.GetAppDetail(context.Background(), req)
-		if err != nil {
-			handler.logger.Errorw("error in fetching app detail", "err", err)
-		}
-		if appdetail != nil {
-			b, err := json.Marshal(appdetail.ResourceTreeResponse)
-			if err != nil {
-				fmt.Printf("Error: %s", err)
-				return
-			}
-			var dat map[string]interface{}
-			if err := json.Unmarshal(b, &dat); err != nil {
-				fmt.Printf("Error: %s", err)
-				return
-			}
-			dat["status"] = appdetail.ReleaseStatus.Status
-			appDetail.ResourceTree = dat
-			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
-		} else {
-			appDetail.ResourceTree = map[string]interface{}{}
-		}
-	} else {
-		appDetail.ResourceTree = map[string]interface{}{}
-		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
-	}
+	appDetail = handler.fetchResourceTree(w, r, token, appId, envId, appDetail)
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
-}
-
-func (handler *AppListingRestHandlerImpl) GetClusterConf(clusterId int) (*client.ClusterConfig, error) {
-	cluster, err := handler.clusterService.FindById(clusterId)
-	if err != nil {
-		handler.logger.Errorw("error in fetching cluster detail", "err", err)
-		return nil, err
-	}
-	config := &client.ClusterConfig{
-		ApiServerUrl: cluster.ServerUrl,
-		Token:        cluster.Config["bearer_token"],
-		ClusterId:    int32(cluster.Id),
-		ClusterName:  cluster.ClusterName,
-	}
-	return config, nil
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWriter, r *http.Request) {
@@ -635,4 +522,114 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 		return
 	}
 	http.Redirect(w, r, link, http.StatusOK)
+}
+
+func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, token string, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
+	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		//RBAC enforcer Ends
+		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
+		query := &application2.ResourcesQuery{
+			ApplicationName: &acdAppName,
+		}
+		ctx, cancel := context.WithCancel(r.Context())
+		if cn, ok := w.(http.CloseNotifier); ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		ctx = context.WithValue(ctx, "token", token)
+		defer cancel()
+		start := time.Now()
+		resp, err := handler.application.ResourceTree(ctx, query)
+		elapsed := time.Since(start)
+		if err != nil {
+			handler.logger.Errorw("service err, FetchAppDetails, resource tree", "err", err, "app", appId, "env", envId)
+			err = &util.ApiError{
+				Code:            constants.AppDetailResourceTreeNotFound,
+				InternalMessage: "app detail fetched, failed to get resource tree from acd",
+				UserMessage:     "Error fetching detail, if you have recently created this deployment pipeline please try after sometime.",
+			}
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return appDetail
+		}
+		if resp.Status == v1alpha1.HealthStatusHealthy {
+			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
+			if err != nil {
+				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
+			} else if status {
+				resp.Status = application.HIBERNATING
+			}
+		}
+		handler.logger.Debugf("FetchAppDetails, time elapsed %s in fetching application %s for environment %s", elapsed, appId, envId)
+
+		if resp.Status == v1alpha1.HealthStatusDegraded {
+			count, err := handler.appListingService.GetReleaseCount(appId, envId)
+			if err != nil {
+				handler.logger.Errorw("service err, FetchAppDetails, release count", "err", err, "app", appId, "env", envId)
+			} else if count == 0 {
+				resp.Status = app.NotDeployed
+			}
+		}
+		appDetail.ResourceTree = handler.convertResourceTree(resp)
+		handler.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
+	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType ==util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		config, err := handler.GetClusterConf(appDetail.ClusterId)
+		if err != nil {
+			handler.logger.Errorw("error in fetching cluster detail", "err", err)
+		}
+		req := &client.AppDetailRequest{
+			ClusterConfig: config,
+			Namespace:     appDetail.Namespace,
+			ReleaseName:   fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName),
+		}
+		detail, err := handler.helmAppClient.GetAppDetail(context.Background(), req)
+		if err != nil {
+			handler.logger.Errorw("error in fetching app detail", "err", err)
+		}
+		if detail != nil {
+			resourceTree := handler.convertResourceTree(detail.ResourceTreeResponse)
+			resourceTree["status"] = detail.ReleaseStatus.Status
+			appDetail.ResourceTree = resourceTree
+			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
+		} else {
+			appDetail.ResourceTree = map[string]interface{}{}
+		}
+	} else {
+		appDetail.ResourceTree = map[string]interface{}{}
+		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
+	}
+	return appDetail
+}
+
+func (handler AppListingRestHandlerImpl) convertResourceTree(resp interface{}) map[string]interface{} {
+	var dat map[string]interface{}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	if err := json.Unmarshal(b, &dat); err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	return dat
+}
+
+func (handler *AppListingRestHandlerImpl) GetClusterConf(clusterId int) (*client.ClusterConfig, error) {
+	cluster, err := handler.clusterService.FindById(clusterId)
+	if err != nil {
+		handler.logger.Errorw("error in fetching cluster detail", "err", err)
+		return nil, err
+	}
+	config := &client.ClusterConfig{
+		ApiServerUrl: cluster.ServerUrl,
+		Token:        cluster.Config["bearer_token"],
+		ClusterId:    int32(cluster.Id),
+		ClusterName:  cluster.ClusterName,
+	}
+	return config, nil
 }

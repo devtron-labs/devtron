@@ -115,8 +115,6 @@ type AppDetailContainer struct {
 	Environments              []Environment          `json:"otherEnvironment,omitempty"`
 	LinkOuts                  []LinkOuts             `json:"linkOuts,omitempty"`
 	ResourceTree              map[string]interface{} `json:"resourceTree,omitempty"`
-	//AppDetail                 *client.AppDetail                  `json:"helmAppDetail,omitempty"`
-	//ResourceTreeJson map[string]interface{} `json:"resourceTreeJson,omitempty"`
 }
 
 type Environment struct {

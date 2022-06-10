@@ -982,7 +982,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting error", "err", err)
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
 		return nil, err
 	}
 	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
@@ -1048,6 +1048,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 	}
 
 	if isGitOpsConfigured {
+		//if gitops configured create GIT repository and register into ACD
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 		if err != nil && pg.ErrNoRows != err {
 			return nil, err
@@ -1073,9 +1074,9 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if isGitOpsConfigured {
-			pipeline.DeploymentAppType = pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_ACD
+			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else {
-			pipeline.DeploymentAppType = pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_HELM
+			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 		}
 		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
 		if err != nil {
@@ -1162,7 +1163,7 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-		if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 			req := &application2.ApplicationDeleteRequest{
 				Name: &deploymentAppName,
 			}
@@ -1188,7 +1189,7 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 				}
 			}
 			impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", deploymentAppName)
-		} else if pipeline.DeploymentAppType == pipelineConfig.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 			appIdentifier := &client.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
 				ReleaseName: deploymentAppName,
