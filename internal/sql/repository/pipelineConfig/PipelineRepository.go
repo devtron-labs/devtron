@@ -40,6 +40,9 @@ const DEPLOYMENT_TEMPLATE_ROLLING DeploymentTemplate = "ROLLING"
 const DEPLOYMENT_TEMPLATE_CANARY DeploymentTemplate = "CANARY"
 const DEPLOYMENT_TEMPLATE_RECREATE DeploymentTemplate = "RECREATE"
 
+const PIPELINE_DEPLOYMENT_TYPE_ACD string = "acd"
+const PIPELINE_DEPLOYMENT_TYPE_HELM string = "helm"
+
 type Pipeline struct {
 	tableName                     struct{} `sql:"pipeline" pg:",discard_unknown_columns"`
 	Id                            int      `sql:"id,pk"`
@@ -59,6 +62,7 @@ type Pipeline struct {
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
 	DeploymentAppCreated          bool        `sql:"deployment_app_created,notnull"`
+	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
 	Environment                   repository.Environment
 	sql.AuditLog
 }
