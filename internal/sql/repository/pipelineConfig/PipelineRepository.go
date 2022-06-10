@@ -90,7 +90,7 @@ type PipelineRepository interface {
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	UpdateCdPipeline(pipeline *Pipeline) error
-	FindNumberOfAppsWithCdPipeline() (count int, err error)
+	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 }
 
 type CiArtifactDTO struct {
@@ -382,9 +382,9 @@ func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 	return err
 }
 
-func (impl PipelineRepositoryImpl) FindNumberOfAppsWithCdPipeline() (count int, err error) {
-	query := "select count(distinct app_id) from pipeline;"
-	_, err = impl.dbConnection.Query(&count, query)
+func (impl PipelineRepositoryImpl) FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error) {
+	query := "select count(distinct app_id) from pipeline where app_id in (?);"
+	_, err = impl.dbConnection.Query(&count, query, pg.In(appIds))
 	if err != nil {
 		return 0, err
 	}

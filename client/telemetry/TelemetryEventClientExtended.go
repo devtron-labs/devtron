@@ -193,7 +193,7 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	}
 
 	//appSetup := false
-	apps, err := impl.appRepository.FindAllApps()
+	apps, err := impl.appRepository.FindAll()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 	}
@@ -205,23 +205,24 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 
 	if len(appIds) < 50 {
 		payload.AppCount = len(appIds)
-		appsWithGitRepoConfigured, err := impl.materialRepository.FindAllByAppIds(appIds)
-		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-			return
-		}
-		payload.AppsWithGitRepoConfigured = len(appsWithGitRepoConfigured)
-		payload.AppsWithDockerConfigured = impl.ciTemplateRepository.FindCount()
-		payload.AppsWithDeploymentTemplateConfigured, err = impl.chartRepository.FindCount()
+		payload.AppsWithGitRepoConfigured, err = impl.materialRepository.FindAllByAppIds(appIds)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		}
-		payload.AppsWithCiPipelineConfigured, err = impl.ciPipelineRepository.FindNumberOfAppsWithCiPipeline()
+		payload.AppsWithDockerConfigured, err = impl.ciTemplateRepository.FindCount(appIds)
+		if err != nil {
+			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		}
+		payload.AppsWithDeploymentTemplateConfigured, err = impl.chartRepository.FindCount(appIds)
+		if err != nil {
+			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		}
+		payload.AppsWithCiPipelineConfigured, err = impl.ciPipelineRepository.FindNumberOfAppsWithCiPipeline(appIds)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		}
 
-		payload.AppsWithCdPipelineConfigured, err = impl.pipelineRepository.FindNumberOfAppsWithCdPipeline()
+		payload.AppsWithCdPipelineConfigured, err = impl.pipelineRepository.FindNumberOfAppsWithCdPipeline(appIds)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		}
