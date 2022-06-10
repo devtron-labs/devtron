@@ -673,6 +673,7 @@ func (impl GitHubClient) CreateRepository(name, description, bitbucketWorkspaceI
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	repoExists := true
+	impl.logger.Infow("panic test ..", "name", name, "userName", userName, "userEmailId", userEmailId)
 	url, err := impl.GetRepoUrl(name, nil)
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)

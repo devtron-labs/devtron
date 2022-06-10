@@ -262,6 +262,7 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 
 	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
 	if err != nil {
+		impl.logger.Errorw("panic test ..", "err", err)
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 			gitOpsConfigBitbucket.BitBucketProjectKey = ""
@@ -271,6 +272,7 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 		}
 	}
 	//getting user name & emailId for commit author data
+	impl.logger.Infow("panic test ..", "userId", userId, "gitOpsRepoName", gitOpsRepoName, "userEmailId", "gitOpsConfigBitbucket.BitBucketWorkspaceId", gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitOpsRepoName, fmt.Sprintf("helm chart for "+gitOpsRepoName), gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey, userName, userEmailId)
 	for _, err := range detailedError.StageErrorMap {
