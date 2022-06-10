@@ -211,7 +211,7 @@ func (repositoryImpl ChartRepositoryImpl) FindByGitRepoUrl(gitRepoUrl string) (c
 
 func (repositoryImpl ChartRepositoryImpl) FindCount() (int, error) {
 	var charts []*Chart
-	count, err := repositoryImpl.dbConnection.Model(charts).Count()
+	count, err := repositoryImpl.dbConnection.Model(&charts).Count()
 	if err != nil {
 		return 0, err
 	}

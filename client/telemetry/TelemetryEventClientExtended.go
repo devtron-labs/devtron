@@ -193,9 +193,14 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	}
 
 	//appSetup := false
-	appIds, err := impl.appRepository.FindAppCount()
+	apps, err := impl.appRepository.FindAllApps()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+	}
+
+	var appIds []int
+	for _, appInfo := range apps {
+		appIds = append(appIds, appInfo.Id)
 	}
 
 	if len(appIds) < 50 {

@@ -57,7 +57,7 @@ type AppRepository interface {
 	FindAppAndProjectByAppName(appName string) (*App, error)
 	GetConnection() *pg.DB
 	FindAllMatchesByAppName(appName string) ([]*App, error)
-	FindAppCount() ([]int, error)
+	FindAllApps() ([]*App, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -245,8 +245,8 @@ func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string) ([]*App, e
 	return apps, err
 }
 
-func (repo AppRepositoryImpl) FindAppCount() ([]int, error) {
-	var appIds []int
+func (repo AppRepositoryImpl) FindAllApps() ([]*App, error) {
+	var appIds []*App
 	err := repo.dbConnection.Model(&appIds).
 		Column("id").
 		Where("app_store = ?", false).
