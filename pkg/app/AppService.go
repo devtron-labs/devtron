@@ -1562,7 +1562,7 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 			}
 			helmInstallRequest := &client2.HelmInstallCustomRequest{
 				ValuesYaml:        mergeAndSave,
-				Chunk:             &client2.Chunk{Content: referenceChartByte},
+				ChartContent:      &client2.ChartContent{Content: referenceChartByte},
 				ReleaseIdentifier: releaseIdentifier,
 			}
 			helmResponse, err := impl.helmAppClient.HelmInstallCustom(ctx, helmInstallRequest)
