@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	security2 "github.com/devtron-labs/devtron/pkg/security"
@@ -34,7 +35,7 @@ type BulkUpdateRestHandlerImpl struct {
 	ciHandler               pipeline.CiHandler
 	logger                  *zap.SugaredLogger
 	bulkUpdateService       pipeline.BulkUpdateService
-	chartService            pipeline.ChartService
+	chartService            chart.ChartService
 	propertiesConfigService pipeline.PropertiesConfigService
 	dbMigrationService      pipeline.DbMigrationService
 	application             application.ServiceClient
@@ -58,7 +59,7 @@ type BulkUpdateRestHandlerImpl struct {
 
 func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logger *zap.SugaredLogger,
 	bulkUpdateService pipeline.BulkUpdateService,
-	chartService pipeline.ChartService,
+	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	dbMigrationService pipeline.DbMigrationService,
 	application application.ServiceClient,

@@ -4,8 +4,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -32,7 +32,7 @@ type DeploymentConfigRestHandlerImpl struct {
 	enforcer           casbin.Enforcer
 	validator          *validator.Validate
 	refChartDir        chartRepoRepository.RefChartDir
-	chartService       pipeline.ChartService
+	chartService       chart.ChartService
 	chartRefRepository chartRepoRepository.ChartRefRepository
 }
 
@@ -46,7 +46,7 @@ type DeploymentChartInfo struct {
 }
 
 func NewDeploymentConfigRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, enforcer casbin.Enforcer, validator *validator.Validate,
-	refChartDir chartRepoRepository.RefChartDir, chartService pipeline.ChartService, chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigRestHandlerImpl {
+	refChartDir chartRepoRepository.RefChartDir, chartService chart.ChartService, chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigRestHandlerImpl {
 	return &DeploymentConfigRestHandlerImpl{
 		Logger:             Logger,
 		userAuthService:    userAuthService,

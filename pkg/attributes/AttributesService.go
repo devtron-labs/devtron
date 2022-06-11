@@ -32,7 +32,10 @@ type AttributesService interface {
 	GetByKey(key string) (*AttributesDto, error)
 }
 
-const HostUrlKey string = "url"
+const (
+	HostUrlKey string = "url"
+	API_SECRET_KEY string = "apiTokenSecret"
+)
 
 type AttributesDto struct {
 	Id     int    `json:"id"`

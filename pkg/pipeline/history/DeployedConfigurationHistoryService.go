@@ -61,8 +61,8 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedConfigurationByW
 	}
 	if exists {
 		pipelineStrategyConfiguration.Id = strategyHistoryId
+		deployedConfigurations = append(deployedConfigurations, pipelineStrategyConfiguration)
 	}
-	deployedConfigurations = append(deployedConfigurations, pipelineStrategyConfiguration)
 
 	//checking if configmap history data exists and get its details
 	configmapHistory, exists, names, err := impl.configMapHistoryService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId, repository.CONFIGMAP_TYPE)

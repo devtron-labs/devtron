@@ -20,6 +20,7 @@ package appClone
 import (
 	"context"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"strings"
 
 	"fmt"
@@ -39,7 +40,7 @@ type AppCloneServiceImpl struct {
 	logger                  *zap.SugaredLogger
 	pipelineBuilder         pipeline.PipelineBuilder
 	materialRepository      pipelineConfig.MaterialRepository
-	chartService            pipeline.ChartService
+	chartService            chart.ChartService
 	configMapService        pipeline.ConfigMapService
 	appWorkflowService      appWorkflow.AppWorkflowService
 	appListingService       app.AppListingService
@@ -49,7 +50,7 @@ type AppCloneServiceImpl struct {
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	pipelineBuilder pipeline.PipelineBuilder,
 	materialRepository pipelineConfig.MaterialRepository,
-	chartService pipeline.ChartService,
+	chartService chart.ChartService,
 	configMapService pipeline.ConfigMapService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	appListingService app.AppListingService,
@@ -287,13 +288,13 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 	return res, err
 }
 
-func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int, userId int32, context context.Context) (*pipeline.TemplateRequest, error) {
+func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int, userId int32, context context.Context) (*chart.TemplateRequest, error) {
 	refTemplate, err := impl.chartService.FindLatestChartForAppByAppId(oldAppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching ref app chart ", "app", oldAppId, "err", err)
 		return nil, err
 	}
-	templateReq := pipeline.TemplateRequest{
+	templateReq := chart.TemplateRequest{
 		Id:             0,
 		AppId:          newAppId,
 		Latest:         refTemplate.Latest,
@@ -471,7 +472,7 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 		createResp, err := impl.propertiesConfigService.CreateEnvironmentProperties(newAppId, envPropertiesReq)
 		if err != nil {
 			if err.Error() == bean2.NOCHARTEXIST {
-				templateRequest := pipeline.TemplateRequest{
+				templateRequest := chart.TemplateRequest{
 					AppId:          newAppId,
 					ChartRefId:     envPropertiesReq.ChartRefId,
 					ValuesOverride: []byte("{}"),

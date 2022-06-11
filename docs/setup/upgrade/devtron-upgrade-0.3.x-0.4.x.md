@@ -33,10 +33,10 @@ kubectl label clusterrole devtron "app.kubernetes.io/managed-by=Helm"
 kubectl annotate clusterrole devtron "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
 kubectl label clusterrolebinding devtron "app.kubernetes.io/managed-by=Helm"
 kubectl annotate clusterrolebinding devtron "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
-kubectl -n devroncd label role --all "app.kubernetes.io/managed-by=Helm"
-kubectl -n devroncd annotate role --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
-kubectl -n devroncd label rolebinding --all "app.kubernetes.io/managed-by=Helm"
-kubectl -n devroncd annotate rolebinding --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
+kubectl -n devtroncd label role --all "app.kubernetes.io/managed-by=Helm"
+kubectl -n devtroncd annotate role --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
+kubectl -n devtroncd label rolebinding --all "app.kubernetes.io/managed-by=Helm"
+kubectl -n devtroncd annotate rolebinding --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
 ```
 
 ### 4. Fetch the latest Devtron helm chart
