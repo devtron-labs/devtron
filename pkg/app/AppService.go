@@ -674,15 +674,15 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	if releaseId != 0 {
 		//updating the acd app with updated values and sync operation
 		if pipeline.DeploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD {
-			flag, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
+			updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
 			if err != nil {
 				impl.logger.Errorw("error in updating argocd  app ", "err", err)
 				return 0, err
 			}
-			if flag {
-				impl.logger.Debug("argocd successfully updated")
+			if updateAppInArgocd {
+				impl.logger.Debug("argo-cd successfully updated")
 			} else {
-				impl.logger.Debug("argocd failed to update, ignoring it")
+				impl.logger.Debug("argo-cd failed to update, ignoring it")
 			}
 			impl.synchCD(pipeline, ctx, overrideRequest, envOverride)
 		}
@@ -1565,7 +1565,7 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 				ChartContent:      &client2.ChartContent{Content: referenceChartByte},
 				ReleaseIdentifier: releaseIdentifier,
 			}
-			helmResponse, err := impl.helmAppClient.HelmInstallCustom(ctx, helmInstallRequest)
+			helmResponse, err := impl.helmAppClient.InstallReleaseWithCustomChart(ctx, helmInstallRequest)
 			if err != nil {
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
 				return false, err

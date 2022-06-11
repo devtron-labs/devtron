@@ -160,17 +160,3 @@ func contains(s []*string, e *string) bool {
 	}
 	return false
 }
-
-func ConvertResourceTree(resp interface{}) map[string]interface{} {
-	var dat map[string]interface{}
-	b, err := json.Marshal(resp)
-	if err != nil {
-		fmt.Printf("Error: %s", err)
-		return dat
-	}
-	if err := json.Unmarshal(b, &dat); err != nil {
-		fmt.Printf("Error: %s", err)
-		return dat
-	}
-	return dat
-}

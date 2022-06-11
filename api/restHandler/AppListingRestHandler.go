@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"strconv"
 	"strings"
@@ -69,6 +70,7 @@ type AppListingRestHandlerImpl struct {
 	userService            user.UserService
 	helmAppClient          client.HelmAppClient
 	clusterService         cluster.ClusterService
+	helmAppService         client.HelmAppService
 }
 
 type AppStatus struct {
@@ -86,7 +88,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
-	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService) *AppListingRestHandlerImpl {
+	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:            application,
 		appListingService:      appListingService,
@@ -99,6 +101,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		userService:            userService,
 		helmAppClient:          helmAppClient,
 		clusterService:         clusterService,
+		helmAppService:         helmAppService,
 	}
 	return appListingHandler
 }
@@ -574,10 +577,10 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				resp.Status = app.NotDeployed
 			}
 		}
-		appDetail.ResourceTree = common.ConvertResourceTree(resp)
+		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
 		handler.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
-	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType ==util.PIPELINE_DEPLOYMENT_TYPE_HELM {
-		config, err := handler.GetClusterConf(appDetail.ClusterId)
+	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching cluster detail", "err", err)
 		}
@@ -591,7 +594,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			handler.logger.Errorw("error in fetching app detail", "err", err)
 		}
 		if detail != nil {
-			resourceTree := common.ConvertResourceTree(detail.ResourceTreeResponse)
+			resourceTree := util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			resourceTree["status"] = detail.ReleaseStatus.Status
 			appDetail.ResourceTree = resourceTree
 			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
@@ -603,19 +606,4 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	return appDetail
-}
-
-func (handler *AppListingRestHandlerImpl) GetClusterConf(clusterId int) (*client.ClusterConfig, error) {
-	cluster, err := handler.clusterService.FindById(clusterId)
-	if err != nil {
-		handler.logger.Errorw("error in fetching cluster detail", "err", err)
-		return nil, err
-	}
-	config := &client.ClusterConfig{
-		ApiServerUrl: cluster.ServerUrl,
-		Token:        cluster.Config["bearer_token"],
-		ClusterId:    int32(cluster.Id),
-		ClusterName:  cluster.ClusterName,
-	}
-	return config, nil
 }

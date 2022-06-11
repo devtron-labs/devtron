@@ -48,7 +48,7 @@ import (
 
 type ChartWorkingDir string
 
-const PIPELINE_DEPLOYMENT_TYPE_ACD string = "acd"
+const PIPELINE_DEPLOYMENT_TYPE_ACD string = "argo_cd"
 const PIPELINE_DEPLOYMENT_TYPE_HELM string = "helm"
 
 type ChartTemplateService interface {

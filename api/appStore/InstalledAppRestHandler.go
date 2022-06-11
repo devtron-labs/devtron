@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/gorilla/mux"
@@ -364,24 +365,10 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 			common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 			return
 		}
-		appDetail.ResourceTree = common.ConvertResourceTree(resp)
+		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
 		handler.Logger.Debugf("application %s in environment %s had status %+v\n", installedAppId, envId, resp)
 	} else {
 		handler.Logger.Infow("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
-}
-
-func (handler *InstalledAppRestHandlerImpl) convertResourceTree(resp interface{}) map[string]interface{} {
-	var dat map[string]interface{}
-	b, err := json.Marshal(resp)
-	if err != nil {
-		handler.Logger.Errorw("error on marshal resource tree", "err", err)
-		return dat
-	}
-	if err := json.Unmarshal(b, &dat); err != nil {
-		handler.Logger.Errorw("error on unmarshal resource tree", "err", err)
-		return dat
-	}
-	return dat
 }
