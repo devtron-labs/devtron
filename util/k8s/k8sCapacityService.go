@@ -37,38 +37,46 @@ type K8sCapacityServiceImpl struct {
 	clusterService        cluster.ClusterService
 	k8sApplicationService K8sApplicationService
 	k8sClientService      application.K8sClientService
+	clusterCronService    ClusterCronService
 }
 
 func NewK8sCapacityServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	k8sApplicationService K8sApplicationService,
-	k8sClientService application.K8sClientService) *K8sCapacityServiceImpl {
+	k8sClientService application.K8sClientService,
+	clusterCronService ClusterCronService) *K8sCapacityServiceImpl {
 	return &K8sCapacityServiceImpl{
 		logger:                Logger,
 		clusterService:        clusterService,
 		k8sApplicationService: k8sApplicationService,
 		k8sClientService:      k8sClientService,
+		clusterCronService:    clusterCronService,
 	}
 }
 
 func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList() ([]*ClusterCapacityDetail, error) {
-	//todo remove this hardcoding for default cluster
-	cluster, err := impl.clusterService.FindById(1)
+	clusters, err := impl.clusterService.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error in getting all clusters", "err", err)
 		return nil, err
 	}
 	var clustersDetails []*ClusterCapacityDetail
-	//for _, cluster := range []clusters {
-	clusterCapacityDetail, err := impl.GetClusterCapacityDetailById(cluster.Id, true)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster capacity details by id", "err", err)
-		return nil, err
+	for _, cluster := range clusters {
+		clusterCapacityDetail := &ClusterCapacityDetail{}
+		clusterCapacityDetail.Id = cluster.Id
+		clusterCapacityDetail.Name = cluster.ClusterName
+		if cluster.IsConnected {
+			clusterCapacityDetail, err = impl.GetClusterCapacityDetailById(cluster.Id, true)
+			if err != nil {
+				impl.logger.Errorw("error in getting cluster capacity details by id", "err", err)
+				clusterCapacityDetail.ErrorInConnection = err.Error()
+				return nil, err
+			}
+		} else {
+			clusterCapacityDetail.ErrorInConnection = fmt.Sprint("Cluster not connected")
+		}
+		clustersDetails = append(clustersDetails, clusterCapacityDetail)
 	}
-	clusterCapacityDetail.Id = cluster.Id
-	clusterCapacityDetail.Name = cluster.ClusterName
-	clustersDetails = append(clustersDetails, clusterCapacityDetail)
-	//}
 	return clustersDetails, nil
 }
 
@@ -86,15 +94,10 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 		return nil, err
 	}
 	clusterDetail := &ClusterCapacityDetail{}
-	nodeList, errorInNodeListing := k8sClientSet.CoreV1().Nodes().List(context.Background(), v1.ListOptions{})
-	if errorInNodeListing != nil {
-		impl.logger.Errorw("error in getting node list", "err", errorInNodeListing)
-		if !callForList {
-			return nil, errorInNodeListing
-		} else {
-			clusterDetail.ErrorInNodeListing = errorInNodeListing.Error()
-			return clusterDetail, nil
-		}
+	nodeList, err := k8sClientSet.CoreV1().Nodes().List(context.Background(), v1.ListOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in getting node list", "err", err)
+		return nil, err
 	}
 	var clusterCpuCapacity resource.Quantity
 	var clusterMemoryCapacity resource.Quantity
@@ -135,8 +138,6 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 	}
 	if callForList {
 		//assigning additional data for cluster listing api call
-		//setting value as empty because we already handled error case after node listing call
-		clusterDetail.ErrorInNodeListing = ""
 		clusterDetail.NodeCount = nodeCount
 	} else {
 		//update data for cluster detail api call
@@ -359,7 +360,6 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *NodeCapacityDetail, node *metav1.Node,
 	nodeLimitsResourceList metav1.ResourceList, nodeRequestsResourceList metav1.ResourceList,
 	nodeUsageResourceList metav1.ResourceList, podDetailList []*PodCapacityDetail, restConfig *rest.Config) error {
-	//TODO : confirm about empty node.typemeta response obj and remove hardcoding if needed
 	nodeDetail.Version = "v1"
 	nodeDetail.Kind = "Node"
 	nodeDetail.Pods = podDetailList
@@ -576,8 +576,7 @@ func findNodeErrors(node *metav1.Node) map[metav1.NodeConditionType]string {
 	conditionErrorMap := make(map[metav1.NodeConditionType]string)
 	for _, errorCondition := range NodeAllErrorConditions {
 		if condition, ok := conditionMap[errorCondition]; ok {
-			//TODO: change from false to true
-			if condition.Status == metav1.ConditionFalse {
+			if condition.Status == metav1.ConditionTrue {
 				conditionErrorMap[condition.Type] = fmt.Sprint(condition.Reason + " - " + condition.Message)
 			}
 		}

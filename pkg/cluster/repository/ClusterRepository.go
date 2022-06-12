@@ -38,6 +38,7 @@ type Cluster struct {
 	PTlsClientKey          string            `sql:"p_tls_client_key"`
 	AgentInstallationStage int               `sql:"agent_installation_stage"`
 	K8sVersion             string            `sql:"k8s_version"`
+	IsConnected            bool              `sql:"is_connected,notnull"`
 	sql.AuditLog
 }
 
@@ -53,6 +54,7 @@ type ClusterRepository interface {
 	Update(model *Cluster) error
 	Delete(model *Cluster) error
 	MarkClusterDeleted(model *Cluster) error
+	UpdateClusterConnectionStatus(clusterId int, isConnected bool) error
 }
 
 func NewClusterRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ClusterRepositoryImpl {
@@ -143,4 +145,12 @@ func (impl ClusterRepositoryImpl) Delete(model *Cluster) error {
 func (impl ClusterRepositoryImpl) MarkClusterDeleted(model *Cluster) error {
 	model.Active = false
 	return impl.dbConnection.Update(model)
+}
+
+func (impl ClusterRepositoryImpl) UpdateClusterConnectionStatus(clusterId int, isConnected bool) error {
+	cluster := &Cluster{}
+	_, err := impl.dbConnection.Model(cluster).
+		Set("is_connected = ?", isConnected).Where("id = ?", clusterId).
+		Update()
+	return err
 }

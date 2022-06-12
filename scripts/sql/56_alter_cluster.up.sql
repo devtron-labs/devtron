@@ -1,0 +1,2 @@
+ALTER TABLE cluster
+    ADD COLUMN is_connected BOOLEAN DEFAULT TRUE;
