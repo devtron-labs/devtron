@@ -487,7 +487,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	if _, ok := jobsManifest["kind"]; ok {
 		newPodNames = c.getJobsNewPods(jobsManifest, podManifests)
 	}
-	
+
 	for _, node := range resp.Nodes {
 		if node.Kind == "Workflow" {
 			parentWorkflow = append(parentWorkflow, node.Name)

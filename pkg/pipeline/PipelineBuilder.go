@@ -21,6 +21,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -142,6 +143,7 @@ type PipelineBuilderImpl struct {
 	chartTemplateService             util.ChartTemplateService
 	chartRefRepository               chartRepoRepository.ChartRefRepository
 	chartService                     chart.ChartService
+	helmAppService                   client.HelmAppService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -175,7 +177,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	pipelineStageService PipelineStageService, chartRefRepository chartRepoRepository.ChartRefRepository,
-	chartTemplateService util.ChartTemplateService, chartService chart.ChartService) *PipelineBuilderImpl {
+	chartTemplateService util.ChartTemplateService, chartService chart.ChartService,
+	helmAppService client.HelmAppService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -213,6 +216,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		chartTemplateService:             chartTemplateService,
 		chartRefRepository:               chartRefRepository,
 		chartService:                     chartService,
+		helmAppService:                   helmAppService,
 	}
 }
 
@@ -975,12 +979,21 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 }
 
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
+		return nil, err
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
+
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
 		return nil, err
 	}
-
 	envPipelineMap := make(map[int]string)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if envPipelineMap[pipeline.EnvironmentId] != "" {
@@ -1023,31 +1036,48 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 			}
 			return nil, err
 		}
+
+		if !isGitOpsConfigured && (len(pipeline.PreStage.Config) > 0 || len(pipeline.PostStage.Config) > 0) {
+			err = &util.ApiError{
+				HttpStatusCode:  http.StatusBadRequest,
+				InternalMessage: "pre or post stage not allowed without gitops configuration",
+				UserMessage:     "pre or post stage not allowed without gitops configuration",
+			}
+			return nil, err
+		}
 	}
 
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
-	if err != nil && pg.ErrNoRows != err {
-		return nil, err
-	}
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
-	chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, pipelineCreateRequest.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
-		return nil, err
-	}
-	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
-	if err != nil {
-		return nil, err
-	}
+	if isGitOpsConfigured {
+		//if gitops configured create GIT repository and register into ACD
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+		if err != nil && pg.ErrNoRows != err {
+			return nil, err
+		}
+		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
+		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, pipelineCreateRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
+			return nil, err
+		}
+		err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+		if err != nil {
+			return nil, err
+		}
 
-	// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
-	err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
-	if err != nil {
-		impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
-		return nil, err
+		// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
+		err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
+			return nil, err
+		}
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if isGitOpsConfigured {
+			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+		} else {
+			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		}
 		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating pipeline", "name", pipeline.Name, "err", err)
@@ -1132,36 +1162,48 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	}
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
-		envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-		if err != nil {
-			return err
-		}
-		argoAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envModel.Name)
-		req := &application2.ApplicationDeleteRequest{
-			Name: &argoAppName,
-		}
-		if _, err := impl.application.Delete(ctx, req); err != nil {
-			impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
+		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			req := &application2.ApplicationDeleteRequest{
+				Name: &deploymentAppName,
+			}
+			if _, err := impl.application.Delete(ctx, req); err != nil {
+				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
-			if forceDelete {
-				impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
-			} else {
-				//statusError, _ := err.(*errors2.StatusError)
-				if strings.Contains(err.Error(), "code = NotFound") {
-					err = &util.ApiError{
-						UserMessage:     "Could not delete as application not found in argocd",
-						InternalMessage: err.Error(),
-					}
+				if forceDelete {
+					impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
 				} else {
-					err = &util.ApiError{
-						UserMessage:     "Could not delete application",
-						InternalMessage: err.Error(),
+					//statusError, _ := err.(*errors2.StatusError)
+					if strings.Contains(err.Error(), "code = NotFound") {
+						err = &util.ApiError{
+							UserMessage:     "Could not delete as application not found in argocd",
+							InternalMessage: err.Error(),
+						}
+					} else {
+						err = &util.ApiError{
+							UserMessage:     "Could not delete application",
+							InternalMessage: err.Error(),
+						}
 					}
+					return err
 				}
+			}
+			impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", deploymentAppName)
+		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+			appIdentifier := &client.AppIdentifier{
+				ClusterId:   pipeline.Environment.ClusterId,
+				ReleaseName: deploymentAppName,
+				Namespace:   pipeline.Environment.Namespace,
+			}
+			deleteResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
+			if err != nil {
+				impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
 				return err
 			}
+			if deleteResponse == nil || !deleteResponse.GetSuccess() {
+				return errors.New("delete application response unsuccessful")
+			}
 		}
-		impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", argoAppName)
 	}
 	err = tx.Commit()
 	if err != nil {

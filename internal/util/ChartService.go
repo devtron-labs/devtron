@@ -18,6 +18,7 @@
 package util
 
 import (
+	"compress/gzip"
 	"context"
 	"fmt"
 	repository3 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
@@ -47,6 +48,9 @@ import (
 
 type ChartWorkingDir string
 
+const PIPELINE_DEPLOYMENT_TYPE_ACD string = "argo_cd"
+const PIPELINE_DEPLOYMENT_TYPE_HELM string = "helm"
+
 type ChartTemplateService interface {
 	FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32) (*ChartValues, *ChartGitAttribute, error)
 	GetChartVersion(location string) (string, error)
@@ -59,6 +63,7 @@ type ChartTemplateService interface {
 	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
 	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error
 	BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error
+	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
 }
 type ChartTemplateServiceImpl struct {
 	randSource             rand.Source
@@ -588,4 +593,41 @@ func (impl ChartTemplateServiceImpl) GetGitOpsRepoNameFromUrl(gitRepoUrl string)
 	gitRepoUrl = gitRepoUrl[strings.LastIndex(gitRepoUrl, "/")+1:]
 	gitRepoUrl = strings.ReplaceAll(gitRepoUrl, ".git", "")
 	return gitRepoUrl
+}
+
+// GetByteArrayRefChart this method will be used for getting byte array from reference chart to store in db
+func (impl ChartTemplateServiceImpl) GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error) {
+	chartMetaData.ApiVersion = "v1" // ensure always v1
+	dir := impl.GetDir()
+	tempReferenceTemplateDir := filepath.Join(string(impl.chartWorkingDir), dir)
+	impl.logger.Debugw("chart dir ", "chart", chartMetaData.Name, "dir", tempReferenceTemplateDir)
+	err := os.MkdirAll(tempReferenceTemplateDir, os.ModePerm) //hack for concurrency handling
+	if err != nil {
+		impl.logger.Errorw("err in creating dir", "dir", tempReferenceTemplateDir, "err", err)
+		return nil, err
+	}
+	defer impl.CleanDir(tempReferenceTemplateDir)
+	err = dirCopy.Copy(referenceTemplatePath, tempReferenceTemplateDir)
+	if err != nil {
+		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
+		return nil, err
+	}
+	activePath, _, err := impl.packageChart(tempReferenceTemplateDir, chartMetaData)
+	if err != nil {
+		impl.logger.Errorw("error in creating archive", "err", err)
+		return nil, err
+	}
+	file, err := os.Open(*activePath)
+	reader, err := gzip.NewReader(file)
+	if err != nil {
+		impl.logger.Errorw("There is a problem with os.Open", "err", err)
+		return nil, err
+	}
+	// read the complete content of the file h.Name into the bs []byte
+	bs, err := ioutil.ReadAll(reader)
+	if err != nil {
+		impl.logger.Errorw("There is a problem with readAll", "err", err)
+		return nil, err
+	}
+	return bs, nil
 }

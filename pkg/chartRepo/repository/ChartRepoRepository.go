@@ -47,6 +47,7 @@ type Chart struct {
 	ChartRefId              int                `sql:"chart_ref_id"`
 	Latest                  bool               `sql:"latest,notnull"`
 	Previous                bool               `sql:"previous,notnull"`
+	ReferenceChart          []byte             `sql:"reference_chart"`
 	sql.AuditLog
 }
 
