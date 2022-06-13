@@ -19,6 +19,7 @@ package telemetry
 
 import (
 	"encoding/base64"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"time"
 
 	"github.com/devtron-labs/devtron/util"
@@ -28,8 +29,10 @@ import (
 )
 
 type PosthogClient struct {
-	Client posthog.Client
-	cache  *cache.Cache
+	Client  posthog.Client
+	cache   *cache.Cache
+	k8sUtil *util2.K8sUtil
+	//aCDAuthConfig util3.ACDAuthConfig
 }
 
 var (
@@ -45,9 +48,10 @@ var (
 const (
 	TelemetryApiKeyEndpoint   string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="
 	TelemetryOptOutApiBaseUrl string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9vcHQtb3V0"
+	PosthogEndpointKey        string = "POSTHOG_ENDPOINT"
 )
 
-func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
+func NewPosthogClient(logger *zap.SugaredLogger, k8sUtil *util2.K8sUtil) (*PosthogClient, error) {
 	if PosthogApiKey == "" {
 		encodedApiKey, apiKey, err := getPosthogApiKey(TelemetryApiKeyEndpoint, logger)
 		if err != nil {
@@ -56,7 +60,23 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 		PosthogApiKey = apiKey
 		PosthogEncodedApiKey = encodedApiKey
 	}
-	client, err := posthog.NewWithConfig(PosthogApiKey, posthog.Config{Endpoint: PosthogEndpoint})
+
+	k8Client, err := k8sUtil.GetClientForInCluster()
+	if err != nil {
+		logger.Errorw("exception while getting unique client id", "error", err)
+		return nil, err
+	}
+
+	cm, err := k8sUtil.GetConfigMap("devtroncd", DevtronUniqueClientIdConfigMap, k8Client)
+	datamap := cm.Data
+
+	posthogURLValue, posthogURLKeyExists := datamap[PosthogEndpointKey]
+	posthogEndpoint := PosthogEndpoint
+
+	if posthogURLKeyExists && posthogURLValue != "" {
+		posthogEndpoint = posthogURLValue
+	}
+	client, err := posthog.NewWithConfig(PosthogApiKey, posthog.Config{Endpoint: posthogEndpoint})
 	//defer client.Close()
 	if err != nil {
 		logger.Errorw("exception caught while creating posthog client", "err", err)
