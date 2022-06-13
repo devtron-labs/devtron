@@ -198,6 +198,7 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	apps, err := impl.appRepository.FindAll()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
 	}
 
 	var appIds []int
@@ -205,8 +206,8 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		appIds = append(appIds, appInfo.Id)
 	}
 
+	payload.AppCount = len(appIds)
 	if len(appIds) < AppsCount {
-		payload.AppCount = len(appIds)
 		payload.AppsWithGitRepoConfigured, err = impl.materialRepository.FindNumberOfAppsWithGitRepo(appIds)
 		if err != nil {
 			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)

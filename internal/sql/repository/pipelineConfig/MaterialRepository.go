@@ -156,17 +156,14 @@ func (repo MaterialRepositoryImpl) MarkMaterialDeleted(material *GitMaterial) er
 }
 
 func (repo MaterialRepositoryImpl) FindNumberOfAppsWithGitRepo(appIds []int) (int, error) {
-	//var count int
-	//query := "select count(distinct app_id) from git_material where active = true and app_id in (?);"
-
+	var materials []*GitMaterial
 	count, err := repo.dbConnection.
-		Model(GitMaterial{}).
+		Model(&materials).
 		ColumnExpr("DISTINCT app_id").
 		Where("active = ?", true).
 		Where("app_id in (?)", pg.In(appIds)).
 		Count()
 
-	//_, err := repo.dbConnection.Query(&count, query, pg.In(appIds))
 	if err != nil {
 		return 0, err
 	}

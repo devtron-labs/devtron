@@ -324,15 +324,13 @@ func (impl CiPipelineRepositoryImpl) FindAllPipelineInLast24Hour() (pipelines []
 }
 
 func (impl CiPipelineRepositoryImpl) FindNumberOfAppsWithCiPipeline(appIds []int) (count int, err error) {
-	//query := "select count(distinct app_id) from ci_pipeline where app_id in (?);"
-
+	var ciPipelines []*CiPipeline
 	count, err = impl.dbConnection.
-		Model(CiPipeline{}).
+		Model(&ciPipelines).
 		ColumnExpr("DISTINCT app_id").
 		Where("app_id in (?)", pg.In(appIds)).
 		Count()
 
-	//_, err = impl.dbConnection.Query(&count, query, pg.In(appIds))
 	if err != nil {
 		return 0, err
 	}
