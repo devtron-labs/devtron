@@ -23,6 +23,8 @@ import (
 const (
 	labelNodeRolePrefix = "node-role.kubernetes.io/"
 	nodeLabelRole       = "kubernetes.io/role"
+	// Mebibyte represents the number of bytes in a mebibyte.
+	Mebibyte = 1024 * 1024
 )
 
 type K8sCapacityService interface {
@@ -130,10 +132,10 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 	clusterDetail.NodeErrors = nodeErrors
 	clusterDetail.NodeK8sVersions = nodesK8sVersion
 	clusterDetail.Cpu = &ResourceDetailObject{
-		Capacity: clusterCpuCapacity.String(),
+		Capacity: getResourceString(clusterCpuCapacity),
 	}
 	clusterDetail.Memory = &ResourceDetailObject{
-		Capacity: clusterCpuCapacity.String(),
+		Capacity: getResourceString(clusterMemoryCapacity),
 	}
 	if callForList {
 		//assigning additional data for cluster listing api call
@@ -335,13 +337,13 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 		cpuUsage := nodeUsageResourceList[metav1.ResourceCPU]
 		memoryUsage := nodeUsageResourceList[metav1.ResourceMemory]
 		nodeDetail.Cpu = &ResourceDetailObject{
-			Allocatable:     cpuAllocatable.String(),
-			Usage:           cpuUsage.String(),
+			Allocatable:     getResourceString(cpuAllocatable),
+			Usage:           getResourceString(cpuUsage),
 			UsagePercentage: convertToPercentage(&cpuUsage, &cpuAllocatable),
 		}
 		nodeDetail.Memory = &ResourceDetailObject{
-			Allocatable:     memoryAllocatable.String(),
-			Usage:           memoryUsage.String(),
+			Allocatable:     getResourceString(memoryAllocatable),
+			Usage:           getResourceString(memoryUsage),
 			UsagePercentage: convertToPercentage(&memoryUsage, &memoryAllocatable),
 		}
 
@@ -414,18 +416,18 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		capacity := nodeCapacityResourceList[resourceName]
 		r := &ResourceDetailObject{
 			ResourceName: string(resourceName),
-			Capacity:     capacity.String(),
+			Capacity:     getResourceString(capacity),
 		}
 		if limitsOk {
-			r.Limit = limits.String()
+			r.Limit = getResourceString(limits)
 			r.LimitPercentage = convertToPercentage(&limits, &allocatable)
 		}
 		if requestsOk {
-			r.Request = requests.String()
+			r.Request = getResourceString(requests)
 			r.RequestPercentage = convertToPercentage(&requests, &allocatable)
 		}
 		if usageOk {
-			r.Usage = usage.String()
+			r.Usage = getResourceString(usage)
 			r.UsagePercentage = convertToPercentage(&usage, &allocatable)
 		}
 		nodeDetail.Resources = append(nodeDetail.Resources, r)
@@ -484,12 +486,12 @@ func getPodDetail(pod metav1.Pod, cpuAllocatable resource.Quantity, memoryAlloca
 		Namespace: pod.Namespace,
 		Age:       translateTimestampSince(pod.CreationTimestamp),
 		Cpu: &ResourceDetailObject{
-			Limit:   cpuLimits.String(),
-			Request: cpuRequests.String(),
+			Limit:   getResourceString(cpuLimits),
+			Request: getResourceString(cpuRequests),
 		},
 		Memory: &ResourceDetailObject{
-			Limit:   memoryLimits.String(),
-			Request: memoryRequests.String(),
+			Limit:   getResourceString(memoryLimits),
+			Request: getResourceString(memoryRequests),
 		},
 	}
 	if cpuLimitsOk {
@@ -515,6 +517,20 @@ func convertToPercentage(actual, allocatable *resource.Quantity) string {
 		utilPercent = float64(actual.MilliValue()) / float64(allocatable.MilliValue()) * 100
 	}
 	return fmt.Sprintf("%d%%", int64(utilPercent))
+}
+
+func getResourceString(quantity resource.Quantity) string {
+	var quantityStr string
+	if quantity.Format == resource.DecimalSI {
+		quantityStr = fmt.Sprintf("%dm", quantity.MilliValue())
+	} else {
+		value := quantity.Value() / Mebibyte
+		if quantity.Value()%Mebibyte != 0 {
+			value++
+		}
+		quantityStr = fmt.Sprintf("%dMi", value)
+	}
+	return quantityStr
 }
 
 func translateTimestampSince(timestamp v1.Time) string {
@@ -577,7 +593,7 @@ func findNodeErrors(node *metav1.Node) map[metav1.NodeConditionType]string {
 		if condition, ok := conditionMap[errorCondition]; ok {
 			//todo: update from true to false
 			if condition.Status == metav1.ConditionFalse {
-				conditionErrorMap[condition.Type] = fmt.Sprint(condition.Reason + " - " + condition.Message)
+				conditionErrorMap[condition.Type] = condition.Message
 			}
 		}
 	}
