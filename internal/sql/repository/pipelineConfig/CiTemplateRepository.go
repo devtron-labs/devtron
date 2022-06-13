@@ -96,9 +96,15 @@ func (impl CiTemplateRepositoryImpl) FindByDockerRegistryId(dockerRegistryId str
 }
 
 func (impl CiTemplateRepositoryImpl) FindNumberOfAppsWithDockerConfigured(appIds []int) (int, error) {
-	var count int
-	query := "select count(distinct app_id) from ci_pipeline where app_id in (?);"
-	_, err := impl.dbConnection.Query(&count, query, pg.In(appIds))
+	//var count int
+	//query := "select count(distinct app_id) from ci_template where app_id in (?);"
+
+	count, err := impl.dbConnection.
+		Model(CiTemplate{}).
+		ColumnExpr("DISTINCT app_id").
+		Where("app_id in (?)", pg.In(appIds)).
+		Count()
+	//_, err := impl.dbConnection.Query(&count, query, pg.In(appIds))
 	if err != nil {
 		return 0, err
 	}

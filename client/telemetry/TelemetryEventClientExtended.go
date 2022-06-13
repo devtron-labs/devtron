@@ -19,6 +19,8 @@ import (
 	"time"
 )
 
+const AppsCount int = 50
+
 type TelemetryEventClientImplExtended struct {
 	environmentService            cluster.EnvironmentService
 	appListingRepository          repository.AppListingRepository
@@ -203,7 +205,7 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		appIds = append(appIds, appInfo.Id)
 	}
 
-	if len(appIds) < 50 {
+	if len(appIds) < AppsCount {
 		payload.AppCount = len(appIds)
 		payload.AppsWithGitRepoConfigured, err = impl.materialRepository.FindNumberOfAppsWithGitRepo(appIds)
 		if err != nil {

@@ -383,8 +383,13 @@ func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 }
 
 func (impl PipelineRepositoryImpl) FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error) {
-	query := "select count(distinct app_id) from pipeline where app_id in (?);"
-	_, err = impl.dbConnection.Query(&count, query, pg.In(appIds))
+	//query := "select count(distinct app_id) from pipeline where app_id in (?);"
+	count, err = impl.dbConnection.
+		Model(Pipeline{}).
+		ColumnExpr("DISTINCT app_id").
+		Where("app_id in (?)", pg.In(appIds)).
+		Count()
+	//_, err = impl.dbConnection.Query(&count, query, pg.In(appIds))
 	if err != nil {
 		return 0, err
 	}

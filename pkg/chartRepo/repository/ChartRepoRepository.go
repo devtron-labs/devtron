@@ -211,8 +211,13 @@ func (repositoryImpl ChartRepositoryImpl) FindByGitRepoUrl(gitRepoUrl string) (c
 
 func (repositoryImpl ChartRepositoryImpl) FindNumberOfAppsWithDeploymentTemplate(appIds []int) (int, error) {
 	var count int
-	query := "select count(distinct app_id) from ci_pipeline where app_id in (?);"
-	_, err := repositoryImpl.dbConnection.Query(&count, query, pg.In(appIds))
+	//query := "select count(distinct app_id) from chart where app_id in (?);"
+	count, err := repositoryImpl.dbConnection.
+		Model(Chart{}).
+		ColumnExpr("DISTINCT app_id").
+		Where("app_id in (?)", pg.In(appIds)).
+		Count()
+	//_, err := repositoryImpl.dbConnection.Query(&count, query, pg.In(appIds))
 	if err != nil {
 		return 0, err
 	}
