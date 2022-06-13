@@ -575,7 +575,8 @@ func findNodeErrors(node *metav1.Node) map[metav1.NodeConditionType]string {
 	conditionErrorMap := make(map[metav1.NodeConditionType]string)
 	for _, errorCondition := range NodeAllErrorConditions {
 		if condition, ok := conditionMap[errorCondition]; ok {
-			if condition.Status == metav1.ConditionTrue {
+			//todo: update from true to false
+			if condition.Status == metav1.ConditionFalse {
 				conditionErrorMap[condition.Type] = fmt.Sprint(condition.Reason + " - " + condition.Message)
 			}
 		}
