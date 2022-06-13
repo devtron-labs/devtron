@@ -144,6 +144,13 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 	if callForList {
 		//assigning additional data for cluster listing api call
 		clusterDetail.NodeCount = nodeCount
+		//getting serverVersion
+		serverVersion, err := k8sClientSet.DiscoveryClient.ServerVersion()
+		if err != nil {
+			impl.logger.Errorw("error in getting server version", "err", err, "clusterId", clusterId)
+			return nil, err
+		}
+		clusterDetail.ServerVersion = serverVersion.GitVersion
 	} else {
 		//update data for cluster detail api call
 		//getting metrics clientSet by rest config

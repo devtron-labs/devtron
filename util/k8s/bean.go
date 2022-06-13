@@ -12,6 +12,7 @@ type ClusterCapacityDetail struct {
 	NodeCount         int                                   `json:"nodeCount,omitempty"`
 	NodeErrors        map[metav1.NodeConditionType][]string `json:"nodeErrors"`
 	NodeK8sVersions   []string                              `json:"nodeK8sVersions"`
+	ServerVersion     string                                `json:"serverVersion,omitempty"`
 	Cpu               *ResourceDetailObject                 `json:"cpu"`
 	Memory            *ResourceDetailObject                 `json:"memory"`
 }
