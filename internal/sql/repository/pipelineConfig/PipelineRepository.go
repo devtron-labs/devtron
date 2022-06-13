@@ -89,9 +89,9 @@ type PipelineRepository interface {
 	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
-	Exists() (exist bool, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	UpdateCdPipeline(pipeline *Pipeline) error
+	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 }
 
 type CiArtifactDTO struct {
@@ -368,12 +368,6 @@ func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndCh
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) Exists() (exist bool, err error) {
-	var pipelines []*Pipeline
-	exist, err = impl.dbConnection.Model(&pipelines).Exists()
-	return exist, err
-}
-
 func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
@@ -387,4 +381,17 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pip
 func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 	err := impl.dbConnection.Update(pipeline)
 	return err
+}
+
+func (impl PipelineRepositoryImpl) FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error) {
+	var pipelines []*Pipeline
+	count, err = impl.dbConnection.
+		Model(&pipelines).
+		ColumnExpr("DISTINCT app_id").
+		Where("app_id in (?)", pg.In(appIds)).
+		Count()
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
