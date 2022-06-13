@@ -1623,19 +1623,27 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 				return false, err
 			}
 			cdWorkflowId = cdWf.Id
+			runner := &pipelineConfig.CdWorkflowRunner{
+				Id:           cdWf.Id,
+				Name:         pipeline.Name,
+				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+				Status:       v1alpha1.HealthStatusHealthy,
+				TriggeredBy:  overrideRequest.UserId,
+				StartedOn:    triggeredAt,
+				CdWorkflowId: cdWorkflowId,
+			}
+			err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+			if err != nil {
+				impl.logger.Errorw("err on updating cd workflow runner for status update", "err", err)
+				return false, err
+			}
 		}
-		runner := &pipelineConfig.CdWorkflowRunner{
-			Name:         pipeline.Name,
-			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-			Status:       v1alpha1.HealthStatusHealthy,
-			TriggeredBy:  overrideRequest.UserId,
-			StartedOn:    triggeredAt,
-			CdWorkflowId: cdWorkflowId,
-		}
-		err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		cdWf.Status = v1alpha1.HealthStatusHealthy
+		cdWf.FinishedOn = time.Now()
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&cdWf)
 		if err != nil {
-			impl.logger.Errorw("err on updating cd workflow runner for status update", "err", err)
+			impl.logger.Errorw("error on update cd workflow runner", "cdWf", cdWf, "err", err)
 			return false, err
 		}
 	}
