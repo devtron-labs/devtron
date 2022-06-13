@@ -1605,7 +1605,7 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 		}
 
 		//update workflow runner status, used in app workflow view
-		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_PRE)
+		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("err on fetching cd workflow", "err", err)
 			return false, err
@@ -1623,20 +1623,29 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 				return false, err
 			}
 			cdWorkflowId = cdWf.Id
-		}
-		runner := &pipelineConfig.CdWorkflowRunner{
-			Name:         pipeline.Name,
-			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
-			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-			Status:       v1alpha1.HealthStatusHealthy,
-			TriggeredBy:  overrideRequest.UserId,
-			StartedOn:    triggeredAt,
-			CdWorkflowId: cdWorkflowId,
-		}
-		err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
-		if err != nil {
-			impl.logger.Errorw("err on updating cd workflow runner for status update", "err", err)
-			return false, err
+			runner := &pipelineConfig.CdWorkflowRunner{
+				Id:           cdWf.Id,
+				Name:         pipeline.Name,
+				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
+				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+				Status:       v1alpha1.HealthStatusHealthy,
+				TriggeredBy:  overrideRequest.UserId,
+				StartedOn:    triggeredAt,
+				CdWorkflowId: cdWorkflowId,
+			}
+			err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+			if err != nil {
+				impl.logger.Errorw("err on updating cd workflow runner for status update", "err", err)
+				return false, err
+			}
+		} else {
+			cdWf.Status = v1alpha1.HealthStatusHealthy
+			cdWf.FinishedOn = time.Now()
+			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&cdWf)
+			if err != nil {
+				impl.logger.Errorw("error on update cd workflow runner", "cdWf", cdWf, "err", err)
+				return false, err
+			}
 		}
 	}
 	return true, nil
