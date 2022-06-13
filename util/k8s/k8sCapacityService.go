@@ -23,8 +23,12 @@ import (
 const (
 	labelNodeRolePrefix = "node-role.kubernetes.io/"
 	nodeLabelRole       = "kubernetes.io/role"
-	// Mebibyte represents the number of bytes in a mebibyte.
-	Mebibyte = 1024 * 1024
+	Kibibyte            = 1024
+	Mebibyte            = 1024 * 1024
+	Gibibyte            = 1024 * 1024 * 1024
+	kilobyte            = 1000
+	Megabyte            = 1000 * 1000
+	Gigabyte            = 1000 * 1000 * 1000
 )
 
 type K8sCapacityService interface {
@@ -132,10 +136,10 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 	clusterDetail.NodeErrors = nodeErrors
 	clusterDetail.NodeK8sVersions = nodesK8sVersion
 	clusterDetail.Cpu = &ResourceDetailObject{
-		Capacity: getResourceString(clusterCpuCapacity),
+		Capacity: getResourceString(clusterCpuCapacity, metav1.ResourceCPU),
 	}
 	clusterDetail.Memory = &ResourceDetailObject{
-		Capacity: getResourceString(clusterMemoryCapacity),
+		Capacity: getResourceString(clusterMemoryCapacity, metav1.ResourceMemory),
 	}
 	if callForList {
 		//assigning additional data for cluster listing api call
@@ -342,13 +346,13 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 		cpuUsage := nodeUsageResourceList[metav1.ResourceCPU]
 		memoryUsage := nodeUsageResourceList[metav1.ResourceMemory]
 		nodeDetail.Cpu = &ResourceDetailObject{
-			Allocatable:     getResourceString(cpuAllocatable),
-			Usage:           getResourceString(cpuUsage),
+			Allocatable:     getResourceString(cpuAllocatable, metav1.ResourceCPU),
+			Usage:           getResourceString(cpuUsage, metav1.ResourceCPU),
 			UsagePercentage: convertToPercentage(&cpuUsage, &cpuAllocatable),
 		}
 		nodeDetail.Memory = &ResourceDetailObject{
-			Allocatable:     getResourceString(memoryAllocatable),
-			Usage:           getResourceString(memoryUsage),
+			Allocatable:     getResourceString(memoryAllocatable, metav1.ResourceMemory),
+			Usage:           getResourceString(memoryUsage, metav1.ResourceMemory),
 			UsagePercentage: convertToPercentage(&memoryUsage, &memoryAllocatable),
 		}
 
@@ -421,19 +425,19 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		capacity := nodeCapacityResourceList[resourceName]
 		r := &ResourceDetailObject{
 			ResourceName: string(resourceName),
-			Allocatable:  getResourceString(allocatable),
-			Capacity:     getResourceString(capacity),
+			Allocatable:  getResourceString(allocatable, resourceName),
+			Capacity:     getResourceString(capacity, resourceName),
 		}
 		if limitsOk {
-			r.Limit = getResourceString(limits)
+			r.Limit = getResourceString(limits, resourceName)
 			r.LimitPercentage = convertToPercentage(&limits, &allocatable)
 		}
 		if requestsOk {
-			r.Request = getResourceString(requests)
+			r.Request = getResourceString(requests, resourceName)
 			r.RequestPercentage = convertToPercentage(&requests, &allocatable)
 		}
 		if usageOk {
-			r.Usage = getResourceString(usage)
+			r.Usage = getResourceString(usage, resourceName)
 			r.UsagePercentage = convertToPercentage(&usage, &allocatable)
 		}
 		nodeDetail.Resources = append(nodeDetail.Resources, r)
@@ -492,25 +496,33 @@ func getPodDetail(pod metav1.Pod, cpuAllocatable resource.Quantity, memoryAlloca
 		Namespace: pod.Namespace,
 		Age:       translateTimestampSince(pod.CreationTimestamp),
 		Cpu: &ResourceDetailObject{
-			Limit:   getResourceString(cpuLimits),
-			Request: getResourceString(cpuRequests),
+			Limit:   getResourceString(cpuLimits, metav1.ResourceCPU),
+			Request: getResourceString(cpuRequests, metav1.ResourceCPU),
 		},
 		Memory: &ResourceDetailObject{
-			Limit:   getResourceString(memoryLimits),
-			Request: getResourceString(memoryRequests),
+			Limit:   getResourceString(memoryLimits, metav1.ResourceMemory),
+			Request: getResourceString(memoryRequests, metav1.ResourceMemory),
 		},
 	}
 	if cpuLimitsOk {
 		podDetail.Cpu.LimitPercentage = convertToPercentage(&cpuLimits, &cpuAllocatable)
+	} else {
+		podDetail.Cpu.LimitPercentage = "0%"
 	}
 	if cpuRequestsOk {
 		podDetail.Cpu.RequestPercentage = convertToPercentage(&cpuRequests, &cpuAllocatable)
+	} else {
+		podDetail.Cpu.RequestPercentage = "0%"
 	}
 	if memoryLimitsOk {
 		podDetail.Memory.LimitPercentage = convertToPercentage(&memoryLimits, &memoryAllocatable)
+	} else {
+		podDetail.Memory.LimitPercentage = "0%"
 	}
 	if memoryRequestsOk {
 		podDetail.Memory.RequestPercentage = convertToPercentage(&memoryRequests, &memoryAllocatable)
+	} else {
+		podDetail.Memory.RequestPercentage = "0%"
 	}
 	return podDetail
 }
@@ -525,18 +537,63 @@ func convertToPercentage(actual, allocatable *resource.Quantity) string {
 	return fmt.Sprintf("%d%%", int64(utilPercent))
 }
 
-func getResourceString(quantity resource.Quantity) string {
-	var quantityStr string
-	if quantity.Format == resource.DecimalSI {
-		quantityStr = fmt.Sprintf("%dm", quantity.MilliValue())
+func getResourceString(quantity resource.Quantity, resourceName metav1.ResourceName) string {
+	standardResources := map[metav1.ResourceName]bool{metav1.ResourceCPU: true, metav1.ResourceMemory: true, metav1.ResourceStorage: true, metav1.ResourceEphemeralStorage: true}
+
+	if _, ok := standardResources[resourceName]; !ok {
+		//not a standard resource, we do not know if conversion would be valid or not
+		//for example - pods: "250", this is not in bytes but an integer so conversion is invalid
+		return quantity.String()
 	} else {
-		value := quantity.Value() / Mebibyte
-		if quantity.Value()%Mebibyte != 0 {
-			value++
+		var quantityStr string
+		value := quantity.Value()
+		if quantity.Format == resource.DecimalSI {
+			valueG := value / Gigabyte
+			//allowing remainder 0 only, because for Gi rounding off will be highly erroneous
+			if valueG > 1 && value%Gigabyte == 0 {
+				quantityStr = fmt.Sprintf("%dG", valueG)
+			} else {
+				valueM := quantity.Value() / Megabyte
+				if valueM > 10 {
+					if value%Megabyte != 0 {
+						valueM++
+					}
+					quantityStr = fmt.Sprintf("%dM", valueM)
+				} else {
+					valueK := quantity.Value() / kilobyte
+					if valueK > 10 {
+						if value%kilobyte != 0 {
+							valueK++
+						}
+						quantityStr = fmt.Sprintf("%dk", valueK)
+					} else {
+						quantityStr = fmt.Sprintf("%dm", quantity.MilliValue())
+					}
+				}
+			}
+		} else {
+			valueGi := value / Gibibyte
+			//allowing remainder 0 only, because for Gi rounding off will be highly erroneous
+			if valueGi > 1 && value%Gibibyte == 0 {
+				quantityStr = fmt.Sprintf("%dGi", valueGi)
+			} else {
+				valueMi := quantity.Value() / Mebibyte
+				if valueMi > 10 {
+					if value%Mebibyte != 0 {
+						valueMi++
+					}
+					quantityStr = fmt.Sprintf("%dMi", valueMi)
+				} else {
+					valueKi := quantity.Value() / Kibibyte
+					if value%Kibibyte != 0 {
+						valueKi++
+					}
+					quantityStr = fmt.Sprintf("%dKi", valueKi)
+				}
+			}
 		}
-		quantityStr = fmt.Sprintf("%dMi", value)
+		return quantityStr
 	}
-	return quantityStr
 }
 
 func translateTimestampSince(timestamp v1.Time) string {
