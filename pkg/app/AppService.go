@@ -1605,7 +1605,7 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 		}
 
 		//update workflow runner status, used in app workflow view
-		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_PRE)
+		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(overrideRequest.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("err on fetching cd workflow", "err", err)
 			return false, err
