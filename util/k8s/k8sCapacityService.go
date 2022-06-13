@@ -421,6 +421,7 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		capacity := nodeCapacityResourceList[resourceName]
 		r := &ResourceDetailObject{
 			ResourceName: string(resourceName),
+			Allocatable:  getResourceString(allocatable),
 			Capacity:     getResourceString(capacity),
 		}
 		if limitsOk {
