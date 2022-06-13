@@ -63,8 +63,6 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList() ([]*ClusterCa
 	var clustersDetails []*ClusterCapacityDetail
 	for _, cluster := range clusters {
 		clusterCapacityDetail := &ClusterCapacityDetail{}
-		clusterCapacityDetail.Id = cluster.Id
-		clusterCapacityDetail.Name = cluster.ClusterName
 		if cluster.IsConnected {
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetailById(cluster.Id, true)
 			if err != nil {
@@ -75,6 +73,8 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList() ([]*ClusterCa
 		} else {
 			clusterCapacityDetail.ErrorInConnection = fmt.Sprint("Cluster not connected")
 		}
+		clusterCapacityDetail.Id = cluster.Id
+		clusterCapacityDetail.Name = cluster.ClusterName
 		clustersDetails = append(clustersDetails, clusterCapacityDetail)
 	}
 	return clustersDetails, nil
