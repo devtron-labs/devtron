@@ -170,11 +170,13 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailById(clusterId int, 
 			clusterMemoryUsage.Add(nm.Usage[metav1.ResourceMemory])
 		}
 		for _, pod := range podList.Items {
-			requests, limits := resourcehelper.PodRequestsAndLimits(&pod)
-			clusterCpuLimits.Add(limits[metav1.ResourceCPU])
-			clusterCpuRequests.Add(requests[metav1.ResourceCPU])
-			clusterMemoryLimits.Add(limits[metav1.ResourceMemory])
-			clusterMemoryRequests.Add(requests[metav1.ResourceMemory])
+			if pod.Status.Phase != metav1.PodSucceeded && pod.Status.Phase != metav1.PodFailed {
+				requests, limits := resourcehelper.PodRequestsAndLimits(&pod)
+				clusterCpuLimits.Add(limits[metav1.ResourceCPU])
+				clusterCpuRequests.Add(requests[metav1.ResourceCPU])
+				clusterMemoryLimits.Add(limits[metav1.ResourceMemory])
+				clusterMemoryRequests.Add(requests[metav1.ResourceMemory])
+			}
 		}
 		clusterDetail.Cpu.RequestPercentage = convertToPercentage(&clusterCpuRequests, &clusterCpuAllocatable)
 		clusterDetail.Cpu.LimitPercentage = convertToPercentage(&clusterCpuLimits, &clusterCpuAllocatable)
@@ -302,10 +304,13 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 			if callForList {
 				podCount++
 			} else {
-				requests, limits := resourcehelper.PodRequestsAndLimits(&pod)
+				var requests, limits metav1.ResourceList
+				if pod.Status.Phase != metav1.PodSucceeded && pod.Status.Phase != metav1.PodFailed {
+					requests, limits = resourcehelper.PodRequestsAndLimits(&pod)
+					nodeRequestsResourceList = AddTwoResourceList(nodeRequestsResourceList, requests)
+					nodeLimitsResourceList = AddTwoResourceList(nodeLimitsResourceList, limits)
+				}
 				podDetailList = append(podDetailList, getPodDetail(pod, cpuAllocatable, memoryAllocatable, limits, requests))
-				nodeRequestsResourceList = AddTwoResourceList(nodeRequestsResourceList, requests)
-				nodeLimitsResourceList = AddTwoResourceList(nodeLimitsResourceList, limits)
 			}
 		}
 	}
