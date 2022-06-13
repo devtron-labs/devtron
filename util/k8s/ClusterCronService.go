@@ -99,12 +99,12 @@ func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientse
 
 func (impl *ClusterCronServiceImpl) HandleErrorInClusterConnections(respMap map[int]error) {
 	for clusterId, err := range respMap {
-		isConnected := true
+		errorInConnecting := ""
 		if err != nil {
-			isConnected = false
+			errorInConnecting = err.Error()
 		}
 		//updating cluster connection status
-		errInUpdating := impl.clusterRepository.UpdateClusterConnectionStatus(clusterId, isConnected)
+		errInUpdating := impl.clusterRepository.UpdateClusterConnectionStatus(clusterId, errorInConnecting)
 		if errInUpdating != nil {
 			impl.logger.Errorw("error in updating cluster connection status", "err", err, "clusterId", clusterId)
 		}

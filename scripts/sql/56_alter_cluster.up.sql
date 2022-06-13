@@ -1,2 +1,2 @@
 ALTER TABLE cluster
-    ADD COLUMN is_connected BOOLEAN DEFAULT TRUE;
+    ADD COLUMN error_in_connecting TEXT;

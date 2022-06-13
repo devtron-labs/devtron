@@ -1,2 +1,2 @@
 ALTER TABLE cluster
-    DROP COLUMN is_connected ;
+    DROP COLUMN error_in_connecting;
