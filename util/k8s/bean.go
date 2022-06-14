@@ -33,7 +33,7 @@ type NodeCapacityDetail struct {
 	InternalIp    string                              `json:"internalIp"`
 	ExternalIp    string                              `json:"externalIp"`
 	Unschedulable bool                                `json:"unschedulable"`
-	CreatedAt     string                              `json:"createdAt,omitempty"`
+	CreatedAt     string                              `json:"createdAt"`
 	Labels        []*LabelAnnotationTaintObject       `json:"labels,omitempty"`
 	Annotations   []*LabelAnnotationTaintObject       `json:"annotations,omitempty"`
 	Taints        []*LabelAnnotationTaintObject       `json:"taints,omitempty"`
@@ -50,6 +50,7 @@ type PodCapacityDetail struct {
 	Cpu       *ResourceDetailObject `json:"cpu"`
 	Memory    *ResourceDetailObject `json:"memory"`
 	Age       string                `json:"age"`
+	CreatedAt string                `json:"createdAt"`
 }
 
 type ResourceDetailObject struct {
@@ -62,6 +63,12 @@ type ResourceDetailObject struct {
 	UsagePercentage   string `json:"usagePercentage,omitempty"`
 	RequestPercentage string `json:"requestPercentage,omitempty"`
 	LimitPercentage   string `json:"limitPercentage,omitempty"`
+	//below fields to be used at FE for sorting
+	CapacityInBytes    int64 `json:"capacityInBytes,omitempty"`
+	AllocatableInBytes int64 `json:"allocatableInBytes,omitempty"`
+	UsageInBytes       int64 `json:"usageInBytes,omitempty"`
+	RequestInBytes     int64 `json:"requestInBytes,omitempty"`
+	LimitInBytes       int64 `json:"limitInBytes,omitempty"`
 }
 
 type LabelAnnotationTaintObject struct {

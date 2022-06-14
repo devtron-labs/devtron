@@ -344,6 +344,7 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 		Labels:        labels,
 		Status:        findNodeStatus(node),
 		TaintCount:    len(node.Spec.Taints),
+		CreatedAt:     node.CreationTimestamp.String(),
 	}
 	nodeUsageResourceList := nodeResourceUsage[node.Name]
 	if callForList {
@@ -353,14 +354,18 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 		cpuUsage := nodeUsageResourceList[metav1.ResourceCPU]
 		memoryUsage := nodeUsageResourceList[metav1.ResourceMemory]
 		nodeDetail.Cpu = &ResourceDetailObject{
-			Allocatable:     getResourceString(cpuAllocatable, metav1.ResourceCPU),
-			Usage:           getResourceString(cpuUsage, metav1.ResourceCPU),
-			UsagePercentage: convertToPercentage(&cpuUsage, &cpuAllocatable),
+			Allocatable:        getResourceString(cpuAllocatable, metav1.ResourceCPU),
+			AllocatableInBytes: cpuAllocatable.Value(),
+			Usage:              getResourceString(cpuUsage, metav1.ResourceCPU),
+			UsageInBytes:       cpuUsage.Value(),
+			UsagePercentage:    convertToPercentage(&cpuUsage, &cpuAllocatable),
 		}
 		nodeDetail.Memory = &ResourceDetailObject{
-			Allocatable:     getResourceString(memoryAllocatable, metav1.ResourceMemory),
-			Usage:           getResourceString(memoryUsage, metav1.ResourceMemory),
-			UsagePercentage: convertToPercentage(&memoryUsage, &memoryAllocatable),
+			Allocatable:        getResourceString(memoryAllocatable, metav1.ResourceMemory),
+			AllocatableInBytes: memoryAllocatable.Value(),
+			Usage:              getResourceString(memoryUsage, metav1.ResourceMemory),
+			UsageInBytes:       memoryUsage.Value(),
+			UsagePercentage:    convertToPercentage(&memoryUsage, &memoryAllocatable),
 		}
 
 	} else {
@@ -380,8 +385,6 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 	nodeDetail.Version = "v1"
 	nodeDetail.Kind = "Node"
 	nodeDetail.Pods = podDetailList
-	nodeDetail.CreatedAt = node.CreationTimestamp.String()
-
 	var annotations []*LabelAnnotationTaintObject
 	for k, v := range node.Annotations {
 		annotationObj := &LabelAnnotationTaintObject{
@@ -502,6 +505,7 @@ func getPodDetail(pod metav1.Pod, cpuAllocatable resource.Quantity, memoryAlloca
 		Name:      pod.Name,
 		Namespace: pod.Namespace,
 		Age:       translateTimestampSince(pod.CreationTimestamp),
+		CreatedAt: pod.CreationTimestamp.String(),
 		Cpu: &ResourceDetailObject{
 			Limit:   getResourceString(cpuLimits, metav1.ResourceCPU),
 			Request: getResourceString(cpuRequests, metav1.ResourceCPU),
