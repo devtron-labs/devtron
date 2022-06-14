@@ -969,6 +969,8 @@ func (impl DbPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean.C
 		PostStageConfigMapSecretNames: string(postStageConfigMapSecretNames),
 		RunPreStageInEnv:              pipelineRequest.RunPreStageInEnv,
 		RunPostStageInEnv:             pipelineRequest.RunPostStageInEnv,
+		DeploymentAppCreated:          false,
+		DeploymentAppType:             pipelineRequest.DeploymentAppType,
 		AuditLog:                      sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.pipelineRepository.Save([]*pipelineConfig.Pipeline{pipeline}, tx)

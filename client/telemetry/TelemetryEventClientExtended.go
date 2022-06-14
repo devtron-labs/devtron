@@ -6,6 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -18,17 +19,22 @@ import (
 	"time"
 )
 
+const AppsCount int = 50
+
 type TelemetryEventClientImplExtended struct {
 	environmentService            cluster.EnvironmentService
 	appListingRepository          repository.AppListingRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
 	pipelineRepository            pipelineConfig.PipelineRepository
-	gitHostRepository             repository.GitHostRepository
+	gitOpsConfigRepository        repository.GitOpsConfigRepository
 	gitProviderRepository         repository.GitProviderRepository
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
 	appRepository                 app.AppRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
+	materialRepository            pipelineConfig.MaterialRepository
+	ciTemplateRepository          pipelineConfig.CiTemplateRepository
+	chartRepository               chartRepoRepository.ChartRepository
 	*TelemetryEventClientImpl
 }
 
@@ -37,10 +43,12 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	environmentService cluster.EnvironmentService, userService user.UserService,
 	appListingRepository repository.AppListingRepository, PosthogClient *PosthogClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	gitHostRepository repository.GitHostRepository, gitProviderRepository repository.GitProviderRepository,
+	gitOpsConfigRepository repository.GitOpsConfigRepository, gitProviderRepository repository.GitProviderRepository,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository) (*TelemetryEventClientImplExtended, error) {
+	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
+	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
+	chartRepository chartRepoRepository.ChartRepository) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain())
@@ -50,12 +58,15 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		appListingRepository:          appListingRepository,
 		ciPipelineRepository:          ciPipelineRepository,
 		pipelineRepository:            pipelineRepository,
-		gitHostRepository:             gitHostRepository,
+		gitOpsConfigRepository:        gitOpsConfigRepository,
 		gitProviderRepository:         gitProviderRepository,
 		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 		appRepository:                 appRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
 		ciWorkflowRepository:          ciWorkflowRepository,
+		materialRepository:            materialRepository,
+		ciTemplateRepository:          ciTemplateRepository,
+		chartRepository:               chartRepository,
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
 			cron:            cron,
 			logger:          logger,
@@ -91,29 +102,32 @@ type TelemetryEventDto struct {
 	EventMessage string             `json:"eventMessage,omitempty"`
 	EventType    TelemetryEventType `json:"eventType"`
 	//Summary        *SummaryDto        `json:"summary,omitempty"`
-	ProdAppCount            int    `json:"prodAppCount,omitempty"`
-	NonProdAppCount         int    `json:"nonProdAppCount,omitempty"`
-	UserCount               int    `json:"userCount,omitempty"`
-	EnvironmentCount        int    `json:"environmentCount,omitempty"`
-	ClusterCount            int    `json:"clusterCount,omitempty"`
-	CiCountPerDay           int    `json:"ciCountPerDay,omitempty"`
-	CdCountPerDay           int    `json:"cdCountPerDay,omitempty"`
-	HelmChartCount          int    `json:"helmChartCount,omitempty"`
-	SecurityScanCountPerDay int    `json:"securityScanCountPerDay,omitempty"`
-	GitAccountsCount        int    `json:"gitAccountsCount,omitempty"`
-	GitOpsCount             int    `json:"gitOpsCount,omitempty"`
-	RegistryCount           int    `json:"registryCount,omitempty"`
-	HostURL                 bool   `json:"hostURL,omitempty"`
-	SSOLogin                bool   `json:"ssoLogin,omitempty"`
-	CiSetup                 bool   `json:"ciSetup,omitempty"`
-	CdSetup                 bool   `json:"cdSetup,omitempty"`
-	AppSetup                bool   `json:"appSetup,omitempty"`
-	Build                   bool   `json:"build,omitempty"`
-	Deployment              bool   `json:"deployment,omitempty"`
-	ServerVersion           string `json:"serverVersion,omitempty"`
-	DevtronGitVersion       string `json:"devtronGitVersion,omitempty"`
-	DevtronVersion          string `json:"devtronVersion,omitempty"`
-	DevtronMode             string `json:"devtronMode,omitempty"`
+	ProdAppCount                         int    `json:"prodAppCount,omitempty"`
+	NonProdAppCount                      int    `json:"nonProdAppCount,omitempty"`
+	UserCount                            int    `json:"userCount,omitempty"`
+	EnvironmentCount                     int    `json:"environmentCount,omitempty"`
+	ClusterCount                         int    `json:"clusterCount,omitempty"`
+	CiCountPerDay                        int    `json:"ciCountPerDay,omitempty"`
+	CdCountPerDay                        int    `json:"cdCountPerDay,omitempty"`
+	HelmChartCount                       int    `json:"helmChartCount,omitempty"`
+	SecurityScanCountPerDay              int    `json:"securityScanCountPerDay,omitempty"`
+	GitAccountsCount                     int    `json:"gitAccountsCount,omitempty"`
+	GitOpsCount                          int    `json:"gitOpsCount,omitempty"`
+	RegistryCount                        int    `json:"registryCount,omitempty"`
+	HostURL                              bool   `json:"hostURL,omitempty"`
+	SSOLogin                             bool   `json:"ssoLogin,omitempty"`
+	AppCount                             int    `json:"appCount,omitempty"`
+	AppsWithGitRepoConfigured            int    `json:"appsWithGitRepoConfigured,omitempty"`
+	AppsWithDockerConfigured             int    `json:"appsWithDockerConfigured,omitempty"`
+	AppsWithDeploymentTemplateConfigured int    `json:"appsWithDeploymentTemplateConfigured,omitempty"`
+	AppsWithCiPipelineConfigured         int    `json:"appsWithCiPipelineConfigured,omitempty"`
+	AppsWithCdPipelineConfigured         int    `json:"appsWithCdPipelineConfigured,omitempty"`
+	Build                                bool   `json:"build,omitempty"`
+	Deployment                           bool   `json:"deployment,omitempty"`
+	ServerVersion                        string `json:"serverVersion,omitempty"`
+	DevtronGitVersion                    string `json:"devtronGitVersion,omitempty"`
+	DevtronVersion                       string `json:"devtronVersion,omitempty"`
+	DevtronMode                          string `json:"devtronMode,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -168,7 +182,7 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		return
 	}
 
-	gitOps, err := impl.gitHostRepository.FindAll()
+	gitOps, err := impl.gitOpsConfigRepository.GetAllGitOpsConfig()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
@@ -180,19 +194,42 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 		return
 	}
 
-	appSetup := false
-	applications, err := impl.appRepository.FindAll()
+	//appSetup := false
+	apps, err := impl.appRepository.FindAll()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		return
 	}
 
-	if len(applications) > 0 {
-		appSetup = true
+	var appIds []int
+	for _, appInfo := range apps {
+		appIds = append(appIds, appInfo.Id)
 	}
 
-	ciSetup, err := impl.ciPipelineRepository.Exists()
+	payload.AppCount = len(appIds)
+	if len(appIds) < AppsCount {
+		payload.AppsWithGitRepoConfigured, err = impl.materialRepository.FindNumberOfAppsWithGitRepo(appIds)
+		if err != nil {
+			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		}
+		payload.AppsWithDockerConfigured, err = impl.ciTemplateRepository.FindNumberOfAppsWithDockerConfigured(appIds)
+		if err != nil {
+			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		}
+		payload.AppsWithDeploymentTemplateConfigured, err = impl.chartRepository.FindNumberOfAppsWithDeploymentTemplate(appIds)
+		if err != nil {
+			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		}
+		payload.AppsWithCiPipelineConfigured, err = impl.ciPipelineRepository.FindNumberOfAppsWithCiPipeline(appIds)
+		if err != nil {
+			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		}
 
-	cdSetup, err := impl.pipelineRepository.Exists()
+		payload.AppsWithCdPipelineConfigured, err = impl.pipelineRepository.FindNumberOfAppsWithCdPipeline(appIds)
+		if err != nil {
+			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		}
+	}
 
 	build, err := impl.ciWorkflowRepository.ExistsByStatus("Succeeded")
 
@@ -203,7 +240,6 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	payload.NonProdAppCount = nonProdApps
 	payload.RegistryCount = len(containerRegistry)
 	payload.SSOLogin = ssoSetup
-	payload.GitOpsCount = len(gitOps)
 	payload.UserCount = len(users)
 	payload.EnvironmentCount = len(environments)
 	payload.ClusterCount = len(clusters)
@@ -213,9 +249,6 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	payload.GitOpsCount = len(gitOps)
 	payload.HostURL = hostURL
 	payload.DevtronGitVersion = devtronVersion.GitCommit
-	payload.CiSetup = ciSetup
-	payload.CdSetup = cdSetup
-	payload.AppSetup = appSetup
 	payload.Build = build
 	payload.Deployment = deployment
 
