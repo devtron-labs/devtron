@@ -32,6 +32,14 @@ data:
       max_mem: 1Gi
       domain: devtron-jet
     }
+    cluster {
+      port: 6222
+      name: devtron-nats
+
+      routes = [
+        nats://devtron-nats-0.devtron-nats.devtroncd.svc.cluster.local:6222,nats://devtron-nats-1.devtron-nats.devtroncd.svc.cluster.local:6222,nats://devtron-nats-2.devtron-nats.devtroncd.svc.cluster.local:6222,
+      ]
+    }
     lame_duck_duration: 120s
 ---
 # Source: nats/templates/service.yaml
@@ -121,7 +129,7 @@ spec:
 
       app.kubernetes.io/name: nats
       app.kubernetes.io/instance: devtron-nats
-  replicas: 1
+  replicas: 3
   serviceName: devtron-nats
   template:
     metadata:
