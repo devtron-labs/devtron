@@ -18,6 +18,9 @@ data:
   PG_DATABASE: orchestrator
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
+  {{- if $.Values.installer.modules }}
+  ENABLED_INTEGRATIONS: {{ join "," $.Values.installer.modules }}
+  {{- end }}
 ---
 apiVersion: apps/v1
 kind: Deployment
