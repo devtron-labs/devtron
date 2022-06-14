@@ -113,7 +113,9 @@ minio_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/minio.yaml";
 minioStorage_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/minio-storage.yaml";
 
 ######Downloading the manifests
+if isArgocdEnabled {
 argocd = download(argocd_raw);
+}
 argocdResource = download(argocdResource_raw);
 clair = download(clair_raw);
 clairConfig = download(clairConfig_raw);
@@ -170,8 +172,9 @@ rolloutOverride = kubectl get cm -n devtroncd rollout-override-cm;
 minioOverride = kubectl get cm -n devtroncd minio-override-cm;
 minioStorageOverride = kubectl get cm -n devtroncd minio-storage-override-cm;
 
-
+if isArgocdEnabled {
 argocdOverride = jsonSelect(argocdOverride, "data.override");
+}
 clairOverride = jsonSelect(clairOverride, "data.override");
 clairConfigOverride = jsonSelect(clairConfigOverride, "data.override");
 dashboardOverride = jsonSelect(dashboardOverride, "data.override");
@@ -368,7 +371,9 @@ log("created external secret");
 kubeYamlEdit(postgresql, "data.postgresql-password", postgresqlPassword, `/Secret//postgresql-postgresql`);
 postgresql = kubectl apply -n devtroncd postgresql -u postgresqlOverride;
 log("created postgresql");
+
 #argocd
+if isArgocdEnabled {
 hasArgocd = kubectl get deployment argocd-server -n devtroncd;
 hasargocdSecret = kubectl get secret argocd-secret -n devtroncd;
 helmRepo = `- name: fluent
@@ -428,6 +433,7 @@ pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json
 #patchLoad = '{"data":{"url":"' + baseURL + '", "dex.config:"' + dexConfig + '}}';
 #pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/merge-patch+json" -p patchLoad;
 log("executed argocd setup command");
+} ## if isArgocdEnabled ends
 
 #rollout
 rollout = kubectl apply -n devtroncd rollout -u rolloutOverride;
