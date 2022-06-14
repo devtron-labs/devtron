@@ -1,14 +1,14 @@
-LTAG="v0.4.13";
+LTAG="cd-no-gitops";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
-###GREP TEST
+### SETTING UP INSTALLER CONFIGURATIONS 
 dtConfigMap = kubectl get cm -n devtroncd devtron-cm;
 enabledIntegrations = jsonSelect(dtConfigMap, "data.ENABLED_INTEGRATIONS");
+
+#### CHECKING IF ARGOCD MODULE IS ENABLED
 isArgocdEnabled = `echo "` + enabledIntegrations + `" | grep argocd -o -w`;
-log("--------------------- ---- ---- --- ----- ---- ----------------------");
 isArgocdEnabled = shellScript isArgocdEnabled;
-log(isArgocdEnabled);
-####GREP TEST END
+
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
 operatorConfigMap = kubectl get cm -n devtroncd devtron-operator-cm;
