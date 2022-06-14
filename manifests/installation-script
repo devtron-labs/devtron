@@ -10,6 +10,14 @@ isArgocdEnabled = `echo "` + enabledIntegrations + `" | grep argocd -o -w`;
 isArgocdEnabled = shellScript isArgocdEnabled;
 log("------ - - - ------- - - - ------- - - - -------");
 log(isArgocdEnabled);
+if isArgocdEnabled {
+log("Argocd isArgocdEnabled works");
+}
+
+if isArgocdEnabled == "argocd" {
+log("Argocd isArgocdEnabled == argocd works");
+}
+
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
 operatorConfigMap = kubectl get cm -n devtroncd devtron-operator-cm;
