@@ -554,49 +554,25 @@ func getResourceString(quantity resource.Quantity, resourceName metav1.ResourceN
 	} else {
 		var quantityStr string
 		value := quantity.Value()
-		if quantity.Format == resource.DecimalSI {
-			valueG := value / Gigabyte
-			//allowing remainder 0 only, because for Gi rounding off will be highly erroneous
-			if valueG > 1 && value%Gigabyte == 0 {
-				quantityStr = fmt.Sprintf("%dG", valueG)
-			} else {
-				valueM := quantity.Value() / Megabyte
-				if valueM > 10 {
-					if value%Megabyte != 0 {
-						valueM++
-					}
-					quantityStr = fmt.Sprintf("%dM", valueM)
-				} else {
-					valueK := quantity.Value() / kilobyte
-					if valueK > 10 {
-						if value%kilobyte != 0 {
-							valueK++
-						}
-						quantityStr = fmt.Sprintf("%dk", valueK)
-					} else {
-						quantityStr = fmt.Sprintf("%dm", quantity.MilliValue())
-					}
-				}
-			}
+		valueGi := value / Gibibyte
+		//allowing remainder 0 only, because for Gi rounding off will be highly erroneous
+		if valueGi > 1 && value%Gibibyte == 0 {
+			quantityStr = fmt.Sprintf("%dGi", valueGi)
 		} else {
-			valueGi := value / Gibibyte
-			//allowing remainder 0 only, because for Gi rounding off will be highly erroneous
-			if valueGi > 1 && value%Gibibyte == 0 {
-				quantityStr = fmt.Sprintf("%dGi", valueGi)
-			} else {
-				valueMi := quantity.Value() / Mebibyte
-				if valueMi > 10 {
-					if value%Mebibyte != 0 {
-						valueMi++
-					}
-					quantityStr = fmt.Sprintf("%dMi", valueMi)
-				} else {
-					valueKi := quantity.Value() / Kibibyte
-					if value%Kibibyte != 0 {
-						valueKi++
-					}
-					quantityStr = fmt.Sprintf("%dKi", valueKi)
+			valueMi := value / Mebibyte
+			if valueMi > 10 {
+				if value%Mebibyte != 0 {
+					valueMi++
 				}
+				quantityStr = fmt.Sprintf("%dMi", valueMi)
+			} else if value > 1000 {
+				valueKi := value / Kibibyte
+				if value%Kibibyte != 0 {
+					valueKi++
+				}
+				quantityStr = fmt.Sprintf("%dKi", valueKi)
+			} else {
+				quantityStr = fmt.Sprintf("%dm", quantity.MilliValue())
 			}
 		}
 		return quantityStr
