@@ -6,7 +6,11 @@ installer:
   tag: acb623ff-185-7117
   source: "github" # Available options are github and gitee
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
-  modules: [] # Available options are cicd
+# Available options are ci, cd_helm, argocd, cicd - deprecated (cicd will do ci + cd_helm + argocd)
+  modules:
+    - ci
+    - cd_helm
+    - argocd
   production_overrides: "" # Set true if you want to use this Devtron stack in Production (This will require more resources)
 
 # Change the below values for full mode only
