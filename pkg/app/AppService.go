@@ -1004,7 +1004,8 @@ func (impl AppServiceImpl) synchCD(pipeline *pipelineConfig.Pipeline, ctx contex
 	req := new(application2.ApplicationSyncRequest)
 	pipelineName := pipeline.App.AppName + "-" + envOverride.Environment.Name
 	req.Name = &pipelineName
-	req.Prune = true
+	prune := true
+	req.Prune = &prune
 	if ctx == nil {
 		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineId", overrideRequest.PipelineId)
 		return
@@ -1368,7 +1369,9 @@ func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, en
 			if err != nil {
 				impl.logger.Errorw("error in creating patch", "err", err)
 			}
-			_, err = impl.acdClient.Patch(ctx, &application2.ApplicationPatchRequest{Patch: string(reqbyte), Name: &argoAppName, PatchType: "merge"})
+			reqString := string(reqbyte)
+			patchType := "merge"
+			_, err = impl.acdClient.Patch(ctx, &application2.ApplicationPatchRequest{Patch: &reqString, Name: &argoAppName, PatchType: &patchType})
 			if err != nil {
 				impl.logger.Errorw("error in creating argo pipeline ", "name", pipelineName, "patch", string(reqbyte), "err", err)
 				return false, err
@@ -1425,13 +1428,17 @@ func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName s
 			reqReplicaCount := templateMap["replicaCount"].(float64)
 			reqMaxReplicas := asd["MaxReplicas"].(float64)
 			reqMinReplicas := asd["MinReplicas"].(float64)
+			version := ""
+			group := autoscaling.ServiceName
+			kind := "HorizontalPodAutoscaler"
+			resourceName := fmt.Sprintf("%s-%s", appName, "hpa")
 			query := &application2.ApplicationResourceRequest{
 				Name:         &appName,
-				Version:      "",
-				Group:        autoscaling.ServiceName,
-				Kind:         "HorizontalPodAutoscaler",
-				ResourceName: fmt.Sprintf("%s-%s", appName, "hpa"),
-				Namespace:    namespace,
+				Version:      &version,
+				Group:        &group,
+				Kind:         &kind,
+				ResourceName: &resourceName,
+				Namespace:    &namespace,
 			}
 			recv, err := impl.acdClient.GetResource(ctx, query)
 			impl.logger.Debugw("resource manifest get replica count", "response", recv)
@@ -1440,9 +1447,9 @@ func (impl *AppServiceImpl) hpaCheckBeforeTrigger(ctx context.Context, appName s
 				middleware.AcdGetResourceCounter.WithLabelValues(strconv.Itoa(appId), namespace, appName).Inc()
 				return merged
 			}
-			if recv != nil && len(recv.Manifest) > 0 {
+			if recv != nil && len(*recv.Manifest) > 0 {
 				resourceManifest := make(map[string]interface{})
-				err := json.Unmarshal([]byte(recv.Manifest), &resourceManifest)
+				err := json.Unmarshal([]byte(*recv.Manifest), &resourceManifest)
 				if err != nil {
 					impl.logger.Errorw("unmarshal failed for hpa check", "err", err)
 					return merged

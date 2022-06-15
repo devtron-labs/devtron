@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -416,7 +416,9 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 	if err != nil {
 		impl.Logger.Errorw("error in creating patch", "err", err)
 	}
-	_, err = impl.acdClient.Patch(ctx, &application.ApplicationPatchRequest{Patch: string(reqbyte), Name: &installAppVersionRequest.ACDAppName, PatchType: "merge"})
+	reqString := string(reqbyte)
+	patchType := "merge"
+	_, err = impl.acdClient.Patch(ctx, &application.ApplicationPatchRequest{Patch: &reqString, Name: &installAppVersionRequest.ACDAppName, PatchType: &patchType})
 	if err != nil {
 		impl.Logger.Errorw("error in creating argo app ", "name", installAppVersionRequest.ACDAppName, "patch", string(reqbyte), "err", err)
 		return nil, err

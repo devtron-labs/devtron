@@ -94,8 +94,8 @@ github.com/antonmedv/expr/optimizer
 github.com/antonmedv/expr/parser
 github.com/antonmedv/expr/parser/lexer
 github.com/antonmedv/expr/vm
-# github.com/argoproj/argo-cd/v2 v2.3.3
-## explicit; go 1.17
+# github.com/argoproj/argo-cd/v2 v2.4.0
+## explicit; go 1.18
 github.com/argoproj/argo-cd/v2/common
 github.com/argoproj/argo-cd/v2/pkg/apiclient/application
 github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster
@@ -119,6 +119,7 @@ github.com/argoproj/argo-cd/v2/util/glob
 github.com/argoproj/argo-cd/v2/util/grpc
 github.com/argoproj/argo-cd/v2/util/helm
 github.com/argoproj/argo-cd/v2/util/io
+github.com/argoproj/argo-cd/v2/util/io/files
 github.com/argoproj/argo-cd/v2/util/io/path
 github.com/argoproj/argo-cd/v2/util/kube
 github.com/argoproj/argo-cd/v2/util/log
@@ -166,7 +167,7 @@ github.com/argoproj/argo-workflows/v3/workflow/packer
 github.com/argoproj/argo-workflows/v3/workflow/templateresolution
 github.com/argoproj/argo-workflows/v3/workflow/util
 github.com/argoproj/argo-workflows/v3/workflow/validate
-# github.com/argoproj/gitops-engine v0.6.2
+# github.com/argoproj/gitops-engine v0.7.0
 ## explicit; go 1.17
 github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/api/v1/endpoints
 github.com/argoproj/gitops-engine/internal/kubernetes_vendor/pkg/util/hash
@@ -413,9 +414,13 @@ github.com/go-git/go-git/v5/utils/merkletrie/filesystem
 github.com/go-git/go-git/v5/utils/merkletrie/index
 github.com/go-git/go-git/v5/utils/merkletrie/internal/frame
 github.com/go-git/go-git/v5/utils/merkletrie/noder
-# github.com/go-logr/logr v1.2.2
+# github.com/go-logr/logr v1.2.3
 ## explicit; go 1.16
 github.com/go-logr/logr
+github.com/go-logr/logr/funcr
+# github.com/go-logr/stdr v1.2.2
+## explicit; go 1.16
+github.com/go-logr/stdr
 # github.com/go-openapi/jsonpointer v0.19.5
 ## explicit; go 1.13
 github.com/go-openapi/jsonpointer
@@ -474,10 +479,8 @@ github.com/gobwas/glob/util/runes
 github.com/gobwas/glob/util/strings
 # github.com/gogo/protobuf v1.3.2
 ## explicit; go 1.15
-github.com/gogo/protobuf/gogoproto
 github.com/gogo/protobuf/jsonpb
 github.com/gogo/protobuf/proto
-github.com/gogo/protobuf/protoc-gen-gogo/descriptor
 github.com/gogo/protobuf/sortkeys
 github.com/gogo/protobuf/types
 # github.com/golang-jwt/jwt/v4 v4.2.0
@@ -636,7 +639,7 @@ github.com/klauspost/compress/s2
 # github.com/klauspost/pgzip v1.2.5
 ## explicit
 github.com/klauspost/pgzip
-# github.com/ktrysmt/go-bitbucket v0.9.32
+# github.com/ktrysmt/go-bitbucket v0.9.40
 ## explicit; go 1.14
 github.com/ktrysmt/go-bitbucket
 # github.com/leodido/go-urn v1.2.0
@@ -804,7 +807,7 @@ github.com/src-d/gcfg/types
 # github.com/stretchr/objx v0.2.0
 ## explicit; go 1.12
 github.com/stretchr/objx
-# github.com/stretchr/testify v1.7.0
+# github.com/stretchr/testify v1.7.1
 ## explicit; go 1.13
 github.com/stretchr/testify/assert
 github.com/stretchr/testify/mock
@@ -839,7 +842,7 @@ github.com/vmihailenco/msgpack/v5/msgpcode
 github.com/vmihailenco/tagparser/v2
 github.com/vmihailenco/tagparser/v2/internal
 github.com/vmihailenco/tagparser/v2/internal/parser
-# github.com/xanzy/go-gitlab v0.55.1
+# github.com/xanzy/go-gitlab v0.60.0
 ## explicit; go 1.17
 github.com/xanzy/go-gitlab
 # github.com/xanzy/ssh-agent v0.3.1
@@ -860,6 +863,24 @@ github.com/xlab/treeprint
 # github.com/xtgo/uuid v0.0.0-20140804021211-a0b114877d4c
 ## explicit
 github.com/xtgo/uuid
+# go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.31.0
+## explicit; go 1.16
+go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc
+go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc/internal
+# go.opentelemetry.io/otel v1.6.3
+## explicit; go 1.16
+go.opentelemetry.io/otel
+go.opentelemetry.io/otel/attribute
+go.opentelemetry.io/otel/baggage
+go.opentelemetry.io/otel/codes
+go.opentelemetry.io/otel/internal
+go.opentelemetry.io/otel/internal/baggage
+go.opentelemetry.io/otel/internal/global
+go.opentelemetry.io/otel/propagation
+go.opentelemetry.io/otel/semconv/v1.7.0
+# go.opentelemetry.io/otel/trace v1.6.3
+## explicit; go 1.16
+go.opentelemetry.io/otel/trace
 # go.starlark.net v0.0.0-20200306205701-8dd3e2ee1dd5
 ## explicit; go 1.13
 go.starlark.net/internal/compile
@@ -882,7 +903,7 @@ go.uber.org/zap/internal/bufferpool
 go.uber.org/zap/internal/color
 go.uber.org/zap/internal/exit
 go.uber.org/zap/zapcore
-# golang.org/x/crypto v0.0.0-20220128200615-198e4374d7ed
+# golang.org/x/crypto v0.0.0-20220525230936-793ad666bf5e
 ## explicit; go 1.17
 golang.org/x/crypto/bcrypt
 golang.org/x/crypto/blowfish
@@ -891,7 +912,6 @@ golang.org/x/crypto/chacha20
 golang.org/x/crypto/curve25519
 golang.org/x/crypto/curve25519/internal/field
 golang.org/x/crypto/ed25519
-golang.org/x/crypto/ed25519/internal/edwards25519
 golang.org/x/crypto/internal/poly1305
 golang.org/x/crypto/internal/subtle
 golang.org/x/crypto/md4
@@ -980,7 +1000,7 @@ google.golang.org/genproto/googleapis/api/annotations
 google.golang.org/genproto/googleapis/api/httpbody
 google.golang.org/genproto/googleapis/rpc/status
 google.golang.org/genproto/protobuf/field_mask
-# google.golang.org/grpc v1.44.0
+# google.golang.org/grpc v1.45.0
 ## explicit; go 1.14
 google.golang.org/grpc
 google.golang.org/grpc/attributes

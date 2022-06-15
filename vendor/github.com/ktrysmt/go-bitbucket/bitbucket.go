@@ -289,6 +289,7 @@ type PullRequestCommentOptions struct {
 	RepoSlug      string `json:"repo_slug"`
 	PullRequestID string `json:"id"`
 	Content       string `json:"content"`
+	CommentId     string `json:"-"`
 }
 
 type IssuesOptions struct {

@@ -139,10 +139,10 @@ func (impl ArgoApplicationRestHandlerImpl) GetTerminalSession(w http.ResponseWri
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceTerminal, casbin.ActionExec, teamEnvRbacObject); !ok {
 		appRbacOk := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, appRbacObject)
 		envRbacOk := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, envRbacObject)
-		if appRbacOk && envRbacOk{
+		if appRbacOk && envRbacOk {
 			valid = true
 		}
-	} else{
+	} else {
 		valid = true
 	}
 	//checking rbac for charts
@@ -205,11 +205,11 @@ func (impl ArgoApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *
 	query := application2.ApplicationPodLogsQuery{
 		Name:         &name,
 		PodName:      &podName,
-		Container:    containerName,
-		Namespace:    namespace,
-		TailLines:    tailLines,
-		Follow:       follow,
-		SinceSeconds: sinceSeconds,
+		Container:    &containerName,
+		Namespace:    &namespace,
+		TailLines:    &tailLines,
+		Follow:       &follow,
+		SinceSeconds: &sinceSeconds,
 	}
 	lastEventId := r.Header.Get("Last-Event-ID")
 	isReconnect := false
@@ -222,7 +222,9 @@ func (impl ArgoApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *
 		lastSeenMsgId = lastSeenMsgId + 1 //increased by one ns to avoid duplicate //FIXME still not fixed
 		t := v1.Unix(0, lastSeenMsgId)
 		query.SinceTime = &t
-		query.SinceSeconds = 0 //set this ti zero since its reconnect request
+		//set this ti zero since its reconnect request
+		var sinceSecondsForReconnectRequest int64 = 0
+		query.SinceSeconds = &sinceSecondsForReconnectRequest
 		isReconnect = true
 	}
 	ctx, cancel := context.WithCancel(r.Context())
@@ -275,9 +277,9 @@ func (impl ArgoApplicationRestHandlerImpl) ListResourceEvents(w http.ResponseWri
 	token := r.Header.Get("token")
 	query := &application2.ApplicationResourceEventsQuery{
 		Name:              &name,
-		ResourceNamespace: resourceNameSpace,
-		ResourceUID:       resourceUID,
-		ResourceName:      resourceName,
+		ResourceNamespace: &resourceNameSpace,
+		ResourceUID:       &resourceUID,
+		ResourceName:      &resourceName,
 	}
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
@@ -307,11 +309,11 @@ func (impl ArgoApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r 
 	token := r.Header.Get("token")
 	query := &application2.ApplicationResourceRequest{
 		Name:         &name,
-		Version:      version,
-		Group:        group,
-		Kind:         kind,
-		ResourceName: resourceName,
-		Namespace:    nameSpace,
+		Version:      &version,
+		Group:        &group,
+		Kind:         &kind,
+		ResourceName: &resourceName,
+		Namespace:    &nameSpace,
 	}
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
@@ -419,7 +421,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetManifests(w http.ResponseWriter, r
 	revision := v.Get("revision")
 	query := &application2.ApplicationManifestQuery{
 		Name:     &name,
-		Revision: revision,
+		Revision: &revision,
 	}
 	token := r.Header.Get("token")
 	ctx, cancel := context.WithCancel(r.Context())
@@ -584,12 +586,12 @@ func (impl ArgoApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter,
 	}
 	query := new(application2.ApplicationResourceDeleteRequest)
 	query.Name = &appNameACD
-	query.ResourceName = name
-	query.Kind = kind
-	query.Version = version
+	query.ResourceName = &name
+	query.Kind = &kind
+	query.Version = &version
 	query.Force = &force
-	query.Namespace = namespace
-	query.Group = group
+	query.Namespace = &namespace
+	query.Group = &group
 	token := r.Header.Get("token")
 	appId := vars["appId"]
 	envId := vars["envId"]
@@ -644,7 +646,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetServiceLink(w http.ResponseWriter,
 	revision := v.Get("revision")
 	query := &application2.ApplicationManifestQuery{
 		Name:     &name,
-		Revision: revision,
+		Revision: &revision,
 	}
 	token := r.Header.Get("token")
 	ctx, cancel := context.WithCancel(r.Context())

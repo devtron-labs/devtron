@@ -47,6 +47,7 @@ type Group struct {
 	RequestAccessEnabled    bool                       `json:"request_access_enabled"`
 	FullName                string                     `json:"full_name"`
 	FullPath                string                     `json:"full_path"`
+	FileTemplateProjectID   int                        `json:"file_template_project_id"`
 	ParentID                int                        `json:"parent_id"`
 	Projects                []*Project                 `json:"projects"`
 	Statistics              *StorageStatistics         `json:"statistics"`
@@ -73,6 +74,7 @@ type Group struct {
 	LDAPGroupLinks                 []*LDAPGroupLink `json:"ldap_group_links"`
 	SharedRunnersMinutesLimit      int              `json:"shared_runners_minutes_limit"`
 	ExtraSharedRunnersMinutesLimit int              `json:"extra_shared_runners_minutes_limit"`
+	PreventForkingOutsideGroup     bool             `json:"prevent_forking_outside_group"`
 	MarkedForDeletionOn            *ISOTime         `json:"marked_for_deletion_on"`
 	CreatedAt                      *time.Time       `json:"created_at"`
 }
@@ -201,6 +203,7 @@ type ListGroupProjectsOptions struct {
 	Simple                   *bool             `url:"simple,omitempty" json:"simple,omitempty"`
 	Sort                     *string           `url:"sort,omitempty" json:"sort,omitempty"`
 	Starred                  *bool             `url:"starred,omitempty" json:"starred,omitempty"`
+	Topic                    *string           `url:"topic,omitempty" json:"topic,omitempty"`
 	Visibility               *VisibilityValue  `url:"visibility,omitempty" json:"visibility,omitempty"`
 	WithCustomAttributes     *bool             `url:"with_custom_attributes,omitempty" json:"with_custom_attributes,omitempty"`
 	WithIssuesEnabled        *bool             `url:"with_issues_enabled,omitempty" json:"with_issues_enabled,omitempty"`
