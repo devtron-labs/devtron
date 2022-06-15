@@ -246,6 +246,9 @@ func (handler *K8sCapacityRestHandlerImpl) CheckRbacForCluster(cluster *cluster.
 		handler.logger.Errorw("error in getting environments by clusterId", "err", err, "clusterId", cluster.Id)
 		return false, err
 	}
+	if len(envs) == 0 {
+		return true, nil
+	}
 	for _, env := range envs {
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(env.EnvironmentIdentifier)); ok {
 			//if user has view permission to even one environment of this cluster, authorise the request

@@ -64,10 +64,11 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(clusters []*clu
 	var clustersDetails []*ClusterCapacityDetail
 	for _, cluster := range clusters {
 		clusterCapacityDetail := &ClusterCapacityDetail{}
+		var err error
 		if len(cluster.ErrorInConnecting) > 0 {
 			clusterCapacityDetail.ErrorInConnection = cluster.ErrorInConnecting
 		} else {
-			clusterCapacityDetail, err := impl.GetClusterCapacityDetail(cluster, true)
+			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(cluster, true)
 			if err != nil {
 				impl.logger.Errorw("error in getting cluster capacity details by id", "err", err)
 				clusterCapacityDetail.ErrorInConnection = err.Error()
