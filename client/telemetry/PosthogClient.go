@@ -44,7 +44,7 @@ var (
 )
 
 const (
-	TelemetryApiKeyEndpoint   string = "aHR0cDovL2xvY2FsaG9zdDo4MDgxL2RldnRyb24vdGVsZW1ldHJ5L2FwaWtleQ=="
+	TelemetryApiKeyEndpoint   string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="
 	TelemetryOptOutApiBaseUrl string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9vcHQtb3V0"
 )
 
