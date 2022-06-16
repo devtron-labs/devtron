@@ -121,7 +121,6 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
 			impl.Logger.Errorw("error in getting helm app release status ", "err", err)
 			return err
 		}
-		impl.Logger.Info(helmApp)
 		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("err on fetching cd workflow", "err", err)

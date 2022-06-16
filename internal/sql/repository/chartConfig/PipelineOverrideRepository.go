@@ -18,6 +18,7 @@
 package chartConfig
 
 import (
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -229,6 +230,7 @@ func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStat
 		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
 		Where("cdwfr.status != ?", application.Healthy).
 		Where("cdwfr.status != ?", application.Suspended).
+		Where("cdwfr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("pipeline_override.created_on > ?", time.Now().Add(-time.Minute*10)).
 		Select()
 	return pipelines, err
