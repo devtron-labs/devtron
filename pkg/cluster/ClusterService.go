@@ -241,6 +241,7 @@ func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 			Active:                 m.Active,
 			K8sVersion:             m.K8sVersion,
 			ErrorInConnecting:      m.ErrorInConnecting,
+			Config:                 m.Config,
 		})
 	}
 	return beans, nil

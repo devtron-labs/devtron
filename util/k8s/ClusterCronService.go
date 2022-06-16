@@ -8,6 +8,7 @@ import (
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"k8s.io/client-go/kubernetes"
+	"log"
 	"sync"
 )
 
@@ -88,7 +89,7 @@ func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientse
 	//using livez path as healthz path is deprecated
 	path := "/livez"
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
-	fmt.Println("received response for cluster livez status", "response", response, "err", err, "clusterId", clusterId)
+	log.Println("received response for cluster livez status", "response", string(response), "err", err, "clusterId", clusterId)
 	if err == nil && string(response) != "ok" {
 		err = fmt.Errorf("ErrorNotOk : response != 'ok' : %s", string(response))
 	}
