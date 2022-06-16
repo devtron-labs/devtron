@@ -1,7 +1,5 @@
 {{- if .Values.installer.modules }}
 {{- with .Values.installer.modules }}
-{{ range . }}
-{{- if eq . "cicd" }}
 apiVersion: installer.devtron.ai/v1alpha1
 kind: Installer
 metadata:
@@ -14,7 +12,5 @@ spec:
   url: https://raw.githubusercontent.com/{{ $.Values.installer.repo }}/{{ $.Values.installer.release }}/manifests/installation-script
   {{- end }}
   reSync: true
-{{- end }}
-{{- end }}
 {{- end }}
 {{- end }}
