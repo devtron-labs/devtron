@@ -159,7 +159,6 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 		nmList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(context.Background(), v1.ListOptions{})
 		if err != nil {
 			impl.logger.Errorw("error in getting nodeMetrics list", "err", err)
-			return nil, err
 		}
 		//empty namespace: get pods for all namespaces
 		podList, err := k8sClientSet.CoreV1().Pods("").List(context.Background(), v1.ListOptions{})
@@ -173,9 +172,11 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 		var clusterCpuRequests resource.Quantity
 		var clusterMemoryLimits resource.Quantity
 		var clusterMemoryRequests resource.Quantity
-		for _, nm := range nmList.Items {
-			clusterCpuUsage.Add(nm.Usage[metav1.ResourceCPU])
-			clusterMemoryUsage.Add(nm.Usage[metav1.ResourceMemory])
+		if nmList != nil {
+			for _, nm := range nmList.Items {
+				clusterCpuUsage.Add(nm.Usage[metav1.ResourceCPU])
+				clusterMemoryUsage.Add(nm.Usage[metav1.ResourceMemory])
+			}
 		}
 		for _, pod := range podList.Items {
 			if pod.Status.Phase != metav1.PodSucceeded && pod.Status.Phase != metav1.PodFailed {
@@ -232,8 +233,10 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(cluster 
 		return nil, err
 	}
 	nodeResourceUsage := make(map[string]metav1.ResourceList)
-	for _, nodeMetrics := range nodeMetricsList.Items {
-		nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
+	if nodeMetricsList != nil {
+		for _, nodeMetrics := range nodeMetricsList.Items {
+			nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
+		}
 	}
 	var nodeDetails []*NodeCapacityDetail
 	for _, node := range nodeList.Items {
@@ -276,7 +279,6 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(cluste
 		impl.logger.Errorw("error in getting node list", "err", err)
 		return nil, err
 	}
-
 	//empty namespace: get pods for all namespaces
 	podList, err := k8sClientSet.CoreV1().Pods("").List(context.Background(), v1.ListOptions{})
 	if err != nil {
@@ -284,7 +286,9 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(cluste
 		return nil, err
 	}
 	nodeResourceUsage := make(map[string]metav1.ResourceList)
-	nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
+	if nodeMetrics != nil {
+		nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
+	}
 	nodeDetail, err := impl.getNodeDetail(node, nodeResourceUsage, podList, false, restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting node detail", "err", err)
