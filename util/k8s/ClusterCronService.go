@@ -88,6 +88,7 @@ func GetAndUpdateConnectionStatusForOneCluster(k8sClientSet *kubernetes.Clientse
 	//using livez path as healthz path is deprecated
 	path := "/livez"
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+	fmt.Println("received response for cluster livez status", "response", response, "err", err, "clusterId", clusterId)
 	if err == nil && string(response) != "ok" {
 		err = fmt.Errorf("ErrorNotOk : response != 'ok' : %s", string(response))
 	}
@@ -106,7 +107,7 @@ func (impl *ClusterCronServiceImpl) HandleErrorInClusterConnections(respMap map[
 		//updating cluster connection status
 		errInUpdating := impl.clusterRepository.UpdateClusterConnectionStatus(clusterId, errorInConnecting)
 		if errInUpdating != nil {
-			impl.logger.Errorw("error in updating cluster connection status", "err", err, "clusterId", clusterId)
+			impl.logger.Errorw("error in updating cluster connection status", "err", err, "clusterId", clusterId, "errorInConnecting", errorInConnecting)
 		}
 	}
 }

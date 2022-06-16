@@ -97,7 +97,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 	clusterDetail := &ClusterCapacityDetail{}
 	nodeList, err := k8sClientSet.CoreV1().Nodes().List(context.Background(), v1.ListOptions{})
 	if err != nil {
-		impl.logger.Errorw("error in getting node list", "err", err)
+		impl.logger.Errorw("error in getting node list", "err", err, "clusterId", cluster.Id)
 		return nil, err
 	}
 	var clusterCpuCapacity resource.Quantity
