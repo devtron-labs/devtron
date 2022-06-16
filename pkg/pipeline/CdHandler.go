@@ -126,8 +126,8 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
 			impl.Logger.Errorw("err on fetching cd workflow", "err", err)
 			return err
 		}
-		if pipelineOverride.CreatedOn.Before(time.Now().Add(-time.Minute * 10)) {
-			// apps which are still not healthy after 10 minutes, make them "Suspended"
+		if pipelineOverride.CreatedOn.Before(time.Now().Add(-time.Minute * 6)) {
+			// apps which are still not healthy after 6 minutes, make them "Suspended"
 			cdWf.Status = application.Suspended
 		} else {
 			cdWf.Status = helmApp.ApplicationStatus
