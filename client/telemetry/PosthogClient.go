@@ -46,6 +46,8 @@ var (
 const (
 	TelemetryApiKeyEndpoint   string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5pbmZvL2RldnRyb24vdGVsZW1ldHJ5L3Bvc3Rob2dJbmZv"
 	TelemetryOptOutApiBaseUrl string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9vcHQtb3V0"
+	ResponseApiKey            string = "PosthogApiKey"
+	ResponseUrlKey            string = "PosthogEndpoint"
 )
 
 func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
@@ -97,8 +99,8 @@ func getPosthogApiKey(encodedPosthogApiKeyUrl string, logger *zap.SugaredLogger)
 		logger.Errorw("error while unmarshal data", "err", err)
 		return "", "", "", err
 	}
-	encodedApiKey := datamap["PosthogApiKey"]
-	posthogUrl := datamap["PosthogEndpoint"]
+	encodedApiKey := datamap[ResponseApiKey]
+	posthogUrl := datamap[ResponseUrlKey]
 	apiKey, err := base64.StdEncoding.DecodeString(encodedApiKey)
 	if err != nil {
 		return "", "", "", err
