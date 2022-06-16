@@ -6,7 +6,7 @@ dtConfigMap = kubectl get cm -n devtroncd devtron-cm;
 enabledIntegrations = jsonSelect(dtConfigMap, "data.ENABLED_INTEGRATIONS");
 
 #### CHECKING IF ARGOCD MODULE IS ENABLED
-isArgocdEnabled = `echo "` + enabledIntegrations + `" | grep argocd -o -w`;
+isArgocdEnabled = `echo "` + enabledIntegrations + `" | grep "argocd\|cicd" -o -w`;
 isArgocdEnabled = shellScript isArgocdEnabled;
 log("------ - - - ------- - - - ------- - - - -------");
 log(isArgocdEnabled);
