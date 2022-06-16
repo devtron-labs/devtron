@@ -36,7 +36,7 @@ type PosthogClient struct {
 var (
 	PosthogApiKey        string = ""
 	PosthogEndpoint      string = "https://app.posthog.com"
-	SummaryCronExpr      string = "0 0 * * *" // Run once a day, midnight
+	SummaryCronExpr      string = "* * * * *" // Run once a day, midnight
 	HeartbeatCronExpr    string = "0 0/6 * * *"
 	CacheExpiry          int    = 1440
 	PosthogEncodedApiKey string = ""
@@ -44,7 +44,7 @@ var (
 )
 
 const (
-	TelemetryApiKeyEndpoint   string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9wb3N0aG9nSW5mbw=="
+	TelemetryApiKeyEndpoint   string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5pbmZvL2RldnRyb24vdGVsZW1ldHJ5L3Bvc3Rob2dJbmZv"
 	TelemetryOptOutApiBaseUrl string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9vcHQtb3V0"
 )
 
