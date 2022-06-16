@@ -19,6 +19,7 @@ package pipeline
 
 import (
 	"bufio"
+	"context"
 	"errors"
 	"fmt"
 	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
@@ -27,7 +28,10 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	"github.com/devtron-labs/devtron/api/bean"
+	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -49,6 +53,7 @@ type CdHandler interface {
 	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int) (int, error)
 	FetchAppWorkflowStatusForTriggerView(pipelineId int) ([]*pipelineConfig.CdWorkflowStatus, error)
+	CheckHelmAppStatusPeriodicallyAndUpdateInDb() error
 }
 
 type CdHandlerImpl struct {
@@ -64,6 +69,9 @@ type CdHandlerImpl struct {
 	envRepository                repository2.EnvironmentRepository
 	pipelineRepository           pipelineConfig.PipelineRepository
 	ciWorkflowRepository         pipelineConfig.CiWorkflowRepository
+	helmAppService               client.HelmAppService
+	pipelineOverrideRepository   chartConfig.PipelineOverrideRepository
+	workflowDagExecutor          WorkflowDagExecutor
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -75,7 +83,8 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	pipelineRepository pipelineConfig.PipelineRepository,
 	envRepository repository2.EnvironmentRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
-	ciConfig *CiConfig) *CdHandlerImpl {
+	ciConfig *CiConfig, helmAppService client.HelmAppService,
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                       Logger,
 		cdConfig:                     cdConfig,
@@ -89,7 +98,56 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		pipelineRepository:           pipelineRepository,
 		ciWorkflowRepository:         ciWorkflowRepository,
 		ciConfig:                     ciConfig,
+		helmAppService:               helmAppService,
+		pipelineOverrideRepository:   pipelineOverrideRepository,
+		workflowDagExecutor:          workflowDagExecutor,
 	}
+}
+
+func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
+	pipelineOverrides, err := impl.pipelineOverrideRepository.FetchAllCdPipelineHelmApp()
+	if err != nil {
+		impl.Logger.Errorw("error on fetching all the recent deployment trigger for helm app type", "err", err)
+		return nil
+	}
+	for _, pipelineOverride := range pipelineOverrides {
+		appIdentifier := &client.AppIdentifier{
+			ClusterId:   pipelineOverride.Pipeline.Environment.ClusterId,
+			Namespace:   pipelineOverride.Pipeline.Environment.Namespace,
+			ReleaseName: fmt.Sprintf("%s-%s", pipelineOverride.Pipeline.App.AppName, pipelineOverride.Pipeline.Environment.Name),
+		}
+		helmApp, err := impl.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
+		if err != nil {
+			impl.Logger.Errorw("error in getting helm app release status ", "err", err)
+			return err
+		}
+		impl.Logger.Info(helmApp)
+		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("err on fetching cd workflow", "err", err)
+			return err
+		}
+		if pipelineOverride.CreatedOn.Before(time.Now().Add(-time.Minute * 10)) {
+			// apps which are still not healthy after 10 minutes, set them 10 min
+			cdWf.Status = application.Suspended
+		} else {
+			cdWf.Status = helmApp.ApplicationStatus
+		}
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&cdWf)
+		if err != nil {
+			impl.Logger.Errorw("error on update cd workflow runner", "cdWf", cdWf, "err", err)
+			return err
+		}
+
+		if cdWf.Status == application.Healthy {
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
+			if err != nil {
+				impl.Logger.Errorw("error on handling deployment success event", "cdWf", cdWf, "err", err)
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int) (int, error) {

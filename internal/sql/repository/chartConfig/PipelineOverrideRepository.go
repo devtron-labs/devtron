@@ -18,6 +18,7 @@
 package chartConfig
 
 import (
+	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -25,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
+	"time"
 )
 
 type PipelineOverride struct {
@@ -62,6 +64,7 @@ type PipelineOverrideRepository interface {
 	GetByDeployedImage(appId, environmentId int, images []string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
 	GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error)
+	FetchAllCdPipelineHelmApp() (pipelines []*PipelineOverride, err error)
 }
 
 type PipelineOverrideRepositoryImpl struct {
@@ -215,4 +218,18 @@ func (impl PipelineOverrideRepositoryImpl) FindById(id int) (*PipelineOverride, 
 		Where("pipeline_override.id =?", id).
 		Select()
 	return &pipelineOverride, err
+}
+
+func (impl PipelineOverrideRepositoryImpl) FetchAllCdPipelineHelmApp() (pipelines []*PipelineOverride, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline_override.*", "Pipeline", "Pipeline.App", "Pipeline.Environment").
+		Join("inner join pipeline p on p.id = pipeline_override.pipeline_id").
+		Join("inner join cd_workflow cdwf on cdwf.pipeline_id = p.id").
+		Join("inner join cd_workflow_runner cdwfr on cdwfr.cd_workflow_id = cdwf.id").
+		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
+		Where("cdwfr.status != ?", application.Healthy).
+		Where("cdwfr.status != ?", application.Suspended).
+		Where("pipeline_override.created_on > ?", time.Now().Add(-time.Minute*10)).
+		Select()
+	return pipelines, err
 }
