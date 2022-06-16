@@ -219,7 +219,6 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(cluster 
 	nodeMetricsList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(context.Background(), v1.ListOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting node metrics", "err", err)
-		return nil, err
 	}
 	nodeList, err := k8sClientSet.CoreV1().Nodes().List(context.Background(), v1.ListOptions{})
 	if err != nil {
@@ -272,7 +271,6 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(cluste
 	nodeMetrics, err := metricsClientSet.MetricsV1beta1().NodeMetricses().Get(context.Background(), name, v1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting node metrics", "err", err)
-		return nil, err
 	}
 	node, err := k8sClientSet.CoreV1().Nodes().Get(context.Background(), name, v1.GetOptions{})
 	if err != nil {
