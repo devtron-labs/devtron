@@ -21,7 +21,7 @@ type HelmApplicationStatusUpdateHandlerImpl struct {
 	CdHandler           pipeline.CdHandler
 }
 
-const HelmAppStatusUpdateCronExpr string = "*/1 * * * *"
+const HelmAppStatusUpdateCronExpr string = "*/2 * * * *"
 
 func NewHelmApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
@@ -46,6 +46,10 @@ func NewHelmApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appSer
 }
 
 func (impl *HelmApplicationStatusUpdateHandlerImpl) HelmApplicationStatusUpdate() {
-	impl.CdHandler.CheckHelmAppStatusPeriodicallyAndUpdateInDb()
+	err := impl.CdHandler.CheckHelmAppStatusPeriodicallyAndUpdateInDb()
+	if err != nil {
+		impl.logger.Errorw("error helm app status update - cron job", "err", err)
+		return
+	}
 	return
 }

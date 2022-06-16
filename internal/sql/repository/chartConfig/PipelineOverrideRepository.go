@@ -64,7 +64,7 @@ type PipelineOverrideRepository interface {
 	GetByDeployedImage(appId, environmentId int, images []string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
 	GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error)
-	FetchAllCdPipelineHelmApp() (pipelines []*PipelineOverride, err error)
+	FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error)
 }
 
 type PipelineOverrideRepositoryImpl struct {
@@ -220,7 +220,7 @@ func (impl PipelineOverrideRepositoryImpl) FindById(id int) (*PipelineOverride, 
 	return &pipelineOverride, err
 }
 
-func (impl PipelineOverrideRepositoryImpl) FetchAllCdPipelineHelmApp() (pipelines []*PipelineOverride, err error) {
+func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("pipeline_override.*", "Pipeline", "Pipeline.App", "Pipeline.Environment").
 		Join("inner join pipeline p on p.id = pipeline_override.pipeline_id").

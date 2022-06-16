@@ -105,7 +105,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 }
 
 func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
-	pipelineOverrides, err := impl.pipelineOverrideRepository.FetchAllCdPipelineHelmApp()
+	pipelineOverrides, err := impl.pipelineOverrideRepository.FetchHelmTypePipelineOverridesForStatusUpdate()
 	if err != nil {
 		impl.Logger.Errorw("error on fetching all the recent deployment trigger for helm app type", "err", err)
 		return nil
@@ -128,7 +128,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
 			return err
 		}
 		if pipelineOverride.CreatedOn.Before(time.Now().Add(-time.Minute * 10)) {
-			// apps which are still not healthy after 10 minutes, set them 10 min
+			// apps which are still not healthy after 10 minutes, make them "Suspended"
 			cdWf.Status = application.Suspended
 		} else {
 			cdWf.Status = helmApp.ApplicationStatus
