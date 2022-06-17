@@ -231,7 +231,7 @@ func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStat
 		Where("cdwfr.status != ?", application.Degraded).
 		Where("cdwfr.status != ?", application.HIBERNATING).
 		Where("cdwfr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
-		Where("p.deleted=", false).
+		Where("p.deleted = ?", false).
 		Select()
 	return pipelines, err
 }
