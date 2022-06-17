@@ -1639,7 +1639,7 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 				return false, err
 			}
 		} else {
-			cdWf.Status = v1alpha1.HealthStatusHealthy
+			cdWf.Status = v1alpha1.HealthStatusProgressing
 			cdWf.FinishedOn = time.Now()
 			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&cdWf)
 			if err != nil {
