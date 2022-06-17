@@ -138,6 +138,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
 			return err
 		}
 
+		impl.Logger.Infow("updating workflow runner status for helm app", "cdWf", cdWf)
 		if cdWf.Status == application.Healthy {
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
 			if err != nil {
