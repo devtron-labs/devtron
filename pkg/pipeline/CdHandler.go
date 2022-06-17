@@ -111,6 +111,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
 		return nil
 	}
 	for _, pipelineOverride := range pipelineOverrides {
+		impl.Logger.Debugw("checking helm app status for deployment trigger", "pipelineOverride", pipelineOverride)
 		appIdentifier := &client.AppIdentifier{
 			ClusterId:   pipelineOverride.Pipeline.Environment.ClusterId,
 			Namespace:   pipelineOverride.Pipeline.Environment.Namespace,
@@ -126,9 +127,9 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
 			impl.Logger.Errorw("err on fetching cd workflow", "err", err)
 			return err
 		}
-		if pipelineOverride.CreatedOn.Before(time.Now().Add(-time.Minute * 6)) {
-			// apps which are still not healthy after 6 minutes, make them "Suspended"
-			cdWf.Status = application.Suspended
+		if pipelineOverride.CreatedOn.Before(time.Now().Add(-time.Minute * 10)) {
+			// apps which are still not healthy after 6 minutes, make them "Degraded"
+			cdWf.Status = application.Degraded
 		} else {
 			cdWf.Status = helmApp.ApplicationStatus
 		}
@@ -137,8 +138,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
 			impl.Logger.Errorw("error on update cd workflow runner", "cdWf", cdWf, "err", err)
 			return err
 		}
-
-		impl.Logger.Infow("updating workflow runner status for helm app", "cdWf", cdWf)
+		impl.Logger.Debugw("updating workflow runner status for helm app", "cdWf", cdWf)
 		if cdWf.Status == application.Healthy {
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
 			if err != nil {
