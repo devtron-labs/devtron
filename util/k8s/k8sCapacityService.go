@@ -71,8 +71,9 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetailList(clusters []*clu
 			clusterCapacityDetail, err = impl.GetClusterCapacityDetail(cluster, true)
 			if err != nil {
 				impl.logger.Errorw("error in getting cluster capacity details by id", "err", err)
-				//TODO : handle error type conversion panic
-				clusterCapacityDetail.ErrorInConnection = err.Error()
+				clusterCapacityDetail = &ClusterCapacityDetail{
+					ErrorInConnection: err.Error(),
+				}
 			}
 		}
 		clusterCapacityDetail.Id = cluster.Id
@@ -156,10 +157,6 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 			impl.logger.Errorw("error in getting metrics client set", "err", err)
 			return nil, err
 		}
-		nmList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(context.Background(), v1.ListOptions{})
-		if err != nil {
-			impl.logger.Errorw("error in getting nodeMetrics list", "err", err)
-		}
 		//empty namespace: get pods for all namespaces
 		podList, err := k8sClientSet.CoreV1().Pods("").List(context.Background(), v1.ListOptions{})
 		if err != nil {
@@ -172,11 +169,16 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 		var clusterCpuRequests resource.Quantity
 		var clusterMemoryLimits resource.Quantity
 		var clusterMemoryRequests resource.Quantity
-		if nmList != nil {
+		nmList, err := metricsClientSet.MetricsV1beta1().NodeMetricses().List(context.Background(), v1.ListOptions{})
+		if err != nil {
+			impl.logger.Errorw("error in getting nodeMetrics list", "err", err)
+		} else if nmList != nil {
 			for _, nm := range nmList.Items {
 				clusterCpuUsage.Add(nm.Usage[metav1.ResourceCPU])
 				clusterMemoryUsage.Add(nm.Usage[metav1.ResourceMemory])
 			}
+			clusterDetail.Cpu.UsagePercentage = convertToPercentage(&clusterCpuUsage, &clusterCpuAllocatable)
+			clusterDetail.Memory.UsagePercentage = convertToPercentage(&clusterMemoryUsage, &clusterMemoryAllocatable)
 		}
 		for _, pod := range podList.Items {
 			if pod.Status.Phase != metav1.PodSucceeded && pod.Status.Phase != metav1.PodFailed {
@@ -189,10 +191,8 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 		}
 		clusterDetail.Cpu.RequestPercentage = convertToPercentage(&clusterCpuRequests, &clusterCpuAllocatable)
 		clusterDetail.Cpu.LimitPercentage = convertToPercentage(&clusterCpuLimits, &clusterCpuAllocatable)
-		clusterDetail.Cpu.UsagePercentage = convertToPercentage(&clusterCpuUsage, &clusterCpuAllocatable)
 		clusterDetail.Memory.RequestPercentage = convertToPercentage(&clusterMemoryRequests, &clusterMemoryAllocatable)
 		clusterDetail.Memory.LimitPercentage = convertToPercentage(&clusterMemoryLimits, &clusterMemoryAllocatable)
-		clusterDetail.Memory.UsagePercentage = convertToPercentage(&clusterMemoryUsage, &clusterMemoryAllocatable)
 	}
 	return clusterDetail, nil
 }
@@ -344,23 +344,26 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 		// assigning additional data for node listing api call
 		nodeDetail.Age = translateTimestampSince(node.CreationTimestamp)
 		nodeDetail.PodCount = podCount
-		cpuUsage := nodeUsageResourceList[metav1.ResourceCPU]
-		memoryUsage := nodeUsageResourceList[metav1.ResourceMemory]
+		cpuUsage, cpuUsageOk := nodeUsageResourceList[metav1.ResourceCPU]
+		memoryUsage, memoryUsageOk := nodeUsageResourceList[metav1.ResourceMemory]
 		nodeDetail.Cpu = &ResourceDetailObject{
 			Allocatable:        getResourceString(cpuAllocatable, metav1.ResourceCPU),
 			AllocatableInBytes: cpuAllocatable.Value(),
-			Usage:              getResourceString(cpuUsage, metav1.ResourceCPU),
-			UsageInBytes:       cpuUsage.Value(),
-			UsagePercentage:    convertToPercentage(&cpuUsage, &cpuAllocatable),
 		}
 		nodeDetail.Memory = &ResourceDetailObject{
 			Allocatable:        getResourceString(memoryAllocatable, metav1.ResourceMemory),
 			AllocatableInBytes: memoryAllocatable.Value(),
-			Usage:              getResourceString(memoryUsage, metav1.ResourceMemory),
-			UsageInBytes:       memoryUsage.Value(),
-			UsagePercentage:    convertToPercentage(&memoryUsage, &memoryAllocatable),
 		}
-
+		if cpuUsageOk {
+			nodeDetail.Cpu.Usage = getResourceString(cpuUsage, metav1.ResourceCPU)
+			nodeDetail.Cpu.UsageInBytes = cpuUsage.Value()
+			nodeDetail.Cpu.UsagePercentage = convertToPercentage(&cpuUsage, &cpuAllocatable)
+		}
+		if memoryUsageOk {
+			nodeDetail.Memory.Usage = getResourceString(memoryUsage, metav1.ResourceMemory)
+			nodeDetail.Memory.UsageInBytes = memoryUsage.Value()
+			nodeDetail.Memory.UsagePercentage = convertToPercentage(&memoryUsage, &memoryAllocatable)
+		}
 	} else {
 		//update data for node detail api call
 		err := impl.updateAdditionalDetailForNode(nodeDetail, node, nodeLimitsResourceList, nodeRequestsResourceList, nodeUsageResourceList, podDetailList, restConfig)
@@ -510,23 +513,15 @@ func getPodDetail(pod metav1.Pod, cpuAllocatable resource.Quantity, memoryAlloca
 	}
 	if cpuLimitsOk {
 		podDetail.Cpu.LimitPercentage = convertToPercentage(&cpuLimits, &cpuAllocatable)
-	} else {
-		podDetail.Cpu.LimitPercentage = "0%"
 	}
 	if cpuRequestsOk {
 		podDetail.Cpu.RequestPercentage = convertToPercentage(&cpuRequests, &cpuAllocatable)
-	} else {
-		podDetail.Cpu.RequestPercentage = "0%"
 	}
 	if memoryLimitsOk {
 		podDetail.Memory.LimitPercentage = convertToPercentage(&memoryLimits, &memoryAllocatable)
-	} else {
-		podDetail.Memory.LimitPercentage = "0%"
 	}
 	if memoryRequestsOk {
 		podDetail.Memory.RequestPercentage = convertToPercentage(&memoryRequests, &memoryAllocatable)
-	} else {
-		podDetail.Memory.RequestPercentage = "0%"
 	}
 	return podDetail
 }
@@ -598,7 +593,7 @@ func findNodeRoles(node *metav1.Node) []string {
 	if roles.Len() > 0 {
 		return roles.List()
 	} else {
-		return []string{"<none>"}
+		return []string{"none"}
 	}
 }
 
@@ -649,7 +644,7 @@ func getNodeExternalIP(node *metav1.Node) string {
 			return address.Address
 		}
 	}
-	return "<none>"
+	return "none"
 }
 
 func getNodeInternalIP(node *metav1.Node) string {
@@ -658,7 +653,7 @@ func getNodeInternalIP(node *metav1.Node) string {
 			return address.Address
 		}
 	}
-	return "<none>"
+	return "none"
 }
 
 func AddTwoResourceList(oldResourceList metav1.ResourceList, newResourceList metav1.ResourceList) metav1.ResourceList {
