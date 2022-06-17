@@ -235,13 +235,16 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 	}
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitOpsRepoName, fmt.Sprintf("helm chart for "+gitOpsRepoName), gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey, userName, userEmailId)
+	description := fmt.Sprintf("helm chart for " + gitOpsRepoName)
+	impl.logger.Infow("creating git repo .. ", "gitOpsConfigBitbucket", gitOpsConfigBitbucket)
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitOpsRepoName, description, gitOpsConfigBitbucket.BitBucketWorkspaceId, gitOpsConfigBitbucket.BitBucketProjectKey, userName, userEmailId)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
 			return nil, err
 		}
 	}
+	impl.logger.Infow("creating git repo .. ", "repoUrl", repoUrl)
 	return &ChartGitAttribute{RepoUrl: repoUrl, ChartLocation: filepath.Join(baseTemplateName, version)}, nil
 }
 
