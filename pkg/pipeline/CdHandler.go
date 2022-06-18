@@ -117,27 +117,26 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
 			Namespace:   pipelineOverride.Pipeline.Environment.Namespace,
 			ReleaseName: fmt.Sprintf("%s-%s", pipelineOverride.Pipeline.App.AppName, pipelineOverride.Pipeline.Environment.Name),
 		}
-		invalidRelease := false
 		helmApp, err := impl.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
 		if err != nil {
-			impl.Logger.Errorw("error in getting helm app release status ", "err", err)
+			impl.Logger.Errorw("error in getting helm app release status ", "appIdentifier", appIdentifier, "err", err)
 			//return err
-			//skip in case - invalid
-			invalidRelease = true
+			//skip this error and continue for next workflow status
+			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "appIdentifier", appIdentifier, "err", err)
+			continue
 		}
 		cdWf, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil && err != pg.ErrNoRows {
-			impl.Logger.Errorw("err on fetching cd workflow", "err", err)
-			return err
+			impl.Logger.Errorw("err on fetching cd workflow", "CdWorkflowId", pipelineOverride.CdWorkflowId, "err", err)
+			//skip this error and continue for next workflow status
+			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "CdWorkflowId", pipelineOverride.CdWorkflowId, "err", err)
+			continue
 		}
-		if pipelineOverride.CreatedOn.Before(time.Now().Add(-time.Minute*10)) || invalidRelease {
+		if pipelineOverride.CreatedOn.Before(time.Now().Add(-time.Minute * 10)) {
 			// apps which are still not healthy after 6 minutes, make them "Degraded"
 			cdWf.Status = application.Degraded
 		} else {
 			cdWf.Status = helmApp.ApplicationStatus
-		}
-		if invalidRelease {
-			cdWf.Message = "invalid release"
 		}
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&cdWf)
 		if err != nil {

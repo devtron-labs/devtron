@@ -230,6 +230,8 @@ func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStat
 		Where("cdwfr.status != ?", application.Healthy).
 		Where("cdwfr.status != ?", application.Degraded).
 		Where("cdwfr.status != ?", application.HIBERNATING).
+		Where("cdwfr.status != ?", "Failed").
+		Where("cdwfr.status != ?", "Aborted").
 		Where("cdwfr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("p.deleted = ?", false).
 		Select()
