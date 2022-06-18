@@ -62,5 +62,6 @@ resources:
    requests:
     cpu: "0.01"
     memory: 10Mi
-
+sampler:
+  enabled: false
 
