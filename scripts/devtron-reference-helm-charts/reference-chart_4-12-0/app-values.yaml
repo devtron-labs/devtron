@@ -102,6 +102,9 @@ ingress:
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
+  samplerIngress:
+    enabled: false
+    annotations: {}
 
 ingressInternal:
   enabled: false
@@ -126,6 +129,9 @@ ingressInternal:
   #  - secretName: chart-example-tls
   #    hosts:
   #      - chart-example.local
+  samplerIngress:
+    enabled: false
+    annotations: {}
 
 command:
   workingDir: {}
