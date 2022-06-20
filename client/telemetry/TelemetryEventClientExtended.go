@@ -98,36 +98,35 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 
 type TelemetryEventDto struct {
 	UCID         string             `json:"ucid"` //unique client id
-	Timestamp    time.Time          `json:"timestamp"`
-	EventMessage string             `json:"eventMessage,omitempty"`
-	EventType    TelemetryEventType `json:"eventType"`
-	//Summary        *SummaryDto        `json:"summary,omitempty"`
-	ProdAppCount                         int    `json:"prodAppCount,omitempty"`
-	NonProdAppCount                      int    `json:"nonProdAppCount,omitempty"`
-	UserCount                            int    `json:"userCount,omitempty"`
-	EnvironmentCount                     int    `json:"environmentCount,omitempty"`
-	ClusterCount                         int    `json:"clusterCount,omitempty"`
-	CiCountPerDay                        int    `json:"ciCountPerDay,omitempty"`
-	CdCountPerDay                        int    `json:"cdCountPerDay,omitempty"`
-	HelmChartCount                       int    `json:"helmChartCount,omitempty"`
-	SecurityScanCountPerDay              int    `json:"securityScanCountPerDay,omitempty"`
-	GitAccountsCount                     int    `json:"gitAccountsCount,omitempty"`
-	GitOpsCount                          int    `json:"gitOpsCount,omitempty"`
-	RegistryCount                        int    `json:"registryCount,omitempty"`
-	HostURL                              bool   `json:"hostURL,omitempty"`
-	SSOLogin                             bool   `json:"ssoLogin,omitempty"`
-	AppCount                             int    `json:"appCount,omitempty"`
-	AppsWithGitRepoConfigured            int    `json:"appsWithGitRepoConfigured,omitempty"`
-	AppsWithDockerConfigured             int    `json:"appsWithDockerConfigured,omitempty"`
-	AppsWithDeploymentTemplateConfigured int    `json:"appsWithDeploymentTemplateConfigured,omitempty"`
-	AppsWithCiPipelineConfigured         int    `json:"appsWithCiPipelineConfigured,omitempty"`
-	AppsWithCdPipelineConfigured         int    `json:"appsWithCdPipelineConfigured,omitempty"`
-	Build                                bool   `json:"build,omitempty"`
-	Deployment                           bool   `json:"deployment,omitempty"`
-	ServerVersion                        string `json:"serverVersion,omitempty"`
-	DevtronGitVersion                    string `json:"devtronGitVersion,omitempty"`
-	DevtronVersion                       string `json:"devtronVersion,omitempty"`
-	DevtronMode                          string `json:"devtronMode,omitempty"`
+ 	Timestamp    time.Time          `json:"timestamp"`
+ 	EventMessage string             `json:"eventMessage,omitempty"`
+ 	EventType    TelemetryEventType `json:"eventType"`
+ 	ProdAppCount                         int    `json:"prodAppCount,omitempty"`
+ 	NonProdAppCount                      int    `json:"nonProdAppCount,omitempty"`
+ 	UserCount                            int    `json:"userCount,omitempty"`
+ 	EnvironmentCount                     int    `json:"environmentCount,omitempty"`
+ 	ClusterCount                         int    `json:"clusterCount,omitempty"`
+ 	CiCountPerDay                        int    `json:"ciCountPerDay,omitempty"`
+ 	CdCountPerDay                        int    `json:"cdCountPerDay,omitempty"`
+ 	HelmChartCount                       int    `json:"helmChartCount,omitempty"`
+ 	SecurityScanCountPerDay              int    `json:"securityScanCountPerDay,omitempty"`
+ 	GitAccountsCount                     int    `json:"gitAccountsCount,omitempty"`
+ 	GitOpsCount                          int    `json:"gitOpsCount,omitempty"`
+ 	RegistryCount                        int    `json:"registryCount,omitempty"`
+ 	HostURL                              bool   `json:"hostURL,omitempty"`
+ 	SSOLogin                             bool   `json:"ssoLogin,omitempty"`
+ 	AppCount                             int    `json:"appCount,omitempty"`
+ 	AppsWithGitRepoConfigured            int    `json:"appsWithGitRepoConfigured,omitempty"`
+ 	AppsWithDockerConfigured             int    `json:"appsWithDockerConfigured,omitempty"`
+ 	AppsWithDeploymentTemplateConfigured int    `json:"appsWithDeploymentTemplateConfigured,omitempty"`
+ 	AppsWithCiPipelineConfigured         int    `json:"appsWithCiPipelineConfigured,omitempty"`
+ 	AppsWithCdPipelineConfigured         int    `json:"appsWithCdPipelineConfigured,omitempty"`
+ 	Build                                bool   `json:"build,omitempty"`
+ 	Deployment                           bool   `json:"deployment,omitempty"`
+ 	ServerVersion                        string `json:"serverVersion,omitempty"`
+ 	DevtronGitVersion                    string `json:"devtronGitVersion,omitempty"`
+ 	DevtronVersion                       string `json:"devtronVersion,omitempty"`
+ 	DevtronMode                          string `json:"devtronMode,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
