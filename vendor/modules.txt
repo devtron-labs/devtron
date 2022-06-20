@@ -97,6 +97,7 @@ github.com/antonmedv/expr/vm
 # github.com/argoproj/argo-cd/v2 v2.4.0
 ## explicit; go 1.18
 github.com/argoproj/argo-cd/v2/common
+github.com/argoproj/argo-cd/v2/pkg/apiclient/account
 github.com/argoproj/argo-cd/v2/pkg/apiclient/application
 github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster
 github.com/argoproj/argo-cd/v2/pkg/apiclient/repository

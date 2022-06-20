@@ -3,6 +3,10 @@ package argo
 import (
 	"context"
 	"fmt"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
+	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
@@ -35,13 +39,16 @@ type ArgoUserService interface {
 type ArgoUserServiceImpl struct {
 	logger         *zap.SugaredLogger
 	clusterService cluster.ClusterService
+	acdSettings    *settings.ArgoCDSettings
 }
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
-	clusterService cluster.ClusterService) *ArgoUserServiceImpl {
+	clusterService cluster.ClusterService,
+	acdSettings *settings.ArgoCDSettings) *ArgoUserServiceImpl {
 	return &ArgoUserServiceImpl{
 		logger:         Logger,
 		clusterService: clusterService,
+		acdSettings:    acdSettings,
 	}
 }
 
@@ -272,7 +279,29 @@ func (impl *ArgoUserServiceImpl) CreateNewArgoCdUser(username, password string, 
 }
 
 func (impl *ArgoUserServiceImpl) CreateTokenForArgoCdUser(username, password string) (string, error) {
-	return "", nil
+	token, err := passwordLogin(impl.acdSettings, username, password)
+	if err != nil {
+		impl.logger.Errorw("error in getting jwt token with username & password", "err", err)
+		return "", err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", token)
+	acdConnection := argocdServer.GetConnection(token, impl.acdSettings)
+	accountServiceClient := account.NewAccountServiceClient(acdConnection)
+	acdToken, err := accountServiceClient.CreateToken(ctx, &account.CreateTokenRequest{
+		Name: username,
+	})
+	if err != nil {
+		impl.logger.Errorw("error in creating token at argocd side", "err", err)
+		return "", err
+	}
+	return acdToken.Token, nil
+}
+
+func passwordLogin(acdSettings *settings.ArgoCDSettings, username, password string) (string, error) {
+	serviceClient := session.NewSessionServiceClient(acdSettings)
+	token, err := serviceClient.Create(context.Background(), username, password)
+	return token, err
 }
 
 func getNewPassword() string {
