@@ -27,7 +27,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
-	"time"
 )
 
 type PipelineOverride struct {
@@ -229,9 +228,12 @@ func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStat
 		Join("inner join cd_workflow_runner cdwfr on cdwfr.cd_workflow_id = cdwf.id").
 		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
 		Where("cdwfr.status != ?", application.Healthy).
-		Where("cdwfr.status != ?", application.Suspended).
+		Where("cdwfr.status != ?", application.Degraded).
+		Where("cdwfr.status != ?", application.HIBERNATING).
+		Where("cdwfr.status != ?", "Failed").
+		Where("cdwfr.status != ?", "Aborted").
 		Where("cdwfr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
-		Where("pipeline_override.created_on > ?", time.Now().Add(-time.Minute*10)).
+		Where("p.deleted = ?", false).
 		Select()
 	return pipelines, err
 }

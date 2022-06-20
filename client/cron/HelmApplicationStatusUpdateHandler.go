@@ -1,4 +1,4 @@
-package pubsub
+package cron
 
 import (
 	"github.com/devtron-labs/devtron/pkg/app"

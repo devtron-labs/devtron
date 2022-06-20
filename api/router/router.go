@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
+	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
@@ -108,7 +109,7 @@ type MuxRouter struct {
 	moduleRouter                       module.ModuleRouter
 	serverRouter                       server.ServerRouter
 	apiTokenRouter                     apiToken.ApiTokenRouter
-	helmApplicationStatusUpdateHandler pubsub.HelmApplicationStatusUpdateHandler
+	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -134,7 +135,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
 	globalPluginRouter GlobalPluginRouter, selfRegistrationRolesRouter user.SelfRegistrationRolesRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
-	helmApplicationStatusUpdateHandler pubsub.HelmApplicationStatusUpdateHandler) *MuxRouter {
+	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
