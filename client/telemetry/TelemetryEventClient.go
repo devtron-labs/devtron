@@ -322,7 +322,7 @@ func (impl *TelemetryEventClientImpl) SendTelemetryInstallEventEA() (*TelemetryE
 	if installEventKeyExists == false || installEventValue == "1" {
 		err = impl.EnqueuePostHog(ucid, InstallationSuccess, prop)
 		if err == nil {
-			//datamap[InstallEventKey] = "2"
+			datamap[InstallEventKey] = "2"
 			cm.Data = datamap
 			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 			if err != nil {
