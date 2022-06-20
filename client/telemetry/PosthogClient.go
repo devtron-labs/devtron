@@ -19,6 +19,7 @@ package telemetry
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"time"
 
 	"github.com/devtron-labs/devtron/util"
@@ -43,19 +44,24 @@ var (
 )
 
 const (
-	TelemetryApiKeyEndpoint   string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9hcGlrZXk="
+	TelemetryApiKeyEndpoint   string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9wb3N0aG9nSW5mbw=="
 	TelemetryOptOutApiBaseUrl string = "aHR0cHM6Ly90ZWxlbWV0cnkuZGV2dHJvbi5haS9kZXZ0cm9uL3RlbGVtZXRyeS9vcHQtb3V0"
+	ResponseApiKey            string = "PosthogApiKey"
+	ResponseUrlKey            string = "PosthogEndpoint"
 )
 
 func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 	if PosthogApiKey == "" {
-		encodedApiKey, apiKey, err := getPosthogApiKey(TelemetryApiKeyEndpoint, logger)
+		encodedApiKey, apiKey, posthogUrl, err := getPosthogApiKey(TelemetryApiKeyEndpoint, logger)
 		if err != nil {
 			logger.Errorw("exception caught while getting api key", "err", err)
+		} else {
+			PosthogApiKey = apiKey
+			PosthogEncodedApiKey = encodedApiKey
+			PosthogEndpoint = posthogUrl
 		}
-		PosthogApiKey = apiKey
-		PosthogEncodedApiKey = encodedApiKey
 	}
+
 	client, err := posthog.NewWithConfig(PosthogApiKey, posthog.Config{Endpoint: PosthogEndpoint})
 	//defer client.Close()
 	if err != nil {
@@ -70,22 +76,34 @@ func NewPosthogClient(logger *zap.SugaredLogger) (*PosthogClient, error) {
 	return pgClient, nil
 }
 
-func getPosthogApiKey(encodedPosthogApiKeyUrl string, logger *zap.SugaredLogger) (string, string, error) {
+func getPosthogApiKey(encodedPosthogApiKeyUrl string, logger *zap.SugaredLogger) (string, string, string, error) {
 	decodedPosthogApiKeyUrl, err := base64.StdEncoding.DecodeString(encodedPosthogApiKeyUrl)
 	if err != nil {
 		logger.Errorw("error fetching posthog api key, decode error", "err", err)
-		return "", "", err
+		return "", "", "", err
 	}
 	apiKeyUrl := string(decodedPosthogApiKeyUrl)
 	response, err := util.HttpRequest(apiKeyUrl)
 	if err != nil {
 		logger.Errorw("error fetching posthog api key, http call", "err", err)
-		return "", "", err
+		return "", "", "", err
 	}
-	encodedApiKey := response["result"].(string)
+	posthogInfo := response["result"]
+	posthogInfoByte, err := json.Marshal(posthogInfo)
+	if err != nil {
+		logger.Errorw("error in fetched posthog info, http call", "err", err)
+		return "", "", "", err
+	}
+	var datamap map[string]string
+	if err := json.Unmarshal(posthogInfoByte, &datamap); err != nil {
+		logger.Errorw("error while unmarshal data", "err", err)
+		return "", "", "", err
+	}
+	encodedApiKey := datamap[ResponseApiKey]
+	posthogUrl := datamap[ResponseUrlKey]
 	apiKey, err := base64.StdEncoding.DecodeString(encodedApiKey)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
-	return encodedApiKey, string(apiKey), err
+	return encodedApiKey, string(apiKey), posthogUrl, err
 }
