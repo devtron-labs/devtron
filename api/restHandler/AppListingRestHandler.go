@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"net/http"
 	"strconv"
 	"strings"
@@ -72,6 +73,7 @@ type AppListingRestHandlerImpl struct {
 	helmAppClient          client.HelmAppClient
 	clusterService         cluster.ClusterService
 	helmAppService         client.HelmAppService
+	argoUserService        argo.ArgoUserService
 }
 
 type AppStatus struct {
@@ -89,7 +91,8 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
-	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService) *AppListingRestHandlerImpl {
+	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
+	argoUserService argo.ArgoUserService) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:            application,
 		appListingService:      appListingService,
@@ -103,6 +106,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		helmAppClient:          helmAppClient,
 		clusterService:         clusterService,
 		helmAppService:         helmAppService,
+		argoUserService:        argoUserService,
 	}
 	return appListingHandler
 }
@@ -326,7 +330,13 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(ctx, "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 
 	response := make(chan AppStatus)
@@ -545,8 +555,14 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		ctx = context.WithValue(ctx, "token", token)
 		defer cancel()
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return appDetail
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
 		start := time.Now()
 		resp, err := handler.application.ResourceTree(ctx, query)
 		elapsed := time.Since(start)

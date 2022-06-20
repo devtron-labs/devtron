@@ -336,13 +336,13 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 }
 
 func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
-	token, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	ctx := context.Background()
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		return nil, err
 	}
-	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", token)
+	ctx = context.WithValue(ctx, "token", acdToken)
 	/*installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching from db", "error", err)

@@ -1,12 +1,16 @@
 package argo
 
 import (
+	"context"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
+	apiv1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 	"math/rand"
 	"strconv"
 	"strings"
@@ -31,16 +35,13 @@ type ArgoUserService interface {
 type ArgoUserServiceImpl struct {
 	logger         *zap.SugaredLogger
 	clusterService cluster.ClusterService
-	K8sUtil        util.K8sUtil
 }
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
-	clusterService cluster.ClusterService,
-	K8sUtil util.K8sUtil) *ArgoUserServiceImpl {
+	clusterService cluster.ClusterService) *ArgoUserServiceImpl {
 	return &ArgoUserServiceImpl{
 		logger:         Logger,
 		clusterService: clusterService,
-		K8sUtil:        K8sUtil,
 	}
 }
 
@@ -55,12 +56,12 @@ func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() error {
 		impl.logger.Errorw("error in getting default cluster config", "err", err)
 		return err
 	}
-	k8sClient, err := impl.K8sUtil.GetClient(clusterConfig)
+	k8sClient, err := getClient(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 		return err
 	}
-	devtronSecret, err := impl.K8sUtil.GetSecret(DEVTRONCD_NAMESPACE, DEVTRON_SECRET, k8sClient)
+	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, DEVTRON_SECRET, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 		return err
@@ -148,12 +149,12 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 		impl.logger.Errorw("error in getting default cluster config", "err", err)
 		return "", err
 	}
-	k8sClient, err := impl.K8sUtil.GetClient(clusterConfig)
+	k8sClient, err := getClient(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 		return "", err
 	}
-	devtronSecret, err := impl.K8sUtil.GetSecret(DEVTRONCD_NAMESPACE, DEVTRON_SECRET, k8sClient)
+	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, DEVTRON_SECRET, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 		return "", err
@@ -193,7 +194,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 }
 
 func (impl *ArgoUserServiceImpl) UpdateArgoCdUserInfoInDevtronSecret(userinfo map[string]string, k8sClient *v1.CoreV1Client) error {
-	devtronSecret, err := impl.K8sUtil.GetSecret(DEVTRONCD_NAMESPACE, DEVTRON_SECRET, k8sClient)
+	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, DEVTRON_SECRET, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 		return err
@@ -206,7 +207,7 @@ func (impl *ArgoUserServiceImpl) UpdateArgoCdUserInfoInDevtronSecret(userinfo ma
 		secretData[key] = []byte(value)
 	}
 	devtronSecret.Data = secretData
-	_, err = impl.K8sUtil.UpdateSecret(DEVTRONCD_NAMESPACE, devtronSecret, k8sClient)
+	_, err = updateSecret(DEVTRONCD_NAMESPACE, devtronSecret, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in updating devtron secret", "err", err)
 		return err
@@ -222,7 +223,7 @@ func (impl *ArgoUserServiceImpl) CreateNewArgoCdUser(username, password string, 
 		return err
 	}
 	//adding account name in configmap
-	acdConfigmap, err := impl.K8sUtil.GetConfigMap(DEVTRONCD_NAMESPACE, ARGOCD_CM, k8sClient)
+	acdConfigmap, err := getConfigMap(DEVTRONCD_NAMESPACE, ARGOCD_CM, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting argo cd configmap", "err", err)
 		return err
@@ -244,12 +245,12 @@ func (impl *ArgoUserServiceImpl) CreateNewArgoCdUser(username, password string, 
 	newUserCmValue := capabilitiesString
 	cmData[newUserCmKey] = newUserCmValue
 	acdConfigmap.Data = cmData
-	_, err = impl.K8sUtil.UpdateConfigMap(DEVTRONCD_NAMESPACE, acdConfigmap, k8sClient)
+	_, err = updateConfigMap(DEVTRONCD_NAMESPACE, acdConfigmap, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in updating argo cd configmap", "err", err)
 		return err
 	}
-	acdSecret, err := impl.K8sUtil.GetSecret(DEVTRONCD_NAMESPACE, ARGOCD_SECRET, k8sClient)
+	acdSecret, err := getSecret(DEVTRONCD_NAMESPACE, ARGOCD_SECRET, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting argo cd secret", "err", err)
 		return err
@@ -262,7 +263,7 @@ func (impl *ArgoUserServiceImpl) CreateNewArgoCdUser(username, password string, 
 	newUserSecretValue := passwordHash
 	secretData[newUserSecretKey] = newUserSecretValue
 	acdSecret.Data = secretData
-	_, err = impl.K8sUtil.UpdateSecret(DEVTRONCD_NAMESPACE, acdSecret, k8sClient)
+	_, err = updateSecret(DEVTRONCD_NAMESPACE, acdSecret, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in updating argo cd secret", "err", err)
 		return err
@@ -282,4 +283,49 @@ func getNewPassword() string {
 		s[i] = letters[rand.Intn(len(letters))]
 	}
 	return string(s)
+}
+
+func getClient(clusterConfig *util.ClusterConfig) (*v1.CoreV1Client, error) {
+	cfg := &rest.Config{}
+	cfg.Host = clusterConfig.Host
+	cfg.BearerToken = clusterConfig.BearerToken
+	cfg.Insecure = true
+	client, err := v1.NewForConfig(cfg)
+	return client, err
+}
+
+func getSecret(namespace string, name string, client *v1.CoreV1Client) (*apiv1.Secret, error) {
+	secret, err := client.Secrets(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return secret, nil
+	}
+}
+
+func updateSecret(namespace string, secret *apiv1.Secret, client *v1.CoreV1Client) (*apiv1.Secret, error) {
+	secret, err := client.Secrets(namespace).Update(context.Background(), secret, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return secret, nil
+	}
+}
+
+func getConfigMap(namespace string, name string, client *v1.CoreV1Client) (*apiv1.ConfigMap, error) {
+	cm, err := client.ConfigMaps(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
+}
+
+func updateConfigMap(namespace string, cm *apiv1.ConfigMap, client *v1.CoreV1Client) (*apiv1.ConfigMap, error) {
+	cm, err := client.ConfigMaps(namespace).Update(context.Background(), cm, metav1.UpdateOptions{})
+	if err != nil {
+		return nil, err
+	} else {
+		return cm, nil
+	}
 }

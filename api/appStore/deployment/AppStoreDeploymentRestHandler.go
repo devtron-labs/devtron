@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -61,12 +62,13 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	validator                  *validator.Validate
 	helmAppService             client.HelmAppService
 	helmAppRestHandler         client.HelmAppRestHandler
+	argoUserService            argo.ArgoUserService
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService service.AppStoreDeploymentService,
 	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-) *AppStoreDeploymentRestHandlerImpl {
+	argoUserService argo.ArgoUserService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                     Logger,
 		userAuthService:            userAuthService,
@@ -77,6 +79,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		validator:                  validator,
 		helmAppService:             helmAppService,
 		appStoreDeploymentServiceC: appStoreDeploymentServiceC,
+		argoUserService:            argoUserService,
 	}
 }
 
@@ -139,7 +142,18 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || request.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		ctx = context.WithValue(r.Context(), "token", token)
+	} else {
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
+	}
+
 	defer cancel()
 	res, err := handler.appStoreDeploymentService.InstallApp(&request, ctx)
 	if err != nil {
@@ -264,7 +278,17 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || request.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		ctx = context.WithValue(r.Context(), "token", token)
+	} else {
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
+	}
 	res, err := handler.appStoreDeploymentService.DeleteInstalledApp(ctx, &request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteInstalledApp", "err", err, "installAppId", installAppId)
@@ -344,7 +368,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	
+
 	//rbac block starts from here
 	var rbacObject string
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
@@ -358,7 +382,6 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	}
 	//rbac block ends here
 
-
 	request.UserId = userId
 	ctx, cancel := context.WithCancel(r.Context())
 	if cn, ok := w.(http.CloseNotifier); ok {
@@ -370,7 +393,17 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || request.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		ctx = context.WithValue(r.Context(), "token", token)
+	} else {
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
+	}
 	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(ctx, &request)
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {

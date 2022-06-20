@@ -1258,12 +1258,12 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 }
 
 func (impl *WorkflowDagExecutorImpl) buildACDContext() (acdContext context.Context, err error) {
-	token, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		return nil, err
 	}
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", token)
+	ctx = context.WithValue(ctx, "token", acdToken)
 	return ctx, nil
 }

@@ -319,13 +319,13 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 
 func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(appName string, environmentName string) (string, error) {
 	gitOpsRepoName := ""
-	token, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		return "", err
 	}
 	ctx := context.Background()
-	ctx = context.WithValue(ctx, "token", token)
+	ctx = context.WithValue(ctx, "token", acdToken)
 	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
 	application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {
