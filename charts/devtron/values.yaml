@@ -3,7 +3,7 @@ installer:
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
   release: "v0.4.13" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/test
-  tag: dcd96063-231-827
+  tag: 04fabf06-231-852
   source: "github" # Available options are github and gitee
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
   modules: [] # Available options are cicd
