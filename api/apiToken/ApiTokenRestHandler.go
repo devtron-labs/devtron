@@ -117,10 +117,6 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, errors.New("name cannot be blank in the request"), nil, http.StatusBadRequest)
 		return
 	}
-	if len(*request.Description) == 0 {
-		common.WriteJsonResp(w, errors.New("description cannot be blank in the request"), nil, http.StatusBadRequest)
-		return
-	}
 
 	// service call
 	res, err := impl.apiTokenService.CreateApiToken(request, userId)
@@ -170,10 +166,6 @@ func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *htt
 	if err != nil {
 		impl.logger.Errorw("validation err in UpdateApiToken", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	if len(*request.Description) == 0 {
-		common.WriteJsonResp(w, errors.New("description cannot be blank in the request"), nil, http.StatusBadRequest)
 		return
 	}
 

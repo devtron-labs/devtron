@@ -58,8 +58,9 @@ type MaterialRepository interface {
 	FindById(Id int) (*GitMaterial, error)
 	UpdateMaterialScmId(material *GitMaterial) error
 	FindByAppIdAndCheckoutPath(appId int, checkoutPath string) (*GitMaterial, error)
-	FindByGitProviderId(gitProviderId int) (materials []*GitMaterial,err error)
+	FindByGitProviderId(gitProviderId int) (materials []*GitMaterial, err error)
 	MarkMaterialDeleted(material *GitMaterial) error
+	FindNumberOfAppsWithGitRepo(appIds []int) (int, error)
 }
 type MaterialRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -141,7 +142,7 @@ func (repo MaterialRepositoryImpl) FindByAppIdAndCheckoutPath(appId int, checkou
 	return material, err
 }
 
-func(repo MaterialRepositoryImpl) FindByGitProviderId(gitProviderId int) (materials []*GitMaterial,err error){
+func (repo MaterialRepositoryImpl) FindByGitProviderId(gitProviderId int) (materials []*GitMaterial, err error) {
 	err = repo.dbConnection.Model(&materials).
 		Where("git_provider_id = ? ", gitProviderId).
 		Where("active =? ", true).
@@ -149,7 +150,22 @@ func(repo MaterialRepositoryImpl) FindByGitProviderId(gitProviderId int) (materi
 	return materials, err
 }
 
-func(repo MaterialRepositoryImpl) MarkMaterialDeleted(material *GitMaterial) error{
+func (repo MaterialRepositoryImpl) MarkMaterialDeleted(material *GitMaterial) error {
 	material.Active = false
 	return repo.dbConnection.Update(material)
+}
+
+func (repo MaterialRepositoryImpl) FindNumberOfAppsWithGitRepo(appIds []int) (int, error) {
+	var materials []*GitMaterial
+	count, err := repo.dbConnection.
+		Model(&materials).
+		ColumnExpr("DISTINCT app_id").
+		Where("active = ?", true).
+		Where("app_id in (?)", pg.In(appIds)).
+		Count()
+
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
 }
