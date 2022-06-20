@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/devtron-labs/devtron/util/argo"
 	"strconv"
 	"strings"
 	"time"
@@ -93,6 +94,7 @@ type WorkflowDagExecutorImpl struct {
 	scanResultRepository          security.ImageScanResultRepository
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
+	argoUserService               argo.ArgoUserService
 }
 
 type CiArtifactDTO struct {
@@ -136,7 +138,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	eventClient client.EventClient, cvePolicyRepository security.CvePolicyRepository,
 	scanResultRepository security.ImageScanResultRepository,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
-	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService) *WorkflowDagExecutorImpl {
+	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,
+	argoUserService argo.ArgoUserService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -161,6 +164,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		scanResultRepository:          scanResultRepository,
 		appWorkflowRepository:         appWorkflowRepository,
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
+		argoUserService:               argoUserService,
 	}
 	err := util4.AddStream(wde.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM, util4.CI_RUNNER_STREAM)
 	if err != nil {
@@ -1239,7 +1243,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 			UserId:        deploymentGroupAppWithEnv.UserId,
 			RequestType:   deploymentGroupAppWithEnv.RequestType,
 		}
-		ctx, err := impl.buildACDSynchContext()
+		ctx, err := impl.buildACDContext()
 		if err != nil {
 			impl.logger.Errorw("error in creating acd synch context", "err", err)
 			return
@@ -1253,6 +1257,13 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 	return err
 }
 
-func (impl *WorkflowDagExecutorImpl) buildACDSynchContext() (acdContext context.Context, err error) {
-	return impl.tokenCache.BuildACDSynchContext()
+func (impl *WorkflowDagExecutorImpl) buildACDContext() (acdContext context.Context, err error) {
+	token, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return nil, err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", token)
+	return ctx, nil
 }

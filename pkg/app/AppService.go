@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/util/argo"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
 	"path"
@@ -107,6 +108,7 @@ type AppServiceImpl struct {
 	helmAppClient                    client2.HelmAppClient
 	chartRefRepository               chartRepoRepository.ChartRefRepository
 	chartService                     chart.ChartService
+	argoUserService                  argo.ArgoUserService
 }
 
 type AppService interface {
@@ -149,7 +151,8 @@ func NewAppService(
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
 	chartTemplateService ChartTemplateService, refChartDir chartRepoRepository.RefChartDir,
 	chartRefRepository chartRepoRepository.ChartRefRepository,
-	chartService chart.ChartService, helmAppClient client2.HelmAppClient) *AppServiceImpl {
+	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
+	argoUserService argo.ArgoUserService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -190,6 +193,7 @@ func NewAppService(
 		chartRefRepository:               chartRefRepository,
 		chartService:                     chartService,
 		helmAppClient:                    helmAppClient,
+		argoUserService:                  argoUserService,
 	}
 	return appServiceImpl
 }
@@ -417,7 +421,7 @@ func (impl AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, ar
 		ForceTrigger: true,
 	}
 
-	ctx, err := impl.buildACDSynchContext()
+	ctx, err := impl.buildACDContext()
 	if err != nil {
 		impl.logger.Errorw("error in creating acd synch context", "pipelineId", pipeline.Id, "artifactId", artifact.Id, "err", err)
 		return err
@@ -432,8 +436,15 @@ func (impl AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, ar
 	return err
 }
 
-func (impl AppServiceImpl) buildACDSynchContext() (acdContext context.Context, err error) {
-	return impl.tokenCache.BuildACDSynchContext()
+func (impl AppServiceImpl) buildACDContext() (acdContext context.Context, err error) {
+	token, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return nil, err
+	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", token)
+	return ctx, nil
 }
 
 func (impl AppServiceImpl) getDbMigrationOverride(overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, isRollback bool) (overrideJson []byte, err error) {
