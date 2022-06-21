@@ -492,7 +492,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		for _, material := range pipeline.CiPipelineMaterials {
 			source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
 			sourceList = append(sourceList, source)
-			if material.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+			if material.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
 				ciMaterial.Id = material.Id
 				ciMaterial.CheckoutPath = material.CheckoutPath
 				ciMaterial.Path = material.Path
@@ -2227,7 +2227,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 	for _, material := range pipeline.CiPipelineMaterials {
 		source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
 		sourceList = append(sourceList, source)
-		if material.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+		if material.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
 			ciMaterial.Id = material.Id
 			ciMaterial.CheckoutPath = material.CheckoutPath
 			ciMaterial.Path = material.Path
