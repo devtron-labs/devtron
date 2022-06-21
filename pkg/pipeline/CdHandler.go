@@ -112,8 +112,8 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
 		impl.Logger.Errorw("error on fetching all the recent deployment trigger for helm app type", "err", err)
 		return nil
 	}
+	impl.Logger.Infow("checking helm app status for deployment triggers", "pipelineOverrides", pipelineOverrides)
 	for _, pipelineOverride := range pipelineOverrides {
-		impl.Logger.Infow("checking helm app status for deployment trigger", "pipelineOverride", pipelineOverride)
 		appIdentifier := &client.AppIdentifier{
 			ClusterId:   pipelineOverride.Pipeline.Environment.ClusterId,
 			Namespace:   pipelineOverride.Pipeline.Environment.Namespace,
