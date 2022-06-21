@@ -181,8 +181,8 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 	for key, value := range secretData {
 		if strings.HasPrefix(key, DEVTRON_ARGOCD_TOKEN_KEY) {
 			isTokenAvailable = true
-			keyLen := len(key)
 			keySplits := strings.Split(key, "_")
+			keyLen := len(keySplits)
 			tokenNo, err := strconv.Atoi(keySplits[keyLen-1])
 			if err != nil {
 				impl.logger.Errorw("error in converting token no string to integer", "err", err, "tokenNoString", keySplits[keyLen-1])
