@@ -92,6 +92,7 @@ type PipelineRepository interface {
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	UpdateCdPipeline(pipeline *Pipeline) error
 	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
+	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -394,4 +395,19 @@ func (impl PipelineRepositoryImpl) FindNumberOfAppsWithCdPipeline(appIds []int) 
 		return 0, err
 	}
 	return count, nil
+}
+
+func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	err := impl.dbConnection.
+		Model(&pipelines).
+		Column("pipeline.id", "App.app_name", "Environment.cluster_id", "Environment.namespace", "Environment.environment_name").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Join("inner join environment e on pipeline.environment_id = e.id").
+		Where("e.cluster_id in (?)", pg.In(clusterIds)).
+		Where("a.active = ?", true).
+		Where("pipeline.deleted = ?", false).
+		Where("pipeline.deployment_app_type = ?", deploymentAppType).
+		Select()
+	return pipelines, err
 }
