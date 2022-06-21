@@ -1,4 +1,4 @@
-LTAG="v0.4.15";
+LTAG="v0.4.16";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
