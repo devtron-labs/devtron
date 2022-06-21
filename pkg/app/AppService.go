@@ -257,7 +257,6 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 		impl.logger.Errorw("error in fetching chart", "err", "no charts found for git repo url")
 		return isHealthy, fmt.Errorf("no charts found for git repo url")
 	}
-
 	chart := charts[0]
 	dbApp, err := impl.appRepository.FindById(chart.AppId)
 	if err != nil {
