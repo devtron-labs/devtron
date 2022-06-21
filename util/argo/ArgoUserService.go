@@ -44,12 +44,18 @@ type ArgoUserServiceImpl struct {
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
-	acdSettings *settings.ArgoCDSettings) *ArgoUserServiceImpl {
-	return &ArgoUserServiceImpl{
+	acdSettings *settings.ArgoCDSettings) (*ArgoUserServiceImpl, error) {
+	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:         Logger,
 		clusterService: clusterService,
 		acdSettings:    acdSettings,
 	}
+	err := argoUserServiceImpl.UpdateArgoCdUserDetail()
+	if err != nil {
+		argoUserServiceImpl.logger.Errorw("error in updating argo cd user detail", "err", err)
+		return nil, err
+	}
+	return argoUserServiceImpl, nil
 }
 
 func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() error {
