@@ -419,7 +419,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			}
 		} else {
 			//save pipeline in db end
-			err = impl.addPipelineMaterialInGitSensor(pipelineMaterials)
+			//err = impl.addPipelineMaterialInGitSensor(pipelineMaterials)
 			if err != nil {
 				impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", pipelineMaterials, "err", err)
 				return nil, err
@@ -605,8 +605,8 @@ func (impl DbPipelineOrchestratorImpl) addPipelineMaterialInGitSensor(pipelineMa
 		materials = append(materials, material)
 	}
 
-	_, err := impl.GitSensorClient.SavePipelineMaterial(materials)
-	return err
+	//_, err := impl.GitSensorClient.SavePipelineMaterial(materials)
+	return nil
 }
 
 func (impl DbPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {

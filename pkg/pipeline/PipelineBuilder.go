@@ -487,23 +487,24 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 		}
+		var sourceList []*bean.SourceTypeConfig
+		var ciMaterial bean.CiMaterial
 		for _, material := range pipeline.CiPipelineMaterials {
-			var sourceList []*bean.SourceTypeConfig
 			source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
 			sourceList = append(sourceList, source)
-			ciMaterial := &bean.CiMaterial{
-				Id:              material.Id,
-				CheckoutPath:    material.CheckoutPath,
-				Path:            material.Path,
-				ScmId:           material.ScmId,
-				GitMaterialId:   material.GitMaterialId,
-				GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
-				ScmName:         material.ScmName,
-				ScmVersion:      material.ScmVersion,
-				Source:          sourceList,
+			if material.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+				ciMaterial.Id = material.Id
+				ciMaterial.CheckoutPath = material.CheckoutPath
+				ciMaterial.Path = material.Path
+				ciMaterial.ScmId = material.ScmId
+				ciMaterial.GitMaterialId = material.GitMaterialId
+				ciMaterial.GitMaterialName = material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:]
+				ciMaterial.ScmName = material.ScmName
+				ciMaterial.ScmVersion = material.ScmVersion
 			}
-			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
+		ciMaterial.Source = sourceList
+		ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, &ciMaterial)
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
 			return nil, err
@@ -2221,23 +2222,24 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
 	}
+	var sourceList []*bean.SourceTypeConfig
+	var ciMaterial bean.CiMaterial
 	for _, material := range pipeline.CiPipelineMaterials {
-		var sourceList []*bean.SourceTypeConfig
 		source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
 		sourceList = append(sourceList, source)
-		ciMaterial := &bean.CiMaterial{
-			Id:              material.Id,
-			CheckoutPath:    material.CheckoutPath,
-			Path:            material.Path,
-			ScmId:           material.ScmId,
-			GitMaterialId:   material.GitMaterialId,
-			GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
-			ScmName:         material.ScmName,
-			ScmVersion:      material.ScmVersion,
-			Source:          sourceList,
+		if material.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+			ciMaterial.Id = material.Id
+			ciMaterial.CheckoutPath = material.CheckoutPath
+			ciMaterial.Path = material.Path
+			ciMaterial.ScmId = material.ScmId
+			ciMaterial.GitMaterialId = material.GitMaterialId
+			ciMaterial.GitMaterialName = material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:]
+			ciMaterial.ScmName = material.ScmName
+			ciMaterial.ScmVersion = material.ScmVersion
 		}
-		ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 	}
+	ciMaterial.Source = sourceList
+	ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, &ciMaterial)
 	linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
