@@ -187,21 +187,23 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	var materialsAdd []*pipelineConfig.CiPipelineMaterial
 	var materialsUpdate []*pipelineConfig.CiPipelineMaterial
 	for _, material := range createRequest.CiMaterial {
-		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-			Id:            material.Id,
-			Value:         material.Source.Value,
-			Type:          material.Source.Type,
-			Active:        createRequest.Active,
-			GitMaterialId: material.GitMaterialId,
-			AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+		var pipelineMaterial pipelineConfig.CiPipelineMaterial
+		for _, config := range material.Source {
+			pipelineMaterial.Id = material.Id
+			pipelineMaterial.Value = config.Value
+			pipelineMaterial.Type = config.Type
+			pipelineMaterial.Active = createRequest.Active
+			pipelineMaterial.GitMaterialId = material.GitMaterialId
+			pipelineMaterial.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
 		}
+
 		if material.Id == 0 {
 			pipelineMaterial.CiPipelineId = createRequest.Id
 			pipelineMaterial.CreatedBy = userId
 			pipelineMaterial.CreatedOn = time.Now()
-			materialsAdd = append(materialsAdd, pipelineMaterial)
+			materialsAdd = append(materialsAdd, &pipelineMaterial)
 		} else {
-			materialsUpdate = append(materialsUpdate, pipelineMaterial)
+			materialsUpdate = append(materialsUpdate, &pipelineMaterial)
 		}
 	}
 	if len(materialsAdd) > 0 {
@@ -271,13 +273,16 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		var linkedMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, ciPipelineMaterial := range ciPipelineMaterials {
 			if parentMaterial, ok := parentMaterialsMap[ciPipelineMaterial.GitMaterialId]; ok {
-				pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-					Id:       ciPipelineMaterial.Id,
-					Value:    parentMaterial.Source.Value,
-					Active:   createRequest.Active,
-					AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+				for _, config := range parentMaterial.Source {
+					pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+						Id:       ciPipelineMaterial.Id,
+						Value:    config.Value,
+						Active:   createRequest.Active,
+						AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+					}
+					linkedMaterials = append(linkedMaterials, pipelineMaterial)
 				}
-				linkedMaterials = append(linkedMaterials, pipelineMaterial)
+
 			} else {
 				impl.logger.Errorw("material not fount in patent", "gitMaterialId", ciPipelineMaterial.GitMaterialId)
 				return nil, fmt.Errorf("error while updating linked pipeline")
@@ -373,20 +378,24 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 		}
 		var pipelineMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, r := range ciPipeline.CiMaterial {
-			material := &pipelineConfig.CiPipelineMaterial{
-				GitMaterialId: r.GitMaterialId,
-				ScmId:         r.ScmId,
-				ScmVersion:    r.ScmVersion,
-				ScmName:       r.ScmName,
-				Value:         r.Source.Value,
-				Type:          r.Source.Type,
-				Path:          r.Path,
-				CheckoutPath:  r.CheckoutPath,
-				CiPipelineId:  ciPipelineObject.Id,
-				Active:        true,
-				AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			for _, config := range r.Source {
+				material := &pipelineConfig.CiPipelineMaterial{
+					GitMaterialId: r.GitMaterialId,
+					ScmId:         r.ScmId,
+					ScmVersion:    r.ScmVersion,
+					ScmName:       r.ScmName,
+					Value:         config.Value,
+					Type:          config.Type,
+					Path:          r.Path,
+					CheckoutPath:  r.CheckoutPath,
+					CiPipelineId:  ciPipelineObject.Id,
+					Active:        true,
+					AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+				}
+				pipelineMaterials = append(pipelineMaterials, material)
 			}
-			pipelineMaterials = append(pipelineMaterials, material)
+
+			//pipelineMaterials = append(pipelineMaterials, material)
 		}
 		err = impl.CiPipelineMaterialRepository.Save(tx, pipelineMaterials...)
 		if err != nil {

@@ -186,15 +186,15 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 			stc.Type = pc.SOURCE_TYPE_BRANCH_FIXED
 		} else if material.Source.Type == v1.BranchRegex {
 			stc.Type = pc.SOURCE_TYPE_BRANCH_REGEX
-			ciPipeline.BranchRegex = material.Source.Value
 		} else if material.Source.Type == v1.TagAny {
 			stc.Type = pc.SOURCE_TYPE_TAG_ANY
 		} else if material.Source.Type == v1.Webhook {
 			stc.Type = pc.SOURCE_TYPE_WEBHOOK
 		}
-
+		var sourceList []*bean.SourceTypeConfig
+		sourceList = append(sourceList, &stc)
 		cm := bean.CiMaterial{
-			Source: &stc,
+			Source: sourceList,
 		}
 
 		for _, gm := range gitMaterials {

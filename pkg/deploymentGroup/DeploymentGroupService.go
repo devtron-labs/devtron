@@ -272,6 +272,9 @@ func (impl *DeploymentGroupServiceImpl) FetchParentCiForDG(deploymentGroupId int
 
 		var materialTemp []*bean.CiMaterial
 		for _, material := range ciPipeline.CiPipelineMaterials {
+			var sourceList []*bean.SourceTypeConfig
+			source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
+			sourceList = append(sourceList, source)
 			ciMaterial := bean.CiMaterial{
 				Id:              material.Id,
 				CheckoutPath:    material.CheckoutPath,
@@ -281,7 +284,7 @@ func (impl *DeploymentGroupServiceImpl) FetchParentCiForDG(deploymentGroupId int
 				GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
 				ScmName:         material.ScmName,
 				ScmVersion:      material.ScmVersion,
-				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
+				Source:          sourceList,
 			}
 			materialTemp = append(materialTemp, &ciMaterial)
 		}

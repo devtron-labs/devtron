@@ -488,6 +488,9 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			ScanEnabled:              pipeline.ScanEnabled,
 		}
 		for _, material := range pipeline.CiPipelineMaterials {
+			var sourceList []*bean.SourceTypeConfig
+			source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
+			sourceList = append(sourceList, source)
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
 				CheckoutPath:    material.CheckoutPath,
@@ -497,7 +500,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
 				ScmName:         material.ScmName,
 				ScmVersion:      material.ScmVersion,
-				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
+				Source:          sourceList,
 			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
@@ -2219,6 +2222,9 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		ScanEnabled:              pipeline.ScanEnabled,
 	}
 	for _, material := range pipeline.CiPipelineMaterials {
+		var sourceList []*bean.SourceTypeConfig
+		source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
+		sourceList = append(sourceList, source)
 		ciMaterial := &bean.CiMaterial{
 			Id:              material.Id,
 			CheckoutPath:    material.CheckoutPath,
@@ -2228,7 +2234,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 			GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
 			ScmName:         material.ScmName,
 			ScmVersion:      material.ScmVersion,
-			Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
+			Source:          sourceList,
 		}
 		ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 	}
