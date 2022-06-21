@@ -392,7 +392,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	if app != nil {
 		appResp, err := app.Recv()
 		if err == nil {
-			status = appResp.Application.Status.Health.String()
+			status = string(appResp.Application.Status.Health.Status)
 			conditions = appResp.Application.Status.Conditions
 			for _, condition := range conditions {
 				if condition.Type != v1alpha1.ApplicationConditionSharedResourceWarning {
