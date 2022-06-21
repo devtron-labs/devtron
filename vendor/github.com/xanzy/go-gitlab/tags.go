@@ -34,10 +34,12 @@ type TagsService struct {
 //
 // GitLab API docs: https://docs.gitlab.com/ce/api/tags.html
 type Tag struct {
-	Commit  *Commit      `json:"commit"`
-	Release *ReleaseNote `json:"release"`
-	Name    string       `json:"name"`
-	Message string       `json:"message"`
+	Commit    *Commit      `json:"commit"`
+	Release   *ReleaseNote `json:"release"`
+	Name      string       `json:"name"`
+	Message   string       `json:"message"`
+	Protected bool         `json:"protected"`
+	Target    string       `json:"target"`
 }
 
 // ReleaseNote represents a GitLab version release.

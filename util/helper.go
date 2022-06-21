@@ -193,3 +193,18 @@ func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
 func BuildDevtronBomUrl(bomUrl string, version string) string {
 	return fmt.Sprintf(bomUrl, version)
 }
+
+// InterfaceToMapAdapter it will convert any golang struct into map
+func InterfaceToMapAdapter(resp interface{}) map[string]interface{} {
+	var dat map[string]interface{}
+	b, err := json.Marshal(resp)
+	if err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	if err := json.Unmarshal(b, &dat); err != nil {
+		fmt.Printf("Error: %s", err)
+		return dat
+	}
+	return dat
+}

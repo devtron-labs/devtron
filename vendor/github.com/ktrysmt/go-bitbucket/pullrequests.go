@@ -146,6 +146,16 @@ func (p *PullRequests) AddComment(co *PullRequestCommentOptions) (interface{}, e
 	return p.c.execute("POST", urlStr, data)
 }
 
+func (p *PullRequests) UpdateComment(co *PullRequestCommentOptions) (interface{}, error) {
+	data, err := p.buildPullRequestCommentBody(co)
+	if err != nil {
+		return nil, err
+	}
+
+	urlStr := p.c.requestUrl("/repositories/%s/%s/pullrequests/%s/comments/%s", co.Owner, co.RepoSlug, co.PullRequestID, co.CommentId)
+	return p.c.execute("PUT", urlStr, data)
+}
+
 func (p *PullRequests) GetComments(po *PullRequestsOptions) (interface{}, error) {
 	urlStr := p.c.GetApiBaseURL() + "/repositories/" + po.Owner + "/" + po.RepoSlug + "/pullrequests/" + po.ID + "/comments/"
 	return p.c.execute("GET", urlStr, "")

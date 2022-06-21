@@ -26,6 +26,7 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 
 	"encoding/json"
 	"fmt"
@@ -77,6 +78,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	globalEnvVariables                   *util3.GlobalEnvVariables
 	installedAppRepository               repository4.InstalledAppRepository
 	tokenCache                           *util2.TokenCache
+	argoUserService                      argo.ArgoUserService
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -88,7 +90,8 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
 	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables,
-	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache) *AppStoreDeploymentFullModeServiceImpl {
+	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache,
+	argoUserService argo.ArgoUserService) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -104,6 +107,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		globalEnvVariables:                   globalEnvVariables,
 		installedAppRepository:               installedAppRepository,
 		tokenCache:                           tokenCache,
+		argoUserService:                      argoUserService,
 	}
 }
 
@@ -315,11 +319,13 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 
 func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(appName string, environmentName string) (string, error) {
 	gitOpsRepoName := ""
-	ctx, err := impl.tokenCache.BuildACDSynchContext()
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
-		impl.logger.Errorw("error in creating acd sync context", "err", err)
+		impl.logger.Errorw("error in getting acd token", "err", err)
 		return "", err
 	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
 	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
 	application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {

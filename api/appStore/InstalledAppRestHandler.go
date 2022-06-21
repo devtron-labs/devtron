@@ -33,6 +33,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/gorilla/mux"
@@ -62,12 +64,13 @@ type InstalledAppRestHandlerImpl struct {
 	clusterService            cluster.ClusterService
 	acdServiceClient          application.ServiceClient
 	appStoreDeploymentService service.AppStoreDeploymentService
+	argoUserService           argo.ArgoUserService
 }
 
 func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, installedAppService service.InstalledAppService,
 	validator *validator.Validate, clusterService cluster.ClusterService, acdServiceClient application.ServiceClient,
-	appStoreDeploymentService service.AppStoreDeploymentService,
+	appStoreDeploymentService service.AppStoreDeploymentService, argoUserService argo.ArgoUserService,
 ) *InstalledAppRestHandlerImpl {
 	return &InstalledAppRestHandlerImpl{
 		Logger:                    Logger,
@@ -79,6 +82,7 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 		clusterService:            clusterService,
 		acdServiceClient:          acdServiceClient,
 		appStoreDeploymentService: appStoreDeploymentService,
+		argoUserService:           argoUserService,
 	}
 }
 
@@ -347,7 +351,13 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		ctx = context.WithValue(ctx, "token", token)
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
 		defer cancel()
 		start := time.Now()
 		resp, err := handler.acdServiceClient.ResourceTree(ctx, query)
@@ -360,11 +370,11 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
 				UserMessage:     "app detail fetched, failed to get resource tree from acd",
 			}
-			appDetail.ResourceTree = &application.ResourceTreeResponse{}
+			appDetail.ResourceTree = map[string]interface{}{}
 			common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 			return
 		}
-		appDetail.ResourceTree = resp
+		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
 		handler.Logger.Debugf("application %s in environment %s had status %+v\n", installedAppId, envId, resp)
 	} else {
 		handler.Logger.Infow("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)

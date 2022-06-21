@@ -544,6 +544,15 @@ func (r *Repository) DeleteDefaultReviewer(rdro *RepositoryDefaultReviewerOption
 	return r.c.execute("DELETE", urlStr, "")
 }
 
+func (r *Repository) GetPipelineConfig(rpo *RepositoryPipelineOptions) (*Pipeline, error) {
+	urlStr := r.c.requestUrl("/repositories/%s/%s/pipelines_config", rpo.Owner, rpo.RepoSlug)
+	response, err := r.c.execute("GET", urlStr, "")
+	if err != nil {
+		return nil, fmt.Errorf("unable to get pipeline config: %w", err)
+	}
+	return decodePipelineRepository(response)
+}
+
 func (r *Repository) UpdatePipelineConfig(rpo *RepositoryPipelineOptions) (*Pipeline, error) {
 	data, err := r.buildPipelineBody(rpo)
 	if err != nil {

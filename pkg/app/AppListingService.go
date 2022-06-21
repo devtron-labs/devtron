@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util/argo"
 	"net/http"
 	"strconv"
 	"strings"
@@ -140,6 +141,7 @@ type AppListingServiceImpl struct {
 	envLevelMetricsRepository  repository.EnvLevelAppMetricsRepository
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
 	environmentRepository      repository2.EnvironmentRepository
+	argoUserService            argo.ArgoUserService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -148,7 +150,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
-) *AppListingServiceImpl {
+	argoUserService argo.ArgoUserService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                     Logger,
 		appListingRepository:       appListingRepository,
@@ -162,6 +164,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		cdWorkflowRepository:       cdWorkflowRepository,
 		pipelineOverrideRepository: pipelineOverrideRepository,
 		environmentRepository:      environmentRepository,
+		argoUserService:            argoUserService,
 	}
 	return serviceImpl
 }
@@ -518,8 +521,13 @@ func (impl AppListingServiceImpl) getAppACDStatus(env bean.AppEnvironmentContain
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		ctx = context.WithValue(ctx, "token", token)
 		defer cancel()
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.Logger.Errorw("error in getting acd token", "err", err)
+			return "", err
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
 		impl.Logger.Debugf("Getting status for app %s in env %s", env.AppId, env.EnvironmentId)
 		start := time.Now()
 		resp, err := impl.application.ResourceTree(ctx, query)

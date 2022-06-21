@@ -17,6 +17,7 @@
     * [Git Accounts](user-guide/global-configurations/git-accounts.md)
     * [Container Registries](user-guide/global-configurations/docker-registries.md)
     * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
+    * [Custom Charts](user-guide/global-configurations/custom-charts.md)    
     * [Cluster And Environments](user-guide/global-configurations/cluster-and-environments.md)
     * [Projects](user-guide/global-configurations/projects.md)
     * [SSO Login Service](user-guide/global-configurations/sso-login.md)
