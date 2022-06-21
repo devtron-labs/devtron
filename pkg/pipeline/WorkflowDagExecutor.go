@@ -57,7 +57,7 @@ import (
 type WorkflowDagExecutor interface {
 	HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
-	HandleDeploymentSuccessEvent(gitHash string) error
+	HandleDeploymentSuccessEvent(gitHash string, pipelineOverrideId int) error
 	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error
 	Subscribe() error
 	TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) error
@@ -634,10 +634,21 @@ func (impl *WorkflowDagExecutorImpl) buildArtifactLocationAzure(cdWorkflowConfig
 	return ArtifactLocation
 }
 
-func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string) error {
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
-	if err != nil {
-		return err
+func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string, pipelineOverrideId int) error {
+	var pipelineOverride *chartConfig.PipelineOverride
+	var err error
+	if len(gitHash) > 0 && pipelineOverrideId == 0 {
+		pipelineOverride, err = impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
+		if err != nil {
+			return err
+		}
+	} else if len(gitHash) == 0 && pipelineOverrideId > 0 {
+		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(pipelineOverrideId)
+		if err != nil {
+			return err
+		}
+	} else {
+		return fmt.Errorf("no release found")
 	}
 	cdWorkflow, err := impl.cdWorkflowRepository.FindById(pipelineOverride.CdWorkflowId)
 	if err != nil {
