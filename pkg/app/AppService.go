@@ -248,10 +248,14 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 	isHealthy := false
 	repoUrl := app.Spec.Source.RepoURL
 	// backward compatibility for updating application status - if unable to find app check it in charts
-	chart, err := impl.chartRepository.FindChartByGitRepoUrl(repoUrl)
+	charts, err := impl.chartRepository.FindChartsByGitRepoUrl(repoUrl)
 	if err != nil {
-		impl.logger.Errorw("error in fetching chart", "err", err, "chart", chart.ChartName)
+		impl.logger.Errorw("error in fetching chart", "err", err)
 		return isHealthy, err
+	}
+	var chart *chartRepoRepository.Chart
+	if len(charts) > 0 {
+		chart = charts[0]
 	}
 	dbApp, err := impl.appRepository.FindById(chart.AppId)
 	if err != nil {
