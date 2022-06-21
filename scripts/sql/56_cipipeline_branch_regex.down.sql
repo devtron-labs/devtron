@@ -1,1 +1,0 @@
-ALTER TABLE ci_pipeline DROP COLUMN branch_regex;
