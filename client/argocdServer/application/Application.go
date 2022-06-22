@@ -423,15 +423,17 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 			err := json.Unmarshal([]byte(response.Response.Manifest), &manifest)
 			if err != nil {
 				c.logger.Error(err)
+			}else{
+				rolloutManifests = append(rolloutManifests, manifest)
 			}
-			rolloutManifests = append(rolloutManifests, manifest)
 		} else if response != nil && response.Response != nil && response.Request.Kind == "Deployment" {
 			manifest := make(map[string]interface{})
 			err := json.Unmarshal([]byte(response.Response.Manifest), &manifest)
 			if err != nil {
 				c.logger.Error(err)
+			}else{
+				deploymentManifests = append(deploymentManifests, manifest)
 			}
-			deploymentManifests = append(deploymentManifests, manifest)
 		} else if response != nil && response.Response != nil && response.Request.Kind == "StatefulSet" {
 			err := json.Unmarshal([]byte(response.Response.Manifest), &statefulSetManifest)
 			if err != nil {
@@ -519,7 +521,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	//podMetaData := make([]*PodMetadata, 0)
 	duplicateCheck := make(map[string]bool)
 	if len(newReplicaSets) > 0 {
-		results := buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
+		results := c.buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
 		for _, meta := range results {
 			duplicateCheck[meta.Name] = true
 			podMetaData = append(podMetaData, meta)
@@ -890,7 +892,7 @@ func getPodInitContainers(resource map[string]interface{}) []*string {
 	return containers
 }
 
-func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSets []string, replicaSetManifests []map[string]interface{}) (podMetadata []*PodMetadata) {
+func (c ServiceClientImpl) buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSets []string, replicaSetManifests []map[string]interface{}) (podMetadata []*PodMetadata) {
 	replicaSets := make(map[string]map[string]interface{})
 	for _, replicaSet := range replicaSetManifests {
 		replicaSets[getResourceName(replicaSet)] = replicaSet
