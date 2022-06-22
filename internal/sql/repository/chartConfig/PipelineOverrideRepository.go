@@ -18,6 +18,8 @@
 package chartConfig
 
 import (
+	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -62,6 +64,7 @@ type PipelineOverrideRepository interface {
 	GetByDeployedImage(appId, environmentId int, images []string) (pipelineOverride *PipelineOverride, err error)
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
 	GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error)
+	FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error)
 }
 
 type PipelineOverrideRepositoryImpl struct {
@@ -215,4 +218,18 @@ func (impl PipelineOverrideRepositoryImpl) FindById(id int) (*PipelineOverride, 
 		Where("pipeline_override.id =?", id).
 		Select()
 	return &pipelineOverride, err
+}
+
+func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error) {
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline_override.*", "Pipeline", "Pipeline.App", "Pipeline.Environment").
+		Join("inner join pipeline p on p.id = pipeline_override.pipeline_id").
+		Join("inner join cd_workflow cdwf on cdwf.pipeline_id = p.id").
+		Join("inner join cd_workflow_runner cdwfr on cdwfr.cd_workflow_id = cdwf.id").
+		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
+		Where("cdwfr.status not in (?)", pg.In([]string{application.Degraded, application.HIBERNATING, "Failed", "Aborted"})).
+		Where("cdwfr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
+		Where("p.deleted = ?", false).
+		Select()
+	return pipelines, err
 }

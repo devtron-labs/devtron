@@ -1036,15 +1036,6 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 			}
 			return nil, err
 		}
-
-		if !isGitOpsConfigured && (len(pipeline.PreStage.Config) > 0 || len(pipeline.PostStage.Config) > 0) {
-			err = &util.ApiError{
-				HttpStatusCode:  http.StatusBadRequest,
-				InternalMessage: "pre or post stage not allowed without gitops configuration",
-				UserMessage:     "pre or post stage not allowed without gitops configuration",
-			}
-			return nil, err
-		}
 	}
 
 	if isGitOpsConfigured {

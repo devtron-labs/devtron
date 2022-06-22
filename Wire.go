@@ -48,6 +48,7 @@ import (
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
+	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	eClient "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -603,7 +604,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.CommonRouter), new(*router.CommonRouterImpl)),
 		restHandler.NewCommonRestHanlderImpl,
 		wire.Bind(new(restHandler.CommonRestHanlder), new(*restHandler.CommonRestHanlderImpl)),
-		
+
 		util.NewGitCliUtil,
 
 		router.NewTelemetryRouterImpl,
@@ -719,6 +720,8 @@ func InitializeApp() (*App, error) {
 		//plugin ends
 
 		//	AuthWireSet,
+		cron.NewHelmApplicationStatusUpdateHandlerImpl,
+		wire.Bind(new(cron.HelmApplicationStatusUpdateHandler), new(*cron.HelmApplicationStatusUpdateHandlerImpl)),
 	)
 	return &App{}, nil
 }
