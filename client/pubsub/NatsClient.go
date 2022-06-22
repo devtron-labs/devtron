@@ -46,7 +46,17 @@ func NewPubSubClient(logger *zap.SugaredLogger) (*PubSubClient, error) {
 	}
 
 	//Connect to NATS
-	nc, err := nats.Connect(cfg.NatsServerHost, nats.ReconnectWait(10*time.Second), nats.MaxReconnects(100))
+	nc, err := nats.Connect(cfg.NatsServerHost,
+		nats.ReconnectWait(10*time.Second), nats.MaxReconnects(100),
+		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
+			logger.Errorw("Got disconnected!", "Reason", err)
+		}),
+		nats.ReconnectHandler(func(nc *nats.Conn) {
+			logger.Infow("Got reconnected", "url", nc.ConnectedUrl())
+		}),
+		nats.ClosedHandler(func(nc *nats.Conn) {
+			logger.Errorw("Connection closed!", "Reason", nc.LastError())
+		}))
 	if err != nil {
 		logger.Error("err", err)
 		return &PubSubClient{}, err
