@@ -248,20 +248,21 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 	isHealthy := false
 	repoUrl := app.Spec.Source.RepoURL
 	// backward compatibility for updating application status - if unable to find app check it in charts
-	chart, err := impl.chartRepository.FindByGitRepoUrl(repoUrl)
+	chart, err := impl.chartRepository.FindChartByGitRepoUrl(repoUrl)
 	if err != nil {
-		impl.logger.Errorw("error in fetching chart", "err", err, "chart", chart.ChartName)
+		impl.logger.Errorw("error in fetching chart", "repoUrl", repoUrl, "err", err)
 		return isHealthy, err
+	}
+	if chart == nil {
+		impl.logger.Errorw("no git repo found for url", "repoUrl", repoUrl)
+		return isHealthy, fmt.Errorf("no git repo found for url %s", repoUrl)
 	}
 	dbApp, err := impl.appRepository.FindById(chart.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app", "err", err, "app", chart.AppId)
 		return isHealthy, err
 	}
-	// extract environment name from argocd app
-	evnName := strings.ReplaceAll(app.Name, dbApp.AppName+"-", "")
 	appName := dbApp.AppName
-
 	if dbApp.Id > 0 && dbApp.AppStore == true {
 		impl.logger.Debugw("skipping application status update as this app is chart", "appName", appName)
 		return isHealthy, nil
@@ -337,7 +338,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 			}
 			if string(application.Healthy) == newDeploymentStatus.Status {
 				isHealthy = true
-				go impl.WriteCDSuccessEvent(newDeploymentStatus.AppId, appName, newDeploymentStatus.EnvId, evnName, pipelineOverride)
+				go impl.WriteCDSuccessEvent(newDeploymentStatus.AppId, newDeploymentStatus.EnvId, pipelineOverride)
 			}
 		} else {
 			impl.logger.Debug("event received for older triggered revision: " + gitHash)
@@ -346,7 +347,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 	return isHealthy, nil
 }
 
-func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, appName string, envId int, envName string, override *chartConfig.PipelineOverride) {
+func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
 	event := impl.eventFactory.Build(util.Success, &override.PipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
