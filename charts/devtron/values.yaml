@@ -48,7 +48,7 @@ components:
 
   devtron:
     image: "quay.io/devtron/hyperion:749548dd-280-9429"
-    cicdImage: "quay.io/devtron/devtron:e0d33eda-326-9380"
+    cicdImage: "quay.io/devtron/devtron:749548dd-326-9433"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
       enabled: false
@@ -97,10 +97,10 @@ components:
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "e0d33eda8ba645d8170bb6fca2a9ab4b820b63c9"
+        GIT_HASH: "749548dd22e8ca5ad478541924e499d325cd00c9"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "e0d33eda8ba645d8170bb6fca2a9ab4b820b63c9"
+        GIT_HASH: "749548dd22e8ca5ad478541924e499d325cd00c9"
