@@ -178,6 +178,7 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 		LinkedCount:              0,
 	}
 
+	var sourceList []*bean.SourceTypeConfig
 	for _, material := range build.BuildMaterials {
 		stc := bean.SourceTypeConfig{
 			Value: material.Source.Value,
@@ -191,7 +192,7 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 		} else if material.Source.Type == v1.Webhook {
 			stc.Type = pc.SOURCE_TYPE_WEBHOOK
 		}
-		var sourceList []*bean.SourceTypeConfig
+
 		sourceList = append(sourceList, &stc)
 		cm := bean.CiMaterial{
 			Source: sourceList,

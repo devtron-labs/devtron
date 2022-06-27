@@ -595,14 +595,16 @@ func (impl DbPipelineOrchestratorImpl) deleteExternalCiDetails(ciPipeline *pipel
 func (impl DbPipelineOrchestratorImpl) addPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error {
 	var materials []*gitSensor.CiPipelineMaterial
 	for _, ciPipelineMaterial := range pipelineMaterials {
-		material := &gitSensor.CiPipelineMaterial{
-			Id:            ciPipelineMaterial.Id,
-			Active:        ciPipelineMaterial.Active,
-			Value:         ciPipelineMaterial.Value,
-			GitMaterialId: ciPipelineMaterial.GitMaterialId,
-			Type:          gitSensor.SourceType(ciPipelineMaterial.Type),
+		if ciPipelineMaterial.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+			material := &gitSensor.CiPipelineMaterial{
+				Id:            ciPipelineMaterial.Id,
+				Active:        ciPipelineMaterial.Active,
+				Value:         ciPipelineMaterial.Value,
+				GitMaterialId: ciPipelineMaterial.GitMaterialId,
+				Type:          gitSensor.SourceType(ciPipelineMaterial.Type),
+			}
+			materials = append(materials, material)
 		}
-		materials = append(materials, material)
 	}
 
 	_, err := impl.GitSensorClient.SavePipelineMaterial(materials)
