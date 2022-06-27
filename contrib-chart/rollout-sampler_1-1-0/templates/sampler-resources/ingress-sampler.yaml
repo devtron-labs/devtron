@@ -1,4 +1,4 @@
-{{- if sampler.enabled }}
+{{- if $.Values.sampler.enabled }}
 {{- if or $.Values.ingress.samplerIngress.enabled $.Values.ingressInternal.samplerIngress.enabled }}
 {{ $svcName := include ".servicename" . }}
 {{ $svcPort := (index .Values.ContainerPort 0).servicePort }}

@@ -440,4 +440,4 @@ hostAliases: []
 #    hostnames:
 #    - "foo.local"
 sampler:
-  enabled: false
+  enabled: true
