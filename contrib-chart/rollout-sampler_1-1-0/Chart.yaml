@@ -1,5 +1,8 @@
 apiVersion: v1
 appVersion: "1.0"
-description: A Helm chart for Rollout Deployments with sampler functionality.
+description: A Helm chart for Rollout Deployments with sampler functionality. Redirect a certain percentage of traffic to the sampler deployment to collect audit logs or enable/disable a functionality.
 name: rollout-sampler
 version: 1.1.0
+maintainers:
+- email: prakarsh@devtron.ai
+  name: Prakarsh
