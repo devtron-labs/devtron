@@ -210,7 +210,7 @@ spec:
             mountPath: /etc/nats-config
           - name: pid
             mountPath: /var/run/nats
-          - name: devtron-nats
+          - name: data
             mountPath: /tmp/nats/jetstream
 
         # Liveness/Readiness probes against the monitoring.
