@@ -293,7 +293,7 @@ spec:
 
   volumeClaimTemplates:
   - metadata:
-      name: devtron-nats
+      name: data
     spec:
       accessModes: [ "ReadWriteOnce" ]
       resources:
