@@ -614,7 +614,7 @@ devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
 hasDevtronCustomOverride = kubectl get cm -n devtroncd devtron-custom-override-cm;
 if hasDevtronCustomOverride {
   log("found devtron custom override cm");
-  devtron = kubectl apply -n devtroncd devtron -u devtronCustomOverride;
+  devtronCustomApply = kubectl apply -n devtroncd devtron -u devtronCustomOverride;
   allDevtroncdPo = kubectl get po -n devtroncd;
 	devtronPodnamePattern = `items.#(metadata.labels.app=="devtron").metadata.name`;
 	devtronPodname = jsonSelect(allDevtroncdPo, devtronPodnamePattern);
