@@ -492,7 +492,6 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		for _, material := range pipeline.CiPipelineMaterials {
 			source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
 			sourceList = append(sourceList, source)
-			ciMaterial.Id = material.Id
 			ciMaterial.CheckoutPath = material.CheckoutPath
 			ciMaterial.Path = material.Path
 			ciMaterial.ScmId = material.ScmId
@@ -500,6 +499,9 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			ciMaterial.GitMaterialName = material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:]
 			ciMaterial.ScmName = material.ScmName
 			ciMaterial.ScmVersion = material.ScmVersion
+			if material.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+				ciMaterial.Id = material.Id
+			}
 		}
 		ciMaterial.Source = sourceList
 		ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, &ciMaterial)
@@ -2225,15 +2227,15 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 	for _, material := range pipeline.CiPipelineMaterials {
 		source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
 		sourceList = append(sourceList, source)
+		ciMaterial.CheckoutPath = material.CheckoutPath
+		ciMaterial.Path = material.Path
+		ciMaterial.ScmId = material.ScmId
+		ciMaterial.GitMaterialId = material.GitMaterialId
+		ciMaterial.GitMaterialName = material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:]
+		ciMaterial.ScmName = material.ScmName
+		ciMaterial.ScmVersion = material.ScmVersion
 		if material.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
 			ciMaterial.Id = material.Id
-			ciMaterial.CheckoutPath = material.CheckoutPath
-			ciMaterial.Path = material.Path
-			ciMaterial.ScmId = material.ScmId
-			ciMaterial.GitMaterialId = material.GitMaterialId
-			ciMaterial.GitMaterialName = material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:]
-			ciMaterial.ScmName = material.ScmName
-			ciMaterial.ScmVersion = material.ScmVersion
 		}
 	}
 	ciMaterial.Source = sourceList
