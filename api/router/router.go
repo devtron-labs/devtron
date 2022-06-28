@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
+	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
@@ -110,6 +111,7 @@ type MuxRouter struct {
 	serverRouter                       server.ServerRouter
 	apiTokenRouter                     apiToken.ApiTokenRouter
 	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler
+	webhookHelmRouter                  webhookHelm.WebhookHelmRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -135,7 +137,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
 	globalPluginRouter GlobalPluginRouter, selfRegistrationRolesRouter user.SelfRegistrationRolesRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
-	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler) *MuxRouter {
+	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler, webhookHelmRouter webhookHelm.WebhookHelmRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -198,6 +200,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		serverRouter:                       serverRouter,
 		apiTokenRouter:                     apiTokenRouter,
 		helmApplicationStatusUpdateHandler: helmApplicationStatusUpdateHandler,
+		webhookHelmRouter:                  webhookHelmRouter,
 	}
 	return r
 }
@@ -388,4 +391,8 @@ func (r MuxRouter) Init() {
 	// api-token router
 	apiTokenRouter := r.Router.PathPrefix("/orchestrator/api-token").Subrouter()
 	r.apiTokenRouter.InitApiTokenRouter(apiTokenRouter)
+
+	// webhook helm app router
+	webhookHelmRouter := r.Router.PathPrefix("/orchestrator/webhook/helm").Subrouter()
+	r.webhookHelmRouter.InitWebhookHelmRouter(webhookHelmRouter)
 }

@@ -1,0 +1,151 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/webhook/helm/app:
+    post:
+      description: Create or Update helm application
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/HelmAppCreateUpdateRequest"
+      responses:
+        "200":
+          description: Create or Update helm application response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HelmAppCreateUpdateResponse"
+        "401":
+          description: If the user is not authenicated, then this error is thrown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthenticatedResponse"
+        "403":
+          description: If the user is not authorized, then this error is thrown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UnauthorizedResponse"
+components:
+  schemas:
+    HelmAppCreateUpdateRequest:
+      type: object
+      properties:
+        clusterName:
+          type: string
+          description: Name of the cluster configured on devtron UI, if it is not provided - will be assumed as default_cluster
+          example: "qa"
+          nullable: true
+        namespace:
+          type: string
+          description: namespace in that cluster, if it is not provided - will be assumed as default
+          example: "ns"
+          nullable: true
+        releaseName:
+          type: string
+          description: Helm Release name
+          example: "mySampleApp"
+          nullable: false
+        valuesOverrideYaml:
+          type: string
+          description: Values override yaml for this helm release create/update request
+          nullable: true
+        chartSpec:
+          $ref: "#/components/schemas/ChartSpec"
+    HelmAppCreateUpdateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success of the operation
+          example: true
+          nullable: false
+        error:
+          $ref: "#/components/schemas/ErrorResponse"
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          description: error code
+          example: "E100"
+          nullable: false
+        message:
+          type: string
+          description: error message
+          example: "some error occurred"
+          nullable: false
+    ChartSpec:
+      type: object
+      properties:
+        chartName:
+          type: string
+          description: chart name
+          example: "minio"
+          nullable: false
+        chartVersion:
+          type: string
+          description: chart version, if it is not supplied, will be assumed as latest
+          example: 1.2.3
+          nullable: true
+        chartRepo:
+          $ref: "#/components/schemas/ChartRepoSpec"
+    ChartRepoSpec:
+      type: object
+      properties:
+        name:
+          type: string
+          description: chart repo name
+          example: "bitnami"
+          nullable: false
+        identifier:
+          $ref: "#/components/schemas/ChartRepoIdentifierSpec"
+    ChartRepoIdentifierSpec:
+      type: object
+      properties:
+        url:
+          type: string
+          description: chart repo url
+          example: "https://charts.bitnami.com/bitnami"
+          nullable: false
+        username:
+          type: string
+          description: username of chart repo for authenticaion
+          example: "some username"
+          nullable: true
+        password:
+          type: string
+          description: password of chart repo for authenticaion
+          example: "some password"
+          nullable: true
+    UnauthenticatedResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: StatusUnauthorized code
+          example: 401
+          nullable: false
+        result:
+          type: string
+          description: Unauthorized message
+          example: "Unauthorized"
+          nullable: false
+    UnauthorizedResponse:
+      type: object
+      properties:
+        code:
+          type: integer
+          description: StatusUnauthorized code
+          example: 403
+          nullable: false
+        result:
+          type: string
+          description: Unauthorized message
+          example: "Forbidden"
+          nullable: false

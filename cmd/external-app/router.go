@@ -17,6 +17,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
+	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -47,6 +48,7 @@ type MuxRouter struct {
 	moduleRouter             module.ModuleRouter
 	serverRouter             server.ServerRouter
 	apiTokenRouter           apiToken.ApiTokenRouter
+	webhookHelmRouter        webhookHelm.WebhookHelmRouter
 }
 
 func NewMuxRouter(
@@ -69,6 +71,7 @@ func NewMuxRouter(
 	externalLinkRouter externalLink.ExternalLinkRouter,
 	moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
+	webhookHelmRouter webhookHelm.WebhookHelmRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -92,6 +95,7 @@ func NewMuxRouter(
 		moduleRouter:             moduleRouter,
 		serverRouter:             serverRouter,
 		apiTokenRouter:           apiTokenRouter,
+		webhookHelmRouter:        webhookHelmRouter,
 	}
 	return r
 }
@@ -192,4 +196,8 @@ func (r *MuxRouter) Init() {
 	// api-token router
 	apiTokenRouter := r.Router.PathPrefix("/orchestrator/api-token").Subrouter()
 	r.apiTokenRouter.InitApiTokenRouter(apiTokenRouter)
+
+	// webhook helm app router
+	webhookHelmRouter := r.Router.PathPrefix("/orchestrator/webhook/helm").Subrouter()
+	r.webhookHelmRouter.InitWebhookHelmRouter(webhookHelmRouter)
 }
