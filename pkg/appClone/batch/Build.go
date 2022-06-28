@@ -178,8 +178,8 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 		LinkedCount:              0,
 	}
 
-	var sourceList []*bean.SourceTypeConfig
 	for _, material := range build.BuildMaterials {
+		var sourceList []*bean.SourceTypeConfig
 		stc := bean.SourceTypeConfig{
 			Value: material.Source.Value,
 		}
