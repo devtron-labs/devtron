@@ -452,18 +452,17 @@ log("executed migrator setup command");
 ## natsOperator = kubectl apply -n devtroncd natsOperator -u natsOperatorOverride;
 ## log("executed nats operator setup");
 hasNatsServerPod = kubectl get pod -n devtroncd devtron-nats-0;
-ignore = shellScript sleep50;
-natsServer = kubectl apply -n devtroncd natsServer -u natsServerOverride;
-if hasNatsServerPod {
-  natsPodDelete = kubectl delete -n devtroncd po "devtron-nats-0";
-}
 hasNatsServerPVC = kubectl get -n devtroncd pvc data-devtron-nats-0;
-if !hasNatsServerPVC {
+if hasNatsServerPod && !hasNatsServerPVC {
   log("Nats Server PVC not found");
   natsStsDelete = kubectl delete -n devtroncd sts devtron-nats;
   ignore = shellScript sleep50;
   natsServerWithPVC = kubectl apply -n devtroncd natsServer -u natsServerOverride;
   log("Nats PVC created and statefulset re-created");
+}
+else {
+ignore = shellScript sleep50;
+natsServer = kubectl apply -n devtroncd natsServer -u natsServerOverride;
 }
 log(hasNatsServerPod);
 log("executed nats server setup");
