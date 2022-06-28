@@ -242,20 +242,20 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
 		}
-		var errorList error
+		var errorList string
 		if len(regexMaterial) != 0 {
 			for _, material := range regexMaterial {
 				if !impl.CheckStringMatchRegex(material.Value, materialGitMap[material.GitMaterialId]) {
-					if errorList == nil {
-						errorList = errors.New("string is mismatching with regex " + string(rune(material.GitMaterialId)))
+					if errorList == "" {
+						errorList = "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
 					} else {
-						errorList = errors.New(errorList.Error() + "; " + "string is mismatching with regex " + string(rune(material.GitMaterialId)))
+						errorList = errorList + "; " + "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
 					}
 				}
 			}
 		}
-		if errorList != nil {
-			return nil, err
+		if errorList != "" {
+			return nil, errors.New(errorList)
 		}
 		err = impl.addPipelineMaterialInGitSensor(materials)
 		if err != nil {
