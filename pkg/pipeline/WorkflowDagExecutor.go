@@ -1080,7 +1080,7 @@ type BulkTriggerRequest struct {
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error) {
-	impl.logger.Debugw("request received, TriggerBulkDeploymentAsync", "requests", requests)
+	impl.logger.Infow("request received, TriggerBulkDeploymentAsync", "requests", requests)
 	var cdWorkflows []*pipelineConfig.CdWorkflow
 	for _, request := range requests {
 		cdWf := &pipelineConfig.CdWorkflow{
@@ -1091,7 +1091,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerBulkDeploymentAsync(requests []*Bulk
 		}
 		cdWorkflows = append(cdWorkflows, cdWf)
 	}
-	impl.logger.Debugw("cdWorkflows to be saved for bulk deployment trigger", "cdWorkflows", cdWorkflows)
+	impl.logger.Infow("cdWorkflows to be saved for bulk deployment trigger", "cdWorkflows", cdWorkflows)
 	err := impl.cdWorkflowRepository.SaveWorkFlows(cdWorkflows...)
 	if err != nil {
 		impl.logger.Errorw("error in saving wfs", "req", requests, "err", err)

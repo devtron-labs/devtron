@@ -424,7 +424,7 @@ func (impl *DeploymentGroupServiceImpl) DeleteDeploymentGroup(deploymentGroupId 
 }
 
 func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(triggerRequest *DeploymentGroupTriggerRequest) (interface{}, error) {
-	impl.logger.Debugw("service starts, TriggerReleaseForDeploymentGroup", "triggerRequest", triggerRequest)
+	impl.logger.Infow("service starts, TriggerReleaseForDeploymentGroup", "triggerRequest", triggerRequest)
 	group, err := impl.deploymentGroupRepository.FindByIdWithApp(triggerRequest.DeploymentGroupId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching deployment group", "err", err)
@@ -443,7 +443,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 		impl.logger.Errorw("error in fetching ci pipelines", "triggerRequest", triggerRequest, "err", err)
 		return nil, err
 	}
-	impl.logger.Debugw("ci pipelines identified", "pipeline", ciPipelines, "appIds", appIds)
+	impl.logger.Infow("ci pipelines identified", "pipeline", ciPipelines, "appIds", appIds)
 	//get artifact ids
 	var ciPipelineIds []int
 	for _, ci := range ciPipelines {
@@ -458,14 +458,14 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 		impl.logger.Errorw("error in getting ci artifacts", "err", err, "parent", triggerRequest.CiArtifactId)
 		return nil, err
 	}
-	impl.logger.Debugw("ci artifacts identified", "artifacts", ciArtifacts)
+	impl.logger.Infow("ci artifacts identified", "artifacts", ciArtifacts)
 	//get cd pipeline id
 	appwfMappings, err := impl.appWorkflowRepository.FindWFCDMappingByCIPipelineIds(ciPipelineIds)
 	if err != nil {
 		impl.logger.Errorw("error in getting wf mappings", "err", err, "ciPipelineIds", ciPipelineIds)
 		return nil, err
 	}
-	impl.logger.Debugw("wf mappings identified", "wfMappings", appwfMappings)
+	impl.logger.Infow("wf mappings identified", "wfMappings", appwfMappings)
 	var cdPipelineIds []int
 	for _, wf := range appwfMappings {
 		cdPipelineIds = append(cdPipelineIds, wf.ComponentId)
@@ -479,7 +479,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 		impl.logger.Errorw("error in fetching cdPipelines ", "triggerRequest", triggerRequest, "err", err)
 		return nil, err
 	}
-	impl.logger.Debugw("cd pipelines identified", "cdPipelines", cdPipelines)
+	impl.logger.Infow("cd pipelines identified", "cdPipelines", cdPipelines)
 	var requests []*pipeline.BulkTriggerRequest
 	ciArtefactMapping := make(map[int]*repository.CiArtifact)
 	for _, ciArtefact := range ciArtifacts {
