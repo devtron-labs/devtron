@@ -430,6 +430,7 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 		impl.logger.Errorw("error in fetching deployment group", "err", err)
 		return nil, err
 	}
+	impl.logger.Infow("deployment group identified", "group", group)
 	var appIds []int
 	for _, groupApp := range group.DeploymentGroupApps {
 		appIds = append(appIds, groupApp.AppId)
