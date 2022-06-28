@@ -152,7 +152,6 @@ natsServerOverride = kubectl get cm -n devtroncd nats-server-override-cm;
 ## natsStreamingOverride = kubectl get cm -n devtroncd nats-streaming-override-cm;
 notifierOverride = kubectl get cm -n devtroncd notifier-override-cm;
 devtronOverride = kubectl get cm -n devtroncd devtron-override-cm;
-devtronCustomOverride = kubectl get cm -n devtroncd devtron-custom-override-cm;
 devtronIngressOverride = kubectl get cm -n devtroncd devtron-ingress-override-cm;
 workflowOverride = kubectl get cm -n devtroncd workflow-override-cm;
 serviceAccountOverride = kubectl get cm -n devtroncd devtron-service-account-override-cm;
@@ -612,17 +611,6 @@ if !helmInstallation {
 }
 
 devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
-hasDevtronCustomOverride = kubectl get cm -n devtroncd devtron-custom-override-cm;
-if hasDevtronCustomOverride {
-  log("found devtron custom override cm");
-  devtronRaw = download(devtron_raw);
-  devtronCustomApply = kubectl apply -n devtroncd devtronRaw -u devtronCustomOverride;
-  allDevtroncdPods = kubectl get po -n devtroncd;
-	devtronPodnamePattern = `items.#(metadata.labels.app=="devtron").metadata.name`;
-	devtronPodname = jsonSelect(allDevtroncdPods, devtronPodnamePattern);
-	devtronPodDelete = kubectl delete -n devtroncd po devtronPodname;
-	log("deleted devtron pod to reload configmap");
-}
 log("executed devtron setup");
 
 if !helmInstallation {
