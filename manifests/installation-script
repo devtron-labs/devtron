@@ -460,6 +460,7 @@ if hasNatsServerPod {
 }
 hasNatsServerPVC = kubectl get -n devtroncd pvc data-devtron-nats-0;
 if !hasNatsServerPVC {
+  log("Nats Server PVC not found");
   natsStsDelete = kubectl delete -n devtroncd sts devtron-nats;
   ignore = shellScript sleep50;
   natsServerWithPVC = kubectl apply -n devtroncd natsServer -u natsServerOverride;
@@ -614,7 +615,8 @@ devtron = kubectl apply -n devtroncd devtron -u devtronOverride;
 hasDevtronCustomOverride = kubectl get cm -n devtroncd devtron-custom-override-cm;
 if hasDevtronCustomOverride {
   log("found devtron custom override cm");
-  devtronCustomApply = kubectl apply -n devtroncd devtron -u devtronCustomOverride;
+  devtronRaw = download(devtron_raw);
+  devtronCustomApply = kubectl apply -n devtroncd devtronRaw -u devtronCustomOverride;
   allDevtroncdPods = kubectl get po -n devtroncd;
 	devtronPodnamePattern = `items.#(metadata.labels.app=="devtron").metadata.name`;
 	devtronPodname = jsonSelect(allDevtroncdPods, devtronPodnamePattern);
