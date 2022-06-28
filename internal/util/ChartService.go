@@ -225,6 +225,7 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket = &repository.GitOpsConfig{}
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 			gitOpsConfigBitbucket.BitBucketProjectKey = ""
 		} else {

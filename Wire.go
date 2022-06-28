@@ -49,6 +49,7 @@ import (
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	repository2 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
+	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	eClient "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
@@ -719,6 +720,8 @@ func InitializeApp() (*App, error) {
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
 		//	AuthWireSet,
+		cron.NewHelmApplicationStatusUpdateHandlerImpl,
+		wire.Bind(new(cron.HelmApplicationStatusUpdateHandler), new(*cron.HelmApplicationStatusUpdateHandlerImpl)),
 	)
 	return &App{}, nil
 }
