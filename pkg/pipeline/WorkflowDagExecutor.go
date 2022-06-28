@@ -1080,7 +1080,7 @@ type BulkTriggerRequest struct {
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error) {
-	impl.logger.Infow("request received, TriggerBulkDeploymentAsync", "requests", requests)
+	impl.logger.Debugw("request received, TriggerBulkDeploymentAsync", "requests", requests)
 	var cdWorkflows []*pipelineConfig.CdWorkflow
 	for _, request := range requests {
 		cdWf := &pipelineConfig.CdWorkflow{
