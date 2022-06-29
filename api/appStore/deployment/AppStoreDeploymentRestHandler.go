@@ -337,14 +337,14 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		return
 	}
 	token := r.Header.Get("token")
-	handler.Logger.Infow("request payload, UpdateInstalledApp", "payload", request)
+	handler.Logger.Debugw("request payload, UpdateInstalledApp", "payload", request)
 	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(request.InstalledAppId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	
+
 	//rbac block starts from here
 	var rbacObject string
 	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
@@ -357,7 +357,6 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		return
 	}
 	//rbac block ends here
-
 
 	request.UserId = userId
 	ctx, cancel := context.WithCancel(r.Context())
