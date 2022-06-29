@@ -163,7 +163,7 @@ components:
           type: string
         values:
           type: string
-        schema:
+        schemaJson:
           type: string
         chartVersion:
           type: string
