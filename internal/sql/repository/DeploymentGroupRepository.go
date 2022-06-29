@@ -31,7 +31,7 @@ type DeploymentGroupRepository interface {
 	Update(model *DeploymentGroup) (*DeploymentGroup, error)
 	Delete(model *DeploymentGroup) error
 	FindByIdWithApp(id int) (*DeploymentGroup, error)
-	FindByAppIdEnvIdAndCiPipelineId(envId, ciPipelineId, appId int) ([]DeploymentGroup, error)
+	FindByAppIdEnvIdAndCiPipelineId(envId, appId int) ([]DeploymentGroup, error)
 }
 
 type DeploymentGroupRepositoryImpl struct {
@@ -109,15 +109,14 @@ func (impl *DeploymentGroupRepositoryImpl) FindByIdWithApp(id int) (*DeploymentG
 	return deploymentGroup, err
 }
 
-func (impl *DeploymentGroupRepositoryImpl) FindByAppIdEnvIdAndCiPipelineId(envId, ciPipelineId, appId int) ([]DeploymentGroup, error) {
+func (impl *DeploymentGroupRepositoryImpl) FindByAppIdEnvIdAndCiPipelineId(envId, appId int) ([]DeploymentGroup, error) {
 	var models []DeploymentGroup
 	err := impl.dbConnection.Model(&models).Column("deployment_group.*").
-		Relation("DeploymentGroupApps", func(q *orm.Query) (query *orm.Query, err error) {
-			return q.Where("active IS TRUE").Where("app_id = ?", appId), nil
-		}).
+		Join("INNER JOIN deployment_group_app dga ON dga.deployment_group_id = deployment_group.id").
+		Where("dga.active = ?", true).
+		Where("dga.app_id = ?", appId).
 		Where("environment_id = ?", envId).
-		Where("ci_pipeline_id = ?", ciPipelineId).
-		Where("active = ?", true).Select()
+		Where("deployment_group.active = ?", true).Select()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching group", "appId", appId, "err", err)
 		return nil, err
