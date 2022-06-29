@@ -19,8 +19,10 @@ package webhookHelm
 
 import (
 	"context"
+	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/go-pg/pg"
@@ -29,7 +31,9 @@ import (
 )
 
 const (
-	DEFAULT_NAMESPACE = "default"
+	DEFAULT_NAMESPACE   = "default"
+	DEFAULT_CLUSTER_ID  = 1
+	HELM_APP_DETAIL_URL = "%s/orchestrator/application/app?appId=%s"
 )
 
 type WebhookHelmService interface {
@@ -41,14 +45,17 @@ type WebhookHelmServiceImpl struct {
 	helmAppService         client.HelmAppService
 	clusterService         cluster.ClusterService
 	chartRepositoryService chartRepo.ChartRepositoryService
+	attributesService      attributes.AttributesService
 }
 
-func NewWebhookHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, clusterService cluster.ClusterService, chartRepositoryService chartRepo.ChartRepositoryService) *WebhookHelmServiceImpl {
+func NewWebhookHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.HelmAppService, clusterService cluster.ClusterService,
+	chartRepositoryService chartRepo.ChartRepositoryService, attributesService attributes.AttributesService) *WebhookHelmServiceImpl {
 	return &WebhookHelmServiceImpl{
 		logger:                 logger,
 		helmAppService:         helmAppService,
 		clusterService:         clusterService,
 		chartRepositoryService: chartRepositoryService,
+		attributesService:      attributesService,
 	}
 }
 
@@ -56,7 +63,7 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 	impl.logger.Infow("Request for create/update helm application from webhook", "request", request)
 
 	// initialise clusterId with default_cluster Id
-	clusterId := 1
+	clusterId := DEFAULT_CLUSTER_ID
 
 	// STEP-1 - get cluster info
 	clusterName := request.ClusterName
@@ -97,14 +104,14 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 	}
 
 	// STEP-4 - build app identifier
-	appIdentifier := client.AppIdentifier{
+	appIdentifier := &client.AppIdentifier{
 		ClusterId:   clusterId,
 		Namespace:   request.Namespace,
 		ReleaseName: request.ReleaseName,
 	}
 
 	// STEP-5 - check if the release is installed or not
-	isInstalled, err := impl.helmAppService.IsReleaseInstalled(ctx, &appIdentifier)
+	isInstalled, err := impl.helmAppService.IsReleaseInstalled(ctx, appIdentifier)
 	if err != nil {
 		impl.logger.Errorw("Error in checking if release is installed or not", "appIdentifier", appIdentifier, "err", err)
 		return nil, common.InternalServerError, err.Error(), http.StatusInternalServerError
@@ -148,5 +155,12 @@ func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Con
 		}
 	}
 
-	return nil, common.InternalServerError, "hello", http.StatusInternalServerError
+	// STEP-7 build app detail url (if error, then return success as operations has been completed already, just result is sent to be nil)
+	hostUrlAttribute, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	if err != nil || hostUrlAttribute == nil {
+		impl.logger.Errorw("error while getting host url attribute from DB", "error", err)
+		return nil, "", "", http.StatusOK
+	}
+	appDetailUrl := fmt.Sprintf(HELM_APP_DETAIL_URL, hostUrlAttribute.Value, impl.helmAppService.EncodeAppId(appIdentifier))
+	return appDetailUrl, "", "", http.StatusOK
 }
