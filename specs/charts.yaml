@@ -77,10 +77,145 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/app-store/deployment/application/version/{id}:
+    get:
+      description: fetch
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: deployed chart info
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: deployed chart info
+                    items:
+                      $ref: '#/components/schemas/HelmAppInfo'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/app-store/values/template/values:
+    get:
+      description: fetch selected chart info
+      parameters:
+        - name: referenceId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: kind
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: deployed chart info
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: deployed chart info
+                    items:
+                      $ref: '#/components/schemas/ChartValuesInfo'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
-# components mentioned below
+        # components mentioned below
 components:
   schemas:
+    ChartValuesInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        appStoreVersionId:
+          type: integer
+        name:
+          type: string
+        values:
+          type: string
+        schema:
+          type: string
+        chartVersion:
+          type: string
+    HelmAppInfo:
+      type: object
+      properties:
+        id:
+          type: integer
+        appId:
+          type: integer
+        appName:
+          type: string
+        teamId:
+          type: integer
+        environmentId:
+          type: integer
+        installedAppId:
+          type: integer
+        appStoreVersion:
+          type: integer
+        valuesOverrideYaml:
+          type: string
+        readme:
+          type: string
+        referenceValueId:
+          type: integer
+        referenceValueKind:
+          type: string
+        appStoreId:
+          type: integer
+        appStoreName:
+          type: string
+        deprecated:
+          type: boolean
+        clusterId:
+          type: integer
+        namespace:
+          type: string
+        appOfferingMode:
+          type: string
+        gitOpsRepoName:
+          type: string
+        gitOpsPath:
+          type: string
+        gitHash:
+          type: string
+        valuesYaml:
+          type: string
+          description: values YAML of deployment
+        schemaJson:
+          type: string
+          description: schema json of values yaml
     ChartInfo:
       type: object
       required:

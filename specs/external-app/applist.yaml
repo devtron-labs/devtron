@@ -735,9 +735,6 @@ components:
         readme:
           type: string
           description: readme of the chart
-        schema:
-          type: string
-          description: schema of the chart
     DesiredManifestRequest:
       type: object
       properties:
