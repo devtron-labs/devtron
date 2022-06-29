@@ -210,6 +210,8 @@ spec:
             mountPath: /etc/nats-config
           - name: pid
             mountPath: /var/run/nats
+          - name: data
+            mountPath: /tmp/nats/jetstream
 
         # Liveness/Readiness probes against the monitoring.
         #
@@ -280,6 +282,7 @@ spec:
         - -routez
         - -subz
         - -varz
+        - -jsz=all
         - -prefix=nats
         - -use_internal_server_id
         - http://localhost:8222/
@@ -289,6 +292,13 @@ spec:
 
 
   volumeClaimTemplates:
+  - metadata:
+      name: data
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      resources:
+        requests:
+          storage: 5Gi
 ---
 # Source: nats/templates/tests/test-request-reply.yaml
 apiVersion: v1
@@ -326,3 +336,26 @@ spec:
           [ $name = test ]
 
   restartPolicy: Never
+---
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  labels:
+    kind: Prometheus
+    app: devtron-nats
+    chart: nats-0.9.2
+    release: monitoring
+  name: devtron-nats-server
+spec:
+  endpoints:
+  - interval: 30s
+    path: /metrics
+    port: metrics 
+  jobLabel: nats-server
+  namespaceSelector:
+    matchNames:
+    - devtroncd
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: devtron-nats
+      app.kubernetes.io/name: nats
