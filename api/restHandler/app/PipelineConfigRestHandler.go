@@ -86,31 +86,32 @@ type PipelineConfigRestHandler interface {
 }
 
 type PipelineConfigRestHandlerImpl struct {
-	pipelineBuilder         pipeline.PipelineBuilder
-	ciPipelineRepository    pipelineConfig.CiPipelineRepository
-	ciHandler               pipeline.CiHandler
-	Logger                  *zap.SugaredLogger
-	chartService            chart.ChartService
-	propertiesConfigService pipeline.PropertiesConfigService
-	dbMigrationService      pipeline.DbMigrationService
-	application             application.ServiceClient
-	userAuthService         user.UserService
-	validator               *validator.Validate
-	teamService             team.TeamService
-	enforcer                casbin.Enforcer
-	gitSensorClient         gitSensor.GitSensorClient
-	pipelineRepository      pipelineConfig.PipelineRepository
-	appWorkflowService      appWorkflow.AppWorkflowService
-	enforcerUtil            rbac.EnforcerUtil
-	envService              request.EnvironmentService
-	gitRegistryConfig       pipeline.GitRegistryConfig
-	dockerRegistryConfig    pipeline.DockerRegistryConfig
-	cdHandler               pipeline.CdHandler
-	appCloneService         appClone.AppCloneService
-	materialRepository      pipelineConfig.MaterialRepository
-	policyService           security2.PolicyService
-	scanResultRepository    security.ImageScanResultRepository
-	gitProviderRepo         repository.GitProviderRepository
+	pipelineBuilder              pipeline.PipelineBuilder
+	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	ciHandler                    pipeline.CiHandler
+	Logger                       *zap.SugaredLogger
+	chartService                 chart.ChartService
+	propertiesConfigService      pipeline.PropertiesConfigService
+	dbMigrationService           pipeline.DbMigrationService
+	application                  application.ServiceClient
+	userAuthService              user.UserService
+	validator                    *validator.Validate
+	teamService                  team.TeamService
+	enforcer                     casbin.Enforcer
+	gitSensorClient              gitSensor.GitSensorClient
+	pipelineRepository           pipelineConfig.PipelineRepository
+	appWorkflowService           appWorkflow.AppWorkflowService
+	enforcerUtil                 rbac.EnforcerUtil
+	envService                   request.EnvironmentService
+	gitRegistryConfig            pipeline.GitRegistryConfig
+	dockerRegistryConfig         pipeline.DockerRegistryConfig
+	cdHandler                    pipeline.CdHandler
+	appCloneService              appClone.AppCloneService
+	materialRepository           pipelineConfig.MaterialRepository
+	policyService                security2.PolicyService
+	scanResultRepository         security.ImageScanResultRepository
+	gitProviderRepo              repository.GitProviderRepository
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -131,33 +132,35 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	appCloneService appClone.AppCloneService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
-	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository) *PipelineConfigRestHandlerImpl {
+	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineConfigRestHandlerImpl {
 	return &PipelineConfigRestHandlerImpl{
-		pipelineBuilder:         pipelineBuilder,
-		Logger:                  Logger,
-		chartService:            chartService,
-		propertiesConfigService: propertiesConfigService,
-		dbMigrationService:      dbMigrationService,
-		application:             application,
-		userAuthService:         userAuthService,
-		validator:               validator,
-		teamService:             teamService,
-		enforcer:                enforcer,
-		ciHandler:               ciHandler,
-		gitSensorClient:         gitSensorClient,
-		ciPipelineRepository:    ciPipelineRepository,
-		pipelineRepository:      pipelineRepository,
-		enforcerUtil:            enforcerUtil,
-		envService:              envService,
-		gitRegistryConfig:       gitRegistryConfig,
-		dockerRegistryConfig:    dockerRegistryConfig,
-		cdHandler:               cdHandler,
-		appCloneService:         appCloneService,
-		appWorkflowService:      appWorkflowService,
-		materialRepository:      materialRepository,
-		policyService:           policyService,
-		scanResultRepository:    scanResultRepository,
-		gitProviderRepo:         gitProviderRepo,
+		pipelineBuilder:              pipelineBuilder,
+		Logger:                       Logger,
+		chartService:                 chartService,
+		propertiesConfigService:      propertiesConfigService,
+		dbMigrationService:           dbMigrationService,
+		application:                  application,
+		userAuthService:              userAuthService,
+		validator:                    validator,
+		teamService:                  teamService,
+		enforcer:                     enforcer,
+		ciHandler:                    ciHandler,
+		gitSensorClient:              gitSensorClient,
+		ciPipelineRepository:         ciPipelineRepository,
+		pipelineRepository:           pipelineRepository,
+		enforcerUtil:                 enforcerUtil,
+		envService:                   envService,
+		gitRegistryConfig:            gitRegistryConfig,
+		dockerRegistryConfig:         dockerRegistryConfig,
+		cdHandler:                    cdHandler,
+		appCloneService:              appCloneService,
+		appWorkflowService:           appWorkflowService,
+		materialRepository:           materialRepository,
+		policyService:                policyService,
+		scanResultRepository:         scanResultRepository,
+		gitProviderRepo:              gitProviderRepo,
+		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 	}
 }
 

@@ -169,8 +169,34 @@ func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWri
 	}
 	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, resourceName); !ok {
-		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-		return
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, resourceName); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		} else {
+			// allowing branch change only if regex is present rest of the changes are filtered out
+			var materialList []*bean.CiMaterial
+			for _, material := range patchRequest.CiPipeline.CiMaterial {
+				if handler.ciPipelineMaterialRepository.CheckRegexExistsForMaterial(patchRequest.CiPipeline.Id, material.GitMaterialId) {
+					var sourceList []*bean.SourceTypeConfig
+					for _, config := range material.Source {
+						if config.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+							source := &bean.SourceTypeConfig{
+								Type:  config.Type,
+								Value: config.Value,
+							}
+							sourceList = append(sourceList, source)
+						}
+					}
+					material.Source = sourceList
+					materialList = append(materialList, material)
+				}
+			}
+			if len(materialList) == 0 {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+			patchRequest.CiPipeline.CiMaterial = materialList
+		}
 	}
 
 	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(patchRequest.AppId, patchRequest.CiPipeline.Id)
