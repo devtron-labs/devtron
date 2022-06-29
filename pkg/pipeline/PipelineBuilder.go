@@ -1124,10 +1124,17 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 		impl.logger.Errorw("error in getting deployment groups by envId and CiPipelineId", "err", err)
 		return err
 	} else if len(deploymentGroups) > 0 {
+		var deploymentGroupNames []string
+		for _, group := range deploymentGroups {
+			deploymentGroupNames = append(deploymentGroupNames, group.Name)
+		}
+		groupNamesByte, err := json.Marshal(deploymentGroupNames)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling deployment group names", "err", err, "deploymentGroupNames", deploymentGroupNames)
+		}
 		impl.logger.Debugw("cannot delete cd pipeline, is being used in deployment group")
-		return fmt.Errorf("Please remove this CD pipeline from deployment group before deleting this pipeline")
+		return fmt.Errorf("Please remove this CD pipeline from deployment groups : %s", string(groupNamesByte))
 	}
-
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
