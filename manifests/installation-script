@@ -1,4 +1,4 @@
-LTAG="v0.4.19";
+LTAG="v0.4.20";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
@@ -11,6 +11,7 @@ azureAccountKey = jsonSelect(operatorSecret, "data.AZURE_ACCOUNT_KEY");
 postgresSecret = kubectl get secret -n devtroncd postgresql-postgresql;
 enableLegacyApi = jsonSelect(operatorConfigMap, "data.ENABLE_LEGACY_API");
 helmInstallation = jsonSelect(operatorConfigMap, "data.INSTALLATION_THROUGH_HELM");
+
 
 baseURLScheme = jsonSelect(operatorConfigMap, "data.BASE_URL_SCHEME");
 baseURL = jsonSelect(operatorConfigMap, "data.BASE_URL");
@@ -450,11 +451,18 @@ log("executed migrator setup command");
 ## #nats
 ## natsOperator = kubectl apply -n devtroncd natsOperator -u natsOperatorOverride;
 ## log("executed nats operator setup");
+hasNatsServerPod = kubectl get pod -n devtroncd devtron-nats-0;
+hasNatsServerPVC = kubectl get -n devtroncd pvc data-devtron-nats-0;
+if hasNatsServerPod && !hasNatsServerPVC {
+  log("Nats Server PVC not found");
+  natsStsDelete = kubectl delete -n devtroncd sts devtron-nats;
+  ignore = shellScript sleep50;
+  natsServerWithPVC = kubectl apply -n devtroncd natsServer -u natsServerOverride;
+  log("Nats PVC created and statefulset re-created");
+}
+else {
 ignore = shellScript sleep50;
 natsServer = kubectl apply -n devtroncd natsServer -u natsServerOverride;
-hasNatsServerPod = kubectl get pod -n devtroncd devtron-nats-0;
-if hasNatsServerPod {
-  natsPodDelete = kubectl delete -n devtroncd po "devtron-nats-0";
 }
 log(hasNatsServerPod);
 log("executed nats server setup");
