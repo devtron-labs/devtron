@@ -121,7 +121,7 @@ func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string,
 		}
 		if len(branch) == 0 && len(branches) > 0 {
 			branch = strings.ReplaceAll(branches[0], "origin/", "")
-		} else {
+		} else if len(branch) == 0 {
 			// only fetch will work, as we don't have any branch for pull
 			return "", "", nil
 		}
