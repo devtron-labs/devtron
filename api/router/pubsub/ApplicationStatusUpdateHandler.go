@@ -102,7 +102,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			} else if application.Status.OperationState != nil && application.Status.OperationState.Operation.Sync != nil {
 				gitHash = application.Status.OperationState.Operation.Sync.Revision
 			}
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash)
+			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
 			if err != nil {
 				impl.logger.Errorw("deployment success event error", "gitHash", gitHash, "err", err)
 				return

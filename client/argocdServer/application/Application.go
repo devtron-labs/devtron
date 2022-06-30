@@ -91,10 +91,10 @@ type Result struct {
 
 type ResourceTreeResponse struct {
 	*v1alpha1.ApplicationTree
-	NewGenerationReplicaSet string                          `json:"newGenerationReplicaSet"`
-	Status                  string                          `json:"status"`
-	PodMetadata             []*PodMetadata                  `json:"podMetadata"`
-	Conditions              []v1alpha1.ApplicationCondition `json:"conditions"`
+	NewGenerationReplicaSets []string                        `json:"newGenerationReplicaSets"`
+	Status                   string                          `json:"status"`
+	PodMetadata              []*PodMetadata                  `json:"podMetadata"`
+	Conditions               []v1alpha1.ApplicationCondition `json:"conditions"`
 }
 
 type PodMetadata struct {
@@ -383,7 +383,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 		return nil, err
 	}
 	responses := parseResult(resp, query, ctx, asc, err, c)
-	podMetadata, newReplicaSet := c.buildPodMetadata(resp, responses)
+	podMetadata, newReplicaSets := c.buildPodMetadata(resp, responses)
 
 	appQuery := application.ApplicationQuery{Name: query.ApplicationName}
 	app, err := asc.Watch(ctxt, &appQuery)
@@ -392,7 +392,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	if app != nil {
 		appResp, err := app.Recv()
 		if err == nil {
-			status = appResp.Application.Status.Health.String()
+			status = string(appResp.Application.Status.Health.Status)
 			conditions = appResp.Application.Status.Conditions
 			for _, condition := range conditions {
 				if condition.Type != v1alpha1.ApplicationConditionSharedResourceWarning {
@@ -404,13 +404,13 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 			}
 		}
 	}
-	return &ResourceTreeResponse{resp, newReplicaSet, status, podMetadata, conditions}, err
+	return &ResourceTreeResponse{resp, newReplicaSets, status, podMetadata, conditions}, err
 }
 
-func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*Result) (podMetaData []*PodMetadata, newReplicaSet string) {
-	rolloutManifest := make(map[string]interface{})
+func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*Result) (podMetaData []*PodMetadata, newReplicaSets []string) {
+	rolloutManifests := make([]map[string]interface{}, 0)
 	statefulSetManifest := make(map[string]interface{})
-	deploymentManifest := make(map[string]interface{})
+	deploymentManifests := make([]map[string]interface{}, 0)
 	daemonSetManifest := make(map[string]interface{})
 	replicaSetManifests := make([]map[string]interface{}, 0)
 	podManifests := make([]map[string]interface{}, 0)
@@ -422,14 +422,20 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 			kind := *response.Request.Kind
 			manifestFromResponse := *response.Response.Manifest
 			if kind == "Rollout" {
-				err := json.Unmarshal([]byte(manifestFromResponse), &rolloutManifest)
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
 				if err != nil {
 					c.logger.Error(err)
+				}else{
+					rolloutManifests = append(rolloutManifests, manifest)
 				}
 			} else if kind == "Deployment" {
-				err := json.Unmarshal([]byte(manifestFromResponse), &deploymentManifest)
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
 				if err != nil {
 					c.logger.Error(err)
+				}else{
+					deploymentManifests = append(deploymentManifests, manifest)
 				}
 			} else if kind == "StatefulSet" {
 				err := json.Unmarshal([]byte(manifestFromResponse), &statefulSetManifest)
@@ -472,12 +478,22 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	}
 	newPodNames := make(map[string]bool, 0)
 	// for rollout we compare pod hash
-	if _, ok := rolloutManifest["kind"]; ok {
-		newReplicaSet = c.getRolloutNewReplicaSetName(rolloutManifest, replicaSetManifests)
+	for _, rolloutManifest := range rolloutManifests {
+		if _, ok := rolloutManifest["kind"]; ok {
+			newReplicaSet := c.getRolloutNewReplicaSetName(rolloutManifest, replicaSetManifests)
+			if len(newReplicaSet) > 0 {
+				newReplicaSets = append(newReplicaSets, newReplicaSet)
+			}
+		}
 	}
 
-	if _, ok := deploymentManifest["kind"]; ok {
-		newReplicaSet = c.getDeploymentNewReplicaSetName(deploymentManifest, replicaSetManifests)
+	for _, deploymentManifest := range deploymentManifests {
+		if _, ok := deploymentManifest["kind"]; ok {
+			newReplicaSet := c.getDeploymentNewReplicaSetName(deploymentManifest, replicaSetManifests)
+			if len(newReplicaSet) > 0 {
+				newReplicaSets = append(newReplicaSets, newReplicaSet)
+			}
+		}
 	}
 
 	if _, ok := statefulSetManifest["kind"]; ok {
@@ -508,8 +524,8 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 
 	//podMetaData := make([]*PodMetadata, 0)
 	duplicateCheck := make(map[string]bool)
-	if newReplicaSet != "" {
-		results := buildPodMetadataFromReplicaSet(resp, newReplicaSet, replicaSetManifests)
+	if len(newReplicaSets) > 0 {
+		results := c.buildPodMetadataFromReplicaSet(resp, newReplicaSets, replicaSetManifests)
 		for _, meta := range results {
 			duplicateCheck[meta.Name] = true
 			podMetaData = append(podMetaData, meta)
@@ -880,7 +896,7 @@ func getPodInitContainers(resource map[string]interface{}) []*string {
 	return containers
 }
 
-func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSet string, replicaSetManifests []map[string]interface{}) (podMetadata []*PodMetadata) {
+func (c ServiceClientImpl) buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSets []string, replicaSetManifests []map[string]interface{}) (podMetadata []*PodMetadata) {
 	replicaSets := make(map[string]map[string]interface{})
 	for _, replicaSet := range replicaSetManifests {
 		replicaSets[getResourceName(replicaSet)] = replicaSet
@@ -894,7 +910,13 @@ func buildPodMetadataFromReplicaSet(resp *v1alpha1.ApplicationTree, newReplicaSe
 				}
 			}
 			if parentName != "" {
-				isNew := parentName == newReplicaSet
+				isNew := false
+				for _, newReplicaSet := range newReplicaSets {
+					if parentName == newReplicaSet {
+						isNew = true
+						break
+					}
+				}
 				replicaSet := replicaSets[parentName]
 				containers, intContainers := getReplicaSetContainers(replicaSet)
 				metadata := PodMetadata{Name: node.Name, UID: node.UID, Containers: containers, InitContainers: intContainers, IsNew: isNew}
