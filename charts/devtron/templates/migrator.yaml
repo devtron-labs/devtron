@@ -5,6 +5,8 @@ kind: Job
 metadata:
   name: postgresql-migrate-devtron-{{ randAlphaNum 5 | lower }}
   annotations: {}
+  labels:
+    job: postgresql-migrate-devtron
 spec:
   ttlSecondsAfterFinished: 1000
   template:

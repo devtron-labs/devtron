@@ -33,6 +33,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
 	"github.com/gorilla/mux"
@@ -360,11 +361,11 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
 				UserMessage:     "app detail fetched, failed to get resource tree from acd",
 			}
-			appDetail.ResourceTree = &application.ResourceTreeResponse{}
+			appDetail.ResourceTree = map[string]interface{}{}
 			common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 			return
 		}
-		appDetail.ResourceTree = resp
+		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
 		handler.Logger.Debugf("application %s in environment %s had status %+v\n", installedAppId, envId, resp)
 	} else {
 		handler.Logger.Infow("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)

@@ -175,7 +175,7 @@ prometheusRule:
 
 
 ingress:
-  enabled: true
+  enabled: false
   className: nginx
   annotations: {}
 #    nginx.ingress.kubernetes.io/rewrite-target: /
@@ -204,7 +204,7 @@ ingress:
   #      - chart-example.local
 
 ingressInternal:
-  enabled: true
+  enabled: false
   className: nginx-internal
   annotations: {}
  #    kubernetes.io/ingress.class: nginx
@@ -231,8 +231,9 @@ dbMigrationConfig:
   enabled: false
 
 command:
+  workingDir: /app
   enabled: false
-  value: []
+  value: ["ls"]
 
 args:
   enabled: false

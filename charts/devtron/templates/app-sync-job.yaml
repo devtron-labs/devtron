@@ -5,6 +5,11 @@ metadata:
 spec:
       template:
         spec:
+          serviceAccountName: devtron
+          initContainers:
+          - name: migration-wait
+            image: "quay.io/devtron/kubectl:latest"
+            command: ['sh', '-c', 'while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-devtron -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done']
           containers:
           - name: chart-sync
             image: quay.io/devtron/chart-sync:1227622d-132-3775

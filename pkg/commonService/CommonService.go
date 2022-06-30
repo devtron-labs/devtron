@@ -85,7 +85,7 @@ type ChartChecklist struct {
 }
 
 type AppChecklist struct {
-	GitOps      int `json:"gitOps"`
+	GitOps      int `json:"gitOps,omitempty"`
 	Project     int `json:"project"`
 	Git         int `json:"git"`
 	Environment int `json:"environment"`
@@ -186,7 +186,7 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 
 	if gitOps.Id > 0 {
 		chartChecklist.GitOps = 1
-		appChecklist.GitOps = 1
+		//appChecklist.GitOps = 1
 	}
 	if len(dockerReg.Id) > 0 {
 		appChecklist.Docker = 1

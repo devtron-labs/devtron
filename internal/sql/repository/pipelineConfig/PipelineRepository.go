@@ -59,6 +59,7 @@ type Pipeline struct {
 	RunPreStageInEnv              bool        `sql:"run_pre_stage_in_env"`               // secret names
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
 	DeploymentAppCreated          bool        `sql:"deployment_app_created,notnull"`
+	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
 	Environment                   repository.Environment
 	sql.AuditLog
 }
@@ -88,9 +89,10 @@ type PipelineRepository interface {
 	FindAllPipelineInLast24Hour() (pipelines []*Pipeline, err error)
 	FindActiveByEnvId(envId int) (pipelines []*Pipeline, err error)
 	FindAllPipelinesByChartsOverrideAndAppIdAndChartId(chartOverridden bool, appId int, chartId int) (pipelines []*Pipeline, err error)
-	Exists() (exist bool, err error)
 	FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error)
 	UpdateCdPipeline(pipeline *Pipeline) error
+	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
+	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -367,12 +369,6 @@ func (impl PipelineRepositoryImpl) FindAllPipelinesByChartsOverrideAndAppIdAndCh
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) Exists() (exist bool, err error) {
-	var pipelines []*Pipeline
-	exist, err = impl.dbConnection.Model(&pipelines).Exists()
-	return exist, err
-}
-
 func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pipelineId int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
@@ -386,4 +382,32 @@ func (impl PipelineRepositoryImpl) FindActiveByAppIdAndPipelineId(appId int, pip
 func (impl PipelineRepositoryImpl) UpdateCdPipeline(pipeline *Pipeline) error {
 	err := impl.dbConnection.Update(pipeline)
 	return err
+}
+
+func (impl PipelineRepositoryImpl) FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error) {
+	var pipelines []*Pipeline
+	count, err = impl.dbConnection.
+		Model(&pipelines).
+		ColumnExpr("DISTINCT app_id").
+		Where("app_id in (?)", pg.In(appIds)).
+		Count()
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
+func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	err := impl.dbConnection.
+		Model(&pipelines).
+		Column("pipeline.id", "App.app_name", "Environment.cluster_id", "Environment.namespace", "Environment.environment_name").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Join("inner join environment e on pipeline.environment_id = e.id").
+		Where("e.cluster_id in (?)", pg.In(clusterIds)).
+		Where("a.active = ?", true).
+		Where("pipeline.deleted = ?", false).
+		Where("pipeline.deployment_app_type = ?", deploymentAppType).
+		Select()
+	return pipelines, err
 }

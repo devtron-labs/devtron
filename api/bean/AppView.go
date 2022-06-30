@@ -20,7 +20,6 @@ package bean
 import (
 	"encoding/json"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/devtron/client/argocdServer/application"
 )
 
 type AppContainer struct {
@@ -107,14 +106,15 @@ type DeploymentDetailContainer struct {
 	K8sVersion                    string          `json:"k8sVersion"`
 	CiArtifactId                  int             `json:"ciArtifactId"`
 	ClusterId                     int             `json:"clusterId"`
+	DeploymentAppType             string          `json:"deploymentAppType"`
 }
 
 type AppDetailContainer struct {
 	DeploymentDetailContainer `json:",inline"`
-	InstanceDetail            []InstanceDetail                  `json:"instanceDetail"` //pod list with cpu, memory usage percent
-	Environments              []Environment                     `json:"otherEnvironment,omitempty"`
-	LinkOuts                  []LinkOuts                        `json:"linkOuts,omitempty"`
-	ResourceTree              *application.ResourceTreeResponse `json:"resourceTree,omitempty"`
+	InstanceDetail            []InstanceDetail       `json:"instanceDetail"` //pod list with cpu, memory usage percent
+	Environments              []Environment          `json:"otherEnvironment,omitempty"`
+	LinkOuts                  []LinkOuts             `json:"linkOuts,omitempty"`
+	ResourceTree              map[string]interface{} `json:"resourceTree,omitempty"`
 }
 
 type Environment struct {
