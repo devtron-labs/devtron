@@ -476,6 +476,10 @@ func (impl *DeploymentGroupServiceImpl) TriggerReleaseForDeploymentGroup(trigger
 		impl.logger.Errorw("error in fetching cdPipelines ", "triggerRequest", triggerRequest, "err", err)
 		return nil, err
 	}
+	if len(cdPipelines) == 0 {
+		impl.logger.Errorw("no cdPipelines found", "req", triggerRequest)
+		return nil, fmt.Errorf("no cdPipelines found corresponding to deployment group %d", triggerRequest.DeploymentGroupId)
+	}
 	var requests []*pipeline.BulkTriggerRequest
 	ciArtefactMapping := make(map[int]*repository.CiArtifact)
 	for _, ciArtefact := range ciArtifacts {

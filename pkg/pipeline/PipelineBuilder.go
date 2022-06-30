@@ -144,6 +144,7 @@ type PipelineBuilderImpl struct {
 	chartRefRepository               chartRepoRepository.ChartRefRepository
 	chartService                     chart.ChartService
 	helmAppService                   client.HelmAppService
+	deploymentGroupRepository        repository.DeploymentGroupRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -178,7 +179,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	pipelineStageService PipelineStageService, chartRefRepository chartRepoRepository.ChartRefRepository,
 	chartTemplateService util.ChartTemplateService, chartService chart.ChartService,
-	helmAppService client.HelmAppService) *PipelineBuilderImpl {
+	helmAppService client.HelmAppService,
+	deploymentGroupRepository repository.DeploymentGroupRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -217,6 +219,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		chartRefRepository:               chartRefRepository,
 		chartService:                     chartService,
 		helmAppService:                   helmAppService,
+		deploymentGroupRepository:        deploymentGroupRepository,
 	}
 }
 
@@ -1114,6 +1117,23 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	if err != nil {
 		impl.logger.Errorw("err in fetching pipeline", "id", pipelineId, "err", err)
 		return err
+	}
+	//getting deployment group for this pipeline
+	deploymentGroups, err := impl.deploymentGroupRepository.FindByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting deployment groups by envId", "err", err)
+		return err
+	} else if len(deploymentGroups) > 0 {
+		var deploymentGroupNames []string
+		for _, group := range deploymentGroups {
+			deploymentGroupNames = append(deploymentGroupNames, group.Name)
+		}
+		groupNamesByte, err := json.Marshal(deploymentGroupNames)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling deployment group names", "err", err, "deploymentGroupNames", deploymentGroupNames)
+		}
+		impl.logger.Debugw("cannot delete cd pipeline, is being used in deployment group")
+		return fmt.Errorf("Please remove this CD pipeline from deployment groups : %s", string(groupNamesByte))
 	}
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
