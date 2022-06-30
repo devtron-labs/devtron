@@ -1055,7 +1055,24 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		}
 		err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
 		if err != nil {
-			return nil, err
+			impl.logger.Errorw("error in register in argo", "err", err)
+			emptyRepoErrorMessage := "failed to get index: 404 Not Found"
+			if err.Error() == emptyRepoErrorMessage {
+				// - found empty repository, create some file in repository
+				err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, pipelineCreateRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error in creating file in git repo", "err", err)
+					return nil, err
+				}
+				// - retry register in argo
+				err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+				if err != nil {
+					impl.logger.Errorw("error in re-try register in argo", "err", err)
+					return nil, err
+				}
+			} else {
+				return nil, err
+			}
 		}
 
 		// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
