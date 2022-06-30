@@ -626,6 +626,7 @@ func (impl DbPipelineOrchestratorImpl) deleteExternalCiDetails(ciPipeline *pipel
 func (impl DbPipelineOrchestratorImpl) addPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error {
 	var materials []*gitSensor.CiPipelineMaterial
 	for _, ciPipelineMaterial := range pipelineMaterials {
+		impl.logger.Infow("Pipeline materials for git sensor", "id", ciPipelineMaterial.Id)
 		if ciPipelineMaterial.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
 			material := &gitSensor.CiPipelineMaterial{
 				Id:            ciPipelineMaterial.Id,
@@ -635,6 +636,8 @@ func (impl DbPipelineOrchestratorImpl) addPipelineMaterialInGitSensor(pipelineMa
 				Type:          gitSensor.SourceType(ciPipelineMaterial.Type),
 			}
 			materials = append(materials, material)
+		} else {
+			impl.logger.Debugw("Pipeline materials skipped from git sensor", "id", ciPipelineMaterial.Id)
 		}
 	}
 
