@@ -104,6 +104,7 @@ type PipelineBuilder interface {
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
 	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
+	PatchRegexCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
 }
 
 type PipelineBuilderImpl struct {
@@ -883,7 +884,19 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	}
 
 }
-
+func (impl PipelineBuilderImpl) PatchRegexCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error) {
+	ciConfig, err = impl.getCiTemplateVariables(request.AppId)
+	if err != nil {
+		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", request.AppId)
+		return nil, err
+	}
+	ciConfig.AppWorkflowId = request.AppWorkflowId
+	ciConfig.UserId = request.UserId
+	if request.CiPipeline != nil {
+		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
+	}
+	return impl.patchCiPipelineUpdateSource(ciConfig, request.CiPipeline)
+}
 func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error) {
 
 	//wf validation
