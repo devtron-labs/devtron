@@ -1119,9 +1119,9 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 		return err
 	}
 	//getting deployment group for this pipeline
-	deploymentGroups, err := impl.deploymentGroupRepository.FindByAppIdEnvIdAndCiPipelineId(pipeline.EnvironmentId, pipeline.AppId)
+	deploymentGroups, err := impl.deploymentGroupRepository.FindByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting deployment groups by envId and CiPipelineId", "err", err)
+		impl.logger.Errorw("error in getting deployment groups by envId", "err", err)
 		return err
 	} else if len(deploymentGroups) > 0 {
 		var deploymentGroupNames []string

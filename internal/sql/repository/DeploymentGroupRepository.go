@@ -31,7 +31,7 @@ type DeploymentGroupRepository interface {
 	Update(model *DeploymentGroup) (*DeploymentGroup, error)
 	Delete(model *DeploymentGroup) error
 	FindByIdWithApp(id int) (*DeploymentGroup, error)
-	FindByAppIdEnvIdAndCiPipelineId(envId, appId int) ([]DeploymentGroup, error)
+	FindByAppIdAndEnvId(envId, appId int) ([]DeploymentGroup, error)
 }
 
 type DeploymentGroupRepositoryImpl struct {
@@ -109,7 +109,7 @@ func (impl *DeploymentGroupRepositoryImpl) FindByIdWithApp(id int) (*DeploymentG
 	return deploymentGroup, err
 }
 
-func (impl *DeploymentGroupRepositoryImpl) FindByAppIdEnvIdAndCiPipelineId(envId, appId int) ([]DeploymentGroup, error) {
+func (impl *DeploymentGroupRepositoryImpl) FindByAppIdAndEnvId(envId, appId int) ([]DeploymentGroup, error) {
 	var models []DeploymentGroup
 	err := impl.dbConnection.Model(&models).Column("deployment_group.*").
 		Join("INNER JOIN deployment_group_app dga ON dga.deployment_group_id = deployment_group.id").
