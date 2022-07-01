@@ -1,4 +1,4 @@
-# Install Devtron on Local Machine/VM
+# Install Devtron on Local Machine
 
 ## Before you begin
 Before we get started and install Devtron, we need to set up the cluster in our servers.
@@ -12,7 +12,7 @@ Before we get started and install Devtron, we need to set up the cluster in our 
 2. 4GB+ of free memory
 3. 20GB+ free disk space
 
-## Installing Devtron on Minikube/Kind Cluster
+## Installing Devtron on Local Cluster
 1. Add Devtron repository
 2. Install Devtron 
 3. Port-forward the devtron-service to access dashboard
@@ -21,7 +21,7 @@ Before we get started and install Devtron, we need to set up the cluster in our 
 
 {% tab title="Devtron on Minikube/kind cluster" %}
 
- To install devtron on Minikube/kind Cluster use the Following commands
+ To install devtron on ``Minikube/kind`` Cluster use the Following commands
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
@@ -33,7 +33,7 @@ helm install devtron devtron/devtron-operator \
 {% endtab %}
 
 {% tab title="Devtron on k3s Cluster" %}
-To install devtron on k3s Cluster use the Following commands
+To install devtron on ``k3s`` Cluster use the Following commands
 ```bash
 curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
 
@@ -67,7 +67,7 @@ To access dashboard when using ``Minikube`` as Cluster use this command, dashboa
 minikube service devtron-service --namespace devtroncd
 ```
 
-To access dashboard when using ``Kind/k3s`` as Cluster use this command to port forward the devtron service to port 8000  
+To access dashboard when using ``Kind/k3s`` as Cluster, use this command to port forward the devtron service to port 8000  
 ```bash
 kubectl -ndevtroncd port-forward service/devtron-service 8000:80
 ```
