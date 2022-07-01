@@ -250,6 +250,8 @@ type AppStoreApplicationVersionResponse struct {
 	CreatedOn               time.Time `json:"createdOn"`
 	RawValues               string    `json:"rawValues"`
 	Readme                  string    `json:"readme"`
+	SchemaJson              string    `json:"schema_json"`
+	Notes                   string    `json:"notes"`
 	UpdatedOn               time.Time `json:"updatedOn"`
 	IsChartRepoActive       bool      `json:"isChartRepoActive"`
 }

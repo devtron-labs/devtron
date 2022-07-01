@@ -81,6 +81,8 @@ func (impl *AppStoreServiceImpl) FindChartDetailsById(id int) (appStoreBean.AppS
 		UpdatedOn:               chartDetails.UpdatedOn,
 		RawValues:               chartDetails.RawValues,
 		Readme:                  chartDetails.Readme,
+		SchemaJson:              chartDetails.SchemaJson,
+		Notes:                   chartDetails.Notes,
 		IsChartRepoActive:       chartDetails.AppStore.ChartRepo.Active,
 	}
 	return appStoreApplicationVersion, nil
