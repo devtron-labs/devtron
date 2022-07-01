@@ -47,6 +47,7 @@ helm install devtron devtron/devtron-operator \
 ```
 
 {% endtab %}
+{% endtab %}
  
 
 ### Devtron Admin credentials
