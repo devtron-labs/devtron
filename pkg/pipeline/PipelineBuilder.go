@@ -1055,9 +1055,9 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		}
 		err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
 		if err != nil {
-			impl.logger.Errorw("error in register in argo", "err", err)
-			emptyRepoErrorMessage := "failed to get index: 404 Not Found"
-			if err.Error() == emptyRepoErrorMessage {
+			impl.logger.Errorw("error while register git repo in argo", "err", err)
+			emptyRepoErrorMessage := "remote repository is empty"
+			if strings.Contains(err.Error(), emptyRepoErrorMessage) {
 				// - found empty repository, create some file in repository
 				err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, pipelineCreateRequest.UserId)
 				if err != nil {
