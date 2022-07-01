@@ -2,15 +2,15 @@
 
 ## Before you begin
 Before we get started and install Devtron, we need to set up the cluster in our servers.
-Create cluster using [Minikube](https://minikube.sigs.k8s.io/docs/start/)
-Create cluster using [Kind tool](https://kind.sigs.k8s.io/docs/user/quick-start/)
-Create cluster using [K3s](https://rancher.com/docs/k3s/latest/en/installation/)
-Install [Helm3](https://helm.sh/docs/intro/install/).
-Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
+ * Create cluster using [Minikube](https://minikube.sigs.k8s.io/docs/start/)
+ * Create cluster using [Kind tool](https://kind.sigs.k8s.io/docs/user/quick-start/)
+ * Create cluster using [K3s](https://rancher.com/docs/k3s/latest/en/installation/)
+ * Install [Helm3](https://helm.sh/docs/intro/install/)
+ * Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
 #### System Configurations for Devtron Installation
-2 CPUs+ cores
-4GB+ of free memory
-20GB+ free disk space
+1. 2 CPUs+ cores
+2. 4GB+ of free memory
+3. 20GB+ free disk space
 
 ## Installing Devtron on Minikube/Kind Cluster
 1. Add Devtron repository
@@ -65,7 +65,7 @@ To access dashboard when using ``Minikube`` as Cluster use this command, dashboa
 minikube service devtron-service --namespace devtroncd
 ```
 
-To access dashboard when using ``Kind`` as Cluster use this command to port forward the devtron service to port 8000  
+To access dashboard when using ``Kind/k3s`` as Cluster use this command to port forward the devtron service to port 8000  
 ```bash
 kubectl -ndevtroncd port-forward service/devtron-service 8000:80
 ```
