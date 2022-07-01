@@ -30,7 +30,7 @@ helm install devtron devtron/devtron-operator \
 ```
 {% endtab %}
 
-{% tabs %}
+
 {% tab title="Devtron on k3s Cluster" %}
 
 ```bash
