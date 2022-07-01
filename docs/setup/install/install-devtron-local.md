@@ -28,7 +28,9 @@ helm install devtron devtron/devtron-operator \
 --set components.devtron.service.type=NodePort
 
 ```
+
 {% endtab %}
+
 {% tab title="Devtron on k3s Cluster" %}
 To install devtron on k3s Cluster use the Following commands
 ```bash
@@ -43,8 +45,9 @@ helm install devtron devtron/devtron-operator \
 --set components.devtron.service.type=NodePort
 
 ```
+
 {% endtab %}
-{% endtab %}
+{% endtabs %}
  
 
 ### Devtron Admin credentials
