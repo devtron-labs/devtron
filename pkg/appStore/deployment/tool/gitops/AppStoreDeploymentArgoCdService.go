@@ -16,6 +16,7 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	appStoreDeploymentHelm "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/ghodss/yaml"
@@ -50,12 +51,13 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	chartTemplateService              util.ChartTemplateService
 	gitOpsRepository                  repository2.GitOpsConfigRepository
 	gitFactory                        *util.GitFactory
+	appStoreDeploymentHelmService     appStoreDeploymentHelm.AppStoreDeploymentHelmService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
-	gitOpsRepository repository2.GitOpsConfigRepository, gitFactory *util.GitFactory) *AppStoreDeploymentArgoCdServiceImpl {
+	gitOpsRepository repository2.GitOpsConfigRepository, gitFactory *util.GitFactory, appStoreDeploymentHelmService appStoreDeploymentHelm.AppStoreDeploymentHelmService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -66,22 +68,40 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		chartTemplateService:              chartTemplateService,
 		gitOpsRepository:                  gitOpsRepository,
 		gitFactory:                        gitFactory,
+		appStoreDeploymentHelmService:     appStoreDeploymentHelmService,
 	}
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
 	//step 2 git operation pull push
-	installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
-	if err != nil {
-		impl.Logger.Errorw(" error", "err", err)
-		return installAppVersionRequest, err
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
+		return nil, err
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
 	}
 
-	//step 3 acd operation register, sync
-	installAppVersionRequest, err = impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
-	if err != nil {
-		impl.Logger.Errorw(" error", "err", err)
-		return installAppVersionRequest, err
+	if isGitOpsConfigured {
+		installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
+		if err != nil {
+			impl.Logger.Errorw(" error", "err", err)
+			return installAppVersionRequest, err
+		}
+		//step 3 acd operation register, sync
+		installAppVersionRequest, err = impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
+		if err != nil {
+			impl.Logger.Errorw(" error", "err", err)
+			return installAppVersionRequest, err
+		}
+	} else {
+		_, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
+		if err != nil {
+			impl.Logger.Errorw(" error while redirecting acd deployment to helm deployment", "err", err)
+			return nil, err
+		}
 	}
 
 	return installAppVersionRequest, nil
