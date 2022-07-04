@@ -160,7 +160,7 @@ spec:
     spec:
       containers:
       - name: kubewatch
-        image: "quay.io/devtron/kubewatch:c37873d1-142-9450"
+        image: "quay.io/devtron/kubewatch:c37873d1-142-9475"
         env:
         - name: devtroncd_NAMESPACE
           value: "devtron-ci"
