@@ -324,7 +324,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndCreateChartRepo(request *Char
 	// Trigger chart sync job, ignore error
 	err = impl.TriggerChartSyncManual()
 	if err != nil {
-		impl.logger.Errorw("Error in triggering chart sync job manually", "err", err)
+		impl.logger.Errorw("Error in triggering chart sync job manually ", "err", err)
 	}
 
 	return chartRepo, err, validationResult
