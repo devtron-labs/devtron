@@ -91,7 +91,7 @@ func (impl GitBitbucketClient) CreateRepository(name, description, workSpaceId, 
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	err = impl.createReadme(repoOptions, userName, userEmailId)
+	_, err = impl.CreateReadme(repoOptions.RepoSlug, userName, userEmailId, repoOptions.Owner)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repoName", repoOptions.RepoSlug, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -140,22 +140,22 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnHttp(repoOptions *bitb
 	}
 	return false, nil
 }
-func (impl GitBitbucketClient) createReadme(repoOptions *bitbucket.RepositoryOptions, userName, userEmailId string) error {
+func (impl GitBitbucketClient) CreateReadme(repoName, userName, userEmailId string, owner string) (string, error) {
 	cfg := &ChartConfig{
-		ChartName:      repoOptions.RepoSlug,
+		ChartName:      repoName,
 		ChartLocation:  "",
 		FileName:       "README.md",
 		FileContent:    "@devtron",
 		ReleaseMessage: "pushing readme",
-		ChartRepoName:  repoOptions.RepoSlug,
+		ChartRepoName:  repoName,
 		UserName:       userName,
 		UserEmailId:    userEmailId,
 	}
-	_, err := impl.CommitValues(cfg, repoOptions.Owner)
+	hash, err := impl.CommitValues(cfg, owner)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme bitbucket", "repo", repoOptions.RepoSlug, "err", err)
+		impl.logger.Errorw("error in creating readme bitbucket", "repo", repoName, "err", err)
 	}
-	return err
+	return hash, err
 }
 func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbucket.RepositoryOptions) (bool, error) {
 	repoUrl := fmt.Sprintf(BITBUCKET_CLONE_BASE_URL+"%s/%s.git", repoOptions.Owner, repoOptions.RepoSlug)
