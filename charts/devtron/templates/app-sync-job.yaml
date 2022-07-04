@@ -23,7 +23,15 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
-          restartPolicy: OnFailure
+          restartPolicy: OnFailure          
+          {{- if $.Values.global.nodeSelector }}
+          nodeSelector:
+            {{- toYaml $.Values.global.nodeSelector | nindent 10 }}
+          {{- end }}
+          {{- if $.Values.global.tolerations }}
+          tolerations:
+            {{- toYaml $.Values.global.tolerations | nindent 10 }}
+          {{- end }}
       backoffLimit: 4
       activeDeadlineSeconds: 120
 ---
@@ -53,4 +61,13 @@ spec:
             - secretRef:
                 name: devtron-secret
           restartPolicy: Never
+          {{- if $.Values.global.nodeSelector }}
+          nodeSelector:
+            {{- toYaml $.Values.global.nodeSelector | nindent 12 }}
+          {{- end }}
+          {{- if $.Values.global.tolerations }}
+          tolerations:
+            {{- toYaml $.Values.global.tolerations | nindent 10 }}
+          {{- end }}
       backoffLimit: 4
+      

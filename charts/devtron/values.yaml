@@ -35,6 +35,10 @@ configs:
   #AZURE_BLOB_CONTAINER_CI_CACHE: "ci-cache-container"
 
 # Change the below values for hyperion only mode (Refer https://docs.devtron.ai/#hyperion )
+global:
+  nodeSelector: {}
+  tolerations: []
+
 components:
   dashboard:
     config:
@@ -45,11 +49,15 @@ components:
       applicationMetrics: "true"
     image: "quay.io/devtron/dashboard:e5b1ec26-325-9503"
     imagePullPolicy: IfNotPresent
+    nodeSelector: {}
+    tolerations: []
 
   devtron:
     image: "quay.io/devtron/hyperion:3ada1c38-280-9501"
     cicdImage: "quay.io/devtron/devtron:3ada1c38-326-9500"
     imagePullPolicy: IfNotPresent
+    nodeSelector: {}
+    tolerations: []
     serviceMonitor:
       enabled: false
     service:
@@ -78,14 +86,20 @@ components:
     initContainer:
       authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
       cicdAuthenticator: "quay.io/argoproj/argocd:v1.8.1"
+    nodeSelector: {}
+    tolerations: []
 
   kubelink:
     image: "quay.io/devtron/kubelink:59a0df88-318-9226"
     imagePullPolicy: IfNotPresent
+    nodeSelector: {}
+    tolerations: []
 
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     imagePullPolicy: "IfNotPresent"
+    nodeSelector: {}
+    tolerations: []
     persistence:
       volumeSize: "20Gi"
 
@@ -104,3 +118,5 @@ components:
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
         GIT_HASH: "3ada1c3847725e127a8c73faad2dbf90c8b0b529"
+    nodeSelector: {}
+    tolerations: []
