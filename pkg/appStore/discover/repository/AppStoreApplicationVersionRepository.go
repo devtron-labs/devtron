@@ -33,7 +33,7 @@ type AppStoreApplicationVersionRepository interface {
 	FindVersionsByAppStoreId(id int) ([]*AppStoreApplicationVersion, error)
 	FindChartVersionByAppStoreId(id int) ([]*AppStoreApplicationVersion, error)
 	FindByIds(ids []int) ([]*AppStoreApplicationVersion, error)
-	GetReadMeById(id int) (*AppStoreApplicationVersion, error)
+	GetReadMeSchemaJsonById(id int) (*AppStoreApplicationVersion, error)
 	FindByAppStoreName(name string) (*appStoreBean.AppStoreWithVersion, error)
 	SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error)
 }
@@ -72,9 +72,9 @@ type AppStoreApplicationVersion struct {
 	AppStore   *AppStore
 }
 
-func (impl AppStoreApplicationVersionRepositoryImpl) GetReadMeById(id int) (*AppStoreApplicationVersion, error) {
+func (impl AppStoreApplicationVersionRepositoryImpl) GetReadMeSchemaJsonById(id int) (*AppStoreApplicationVersion, error) {
 	var appStoreWithVersion AppStoreApplicationVersion
-	err := impl.dbConnection.Model(&appStoreWithVersion).Column("readme", "id").
+	err := impl.dbConnection.Model(&appStoreWithVersion).Column("readme", "schema_json", "id").
 		Where("id= ?", id).Select()
 	return &appStoreWithVersion, err
 }

@@ -28,7 +28,7 @@ type AppStoreService interface {
 	FindAllApps(filter *appStoreBean.AppStoreFilter) ([]appStoreBean.AppStoreWithVersion, error)
 	FindChartDetailsById(id int) (appStoreBean.AppStoreApplicationVersionResponse, error)
 	FindChartVersionsByAppStoreId(appStoreId int) ([]appStoreBean.AppStoreVersionsResponse, error)
-	GetReadMeByAppStoreApplicationVersionId(id int) (*appStoreBean.ReadmeRes, error)
+	GetReadMeSchemaJsonByAppStoreApplicationVersionId(id int) (*appStoreBean.ReadmeSchemaJsonRes, error)
 	SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error)
 }
 
@@ -105,14 +105,15 @@ func (impl *AppStoreServiceImpl) FindChartVersionsByAppStoreId(appStoreId int) (
 	return appStoreVersionsResponse, nil
 }
 
-func (impl *AppStoreServiceImpl) GetReadMeByAppStoreApplicationVersionId(id int) (*appStoreBean.ReadmeRes, error) {
-	appVersion, err := impl.appStoreApplicationRepository.GetReadMeById(id)
+func (impl *AppStoreServiceImpl) GetReadMeSchemaJsonByAppStoreApplicationVersionId(id int) (*appStoreBean.ReadmeSchemaJsonRes, error) {
+	appVersion, err := impl.appStoreApplicationRepository.GetReadMeSchemaJsonById(id)
 	if err != nil {
 		return nil, err
 	}
-	readme := &appStoreBean.ReadmeRes{
+	readme := &appStoreBean.ReadmeSchemaJsonRes{
 		AppStoreApplicationVersionId: appVersion.Id,
 		Readme:                       appVersion.Readme,
+		SchemaJson:                   appVersion.SchemaJson,
 	}
 	return readme, nil
 }

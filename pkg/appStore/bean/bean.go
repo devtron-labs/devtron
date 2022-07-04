@@ -261,9 +261,10 @@ type AppStoreVersionsResponse struct {
 	Id      int    `json:"id"`
 }
 
-type ReadmeRes struct {
+type ReadmeSchemaJsonRes struct {
 	AppStoreApplicationVersionId int    `json:"appStoreApplicationVersionId"`
 	Readme                       string `json:"readme"`
+	SchemaJson                   string `json:"schemaJson"`
 }
 
 type AppStoreWithVersion struct {
