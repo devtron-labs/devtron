@@ -36,6 +36,7 @@ import (
 	"github.com/argoproj/argo-cd/pkg/apiclient/application"
 	repository2 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/util/session"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -59,7 +60,7 @@ type AppStoreDeploymentFullModeService interface {
 	SyncACD(acdAppName string, ctx context.Context)
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
-	GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error)
+	GetGitOpsRepoName(appName string, environmentName string) (string, error)
 }
 
 type AppStoreDeploymentFullModeServiceImpl struct {
@@ -77,6 +78,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	globalEnvVariables                   *util3.GlobalEnvVariables
 	installedAppRepository               repository4.InstalledAppRepository
 	tokenCache                           *util2.TokenCache
+	sessionManager                       *session.SessionManager
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -88,7 +90,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
 	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables,
-	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache) *AppStoreDeploymentFullModeServiceImpl {
+	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache, sessionManager *session.SessionManager) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -104,6 +106,9 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		globalEnvVariables:                   globalEnvVariables,
 		installedAppRepository:               installedAppRepository,
 		tokenCache:                           tokenCache,
+		// injecting sessionManager here - in full mode, some place is needed to inject sessionManager
+		// otherwise wire gives error. FIXME
+		sessionManager:                       sessionManager,
 	}
 }
 
@@ -313,14 +318,14 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 	return nil
 }
 
-func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, error) {
+func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(appName string, environmentName string) (string, error) {
 	gitOpsRepoName := ""
 	ctx, err := impl.tokenCache.BuildACDSynchContext()
 	if err != nil {
 		impl.logger.Errorw("error in creating acd sync context", "err", err)
 		return "", err
 	}
-	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
+	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
 	application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {
 		impl.logger.Errorw("no argo app exists", "acdAppName", acdAppName, "err", err)
@@ -336,7 +341,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(installAppVe
 func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
 	acdAppName := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
 	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
-		gitOpsRepoName, err := impl.GetGitOpsRepoName(installAppVersionRequest)
+		gitOpsRepoName, err := impl.GetGitOpsRepoName(installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
 		if err != nil {
 			return installAppVersionRequest, err
 		}

@@ -148,37 +148,15 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/pipeline/suggest/{type}/{appId}").
 		HandlerFunc(router.restHandler.PipelineNameSuggestion).Methods("GET")
 
-	configRouter.Path("/history/cm/{appId}/{pipelineId}").
-		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeploymentDetailsForDeployedCMHistory).
-		Methods("GET")
-	configRouter.Path("/history/cs/{appId}/{pipelineId}").
-		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeploymentDetailsForDeployedCSHistory).
+	configRouter.Path("/history/deployed-configuration/{appId}/{pipelineId}/{wfrId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedConfigurationsForWorkflow).
 		Methods("GET")
 
-	configRouter.Path("/history/template/{appId}/{pipelineId}").
-		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeploymentDetailsForDeployedTemplatesHistory).
+	configRouter.Path("/history/deployed-component/list/{appId}/{pipelineId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedHistoryComponentList).
 		Methods("GET")
 
-	configRouter.Path("/history/strategy/{appId}/{pipelineId}").
-		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeploymentDetailsForDeployedStrategyHistory).
-		Methods("GET")
-
-	configRouter.Path("/history/cm/{appId}/{pipelineId}/{id}").
-		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedCMHistoryById).
-		Methods("GET")
-	configRouter.Path("/history/cs/{appId}/{pipelineId}/{id}").
-		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedCSHistoryById).
-		Methods("GET")
-
-	configRouter.Path("/history/template/{appId}/{pipelineId}/{id}").
-		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedTemplatesHistoryById).
-		Methods("GET")
-
-	configRouter.Path("/history/strategy/{appId}/{pipelineId}/{id}").
-		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedStrategyHistoryById).
-		Methods("GET")
-
-	configRouter.Path("/history/cd-config/{appId}/{pipelineId}").
-		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedPrePostCdScriptHistory).
+	configRouter.Path("/history/deployed-component/detail/{appId}/{pipelineId}/{id}").
+		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedHistoryComponentDetail).
 		Methods("GET")
 }

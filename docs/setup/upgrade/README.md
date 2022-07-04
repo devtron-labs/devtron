@@ -6,7 +6,8 @@ Devtron can be upgraded in one of the following ways:
 
 **Versions Upgrade**
 
-- [0.3.x-0.4.x](devtron-upgrade-0.3.x-0.4.x.md)
+- [0.4.x to 0.4.x](devtron-upgrade-0.4.x-0.4.x.md)
+- [0.3.x to 0.4.x](devtron-upgrade-0.3.x-0.4.x.md)
 - [0.3.x to 0.3.x](devtron-upgrade-0.3.x-0.3.x.md)
 - [0.2.x to 0.3.x](devtron-upgrade-0.2.x-0.3.x.md)
 

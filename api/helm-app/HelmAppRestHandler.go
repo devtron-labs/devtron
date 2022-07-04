@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
+	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
@@ -17,6 +19,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type HelmAppRestHandler interface {
@@ -28,6 +31,7 @@ type HelmAppRestHandler interface {
 	GetDesiredManifest(w http.ResponseWriter, r *http.Request)
 	DeleteApplication(w http.ResponseWriter, r *http.Request)
 	UpdateApplication(w http.ResponseWriter, r *http.Request)
+	TemplateChart(w http.ResponseWriter, r *http.Request)
 }
 
 type HelmAppRestHandlerImpl struct {
@@ -37,11 +41,13 @@ type HelmAppRestHandlerImpl struct {
 	clusterService                  cluster.ClusterService
 	enforcerUtil                    rbac.EnforcerUtilHelm
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
+	userAuthService                 user.UserService
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	helmAppService HelmAppService, enforcer casbin.Enforcer,
-	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService) *HelmAppRestHandlerImpl {
+	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	userAuthService user.UserService) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
 		logger:                          logger,
 		helmAppService:                  helmAppService,
@@ -49,6 +55,7 @@ func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 		clusterService:                  clusterService,
 		enforcerUtil:                    enforcerUtil,
 		appStoreDeploymentCommonService: appStoreDeploymentCommonService,
+		userAuthService:                 userAuthService,
 	}
 }
 
@@ -292,49 +299,42 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	}
 	//RBAC enforcer Ends
 
-	installedApp, err := handler.appStoreDeploymentCommonService.GetInstalledAppByClusterNamespaceAndName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	// update application externally
+	res, err := handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, request)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-
-	updateReleaseRequest := &InstallReleaseRequest{
-		ValuesYaml: request.GetValuesYaml(),
-		ReleaseIdentifier: &ReleaseIdentifier{
-			ReleaseNamespace: appIdentifier.Namespace,
-			ReleaseName:      appIdentifier.ReleaseName,
-		},
-	}
-
-	var res *openapi.UpdateReleaseResponse
-
-	if installedApp != nil {
-		chartInfo := installedApp.InstallAppVersionChartDTO
-		chartRepoInfo := chartInfo.InstallAppVersionChartRepoDTO
-		updateReleaseRequest.ChartName = chartInfo.ChartName
-		updateReleaseRequest.ChartVersion = chartInfo.ChartVersion
-		updateReleaseRequest.ChartRepository = &ChartRepository{
-			Name:     chartRepoInfo.RepoName,
-			Url:      chartRepoInfo.RepoUrl,
-			Username: chartRepoInfo.UserName,
-			Password: chartRepoInfo.Password,
-		}
-		res, err = handler.helmAppService.UpdateApplicationWithChartInfo(context.Background(), appIdentifier.ClusterId, updateReleaseRequest)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-	} else {
-		res, err = handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, request)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-	}
-
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
+func (handler *HelmAppRestHandlerImpl) TemplateChart(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	request := &openapi2.TemplateChartRequest{}
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	//making this api rbac free
+
+	// template chart starts
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
+	response, err := handler.helmAppService.TemplateChart(ctx, request)
+	if err != nil {
+		handler.logger.Errorw("Error in helm-template", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, response, http.StatusOK)
+}
 
 func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, strings.ToLower(object)); !ok {
@@ -348,15 +348,19 @@ func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) 
 		return nil
 	}
 
+	chartInfo := installedApp.InstallAppVersionChartDTO
+
 	return &InstalledAppInfo{
 		AppId:                 installedApp.AppId,
 		EnvironmentName:       installedApp.EnvironmentName,
 		AppOfferingMode:       installedApp.AppOfferingMode,
 		InstalledAppId:        installedApp.InstalledAppId,
 		InstalledAppVersionId: installedApp.InstalledAppVersionId,
-		AppStoreChartId:       installedApp.InstallAppVersionChartDTO.AppStoreChartId,
+		AppStoreChartId:       chartInfo.AppStoreChartId,
 		ClusterId:             installedApp.ClusterId,
 		EnvironmentId:         installedApp.EnvironmentId,
+		AppStoreChartRepoName: chartInfo.InstallAppVersionChartRepoDTO.RepoName,
+		AppStoreChartName:     chartInfo.ChartName,
 	}
 }
 
@@ -384,4 +388,6 @@ type InstalledAppInfo struct {
 	AppOfferingMode       string `json:"appOfferingMode"`
 	ClusterId             int    `json:"clusterId"`
 	EnvironmentId         int    `json:"environmentId"`
+	AppStoreChartRepoName string `json:"appStoreChartRepoName"`
+	AppStoreChartName     string `json:"appStoreChartName"`
 }

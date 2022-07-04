@@ -1,4 +1,3 @@
-{{- if not .Values.installer.modules }}
 {{- with .Values.components.migrator }}
 ---
 apiVersion: batch/v1
@@ -6,6 +5,8 @@ kind: Job
 metadata:
   name: postgresql-migrate-devtron-{{ randAlphaNum 5 | lower }}
   annotations: {}
+  labels:
+    job: postgresql-migrate-devtron
 spec:
   ttlSecondsAfterFinished: 1000
   template:
@@ -128,5 +129,4 @@ spec:
       {{- end }}
   backoffLimit: 20
   activeDeadlineSeconds: 1500
-{{- end }}
 {{- end }}

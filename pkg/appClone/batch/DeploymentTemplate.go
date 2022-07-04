@@ -23,7 +23,7 @@ import (
 	"fmt"
 	pc "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	v1 "github.com/devtron-labs/devtron/pkg/apis/devtron/v1"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 )
@@ -34,11 +34,11 @@ type DeploymentTemplateAction interface {
 
 type DeploymentTemplateActionImpl struct {
 	appRepo      pc.AppRepository
-	chartService pipeline.ChartService
+	chartService chart.ChartService
 	logger       *zap.SugaredLogger
 }
 
-func NewDeploymentTemplateActionImpl(logger *zap.SugaredLogger, appRepo pc.AppRepository, chartService pipeline.ChartService) *DeploymentTemplateActionImpl {
+func NewDeploymentTemplateActionImpl(logger *zap.SugaredLogger, appRepo pc.AppRepository, chartService chart.ChartService) *DeploymentTemplateActionImpl {
 	return &DeploymentTemplateActionImpl{
 		logger:       logger,
 		appRepo:      appRepo,
@@ -82,7 +82,7 @@ func executeDeploymentTemplateCreate(impl DeploymentTemplateActionImpl, template
 		impl.logger.Errorw("marshal err", "err", err)
 		return fmt.Errorf("invalid values for deployment template")
 	}
-	dTemplate := pipeline.TemplateRequest{
+	dTemplate := chart.TemplateRequest{
 		Id:                  0,
 		AppId:               app.Id,
 		ValuesOverride:      valueOverride,

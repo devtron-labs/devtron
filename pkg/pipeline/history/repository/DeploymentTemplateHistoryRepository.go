@@ -12,6 +12,8 @@ type DeploymentTemplateHistoryRepository interface {
 	CreateHistoryWithTxn(chart *DeploymentTemplateHistory, tx *pg.Tx) (*DeploymentTemplateHistory, error)
 	GetHistoryForDeployedTemplateById(id, pipelineId int) (*DeploymentTemplateHistory, error)
 	GetDeploymentDetailsForDeployedTemplateHistory(pipelineId, offset, limit int) ([]*DeploymentTemplateHistory, error)
+	GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*DeploymentTemplateHistory, error)
+	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeploymentTemplateHistory, error)
 }
 
 type DeploymentTemplateHistoryRepositoryImpl struct {
@@ -38,6 +40,9 @@ type DeploymentTemplateHistory struct {
 	DeployedOn              time.Time `sql:"deployed_on"`
 	DeployedBy              int32     `sql:"deployed_by"`
 	sql.AuditLog
+	//getting below data from cd_workflow_runner and users join
+	DeploymentStatus  string `sql:"-"`
+	DeployedByEmailId string `sql:"-"`
 }
 
 func (impl DeploymentTemplateHistoryRepositoryImpl) CreateHistory(chart *DeploymentTemplateHistory) (*DeploymentTemplateHistory, error) {
@@ -77,6 +82,36 @@ func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeploymentDetailsForDeplo
 		Offset(offset).Limit(limit).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting deployment template history", "err", err)
+		return histories, err
+	}
+	return histories, nil
+}
+
+func (impl DeploymentTemplateHistoryRepositoryImpl) GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*DeploymentTemplateHistory, error) {
+	var history DeploymentTemplateHistory
+	err := impl.dbConnection.Model(&history).Join("INNER JOIN cd_workflow_runner cwr ON cwr.started_on = deployment_template_history.deployed_on").
+		Where("deployment_template_history.pipeline_id = ?", pipelineId).
+		Where("deployment_template_history.deployed = ?", true).
+		Where("cwr.id = ?", wfrId).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment template history by pipelineId & wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
+		return &history, err
+	}
+	return &history, nil
+}
+
+func (impl DeploymentTemplateHistoryRepositoryImpl) GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeploymentTemplateHistory, error) {
+	var histories []*DeploymentTemplateHistory
+	query := "SELECT dth.id, dth.deployed_on, dth.deployed_by, cwr.status as deployment_status, users.email_id as deployed_by_email_id" +
+		" FROM deployment_template_history dth" +
+		" INNER JOIN cd_workflow_runner cwr ON cwr.started_on = dth.deployed_on" +
+		" INNER JOIN users ON users.id = dth.deployed_by" +
+		" WHERE dth.pipeline_id = ? AND dth.deployed = true AND dth.id <= ?" +
+		" ORDER BY dth.id DESC;"
+	_, err := impl.dbConnection.Query(&histories, query, pipelineId, baseConfigId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment template history list by pipelineId", "err", err, "pipelineId", pipelineId)
 		return histories, err
 	}
 	return histories, nil

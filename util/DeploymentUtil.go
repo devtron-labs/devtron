@@ -188,3 +188,7 @@ func ComputeHash(template *v1.PodTemplateSpec, collisionCount *int32) string {
 	}
 	return SafeEncodeString(fmt.Sprint(podTemplateSpecHasher.Sum32()))
 }
+
+func BuildDeployedAppName(appName string, environmentName string) string{
+	return fmt.Sprintf("%s-%s", appName, environmentName)
+}

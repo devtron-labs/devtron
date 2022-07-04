@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/go-pg/pg"
@@ -77,7 +78,7 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var templateRequest pipeline.TemplateRequest
+	var templateRequest chart.TemplateRequest
 	err = decoder.Decode(&templateRequest)
 	templateRequest.UserId = userId
 	if err != nil {
@@ -86,11 +87,13 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 		return
 	}
 	chartRefId := templateRequest.ChartRefId
+
 	validate, err2 := handler.chartService.DeploymentTemplateValidate(templateRequest.ValuesOverride, chartRefId)
 	if !validate {
 		common.WriteJsonResp(w, err2, nil, http.StatusBadRequest)
 		return
 	}
+
 	handler.Logger.Infow("request payload, ConfigureDeploymentTemplateForApp", "payload", templateRequest)
 	err = handler.validator.Struct(templateRequest)
 	if err != nil {
@@ -146,12 +149,16 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		return
 	}
 	handler.Logger.Infow("request payload, CreateCdPipeline", "payload", cdPipeline)
-	err = handler.validator.Struct(cdPipeline)
-	if err != nil {
-		handler.Logger.Errorw("validation err, CreateCdPipeline", "err", err, "payload", cdPipeline)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	userUploaded, err := handler.chartService.CheckCustomChartByAppId(cdPipeline.AppId)
+	if !userUploaded {
+		err = handler.validator.Struct(cdPipeline)
+		if err != nil {
+			handler.Logger.Errorw("validation err, CreateCdPipeline", "err", err, "payload", cdPipeline)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
 	}
+
 	handler.Logger.Debugw("pipeline create request ", "req", cdPipeline)
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(cdPipeline.AppId)
@@ -318,7 +325,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 				}(ctx.Done(), cn.CloseNotify())
 			}
 			ctx = context.WithValue(r.Context(), "token", token)
-			templateRequest := pipeline.TemplateRequest{
+			templateRequest := chart.TemplateRequest{
 				AppId:          appId,
 				ChartRefId:     envConfigProperties.ChartRefId,
 				ValuesOverride: []byte("{}"),
@@ -481,6 +488,13 @@ func (handler PipelineConfigRestHandlerImpl) GetDeploymentTemplate(w http.Respon
 
 	appConfigResponse := make(map[string]interface{})
 	appConfigResponse["globalConfig"] = nil
+
+	err = handler.chartService.CheckChartExists(chartRefId)
+	if err != nil {
+		handler.Logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
+		common.WriteJsonResp(w, err, nil, http.StatusForbidden)
+		return
+	}
 
 	schema, readme, err := handler.chartService.GetSchemaAndReadmeForTemplateByChartRefId(chartRefId)
 	if err != nil {
@@ -757,7 +771,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 		return
 	}
 
-	var templateRequest pipeline.TemplateRequest
+	var templateRequest chart.TemplateRequest
 	err = decoder.Decode(&templateRequest)
 	templateRequest.UserId = userId
 	if err != nil {
@@ -1039,7 +1053,7 @@ func (handler PipelineConfigRestHandlerImpl) AppMetricsEnableDisable(w http.Resp
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	var appMetricEnableDisableRequest pipeline.AppMetricEnableDisableRequest
+	var appMetricEnableDisableRequest chart.AppMetricEnableDisableRequest
 	err = decoder.Decode(&appMetricEnableDisableRequest)
 	appMetricEnableDisableRequest.AppId = appId
 	appMetricEnableDisableRequest.UserId = userId
@@ -1098,7 +1112,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvMetricsEnableDisable(w http.Resp
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var appMetricEnableDisableRequest pipeline.AppMetricEnableDisableRequest
+	var appMetricEnableDisableRequest chart.AppMetricEnableDisableRequest
 	err = decoder.Decode(&appMetricEnableDisableRequest)
 	appMetricEnableDisableRequest.UserId = userId
 	appMetricEnableDisableRequest.AppId = appId
@@ -1472,6 +1486,19 @@ func (handler PipelineConfigRestHandlerImpl) GetCdPipelineById(w http.ResponseWr
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
+
+	envId, err := handler.pipelineBuilder.GetEnvironmentByCdPipelineId(pipelineId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	envObject := handler.enforcerUtil.GetEnvRBACNameByCdPipelineIdAndEnvId(pipelineId, envId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
 	ciConf, err := handler.pipelineBuilder.GetCdPipelineById(pipelineId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCdPipelineById", "err", err, "appId", appId, "pipelineId", pipelineId)
@@ -1661,7 +1688,7 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	var chartUpgradeRequest pipeline.ChartUpgradeRequest
+	var chartUpgradeRequest chart.ChartUpgradeRequest
 	err = decoder.Decode(&chartUpgradeRequest)
 	if err != nil {
 		handler.Logger.Errorw("request err, UpgradeForAllApps", "err", err, "payload", chartUpgradeRequest)

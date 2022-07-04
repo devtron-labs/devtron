@@ -21,7 +21,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -53,8 +55,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 var DefaultPipelineValue = []byte(`{"ConfigMaps":{"enabled":false},"ConfigSecrets":{"enabled":false},"ContainerPort":[],"EnvVariables":[],"GracePeriod":30,"LivenessProbe":{},"MaxSurge":1,"MaxUnavailable":0,"MinReadySeconds":60,"ReadinessProbe":{},"Spec":{"Affinity":{"Values":"nodes","key":""}},"app":"13","appMetrics":false,"args":{},"autoscaling":{},"command":{"enabled":false,"value":[]},"containers":[],"dbMigrationConfig":{"enabled":false},"deployment":{"strategy":{"rolling":{"maxSurge":"25%","maxUnavailable":1}}},"deploymentType":"ROLLING","env":"1","envoyproxy":{"configMapName":"","image":"","resources":{"limits":{"cpu":"50m","memory":"50Mi"},"requests":{"cpu":"50m","memory":"50Mi"}}},"image":{"pullPolicy":"IfNotPresent"},"ingress":{},"ingressInternal":{"annotations":{},"enabled":false,"host":"","path":"","tls":[]},"initContainers":[],"pauseForSecondsBeforeSwitchActive":30,"pipelineName":"","prometheus":{"release":"monitoring"},"rawYaml":[],"releaseVersion":"1","replicaCount":1,"resources":{"limits":{"cpu":"0.05","memory":"50Mi"},"requests":{"cpu":"0.01","memory":"10Mi"}},"secret":{"data":{},"enabled":false},"server":{"deployment":{"image":"","image_tag":""}},"service":{"annotations":{},"type":"ClusterIP"},"servicemonitor":{"additionalLabels":{}},"tolerations":[],"volumeMounts":[],"volumes":[],"waitForSecondsBeforeScalingDown":30}`)
@@ -87,7 +87,7 @@ type PipelineBuilder interface {
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
 	GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error)
 	FetchArtifactForRollback(cdPipelineId int) (bean.CiArtifactResponse, error)
-	FindAppsByTeamId(teamId int) ([]AppBean, error)
+	FindAppsByTeamId(teamId int) ([]*AppBean, error)
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
 	FindPipelineById(cdPipelineId int) (*pipelineConfig.Pipeline, error)
@@ -102,6 +102,8 @@ type PipelineBuilder interface {
 	GetCiPipelineById(pipelineId int) (ciPipeline *bean.CiPipeline, err error)
 
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
+	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
+	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -139,6 +141,10 @@ type PipelineBuilderImpl struct {
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
 	pipelineStageService             PipelineStageService
 	chartTemplateService             util.ChartTemplateService
+	chartRefRepository               chartRepoRepository.ChartRefRepository
+	chartService                     chart.ChartService
+	helmAppService                   client.HelmAppService
+	deploymentGroupRepository        repository.DeploymentGroupRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -171,8 +177,10 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	prePostCdScriptHistoryService history.PrePostCdScriptHistoryService,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
-	pipelineStageService PipelineStageService,
-	chartTemplateService util.ChartTemplateService) *PipelineBuilderImpl {
+	pipelineStageService PipelineStageService, chartRefRepository chartRepoRepository.ChartRefRepository,
+	chartTemplateService util.ChartTemplateService, chartService chart.ChartService,
+	helmAppService client.HelmAppService,
+	deploymentGroupRepository repository.DeploymentGroupRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -208,6 +216,10 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
 		pipelineStageService:             pipelineStageService,
 		chartTemplateService:             chartTemplateService,
+		chartRefRepository:               chartRefRepository,
+		chartService:                     chartService,
+		helmAppService:                   helmAppService,
+		deploymentGroupRepository:        deploymentGroupRepository,
 	}
 }
 
@@ -816,24 +828,6 @@ func (impl PipelineBuilderImpl) addpipelineToTemplate(createRequest *bean.CiConf
 	for _, pipeline := range createRequest.CiPipelines {
 		pipelineNames = append(pipelineNames, pipeline.Name)
 	}
-	/*
-		if pipelineNames != nil && len(pipelineNames) > 0 {
-			found, err := impl.ciPipelineRepository.PipelineExistsByName(pipelineNames)
-			if err != nil {
-				impl.logger.Errorw("err in duplicate check for ci pipeline", "app", createRequest.AppName, "names", pipelineNames, "err", err)
-				return nil, err
-			} else if found != nil && len(found) > 0 {
-				impl.logger.Warnw("duplicate pipelins ", "app", createRequest.AppName, "duplicates", found)
-				//return nil,  errors.AlreadyExistsf("pipelines exists %s", found)
-				return nil, &util.ApiError{
-					HttpStatusCode:    409,
-					Code:              "0409",
-					InternalMessage:   "pipeline already exists",
-					UserDetailMessage: fmt.Sprintf("pipeline already exists %s", found),
-					UserMessage:       fmt.Sprintf("pipeline already exists %s", found)}
-			}
-		}
-	*/
 	if err != nil {
 		impl.logger.Errorw("error in creating pipeline group", "err", err)
 		return nil, err
@@ -987,15 +981,24 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 
 }
 
-func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
-	app, err := impl.appRepo.FindById(cdPipelines.AppId)
-	if err != nil {
-		impl.logger.Errorw("app not found", "err", err, "appId", cdPipelines.AppId)
+func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
 		return nil, err
 	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
 
+	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
+		return nil, err
+	}
 	envPipelineMap := make(map[int]string)
-	for _, pipeline := range cdPipelines.Pipelines {
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if envPipelineMap[pipeline.EnvironmentId] != "" {
 			err = &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
@@ -1006,9 +1009,9 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 		}
 		envPipelineMap[pipeline.EnvironmentId] = pipeline.Name
 
-		existingCdPipelinesForEnv, pErr := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(cdPipelines.AppId, pipeline.EnvironmentId)
+		existingCdPipelinesForEnv, pErr := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(pipelineCreateRequest.AppId, pipeline.EnvironmentId)
 		if pErr != nil && !util.IsErrNoRows(pErr) {
-			impl.logger.Errorw("error in fetching cd pipelines ", "err", pErr, "appId", cdPipelines.AppId)
+			impl.logger.Errorw("error in fetching cd pipelines ", "err", pErr, "appId", pipelineCreateRequest.AppId)
 			return nil, pErr
 		}
 		if len(existingCdPipelinesForEnv) > 0 {
@@ -1038,24 +1041,55 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 		}
 	}
 
-	// validation added for pipeline from ACD
-	for _, pipeline := range cdPipelines.Pipelines {
-		envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-		if err != nil {
+	if isGitOpsConfigured {
+		//if gitops configured create GIT repository and register into ACD
+		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+		if err != nil && pg.ErrNoRows != err {
 			return nil, err
 		}
-		argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
-		_, err = impl.application.Get(ctx, &application2.ApplicationQuery{Name: &argoAppName})
-		appStatus, _ := status.FromError(err)
-		//TODO: check deletionTimeStamp to confirm its being deleted
-		if appStatus.Code() == codes.OK {
-			impl.logger.Infow("argo app already exists", "app", argoAppName, "pipeline", pipeline.Name)
-			return nil, fmt.Errorf("argo app already exists, or delete in progress for previous pipeline")
+		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
+		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, pipelineCreateRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
+			return nil, err
+		}
+		err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+		if err != nil {
+			impl.logger.Errorw("error while register git repo in argo", "err", err)
+			emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
+			if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
+				// - found empty repository, create some file in repository
+				err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, pipelineCreateRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error in creating file in git repo", "err", err)
+					return nil, err
+				}
+				// - retry register in argo
+				err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+				if err != nil {
+					impl.logger.Errorw("error in re-try register in argo", "err", err)
+					return nil, err
+				}
+			} else {
+				return nil, err
+			}
+		}
+
+		// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
+		err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
+			return nil, err
 		}
 	}
 
-	for _, pipeline := range cdPipelines.Pipelines {
-		id, err := impl.createCdPipeline(ctx, app, pipeline, cdPipelines.UserId)
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if isGitOpsConfigured {
+			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+		} else {
+			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		}
+		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating pipeline", "name", pipeline.Name, "err", err)
 			return nil, err
@@ -1063,7 +1097,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(cdPipelines *bean.CdPipelines,
 		pipeline.Id = id
 	}
 
-	return cdPipelines, nil
+	return pipelineCreateRequest, nil
 }
 
 func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error) {
@@ -1101,6 +1135,23 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 		impl.logger.Errorw("err in fetching pipeline", "id", pipelineId, "err", err)
 		return err
 	}
+	//getting deployment group for this pipeline
+	deploymentGroups, err := impl.deploymentGroupRepository.FindByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting deployment groups by envId", "err", err)
+		return err
+	} else if len(deploymentGroups) > 0 {
+		var deploymentGroupNames []string
+		for _, group := range deploymentGroups {
+			deploymentGroupNames = append(deploymentGroupNames, group.Name)
+		}
+		groupNamesByte, err := json.Marshal(deploymentGroupNames)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling deployment group names", "err", err, "deploymentGroupNames", deploymentGroupNames)
+		}
+		impl.logger.Debugw("cannot delete cd pipeline, is being used in deployment group")
+		return fmt.Errorf("Please remove this CD pipeline from deployment groups : %s", string(groupNamesByte))
+	}
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -1137,38 +1188,51 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 			return err
 		}
 	}
-	//delete app from argo cd
-	envModel, err := impl.environmentRepository.FindById(pipeline.EnvironmentId)
-	if err != nil {
-		return err
-	}
-	argoAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envModel.Name)
-	req := &application2.ApplicationDeleteRequest{
-		Name: &argoAppName,
-	}
-	if _, err := impl.application.Delete(ctx, req); err != nil {
-		impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
+	//delete app from argo cd, if created
+	if pipeline.DeploymentAppCreated == true {
+		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			req := &application2.ApplicationDeleteRequest{
+				Name: &deploymentAppName,
+			}
+			if _, err := impl.application.Delete(ctx, req); err != nil {
+				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
 
-		if forceDelete {
-			impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
-		} else {
-			//statusError, _ := err.(*errors2.StatusError)
-			if strings.Contains(err.Error(), "code = NotFound") {
-				err = &util.ApiError{
-					UserMessage:     "Could not delete as application not found in argocd",
-					InternalMessage: err.Error(),
-				}
-			} else {
-				err = &util.ApiError{
-					UserMessage:     "Could not delete application",
-					InternalMessage: err.Error(),
+				if forceDelete {
+					impl.logger.Warnw("error while deletion of app in acd, continue to delete in db as this operation is force delete", "error", err)
+				} else {
+					//statusError, _ := err.(*errors2.StatusError)
+					if strings.Contains(err.Error(), "code = NotFound") {
+						err = &util.ApiError{
+							UserMessage:     "Could not delete as application not found in argocd",
+							InternalMessage: err.Error(),
+						}
+					} else {
+						err = &util.ApiError{
+							UserMessage:     "Could not delete application",
+							InternalMessage: err.Error(),
+						}
+					}
+					return err
 				}
 			}
-			return err
+			impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", deploymentAppName)
+		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+			appIdentifier := &client.AppIdentifier{
+				ClusterId:   pipeline.Environment.ClusterId,
+				ReleaseName: deploymentAppName,
+				Namespace:   pipeline.Environment.Namespace,
+			}
+			deleteResponse, err := impl.helmAppService.DeleteApplication(ctx, appIdentifier)
+			if err != nil {
+				impl.logger.Errorw("error in deleting helm application", "error", err, "appIdentifier", appIdentifier)
+				return err
+			}
+			if deleteResponse == nil || !deleteResponse.GetSuccess() {
+				return errors.New("delete application response unsuccessful")
+			}
 		}
 	}
-	impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", argoAppName)
-
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in committing db transaction", "err", err)
@@ -1245,45 +1309,6 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 
-	chartRepoName := impl.appService.GetChartRepoName(chart.GitRepoUrl)
-	//getting user name & emailId for commit author data
-	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(userId)
-	chartGitAttr := &util.ChartConfig{
-		FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
-		FileContent:    string(DefaultPipelineValue),
-		ChartName:      chart.ChartName,
-		ChartLocation:  chart.ChartLocation,
-		ChartRepoName:  chartRepoName,
-		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", 0, envOverride.TargetEnvironment),
-		UserEmailId:    userEmailId,
-		UserName:       userName,
-	}
-	//FIXME: why only bitbucket?
-	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return 0, err
-		}
-	}
-	//TODO: other providers dont need this workspaceId
-	//FIXME: change method signature
-	_, err = impl.GitFactory.Client.CommitValues(chartGitAttr, gitOpsConfigBitbucket.BitBucketWorkspaceId)
-	if err != nil {
-		impl.logger.Errorw("error in git commit", "err", err)
-		return 0, err
-	}
-
-	//new pipeline
-	impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
-	name, err := impl.createArgoPipelineIfRequired(ctx, app, pipeline, envOverride)
-	//if err != nil {
-	//	return 0, err
-	//}
-	impl.logger.Debugw("argocd application created", "name", name)
-
 	// Get pipeline override based on Deployment strategy
 	//TODO: mark as created in our db
 	pipelineId, err := impl.dbPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx)
@@ -1358,7 +1383,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			return pipelineId, fmt.Errorf("pipeline created but failed to add strategy")
 		}
 		//creating history entry for strategy
-		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+		_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 		if err != nil {
 			impl.logger.Errorw("error in creating strategy history entry", "err", err)
 			return 0, err
@@ -1455,7 +1480,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				return fmt.Errorf("pipeline updated but failed to update one strategy")
 			}
 			//creating history entry for strategy
-			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating strategy history entry", "err", err)
 				return err
@@ -1475,7 +1500,7 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 				return fmt.Errorf("pipeline created but failed to add strategy")
 			}
 			//creating history entry for strategy
-			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, tx)
+			_, err = impl.pipelineStrategyHistoryService.CreatePipelineStrategyHistory(strategy, pipeline.TriggerType, tx)
 			if err != nil {
 				impl.logger.Errorw("error in creating strategy history entry", "err", err)
 				return err
@@ -1556,59 +1581,6 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate pipe
 	return pipelineOverride, nil
 }
 
-func (impl PipelineBuilderImpl) createArgoPipelineIfRequired(ctx context.Context, app *app2.App, pipeline *bean.CDPipelineConfigObject, envConfigOverride *chartConfig.EnvConfigOverride) (string, error) {
-	//repo has been registered while helm create
-	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
-	if err != nil {
-		impl.logger.Errorw("no chart found ", "app", app.Id)
-		return "", err
-	}
-	envModel, err := impl.environmentRepository.FindById(envConfigOverride.TargetEnvironment)
-	if err != nil {
-		return "", err
-	}
-	argoAppName := fmt.Sprintf("%s-%s", app.AppName, envModel.Name)
-
-	appResponse, err := impl.ArgoK8sClient.GetArgoApplication(impl.aCDAuthConfig.ACDConfigMapNamespace, argoAppName, envModel.Cluster)
-	appStatus := 0
-	if err != nil && appResponse != nil {
-		appStatus = int(appResponse["code"].(float64))
-	}
-	impl.logger.Infow("testing cd pipeline acd check", "appStatus", appStatus)
-
-	// if no error found it means argo app already exists
-	//FIXME: check different from pipelinebuilder line 976
-	if err == nil && appResponse != nil {
-		impl.logger.Infow("argo app already exists", "app", argoAppName, "pipeline", pipeline.Name)
-		return argoAppName, nil
-	} else if appStatus == http.StatusNotFound {
-		//create
-		appNamespace := envConfigOverride.Namespace
-		if appNamespace == "" {
-			appNamespace = "default"
-		}
-		namespace := argocdServer.DevtronInstalationNs
-		appRequest := &argocdServer.AppTemplate{
-			ApplicationName: argoAppName,
-			Namespace:       namespace,
-			TargetNamespace: appNamespace,
-			TargetServer:    envModel.Cluster.ServerUrl,
-			Project:         "default",
-			ValuesFile:      getValuesFileForEnv(pipeline.EnvironmentId),
-			RepoPath:        chart.ChartLocation,
-			RepoUrl:         chart.GitRepoUrl,
-		}
-		return impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
-	} else {
-		impl.logger.Errorw("err in checking application on argo cd", "err", err, "pipeline", pipeline.Name)
-		return "", err
-	}
-
-}
-
-func getValuesFileForEnv(environmentId int) string {
-	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
-}
 func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error) {
 	cdPipelines, err = impl.dbPipelineOrchestrator.GetCdPipelinesForApp(appId)
 	var pipelines []*bean.CDPipelineConfigObject
@@ -1959,15 +1931,15 @@ func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMes
 	return mInfo, err
 }
 
-func (impl PipelineBuilderImpl) FindAppsByTeamId(teamId int) ([]AppBean, error) {
-	var appsRes []AppBean
+func (impl PipelineBuilderImpl) FindAppsByTeamId(teamId int) ([]*AppBean, error) {
+	var appsRes []*AppBean
 	apps, err := impl.appRepo.FindAppsByTeamId(teamId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching app", "err", err)
 		return nil, err
 	}
 	for _, app := range apps {
-		appsRes = append(appsRes, AppBean{Id: app.Id, Name: app.AppName})
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
 	}
 	return appsRes, err
 }
@@ -2056,9 +2028,21 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		impl.logger.Errorf("invalid state", "err", err, "appId", appId)
 		return pipelineStrategiesResponse, err
 	}
+	chartInfo, err := impl.chartRefRepository.FindById(chart.ChartRefId)
+	if err != nil {
+		impl.logger.Errorf("invalid chart", "err", err, "appId", appId)
+		return pipelineStrategiesResponse, err
+	}
+
 	if chart.Id == 0 {
 		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
 	}
+
+	if chartInfo.UserUploaded {
+		impl.logger.Errorw("invalid for custom charts", "err", err)
+		return pipelineStrategiesResponse, err
+	}
+
 	pipelineOverride := chart.PipelineOverride
 	rollingConfig, err := impl.filterDeploymentTemplate("ROLLING", pipelineOverride)
 	if err != nil {
@@ -2069,6 +2053,7 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		Config:             []byte(rollingConfig),
 		Default:            true,
 	})
+
 	bgConfig, err := impl.filterDeploymentTemplate("BLUE-GREEN", pipelineOverride)
 	if err != nil {
 		return pipelineStrategiesResponse, err
@@ -2119,6 +2104,15 @@ type PipelineStrategy struct {
 	DeploymentTemplate pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING"` //
 	Config             json.RawMessage                   `json:"config"`
 	Default            bool                              `json:"default"`
+}
+
+func (impl PipelineBuilderImpl) GetEnvironmentByCdPipelineId(pipelineId int) (int, error) {
+	dbPipeline, err := impl.pipelineRepository.FindById(pipelineId)
+	if err != nil || dbPipeline == nil {
+		impl.logger.Errorw("error in fetching pipeline", "err", err)
+		return 0, err
+	}
+	return dbPipeline.EnvironmentId, err
 }
 
 func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *bean.CDPipelineConfigObject, err error) {
@@ -2329,4 +2323,43 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 	ciPipeline.PreBuildStage = preStageDetail
 	ciPipeline.PostBuildStage = postStageDetail
 	return ciPipeline, err
+}
+
+func (impl PipelineBuilderImpl) FindAllMatchesByAppName(appName string) ([]*AppBean, error) {
+	var appsRes []*AppBean
+	var apps []*app2.App
+	var err error
+	if len(appName) == 0 {
+		apps, err = impl.appRepo.FindAll()
+	} else {
+		apps, err = impl.appRepo.FindAllMatchesByAppName(appName)
+	}
+	if err != nil {
+		impl.logger.Errorw("error while fetching app", "err", err)
+		return nil, err
+	}
+	for _, app := range apps {
+		appsRes = append(appsRes, &AppBean{Id: app.Id, Name: app.AppName})
+	}
+	return appsRes, err
+}
+
+func (impl PipelineBuilderImpl) updateGitRepoUrlInCharts(appId int, chartGitAttribute *util.ChartGitAttribute, userId int32) error {
+	charts, err := impl.chartRepository.FindActiveChartsByAppId(appId)
+	if err != nil && pg.ErrNoRows != err {
+		return err
+	}
+	for _, ch := range charts {
+		if len(ch.GitRepoUrl) == 0 {
+			ch.GitRepoUrl = chartGitAttribute.RepoUrl
+			ch.ChartLocation = chartGitAttribute.ChartLocation
+			ch.UpdatedOn = time.Now()
+			ch.UpdatedBy = userId
+			err = impl.chartRepository.Update(ch)
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }

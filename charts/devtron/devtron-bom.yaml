@@ -1,17 +1,21 @@
 installer:
-  release: "v0.4.3"
+  release: "v0.4.21"
   image: "quay.io/devtron/inception"
-  tag: "acb623ff-185-7117"
+  tag: "c62d4c30-185-9354"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:37926951-240-8617"
+    image: "quay.io/devtron/dashboard:e5b1ec26-325-9503"
   devtron:
-    image: "quay.io/devtron/hyperion:11d3bc2c-282-8589"
+    image: "quay.io/devtron/hyperion:3ada1c38-280-9501"
+    cicdImage: "quay.io/devtron/devtron:3ada1c38-326-9500"
   argocdDexServer:
     image: "quay.io/dexidp/dex:v2.25.0"
+    initContainer:
+      authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
+      cicdAuthenticator: "quay.io/argoproj/argocd:v1.8.1"
   kubelink:
-    image: "quay.io/devtron/kubelink:1be465ec-318-7966"
+    image: "quay.io/devtron/kubelink:59a0df88-318-9226"
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
   
@@ -20,7 +24,7 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "11d3bc2c2e215b73dab11a5f35f63d3c49ab0964"
+        GIT_HASH: "3ada1c3847725e127a8c73faad2dbf90c8b0b529"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "11d3bc2c2e215b73dab11a5f35f63d3c49ab0964"
+        GIT_HASH: "3ada1c3847725e127a8c73faad2dbf90c8b0b529"

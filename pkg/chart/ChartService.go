@@ -15,13 +15,15 @@
  *
  */
 
-package pipeline
+package chart
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/constants"
+	//"github.com/devtron-labs/devtron/pkg/pipeline"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -111,7 +113,6 @@ type AppConfigResponse struct {
 	PreviousAppConfig TemplateRequest `json:"previousAppConfig"`
 }
 
-type RefChartDir string
 type DefaultChart string
 
 type ChartService interface {
@@ -135,6 +136,10 @@ type ChartService interface {
 	GetLocationFromChartNameAndVersion(chartName string, chartVersion string) string
 	ValidateUploadedFileFormat(fileName string) error
 	ReadChartMetaDataForLocation(chartDir string, fileName string) (*ChartYamlStruct, error)
+	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
+	FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error)
+	CheckCustomChartByAppId(id int) (bool, error)
+	CheckCustomChartByChartId(id int) (bool, error)
 }
 type ChartServiceImpl struct {
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -144,7 +149,7 @@ type ChartServiceImpl struct {
 	pipelineGroupRepository          app.AppRepository
 	mergeUtil                        util.MergeUtil
 	repositoryService                repository.ServiceClient
-	refChartDir                      RefChartDir
+	refChartDir                      chartRepoRepository.RefChartDir
 	defaultChart                     DefaultChart
 	chartRefRepository               chartRepoRepository.ChartRefRepository
 	envOverrideRepository            chartConfig.EnvConfigOverrideRepository
@@ -163,7 +168,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 	chartTemplateService util.ChartTemplateService,
 	repoRepository chartRepoRepository.ChartRepoRepository,
 	pipelineGroupRepository app.AppRepository,
-	refChartDir RefChartDir,
+	refChartDir chartRepoRepository.RefChartDir,
 	defaultChart DefaultChart,
 	mergeUtil util.MergeUtil,
 	repositoryService repository.ServiceClient,
@@ -208,6 +213,11 @@ func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefI
 	}
 	var schemaByte []byte
 	var readmeByte []byte
+	err = impl.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
+		return nil, nil, err
+	}
 	schemaByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "schema.json")))
 	if err != nil {
 		impl.logger.Errorw("error in reading schema.json file for refChart", "err", err, "chartRefId", chartRefId)
@@ -230,30 +240,45 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 	if err != nil {
 		return nil, err
 	}
-	appOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
+	var appOverrideByte, envOverrideByte []byte
+	appOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "app-values.yaml")))
 	if err != nil {
-		return nil, err
-	}
-	appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err := ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "env-values.yaml")))
-	if err != nil {
-		return nil, err
-	}
-	envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
-	if err != nil {
-		return nil, err
+		impl.logger.Infow("App values yaml file is missing")
+	} else {
+		appOverrideByte, err = yaml.YAMLToJSON(appOverrideByte)
+		if err != nil {
+			return nil, err
+		}
 	}
 
-	merged, err := impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
+	envOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(refChart, "env-values.yaml")))
 	if err != nil {
-		return nil, err
+		impl.logger.Infow("Env values yaml file is missing")
+	} else {
+		envOverrideByte, err = yaml.YAMLToJSON(envOverrideByte)
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	messages := make(map[string]interface{})
+	var merged []byte
+	if appOverrideByte == nil && envOverrideByte == nil {
+		return messages, nil
+	} else if appOverrideByte == nil || envOverrideByte == nil {
+		if appOverrideByte == nil {
+			merged = envOverrideByte
+		} else {
+			merged = appOverrideByte
+		}
+	} else {
+		merged, err = impl.mergeUtil.JsonPatch(appOverrideByte, []byte(envOverrideByte))
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	appOverride := json.RawMessage(merged)
-	messages := make(map[string]interface{})
 	messages["defaultAppOverride"] = appOverride
 	return messages, nil
 }
@@ -302,6 +327,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil && pg.ErrNoRows != err {
 		return nil, err
 	}
+	gitRepoUrl := ""
 	impl.logger.Debugw("current latest chart in db", "chartId", currentLatestChart.Id)
 	if currentLatestChart.Id > 0 {
 		impl.logger.Debugw("updating env and pipeline config which are currently latest in db", "chartId", currentLatestChart.Id)
@@ -329,6 +355,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		if err != nil {
 			return nil, err
 		}
+		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
 	// ENDS
 
@@ -339,10 +366,11 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
+	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId)
 	if err != nil {
 		return nil, err
 	}
+	chartLocation := filepath.Join(templateName, version)
 	override, err := templateRequest.ValuesOverride.MarshalJSON()
 	if err != nil {
 		return nil, err
@@ -362,12 +390,6 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 	override = dst.Bytes()
-
-	err = impl.registerInArgo(chartGitAttr, ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
 		ChartRepoId:             chartRepo.Id,
@@ -382,8 +404,8 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ChartVersion:            chartMeta.Version,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
-		ChartLocation:           chartGitAttr.ChartLocation,
-		GitRepoUrl:              chartGitAttr.RepoUrl,
+		ChartLocation:           chartLocation,
+		GitRepoUrl:              gitRepoUrl,
 		ReferenceTemplate:       templateName,
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  true,
@@ -464,16 +486,23 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	}
 
 	impl.logger.Debug("now finally create new chart and make it latest entry in db and previous flag = true")
-
 	version, err := impl.getNewVersion(chartRepo.Name, chartMeta.Name, refChart)
 	chartMeta.Version = version
 	if err != nil {
 		return nil, err
 	}
-	chartValues, chartGitAttr, err := impl.chartTemplateService.CreateChart(chartMeta, refChart, templateName, templateRequest.UserId)
-
+	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId)
 	if err != nil {
 		return nil, err
+	}
+	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
+	if err != nil && pg.ErrNoRows != err {
+		return nil, err
+	}
+	chartLocation := filepath.Join(templateName, version)
+	gitRepoUrl := ""
+	if currentLatestChart.Id > 0 {
+		gitRepoUrl = currentLatestChart.GitRepoUrl
 	}
 	override, err := templateRequest.ValuesOverride.MarshalJSON()
 	if err != nil {
@@ -494,12 +523,6 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 	override = dst.Bytes()
-
-	err = impl.registerInArgo(chartGitAttr, ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	chart := &chartRepoRepository.Chart{
 		AppId:                   templateRequest.AppId,
 		ChartRepoId:             chartRepo.Id,
@@ -514,8 +537,8 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		ChartVersion:            chartMeta.Version,
 		Status:                  models.CHARTSTATUS_NEW,
 		Active:                  true,
-		ChartLocation:           chartGitAttr.ChartLocation,
-		GitRepoUrl:              chartGitAttr.RepoUrl,
+		ChartLocation:           chartLocation,
+		GitRepoUrl:              gitRepoUrl,
 		ReferenceTemplate:       templateName,
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  false,
@@ -546,7 +569,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	return chartVal, err
 }
 
-func (impl ChartServiceImpl) registerInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
+func (impl ChartServiceImpl) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
 	repo := &v1alpha1.Repository{
 		Repo: chartGitAttribute.RepoUrl,
 	}
@@ -600,6 +623,22 @@ func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (strin
 			chartRef, err = impl.chartRefRepository.GetDefault()
 			if err != nil {
 				return "", "", err, ""
+			}
+		} else if chartRef.UserUploaded {
+			refChartLocation := filepath.Join(string(impl.refChartDir), chartRef.Location)
+			if _, err := os.Stat(refChartLocation); os.IsNotExist(err) {
+				chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
+				if chartInfo != nil && chartInfo.TemporaryFolder != "" {
+					err1 := os.RemoveAll(chartInfo.TemporaryFolder)
+					if err1 != nil {
+						impl.logger.Errorw("error in deleting temp dir ", "err", err)
+					}
+				}
+				if err != nil {
+					impl.logger.Errorw("Error regarding uploaded chart", "err", err)
+					return "", "", err, ""
+				}
+
 			}
 		}
 		template = chartRef.Location
@@ -674,7 +713,7 @@ func (impl ChartServiceImpl) getNewVersion(chartRepo, chartName, refChartLocatio
 		return "", err
 	}
 	placeholders := strings.Split(parentVersion, ".")
-	if len(placeholders) != 3 || placeholders[2] != "0" {
+	if len(placeholders) != 3 {
 		return "", fmt.Errorf("invalid parent chart version %s", parentVersion)
 	}
 
@@ -892,9 +931,11 @@ func (impl ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId i
 }
 
 type chartRef struct {
-	Id      int    `json:"id"`
-	Version string `json:"version"`
-	Name    string `json:"name"`
+	Id           int    `json:"id"`
+	Version      string `json:"version"`
+	Name         string `json:"name"`
+	Description  string `json:"description"`
+	UserUploaded bool   `json:"userUploaded"`
 }
 
 type chartRefResponse struct {
@@ -916,6 +957,13 @@ type ChartDataInfo struct {
 	ChartVersion    string `json:"chartVersion"`
 	TemporaryFolder string `json:"temporaryFolder"`
 	Description     string `json:"description"`
+	Message         string `json:"message"`
+}
+
+type ChartDto struct {
+	Name             string `json:"name"`
+	ChartDescription string `json:"chartDescription"`
+	Version          string `json:"version"`
 }
 
 func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
@@ -927,7 +975,7 @@ func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 	}
 
 	for _, result := range results {
-		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version})
+		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Description: result.ChartDescription, UserUploaded: result.UserUploaded})
 	}
 
 	return chartRefs, nil
@@ -947,7 +995,7 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 		if len(result.Name) == 0 {
 			result.Name = "Rollout Deployment"
 		}
-		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name})
+		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name, Description: result.ChartDescription, UserUploaded: result.UserUploaded})
 		if result.Default == true {
 			LatestAppChartRef = result.Id
 		}
@@ -1079,47 +1127,6 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 	return true, nil
 }
 
-//Deprecated
-func (impl ChartServiceImpl) filterDeploymentTemplateForBackground(deploymentTemplate pipelineConfig.DeploymentTemplate, pipelineOverride string) (string, error) {
-	var deploymentType DeploymentType
-	err := json.Unmarshal([]byte(pipelineOverride), &deploymentType)
-	if err != nil {
-		impl.logger.Errorw("err", "err", err)
-		return "", err
-	}
-	if pipelineConfig.DEPLOYMENT_TEMPLATE_BLUE_GREEN == deploymentTemplate {
-		newDeploymentType := DeploymentType{
-			Deployment: Deployment{
-				Strategy: Strategy{
-					BlueGreen: deploymentType.Deployment.Strategy.BlueGreen,
-				},
-			},
-		}
-		pipelineOverrideBytes, err := json.Marshal(newDeploymentType)
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-			return "", err
-		}
-		pipelineOverride = string(pipelineOverrideBytes)
-	} else if pipelineConfig.DEPLOYMENT_TEMPLATE_ROLLING == deploymentTemplate {
-		newDeploymentType := DeploymentType{
-			Deployment: Deployment{
-				Strategy: Strategy{
-					Rolling: deploymentType.Deployment.Strategy.Rolling,
-				},
-			},
-		}
-		pipelineOverrideBytes, err := json.Marshal(newDeploymentType)
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-			return "", err
-		}
-		pipelineOverride = string(pipelineOverrideBytes)
-		return pipelineOverride, nil
-	}
-	return pipelineOverride, nil
-}
-
 func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error) {
 	currentChart, err := impl.chartRepository.FindLatestChartForAppByAppId(appMetricRequest.AppId)
 	if err != nil && pg.ErrNoRows != err {
@@ -1136,6 +1143,11 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 		return nil, err
 	}
 	// validate app metrics compatibility
+	refChart, err := impl.chartRefRepository.FindById(currentChart.ChartRefId)
+	if err != nil {
+		impl.logger.Error(err)
+		return nil, err
+	}
 	if appMetricRequest.IsAppMetricsEnabled == true {
 		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(currentChart.ChartVersion)
 		if err != nil {
@@ -1143,7 +1155,7 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 			return nil, err
 		}
 
-		if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
+		if !refChart.UserUploaded && !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
 			err = &util.ApiError{
 				InternalMessage: "chart version in not compatible for app metrics",
 				UserMessage:     "chart version in not compatible for app metrics",
@@ -1157,6 +1169,9 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 		impl.logger.Errorw("error in saving app level metrics flag", "error", err)
 		return nil, err
 	}
+	//updating audit log details of chart as history service uses it
+	currentChart.UpdatedOn = time.Now()
+	currentChart.UpdatedBy = appMetricRequest.UserId
 	//creating history entry for deployment template
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(currentChart, nil, appMetricRequest.IsAppMetricsEnabled)
 	if err != nil {
@@ -1235,6 +1250,12 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}
 }
 
 func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error) {
+	err := impl.CheckChartExists(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("refChartDir Not Found", "err", err)
+		return nil, err
+	}
+
 	refChartDir, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
@@ -1267,15 +1288,15 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 }
 
 func (impl ChartServiceImpl) CheckChartExists(chartRefId int) error {
-	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
+	chartRefValue, err := impl.chartRefRepository.FindById(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("error in finding ref chart by id", "err", err)
 		return err
 	}
-	refChartDir := filepath.Clean(filepath.Join(string(impl.refChartDir), chartRef.Location))
-	if _, err := os.Stat(refChartDir); os.IsNotExist(err) {
-		chartInfo, err := impl.ExtractChartIfMissing(chartRef.ChartData, string(impl.refChartDir), chartRef.Location)
-		if chartInfo.TemporaryFolder != "" {
+	refChartLocation := filepath.Join(string(impl.refChartDir), chartRefValue.Location)
+	if _, err := os.Stat(refChartLocation); os.IsNotExist(err) {
+		chartInfo, err := impl.ExtractChartIfMissing(chartRefValue.ChartData, string(impl.refChartDir), chartRefValue.Location)
+		if chartInfo != nil && chartInfo.TemporaryFolder != "" {
 			err1 := os.RemoveAll(chartInfo.TemporaryFolder)
 			if err1 != nil {
 				impl.logger.Errorw("error in deleting temp dir ", "err", err)
@@ -1301,7 +1322,7 @@ func (impl *ChartServiceImpl) GetLocationFromChartNameAndVersion(chartName strin
 }
 
 func (impl *ChartServiceImpl) ValidateUploadedFileFormat(fileName string) error {
-	if !strings.HasSuffix(fileName, ".tar.gz") {
+	if !strings.HasSuffix(fileName, ".tgz") {
 		return errors.New("unsupported format")
 	}
 	return nil
@@ -1331,7 +1352,16 @@ func (impl ChartServiceImpl) ReadChartMetaDataForLocation(chartDir string, fileN
 		impl.logger.Errorw("Missing values in yaml file either name or version", "err", err)
 		return nil, errors.New("Missing values in yaml file either name or version")
 	}
-	return &chartYaml, nil
+	ver := strings.Split(chartYaml.Version, ".")
+	if len(ver) == 3 {
+		for _, verObject := range ver {
+			if _, err := strconv.ParseInt(verObject, 10, 64); err != nil {
+				return nil, errors.New("Version should contain integers (Ex: 1.1.0)")
+			}
+		}
+		return &chartYaml, nil
+	}
+	return nil, errors.New("Version should be of length 3 integers with dot seperated (Ex: 1.1.0)")
 }
 
 func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error) {
@@ -1343,6 +1373,7 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 		ChartLocation:   "",
 		TemporaryFolder: "",
 		Description:     "",
+		Message:         "",
 	}
 	temporaryChartWorkingDir := filepath.Clean(filepath.Join(refChartDir, dir))
 	err := os.MkdirAll(temporaryChartWorkingDir, os.ModePerm)
@@ -1377,34 +1408,55 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 
 	if location == "" {
 		chartYaml, err := impl.ReadChartMetaDataForLocation(temporaryChartWorkingDir, fileName)
+		var errorList error
+		if err != nil {
+			impl.logger.Errorw("Chart yaml file or content not found")
+			errorList = err
+		}
+
+		err = util2.CheckForMissingFiles(currentChartWorkingDir)
+		if err != nil {
+			impl.logger.Errorw("Missing files in the folder", "err", err)
+			if errorList != nil {
+				errorList = errors.New(errorList.Error() + "; " + err.Error())
+			} else {
+				errorList = err
+			}
+
+		}
+
+		if errorList != nil {
+			return chartInfo, errorList
+		}
+
 		chartName = chartYaml.Name
 		chartVersion = chartYaml.Version
 		chartInfo.Description = chartYaml.Description
-		if err != nil {
-			impl.logger.Errorw("Chart yaml file not found")
-			return chartInfo, err
-		}
 		exists, err := impl.chartRefRepository.CheckIfDataExists(chartName, chartVersion)
+
 		if exists {
 			impl.logger.Errorw("request err, chart name and version exists already in the database")
-			return chartInfo, errors.New("chart name and version exists already in the database")
+			err = &util.ApiError{
+				Code:            constants.ChartCreatedAlreadyExists,
+				InternalMessage: "Chart exists already, try uploading another chart",
+				UserMessage:     fmt.Sprintf("%s of %s exists already in the database", chartVersion, chartName),
+			}
+			return chartInfo, err
 		}
 		if err != nil {
 			impl.logger.Errorw("Error in searching the database")
 			return chartInfo, err
 		}
 		chartLocation = impl.GetLocationFromChartNameAndVersion(chartName, chartVersion)
-		if err != nil {
-			impl.logger.Errorw("error in fetching name and version in Chart yaml", "err", err)
-			return chartInfo, err
-		}
-		err = util2.CheckForMissingFiles(currentChartWorkingDir)
-		if err != nil {
-			impl.logger.Errorw("Missing files in the folder", "err", err)
-			return chartInfo, err
-		}
+
 		location = chartLocation
 
+		exisitingChart, err := impl.chartRefRepository.FetchChart(chartName)
+		if err == nil && exisitingChart != nil {
+			chartInfo.Message = "New Version detected for " + exisitingChart[0].Name
+		}
+
+	} else {
 		err = dirCopy.Copy(currentChartWorkingDir, filepath.Clean(filepath.Join(refChartDir, location)))
 		if err != nil {
 			impl.logger.Errorw("error in copying chart from temp dir to ref chart dir", "err", err)
@@ -1416,4 +1468,41 @@ func (impl ChartServiceImpl) ExtractChartIfMissing(chartData []byte, refChartDir
 	chartInfo.ChartName = chartName
 	chartInfo.ChartVersion = chartVersion
 	return chartInfo, nil
+}
+
+func (impl ChartServiceImpl) FetchChartInfoByFlag(userUploaded bool) ([]*ChartDto, error) {
+	repo, err := impl.chartRefRepository.FetchChartInfoByUploadFlag(userUploaded)
+	if err != nil {
+		return nil, err
+	}
+	var chartDtos []*ChartDto
+	for _, ref := range repo {
+		chartDto := &ChartDto{
+			Name:             ref.Name,
+			ChartDescription: ref.ChartDescription,
+			Version:          ref.Version,
+		}
+		chartDtos = append(chartDtos, chartDto)
+	}
+	return chartDtos, err
+}
+
+func (impl ChartServiceImpl) CheckCustomChartByAppId(id int) (bool, error) {
+	chartInfo, err := impl.chartRepository.FindLatestChartForAppByAppId(id)
+	if err != nil {
+		return false, err
+	}
+	chartData, err := impl.chartRefRepository.FindById(chartInfo.ChartRefId)
+	if err != nil {
+		return false, err
+	}
+	return chartData.UserUploaded, err
+}
+
+func (impl ChartServiceImpl) CheckCustomChartByChartId(id int) (bool, error) {
+	chartData, err := impl.chartRefRepository.FindById(id)
+	if err != nil {
+		return false, err
+	}
+	return chartData.UserUploaded, nil
 }

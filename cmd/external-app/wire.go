@@ -5,6 +5,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
@@ -28,8 +29,9 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
+	"github.com/devtron-labs/devtron/pkg/attributes"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -57,6 +59,7 @@ func InitializeApp() (*App, error) {
 		appStoreDeployment.AppStoreDeploymentWireSet,
 		server.ServerWireSet,
 		module.ModuleWireSet,
+		apiToken.ApiTokenWireSet,
 
 		NewApp,
 		NewMuxRouter,
@@ -87,6 +90,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
 		app2.NewAppRepositoryImpl,
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
+		attributes.NewAttributesServiceImpl,
+		wire.Bind(new(attributes.AttributesService), new(*attributes.AttributesServiceImpl)),
 		repository.NewAttributesRepositoryImpl,
 		wire.Bind(new(repository.AttributesRepository), new(*repository.AttributesRepositoryImpl)),
 		pipelineConfig.NewCiPipelineRepositoryImpl,
@@ -96,7 +101,7 @@ func InitializeApp() (*App, error) {
 		// binding gitops to helm (for hyperion)
 		wire.Bind(new(appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService), new(*appStoreDeploymentTool.AppStoreDeploymentHelmServiceImpl)),
 
-		wire.Value(pipeline.RefChartDir("scripts/devtron-reference-helm-charts")),
+		wire.Value(chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")),
 
 		//needed for sending events
 		dashboardEvent.NewDashboardTelemetryRestHandlerImpl,

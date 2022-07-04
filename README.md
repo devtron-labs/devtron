@@ -87,15 +87,6 @@ Devtron is designed to be modular, and its functionality can be easily extended 
 
 Before you begin, you must create a [Kubernetes cluster](https://kubernetes.io/docs/tutorials/kubernetes-basics/create-cluster/) (preferably K8s 1.16 or higher) and install [Helm](https://helm.sh/docs/intro/install/).
 
-### Install Devtron
-
-```bash
-helm repo add devtron https://helm.devtron.ai
-
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
-
-```
-
 ### Install Devtron with CI/CD integration
 
 Run the following command to install the latest version of Devtron along with the CI/CD module:
@@ -107,8 +98,23 @@ helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd}
 ```
+### Access Devtron
 
-Please refer to the document on how to [install Devtron with CI/CD](./docs/setup/install/install-devtron-with-cicd.md) for more information.
+**URL**: Use the following command to get the dashboard URL:
+
+```bash
+kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+```
+
+**Credentials**:
+
+**UserName**:  `admin` <br>
+**Password**:   Run the following command to get the admin password
+```bash
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+```
+
+Please refer to the document for more information on how to [access the Devtron Dashboard](./docs/setup/install/install-devtron-with-cicd.md/#access-devtron-dashboard).
 
 #### Installation status
 
@@ -124,23 +130,15 @@ The command executes with one of the following output messages, indicating the s
 * **Downloaded**: The installer has downloaded all the manifests, and installation is in progress.
 * **Applied**: The installer has successfully applied all the manifests, and the installation is complete.
 
-### Devtron Dashboard
-
-Use the following command to get the dashboard URL:
+### Install Devtron
 
 ```bash
-kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
+
 ```
 
-#### Dashboard credentials
-
-For admin login, use the username:`admin`, and run the following command to get the admin password:
-
-```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
-```
-
-Please refer to the document for more information on how to [access the Devtron Dashboard](./docs/setup/install/install-devtron-with-cicd.md/#access-devtron-dashboard).
 
 ## :blue_heart: Technology
  

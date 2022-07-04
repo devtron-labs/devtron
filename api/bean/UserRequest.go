@@ -17,7 +17,10 @@
 
 package bean
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"time"
+)
 
 type UserRole struct {
 	Id      int32  `json:"id" validate:"number"`
@@ -26,16 +29,19 @@ type UserRole struct {
 }
 
 type UserInfo struct {
-	Id          int32        `json:"id" validate:"number"`
-	EmailId     string       `json:"email_id" validate:"required"`
-	Roles       []string     `json:"roles,omitempty"`
-	AccessToken string       `json:"access_token,omitempty"`
-	Exist       bool         `json:"-"`
-	UserId      int32        `json:"-"` // created or modified user id
-	RoleFilters []RoleFilter `json:"roleFilters"`
-	Status      string       `json:"status,omitempty"`
-	Groups      []string     `json:"groups"`
-	SuperAdmin  bool         `json:"superAdmin,notnull"`
+	Id           int32        `json:"id" validate:"number"`
+	EmailId      string       `json:"email_id" validate:"required"`
+	Roles        []string     `json:"roles,omitempty"`
+	AccessToken  string       `json:"access_token,omitempty"`
+	UserType     string       `json:"-"`
+	LastUsedAt   time.Time    `json:"-"`
+	LastUsedByIp string       `json:"-"`
+	Exist        bool         `json:"-"`
+	UserId       int32        `json:"-"` // created or modified user id
+	RoleFilters  []RoleFilter `json:"roleFilters"`
+	Status       string       `json:"status,omitempty"`
+	Groups       []string     `json:"groups"`
+	SuperAdmin   bool         `json:"superAdmin,notnull"`
 }
 
 type RoleGroup struct {
@@ -95,3 +101,5 @@ const (
 
 const SUPERADMIN = "role:super-admin___"
 const APP_ACCESS_TYPE_HELM = "helm-app"
+
+const USER_TYPE_API_TOKEN = "apiToken"
