@@ -34,7 +34,7 @@ type AppStoreRestHandler interface {
 	FindAllApps(w http.ResponseWriter, r *http.Request)
 	GetChartDetailsForVersion(w http.ResponseWriter, r *http.Request)
 	GetChartVersions(w http.ResponseWriter, r *http.Request)
-	GetReadme(w http.ResponseWriter, r *http.Request)
+	GetReadmeSchemaJson(w http.ResponseWriter, r *http.Request)
 	SearchAppStoreChartByName(w http.ResponseWriter, r *http.Request)
 }
 
@@ -48,10 +48,10 @@ type AppStoreRestHandlerImpl struct {
 func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService service.AppStoreService,
 	enforcer casbin.Enforcer) *AppStoreRestHandlerImpl {
 	return &AppStoreRestHandlerImpl{
-		Logger:           Logger,
-		appStoreService:  appStoreService,
-		userAuthService:  userAuthService,
-		enforcer:         enforcer,
+		Logger:          Logger,
+		appStoreService: appStoreService,
+		userAuthService: userAuthService,
+		enforcer:        enforcer,
 	}
 }
 
@@ -157,7 +157,7 @@ func (handler *AppStoreRestHandlerImpl) GetChartVersions(w http.ResponseWriter, 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *AppStoreRestHandlerImpl) GetReadme(w http.ResponseWriter, r *http.Request) {
+func (handler *AppStoreRestHandlerImpl) GetReadmeSchemaJson(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
@@ -167,14 +167,14 @@ func (handler *AppStoreRestHandlerImpl) GetReadme(w http.ResponseWriter, r *http
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["appStoreApplicationVersionId"])
 	if err != nil {
-		handler.Logger.Errorw("request err, GetReadme", "err", err, "appStoreApplicationVersionId", id)
+		handler.Logger.Errorw("request err, Get Readme and Schema json", "err", err, "appStoreApplicationVersionId", id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, GetReadme, app store", "appStoreApplicationVersionId", id)
-	res, err := handler.appStoreService.GetReadMeByAppStoreApplicationVersionId(id)
+	handler.Logger.Infow("request payload, Get Readme and Schema json, app store", "appStoreApplicationVersionId", id)
+	res, err := handler.appStoreService.GetReadMeSchemaJsonByAppStoreApplicationVersionId(id)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetReadme, fetching resource tree", "err", err, "appStoreApplicationVersionId", id)
+		handler.Logger.Errorw("service err, Get Readme and Schema json, fetching resource tree", "err", err, "appStoreApplicationVersionId", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

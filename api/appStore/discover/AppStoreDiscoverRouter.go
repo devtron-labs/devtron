@@ -26,7 +26,7 @@ type AppStoreDiscoverRouter interface {
 }
 
 type AppStoreDiscoverRouterImpl struct {
-	appStoreRestHandler       AppStoreRestHandler
+	appStoreRestHandler AppStoreRestHandler
 }
 
 func NewAppStoreDiscoverRouterImpl(appStoreRestHandler AppStoreRestHandler) *AppStoreDiscoverRouterImpl {
@@ -46,8 +46,8 @@ func (router AppStoreDiscoverRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/application/{appStoreId}/version/autocomplete").
 		HandlerFunc(router.appStoreRestHandler.GetChartVersions).Methods("GET")
 
-	configRouter.Path("/application/readme/{appStoreApplicationVersionId}").
-		HandlerFunc(router.appStoreRestHandler.GetReadme).Methods("GET")
+	configRouter.Path("/application/chartInfo/{appStoreApplicationVersionId}").
+		HandlerFunc(router.appStoreRestHandler.GetReadmeSchemaJson).Methods("GET")
 
 	configRouter.Path("/search").
 		HandlerFunc(router.appStoreRestHandler.SearchAppStoreChartByName).Queries("chartName", "{chartName}").
