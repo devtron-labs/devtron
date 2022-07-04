@@ -133,7 +133,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
-
+	installAppVersionRequest.ClusterId = environment.ClusterId
 	appCreateRequest := &bean.CreateAppDTO{
 		Id:      installAppVersionRequest.AppId,
 		AppName: installAppVersionRequest.AppName,
