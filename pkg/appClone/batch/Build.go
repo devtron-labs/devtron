@@ -163,7 +163,23 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 	}
 
 	ciMaterial := make([]*bean.CiMaterial, 0)
+	ciPipeline := bean.CiPipeline{
+		IsManual:                 build.Trigger == v1.Manual,
+		DockerArgs:               dockerArgs,
+		IsExternal:               parentCiPipeline != nil || build.WebHookUrl != nil,
+		ParentCiPipeline:         parentCiPipelineId,
+		ParentAppId:              parentAppId,
+		ExternalCiConfig:         externalCiConfig,
+		Name:                     pipelineName,
+		Active:                   true,
+		Deleted:                  false,
+		BeforeDockerBuildScripts: beforeDockerBuildScripts,
+		AfterDockerBuildScripts:  afterDockerBuildScripts,
+		LinkedCount:              0,
+	}
+
 	for _, material := range build.BuildMaterials {
+		var sourceList []*bean.SourceTypeConfig
 		stc := bean.SourceTypeConfig{
 			Value: material.Source.Value,
 		}
@@ -177,8 +193,9 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 			stc.Type = pc.SOURCE_TYPE_WEBHOOK
 		}
 
+		sourceList = append(sourceList, &stc)
 		cm := bean.CiMaterial{
-			Source: &stc,
+			Source: sourceList,
 		}
 
 		for _, gm := range gitMaterials {
@@ -196,22 +213,8 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 	if len(ciMaterial) == 0 {
 		return fmt.Errorf("git material not configured for build")
 	}
+	ciPipeline.CiMaterial = ciMaterial
 
-	ciPipeline := bean.CiPipeline{
-		IsManual:                 build.Trigger == v1.Manual,
-		DockerArgs:               dockerArgs,
-		IsExternal:               parentCiPipeline != nil || build.WebHookUrl != nil,
-		ParentCiPipeline:         parentCiPipelineId,
-		ParentAppId:              parentAppId,
-		ExternalCiConfig:         externalCiConfig,
-		CiMaterial:               ciMaterial,
-		Name:                     pipelineName,
-		Active:                   true,
-		Deleted:                  false,
-		BeforeDockerBuildScripts: beforeDockerBuildScripts,
-		AfterDockerBuildScripts:  afterDockerBuildScripts,
-		LinkedCount:              0,
-	}
 	//TODO: add userId
 	ciRequest := bean.CiPatchRequest{
 		CiPipeline:    &ciPipeline,

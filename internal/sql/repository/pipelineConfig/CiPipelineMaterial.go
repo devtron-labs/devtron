@@ -49,6 +49,8 @@ type CiPipelineMaterialRepository interface {
 	FindByCiPipelineIdsIn(ids []int) ([]*CiPipelineMaterial, error)
 	GetById(id int) (*CiPipelineMaterial, error)
 	GetByPipelineId(id int) ([]*CiPipelineMaterial, error)
+	GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error)
+	CheckRegexExistsForMaterial(id int, gitMaterialId int) bool
 }
 
 type CiPipelineMaterialRepositoryImpl struct {
@@ -79,6 +81,7 @@ func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineId(id int) ([]*CiPipel
 		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
 		Where("ci_pipeline_material.active = ?", true).
+		Where("ci_pipeline_material.type = ?", SOURCE_TYPE_BRANCH_FIXED).
 		Select()
 	return ciPipelineMaterials, err
 }
@@ -118,4 +121,30 @@ func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiP
 	}
 
 	return nil
+}
+
+func (impl CiPipelineMaterialRepositoryImpl) GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error) {
+	var ciPipelineMaterials []*CiPipelineMaterial
+	err := impl.dbConnection.Model(&ciPipelineMaterials).
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
+		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
+		Where("ci_pipeline_material.active = ?", true).
+		Where("ci_pipeline_material.type = ?", SOURCE_TYPE_BRANCH_REGEX).
+		Select()
+	return ciPipelineMaterials, err
+}
+
+func (impl CiPipelineMaterialRepositoryImpl) CheckRegexExistsForMaterial(id int, gitMaterialId int) bool {
+	var ciPipelineMaterials []*CiPipelineMaterial
+	exists, err := impl.dbConnection.Model(&ciPipelineMaterials).
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
+		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
+		Where("ci_pipeline_material.git_material_id = ?", gitMaterialId).
+		Where("ci_pipeline_material.active = ?", true).
+		Where("ci_pipeline_material.type = ?", SOURCE_TYPE_BRANCH_REGEX).
+		Exists()
+	if err != nil {
+		return false
+	}
+	return exists
 }

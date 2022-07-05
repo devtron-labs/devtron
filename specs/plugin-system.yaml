@@ -514,15 +514,19 @@ components:
           type: integer
         gitMaterialId:
           type: integer
-        source:
-          type: object
-          properties:
-            type:
-              type: string
-              example: "SOURCE_TYPE_BRANCH_FIXED"
-            value:
-              type: string
-              example: "master"
+        sources:
+          type: array
+          items:
+            $ref: '#/components/schemas/Source'
+    Source:
+      type: object
+      properties:
+        type:
+          type: string
+          example: "SOURCE_TYPE_BRANCH_FIXED"
+        value:
+          type: string
+          example: "master"
     DockerBuildScript:
       type: object
       properties:

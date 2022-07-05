@@ -104,6 +104,7 @@ type PipelineBuilder interface {
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
 	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
+	PatchRegexCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
 }
 
 type PipelineBuilderImpl struct {
@@ -494,19 +495,30 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 		}
+
+		var materialMap = make(map[int]bean.CiMaterial)
 		for _, material := range pipeline.CiPipelineMaterials {
-			ciMaterial := &bean.CiMaterial{
-				Id:              material.Id,
-				CheckoutPath:    material.CheckoutPath,
-				Path:            material.Path,
-				ScmId:           material.ScmId,
-				GitMaterialId:   material.GitMaterialId,
-				GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
-				ScmName:         material.ScmName,
-				ScmVersion:      material.ScmVersion,
-				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
+			source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
+			var ciMaterial bean.CiMaterial
+			ciMaterial, exists := materialMap[material.GitMaterialId]
+			if material.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+				ciMaterial.Id = material.Id
 			}
-			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+			ciMaterial.Source = append(ciMaterial.Source, source)
+			if !exists {
+				ciMaterial.CheckoutPath = material.CheckoutPath
+				ciMaterial.Path = material.Path
+				ciMaterial.ScmId = material.ScmId
+				ciMaterial.GitMaterialId = material.GitMaterialId
+				ciMaterial.GitMaterialName = material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:]
+				ciMaterial.ScmName = material.ScmName
+				ciMaterial.ScmVersion = material.ScmVersion
+			}
+			materialMap[material.GitMaterialId] = ciMaterial
+		}
+		for i := range materialMap {
+			val, _ := materialMap[i]
+			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, &val)
 		}
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
@@ -875,7 +887,19 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	}
 
 }
-
+func (impl PipelineBuilderImpl) PatchRegexCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error) {
+	ciConfig, err = impl.getCiTemplateVariables(request.AppId)
+	if err != nil {
+		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", request.AppId)
+		return nil, err
+	}
+	ciConfig.AppWorkflowId = request.AppWorkflowId
+	ciConfig.UserId = request.UserId
+	if request.CiPipeline != nil {
+		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
+	}
+	return impl.patchCiPipelineUpdateSource(ciConfig, request.CiPipeline)
+}
 func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error) {
 
 	//wf validation
@@ -2288,20 +2312,24 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
 	}
+	var sourceList []*bean.SourceTypeConfig
+	var ciMaterial bean.CiMaterial
 	for _, material := range pipeline.CiPipelineMaterials {
-		ciMaterial := &bean.CiMaterial{
-			Id:              material.Id,
-			CheckoutPath:    material.CheckoutPath,
-			Path:            material.Path,
-			ScmId:           material.ScmId,
-			GitMaterialId:   material.GitMaterialId,
-			GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
-			ScmName:         material.ScmName,
-			ScmVersion:      material.ScmVersion,
-			Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
+		source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
+		sourceList = append(sourceList, source)
+		ciMaterial.CheckoutPath = material.CheckoutPath
+		ciMaterial.Path = material.Path
+		ciMaterial.ScmId = material.ScmId
+		ciMaterial.GitMaterialId = material.GitMaterialId
+		ciMaterial.GitMaterialName = material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:]
+		ciMaterial.ScmName = material.ScmName
+		ciMaterial.ScmVersion = material.ScmVersion
+		if material.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+			ciMaterial.Id = material.Id
 		}
-		ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 	}
+	ciMaterial.Source = sourceList
+	ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, &ciMaterial)
 	linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err

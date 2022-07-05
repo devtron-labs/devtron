@@ -68,15 +68,15 @@ type GitMaterial struct {
 }
 
 type CiMaterial struct {
-	Source          *SourceTypeConfig `json:"source,omitempty" validate:"dive,required"`   //branch for ci
-	Path            string            `json:"path,omitempty"`                              // defaults to root of git repo
-	CheckoutPath    string            `json:"checkoutPath,omitempty"`                      //path where code will be checked out for single source `./` default for multiSource configured by user
-	GitMaterialId   int               `json:"gitMaterialId,omitempty" validate:"required"` //id stored in db GitMaterial( foreign key)
-	ScmId           string            `json:"scmId,omitempty"`                             //id of gocd object
-	ScmName         string            `json:"scmName,omitempty"`
-	ScmVersion      string            `json:"scmVersion,omitempty"`
-	Id              int               `json:"id,omitempty"`
-	GitMaterialName string            `json:"gitMaterialName"`
+	Source          []*SourceTypeConfig `json:"source,omitempty" validate:"dive,required"`   //branch for ci
+	Path            string              `json:"path,omitempty"`                              // defaults to root of git repo
+	CheckoutPath    string              `json:"checkoutPath,omitempty"`                      //path where code will be checked out for single source `./` default for multiSource configured by user
+	GitMaterialId   int                 `json:"gitMaterialId,omitempty" validate:"required"` //id stored in db GitMaterial( foreign key)
+	ScmId           string              `json:"scmId,omitempty"`                             //id of gocd object
+	ScmName         string              `json:"scmName,omitempty"`
+	ScmVersion      string              `json:"scmVersion,omitempty"`
+	Id              int                 `json:"id,omitempty"`
+	GitMaterialName string              `json:"gitMaterialName"`
 }
 
 type CiPipeline struct {

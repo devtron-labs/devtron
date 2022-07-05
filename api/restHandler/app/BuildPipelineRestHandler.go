@@ -36,6 +36,8 @@ type DevtronAppBuildRestHandler interface {
 	FetchWorkflowDetails(w http.ResponseWriter, r *http.Request)
 	// CancelWorkflow CancelBuild
 	CancelWorkflow(w http.ResponseWriter, r *http.Request)
+
+	UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildMaterialRestHandler interface {
@@ -132,6 +134,92 @@ func (handler PipelineConfigRestHandlerImpl) UpdateCiTemplate(w http.ResponseWri
 	createResp, err := handler.pipelineBuilder.UpdateCiTemplate(&configRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateCiTemplate", "err", err, "UpdateCiTemplate", configRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var patchRequest bean.CiPatchRequest
+	err = decoder.Decode(&patchRequest)
+	patchRequest.UserId = userId
+	if err != nil {
+		handler.Logger.Errorw("request err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Infow("request payload, PatchCiPipelines", "PatchCiPipelines", patchRequest)
+	err = handler.validator.Struct(patchRequest)
+	if err != nil {
+		handler.Logger.Errorw("validation err", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	handler.Logger.Debugw("update request ", "req", patchRequest)
+	token := r.Header.Get("token")
+	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(patchRequest.AppId, patchRequest.CiPipeline.Id)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	var environmentIds []int
+	for _, pipeline := range pipelineData {
+		environmentIds = append(environmentIds, pipeline.EnvironmentId)
+	}
+	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(patchRequest.CiPipeline.Id) {
+		for _, envId := range environmentIds {
+			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(patchRequest.CiPipeline.Id, envId)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			}
+		}
+	}
+
+	var materialList []*bean.CiMaterial
+	for _, material := range patchRequest.CiPipeline.CiMaterial {
+		if handler.ciPipelineMaterialRepository.CheckRegexExistsForMaterial(patchRequest.CiPipeline.Id, material.GitMaterialId) {
+			var sourceList []*bean.SourceTypeConfig
+			for _, config := range material.Source {
+				if config.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+					source := &bean.SourceTypeConfig{
+						Type:  config.Type,
+						Value: config.Value,
+					}
+					sourceList = append(sourceList, source)
+				}
+			}
+			material.Source = sourceList
+			materialList = append(materialList, material)
+		}
+	}
+	if len(materialList) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	patchRequest.CiPipeline.CiMaterial = materialList
+
+	createResp, err := handler.pipelineBuilder.PatchRegexCiPipeline(&patchRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

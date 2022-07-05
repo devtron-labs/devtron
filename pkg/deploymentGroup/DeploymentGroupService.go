@@ -271,19 +271,30 @@ func (impl *DeploymentGroupServiceImpl) FetchParentCiForDG(deploymentGroupId int
 		pipeline.Connections = count
 
 		var materialTemp []*bean.CiMaterial
+		var materialMap = make(map[int]bean.CiMaterial)
 		for _, material := range ciPipeline.CiPipelineMaterials {
-			ciMaterial := bean.CiMaterial{
-				Id:              material.Id,
-				CheckoutPath:    material.CheckoutPath,
-				Path:            material.Path,
-				ScmId:           material.ScmId,
-				GitMaterialId:   material.GitMaterialId,
-				GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
-				ScmName:         material.ScmName,
-				ScmVersion:      material.ScmVersion,
-				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
+			source := &bean.SourceTypeConfig{Type: material.Type, Value: material.Value}
+			var ciMaterial bean.CiMaterial
+			ciMaterial, exists := materialMap[material.GitMaterialId]
+			if !exists {
+				ciMaterial.CheckoutPath = material.CheckoutPath
+				ciMaterial.Path = material.Path
+				ciMaterial.ScmId = material.ScmId
+				ciMaterial.GitMaterialId = material.GitMaterialId
+				ciMaterial.GitMaterialName = material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:]
+				ciMaterial.ScmName = material.ScmName
+				ciMaterial.ScmVersion = material.ScmVersion
 			}
-			materialTemp = append(materialTemp, &ciMaterial)
+			ciMaterial.Source = append(ciMaterial.Source, source)
+
+			if material.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+				ciMaterial.Id = material.Id
+			}
+			materialMap[material.GitMaterialId] = ciMaterial
+		}
+		for i := range materialMap {
+			val, _ := materialMap[i]
+			materialTemp = append(materialTemp, &val)
 		}
 		pipeline.Repositories = materialTemp
 		results = append(results, pipeline)

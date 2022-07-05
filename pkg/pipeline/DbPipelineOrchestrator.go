@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -67,6 +68,7 @@ type DbPipelineOrchestrator interface {
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	GetByEnvOverrideId(envOverrideId int) (*bean.CdPipelines, error)
 	BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript
+	CheckStringMatchRegex(regex string, value string) bool
 }
 
 type DbPipelineOrchestratorImpl struct {
@@ -130,6 +132,14 @@ func NewDbPipelineOrchestrator(
 const BEFORE_DOCKER_BUILD string = "BEFORE_DOCKER_BUILD"
 const AFTER_DOCKER_BUILD string = "AFTER_DOCKER_BUILD"
 
+func (impl DbPipelineOrchestratorImpl) CheckStringMatchRegex(regex string, value string) bool {
+	response, err := regexp.MatchString(regex, value)
+	if err != nil {
+		return false
+	}
+	return response
+}
+
 func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.CiPipeline, userId int32) (*bean.CiPipeline, error) {
 	argByte, err := json.Marshal(createRequest.DockerArgs)
 	if err != nil {
@@ -186,22 +196,26 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	var materials []*pipelineConfig.CiPipelineMaterial
 	var materialsAdd []*pipelineConfig.CiPipelineMaterial
 	var materialsUpdate []*pipelineConfig.CiPipelineMaterial
+	var materialGitMap = make(map[int]string)
 	for _, material := range createRequest.CiMaterial {
-		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-			Id:            material.Id,
-			Value:         material.Source.Value,
-			Type:          material.Source.Type,
-			Active:        createRequest.Active,
-			GitMaterialId: material.GitMaterialId,
-			AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+		var pipelineMaterial pipelineConfig.CiPipelineMaterial
+		for _, config := range material.Source {
+			pipelineMaterial.Id = material.Id
+			pipelineMaterial.Value = config.Value
+			pipelineMaterial.Type = config.Type
+			pipelineMaterial.Active = createRequest.Active
+			pipelineMaterial.GitMaterialId = material.GitMaterialId
+			pipelineMaterial.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
+			materialGitMap[material.GitMaterialId] = config.Value
 		}
+
 		if material.Id == 0 {
 			pipelineMaterial.CiPipelineId = createRequest.Id
 			pipelineMaterial.CreatedBy = userId
 			pipelineMaterial.CreatedOn = time.Now()
-			materialsAdd = append(materialsAdd, pipelineMaterial)
+			materialsAdd = append(materialsAdd, &pipelineMaterial)
 		} else {
-			materialsUpdate = append(materialsUpdate, pipelineMaterial)
+			materialsUpdate = append(materialsUpdate, &pipelineMaterial)
 		}
 	}
 	if len(materialsAdd) > 0 {
@@ -224,6 +238,25 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			return nil, err
 		}
 	} else {
+		regexMaterial, err := impl.CiPipelineMaterialRepository.GetRegexByPipelineId(createRequest.Id)
+		if err != nil {
+			impl.logger.Errorw("err", "err", err)
+		}
+		var errorList string
+		if len(regexMaterial) != 0 {
+			for _, material := range regexMaterial {
+				if !impl.CheckStringMatchRegex(material.Value, materialGitMap[material.GitMaterialId]) {
+					if errorList == "" {
+						errorList = "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
+					} else {
+						errorList = errorList + "; " + "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
+					}
+				}
+			}
+		}
+		if errorList != "" {
+			return nil, errors.New(errorList)
+		}
 		err = impl.addPipelineMaterialInGitSensor(materials)
 		if err != nil {
 			impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", materials, "err", err)
@@ -271,13 +304,16 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		var linkedMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, ciPipelineMaterial := range ciPipelineMaterials {
 			if parentMaterial, ok := parentMaterialsMap[ciPipelineMaterial.GitMaterialId]; ok {
-				pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-					Id:       ciPipelineMaterial.Id,
-					Value:    parentMaterial.Source.Value,
-					Active:   createRequest.Active,
-					AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+				for _, config := range parentMaterial.Source {
+					pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+						Id:       ciPipelineMaterial.Id,
+						Value:    config.Value,
+						Active:   createRequest.Active,
+						AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+					}
+					linkedMaterials = append(linkedMaterials, pipelineMaterial)
 				}
-				linkedMaterials = append(linkedMaterials, pipelineMaterial)
+
 			} else {
 				impl.logger.Errorw("material not fount in patent", "gitMaterialId", ciPipelineMaterial.GitMaterialId)
 				return nil, fmt.Errorf("error while updating linked pipeline")
@@ -373,20 +409,24 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 		}
 		var pipelineMaterials []*pipelineConfig.CiPipelineMaterial
 		for _, r := range ciPipeline.CiMaterial {
-			material := &pipelineConfig.CiPipelineMaterial{
-				GitMaterialId: r.GitMaterialId,
-				ScmId:         r.ScmId,
-				ScmVersion:    r.ScmVersion,
-				ScmName:       r.ScmName,
-				Value:         r.Source.Value,
-				Type:          r.Source.Type,
-				Path:          r.Path,
-				CheckoutPath:  r.CheckoutPath,
-				CiPipelineId:  ciPipelineObject.Id,
-				Active:        true,
-				AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			for _, config := range r.Source {
+				material := &pipelineConfig.CiPipelineMaterial{
+					GitMaterialId: r.GitMaterialId,
+					ScmId:         r.ScmId,
+					ScmVersion:    r.ScmVersion,
+					ScmName:       r.ScmName,
+					Value:         config.Value,
+					Type:          config.Type,
+					Path:          r.Path,
+					CheckoutPath:  r.CheckoutPath,
+					CiPipelineId:  ciPipelineObject.Id,
+					Active:        true,
+					AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+				}
+				pipelineMaterials = append(pipelineMaterials, material)
 			}
-			pipelineMaterials = append(pipelineMaterials, material)
+
+			//pipelineMaterials = append(pipelineMaterials, material)
 		}
 		err = impl.CiPipelineMaterialRepository.Save(tx, pipelineMaterials...)
 		if err != nil {
@@ -586,14 +626,19 @@ func (impl DbPipelineOrchestratorImpl) deleteExternalCiDetails(ciPipeline *pipel
 func (impl DbPipelineOrchestratorImpl) addPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error {
 	var materials []*gitSensor.CiPipelineMaterial
 	for _, ciPipelineMaterial := range pipelineMaterials {
-		material := &gitSensor.CiPipelineMaterial{
-			Id:            ciPipelineMaterial.Id,
-			Active:        ciPipelineMaterial.Active,
-			Value:         ciPipelineMaterial.Value,
-			GitMaterialId: ciPipelineMaterial.GitMaterialId,
-			Type:          gitSensor.SourceType(ciPipelineMaterial.Type),
+		impl.logger.Infow("Pipeline materials for git sensor", "id", ciPipelineMaterial.Id)
+		if ciPipelineMaterial.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+			material := &gitSensor.CiPipelineMaterial{
+				Id:            ciPipelineMaterial.Id,
+				Active:        ciPipelineMaterial.Active,
+				Value:         ciPipelineMaterial.Value,
+				GitMaterialId: ciPipelineMaterial.GitMaterialId,
+				Type:          gitSensor.SourceType(ciPipelineMaterial.Type),
+			}
+			materials = append(materials, material)
+		} else {
+			impl.logger.Debugw("Pipeline materials skipped from git sensor", "id", ciPipelineMaterial.Id)
 		}
-		materials = append(materials, material)
 	}
 
 	_, err := impl.GitSensorClient.SavePipelineMaterial(materials)
