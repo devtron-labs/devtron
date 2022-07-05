@@ -506,25 +506,25 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	}
 	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
 	if err != nil {
-		impl.logger.Errorf("invalid req", "err", err, "req", overrideRequest)
+		impl.logger.Errorw("invalid req", "err", err, "req", overrideRequest)
 		return 0, err
 	}
 
 	envOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
 	if err != nil {
-		impl.logger.Errorf("invalid state", "err", err, "req", overrideRequest)
+		impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 		return 0, err
 	}
 
 	if envOverride.Id == 0 {
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
 		if err != nil {
-			impl.logger.Errorf("invalid state", "err", err, "req", overrideRequest)
+			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 			return 0, err
 		}
 		envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, pipeline.EnvironmentId, chart.ChartRefId)
 		if err != nil && !errors2.IsNotFound(err) {
-			impl.logger.Errorf("invalid state", "err", err, "req", overrideRequest)
+			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 			return 0, err
 		}
 
