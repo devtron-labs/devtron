@@ -81,7 +81,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequ
 		return nil, err
 	}
 	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
+		isGitOpsConfigured = false
 	}
 
 	if isGitOpsConfigured {
