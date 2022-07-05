@@ -31,6 +31,7 @@ type DeploymentGroupRepository interface {
 	Update(model *DeploymentGroup) (*DeploymentGroup, error)
 	Delete(model *DeploymentGroup) error
 	FindByIdWithApp(id int) (*DeploymentGroup, error)
+	FindByAppIdAndEnvId(envId, appId int) ([]DeploymentGroup, error)
 }
 
 type DeploymentGroupRepositoryImpl struct {
@@ -106,4 +107,19 @@ func (impl *DeploymentGroupRepositoryImpl) FindByIdWithApp(id int) (*DeploymentG
 		return nil, err
 	}
 	return deploymentGroup, err
+}
+
+func (impl *DeploymentGroupRepositoryImpl) FindByAppIdAndEnvId(envId, appId int) ([]DeploymentGroup, error) {
+	var models []DeploymentGroup
+	err := impl.dbConnection.Model(&models).Column("deployment_group.*").
+		Join("INNER JOIN deployment_group_app dga ON dga.deployment_group_id = deployment_group.id").
+		Where("dga.active = ?", true).
+		Where("dga.app_id = ?", appId).
+		Where("environment_id = ?", envId).
+		Where("deployment_group.active = ?", true).Select()
+	if err != nil {
+		impl.Logger.Errorw("error in fetching group", "appId", appId, "err", err)
+		return nil, err
+	}
+	return models, err
 }
