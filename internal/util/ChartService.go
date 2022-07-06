@@ -277,7 +277,7 @@ func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenc
 			return err
 		}
 	} else {
-		//auto-healing :  sometimes reference chart contents are not pushed in git-ops repo.
+		// auto-healing : data corruption fix - sometimes reference chart contents are not pushed in git-ops repo.
 		// copying content from reference template dir to cloned dir (if Chart.yaml file is not found)
 		// if Chart.yaml file is not found, we are assuming here that reference chart contents are not pushed in git-ops repo
 		if _, err := os.Stat(filepath.Join(dir, "Chart.yaml")); os.IsNotExist(err) {
