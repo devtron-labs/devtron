@@ -627,7 +627,7 @@ func (impl DbPipelineOrchestratorImpl) addPipelineMaterialInGitSensor(pipelineMa
 	var materials []*gitSensor.CiPipelineMaterial
 	for _, ciPipelineMaterial := range pipelineMaterials {
 		impl.logger.Infow("Pipeline materials for git sensor", "id", ciPipelineMaterial.Id)
-		if ciPipelineMaterial.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+		if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
 			material := &gitSensor.CiPipelineMaterial{
 				Id:            ciPipelineMaterial.Id,
 				Active:        ciPipelineMaterial.Active,
