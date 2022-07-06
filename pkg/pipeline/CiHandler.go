@@ -258,13 +258,38 @@ func (impl *CiHandlerImpl) RefreshMaterialByCiPipelineMaterialId(gitMaterialId i
 
 func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipelineMaterialResponse, error) {
 	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(pipelineId)
-	if len(ciMaterials) == 0 {
-		return []CiPipelineMaterialResponse{}, nil
-	}
 	impl.Logger.Infow("Testing Fetch Ci materials by pipeline Id ", "ci materials", ciMaterials)
 	if err != nil {
 		impl.Logger.Errorw("ciMaterials fetch failed", "err", err)
 	}
+	var ciPipelineMaterialResponses []CiPipelineMaterialResponse
+	if len(ciMaterials) == 0 {
+		regexMaterials, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(pipelineId)
+		if err != nil {
+			impl.Logger.Errorw("regex ciMaterials fetch failed", "err", err)
+			return []CiPipelineMaterialResponse{}, err
+		}
+		for _, k := range regexMaterials {
+			r := CiPipelineMaterialResponse{
+				Id:              k.Id,
+				GitMaterialId:   k.GitMaterialId,
+				GitMaterialName: k.GitMaterial.Name[strings.Index(k.GitMaterial.Name, "-")+1:],
+				Type:            string(k.Type),
+				Value:           k.Value,
+				Active:          k.Active,
+				GitMaterialUrl:  k.GitMaterial.Url,
+				History:         nil,
+				IsRepoError:     false,
+				RepoErrorMsg:    "",
+				IsBranchError:   false,
+				BranchErrorMsg:  "",
+			}
+			ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
+		}
+
+		return []CiPipelineMaterialResponse{}, nil
+	}
+
 	ciMaterialHistoryMap := make(map[*pipelineConfig.CiPipelineMaterial]*gitSensor.MaterialChangeResp)
 	for _, m := range ciMaterials {
 		changesRequest := &gitSensor.FetchScmChangesRequest{
@@ -279,7 +304,6 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 		ciMaterialHistoryMap[m] = changesResp
 	}
 
-	var ciPipelineMaterialResponses []CiPipelineMaterialResponse
 	for k, v := range ciMaterialHistoryMap {
 		r := CiPipelineMaterialResponse{
 			Id:              k.Id,
