@@ -101,7 +101,7 @@ func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() {
 func (impl *ArgoUserServiceImpl) CreateNewArgoCdUserForDevtron(k8sClient *v1.CoreV1Client) (string, string, error) {
 	username := DEVTRON_USER
 	password := getNewPassword()
-	userCapabilities := []string{ARGO_USER_APIKEY_CAPABILITY}
+	userCapabilities := []string{ARGO_USER_APIKEY_CAPABILITY, ARGO_USER_LOGIN_CAPABILITY}
 	//create new user at argo cd side
 	err := impl.CreateNewArgoCdUser(username, password, userCapabilities, k8sClient)
 	if err != nil {
