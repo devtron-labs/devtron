@@ -26,12 +26,14 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"strings"
+	"time"
 )
 
 type Enforcer interface {
 	Enforce(rvals ...interface{}) bool
 	EnforceErr(rvals ...interface{}) error
 	EnforceByEmail(rvals ...interface{}) bool
+	EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
 }
 
 func NewEnforcerImpl(
@@ -78,6 +80,17 @@ func (e *EnforcerImpl) EnforceErr(rvals ...interface{}) error {
 		return status.Error(codes.PermissionDenied, errMsg)
 	}
 	return nil
+}
+
+func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool {
+	start := time.Now()
+	result := make(map[string]bool)
+	for _, item := range vals {
+		result[item] = e.EnforceByEmail(emailId, resource, action, item)
+	}
+	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
+		"action", action, "elapsedTime", time.Since(start))
+	return result
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
