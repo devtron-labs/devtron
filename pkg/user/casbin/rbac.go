@@ -26,6 +26,7 @@ import (
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"strings"
+	"time"
 )
 
 type Enforcer interface {
@@ -86,11 +87,15 @@ func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, rvals ...interface{}) bool 
 	if len(rvals) == 0 {
 		return false
 	}
+
+	start := time.Now()
 	claims, err := e.SessionManager.VerifyToken(rvals[0].(string))
+	verifyTokenElapsedTime := time.Since(start)
 	if err != nil {
 		return false
 	}
 	mapClaims, err := jwt.MapClaims(claims)
+	mapClaimsET := time.Since(start)
 	if err != nil {
 		return false
 	}
@@ -100,7 +105,11 @@ func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, rvals ...interface{}) bool 
 		email = "admin"
 	}
 	rvals[0] = strings.ToLower(email)
-	return enf.Enforce(rvals...)
+	enforceResult := enf.Enforce(rvals...)
+	enforcerET := time.Since(start)
+	e.logger.Infow("time spent during enforce operation: ", "verifyToken", verifyTokenElapsedTime,
+		"mapClaims", mapClaimsET-verifyTokenElapsedTime, "enforcer", enforcerET-mapClaimsET-verifyTokenElapsedTime, "total", enforcerET)
+	return enforceResult
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
