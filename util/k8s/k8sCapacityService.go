@@ -610,7 +610,7 @@ func findNodeStatus(node *metav1.Node) string {
 			if condition.Status == metav1.ConditionTrue {
 				status = string(condition.Type)
 			} else {
-				status = "Not " + string(condition.Type)
+				status = fmt.Sprintf("Not %s", string(condition.Type))
 			}
 		}
 	}
