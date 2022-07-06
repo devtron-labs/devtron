@@ -31,6 +31,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const PROJECT_DELETE_SUCCESS_RESP = "Project deleted successfully."
@@ -236,12 +237,14 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	start := time.Now()
 	teams, err := impl.teamService.FetchForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("service err, FetchForAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	dbElapsedTime := time.Since(start)
 	token := r.Header.Get("token")
 	v := r.URL.Query()
 	authEnabled := true
@@ -254,6 +257,7 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 			//ignore error, apply rbac by default
 		}
 	}
+	start = time.Now()
 	// RBAC enforcer applying
 	var grantedTeams []team.TeamRequest
 	for _, item := range teams {
@@ -266,6 +270,9 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 		}
 
 	}
+	impl.logger.Info("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
+		"token", token, "envSize", len(grantedTeams))
+
 	//RBAC enforcer Ends
 	if len(grantedTeams) == 0 {
 		grantedTeams = make([]team.TeamRequest, 0)

@@ -265,12 +265,14 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	start := time.Now()
 	environments, err := impl.environmentClusterMappingsService.GetEnvironmentListForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("service err, GetEnvironmentListForAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	dbElapsedTime := time.Since(start)
 
 	v := r.URL.Query()
 	authEnabled := true
@@ -286,7 +288,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	token := r.Header.Get("token")
 	// RBAC enforcer applying
 	var grantedEnvironment []request.EnvironmentBean
-	start := time.Now()
+	start = time.Now()
 	for _, item := range environments {
 		if authEnabled == true {
 			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
@@ -297,7 +299,8 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		}
 	}
 	elapsedTime := time.Since(start)
-	impl.logger.Info("elapsed Time for enforcer", "elapsedTime", elapsedTime, "token", token, "envSize", len(grantedEnvironment))
+	impl.logger.Info("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
+		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
 	//RBAC enforcer Ends
 	if len(grantedEnvironment) == 0 {
 		grantedEnvironment = make([]request.EnvironmentBean, 0)

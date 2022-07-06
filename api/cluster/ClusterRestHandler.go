@@ -27,6 +27,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -254,7 +255,9 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 }
 
 func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	clusterList, err := impl.clusterService.FindAllForAutoComplete()
+	dbOperationTime := time.Since(start)
 	if err != nil {
 		impl.logger.Errorw("service err, FindAllForAutoComplete", "error", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -274,6 +277,7 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
+	start = time.Now()
 	for _, item := range clusterList {
 		if authEnabled == true {
 			if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
@@ -284,6 +288,7 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 		}
 
 	}
+	impl.logger.Info("Cluster elapsed Time for enforcer", "dbElapsedTime", dbOperationTime, "enforcerTime", time.Since(start), "token", token, "envSize", len(result))
 	//RBAC enforcer Ends
 
 	if len(result) == 0 {
