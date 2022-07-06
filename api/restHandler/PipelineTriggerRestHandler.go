@@ -21,6 +21,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
+
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -32,7 +34,6 @@ import (
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
 )
 
 type PipelineTriggerRestHandler interface {
@@ -86,7 +87,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 		return
 	}
 	overrideRequest.UserId = userId
-	handler.logger.Infow("request err, OverrideConfig", "err", err, "payload", overrideRequest)
+	handler.logger.Infow("request for OverrideConfig", "payload", overrideRequest)
 	err = handler.validator.Struct(overrideRequest)
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)

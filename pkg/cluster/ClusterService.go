@@ -20,6 +20,10 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
+	"os"
+	"time"
+
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -28,9 +32,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"io/ioutil"
-	"os"
-	"time"
 )
 
 type ClusterBean struct {
@@ -328,7 +329,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 		return nil, fmt.Errorf("cluster already exists")
 	}
 
-	// check weather config modified or not, if yes create informer with updated config
+	// check whether config modified or not, if yes create informer with updated config
 	dbConfig := model.Config["bearer_token"]
 	requestConfig := bean.Config["bearer_token"]
 	if bean.ServerUrl != model.ServerUrl || dbConfig != requestConfig {
@@ -339,10 +340,18 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	model.PrometheusEndpoint = bean.PrometheusUrl
 
 	if bean.PrometheusAuth != nil {
-		model.PUserName = bean.PrometheusAuth.UserName
-		model.PPassword = bean.PrometheusAuth.Password
-		model.PTlsClientCert = bean.PrometheusAuth.TlsClientCert
-		model.PTlsClientKey = bean.PrometheusAuth.TlsClientKey
+		if bean.PrometheusAuth.UserName != "" {
+			model.PUserName = bean.PrometheusAuth.UserName
+		}
+		if bean.PrometheusAuth.Password != "" {
+			model.PPassword = bean.PrometheusAuth.Password
+		}
+		if bean.PrometheusAuth.TlsClientCert != "" {
+			model.PTlsClientCert = bean.PrometheusAuth.TlsClientCert
+		}
+		if bean.PrometheusAuth.TlsClientKey != "" {
+			model.PTlsClientKey = bean.PrometheusAuth.TlsClientKey
+		}
 	}
 
 	model.Active = bean.Active
