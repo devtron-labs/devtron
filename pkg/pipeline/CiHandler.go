@@ -287,7 +287,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 			ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
 		}
 
-		return []CiPipelineMaterialResponse{}, nil
+		return ciPipelineMaterialResponses, nil
 	}
 
 	ciMaterialHistoryMap := make(map[*pipelineConfig.CiPipelineMaterial]*gitSensor.MaterialChangeResp)
