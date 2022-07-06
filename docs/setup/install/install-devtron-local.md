@@ -1,4 +1,10 @@
 # Install Devtron on Local Machine
+You can install and try Devtron with CICD integration on a highend Laptop or a PC, but the laptop/PC may start to respond slow, so it is recommended to uninstall Devtron from your laptop before shutting it down.
+
+#### System Configurations for Devtron Installation
+1. 2 CPUs+ cores
+2. 4GB+ of free memory
+3. 20GB+ free disk space
 
 ## Before you begin
 Before we get started and install Devtron, we need to set up the cluster in our servers.
@@ -7,10 +13,7 @@ Before we get started and install Devtron, we need to set up the cluster in our 
  * Create cluster using [K3s](https://rancher.com/docs/k3s/latest/en/installation/)
  * Install [Helm3](https://helm.sh/docs/intro/install/)
  * Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
-#### System Configurations for Devtron Installation
-1. 2 CPUs+ cores
-2. 4GB+ of free memory
-3. 20GB+ free disk space
+
 
 ## Installing Devtron on Local Cluster
 1. Add Devtron repository
@@ -27,7 +30,7 @@ helm repo add devtron https://helm.devtron.ai
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
---set components.devtron.service.type=NodePort
+--set components.devtron.service.type=NodePort --set configs.installation
 
 ```
 {% endtab %}
@@ -35,8 +38,6 @@ helm install devtron devtron/devtron-operator \
 {% tab title="Devtron on k3s Cluster" %}
 To install devtron on ``k3s`` Cluster use the Following commands
 ```bash
-curl -sfL https://get.k3s.io | sh -s - --write-kubeconfig-mode 644
-
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
 helm repo add devtron https://helm.devtron.ai
