@@ -32,6 +32,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
@@ -284,6 +285,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	token := r.Header.Get("token")
 	// RBAC enforcer applying
 	var grantedEnvironment []request.EnvironmentBean
+	start := time.Now()
 	for _, item := range environments {
 		if authEnabled == true {
 			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
@@ -293,6 +295,8 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 			grantedEnvironment = append(grantedEnvironment, item)
 		}
 	}
+	elapsedTime := time.Since(start)
+	impl.logger.Info("elapsed Time for enforcer", "elapsedTime", elapsedTime, "token", token, "envSize", len(grantedEnvironment))
 	//RBAC enforcer Ends
 	if len(grantedEnvironment) == 0 {
 		grantedEnvironment = make([]request.EnvironmentBean, 0)
