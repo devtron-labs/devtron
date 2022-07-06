@@ -564,7 +564,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	}
 
 	// auto-healing :  data corruption fix - if ChartLocation in chart is not correct, need correction
-	if !strings.HasSuffix(envOverride.Chart.ChartLocation, fmt.Sprintf("%s/%s", "/", envOverride.Chart.ChartVersion)) {
+	if !strings.HasSuffix(envOverride.Chart.ChartLocation, fmt.Sprintf("%s%s", "/", envOverride.Chart.ChartVersion)) {
 		err = impl.autoHealChartLocationInChart(envOverride)
 		if err != nil {
 			return 0, err
