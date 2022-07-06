@@ -299,7 +299,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		}
 	}
 	elapsedTime := time.Since(start)
-	impl.logger.Info("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
+	impl.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
 		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
 	//RBAC enforcer Ends
 	if len(grantedEnvironment) == 0 {

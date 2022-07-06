@@ -288,7 +288,7 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 		}
 
 	}
-	impl.logger.Info("Cluster elapsed Time for enforcer", "dbElapsedTime", dbOperationTime, "enforcerTime", time.Since(start), "token", token, "envSize", len(result))
+	impl.logger.Infow("Cluster elapsed Time for enforcer", "dbElapsedTime", dbOperationTime, "enforcerTime", time.Since(start), "token", token, "envSize", len(result))
 	//RBAC enforcer Ends
 
 	if len(result) == 0 {

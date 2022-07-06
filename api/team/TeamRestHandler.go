@@ -270,7 +270,7 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 		}
 
 	}
-	impl.logger.Info("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
+	impl.logger.Infow("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
 		"token", token, "envSize", len(grantedTeams))
 
 	//RBAC enforcer Ends
