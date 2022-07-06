@@ -188,7 +188,7 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 			}
 			_, err = impl.grafanaClient.UpdateDatasource(updateDatasourceReq, env.GrafanaDatasourceId)
 			if err != nil {
-				impl.logger.Error(err)
+				impl.logger.Errorw("Error while updating the datasource", "Datasource id : ", env.GrafanaDatasourceId, "error", err)
 				return nil, err
 			}
 		}
