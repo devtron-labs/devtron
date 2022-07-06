@@ -379,7 +379,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		req := &client.AppDetailRequest{
 			ClusterConfig: config,
 			Namespace:     appDetail.Namespace,
-			ReleaseName:   fmt.Sprintf("%s-%s", appDetail.AppName, appDetail.EnvironmentName),
+			ReleaseName:   fmt.Sprintf("%s", appDetail.AppName),
 		}
 		detail, err := handler.helmAppClient.GetAppDetail(context.Background(), req)
 		if err != nil {
