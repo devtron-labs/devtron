@@ -19,6 +19,12 @@ package cluster
 
 import (
 	"encoding/json"
+	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
@@ -28,11 +34,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
 )
 
 const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
