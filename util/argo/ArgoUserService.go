@@ -50,34 +50,26 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 		clusterService: clusterService,
 		acdSettings:    acdSettings,
 	}
-	err := argoUserServiceImpl.UpdateArgoCdUserDetail()
-	if err != nil {
-		argoUserServiceImpl.logger.Errorw("error in updating argo cd user detail", "err", err)
-		return nil, err
-	}
+	go argoUserServiceImpl.UpdateArgoCdUserDetail()
 	return argoUserServiceImpl, nil
 }
 
-func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() error {
+func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() {
 	cluster, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {
 		impl.logger.Errorw("error in getting default cluster", "err", err)
-		return err
 	}
 	clusterConfig, err := impl.clusterService.GetClusterConfig(cluster)
 	if err != nil {
 		impl.logger.Errorw("error in getting default cluster config", "err", err)
-		return err
 	}
 	k8sClient, err := getClient(clusterConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
-		return err
 	}
 	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, DEVTRON_SECRET, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
-		return err
 	}
 	secretData := devtronSecret.Data
 	username, usernameOk := secretData[DEVTRON_ARGOCD_USERNAME_KEY]
@@ -88,7 +80,6 @@ func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() error {
 		username, password, err := impl.CreateNewArgoCdUserForDevtron(k8sClient)
 		if err != nil {
 			impl.logger.Errorw("error in creating new argo cd user for devtron", "err", err)
-			return err
 		}
 		userNameStr = username
 		PasswordStr = password
@@ -103,16 +94,14 @@ func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() error {
 		_, err = impl.CreateNewArgoCdTokenForDevtron(userNameStr, PasswordStr, 1, k8sClient)
 		if err != nil {
 			impl.logger.Errorw("error in creating new argo cd token for devtron", "err", err)
-			return err
 		}
 	}
-	return nil
 }
 
 func (impl *ArgoUserServiceImpl) CreateNewArgoCdUserForDevtron(k8sClient *v1.CoreV1Client) (string, string, error) {
 	username := DEVTRON_USER
 	password := getNewPassword()
-	userCapabilities := []string{ARGO_USER_APIKEY_CAPABILITY, ARGO_USER_LOGIN_CAPABILITY}
+	userCapabilities := []string{ARGO_USER_APIKEY_CAPABILITY}
 	//create new user at argo cd side
 	err := impl.CreateNewArgoCdUser(username, password, userCapabilities, k8sClient)
 	if err != nil {
