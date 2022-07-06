@@ -80,6 +80,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		return installAppVersionRequest, err
 	}
 
+	installAppVersionRequest.DeploymentAppType = "helm"
 	return installAppVersionRequest, nil
 }
 

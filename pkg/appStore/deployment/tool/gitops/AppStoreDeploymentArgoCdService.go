@@ -83,8 +83,8 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequ
 	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
 		isGitOpsConfigured = true
 	}
-
 	if isGitOpsConfigured {
+		installAppVersionRequest.DeploymentAppType = "argo_cd"
 		installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
 		if err != nil {
 			impl.Logger.Errorw(" error", "err", err)
@@ -97,6 +97,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequ
 			return installAppVersionRequest, err
 		}
 	} else {
+		installAppVersionRequest.DeploymentAppType = "helm"
 		_, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
 		if err != nil {
 			impl.Logger.Errorw(" error while redirecting acd deployment to helm deployment", "err", err)

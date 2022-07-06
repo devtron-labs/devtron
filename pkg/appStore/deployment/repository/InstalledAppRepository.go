@@ -68,15 +68,16 @@ func NewInstalledAppRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.D
 }
 
 type InstalledApps struct {
-	TableName      struct{}                              `sql:"installed_apps" pg:",discard_unknown_columns"`
-	Id             int                                   `sql:"id,pk"`
-	AppId          int                                   `sql:"app_id,notnull"`
-	EnvironmentId  int                                   `sql:"environment_id,notnull"`
-	Active         bool                                  `sql:"active, notnull"`
-	GitOpsRepoName string                                `sql:"git_ops_repo_name"`
-	Status         appStoreBean.AppstoreDeploymentStatus `sql:"status"`
-	App            app.App
-	Environment    repository.Environment
+	TableName         struct{}                              `sql:"installed_apps" pg:",discard_unknown_columns"`
+	Id                int                                   `sql:"id,pk"`
+	AppId             int                                   `sql:"app_id,notnull"`
+	EnvironmentId     int                                   `sql:"environment_id,notnull"`
+	Active            bool                                  `sql:"active, notnull"`
+	GitOpsRepoName    string                                `sql:"git_ops_repo_name"`
+	DeploymentAppType string                                `sql:"deployment_app_type"`
+	Status            appStoreBean.AppstoreDeploymentStatus `sql:"status"`
+	App               app.App
+	Environment       repository.Environment
 	sql.AuditLog
 }
 
