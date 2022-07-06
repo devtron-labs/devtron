@@ -773,9 +773,9 @@ func (impl AppServiceImpl) autoHealChartLocationInChart(envOverride *chartConfig
 	newChartLocation := filepath.Join(chartRef.Location, envOverride.Chart.ChartVersion)
 	impl.logger.Infow("new chart location build", "chartId", chartId, "newChartLocation", newChartLocation)
 
-	// save chart in DB
+	// update chart in DB
 	chart.ChartLocation = newChartLocation
-	err = impl.chartRepository.Save(chart)
+	err = impl.chartRepository.Update(chart)
 	if err != nil {
 		impl.logger.Errorw("error occurred while saving chart into DB", "chartId", chartId, "err", err)
 		return err
