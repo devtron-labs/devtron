@@ -243,12 +243,28 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 		return
 	}
 	token := r.Header.Get("token")
+	v := r.URL.Query()
+	authEnabled := true
+	auth := v.Get("auth")
+	if len(auth) > 0 {
+		authEnabled, err = strconv.ParseBool(auth)
+		if err != nil {
+			authEnabled = true
+			err = nil
+			//ignore error, apply rbac by default
+		}
+	}
 	// RBAC enforcer applying
 	var grantedTeams []team.TeamRequest
 	for _, item := range teams {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+		if authEnabled == true {
+			if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+				grantedTeams = append(grantedTeams, item)
+			}
+		} else {
 			grantedTeams = append(grantedTeams, item)
 		}
+
 	}
 	//RBAC enforcer Ends
 	if len(grantedTeams) == 0 {
