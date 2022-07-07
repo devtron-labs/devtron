@@ -38,6 +38,7 @@ type Enforcer interface {
 	EnforceErr(rvals ...interface{}) error
 	EnforceByEmail(rvals ...interface{}) bool
 	EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
+	EnforceByEmailInBatchInSync(emailId string, resource string, action string, vals []string) map[string]bool
 }
 
 func NewEnforcerImpl(
@@ -86,80 +87,142 @@ func (e *EnforcerImpl) EnforceErr(rvals ...interface{}) error {
 	return nil
 }
 
-func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool {
+//func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool {
+//
+//	var result map[string]bool
+//	var totalTimeGap int64 = 0
+//	var maxTimegap int64 = 0
+//	var minTimegap int64 = math.MaxInt64
+//	var iterations = 0
+//	var avgTimegap = 0.0
+//	enforcerMaxBatchSize := os.Getenv("ENFORCER_MAX_BATCH_SIZE")
+//	batchSize, err := strconv.Atoi(enforcerMaxBatchSize)
+//	if err != nil {
+//		batchSize = ENFORCER_BATCH_MAX_SIZE_DEFAULT_VALUE
+//	}
+//	if batchSize == 1 {
+//		result, totalTimeGap = EnforceByEmailWithFixSize(e, emailId, resource, action, vals, false)
+//		iterations = 1
+//	} else {
+//		valsLength := len(vals)
+//		startIndex := 0
+//		endIndex := batchSize
+//		if endIndex > valsLength {
+//			endIndex = valsLength
+//		}
+//		result = make(map[string]bool)
+//		for startIndex < valsLength {
+//			iterations++
+//			tmpResult, m := EnforceByEmailWithFixSize(e, emailId, resource, action, vals[startIndex:endIndex], true)
+//			for k, v := range tmpResult {
+//				result[k] = v
+//			}
+//			totalTimeGap += m
+//			if m > maxTimegap {
+//				maxTimegap = m
+//			}
+//			if m < minTimegap {
+//				minTimegap = m
+//			}
+//			startIndex = endIndex
+//			endIndex = startIndex + batchSize
+//			if endIndex > valsLength {
+//				endIndex = valsLength
+//			}
+//		}
+//	}
+//	if iterations != 0 {
+//		avgTimegap = float64(totalTimeGap / int64(iterations))
+//	}
+//	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
+//		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap", minTimegap, "avgTimegap", avgTimegap, "size", len(vals), "batchSize", batchSize)
+//
+//	return result
+//}
+//
+//func EnforceByEmailWithFixSize(e *EnforcerImpl, emailId string, resource string, action string, vals []string, parallel bool) (map[string]bool, int64) {
+//	start := time.Now()
+//	result := make(map[string]bool)
+//	if parallel == false {
+//		for _, item := range vals {
+//			result[item] = e.EnforceByEmail(emailId, resource, action, item)
+//		}
+//	} else {
+//		wg := new(sync.WaitGroup)
+//		var mutex = &sync.RWMutex{}
+//		wg.Add(len(vals))
+//		for _, item := range vals {
+//			go enforceAsync(e, wg, mutex, item, result, emailId, resource, action)
+//		}
+//		wg.Wait()
+//	}
+//	return result, time.Since(start).Milliseconds()
+//}
+//
+//func enforceAsync(e *EnforcerImpl, wg *sync.WaitGroup, mutex *sync.RWMutex, item string, result map[string]bool, emailId string, resource string, action string) {
+//	defer wg.Done()
+//	emailAccess := e.EnforceByEmail(emailId, resource, action, item)
+//	mutex.Lock()
+//	result[item] = emailAccess
+//	mutex.Unlock()
+//}
 
-	var result map[string]bool
+func EnforceByEmailInBatchSync(e *EnforcerImpl, wg *sync.WaitGroup, mutex *sync.RWMutex, result map[string]bool, metrics map[int]int64, index int, emailId string, resource string, action string, vals []string) {
+	defer wg.Done()
+	start := time.Now()
+	batchResult := make(map[string]bool)
+	for _, item := range vals {
+		batchResult[item] = e.EnforceByEmail(emailId, resource, action, item)
+	}
+	duration := time.Since(start)
+	mutex.Lock()
+	for k, v := range batchResult {
+		result[k] = v
+	}
+	metrics[index] = duration.Milliseconds()
+	mutex.Unlock()
+}
+
+func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) {
 	var totalTimeGap int64 = 0
 	var maxTimegap int64 = 0
 	var minTimegap int64 = math.MaxInt64
-	var iterations = 0
-	var avgTimegap = 0.0
 	enforcerMaxBatchSize := os.Getenv("ENFORCER_MAX_BATCH_SIZE")
 	batchSize, err := strconv.Atoi(enforcerMaxBatchSize)
 	if err != nil {
 		batchSize = ENFORCER_BATCH_MAX_SIZE_DEFAULT_VALUE
+		err = nil
 	}
-	if batchSize == 1 {
-		result, totalTimeGap = EnforceByEmailWithFixSize(e, emailId, resource, action, vals, false)
-		iterations = 1
-	} else {
-		valsLength := len(vals)
-		startIndex := 0
-		endIndex := batchSize
-		if endIndex > valsLength {
-			endIndex = valsLength
+	var result = make(map[string]bool)
+	var metrics = make(map[int]int64)
+
+	totalSize := len(vals)
+	wg := new(sync.WaitGroup)
+	var mutex = &sync.RWMutex{}
+	wg.Add(batchSize)
+	for i := 0; i < batchSize; i++ {
+		startIndex := i * totalSize / batchSize
+		endIndex := startIndex + totalSize/batchSize
+		if endIndex > totalSize {
+			endIndex = totalSize
 		}
-		result = make(map[string]bool)
-		for startIndex < valsLength {
-			iterations++
-			tmpResult, m := EnforceByEmailWithFixSize(e, emailId, resource, action, vals[startIndex:endIndex], true)
-			for k, v := range tmpResult {
-				result[k] = v
-			}
-			totalTimeGap += m
-			if m > maxTimegap {
-				maxTimegap = m
-			}
-			if m < minTimegap {
-				minTimegap = m
-			}
-			startIndex = endIndex
-			endIndex = startIndex + batchSize
-			if endIndex > valsLength {
-				endIndex = valsLength
-			}
+		go EnforceByEmailInBatchSync(e, wg, mutex, result, metrics, i, emailId, resource, action, vals[startIndex:endIndex])
+	}
+	wg.Wait()
+	for _, duration := range metrics {
+		totalTimeGap += duration
+		if duration > maxTimegap {
+			maxTimegap = duration
+		}
+		if duration < minTimegap {
+			minTimegap = duration
 		}
 	}
-	if iterations != 0 {
-		avgTimegap = float64(totalTimeGap / int64(iterations))
-	}
+
 	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
-		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap", minTimegap, "avgTimegap", avgTimegap, "size", len(vals), "batchSize", batchSize)
+		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap",
+		minTimegap, "avgTimegap", float64(totalTimeGap/int64(batchSize)), "size", len(vals), "batchSize", batchSize)
 
-	return result
-}
-
-func EnforceByEmailWithFixSize(e *EnforcerImpl, emailId string, resource string, action string, vals []string, parallel bool) (map[string]bool, int64) {
-	start := time.Now()
-	result := make(map[string]bool)
-	if parallel == false {
-		for _, item := range vals {
-			result[item] = e.EnforceByEmail(emailId, resource, action, item)
-		}
-	} else {
-		wg := new(sync.WaitGroup)
-		wg.Add(len(vals))
-		for _, item := range vals {
-			go enforceAsync(e, wg, item, result, emailId, resource, action)
-		}
-		wg.Wait()
-	}
-	return result, time.Since(start).Milliseconds()
-}
-
-func enforceAsync(e *EnforcerImpl, wg *sync.WaitGroup, item string, result map[string]bool, emailId string, resource string, action string) {
-	defer wg.Done()
-	result[item] = e.EnforceByEmail(emailId, resource, action, item)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
