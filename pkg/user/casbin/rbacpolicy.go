@@ -50,4 +50,6 @@ const (
 	ActionTrigger = "trigger"
 	ActionNotify  = "notify"
 	ActionExec    = "exec"
+
+	ENFORCER_BATCH_MAX_SIZE_DEFAULT_VALUE = 10
 )

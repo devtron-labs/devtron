@@ -25,7 +25,11 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"math"
+	"os"
+	"strconv"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -83,14 +87,79 @@ func (e *EnforcerImpl) EnforceErr(rvals ...interface{}) error {
 }
 
 func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool {
-	start := time.Now()
-	result := make(map[string]bool)
-	for _, item := range vals {
-		result[item] = e.EnforceByEmail(emailId, resource, action, item)
+
+	var result map[string]bool
+	var totalTimeGap int64 = 0
+	var maxTimegap int64 = 0
+	var minTimegap int64 = math.MaxInt64
+	var iterations = 0
+	var avgTimegap = 0.0
+	enforcerMaxBatchSize := os.Getenv("ENFORCER_MAX_BATCH_SIZE")
+	batchSize, err := strconv.Atoi(enforcerMaxBatchSize)
+	if err != nil {
+		batchSize = ENFORCER_BATCH_MAX_SIZE_DEFAULT_VALUE
+	}
+	if batchSize == 1 {
+		result, totalTimeGap = EnforceByEmailWithFixSize(e, emailId, resource, action, vals, false)
+		iterations = 1
+	} else {
+		valsLength := len(vals)
+		startIndex := 0
+		endIndex := batchSize
+		if endIndex > valsLength {
+			endIndex = valsLength
+		}
+		result = make(map[string]bool)
+		for startIndex < valsLength {
+			iterations++
+			tmpResult, m := EnforceByEmailWithFixSize(e, emailId, resource, action, vals[startIndex:endIndex], true)
+			for k, v := range tmpResult {
+				result[k] = v
+			}
+			totalTimeGap += m
+			if m > maxTimegap {
+				maxTimegap = m
+			}
+			if m < minTimegap {
+				minTimegap = m
+			}
+			startIndex = endIndex
+			endIndex = startIndex + batchSize
+			if endIndex > valsLength {
+				endIndex = valsLength
+			}
+		}
+	}
+	if iterations != 0 {
+		avgTimegap = float64(totalTimeGap / int64(iterations))
 	}
 	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
-		"action", action, "elapsedTime", time.Since(start))
+		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap", minTimegap, "avgTimegap", avgTimegap, "size", len(vals))
+
 	return result
+}
+
+func EnforceByEmailWithFixSize(e *EnforcerImpl, emailId string, resource string, action string, vals []string, parallel bool) (map[string]bool, int64) {
+	start := time.Now()
+	result := make(map[string]bool)
+	if parallel == false {
+		for _, item := range vals {
+			result[item] = e.Enforce(emailId, resource, action, item)
+		}
+	} else {
+		wg := new(sync.WaitGroup)
+		wg.Add(len(vals))
+		for _, item := range vals {
+			go enforceAsync(e, wg, item, result, emailId, resource, action, item)
+		}
+		wg.Wait()
+	}
+	return result, time.Since(start).Milliseconds()
+}
+
+func enforceAsync(e *EnforcerImpl, wg *sync.WaitGroup, item string, result map[string]bool, rvals ...interface{}) {
+	defer wg.Done()
+	result[item] = e.Enforce(rvals)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
