@@ -19,8 +19,8 @@ package argocdServer
 
 import (
 	"context"
-	"github.com/argoproj/argo-cd/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/golang/protobuf/ptypes/empty"
 	"go.uber.org/zap"
 )

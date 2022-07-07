@@ -5,9 +5,11 @@ package grpc_logging
 
 import (
 	"context"
+	"io"
 
-	"google.golang.org/grpc"
+	"github.com/golang/protobuf/proto"
 	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 )
 
 // ErrorToCode function determines the error code of an error
@@ -15,7 +17,7 @@ import (
 type ErrorToCode func(err error) codes.Code
 
 func DefaultErrorToCode(err error) codes.Code {
-	return grpc.Code(err)
+	return status.Code(err)
 }
 
 // Decider function defines rules for suppressing any interceptor logs
@@ -34,3 +36,8 @@ type ServerPayloadLoggingDecider func(ctx context.Context, fullMethodName string
 // ClientPayloadLoggingDecider is a user-provided function for deciding whether to log the client-side
 // request/response payloads
 type ClientPayloadLoggingDecider func(ctx context.Context, fullMethodName string) bool
+
+// JsonPbMarshaller is a marshaller that serializes protobuf messages.
+type JsonPbMarshaler interface {
+	Marshal(out io.Writer, pb proto.Message) error
+}

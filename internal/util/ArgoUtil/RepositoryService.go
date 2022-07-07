@@ -17,7 +17,7 @@
 
 package ArgoUtil
 
-import "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+import "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 
 type RepositoryService interface {
 	Create(repositoryRequest *v1alpha1.Repository) (repository *v1alpha1.Repository, err error)

@@ -1,4 +1,4 @@
-// Copyright 2012-2021 The NATS Authors
+// Copyright 2012-2022 The NATS Authors
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
 // You may obtain a copy of the License at
@@ -157,6 +157,7 @@ var (
 	ErrPullSubscribeRequired        = errors.New("nats: must use pull subscribe to bind to pull based consumer")
 	ErrConsumerNotActive            = errors.New("nats: consumer not active")
 	ErrMsgNotFound                  = errors.New("nats: message not found")
+	ErrMsgAlreadyAckd               = errors.New("nats: message was already acknowledged")
 )
 
 func init() {
@@ -479,8 +480,10 @@ const (
 	// NUID size
 	nuidSize = 22
 
-	// Default port used if none is specified in given URL(s)
-	defaultPortString = "4222"
+	// Default ports used if none is specified in given URL(s)
+	defaultWSPortString  = "80"
+	defaultWSSPortString = "443"
+	defaultPortString    = "4222"
 )
 
 // A Conn represents a bare connection to a nats-server.
@@ -1190,7 +1193,7 @@ func (nc *Conn) SetDiscoveredServersHandler(dscb ConnHandler) {
 	nc.Opts.DiscoveredServersCB = dscb
 }
 
-// SetClosedHandler will set the reconnect event handler.
+// SetClosedHandler will set the closed event handler.
 func (nc *Conn) SetClosedHandler(cb ConnHandler) {
 	if nc == nil {
 		return
@@ -1484,7 +1487,14 @@ func (nc *Conn) addURLToPool(sURL string, implicit, saveTLSName bool) error {
 		if sURL[len(sURL)-1] != ':' {
 			sURL += ":"
 		}
-		sURL += defaultPortString
+		switch u.Scheme {
+		case wsScheme:
+			sURL += defaultWSPortString
+		case wsSchemeTLS:
+			sURL += defaultWSSPortString
+		default:
+			sURL += defaultPortString
+		}
 	}
 
 	isWS := isWebsocketScheme(u)
@@ -3728,8 +3738,13 @@ func (nc *Conn) respToken(respInbox string) string {
 }
 
 // Subscribe will express interest in the given subject. The subject
-// can have wildcards (partial:*, full:>). Messages will be delivered
-// to the associated MsgHandler.
+// can have wildcards.
+// There are two type of wildcards: * for partial, and > for full.
+// A subscription on subject time.*.east would receive messages sent to time.us.east and time.eu.east.
+// A subscription on subject time.us.> would receive messages sent to
+// time.us.east and time.us.east.atlanta, while time.us.* would only match time.us.east
+// since it can't match more than one token.
+// Messages will be delivered to the associated MsgHandler.
 func (nc *Conn) Subscribe(subj string, cb MsgHandler) (*Subscription, error) {
 	return nc.subscribe(subj, _EMPTY_, cb, nil, false, nil)
 }
@@ -4143,6 +4158,20 @@ func (nc *Conn) unsubscribe(sub *Subscription, max int, drainMode bool) error {
 		nc.bw.appendString(fmt.Sprintf(unsubProto, s.sid, maxStr))
 		nc.kickFlusher()
 	}
+
+	// For JetStream subscriptions cancel the attached context if there is any.
+	var cancel func()
+	sub.mu.Lock()
+	jsi := sub.jsi
+	if jsi != nil {
+		cancel = jsi.cancel
+		jsi.cancel = nil
+	}
+	sub.mu.Unlock()
+	if cancel != nil {
+		cancel()
+	}
+
 	return nil
 }
 

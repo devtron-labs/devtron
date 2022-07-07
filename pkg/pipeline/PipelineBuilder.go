@@ -36,7 +36,7 @@ import (
 	"strings"
 	"time"
 
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"

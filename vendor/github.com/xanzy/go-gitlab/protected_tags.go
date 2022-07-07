@@ -1,8 +1,24 @@
+//
+// Copyright 2021, Sander van Harmelen
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 package gitlab
 
 import (
 	"fmt"
-	"net/url"
+	"net/http"
 )
 
 // ProtectedTagsService handles communication with the protected tag methods
@@ -43,14 +59,14 @@ type ListProtectedTagsOptions ListOptions
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/protected_tags.html#list-protected-tags
-func (s *ProtectedTagsService) ListProtectedTags(pid interface{}, opt *ListProtectedTagsOptions, options ...OptionFunc) ([]*ProtectedTag, *Response, error) {
+func (s *ProtectedTagsService) ListProtectedTags(pid interface{}, opt *ListProtectedTagsOptions, options ...RequestOptionFunc) ([]*ProtectedTag, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/protected_tags", url.QueryEscape(project))
+	u := fmt.Sprintf("projects/%s/protected_tags", PathEscape(project))
 
-	req, err := s.client.NewRequest("GET", u, opt, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -68,14 +84,14 @@ func (s *ProtectedTagsService) ListProtectedTags(pid interface{}, opt *ListProte
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/protected_tags.html#get-a-single-protected-tag-or-wildcard-protected-tag
-func (s *ProtectedTagsService) GetProtectedTag(pid interface{}, tag string, options ...OptionFunc) (*ProtectedTag, *Response, error) {
+func (s *ProtectedTagsService) GetProtectedTag(pid interface{}, tag string, options ...RequestOptionFunc) (*ProtectedTag, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/protected_tags/%s", url.QueryEscape(project), tag)
+	u := fmt.Sprintf("projects/%s/protected_tags/%s", PathEscape(project), PathEscape(tag))
 
-	req, err := s.client.NewRequest("GET", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -104,14 +120,14 @@ type ProtectRepositoryTagsOptions struct {
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/protected_tags.html#protect-repository-tags
-func (s *ProtectedTagsService) ProtectRepositoryTags(pid interface{}, opt *ProtectRepositoryTagsOptions, options ...OptionFunc) (*ProtectedTag, *Response, error) {
+func (s *ProtectedTagsService) ProtectRepositoryTags(pid interface{}, opt *ProtectRepositoryTagsOptions, options ...RequestOptionFunc) (*ProtectedTag, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/protected_tags", url.QueryEscape(project))
+	u := fmt.Sprintf("projects/%s/protected_tags", PathEscape(project))
 
-	req, err := s.client.NewRequest("POST", u, opt, options)
+	req, err := s.client.NewRequest(http.MethodPost, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -130,14 +146,14 @@ func (s *ProtectedTagsService) ProtectRepositoryTags(pid interface{}, opt *Prote
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/protected_tags.html#unprotect-repository-tags
-func (s *ProtectedTagsService) UnprotectRepositoryTags(pid interface{}, tag string, options ...OptionFunc) (*Response, error) {
+func (s *ProtectedTagsService) UnprotectRepositoryTags(pid interface{}, tag string, options ...RequestOptionFunc) (*Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, err
 	}
-	u := fmt.Sprintf("projects/%s/protected_tags/%s", url.QueryEscape(project), tag)
+	u := fmt.Sprintf("projects/%s/protected_tags/%s", PathEscape(project), PathEscape(tag))
 
-	req, err := s.client.NewRequest("DELETE", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
 	if err != nil {
 		return nil, err
 	}

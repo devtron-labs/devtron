@@ -26,6 +26,7 @@ import (
 	repository5 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 
 	"encoding/json"
 	"fmt"
@@ -33,10 +34,9 @@ import (
 	"regexp"
 	"time"
 
-	"github.com/argoproj/argo-cd/pkg/apiclient/application"
-	repository2 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/util/session"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
@@ -78,7 +78,7 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	globalEnvVariables                   *util3.GlobalEnvVariables
 	installedAppRepository               repository4.InstalledAppRepository
 	tokenCache                           *util2.TokenCache
-	sessionManager                       *session.SessionManager
+	argoUserService                      argo.ArgoUserService
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -90,7 +90,8 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
 	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables,
-	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache, sessionManager *session.SessionManager) *AppStoreDeploymentFullModeServiceImpl {
+	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache,
+	argoUserService argo.ArgoUserService) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
 		logger:                               logger,
 		chartTemplateService:                 chartTemplateService,
@@ -106,9 +107,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		globalEnvVariables:                   globalEnvVariables,
 		installedAppRepository:               installedAppRepository,
 		tokenCache:                           tokenCache,
-		// injecting sessionManager here - in full mode, some place is needed to inject sessionManager
-		// otherwise wire gives error. FIXME
-		sessionManager:                       sessionManager,
+		argoUserService:                      argoUserService,
 	}
 }
 
@@ -320,11 +319,13 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 
 func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(appName string, environmentName string) (string, error) {
 	gitOpsRepoName := ""
-	ctx, err := impl.tokenCache.BuildACDSynchContext()
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
-		impl.logger.Errorw("error in creating acd sync context", "err", err)
+		impl.logger.Errorw("error in getting acd token", "err", err)
 		return "", err
 	}
+	ctx := context.Background()
+	ctx = context.WithValue(ctx, "token", acdToken)
 	acdAppName := fmt.Sprintf("%s-%s", appName, environmentName)
 	application, err := impl.acdClient.Get(ctx, &application.ApplicationQuery{Name: &acdAppName})
 	if err != nil {

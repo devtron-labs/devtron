@@ -1,19 +1,18 @@
 package bitbucket
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
+	"io/ioutil"
 	"log"
-
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
 	"strconv"
 	"strings"
-
-	"bytes"
-	"io"
-	"mime/multipart"
-	"os"
 
 	"golang.org/x/net/context"
 	"golang.org/x/oauth2"
@@ -53,6 +52,15 @@ type auth struct {
 	user, password string
 	token          oauth2.Token
 	bearerToken    string
+}
+
+type Response struct {
+	Size     int           `json:"size"`
+	Page     int           `json:"page"`
+	Pagelen  int           `json:"pagelen"`
+	Next     string        `json:"next"`
+	Previous string        `json:"previous"`
+	Values   []interface{} `json:"values"`
 }
 
 // Uses the Client Credentials Grant oauth2 flow to authenticate to Bitbucket
@@ -151,6 +159,7 @@ func injectClient(a *auth) *Client {
 		BranchRestrictions: &BranchRestrictions{c: c},
 		Webhooks:           &Webhooks{c: c},
 		Downloads:          &Downloads{c: c},
+		DeployKeys:         &DeployKeys{c: c},
 	}
 	c.Users = &Users{c: c}
 	c.User = &User{c: c}
@@ -158,6 +167,10 @@ func injectClient(a *auth) *Client {
 	c.Workspaces = &Workspace{c: c, Repositories: c.Repositories, Permissions: &Permission{c: c}}
 	c.HttpClient = new(http.Client)
 	return c
+}
+
+func (c *Client) GetOAuthToken() oauth2.Token {
+	return c.Auth.token
 }
 
 func (c *Client) GetApiBaseURL() string {
@@ -230,44 +243,6 @@ func (c *Client) execute(method string, urlStr string, text string) (interface{}
 		return nil, err
 	}
 
-	//autopaginate.
-	resultMap, isMap := result.(map[string]interface{})
-	if isMap {
-		nextIn := resultMap["next"]
-		valuesIn := resultMap["values"]
-		if nextIn != nil && valuesIn != nil {
-			nextUrl := nextIn.(string)
-			if nextUrl != "" {
-				valuesSlice := valuesIn.([]interface{})
-				if valuesSlice != nil {
-					nextResult, err := c.execute(method, nextUrl, text)
-					if err != nil {
-						return nil, err
-					}
-					nextResultMap, isNextMap := nextResult.(map[string]interface{})
-					if !isNextMap {
-						return nil, fmt.Errorf("next page result is not map, it's %T", nextResult)
-					}
-					nextValuesIn := nextResultMap["values"]
-					if nextValuesIn == nil {
-						return nil, fmt.Errorf("next page result has no values")
-					}
-					nextValuesSlice, isSlice := nextValuesIn.([]interface{})
-					if !isSlice {
-						return nil, fmt.Errorf("next page result 'values' is not slice")
-					}
-					valuesSlice = append(valuesSlice, nextValuesSlice...)
-					resultMap["values"] = valuesSlice
-					delete(resultMap, "page")
-					delete(resultMap, "pagelen")
-					delete(resultMap, "max_depth")
-					delete(resultMap, "size")
-					result = resultMap
-				}
-			}
-		}
-	}
-
 	return result, nil
 }
 
@@ -325,7 +300,6 @@ func (c *Client) authenticateRequest(req *http.Request) {
 	} else if c.Auth.token.Valid() {
 		c.Auth.token.SetAuthHeader(req)
 	}
-	return
 }
 
 func (c *Client) doRequest(req *http.Request, emptyResponse bool) (interface{}, error) {
@@ -339,12 +313,43 @@ func (c *Client) doRequest(req *http.Request, emptyResponse bool) (interface{}, 
 
 	defer resBody.Close()
 
-	var result interface{}
-	if err := json.NewDecoder(resBody).Decode(&result); err != nil {
-		log.Println("Could not unmarshal JSON payload, returning raw response")
+	responseBytes, err := ioutil.ReadAll(resBody)
+	if err != nil {
 		return resBody, err
 	}
 
+	responsePaginated := &Response{}
+	err = json.Unmarshal(responseBytes, responsePaginated)
+	if err == nil && len(responsePaginated.Values) > 0 {
+		var values []interface{}
+		for {
+			values = append(values, responsePaginated.Values...)
+			if responsePaginated.Pagelen == 0 || responsePaginated.Size/responsePaginated.Pagelen <= responsePaginated.Page {
+				break
+			}
+			newReq, err := http.NewRequest(req.Method, responsePaginated.Next, nil)
+			if err != nil {
+				return resBody, err
+			}
+			c.authenticateRequest(newReq)
+			resp, err := c.doRawRequest(newReq, false)
+			if err != nil {
+				return resBody, err
+			}
+			json.NewDecoder(resp).Decode(responsePaginated)
+		}
+		responsePaginated.Values = values
+		responseBytes, err = json.Marshal(responsePaginated)
+		if err != nil {
+			return resBody, err
+		}
+	}
+
+	var result interface{}
+	if err := json.Unmarshal(responseBytes, &result); err != nil {
+		log.Println("Could not unmarshal JSON payload, returning raw response")
+		return resBody, err
+	}
 	return result, nil
 }
 
@@ -355,8 +360,18 @@ func (c *Client) doRawRequest(req *http.Request, emptyResponse bool) (io.ReadClo
 	}
 
 	if unexpectedHttpStatusCode(resp.StatusCode) {
-		resp.Body.Close()
-		return nil, fmt.Errorf(resp.Status)
+		defer resp.Body.Close()
+
+		out := &UnexpectedResponseStatusError{Status: resp.Status}
+
+		body, err := io.ReadAll(resp.Body)
+		if err != nil {
+			out.Body = []byte(fmt.Sprintf("could not read the response body: %v", err))
+		} else {
+			out.Body = body
+		}
+
+		return nil, out
 	}
 
 	if emptyResponse || resp.StatusCode == http.StatusNoContent {
@@ -373,11 +388,10 @@ func (c *Client) doRawRequest(req *http.Request, emptyResponse bool) (io.ReadClo
 
 func unexpectedHttpStatusCode(statusCode int) bool {
 	switch statusCode {
-	case http.StatusOK:
-		return false
-	case http.StatusCreated:
-		return false
-	case http.StatusNoContent:
+	case http.StatusOK,
+		http.StatusCreated,
+		http.StatusNoContent,
+		http.StatusAccepted:
 		return false
 	default:
 		return true
