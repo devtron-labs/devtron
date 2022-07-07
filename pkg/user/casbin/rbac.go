@@ -144,22 +144,22 @@ func EnforceByEmailWithFixSize(e *EnforcerImpl, emailId string, resource string,
 	result := make(map[string]bool)
 	if parallel == false {
 		for _, item := range vals {
-			result[item] = e.Enforce(emailId, resource, action, item)
+			result[item] = e.EnforceByEmail(emailId, resource, action, item)
 		}
 	} else {
 		wg := new(sync.WaitGroup)
 		wg.Add(len(vals))
 		for _, item := range vals {
-			go enforceAsync(e, wg, item, result, emailId, resource, action, item)
+			go enforceAsync(e, wg, item, result, emailId, resource, action)
 		}
 		wg.Wait()
 	}
 	return result, time.Since(start).Milliseconds()
 }
 
-func enforceAsync(e *EnforcerImpl, wg *sync.WaitGroup, item string, result map[string]bool, rvals ...interface{}) {
+func enforceAsync(e *EnforcerImpl, wg *sync.WaitGroup, item string, result map[string]bool, emailId string, resource string, action string) {
 	defer wg.Done()
-	result[item] = e.EnforceByEmail(rvals)
+	result[item] = e.EnforceByEmail(emailId, resource, action, item)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
