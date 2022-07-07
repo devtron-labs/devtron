@@ -38,7 +38,6 @@ type Enforcer interface {
 	EnforceErr(rvals ...interface{}) error
 	EnforceByEmail(rvals ...interface{}) bool
 	EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
-	EnforceByEmailInBatchInSync(emailId string, resource string, action string, vals []string) map[string]bool
 }
 
 func NewEnforcerImpl(
@@ -183,7 +182,7 @@ func EnforceByEmailInBatchSync(e *EnforcerImpl, wg *sync.WaitGroup, mutex *sync.
 	mutex.Unlock()
 }
 
-func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) {
+func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool {
 	var totalTimeGap int64 = 0
 	var maxTimegap int64 = 0
 	var minTimegap int64 = math.MaxInt64
@@ -222,6 +221,8 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
 		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap",
 		minTimegap, "avgTimegap", float64(totalTimeGap/int64(batchSize)), "size", len(vals), "batchSize", batchSize)
+
+	return result
 
 }
 
