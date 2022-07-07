@@ -124,6 +124,7 @@ type InstalledAppAndEnvDetails struct {
 	InstalledAppVersionId        int       `json:"installed_app_version_id"`
 	InstalledAppId               int       `json:"installed_app_id"`
 	AppStoreApplicationVersionId int       `json:"app_store_application_version_id"`
+	DeploymentAppType            string    `json:"-"`
 }
 
 func (impl InstalledAppRepositoryImpl) CreateInstalledApp(model *InstalledApps, tx *pg.Tx) (*InstalledApps, error) {
@@ -284,7 +285,8 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 
 func (impl InstalledAppRepositoryImpl) GetAllIntalledAppsByAppStoreId(appStoreId int) ([]InstalledAppAndEnvDetails, error) {
 	var installedAppAndEnvDetails []InstalledAppAndEnvDetails
-	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, ia.updated_on, u.email_id, asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id " +
+	var queryTemp = "select env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, ia.updated_on, u.email_id," +
+		" asav.id as app_store_application_version_id, iav.id as installed_app_version_id, ia.id as installed_app_id, ia.deployment_app_type" +
 		" from installed_app_versions iav inner join installed_apps ia on iav.installed_app_id = ia.id" +
 		" inner join app a on a.id = ia.app_id " +
 		" inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id " +

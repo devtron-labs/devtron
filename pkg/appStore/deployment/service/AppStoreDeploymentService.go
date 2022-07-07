@@ -411,10 +411,12 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 		impl.logger.Error(err)
 		return nil, err
 	}
+
+
 	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse
 	for _, a := range installedApps {
 		var status string
-		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || a.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || a.AppOfferingMode == util2.SERVER_MODE_HYPERION || a.DeploymentAppType == "helm" {
 			status, err = impl.appStoreDeploymentHelmService.GetAppStatus(a, w, r, token)
 		} else {
 			status, err = impl.appStoreDeploymentArgoCdService.GetAppStatus(a, w, r, token)
