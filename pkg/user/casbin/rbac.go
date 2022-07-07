@@ -159,7 +159,7 @@ func EnforceByEmailWithFixSize(e *EnforcerImpl, emailId string, resource string,
 
 func enforceAsync(e *EnforcerImpl, wg *sync.WaitGroup, item string, result map[string]bool, rvals ...interface{}) {
 	defer wg.Done()
-	result[item] = e.Enforce(rvals)
+	result[item] = e.EnforceByEmail(rvals)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
