@@ -133,7 +133,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		impl.logger.Errorw("fetching error", "err", err)
 		return nil, err
 	}
-
+	installAppVersionRequest.ClusterId = environment.ClusterId
 	appCreateRequest := &bean.CreateAppDTO{
 		Id:      installAppVersionRequest.AppId,
 		AppName: installAppVersionRequest.AppName,
@@ -272,7 +272,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 	}
 
 	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || installAppVersionRequest.AppOfferingMode == util2.SERVER_MODE_HYPERION {
-		_, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
+		installAppVersionRequest, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
 	} else {
 		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
 	}
@@ -414,7 +414,8 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse
 	for _, a := range installedApps {
 		var status string
-		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || a.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || a.AppOfferingMode == util2.SERVER_MODE_HYPERION ||
+			a.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 			status, err = impl.appStoreDeploymentHelmService.GetAppStatus(a, w, r, token)
 		} else {
 			status, err = impl.appStoreDeploymentArgoCdService.GetAppStatus(a, w, r, token)
@@ -514,7 +515,8 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		}
 	}
 
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || app.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || app.AppOfferingMode == util2.SERVER_MODE_HYPERION ||
+		model.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		// there might be a case if helm release gets uninstalled from helm cli.
 		//in this case on deleting the app from API, it should not give error as it should get deleted from db, otherwise due to delete error, db does not get clean
 		// so in helm, we need to check first if the release exists or not, if exists then only delete
@@ -739,6 +741,7 @@ func (impl AppStoreDeploymentServiceImpl) linkHelmApplicationToChartStore(instal
 	}
 
 	// STEP-3 install app DB post operations
+	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	err = impl.installAppPostDbOperation(installAppVersionRequest)
 	if err != nil {
 		return nil, err
@@ -763,6 +766,12 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 			impl.logger.Errorw("error on creating history for chart deployment", "error", err)
 			return err
 		}
+	}
+
+	_, err = impl.UpdateDeploymentAppTypeInInstalledApp(installAppVersionRequest.InstalledAppId, installAppVersionRequest.DeploymentAppType)
+	if err != nil {
+		impl.logger.Errorw(" error", "err", err)
+		return err
 	}
 
 	return nil
@@ -849,7 +858,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 	isHyperionApp := installedApp.App.AppOfferingMode == util2.SERVER_MODE_HYPERION
 
 	// handle gitOps repo name and argoCdAppName for full mode app
-	if !isHyperionApp {
+	if !isHyperionApp && installedApp.DeploymentAppType == "argo_cd" {
 		gitOpsRepoName := installedApp.GitOpsRepoName
 		if len(gitOpsRepoName) == 0 {
 			gitOpsRepoName, err = impl.appStoreDeploymentArgoCdService.GetGitOpsRepoName(installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
@@ -914,7 +923,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 
 			//update requirements yaml in chart for full mode app
-			if !isHyperionApp {
+			if !isHyperionApp && installedApp.DeploymentAppType == "argo_cd" {
 				err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion)
 				if err != nil {
 					impl.logger.Errorw("error while commit required dependencies to git", "error", err)
@@ -926,7 +935,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			installedAppVersion = installedAppVersionModel
 		}
 
-		if isHyperionApp {
+		if isHyperionApp || installedApp.DeploymentAppType == "helm" {
 			installAppVersionRequest, err = impl.appStoreDeploymentHelmService.UpdateInstalledApp(ctx, installAppVersionRequest, environment, installedAppVersion)
 		} else {
 			installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.UpdateInstalledApp(ctx, installAppVersionRequest, environment, installedAppVersion)
@@ -1039,7 +1048,7 @@ func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(ctx context.Contex
 	installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 	installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
 
-	if installedApp.App.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+	if installedApp.App.AppOfferingMode == util2.SERVER_MODE_HYPERION || installedApp.DeploymentAppType == "helm" {
 		// update in helm
 		installAppVersionRequest, err = impl.appStoreDeploymentHelmService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
 	} else {

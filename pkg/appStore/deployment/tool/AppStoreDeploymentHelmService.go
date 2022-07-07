@@ -80,6 +80,7 @@ func (impl AppStoreDeploymentHelmServiceImpl) InstallApp(installAppVersionReques
 		return installAppVersionRequest, err
 	}
 
+	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	return installAppVersionRequest, nil
 }
 
