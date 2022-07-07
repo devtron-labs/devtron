@@ -198,10 +198,10 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	totalSize := len(vals)
 	wg := new(sync.WaitGroup)
 	var mutex = &sync.RWMutex{}
-	wg.Add(batchSize)
 	if batchSize > totalSize {
 		batchSize = totalSize
 	}
+	wg.Add(batchSize)
 	for i := 0; i < batchSize; i++ {
 		startIndex := i * totalSize / batchSize
 		endIndex := startIndex + totalSize/batchSize
