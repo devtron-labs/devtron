@@ -414,7 +414,6 @@ func (impl AppStoreDeploymentServiceImpl) GetAllInstalledAppsByAppStoreId(w http
 	var installedAppsEnvResponse []appStoreBean.InstalledAppsResponse
 	for _, a := range installedApps {
 		var status string
-		impl.logger.Infow("sfdsfsdf", "sdfd", a.DeploymentAppType)
 		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || a.AppOfferingMode == util2.SERVER_MODE_HYPERION ||
 			a.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 			status, err = impl.appStoreDeploymentHelmService.GetAppStatus(a, w, r, token)
@@ -516,7 +515,8 @@ func (impl AppStoreDeploymentServiceImpl) DeleteInstalledApp(ctx context.Context
 		}
 	}
 
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || app.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || app.AppOfferingMode == util2.SERVER_MODE_HYPERION ||
+		model.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		// there might be a case if helm release gets uninstalled from helm cli.
 		//in this case on deleting the app from API, it should not give error as it should get deleted from db, otherwise due to delete error, db does not get clean
 		// so in helm, we need to check first if the release exists or not, if exists then only delete
