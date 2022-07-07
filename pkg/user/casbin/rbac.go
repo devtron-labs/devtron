@@ -134,7 +134,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 		avgTimegap = float64(totalTimeGap / int64(iterations))
 	}
 	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
-		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap", minTimegap, "avgTimegap", avgTimegap, "size", len(vals))
+		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap", minTimegap, "avgTimegap", avgTimegap, "size", len(vals), "batchSize", batchSize)
 
 	return result
 }
