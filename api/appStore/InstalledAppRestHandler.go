@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -337,6 +338,12 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		return
 	}
 	//rback block ends here
+
+	handler.fetchResourceTree(w, r, token, &appDetail)
+	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+}
+
+func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, token string, appDetail *bean2.AppDetailContainer) {
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
 		query := &application2.ResourcesQuery{
@@ -357,20 +364,20 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		start := time.Now()
 		resp, err := handler.acdServiceClient.ResourceTree(ctx, query)
 		elapsed := time.Since(start)
-		handler.Logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, installedAppId, envId)
+		handler.Logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, appDetail.InstalledAppId, appDetail.EnvironmentId)
 		if err != nil {
-			handler.Logger.Errorw("service err, FetchAppDetailsForInstalledApp, fetching resource tree", "err", err, "installedAppId", installedAppId, "envId", envId)
+			handler.Logger.Errorw("service err, FetchAppDetailsForInstalledApp, fetching resource tree", "err", err, "installedAppId", appDetail.InstalledAppId, "envId", appDetail.EnvironmentId)
 			err = &util.ApiError{
 				Code:            constants.AppDetailResourceTreeNotFound,
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
 				UserMessage:     "app detail fetched, failed to get resource tree from acd",
 			}
 			appDetail.ResourceTree = map[string]interface{}{}
-			common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
+			//common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 			return
 		}
 		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
-		handler.Logger.Debugf("application %s in environment %s had status %+v\n", installedAppId, envId, resp)
+		handler.Logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
 	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
 		if err != nil {
@@ -397,5 +404,5 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		appDetail.ResourceTree = map[string]interface{}{}
 		handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
-	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+	return
 }
