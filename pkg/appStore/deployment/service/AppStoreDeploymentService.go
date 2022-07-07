@@ -858,7 +858,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 	isHyperionApp := installedApp.App.AppOfferingMode == util2.SERVER_MODE_HYPERION
 
 	// handle gitOps repo name and argoCdAppName for full mode app
-	if !isHyperionApp && installedApp.DeploymentAppType == "argo_cd" {
+	if !isHyperionApp && installedApp.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		gitOpsRepoName := installedApp.GitOpsRepoName
 		if len(gitOpsRepoName) == 0 {
 			gitOpsRepoName, err = impl.appStoreDeploymentArgoCdService.GetGitOpsRepoName(installAppVersionRequest.AppName, installAppVersionRequest.EnvironmentName)
@@ -923,7 +923,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 
 			//update requirements yaml in chart for full mode app
-			if !isHyperionApp && installedApp.DeploymentAppType == "argo_cd" {
+			if !isHyperionApp && installedApp.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 				err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion)
 				if err != nil {
 					impl.logger.Errorw("error while commit required dependencies to git", "error", err)
@@ -935,7 +935,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			installedAppVersion = installedAppVersionModel
 		}
 
-		if isHyperionApp || installedApp.DeploymentAppType == "helm" {
+		if isHyperionApp || installedApp.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 			installAppVersionRequest, err = impl.appStoreDeploymentHelmService.UpdateInstalledApp(ctx, installAppVersionRequest, environment, installedAppVersion)
 		} else {
 			installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.UpdateInstalledApp(ctx, installAppVersionRequest, environment, installedAppVersion)
@@ -1048,7 +1048,7 @@ func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(ctx context.Contex
 	installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 	installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
 
-	if installedApp.App.AppOfferingMode == util2.SERVER_MODE_HYPERION || installedApp.DeploymentAppType == "helm" {
+	if installedApp.App.AppOfferingMode == util2.SERVER_MODE_HYPERION || installedApp.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		// update in helm
 		installAppVersionRequest, err = impl.appStoreDeploymentHelmService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
 	} else {
@@ -1070,4 +1070,31 @@ func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(ctx context.Contex
 	}
 
 	return installAppVersionRequest, installedAppVersion, err
+}
+
+func (impl AppStoreDeploymentServiceImpl) UpdateDeploymentAppTypeInInstalledApp(installAppId int, appDeploymentType string) (bool, error) {
+	dbConnection := impl.installedAppRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return false, err
+	}
+	installedApp.DeploymentAppType = appDeploymentType
+	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
+	if err != nil {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return false, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error while commit db transaction to db", "error", err)
+		return false, err
+	}
+	return true, nil
 }
