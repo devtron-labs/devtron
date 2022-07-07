@@ -84,7 +84,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequ
 		isGitOpsConfigured = true
 	}
 	if isGitOpsConfigured {
-		installAppVersionRequest.DeploymentAppType = "argo_cd"
+		installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 		installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
 		if err != nil {
 			impl.Logger.Errorw(" error", "err", err)
@@ -97,7 +97,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequ
 			return installAppVersionRequest, err
 		}
 	} else {
-		installAppVersionRequest.DeploymentAppType = "helm"
+		installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 		_, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
 		if err != nil {
 			impl.Logger.Errorw(" error while redirecting acd deployment to helm deployment", "err", err)
