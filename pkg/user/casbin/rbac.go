@@ -131,6 +131,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	var totalTimeGap int64 = 0
 	var maxTimegap int64 = 0
 	var minTimegap int64 = math.MaxInt64
+	var avgTimegap float64
 	enforcerMaxBatchSize := os.Getenv("ENFORCER_MAX_BATCH_SIZE")
 	batchSize, err := strconv.Atoi(enforcerMaxBatchSize)
 	if err != nil {
@@ -191,9 +192,12 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	enforcerCacheMutex.Unlock()
 	clearCacheLock(e, emailId)
 
+	if batchSize > 0 {
+		avgTimegap = float64(totalTimeGap / int64(batchSize))
+	}
 	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
 		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap",
-		minTimegap, "avgTimegap", float64(totalTimeGap/int64(batchSize)), "size", len(vals), "batchSize", batchSize, "cached", e.Cache != nil)
+		minTimegap, "avgTimegap", avgTimegap, "size", len(vals), "batchSize", batchSize, "cached", e.Cache != nil)
 
 	return result
 }
