@@ -407,7 +407,7 @@ func (impl *HelmAppServiceImpl) InstallRelease(ctx context.Context, clusterId in
 	}
 
 	installReleaseRequest.ReleaseIdentifier.ClusterConfig = config
-
+	impl.logger.Debugw("helm install final request", "request", installReleaseRequest)
 	installReleaseResponse, err := impl.helmAppClient.InstallRelease(ctx, installReleaseRequest)
 	if err != nil {
 		impl.logger.Errorw("error in installing release", "err", err)

@@ -93,6 +93,7 @@ type InstallAppVersionDTO struct {
 	GitHash                   string                     `json:"gitHash"`
 	EnvironmentName           string                     `json:"-"`
 	InstallAppVersionChartDTO *InstallAppVersionChartDTO `json:"-"`
+	DeploymentAppType         string                     `json:"-"`
 }
 
 type InstallAppVersionChartDTO struct {

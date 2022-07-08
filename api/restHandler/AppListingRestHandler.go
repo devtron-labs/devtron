@@ -567,7 +567,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				resp.Status = application.HIBERNATING
 			}
 		}
-		handler.logger.Debugf("FetchAppDetails, time elapsed %s in fetching application %s for environment %s", elapsed, appId, envId)
+		handler.logger.Debugw("FetchAppDetails, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 
 		if resp.Status == v1alpha1.HealthStatusDegraded {
 			count, err := handler.appListingService.GetReleaseCount(appId, envId)
@@ -578,7 +578,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			}
 		}
 		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
-		handler.logger.Debugf("application %s in environment %s had status %+v\n", appId, envId, resp)
+		handler.logger.Debugw("application environment status", "appId", appId, "envId", envId, "resp", resp)
 	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
 		if err != nil {
