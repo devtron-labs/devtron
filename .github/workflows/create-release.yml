@@ -1,0 +1,50 @@
+# This workflow is used to create a github release from last tag pushed
+
+name: Create Release
+
+# Controls when the action will run. Workflow runs when manually triggered using the UI
+# or on push in charts directory of main branch.
+on:
+  push:
+    branches: [ main ]
+
+  paths:
+      - 'charts/**'
+    
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "create-release"
+  create-release:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+    # Runs series of commands to create a release
+    - name: create-release
+      run: |
+        gh repo clone $GITHUB_REPOSITORY
+        cd devtron
+        tag=$(git tag --sort=committerdate | tail -1)
+        echo $tag
+        echo $RELEASE_BRANCH
+        echo $GITHUB_REPOSITORY
+        gh release create $tag --target $RELEASE_BRANCH -R $GITHUB_REPOSITORY
+        sudo apt install nodejs npm -y
+        npm install github-release-notes -g
+        gren release --data-source issues --include-messages all --override --token ${{ secrets.GIT_TOKEN }} --tags $tag --username ${{ secrets.GIT_USERNAME }} --repo devtron
+      env:
+        GH_TOKEN: ${{ secrets.GIT_TOKEN }}
+        RELEASE_BRANCH: ${{ secrets.RELEASE_BRANCH }}
+    # Send notification on discord
+    - name: discord-notify
+      run: |
+        sudo apt install python3 python3-pip -y
+        pip install discord-webhook
+        export repo=$GITHUB_REPOSITORY
+        export webhook_url=${{ secrets.DISCORD_WEBHOOK_URL }}
+        curl -O https://raw.githubusercontent.com/pawan-59/scripts/main/python/release-note-discord.py
+        ls
+        python3 release-note-discord.py
