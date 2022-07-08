@@ -339,12 +339,17 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	}
 	//rback block ends here
 
-	handler.fetchResourceTree(w, r, token, &appDetail)
+	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 {
+		handler.fetchResourceTree(w, r, token, &appDetail)
+	} else {
+		appDetail.ResourceTree = map[string]interface{}{}
+		handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
+	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
 func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, token string, appDetail *bean2.AppDetailContainer) {
-	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
 		query := &application2.ResourcesQuery{
 			ApplicationName: &acdAppName,
@@ -373,12 +378,11 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWri
 				UserMessage:     "app detail fetched, failed to get resource tree from acd",
 			}
 			appDetail.ResourceTree = map[string]interface{}{}
-			//common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 			return
 		}
 		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
 		handler.Logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
-	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+	} else if appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
 		if err != nil {
 			handler.Logger.Errorw("error in fetching cluster detail", "err", err)
@@ -400,9 +404,6 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWri
 		} else {
 			appDetail.ResourceTree = map[string]interface{}{}
 		}
-	} else {
-		appDetail.ResourceTree = map[string]interface{}{}
-		handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	return
 }
