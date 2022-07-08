@@ -121,11 +121,12 @@ func EnforceByEmailInBatchSync(e *EnforcerImpl, wg *sync.WaitGroup, mutex *sync.
 	}
 	duration := time.Since(start)
 	mutex.Lock()
+	defer mutex.Unlock()
 	for k, v := range batchResult {
 		result[k] = v
 	}
 	metrics[index] = duration.Milliseconds()
-	mutex.Unlock()
+
 }
 
 func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool {
@@ -144,6 +145,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 
 	enforcerCacheMutex := getEnforcerCacheLock(e, emailId)
 	enforcerCacheMutex.Lock()
+	defer clearCacheLock(e, emailId, enforcerCacheMutex)
 
 	result = getCacheData(e, emailId, resource, action)
 	if result != nil {
@@ -190,9 +192,6 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 
 	storeCacheData(e, emailId, resource, action, result)
 
-	enforcerCacheMutex.Unlock()
-	clearCacheLock(e, emailId)
-
 	if batchSize > 0 {
 		avgTimegap = float64(totalTimeGap / int64(batchSize))
 	}
@@ -212,7 +211,8 @@ func getEnforcerCacheLock(e *EnforcerImpl, emailId string) *sync.Mutex {
 	return enforcerCacheMutex
 }
 
-func clearCacheLock(e *EnforcerImpl, emailId string) {
+func clearCacheLock(e *EnforcerImpl, emailId string, cacheMutex *sync.Mutex) {
+	cacheMutex.Unlock()
 	delete(e.lock, getLockKey(emailId))
 }
 
@@ -252,14 +252,11 @@ func getLockKey(emailId string) string {
 func (e *EnforcerImpl) InvalidateCache(emailId string) bool {
 	cacheLock := getEnforcerCacheLock(e, emailId)
 	cacheLock.Lock()
+	defer clearCacheLock(e, emailId, cacheLock)
 	if e.Cache != nil {
 		e.Cache.Delete(emailId)
-		cacheLock.Unlock()
-		clearCacheLock(e, emailId)
 		return true
 	}
-	cacheLock.Unlock()
-	clearCacheLock(e, emailId)
 	return false
 }
 
