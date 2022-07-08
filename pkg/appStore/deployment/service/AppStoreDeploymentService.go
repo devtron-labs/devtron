@@ -109,6 +109,16 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 }
 
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
+		return nil, err
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
+
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
@@ -156,6 +166,12 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		EnvironmentId: environment.Id,
 		Status:        appStoreBean.DEPLOY_INIT,
 	}
+	if isGitOpsConfigured {
+		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+	} else {
+		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+	}
+	installAppVersionRequest.DeploymentAppType = installedAppModel.DeploymentAppType
 	installedAppModel.CreatedBy = installAppVersionRequest.UserId
 	installedAppModel.UpdatedBy = installAppVersionRequest.UserId
 	installedAppModel.CreatedOn = time.Now()
@@ -274,18 +290,8 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		return nil, err
 	}
 
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
-		return nil, err
-	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
-	}
-
 	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION || installAppVersionRequest.AppOfferingMode == util2.SERVER_MODE_HYPERION ||
-		!isGitOpsConfigured {
+		installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
 		installAppVersionRequest, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
 	} else {
 		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
@@ -782,12 +788,6 @@ func (impl AppStoreDeploymentServiceImpl) installAppPostDbOperation(installAppVe
 		}
 	}
 
-	_, err = impl.UpdateDeploymentAppTypeInInstalledApp(installAppVersionRequest.InstalledAppId, installAppVersionRequest.DeploymentAppType)
-	if err != nil {
-		impl.logger.Errorw(" error", "err", err)
-		return err
-	}
-
 	return nil
 }
 
@@ -1084,31 +1084,4 @@ func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(ctx context.Contex
 	}
 
 	return installAppVersionRequest, installedAppVersion, err
-}
-
-func (impl AppStoreDeploymentServiceImpl) UpdateDeploymentAppTypeInInstalledApp(installAppId int, appDeploymentType string) (bool, error) {
-	dbConnection := impl.installedAppRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return false, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-	installedApp, err := impl.installedAppRepository.GetInstalledApp(installAppId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return false, err
-	}
-	installedApp.DeploymentAppType = appDeploymentType
-	_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return false, err
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error while commit db transaction to db", "error", err)
-		return false, err
-	}
-	return true, nil
 }

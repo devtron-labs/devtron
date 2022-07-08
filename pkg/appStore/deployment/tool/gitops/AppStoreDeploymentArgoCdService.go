@@ -16,7 +16,6 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
-	appStoreDeploymentHelm "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/ghodss/yaml"
@@ -51,13 +50,12 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	chartTemplateService              util.ChartTemplateService
 	gitOpsRepository                  repository2.GitOpsConfigRepository
 	gitFactory                        *util.GitFactory
-	appStoreDeploymentHelmService     appStoreDeploymentHelm.AppStoreDeploymentHelmService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
-	gitOpsRepository repository2.GitOpsConfigRepository, gitFactory *util.GitFactory, appStoreDeploymentHelmService appStoreDeploymentHelm.AppStoreDeploymentHelmService) *AppStoreDeploymentArgoCdServiceImpl {
+	gitOpsRepository repository2.GitOpsConfigRepository, gitFactory *util.GitFactory) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -68,13 +66,11 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		chartTemplateService:              chartTemplateService,
 		gitOpsRepository:                  gitOpsRepository,
 		gitFactory:                        gitFactory,
-		appStoreDeploymentHelmService:     appStoreDeploymentHelmService,
 	}
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
 	//step 2 git operation pull push
-	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
 	if err != nil {
 		impl.Logger.Errorw(" error", "err", err)
