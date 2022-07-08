@@ -1155,8 +1155,11 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			//todo: provide option for cascading to user
+			cascadeDelete := true
 			req := &application2.ApplicationDeleteRequest{
-				Name: &deploymentAppName,
+				Name:    &deploymentAppName,
+				Cascade: &cascadeDelete,
 			}
 			if _, err := impl.application.Delete(ctx, req); err != nil {
 				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
