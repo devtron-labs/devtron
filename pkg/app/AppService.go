@@ -26,6 +26,7 @@ import (
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
 	"path"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -506,25 +507,25 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	}
 	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
 	if err != nil {
-		impl.logger.Errorf("invalid req", "err", err, "req", overrideRequest)
+		impl.logger.Errorw("invalid req", "err", err, "req", overrideRequest)
 		return 0, err
 	}
 
 	envOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
 	if err != nil {
-		impl.logger.Errorf("invalid state", "err", err, "req", overrideRequest)
+		impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 		return 0, err
 	}
 
 	if envOverride.Id == 0 {
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
 		if err != nil {
-			impl.logger.Errorf("invalid state", "err", err, "req", overrideRequest)
+			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 			return 0, err
 		}
 		envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, pipeline.EnvironmentId, chart.ChartRefId)
 		if err != nil && !errors2.IsNotFound(err) {
-			impl.logger.Errorf("invalid state", "err", err, "req", overrideRequest)
+			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 			return 0, err
 		}
 
@@ -561,6 +562,15 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		}
 		envOverride.Chart = chart
 	}
+
+	// auto-healing :  data corruption fix - if ChartLocation in chart is not correct, need correction
+	if !strings.HasSuffix(envOverride.Chart.ChartLocation, fmt.Sprintf("%s%s", "/", envOverride.Chart.ChartVersion)) {
+		err = impl.autoHealChartLocationInChart(envOverride)
+		if err != nil {
+			return 0, err
+		}
+	}
+
 	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
 	if err != nil {
 		impl.logger.Errorw("unable to find env", "err", err)
@@ -736,6 +746,44 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	}
 	middleware.CdTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(pipeline.EnvironmentId), strconv.Itoa(pipeline.Id)).Inc()
 	return releaseId, saveErr
+}
+
+
+func (impl AppServiceImpl) autoHealChartLocationInChart(envOverride *chartConfig.EnvConfigOverride) error {
+	chartId := envOverride.Chart.Id
+	impl.logger.Infow("auto-healing: Chart location in chart not correct. modifying ", "chartId", chartId,
+		"current chartLocation", envOverride.Chart.ChartLocation, "current chartVersion", envOverride.Chart.ChartVersion)
+
+	// get chart from DB (getting it from DB because envOverride.Chart does not have full row of DB)
+	chart, err := impl.chartRepository.FindById(chartId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching chart from DB", "chartId", chartId, "err", err)
+		return err
+	}
+
+	// get chart ref from DB (to get location)
+	chartRefId := chart.ChartRefId
+	chartRef, err := impl.chartRefRepository.FindById(chartRefId)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching chartRef from DB", "chartRefId", chartRefId, "err", err)
+		return err
+	}
+
+	// build new chart location
+	newChartLocation := filepath.Join(chartRef.Location, envOverride.Chart.ChartVersion)
+	impl.logger.Infow("new chart location build", "chartId", chartId, "newChartLocation", newChartLocation)
+
+	// update chart in DB
+	chart.ChartLocation = newChartLocation
+	err = impl.chartRepository.Update(chart)
+	if err != nil {
+		impl.logger.Errorw("error occurred while saving chart into DB", "chartId", chartId, "err", err)
+		return err
+	}
+
+	// update newChartLocation in model
+	envOverride.Chart.ChartLocation = newChartLocation
+	return nil
 }
 
 func (impl AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error {
