@@ -189,7 +189,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	storeCacheData(e, emailId, resource, action, result)
 
 	enforcerCacheMutex.Unlock()
-	delete(e.lock, getLockKey(emailId)) // clear cache data with time
+	clearCacheLock(e, emailId)
 
 	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
 		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap",
@@ -205,6 +205,10 @@ func getEnforcerCacheLock(e *EnforcerImpl, emailId string) *sync.Mutex {
 		e.lock[getLockKey(emailId)] = enforcerCacheMutex
 	}
 	return enforcerCacheMutex
+}
+
+func clearCacheLock(e *EnforcerImpl, emailId string) {
+	delete(e.lock, getLockKey(emailId))
 }
 
 func getCacheData(e *EnforcerImpl, emailId string, resource string, action string) map[string]bool {
@@ -246,9 +250,11 @@ func (e *EnforcerImpl) InvalidateCache(emailId string) bool {
 	if e.Cache != nil {
 		e.Cache.Delete(emailId)
 		cacheLock.Unlock()
+		clearCacheLock(e, emailId)
 		return true
 	}
 	cacheLock.Unlock()
+	clearCacheLock(e, emailId)
 	return false
 }
 
