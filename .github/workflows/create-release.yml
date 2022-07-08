@@ -34,7 +34,7 @@ jobs:
         gh release create $tag --target $RELEASE_BRANCH -R $GITHUB_REPOSITORY
         sudo apt install nodejs npm -y
         npm install github-release-notes -g
-        gren release --data-source issues --include-messages all --override --token ${{ secrets.GIT_TOKEN }} --tags $tag --username ${{ secrets.GIT_USERNAME }} --repo devtron
+        gren release --data-source issues --include-messages all --override --token ${{ secrets.GIT_TOKEN }} --tags $tag --username devtron-labs --repo devtron
       env:
         GH_TOKEN: ${{ secrets.GIT_TOKEN }}
         RELEASE_BRANCH: ${{ secrets.RELEASE_BRANCH }}
