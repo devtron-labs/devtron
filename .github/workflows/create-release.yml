@@ -38,3 +38,13 @@ jobs:
       env:
         GH_TOKEN: ${{ secrets.GIT_TOKEN }}
         RELEASE_BRANCH: ${{ secrets.RELEASE_BRANCH }}
+    # Send notification on discord
+    - name: discord-notify
+      run: |
+        sudo apt install python3 python3-pip -y
+        pip install discord-webhook
+        export repo=$GITHUB_REPOSITORY
+        export webhook_url=${{ secrets.DISCORD_WEBHOOK_URL }}
+        curl -O https://raw.githubusercontent.com/pawan-59/scripts/main/python/release-note-discord.py
+        ls
+        python3 release-note-discord.py
