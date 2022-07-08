@@ -76,14 +76,12 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequ
 		impl.Logger.Errorw(" error", "err", err)
 		return installAppVersionRequest, err
 	}
-
 	//step 3 acd operation register, sync
 	installAppVersionRequest, err = impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
 	if err != nil {
 		impl.Logger.Errorw(" error", "err", err)
 		return installAppVersionRequest, err
 	}
-
 	return installAppVersionRequest, nil
 }
 

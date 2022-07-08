@@ -258,6 +258,7 @@ func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenc
 	} else {
 		err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
 		if err != nil {
+			impl.logger.Errorw("error in pulling git repo", "url", repoUrl, "err", err)
 			return err
 		}
 	}
@@ -274,6 +275,18 @@ func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenc
 		if err != nil {
 			impl.logger.Errorw("error copying dir", "err", err)
 			return err
+		}
+	} else {
+		// auto-healing : data corruption fix - sometimes reference chart contents are not pushed in git-ops repo.
+		// copying content from reference template dir to cloned dir (if Chart.yaml file is not found)
+		// if Chart.yaml file is not found, we are assuming here that reference chart contents are not pushed in git-ops repo
+		if _, err := os.Stat(filepath.Join(dir, "Chart.yaml")); os.IsNotExist(err) {
+			impl.logger.Infow("auto-healing: Chart.yaml not found in cloned repo from git-ops. copying content", "from", tempReferenceTemplateDir, "to", dir)
+			err = dirCopy.Copy(tempReferenceTemplateDir, dir)
+			if err != nil {
+				impl.logger.Errorw("error copying content in auto-healing", "err", err)
+				return err
+			}
 		}
 	}
 

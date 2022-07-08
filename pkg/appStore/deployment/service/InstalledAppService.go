@@ -335,16 +335,33 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 	if err != nil {
 		return nil, err
 	}
-	/*installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
+
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
 		return nil, err
-	}*/
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
 
 	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
 	if err != nil {
 		return nil, err
 	}
+
+	if !isGitOpsConfigured {
+		// if git-ops not configured, bulk chart deployment not supported
+		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.TRIGGER_ERROR)
+		if err != nil {
+			impl.logger.Errorw("error", "err", err)
+			return nil, err
+		}
+		err = &util.ApiError{Code: "400", HttpStatusCode: 200, UserMessage: "unable to found git-ops configuration in cluster, please configure"}
+		return nil, err
+	}
+
 	chartGitAttr := &util.ChartGitAttribute{}
 	if installedAppVersion.Status == appStoreBean.DEPLOY_INIT ||
 		installedAppVersion.Status == appStoreBean.ENQUEUED ||
@@ -735,6 +752,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		Namespace:                     installedAppVerison.InstalledApp.Environment.Namespace,
 		Deprecated:                    installedAppVerison.AppStoreApplicationVersion.Deprecated,
 		ClusterId:                     installedAppVerison.InstalledApp.Environment.ClusterId,
+		DeploymentAppType:             installedAppVerison.InstalledApp.DeploymentAppType,
 	}
 	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
