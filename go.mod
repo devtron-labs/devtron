@@ -247,7 +247,7 @@ require (
 )
 
 replace (
-	github.com/devtron-labs/authenticator => github.com/kartik-579/authenticator v0.4.30
+	github.com/devtron-labs/authenticator => github.com/devtron-labs/authenticator v0.4.30
 	github.com/go-check/check => github.com/go-check/check v0.0.0-20180628173108-788fd7840127
 	k8s.io/api => k8s.io/api v0.23.1
 	k8s.io/apiextensions-apiserver => k8s.io/apiextensions-apiserver v0.23.1
