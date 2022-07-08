@@ -166,7 +166,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		EnvironmentId: environment.Id,
 		Status:        appStoreBean.DEPLOY_INIT,
 	}
-	if isGitOpsConfigured {
+	if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL {
 		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	} else {
 		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
