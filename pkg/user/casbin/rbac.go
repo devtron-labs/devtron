@@ -100,7 +100,9 @@ func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, rvals ...interface{}) bool 
 		email = "admin"
 	}
 	rvals[0] = strings.ToLower(email)
-	return enf.Enforce(rvals...)
+	defer handlePanic()
+	enforcedStatus := enf.Enforce(rvals...)
+	return enforcedStatus
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
@@ -109,7 +111,9 @@ func (e *EnforcerImpl) enforceByEmail(enf *casbin.Enforcer, rvals ...interface{}
 	if len(rvals) == 0 {
 		return false
 	}
-	return enf.Enforce(rvals...)
+	defer handlePanic()
+	enforcedStatus := enf.Enforce(rvals...)
+	return enforcedStatus
 }
 
 // MatchKeyByPartFunc is the wrapper of our own customised MatchKeyByPart Func
