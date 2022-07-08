@@ -111,7 +111,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateCiTemplate(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, update ci template", "UpdateCiTemplate", configRequest)
+	handler.Logger.Infow("request payload, update ci template", "UpdateCiTemplate", configRequest, "userId", userId)
 	err = handler.validator.Struct(configRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err, UpdateCiTemplate", "err", err, "UpdateCiTemplate", configRequest)
