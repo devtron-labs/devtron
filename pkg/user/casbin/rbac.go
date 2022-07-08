@@ -22,6 +22,7 @@ import (
 	"github.com/casbin/casbin"
 	"github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/middleware"
+	"github.com/patrickmn/go-cache"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -38,14 +39,36 @@ type Enforcer interface {
 	EnforceErr(rvals ...interface{}) error
 	EnforceByEmail(rvals ...interface{}) bool
 	EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
+	InvalidateCache(emailId string) bool
 }
 
 func NewEnforcerImpl(
 	enforcer *casbin.Enforcer,
 	sessionManager *middleware.SessionManager,
 	logger *zap.SugaredLogger) *EnforcerImpl {
-	enf := &EnforcerImpl{Enforcer: enforcer, logger: logger, SessionManager: sessionManager}
+	lock := make(map[string]*sync.Mutex)
+	enf := &EnforcerImpl{lock: lock, Cache: checkCacheEnabled(), Enforcer: enforcer, logger: logger, SessionManager: sessionManager}
+	setEnforcerImpl(enf)
 	return enf
+}
+
+func checkCacheEnabled() *cache.Cache {
+	enableEnforcerCache := os.Getenv("ENFORCER_CACHE")
+	enableEnforcerCacheVal, err := strconv.ParseBool(enableEnforcerCache)
+	if err != nil {
+		enableEnforcerCacheVal = false
+		err = nil
+	}
+	if enableEnforcerCacheVal {
+		enforcerCacheExpirationInSec := os.Getenv("ENFORCER_CACHE_EXPIRATION_IN_SEC")
+		enforcerCacheExpirationDuration := EnforcerCacheDefaultExpiration
+		enforcerCacheExpirationValue, err := strconv.Atoi(enforcerCacheExpirationInSec)
+		if err == nil {
+			enforcerCacheExpirationDuration = time.Second * time.Duration(enforcerCacheExpirationValue)
+		}
+		return cache.New(enforcerCacheExpirationDuration, 5*time.Minute)
+	}
+	return nil
 }
 
 // Enforcer is a wrapper around an Casbin enforcer that:
@@ -55,6 +78,8 @@ func NewEnforcerImpl(
 // * supports a user-defined bolicy
 // * supports a custom JWT claims enforce function
 type EnforcerImpl struct {
+	lock map[string]*sync.Mutex
+	*cache.Cache
 	*casbin.Enforcer
 	*middleware.SessionManager
 	logger *zap.SugaredLogger
@@ -86,86 +111,6 @@ func (e *EnforcerImpl) EnforceErr(rvals ...interface{}) error {
 	return nil
 }
 
-//func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool {
-//
-//	var result map[string]bool
-//	var totalTimeGap int64 = 0
-//	var maxTimegap int64 = 0
-//	var minTimegap int64 = math.MaxInt64
-//	var iterations = 0
-//	var avgTimegap = 0.0
-//	enforcerMaxBatchSize := os.Getenv("ENFORCER_MAX_BATCH_SIZE")
-//	batchSize, err := strconv.Atoi(enforcerMaxBatchSize)
-//	if err != nil {
-//		batchSize = ENFORCER_BATCH_MAX_SIZE_DEFAULT_VALUE
-//	}
-//	if batchSize == 1 {
-//		result, totalTimeGap = EnforceByEmailWithFixSize(e, emailId, resource, action, vals, false)
-//		iterations = 1
-//	} else {
-//		valsLength := len(vals)
-//		startIndex := 0
-//		endIndex := batchSize
-//		if endIndex > valsLength {
-//			endIndex = valsLength
-//		}
-//		result = make(map[string]bool)
-//		for startIndex < valsLength {
-//			iterations++
-//			tmpResult, m := EnforceByEmailWithFixSize(e, emailId, resource, action, vals[startIndex:endIndex], true)
-//			for k, v := range tmpResult {
-//				result[k] = v
-//			}
-//			totalTimeGap += m
-//			if m > maxTimegap {
-//				maxTimegap = m
-//			}
-//			if m < minTimegap {
-//				minTimegap = m
-//			}
-//			startIndex = endIndex
-//			endIndex = startIndex + batchSize
-//			if endIndex > valsLength {
-//				endIndex = valsLength
-//			}
-//		}
-//	}
-//	if iterations != 0 {
-//		avgTimegap = float64(totalTimeGap / int64(iterations))
-//	}
-//	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
-//		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap", minTimegap, "avgTimegap", avgTimegap, "size", len(vals), "batchSize", batchSize)
-//
-//	return result
-//}
-//
-//func EnforceByEmailWithFixSize(e *EnforcerImpl, emailId string, resource string, action string, vals []string, parallel bool) (map[string]bool, int64) {
-//	start := time.Now()
-//	result := make(map[string]bool)
-//	if parallel == false {
-//		for _, item := range vals {
-//			result[item] = e.EnforceByEmail(emailId, resource, action, item)
-//		}
-//	} else {
-//		wg := new(sync.WaitGroup)
-//		var mutex = &sync.RWMutex{}
-//		wg.Add(len(vals))
-//		for _, item := range vals {
-//			go enforceAsync(e, wg, mutex, item, result, emailId, resource, action)
-//		}
-//		wg.Wait()
-//	}
-//	return result, time.Since(start).Milliseconds()
-//}
-//
-//func enforceAsync(e *EnforcerImpl, wg *sync.WaitGroup, mutex *sync.RWMutex, item string, result map[string]bool, emailId string, resource string, action string) {
-//	defer wg.Done()
-//	emailAccess := e.EnforceByEmail(emailId, resource, action, item)
-//	mutex.Lock()
-//	result[item] = emailAccess
-//	mutex.Unlock()
-//}
-
 func EnforceByEmailInBatchSync(e *EnforcerImpl, wg *sync.WaitGroup, mutex *sync.RWMutex, result map[string]bool, metrics map[int]int64, index int, emailId string, resource string, action string, vals []string) {
 	defer wg.Done()
 	start := time.Now()
@@ -189,15 +134,35 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	enforcerMaxBatchSize := os.Getenv("ENFORCER_MAX_BATCH_SIZE")
 	batchSize, err := strconv.Atoi(enforcerMaxBatchSize)
 	if err != nil {
-		batchSize = ENFORCER_BATCH_MAX_SIZE_DEFAULT_VALUE
+		batchSize = EnforcerBatchDefaultSize
 		err = nil
 	}
-	var result = make(map[string]bool)
+	var result map[string]bool
 	var metrics = make(map[int]int64)
+
+	enforcerCacheMutex := getEnforcerCacheLock(e, emailId)
+	enforcerCacheMutex.Lock()
+
+	result = getCacheData(e, emailId, resource, action)
+	if result != nil {
+		e.logger.Infow("enforce request for batch with data from cache", "emailId", emailId, "resource", resource,
+			"action", action, "size", len(vals), "cached", "true")
+
+		var newVals []string
+		for _, item := range vals {
+			_, found := result[item]
+			if !found {
+				newVals = append(newVals, item)
+			}
+		}
+		vals = newVals
+	} else {
+		result = make(map[string]bool)
+	}
 
 	totalSize := len(vals)
 	wg := new(sync.WaitGroup)
-	var mutex = &sync.RWMutex{}
+	var batchMutex = &sync.RWMutex{}
 	if batchSize > totalSize {
 		batchSize = totalSize
 	}
@@ -208,7 +173,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 		if endIndex > totalSize {
 			endIndex = totalSize
 		}
-		go EnforceByEmailInBatchSync(e, wg, mutex, result, metrics, i, emailId, resource, action, vals[startIndex:endIndex])
+		go EnforceByEmailInBatchSync(e, wg, batchMutex, result, metrics, i, emailId, resource, action, vals[startIndex:endIndex])
 	}
 	wg.Wait()
 	for _, duration := range metrics {
@@ -221,12 +186,70 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 		}
 	}
 
+	storeCacheData(e, emailId, resource, action, result)
+
+	enforcerCacheMutex.Unlock()
+	delete(e.lock, getLockKey(emailId)) // clear cache data with time
+
 	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
 		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap",
-		minTimegap, "avgTimegap", float64(totalTimeGap/int64(batchSize)), "size", len(vals), "batchSize", batchSize)
+		minTimegap, "avgTimegap", float64(totalTimeGap/int64(batchSize)), "size", len(vals), "batchSize", batchSize, "cached", e.Cache != nil)
 
 	return result
+}
 
+func getEnforcerCacheLock(e *EnforcerImpl, emailId string) *sync.Mutex {
+	enforcerCacheMutex, found := e.lock[getLockKey(emailId)]
+	if !found {
+		enforcerCacheMutex = &sync.Mutex{}
+		e.lock[getLockKey(emailId)] = enforcerCacheMutex
+	}
+	return enforcerCacheMutex
+}
+
+func getCacheData(e *EnforcerImpl, emailId string, resource string, action string) map[string]bool {
+	if e.Cache == nil {
+		return nil
+	}
+	emailResult, found := e.Cache.Get(emailId)
+	if found {
+		e.Cache.Set(emailId, emailResult, cache.DefaultExpiration)
+		emailResultMap := emailResult.(map[string]map[string]bool)
+		return emailResultMap[getCacheKey(resource, action)]
+	}
+	return nil
+}
+
+func storeCacheData(e *EnforcerImpl, emailId string, resource string, action string, result map[string]bool) {
+	if e.Cache == nil {
+		return
+	}
+	emailResult, found := e.Cache.Get(emailId)
+	if !found {
+		emailResult = make(map[string]map[string]bool)
+	}
+	emailResult.(map[string]map[string]bool)[getCacheKey(resource, action)] = result
+	e.Cache.Set(emailId, emailResult, cache.DefaultExpiration)
+}
+
+func getCacheKey(resource string, action string) string {
+	return resource + "$$" + action
+}
+
+func getLockKey(emailId string) string {
+	return emailId
+}
+
+func (e *EnforcerImpl) InvalidateCache(emailId string) bool {
+	cacheLock := getEnforcerCacheLock(e, emailId)
+	cacheLock.Lock()
+	if e.Cache != nil {
+		e.Cache.Delete(emailId)
+		cacheLock.Unlock()
+		return true
+	}
+	cacheLock.Unlock()
+	return false
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
