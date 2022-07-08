@@ -40,6 +40,7 @@ type Enforcer interface {
 	EnforceByEmail(rvals ...interface{}) bool
 	EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
 	InvalidateCache(emailId string) bool
+	InvalidateCompleteCache()
 }
 
 func NewEnforcerImpl(
@@ -260,6 +261,12 @@ func (e *EnforcerImpl) InvalidateCache(emailId string) bool {
 	cacheLock.Unlock()
 	clearCacheLock(e, emailId)
 	return false
+}
+
+func (e *EnforcerImpl) InvalidateCompleteCache() {
+	if e.Cache != nil {
+		e.Cache.Flush()
+	}
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function

@@ -167,6 +167,7 @@ func GetUserByRole(role string) ([]string, error) {
 }
 
 func RemovePoliciesByRoles(roles string) bool {
+	enforcerImplRef.InvalidateCompleteCache()
 	roles = strings.ToLower(roles)
 	return e.RemovePolicy([]string{roles})
 }
