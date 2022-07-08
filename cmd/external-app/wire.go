@@ -109,6 +109,9 @@ func InitializeApp() (*App, error) {
 		dashboardEvent.NewDashboardTelemetryRouterImpl,
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
+
+		repository.NewGitOpsConfigRepositoryImpl,
+		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
 	)
 	return &App{}, nil
 }

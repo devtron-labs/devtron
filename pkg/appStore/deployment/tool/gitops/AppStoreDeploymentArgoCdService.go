@@ -74,37 +74,18 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) InstallApp(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
 	//step 2 git operation pull push
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
-		return nil, err
+	installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+	installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
+	if err != nil {
+		impl.Logger.Errorw(" error", "err", err)
+		return installAppVersionRequest, err
 	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
+	//step 3 acd operation register, sync
+	installAppVersionRequest, err = impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
+	if err != nil {
+		impl.Logger.Errorw(" error", "err", err)
+		return installAppVersionRequest, err
 	}
-	if isGitOpsConfigured {
-		installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-		installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
-		if err != nil {
-			impl.Logger.Errorw(" error", "err", err)
-			return installAppVersionRequest, err
-		}
-		//step 3 acd operation register, sync
-		installAppVersionRequest, err = impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installAppVersionRequest, chartGitAttr, ctx)
-		if err != nil {
-			impl.Logger.Errorw(" error", "err", err)
-			return installAppVersionRequest, err
-		}
-	} else {
-		installAppVersionRequest.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-		_, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
-		if err != nil {
-			impl.Logger.Errorw(" error while redirecting acd deployment to helm deployment", "err", err)
-			return nil, err
-		}
-	}
-
 	return installAppVersionRequest, nil
 }
 
