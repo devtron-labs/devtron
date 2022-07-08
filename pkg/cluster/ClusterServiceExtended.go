@@ -3,6 +3,10 @@ package cluster
 import (
 	"context"
 	"fmt"
+	"net/http"
+	"strings"
+	"time"
+
 	cluster3 "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -14,9 +18,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
-	"net/http"
-	"strings"
-	"time"
 )
 
 //extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
@@ -143,50 +144,55 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 			}
 			env.GrafanaDatasourceId = grafanaDatasourceId
 		}
-		promDatasource, err := impl.grafanaClient.GetDatasource(env.GrafanaDatasourceId)
-		if err != nil {
-			impl.logger.Errorw("error on getting data source", "err", err)
-			return nil, err
-		}
-
-		updateDatasourceReq := grafana.UpdateDatasourceRequest{
-			Id:                env.GrafanaDatasourceId,
-			OrgId:             promDatasource.OrgId,
-			Name:              promDatasource.Name,
-			Type:              promDatasource.Type,
-			Url:               bean.PrometheusUrl,
-			Access:            promDatasource.Access,
-			BasicAuth:         promDatasource.BasicAuth,
-			BasicAuthUser:     promDatasource.BasicAuthUser,
-			BasicAuthPassword: promDatasource.BasicAuthPassword,
-			JsonData:          promDatasource.JsonData,
-		}
-
-		if bean.PrometheusAuth != nil {
-			secureJsonData := &grafana.SecureJsonData{}
-			if len(bean.PrometheusAuth.UserName) > 0 {
-				updateDatasourceReq.BasicAuthUser = bean.PrometheusAuth.UserName
-				updateDatasourceReq.BasicAuthPassword = bean.PrometheusAuth.Password
-				secureJsonData.BasicAuthPassword = bean.PrometheusAuth.Password
+		//if the request doesn't have a non empty prometheus url and we don't have a GrafanaDataSourceId defined yet, no point in
+		//going to grafana client and trying to get data source
+		if bean.PrometheusUrl != "" && env.GrafanaDatasourceId != 0 {
+			promDatasource, err := impl.grafanaClient.GetDatasource(env.GrafanaDatasourceId)
+			if err != nil {
+				impl.logger.Errorw("error on getting data source", "err", err)
+				return nil, err
 			}
-			if len(bean.PrometheusAuth.TlsClientCert) > 0 {
-				secureJsonData.TlsClientCert = bean.PrometheusAuth.TlsClientCert
-				secureJsonData.TlsClientKey = bean.PrometheusAuth.TlsClientKey
-				updateDatasourceReq.BasicAuth = false
 
-				jsonData := &grafana.JsonData{
-					HttpMethod: http.MethodGet,
-					TlsAuth:    true,
+			updateDatasourceReq := grafana.UpdateDatasourceRequest{
+				Id:                env.GrafanaDatasourceId,
+				OrgId:             promDatasource.OrgId,
+				Name:              promDatasource.Name,
+				Type:              promDatasource.Type,
+				Url:               bean.PrometheusUrl,
+				Access:            promDatasource.Access,
+				BasicAuth:         promDatasource.BasicAuth,
+				BasicAuthUser:     promDatasource.BasicAuthUser,
+				BasicAuthPassword: promDatasource.BasicAuthPassword,
+				JsonData:          promDatasource.JsonData,
+			}
+
+			if bean.PrometheusAuth != nil {
+				secureJsonData := &grafana.SecureJsonData{}
+				if len(bean.PrometheusAuth.UserName) > 0 {
+					updateDatasourceReq.BasicAuthUser = bean.PrometheusAuth.UserName
+					updateDatasourceReq.BasicAuthPassword = bean.PrometheusAuth.Password
+					secureJsonData.BasicAuthPassword = bean.PrometheusAuth.Password
 				}
-				updateDatasourceReq.JsonData = *jsonData
+				if len(bean.PrometheusAuth.TlsClientCert) > 0 {
+					secureJsonData.TlsClientCert = bean.PrometheusAuth.TlsClientCert
+					secureJsonData.TlsClientKey = bean.PrometheusAuth.TlsClientKey
+					updateDatasourceReq.BasicAuth = false
+
+					jsonData := &grafana.JsonData{
+						HttpMethod: http.MethodGet,
+						TlsAuth:    true,
+					}
+					updateDatasourceReq.JsonData = *jsonData
+				}
+				updateDatasourceReq.SecureJsonData = secureJsonData
 			}
-			updateDatasourceReq.SecureJsonData = secureJsonData
+			_, err = impl.grafanaClient.UpdateDatasource(updateDatasourceReq, env.GrafanaDatasourceId)
+			if err != nil {
+				impl.logger.Errorw("Error while updating the datasource", "Datasource id : ", env.GrafanaDatasourceId, "error", err)
+				return nil, err
+			}
 		}
-		_, err = impl.grafanaClient.UpdateDatasource(updateDatasourceReq, env.GrafanaDatasourceId)
-		if err != nil {
-			impl.logger.Error(err)
-			return nil, err
-		}
+
 	}
 	configMap := bean.Config
 	serverUrl := bean.ServerUrl
