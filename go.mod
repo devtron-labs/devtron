@@ -63,6 +63,8 @@ require (
 	k8s.io/apimachinery v0.23.3
 	k8s.io/client-go v11.0.1-0.20190820062731-7e43eff7c80a+incompatible
 	k8s.io/helm v2.12.3+incompatible
+	k8s.io/kubectl v0.23.1
+	k8s.io/metrics v0.23.1
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 	sigs.k8s.io/yaml v1.3.0
 )
@@ -234,7 +236,6 @@ require (
 	k8s.io/klog/v2 v2.40.1 // indirect
 	k8s.io/kube-aggregator v0.23.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220124234850-424119656bbf // indirect
-	k8s.io/kubectl v0.23.1 // indirect
 	k8s.io/kubernetes v1.23.1 // indirect
 	mellium.im/sasl v0.2.1 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect

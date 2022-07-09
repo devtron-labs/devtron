@@ -18,8 +18,15 @@ var K8sApplicationWireSet = wire.NewSet(
 	wire.Bind(new(application2.K8sClientService), new(*application2.K8sClientServiceImpl)),
 	terminal.NewTerminalSessionHandlerImpl,
 	wire.Bind(new(terminal.TerminalSessionHandler), new(*terminal.TerminalSessionHandlerImpl)),
-
+	NewK8sCapacityRouterImpl,
+	wire.Bind(new(K8sCapacityRouter), new(*K8sCapacityRouterImpl)),
+	NewK8sCapacityRestHandlerImpl,
+	wire.Bind(new(K8sCapacityRestHandler), new(*K8sCapacityRestHandlerImpl)),
+	NewK8sCapacityServiceImpl,
+	wire.Bind(new(K8sCapacityService), new(*K8sCapacityServiceImpl)),
 	informer.NewGlobalMapClusterNamespace,
 	informer.NewK8sInformerFactoryImpl,
 	wire.Bind(new(informer.K8sInformerFactory), new(*informer.K8sInformerFactoryImpl)),
+	NewClusterCronServiceImpl,
+	wire.Bind(new(ClusterCronService), new(*ClusterCronServiceImpl)),
 )

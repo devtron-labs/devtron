@@ -47,6 +47,7 @@ type MuxRouter struct {
 	moduleRouter             module.ModuleRouter
 	serverRouter             server.ServerRouter
 	apiTokenRouter           apiToken.ApiTokenRouter
+	k8sCapacityRouter        k8s.K8sCapacityRouter
 }
 
 func NewMuxRouter(
@@ -69,6 +70,7 @@ func NewMuxRouter(
 	externalLinkRouter externalLink.ExternalLinkRouter,
 	moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
+	k8sCapacityRouter k8s.K8sCapacityRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -92,6 +94,7 @@ func NewMuxRouter(
 		moduleRouter:             moduleRouter,
 		serverRouter:             serverRouter,
 		apiTokenRouter:           apiTokenRouter,
+		k8sCapacityRouter:        k8sCapacityRouter,
 	}
 	return r
 }
@@ -152,6 +155,9 @@ func (r *MuxRouter) Init() {
 
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
+
+	k8sCapacityApp := r.Router.PathPrefix("/orchestrator/k8s/capacity").Subrouter()
+	r.k8sCapacityRouter.InitK8sCapacityRouter(k8sCapacityApp)
 
 	// chart-repo router starts
 	chartRepoRouter := r.Router.PathPrefix("/orchestrator/chart-repo").Subrouter()
