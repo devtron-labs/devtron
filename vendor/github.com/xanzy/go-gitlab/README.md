@@ -2,29 +2,23 @@
 
 A GitLab API client enabling Go programs to interact with GitLab in a simple and uniform way
 
-[![Build Status](https://travis-ci.org/xanzy/go-gitlab.svg?branch=master)](https://travis-ci.org/xanzy/go-gitlab)
-[![GitHub license](https://img.shields.io/github/license/xanzy/go-gitlab.svg)](https://github.com/xanzy/go-gitlab/blob/master/LICENSE)
+[![Build Status](https://github.com/xanzy/go-gitlab/workflows/Lint%20and%20Test/badge.svg)](https://github.com/xanzy/go-gitlab/actions?workflow=Lint%20and%20Test)
 [![Sourcegraph](https://sourcegraph.com/github.com/xanzy/go-gitlab/-/badge.svg)](https://sourcegraph.com/github.com/xanzy/go-gitlab?badge)
 [![GoDoc](https://godoc.org/github.com/xanzy/go-gitlab?status.svg)](https://godoc.org/github.com/xanzy/go-gitlab)
 [![Go Report Card](https://goreportcard.com/badge/github.com/xanzy/go-gitlab)](https://goreportcard.com/report/github.com/xanzy/go-gitlab)
-[![GitHub issues](https://img.shields.io/github/issues/xanzy/go-gitlab.svg)](https://github.com/xanzy/go-gitlab/issues)
 
 ## NOTE
 
-Release v0.6.0 (released on 25-08-2017) no longer supports the older V3 Gitlab API. If
+Release v0.6.0 (released on 25-08-2017) no longer supports the older V3 GitLab API. If
 you need V3 support, please use the `f-api-v3` branch. This release contains some backwards
-incompatible changes that were needed to fully support the V4 Gitlab API.
+incompatible changes that were needed to fully support the V4 GitLab API.
 
 ## Coverage
 
-This API client package covers most of the existing Gitlab API calls and is updated regularly
-to add new and/or missing endpoints. Currently the following services are supported:
+This API client package covers most of the existing GitLab API calls and is updated regularly
+to add new and/or missing endpoints. Currently, the following services are supported:
 
-- [ ] Discussions (threaded comments)
-- [ ] Epic Issues
-- [ ] Epics
-- [ ] Geo Nodes
-- [ ] Project import/export
+- [x] Applications
 - [x] Award Emojis
 - [x] Branches
 - [x] Broadcast Messages
@@ -33,55 +27,71 @@ to add new and/or missing endpoints. Currently the following services are suppor
 - [x] Custom Attributes
 - [x] Deploy Keys
 - [x] Deployments
+- [ ] Discussions (threaded comments)
 - [x] Environments
+- [ ] Epic Issues
+- [ ] Epics
 - [x] Events
-- [x] Feature flags
-- [x] GitLab CI Config templates
-- [x] Gitignores templates
+- [x] Feature Flags
+- [ ] Geo Nodes
+- [x] Generic Packages
+- [x] GitLab CI Config Templates
+- [x] Gitignores Templates
 - [x] Group Access Requests
 - [x] Group Issue Boards
 - [x] Group Members
 - [x] Group Milestones
-- [x] Group-level Variables
+- [x] Group Wikis
+- [x] Group-Level Variables
 - [x] Groups
+- [x] Instance Clusters
+- [x] Invites
 - [x] Issue Boards
 - [x] Issues
 - [x] Jobs
 - [x] Keys
 - [x] Labels
 - [x] License
+- [x] Markdown
 - [x] Merge Request Approvals
 - [x] Merge Requests
 - [x] Namespaces
 - [x] Notes (comments)
-- [x] Notification settings
-- [x] Open source license templates
+- [x] Notification Settings
+- [x] Open Source License Templates
+- [x] Packages
+- [x] Pages
 - [x] Pages Domains
+- [x] Personal Access Tokens
 - [x] Pipeline Schedules
 - [x] Pipeline Triggers
 - [x] Pipelines
+- [x] Plan limits
 - [x] Project Access Requests
+- [x] Project Badges
 - [x] Project Clusters
+- [x] Project Import/export
 - [x] Project Members
 - [x] Project Milestones
 - [x] Project Snippets
-- [x] Project badges
-- [x] Project-level Variables
+- [x] Project-Level Variables
 - [x] Projects (including setting Webhooks)
 - [x] Protected Branches
+- [x] Protected Environments
 - [x] Protected Tags
 - [x] Repositories
 - [x] Repository Files
+- [x] Repository Submodules
 - [x] Runners
 - [x] Search
 - [x] Services
 - [x] Settings
-- [x] Sidekiq metrics
+- [x] Sidekiq Metrics
 - [x] System Hooks
 - [x] Tags
 - [x] Todos
 - [x] Users
-- [x] Validate CI configuration
+- [x] Validate CI Configuration
 - [x] Version
 - [x] Wikis
 
@@ -96,16 +106,29 @@ access different parts of the GitLab API. For example, to list all
 users:
 
 ```go
-git := gitlab.NewClient(nil, "yourtokengoeshere")
-//git.SetBaseURL("https://git.mydomain.com/api/v3")
-users, _, err := git.Users.ListUsers()
+git, err := gitlab.NewClient("yourtokengoeshere")
+if err != nil {
+  log.Fatalf("Failed to create client: %v", err)
+}
+users, _, err := git.Users.ListUsers(&gitlab.ListUsersOptions{})
+```
+
+There are a few `With...` option functions that can be used to customize
+the API client. For example, to set a custom base URL:
+
+```go
+git, err := gitlab.NewClient("yourtokengoeshere", gitlab.WithBaseURL("https://git.mydomain.com/api/v4"))
+if err != nil {
+  log.Fatalf("Failed to create client: %v", err)
+}
+users, _, err := git.Users.ListUsers(&gitlab.ListUsersOptions{})
 ```
 
 Some API methods have optional parameters that can be passed. For example,
 to list all projects for user "svanharmelen":
 
 ```go
-git := gitlab.NewClient(nil)
+git := gitlab.NewClient("yourtokengoeshere")
 opt := &ListProjectsOptions{Search: gitlab.String("svanharmelen")}
 projects, _, err := git.Projects.ListProjects(opt)
 ```
@@ -125,7 +148,10 @@ import (
 )
 
 func main() {
-	git := gitlab.NewClient(nil, "yourtokengoeshere")
+	git, err := gitlab.NewClient("yourtokengoeshere")
+	if err != nil {
+		log.Fatalf("Failed to create client: %v", err)
+	}
 
 	// Create new project
 	p := &gitlab.CreateProjectOptions{
@@ -144,7 +170,7 @@ func main() {
 	s := &gitlab.CreateProjectSnippetOptions{
 		Title:           gitlab.String("Dummy Snippet"),
 		FileName:        gitlab.String("snippet.go"),
-		Code:            gitlab.String("package main...."),
+		Content:         gitlab.String("package main...."),
 		Visibility:      gitlab.Visibility(gitlab.PublicVisibility),
 	}
 	_, _, err = git.ProjectSnippets.CreateSnippet(project.ID, s)
@@ -166,7 +192,7 @@ For complete usage of go-gitlab, see the full [package docs](https://godoc.org/g
 
 ## Author
 
-Sander van Harmelen (<sander@xanzy.io>)
+Sander van Harmelen (<sander@vanharmelen.nl>)
 
 ## License
 

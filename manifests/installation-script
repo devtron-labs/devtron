@@ -524,11 +524,8 @@ if cloudProvider=="AZURE" {
 #fix this, as this will result in fields getting changed, if exists then we need to pull existing values and apply again
 
 # populate acd password
-allDevtroncdPo = kubectl get po -n devtroncd;
-argocdPodNameSelector = `items.#(metadata.labels.app\.kubernetes\.io/name=="argocd-server").metadata.name`;
-acdPassword = jsonSelect(allDevtroncdPo, argocdPodNameSelector);
-acdPassword = base64EncoderPrefix + `echo "` + acdPassword + `" | tr -d ':\n' ` + base64EncoderSuffix;
-acdPassword = shellScript acdPassword;
+argocdInitialSecret = kubectl get secret argocd-initial-admin-secret -n devtroncd;
+acdPassword = jsonSelect(argocdInitialSecret, "data.password");
 
 if hasDevtron {
     devtronSecret = kubectl get secret -n devtroncd devtron-secret;

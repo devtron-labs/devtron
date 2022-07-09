@@ -1,8 +1,24 @@
+//
+// Copyright 2021, Sander van Harmelen
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+//
+
 package gitlab
 
 import (
 	"fmt"
-	"net/url"
+	"net/http"
 	"time"
 )
 
@@ -21,9 +37,10 @@ type ReleasesService struct {
 type Release struct {
 	TagName         string     `json:"tag_name"`
 	Name            string     `json:"name"`
-	Description     string     `json:"description,omitempty"`
-	DescriptionHTML string     `json:"description_html,omitempty"`
-	CreatedAt       *time.Time `json:"created_at,omitempty"`
+	Description     string     `json:"description"`
+	DescriptionHTML string     `json:"description_html"`
+	CreatedAt       *time.Time `json:"created_at"`
+	ReleasedAt      *time.Time `json:"released_at"`
 	Author          struct {
 		ID        int    `json:"id"`
 		Name      string `json:"name"`
@@ -53,14 +70,14 @@ type ListReleasesOptions ListOptions
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/releases/index.html#list-releases
-func (s *ReleasesService) ListReleases(pid interface{}, opt *ListReleasesOptions, options ...OptionFunc) ([]*Release, *Response, error) {
+func (s *ReleasesService) ListReleases(pid interface{}, opt *ListReleasesOptions, options ...RequestOptionFunc) ([]*Release, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/releases", url.QueryEscape(project))
+	u := fmt.Sprintf("projects/%s/releases", PathEscape(project))
 
-	req, err := s.client.NewRequest("GET", u, opt, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -78,14 +95,14 @@ func (s *ReleasesService) ListReleases(pid interface{}, opt *ListReleasesOptions
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/releases/index.html#get-a-release-by-a-tag-name
-func (s *ReleasesService) GetRelease(pid interface{}, tagName string, options ...OptionFunc) (*Release, *Response, error) {
+func (s *ReleasesService) GetRelease(pid interface{}, tagName string, options ...RequestOptionFunc) (*Release, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/releases/%s", url.QueryEscape(project), tagName)
+	u := fmt.Sprintf("projects/%s/releases/%s", PathEscape(project), PathEscape(tagName))
 
-	req, err := s.client.NewRequest("GET", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -99,47 +116,52 @@ func (s *ReleasesService) GetRelease(pid interface{}, tagName string, options ..
 	return r, resp, err
 }
 
-// ReleaseAssets represents release assets in CreateRelease() options
-//
-// GitLab API docs:
-// https://docs.gitlab.com/ce/api/releases/index.html#create-a-release
-type ReleaseAssets struct {
-	Links []*ReleaseAssetLink `url:"links" json:"links"`
-}
-
-// ReleaseAssetLink represents release asset link in CreateRelease() options
-//
-// GitLab API docs:
-// https://docs.gitlab.com/ce/api/releases/index.html#create-a-release
-type ReleaseAssetLink struct {
-	Name string `url:"name" json:"name"`
-	URL  string `url:"url" json:"url"`
-}
-
 // CreateReleaseOptions represents CreateRelease() options.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/releases/index.html#create-a-release
 type CreateReleaseOptions struct {
-	Name        *string        `url:"name" json:"name"`
-	TagName     *string        `url:"tag_name" json:"tag_name"`
-	Description *string        `url:"description" json:"description"`
-	Ref         *string        `url:"ref,omitempty" json:"ref,omitempty"`
-	Assets      *ReleaseAssets `url:"assets,omitempty" json:"assets,omitempty"`
+	Name        *string               `url:"name" json:"name"`
+	TagName     *string               `url:"tag_name" json:"tag_name"`
+	Description *string               `url:"description" json:"description"`
+	Ref         *string               `url:"ref,omitempty" json:"ref,omitempty"`
+	Milestones  *[]string             `url:"milestones,omitempty" json:"milestones,omitempty"`
+	Assets      *ReleaseAssetsOptions `url:"assets,omitempty" json:"assets,omitempty"`
+	ReleasedAt  *time.Time            `url:"released_at,omitempty" json:"released_at,omitempty"`
+}
+
+// ReleaseAssetsOptions represents release assets in CreateRelease() options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ce/api/releases/index.html#create-a-release
+type ReleaseAssetsOptions struct {
+	Links []*ReleaseAssetLinkOptions `url:"links,omitempty" json:"links,omitempty"`
+}
+
+// ReleaseAssetLinkOptions represents release asset link in CreateRelease()
+// options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ce/api/releases/index.html#create-a-release
+type ReleaseAssetLinkOptions struct {
+	Name     *string        `url:"name,omitempty" json:"name,omitempty"`
+	URL      *string        `url:"url,omitempty" json:"url,omitempty"`
+	FilePath *string        `url:"filepath,omitempty" json:"filepath,omitempty"`
+	LinkType *LinkTypeValue `url:"link_type,omitempty" json:"link_type,omitempty"`
 }
 
 // CreateRelease creates a release.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/releases/index.html#create-a-release
-func (s *ReleasesService) CreateRelease(pid interface{}, opts *CreateReleaseOptions, options ...OptionFunc) (*Release, *Response, error) {
+func (s *ReleasesService) CreateRelease(pid interface{}, opts *CreateReleaseOptions, options ...RequestOptionFunc) (*Release, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/releases", url.QueryEscape(project))
+	u := fmt.Sprintf("projects/%s/releases", PathEscape(project))
 
-	req, err := s.client.NewRequest("POST", u, opts, options)
+	req, err := s.client.NewRequest(http.MethodPost, u, opts, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -158,22 +180,24 @@ func (s *ReleasesService) CreateRelease(pid interface{}, opts *CreateReleaseOpti
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/releases/index.html#update-a-release
 type UpdateReleaseOptions struct {
-	Name        *string `url:"name" json:"name"`
-	Description *string `url:"description" json:"description"`
+	Name        *string    `url:"name" json:"name"`
+	Description *string    `url:"description" json:"description"`
+	Milestones  *[]string  `url:"milestones,omitempty" json:"milestones,omitempty"`
+	ReleasedAt  *time.Time `url:"released_at,omitempty" json:"released_at,omitempty"`
 }
 
 // UpdateRelease updates a release.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/releases/index.html#update-a-release
-func (s *ReleasesService) UpdateRelease(pid interface{}, tagName string, opts *UpdateReleaseOptions, options ...OptionFunc) (*Release, *Response, error) {
+func (s *ReleasesService) UpdateRelease(pid interface{}, tagName string, opts *UpdateReleaseOptions, options ...RequestOptionFunc) (*Release, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/releases/%s", url.QueryEscape(project), tagName)
+	u := fmt.Sprintf("projects/%s/releases/%s", PathEscape(project), PathEscape(tagName))
 
-	req, err := s.client.NewRequest("PUT", u, opts, options)
+	req, err := s.client.NewRequest(http.MethodPut, u, opts, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -191,14 +215,14 @@ func (s *ReleasesService) UpdateRelease(pid interface{}, tagName string, opts *U
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/releases/index.html#delete-a-release
-func (s *ReleasesService) DeleteRelease(pid interface{}, tagName string, options ...OptionFunc) (*Release, *Response, error) {
+func (s *ReleasesService) DeleteRelease(pid interface{}, tagName string, options ...RequestOptionFunc) (*Release, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/releases/%s", url.QueryEscape(project), tagName)
+	u := fmt.Sprintf("projects/%s/releases/%s", PathEscape(project), PathEscape(tagName))
 
-	req, err := s.client.NewRequest("DELETE", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
 	if err != nil {
 		return nil, nil, err
 	}

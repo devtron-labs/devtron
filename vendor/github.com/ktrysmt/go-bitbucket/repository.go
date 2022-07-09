@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
-	"os"
 	"path"
 	"strconv"
 	"strings"
 
-	"github.com/k0kubun/pp"
 	"github.com/mitchellh/mapstructure"
 )
 
@@ -206,7 +204,10 @@ type DefaultReviewers struct {
 }
 
 func (r *Repository) Create(ro *RepositoryOptions) (*Repository, error) {
-	data := r.buildRepositoryBody(ro)
+	data, err := r.buildRepositoryBody(ro)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := r.c.requestUrl("/repositories/%s/%s", ro.Owner, ro.RepoSlug)
 	response, err := r.c.execute("POST", urlStr, data)
 	if err != nil {
@@ -217,7 +218,10 @@ func (r *Repository) Create(ro *RepositoryOptions) (*Repository, error) {
 }
 
 func (r *Repository) Fork(fo *RepositoryForkOptions) (*Repository, error) {
-	data := r.buildForkBody(fo)
+	data, err := r.buildForkBody(fo)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := r.c.requestUrl("/repositories/%s/%s/forks", fo.FromOwner, fo.FromSlug)
 	response, err := r.c.execute("POST", urlStr, data)
 	if err != nil {
@@ -378,9 +382,27 @@ func (r *Repository) GetBranch(rbo *RepositoryBranchOptions) (*RepositoryBranch,
 	return decodeRepositoryBranch(bodyString)
 }
 
+// DeleteBranch https://developer.atlassian.com/bitbucket/api/2/reference/resource/repositories/%7Bworkspace%7D/%7Brepo_slug%7D/refs/branches/%7Bname%7D#delete
+func (r *Repository) DeleteBranch(rbo *RepositoryBranchDeleteOptions) error {
+	repo := rbo.RepoSlug
+	if rbo.RepoUUID != "" {
+		repo = rbo.RepoUUID
+	}
+	ref := rbo.RefName
+	if rbo.RefUUID != "" {
+		ref = rbo.RefUUID
+	}
+	urlStr := r.c.requestUrl("/repositories/%s/%s/refs/branches/%s", rbo.Owner, repo, ref)
+	_, err := r.c.execute("DELETE", urlStr, "")
+	return err
+}
+
 func (r *Repository) CreateBranch(rbo *RepositoryBranchCreationOptions) (*RepositoryBranch, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/refs/branches", rbo.Owner, rbo.RepoSlug)
-	data := r.buildBranchBody(rbo)
+	data, err := r.buildBranchBody(rbo)
+	if err != nil {
+		return nil, err
+	}
 
 	response, err := r.c.executeRaw("POST", urlStr, data)
 	if err != nil {
@@ -434,7 +456,10 @@ func (r *Repository) ListTags(rbo *RepositoryTagOptions) (*RepositoryTags, error
 
 func (r *Repository) CreateTag(rbo *RepositoryTagCreationOptions) (*RepositoryTag, error) {
 	urlStr := r.c.requestUrl("/repositories/%s/%s/refs/tags", rbo.Owner, rbo.RepoSlug)
-	data := r.buildTagBody(rbo)
+	data, err := r.buildTagBody(rbo)
+	if err != nil {
+		return nil, err
+	}
 
 	response, err := r.c.executeRaw("POST", urlStr, data)
 	if err != nil {
@@ -451,7 +476,10 @@ func (r *Repository) CreateTag(rbo *RepositoryTagCreationOptions) (*RepositoryTa
 }
 
 func (r *Repository) Update(ro *RepositoryOptions) (*Repository, error) {
-	data := r.buildRepositoryBody(ro)
+	data, err := r.buildRepositoryBody(ro)
+	if err != nil {
+		return nil, err
+	}
 	key := ro.RepoSlug
 	if ro.Uuid != "" {
 		key = ro.Uuid
@@ -516,8 +544,20 @@ func (r *Repository) DeleteDefaultReviewer(rdro *RepositoryDefaultReviewerOption
 	return r.c.execute("DELETE", urlStr, "")
 }
 
+func (r *Repository) GetPipelineConfig(rpo *RepositoryPipelineOptions) (*Pipeline, error) {
+	urlStr := r.c.requestUrl("/repositories/%s/%s/pipelines_config", rpo.Owner, rpo.RepoSlug)
+	response, err := r.c.execute("GET", urlStr, "")
+	if err != nil {
+		return nil, fmt.Errorf("unable to get pipeline config: %w", err)
+	}
+	return decodePipelineRepository(response)
+}
+
 func (r *Repository) UpdatePipelineConfig(rpo *RepositoryPipelineOptions) (*Pipeline, error) {
-	data := r.buildPipelineBody(rpo)
+	data, err := r.buildPipelineBody(rpo)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := r.c.requestUrl("/repositories/%s/%s/pipelines_config", rpo.Owner, rpo.RepoSlug)
 	response, err := r.c.execute("PUT", urlStr, data)
 	if err != nil {
@@ -564,7 +604,10 @@ func (r *Repository) ListPipelineVariables(opt *RepositoryPipelineVariablesOptio
 }
 
 func (r *Repository) AddPipelineVariable(rpvo *RepositoryPipelineVariableOptions) (*PipelineVariable, error) {
-	data := r.buildPipelineVariableBody(rpvo)
+	data, err := r.buildPipelineVariableBody(rpvo)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := r.c.requestUrl("/repositories/%s/%s/pipelines_config/variables/", rpvo.Owner, rpvo.RepoSlug)
 
 	response, err := r.c.execute("POST", urlStr, data)
@@ -590,7 +633,10 @@ func (r *Repository) GetPipelineVariable(opt *RepositoryPipelineVariableOptions)
 }
 
 func (r *Repository) UpdatePipelineVariable(opt *RepositoryPipelineVariableOptions) (*PipelineVariable, error) {
-	data := r.buildPipelineVariableBody(opt)
+	data, err := r.buildPipelineVariableBody(opt)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := r.c.requestUrl("/repositories/%s/%s/pipelines_config/variables/%s", opt.Owner, opt.RepoSlug, opt.Uuid)
 	response, err := r.c.execute("PUT", urlStr, data)
 	if err != nil {
@@ -600,7 +646,10 @@ func (r *Repository) UpdatePipelineVariable(opt *RepositoryPipelineVariableOptio
 }
 
 func (r *Repository) AddPipelineKeyPair(rpkpo *RepositoryPipelineKeyPairOptions) (*PipelineKeyPair, error) {
-	data := r.buildPipelineKeyPairBody(rpkpo)
+	data, err := r.buildPipelineKeyPairBody(rpkpo)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := r.c.requestUrl("/repositories/%s/%s/pipelines_config/ssh/key_pair", rpkpo.Owner, rpkpo.RepoSlug)
 
 	response, err := r.c.execute("PUT", urlStr, data)
@@ -612,7 +661,10 @@ func (r *Repository) AddPipelineKeyPair(rpkpo *RepositoryPipelineKeyPairOptions)
 }
 
 func (r *Repository) UpdatePipelineBuildNumber(rpbno *RepositoryPipelineBuildNumberOptions) (*PipelineBuildNumber, error) {
-	data := r.buildPipelineBuildNumberBody(rpbno)
+	data, err := r.buildPipelineBuildNumberBody(rpbno)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := r.c.requestUrl("/repositories/%s/%s/pipelines_config/build_number", rpbno.Owner, rpbno.RepoSlug)
 
 	response, err := r.c.execute("PUT", urlStr, data)
@@ -649,7 +701,10 @@ func (r *Repository) ListEnvironments(opt *RepositoryEnvironmentsOptions) (*Envi
 }
 
 func (r *Repository) AddEnvironment(opt *RepositoryEnvironmentOptions) (*Environment, error) {
-	body := r.buildEnvironmentBody(opt)
+	body, err := r.buildEnvironmentBody(opt)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := r.c.requestUrl("/repositories/%s/%s/environments/", opt.Owner, opt.RepoSlug)
 	res, err := r.c.execute("POST", urlStr, body)
 	if err != nil {
@@ -710,7 +765,10 @@ func (r *Repository) ListDeploymentVariables(opt *RepositoryDeploymentVariablesO
 }
 
 func (r *Repository) AddDeploymentVariable(opt *RepositoryDeploymentVariableOptions) (*DeploymentVariable, error) {
-	body := r.buildDeploymentVariableBody(opt)
+	body, err := r.buildDeploymentVariableBody(opt)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := r.c.requestUrl("/repositories/%s/%s/deployments_config/environments/%s/variables", opt.Owner, opt.RepoSlug, opt.Environment.Uuid)
 
 	response, err := r.c.execute("POST", urlStr, body)
@@ -727,7 +785,10 @@ func (r *Repository) DeleteDeploymentVariable(opt *RepositoryDeploymentVariableD
 }
 
 func (r *Repository) UpdateDeploymentVariable(opt *RepositoryDeploymentVariableOptions) (*DeploymentVariable, error) {
-	body := r.buildDeploymentVariableBody(opt)
+	body, err := r.buildDeploymentVariableBody(opt)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := r.c.requestUrl("/repositories/%s/%s/deployments_config/environments/%s/variables/%s", opt.Owner, opt.RepoSlug, opt.Environment.Uuid, opt.Uuid)
 
 	response, err := r.c.execute("PUT", urlStr, body)
@@ -738,8 +799,7 @@ func (r *Repository) UpdateDeploymentVariable(opt *RepositoryDeploymentVariableO
 	return decodeDeploymentVariable(response)
 }
 
-func (r *Repository) buildRepositoryBody(ro *RepositoryOptions) string {
-
+func (r *Repository) buildRepositoryBody(ro *RepositoryOptions) (string, error) {
 	body := map[string]interface{}{}
 
 	if ro.Uuid != "" {
@@ -759,6 +819,20 @@ func (r *Repository) buildRepositoryBody(ro *RepositoryOptions) string {
 	}
 	if ro.ForkPolicy != "" {
 		body["fork_policy"] = ro.ForkPolicy
+
+		// Due to this undocumented asymmetric behaviour (https://jira.atlassian.com/browse/BCLOUD-13093)
+		// we have to do this, to allow `fork_policy` to be updated after initial creation (i.e. PUT/POST requests)
+		switch ro.ForkPolicy {
+		case "allow_forks":
+			body["no_forks"] = false
+			body["no_public_forks"] = false
+		case "no_public_forks":
+			body["no_forks"] = false
+			body["no_public_forks"] = true
+		case "no_forks":
+			body["no_forks"] = true
+			body["no_public_forks"] = true
+		}
 	}
 	if ro.Language != "" {
 		body["language"] = ro.Language
@@ -778,8 +852,7 @@ func (r *Repository) buildRepositoryBody(ro *RepositoryOptions) string {
 	return r.buildJsonBody(body)
 }
 
-func (r *Repository) buildForkBody(fo *RepositoryForkOptions) string {
-
+func (r *Repository) buildForkBody(fo *RepositoryForkOptions) (string, error) {
 	body := map[string]interface{}{}
 
 	if fo.Owner != "" {
@@ -817,8 +890,7 @@ func (r *Repository) buildForkBody(fo *RepositoryForkOptions) string {
 	return r.buildJsonBody(body)
 }
 
-func (r *Repository) buildPipelineBody(rpo *RepositoryPipelineOptions) string {
-
+func (r *Repository) buildPipelineBody(rpo *RepositoryPipelineOptions) (string, error) {
 	body := map[string]interface{}{}
 
 	body["enabled"] = rpo.Enabled
@@ -826,8 +898,7 @@ func (r *Repository) buildPipelineBody(rpo *RepositoryPipelineOptions) string {
 	return r.buildJsonBody(body)
 }
 
-func (r *Repository) buildPipelineVariableBody(rpvo *RepositoryPipelineVariableOptions) string {
-
+func (r *Repository) buildPipelineVariableBody(rpvo *RepositoryPipelineVariableOptions) (string, error) {
 	body := map[string]interface{}{}
 
 	if rpvo.Uuid != "" {
@@ -840,8 +911,7 @@ func (r *Repository) buildPipelineVariableBody(rpvo *RepositoryPipelineVariableO
 	return r.buildJsonBody(body)
 }
 
-func (r *Repository) buildPipelineKeyPairBody(rpkpo *RepositoryPipelineKeyPairOptions) string {
-
+func (r *Repository) buildPipelineKeyPairBody(rpkpo *RepositoryPipelineKeyPairOptions) (string, error) {
 	body := map[string]interface{}{}
 
 	if rpkpo.PrivateKey != "" {
@@ -854,8 +924,7 @@ func (r *Repository) buildPipelineKeyPairBody(rpkpo *RepositoryPipelineKeyPairOp
 	return r.buildJsonBody(body)
 }
 
-func (r *Repository) buildPipelineBuildNumberBody(rpbno *RepositoryPipelineBuildNumberOptions) string {
-
+func (r *Repository) buildPipelineBuildNumberBody(rpbno *RepositoryPipelineBuildNumberOptions) (string, error) {
 	body := map[string]interface{}{}
 
 	body["next"] = rpbno.Next
@@ -863,7 +932,7 @@ func (r *Repository) buildPipelineBuildNumberBody(rpbno *RepositoryPipelineBuild
 	return r.buildJsonBody(body)
 }
 
-func (r *Repository) buildBranchBody(rbo *RepositoryBranchCreationOptions) string {
+func (r *Repository) buildBranchBody(rbo *RepositoryBranchCreationOptions) (string, error) {
 	body := map[string]interface{}{
 		"name": rbo.Name,
 		"target": map[string]string{
@@ -874,7 +943,7 @@ func (r *Repository) buildBranchBody(rbo *RepositoryBranchCreationOptions) strin
 	return r.buildJsonBody(body)
 }
 
-func (r *Repository) buildTagBody(rbo *RepositoryTagCreationOptions) string {
+func (r *Repository) buildTagBody(rbo *RepositoryTagCreationOptions) (string, error) {
 	body := map[string]interface{}{
 		"name": rbo.Name,
 		"target": map[string]string{
@@ -885,7 +954,7 @@ func (r *Repository) buildTagBody(rbo *RepositoryTagCreationOptions) string {
 	return r.buildJsonBody(body)
 }
 
-func (r *Repository) buildEnvironmentBody(opt *RepositoryEnvironmentOptions) string {
+func (r *Repository) buildEnvironmentBody(opt *RepositoryEnvironmentOptions) (string, error) {
 	body := map[string]interface{}{}
 
 	body["environment_type"] = map[string]interface{}{
@@ -902,7 +971,7 @@ func (r *Repository) buildEnvironmentBody(opt *RepositoryEnvironmentOptions) str
 	return r.buildJsonBody(body)
 }
 
-func (r *Repository) buildDeploymentVariableBody(opt *RepositoryDeploymentVariableOptions) string {
+func (r *Repository) buildDeploymentVariableBody(opt *RepositoryDeploymentVariableOptions) (string, error) {
 	body := map[string]interface{}{}
 
 	if opt.Uuid != "" {
@@ -915,15 +984,13 @@ func (r *Repository) buildDeploymentVariableBody(opt *RepositoryDeploymentVariab
 	return r.buildJsonBody(body)
 }
 
-func (r *Repository) buildJsonBody(body map[string]interface{}) string {
-
+func (r *Repository) buildJsonBody(body map[string]interface{}) (string, error) {
 	data, err := json.Marshal(body)
 	if err != nil {
-		pp.Println(err)
-		os.Exit(9)
+		return "", err
 	}
 
-	return string(data)
+	return string(data), nil
 }
 
 func decodeRepository(repoResponse interface{}) (*Repository, error) {

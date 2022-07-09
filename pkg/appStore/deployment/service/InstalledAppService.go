@@ -19,6 +19,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -33,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/ktrysmt/go-bitbucket"
 
 	/* #nosec */
@@ -46,7 +48,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -99,6 +101,7 @@ type InstalledAppServiceImpl struct {
 	appStoreDeploymentService            AppStoreDeploymentService
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	installedAppRepositoryHistory        repository2.InstalledAppVersionHistoryRepository
+	argoUserService                      argo.ArgoUserService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -117,7 +120,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService AppStoreDeploymentService,
-	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository) (*InstalledAppServiceImpl, error) {
+	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
+	argoUserService argo.ArgoUserService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -142,6 +146,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentService:            appStoreDeploymentService,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
+		argoUserService:                      argoUserService,
 	}
 	err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
 	if err != nil {
@@ -331,11 +336,13 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 }
 
 func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
-	ctx, err := impl.tokenCache.BuildACDSynchContext()
+	ctx := context.Background()
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
 		return nil, err
 	}
-
+	ctx = context.WithValue(ctx, "token", acdToken)
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
@@ -843,7 +850,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 		return isHealthy, err
 	}
 	if versionHistory.Status != (application2.Healthy) {
-		versionHistory.Status = application.Status.Health.Status
+		versionHistory.Status = string(application.Status.Health.Status)
 		versionHistory.UpdatedOn = time.Now()
 		versionHistory.UpdatedBy = 1
 		impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(versionHistory, tx)

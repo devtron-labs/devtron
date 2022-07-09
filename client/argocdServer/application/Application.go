@@ -25,10 +25,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
@@ -392,7 +392,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	if app != nil {
 		appResp, err := app.Recv()
 		if err == nil {
-			status = appResp.Application.Status.Health.Status
+			status = string(appResp.Application.Status.Health.Status)
 			conditions = appResp.Application.Status.Conditions
 			for _, condition := range conditions {
 				if condition.Type != v1alpha1.ApplicationConditionSharedResourceWarning {
@@ -418,57 +418,61 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 	jobsManifest := make(map[string]interface{})
 	var parentWorkflow []string
 	for _, response := range responses {
-		if response != nil && response.Response != nil && response.Request.Kind == "Rollout" {
-			manifest := make(map[string]interface{})
-			err := json.Unmarshal([]byte(response.Response.Manifest), &manifest)
-			if err != nil {
-				c.logger.Error(err)
-			}else{
-				rolloutManifests = append(rolloutManifests, manifest)
-			}
-		} else if response != nil && response.Response != nil && response.Request.Kind == "Deployment" {
-			manifest := make(map[string]interface{})
-			err := json.Unmarshal([]byte(response.Response.Manifest), &manifest)
-			if err != nil {
-				c.logger.Error(err)
-			}else{
-				deploymentManifests = append(deploymentManifests, manifest)
-			}
-		} else if response != nil && response.Response != nil && response.Request.Kind == "StatefulSet" {
-			err := json.Unmarshal([]byte(response.Response.Manifest), &statefulSetManifest)
-			if err != nil {
-				c.logger.Error(err)
-			}
-		} else if response != nil && response.Response != nil && response.Request.Kind == "DaemonSet" {
-			err := json.Unmarshal([]byte(response.Response.Manifest), &daemonSetManifest)
-			if err != nil {
-				c.logger.Error(err)
-			}
-		} else if response != nil && response.Response != nil && response.Request.Kind == "ReplicaSet" {
-			manifest := make(map[string]interface{})
-			err := json.Unmarshal([]byte(response.Response.Manifest), &manifest)
-			if err != nil {
-				c.logger.Error(err)
-			}
-			replicaSetManifests = append(replicaSetManifests, manifest)
-		} else if response != nil && response.Response != nil && response.Request.Kind == "Pod" {
-			manifest := make(map[string]interface{})
-			err := json.Unmarshal([]byte(response.Response.Manifest), &manifest)
-			if err != nil {
-				c.logger.Error(err)
-			}
-			podManifests = append(podManifests, manifest)
-		} else if response != nil && response.Response != nil && response.Request.Kind == "ControllerRevision" {
-			manifest := make(map[string]interface{})
-			err := json.Unmarshal([]byte(response.Response.Manifest), &manifest)
-			if err != nil {
-				c.logger.Error(err)
-			}
-			controllerRevisionManifests = append(controllerRevisionManifests, manifest)
-		} else if response != nil && response.Response != nil && response.Request.Kind == "Job" {
-			err := json.Unmarshal([]byte(response.Response.Manifest), &jobsManifest)
-			if err != nil {
-				c.logger.Error(err)
+		if response != nil && response.Response != nil {
+			kind := *response.Request.Kind
+			manifestFromResponse := *response.Response.Manifest
+			if kind == "Rollout" {
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
+				if err != nil {
+					c.logger.Error(err)
+				}else{
+					rolloutManifests = append(rolloutManifests, manifest)
+				}
+			} else if kind == "Deployment" {
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
+				if err != nil {
+					c.logger.Error(err)
+				}else{
+					deploymentManifests = append(deploymentManifests, manifest)
+				}
+			} else if kind == "StatefulSet" {
+				err := json.Unmarshal([]byte(manifestFromResponse), &statefulSetManifest)
+				if err != nil {
+					c.logger.Error(err)
+				}
+			} else if kind == "DaemonSet" {
+				err := json.Unmarshal([]byte(manifestFromResponse), &daemonSetManifest)
+				if err != nil {
+					c.logger.Error(err)
+				}
+			} else if kind == "ReplicaSet" {
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
+				if err != nil {
+					c.logger.Error(err)
+				}
+				replicaSetManifests = append(replicaSetManifests, manifest)
+			} else if kind == "Pod" {
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
+				if err != nil {
+					c.logger.Error(err)
+				}
+				podManifests = append(podManifests, manifest)
+			} else if kind == "ControllerRevision" {
+				manifest := make(map[string]interface{})
+				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
+				if err != nil {
+					c.logger.Error(err)
+				}
+				controllerRevisionManifests = append(controllerRevisionManifests, manifest)
+			} else if kind == "Job" {
+				err := json.Unmarshal([]byte(manifestFromResponse), &jobsManifest)
+				if err != nil {
+					c.logger.Error(err)
+				}
 			}
 		}
 	}
@@ -980,15 +984,19 @@ func getResourceName(resource map[string]interface{}) string {
 }
 
 func transform(resource v1alpha1.ResourceNode, name *string) *application.ApplicationResourceRequest {
+	resourceName := resource.Name
+	kind := resource.Kind
+	group := resource.Group
+	version := resource.Version
+	namespace := resource.Namespace
 	request := &application.ApplicationResourceRequest{
 		Name:         name,
-		ResourceName: resource.Name,
-		Kind:         resource.Kind,
-		Group:        resource.Group,
-		Version:      resource.Version,
-		Namespace:    resource.Namespace,
+		ResourceName: &resourceName,
+		Kind:         &kind,
+		Group:        &group,
+		Version:      &version,
+		Namespace:    &namespace,
 	}
-
 	return request
 }
 

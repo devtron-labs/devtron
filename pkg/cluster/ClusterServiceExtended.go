@@ -3,12 +3,12 @@ package cluster
 import (
 	"context"
 	"fmt"
+	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"net/http"
 	"strings"
 	"time"
 
-	cluster3 "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/k8s/informer"

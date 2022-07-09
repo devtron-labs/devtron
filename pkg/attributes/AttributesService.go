@@ -50,7 +50,8 @@ type AttributesServiceImpl struct {
 	attributesRepository repository.AttributesRepository
 }
 
-func NewAttributesServiceImpl(logger *zap.SugaredLogger, attributesRepository repository.AttributesRepository) *AttributesServiceImpl {
+func NewAttributesServiceImpl(logger *zap.SugaredLogger,
+	attributesRepository repository.AttributesRepository) *AttributesServiceImpl {
 	serviceImpl := &AttributesServiceImpl{
 		logger:               logger,
 		attributesRepository: attributesRepository,

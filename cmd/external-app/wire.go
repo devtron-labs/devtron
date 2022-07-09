@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
@@ -112,6 +113,10 @@ func InitializeApp() (*App, error) {
 
 		repository.NewGitOpsConfigRepositoryImpl,
 		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
+
+		//binding argoUserService to helm via dummy implementation(HelmUserServiceImpl)
+		argo.NewHelmUserServiceImpl,
+		wire.Bind(new(argo.ArgoUserService), new(*argo.HelmUserServiceImpl)),
 	)
 	return &App{}, nil
 }

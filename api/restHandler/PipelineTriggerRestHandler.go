@@ -31,6 +31,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -53,11 +54,13 @@ type PipelineTriggerRestHandlerImpl struct {
 	workflowDagExecutor    pipeline.WorkflowDagExecutor
 	enforcerUtil           rbac.EnforcerUtil
 	deploymentGroupService deploymentGroup.DeploymentGroupService
+	argoUserService        argo.ArgoUserService
 }
 
 func NewPipelineRestHandler(appService app.AppService, userAuthService user.UserService, validator *validator.Validate,
 	enforcer casbin.Enforcer, teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
-	workflowDagExecutor pipeline.WorkflowDagExecutor, deploymentGroupService deploymentGroup.DeploymentGroupService) *PipelineTriggerRestHandlerImpl {
+	workflowDagExecutor pipeline.WorkflowDagExecutor, deploymentGroupService deploymentGroup.DeploymentGroupService,
+	argoUserService argo.ArgoUserService) *PipelineTriggerRestHandlerImpl {
 	pipelineHandler := &PipelineTriggerRestHandlerImpl{
 		appService:             appService,
 		userAuthService:        userAuthService,
@@ -68,6 +71,7 @@ func NewPipelineRestHandler(appService app.AppService, userAuthService user.User
 		workflowDagExecutor:    workflowDagExecutor,
 		enforcerUtil:           enforcerUtil,
 		deploymentGroupService: deploymentGroupService,
+		argoUserService:        argoUserService,
 	}
 	return pipelineHandler
 }
@@ -108,8 +112,13 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 		return
 	}
 	//rback block ends here
-
-	ctx := context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
 	mergeResp, err := handler.workflowDagExecutor.ManualCdTrigger(&overrideRequest, ctx)
 	if err != nil {
 		handler.logger.Errorw("request err, OverrideConfig", "err", err, "payload", overrideRequest)
@@ -155,8 +164,13 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 		return
 	}
 	//rback block ends here
-
-	ctx := context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
 	mergeResp, err := handler.workflowDagExecutor.StopStartApp(&overrideRequest, ctx)
 	if err != nil {
 		handler.logger.Errorw("service err, StartStopApp", "err", err, "payload", overrideRequest)
@@ -211,8 +225,13 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopDeploymentGroup(w http.Re
 		return
 	}
 	//rback block ends here
-
-	ctx := context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
 	res, err := handler.workflowDagExecutor.TriggerBulkHibernateAsync(stopDeploymentGroupRequest, ctx)
 	if err != nil {
 		handler.logger.Errorw("service err, StartStopDeploymentGroup", "err", err, "payload", stopDeploymentGroupRequest)
