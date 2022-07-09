@@ -69,6 +69,7 @@ func Create() *casbin.Enforcer {
 }
 
 func AddPolicy(policies []Policy) []Policy {
+	defer handlePanic()
 	LoadPolicy()
 	var failed = []Policy{}
 	for _, p := range policies {
@@ -100,6 +101,7 @@ func AddPolicy(policies []Policy) []Policy {
 }
 
 func LoadPolicy() {
+	defer handlePanic()
 	err := e.LoadPolicy()
 	if err != nil {
 		fmt.Println("error in reloading policies", err)
@@ -109,6 +111,7 @@ func LoadPolicy() {
 }
 
 func RemovePolicy(policies []Policy) []Policy {
+	defer handlePanic()
 	var failed = []Policy{}
 	for _, p := range policies {
 		success := false
@@ -146,7 +149,13 @@ func GetUserByRole(role string) ([]string, error) {
 	return e.GetUsersForRole(role)
 }
 
-func RemovePoliciesByRoles(roles string) bool{
+func RemovePoliciesByRoles(roles string) bool {
 	roles = strings.ToLower(roles)
 	return e.RemovePolicy([]string{roles})
+}
+
+func handlePanic() {
+	if err := recover(); err != nil {
+		log.Println("panic occurred:", err)
+	}
 }
