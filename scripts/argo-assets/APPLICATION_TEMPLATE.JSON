@@ -20,7 +20,7 @@
       },
       "path": "{{.RepoPath}}",
       "repoURL": "{{.RepoUrl}}",
-      "targetRevision": "HEAD"
+      "targetRevision": "master"
     },
     "syncPolicy": {
       "automated": {

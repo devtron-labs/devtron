@@ -66,8 +66,8 @@ type ChartRepository interface {
 	FindChartByAppIdAndRefId(appId int, chartRefId int) (chart *Chart, err error)
 	FindNoLatestChartForAppByAppId(appId int) ([]*Chart, error)
 	FindPreviousChartByAppId(appId int) (chart *Chart, err error)
-	FindByGitRepoUrl(gitRepoUrl string) (chart *Chart, err error)
 	FindNumberOfAppsWithDeploymentTemplate(appIds []int) (int, error)
+	FindChartByGitRepoUrl(gitRepoUrl string) (*Chart, error)
 }
 
 func NewChartRepository(dbConnection *pg.DB) *ChartRepositoryImpl {
@@ -198,16 +198,16 @@ func (repositoryImpl ChartRepositoryImpl) FindById(id int) (chart *Chart, err er
 	return chart, err
 }
 
-func (repositoryImpl ChartRepositoryImpl) FindByGitRepoUrl(gitRepoUrl string) (chart *Chart, err error) {
-	chart = &Chart{}
-	err = repositoryImpl.dbConnection.Model(chart).
-		Join("INNER JOIN app ON app.id=app_id ").
+func (repositoryImpl ChartRepositoryImpl) FindChartByGitRepoUrl(gitRepoUrl string) (*Chart, error) {
+	var chart Chart
+	err := repositoryImpl.dbConnection.Model(&chart).
+		Join("INNER JOIN app ON app.id=app_id").
 		Where("app.active = ?", true).
 		Where("chart.git_repo_url = ?", gitRepoUrl).
 		Where("chart.active = ?", true).
-		Where("chart.latest = ?", true).
+		Limit(1).
 		Select()
-	return chart, err
+	return &chart, err
 }
 
 func (repositoryImpl ChartRepositoryImpl) FindNumberOfAppsWithDeploymentTemplate(appIds []int) (int, error) {

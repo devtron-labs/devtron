@@ -2,6 +2,7 @@ package argocdServer
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -98,7 +99,7 @@ func (impl ArgoK8sClientImpl) CreateArgoApplication(namespace string, applicatio
 		Resource("applications").
 		Namespace(namespace).
 		Body([]byte(application)).
-		Do().Raw()
+		Do(context.Background()).Raw()
 
 	if err != nil {
 		response := make(map[string]interface{})
@@ -142,7 +143,7 @@ func (impl ArgoK8sClientImpl) GetArgoApplication(namespace string, appName strin
 		Resource("applications").
 		Name(appName).
 		//VersionedParams(&opts, metav1.ParameterCodec).
-		Do().Raw()
+		Do(context.Background()).Raw()
 	response := make(map[string]interface{})
 	if err != nil {
 		err := json.Unmarshal(res, &response)

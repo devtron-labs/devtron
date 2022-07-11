@@ -6,7 +6,6 @@
 # Folders
 _obj
 _test
-.idea
 
 # Architecture specific extensions/prefixes
 *.[568vq]
@@ -23,3 +22,7 @@ _testmain.go
 *.exe
 *.test
 *.prof
+
+# IDE specific files and folders
+.idea
+*.iml

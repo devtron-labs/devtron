@@ -3,9 +3,6 @@ package bitbucket
 import (
 	"encoding/json"
 	"net/url"
-	"os"
-
-	"github.com/k0kubun/pp"
 )
 
 type PullRequests struct {
@@ -13,13 +10,19 @@ type PullRequests struct {
 }
 
 func (p *PullRequests) Create(po *PullRequestsOptions) (interface{}, error) {
-	data := p.buildPullRequestBody(po)
+	data, err := p.buildPullRequestBody(po)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := p.c.requestUrl("/repositories/%s/%s/pullrequests/", po.Owner, po.RepoSlug)
 	return p.c.execute("POST", urlStr, data)
 }
 
 func (p *PullRequests) Update(po *PullRequestsOptions) (interface{}, error) {
-	data := p.buildPullRequestBody(po)
+	data, err := p.buildPullRequestBody(po)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := p.c.GetApiBaseURL() + "/repositories/" + po.Owner + "/" + po.RepoSlug + "/pullrequests/" + po.ID
 	return p.c.execute("PUT", urlStr, data)
 }
@@ -96,13 +99,19 @@ func (p *PullRequests) Diff(po *PullRequestsOptions) (interface{}, error) {
 }
 
 func (p *PullRequests) Merge(po *PullRequestsOptions) (interface{}, error) {
-	data := p.buildPullRequestBody(po)
+	data, err := p.buildPullRequestBody(po)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := p.c.GetApiBaseURL() + "/repositories/" + po.Owner + "/" + po.RepoSlug + "/pullrequests/" + po.ID + "/merge"
 	return p.c.execute("POST", urlStr, data)
 }
 
 func (p *PullRequests) Decline(po *PullRequestsOptions) (interface{}, error) {
-	data := p.buildPullRequestBody(po)
+	data, err := p.buildPullRequestBody(po)
+	if err != nil {
+		return nil, err
+	}
 	urlStr := p.c.GetApiBaseURL() + "/repositories/" + po.Owner + "/" + po.RepoSlug + "/pullrequests/" + po.ID + "/decline"
 	return p.c.execute("POST", urlStr, data)
 }
@@ -135,6 +144,16 @@ func (p *PullRequests) AddComment(co *PullRequestCommentOptions) (interface{}, e
 
 	urlStr := p.c.requestUrl("/repositories/%s/%s/pullrequests/%s/comments", co.Owner, co.RepoSlug, co.PullRequestID)
 	return p.c.execute("POST", urlStr, data)
+}
+
+func (p *PullRequests) UpdateComment(co *PullRequestCommentOptions) (interface{}, error) {
+	data, err := p.buildPullRequestCommentBody(co)
+	if err != nil {
+		return nil, err
+	}
+
+	urlStr := p.c.requestUrl("/repositories/%s/%s/pullrequests/%s/comments/%s", co.Owner, co.RepoSlug, co.PullRequestID, co.CommentId)
+	return p.c.execute("PUT", urlStr, data)
 }
 
 func (p *PullRequests) GetComments(po *PullRequestsOptions) (interface{}, error) {
@@ -173,8 +192,7 @@ func (p *PullRequests) Statuses(po *PullRequestsOptions) (interface{}, error) {
 	return p.c.execute("GET", urlStr, "")
 }
 
-func (p *PullRequests) buildPullRequestBody(po *PullRequestsOptions) string {
-
+func (p *PullRequests) buildPullRequestBody(po *PullRequestsOptions) (string, error) {
 	body := map[string]interface{}{}
 	body["source"] = map[string]interface{}{}
 	body["destination"] = map[string]interface{}{}
@@ -225,11 +243,10 @@ func (p *PullRequests) buildPullRequestBody(po *PullRequestsOptions) string {
 
 	data, err := json.Marshal(body)
 	if err != nil {
-		pp.Println(err)
-		os.Exit(9)
+		return "", err
 	}
 
-	return string(data)
+	return string(data), nil
 }
 
 func (p *PullRequests) buildPullRequestCommentBody(co *PullRequestCommentOptions) (string, error) {

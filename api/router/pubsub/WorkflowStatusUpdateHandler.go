@@ -20,7 +20,7 @@ package pubsub
 import (
 	"encoding/json"
 
-	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
@@ -85,7 +85,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", string(msg.Data))
 			return
 		}
-		
+
 		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))

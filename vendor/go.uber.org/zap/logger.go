@@ -24,10 +24,9 @@ import (
 	"fmt"
 	"io/ioutil"
 	"os"
-	"runtime"
 	"strings"
-	"time"
 
+	"go.uber.org/zap/internal/bufferpool"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -42,13 +41,17 @@ type Logger struct {
 	core zapcore.Core
 
 	development bool
+	addCaller   bool
+	onFatal     zapcore.CheckWriteAction // default is WriteThenFatal
+
 	name        string
 	errorOutput zapcore.WriteSyncer
 
-	addCaller bool
-	addStack  zapcore.LevelEnabler
+	addStack zapcore.LevelEnabler
 
 	callerSkip int
+
+	clock zapcore.Clock
 }
 
 // New constructs a new Logger from the provided zapcore.Core and Options. If
@@ -69,6 +72,7 @@ func New(core zapcore.Core, options ...Option) *Logger {
 		core:        core,
 		errorOutput: zapcore.Lock(os.Stderr),
 		addStack:    zapcore.FatalLevel + 1,
+		clock:       zapcore.DefaultClock,
 	}
 	return log.WithOptions(options...)
 }
@@ -83,6 +87,7 @@ func NewNop() *Logger {
 		core:        zapcore.NewNopCore(),
 		errorOutput: zapcore.AddSync(ioutil.Discard),
 		addStack:    zapcore.FatalLevel + 1,
+		clock:       zapcore.DefaultClock,
 	}
 }
 
@@ -254,15 +259,23 @@ func (log *Logger) clone() *Logger {
 }
 
 func (log *Logger) check(lvl zapcore.Level, msg string) *zapcore.CheckedEntry {
-	// check must always be called directly by a method in the Logger interface
-	// (e.g., Check, Info, Fatal).
+	// Logger.check must always be called directly by a method in the
+	// Logger interface (e.g., Check, Info, Fatal).
+	// This skips Logger.check and the Info/Fatal/Check/etc. method that
+	// called it.
 	const callerSkipOffset = 2
+
+	// Check the level first to reduce the cost of disabled log calls.
+	// Since Panic and higher may exit, we skip the optimization for those levels.
+	if lvl < zapcore.DPanicLevel && !log.core.Enabled(lvl) {
+		return nil
+	}
 
 	// Create basic checked entry thru the core; this will be non-nil if the
 	// log message will actually be written somewhere.
 	ent := zapcore.Entry{
 		LoggerName: log.name,
-		Time:       time.Now(),
+		Time:       log.clock.Now(),
 		Level:      lvl,
 		Message:    msg,
 	}
@@ -274,7 +287,13 @@ func (log *Logger) check(lvl zapcore.Level, msg string) *zapcore.CheckedEntry {
 	case zapcore.PanicLevel:
 		ce = ce.Should(ent, zapcore.WriteThenPanic)
 	case zapcore.FatalLevel:
-		ce = ce.Should(ent, zapcore.WriteThenFatal)
+		onFatal := log.onFatal
+		// Noop is the default value for CheckWriteAction, and it leads to
+		// continued execution after a Fatal which is unexpected.
+		if onFatal == zapcore.WriteThenNoop {
+			onFatal = zapcore.WriteThenFatal
+		}
+		ce = ce.Should(ent, onFatal)
 	case zapcore.DPanicLevel:
 		if log.development {
 			ce = ce.Should(ent, zapcore.WriteThenPanic)
@@ -290,15 +309,54 @@ func (log *Logger) check(lvl zapcore.Level, msg string) *zapcore.CheckedEntry {
 
 	// Thread the error output through to the CheckedEntry.
 	ce.ErrorOutput = log.errorOutput
-	if log.addCaller {
-		ce.Entry.Caller = zapcore.NewEntryCaller(runtime.Caller(log.callerSkip + callerSkipOffset))
-		if !ce.Entry.Caller.Defined {
-			fmt.Fprintf(log.errorOutput, "%v Logger.check error: failed to get caller\n", time.Now().UTC())
+
+	addStack := log.addStack.Enabled(ce.Level)
+	if !log.addCaller && !addStack {
+		return ce
+	}
+
+	// Adding the caller or stack trace requires capturing the callers of
+	// this function. We'll share information between these two.
+	stackDepth := stacktraceFirst
+	if addStack {
+		stackDepth = stacktraceFull
+	}
+	stack := captureStacktrace(log.callerSkip+callerSkipOffset, stackDepth)
+	defer stack.Free()
+
+	if stack.Count() == 0 {
+		if log.addCaller {
+			fmt.Fprintf(log.errorOutput, "%v Logger.check error: failed to get caller\n", ent.Time.UTC())
 			log.errorOutput.Sync()
 		}
+		return ce
 	}
-	if log.addStack.Enabled(ce.Entry.Level) {
-		ce.Entry.Stack = Stack("").String
+
+	frame, more := stack.Next()
+
+	if log.addCaller {
+		ce.Caller = zapcore.EntryCaller{
+			Defined:  frame.PC != 0,
+			PC:       frame.PC,
+			File:     frame.File,
+			Line:     frame.Line,
+			Function: frame.Function,
+		}
+	}
+
+	if addStack {
+		buffer := bufferpool.Get()
+		defer buffer.Free()
+
+		stackfmt := newStackFormatter(buffer)
+
+		// We've already extracted the first frame, so format that
+		// separately and defer to stackfmt for the rest.
+		stackfmt.FormatFrame(frame)
+		if more {
+			stackfmt.FormatStack(stack)
+		}
+		ce.Stack = buffer.String()
 	}
 
 	return ce

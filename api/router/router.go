@@ -111,6 +111,7 @@ type MuxRouter struct {
 	serverRouter                       server.ServerRouter
 	apiTokenRouter                     apiToken.ApiTokenRouter
 	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler
+	k8sCapacityRouter                k8s.K8sCapacityRouter
 	webhookHelmRouter                  webhookHelm.WebhookHelmRouter
 }
 
@@ -137,7 +138,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
 	globalPluginRouter GlobalPluginRouter, selfRegistrationRolesRouter user.SelfRegistrationRolesRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
-	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler, webhookHelmRouter webhookHelm.WebhookHelmRouter) *MuxRouter {
+	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter, webhookHelmRouter webhookHelm.WebhookHelmRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -200,6 +201,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		serverRouter:                       serverRouter,
 		apiTokenRouter:                     apiTokenRouter,
 		helmApplicationStatusUpdateHandler: helmApplicationStatusUpdateHandler,
+		k8sCapacityRouter:                k8sCapacityRouter,
 		webhookHelmRouter:                  webhookHelmRouter,
 	}
 	return r
@@ -391,6 +393,9 @@ func (r MuxRouter) Init() {
 	// api-token router
 	apiTokenRouter := r.Router.PathPrefix("/orchestrator/api-token").Subrouter()
 	r.apiTokenRouter.InitApiTokenRouter(apiTokenRouter)
+
+	k8sCapacityApp := r.Router.PathPrefix("/orchestrator/k8s/capacity").Subrouter()
+	r.k8sCapacityRouter.InitK8sCapacityRouter(k8sCapacityApp)
 
 	// webhook helm app router
 	webhookHelmRouter := r.Router.PathPrefix("/orchestrator/webhook/helm").Subrouter()

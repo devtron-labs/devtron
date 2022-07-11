@@ -36,7 +36,7 @@ import (
 	"strings"
 	"time"
 
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -144,6 +144,7 @@ type PipelineBuilderImpl struct {
 	chartRefRepository               chartRepoRepository.ChartRefRepository
 	chartService                     chart.ChartService
 	helmAppService                   client.HelmAppService
+	deploymentGroupRepository        repository.DeploymentGroupRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -178,7 +179,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	pipelineStageService PipelineStageService, chartRefRepository chartRepoRepository.ChartRefRepository,
 	chartTemplateService util.ChartTemplateService, chartService chart.ChartService,
-	helmAppService client.HelmAppService) *PipelineBuilderImpl {
+	helmAppService client.HelmAppService,
+	deploymentGroupRepository repository.DeploymentGroupRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -217,6 +219,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		chartRefRepository:               chartRefRepository,
 		chartService:                     chartService,
 		helmAppService:                   helmAppService,
+		deploymentGroupRepository:        deploymentGroupRepository,
 	}
 }
 
@@ -1052,7 +1055,24 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		}
 		err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
 		if err != nil {
-			return nil, err
+			impl.logger.Errorw("error while register git repo in argo", "err", err)
+			emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
+			if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
+				// - found empty repository, create some file in repository
+				err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, pipelineCreateRequest.UserId)
+				if err != nil {
+					impl.logger.Errorw("error in creating file in git repo", "err", err)
+					return nil, err
+				}
+				// - retry register in argo
+				err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+				if err != nil {
+					impl.logger.Errorw("error in re-try register in argo", "err", err)
+					return nil, err
+				}
+			} else {
+				return nil, err
+			}
 		}
 
 		// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
@@ -1115,6 +1135,23 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 		impl.logger.Errorw("err in fetching pipeline", "id", pipelineId, "err", err)
 		return err
 	}
+	//getting deployment group for this pipeline
+	deploymentGroups, err := impl.deploymentGroupRepository.FindByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting deployment groups by envId", "err", err)
+		return err
+	} else if len(deploymentGroups) > 0 {
+		var deploymentGroupNames []string
+		for _, group := range deploymentGroups {
+			deploymentGroupNames = append(deploymentGroupNames, group.Name)
+		}
+		groupNamesByte, err := json.Marshal(deploymentGroupNames)
+		if err != nil {
+			impl.logger.Errorw("error in marshaling deployment group names", "err", err, "deploymentGroupNames", deploymentGroupNames)
+		}
+		impl.logger.Debugw("cannot delete cd pipeline, is being used in deployment group")
+		return fmt.Errorf("Please remove this CD pipeline from deployment groups : %s", string(groupNamesByte))
+	}
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -1155,8 +1192,11 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			//todo: provide option for cascading to user
+			cascadeDelete := true
 			req := &application2.ApplicationDeleteRequest{
-				Name: &deploymentAppName,
+				Name:    &deploymentAppName,
+				Cascade: &cascadeDelete,
 			}
 			if _, err := impl.application.Delete(ctx, req); err != nil {
 				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)

@@ -28,6 +28,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 	"net/http"
@@ -44,10 +45,12 @@ type BatchOperationRestHandlerImpl struct {
 	teamService     team.TeamService
 	logger          *zap.SugaredLogger
 	enforcerUtil    rbac.EnforcerUtil
+	argoUserService argo.ArgoUserService
 }
 
 func NewBatchOperationRestHandlerImpl(userAuthService user.UserService, enforcer casbin.Enforcer, workflowAction batch.WorkflowAction,
-	teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil) *BatchOperationRestHandlerImpl {
+	teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
+	argoUserService argo.ArgoUserService) *BatchOperationRestHandlerImpl {
 	return &BatchOperationRestHandlerImpl{
 		userAuthService: userAuthService,
 		enforcer:        enforcer,
@@ -55,6 +58,7 @@ func NewBatchOperationRestHandlerImpl(userAuthService user.UserService, enforcer
 		teamService:     teamService,
 		logger:          logger,
 		enforcerUtil:    enforcerUtil,
+		argoUserService: argoUserService,
 	}
 }
 
@@ -111,9 +115,13 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-
-		ctx = context.WithValue(ctx, "token", token)
-
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
 		err = handler.workflowAction.Execute(&workflow, emptyProps, ctx)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

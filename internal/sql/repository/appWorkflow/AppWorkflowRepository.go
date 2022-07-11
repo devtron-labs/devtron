@@ -225,6 +225,7 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCIPipelineId(ciPipelineId
 
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("parent_id = ?", ciPipelineId).
+		Where("parent_type = ?", CIPIPELINE).
 		Where("type = ?", CDPIPELINE).
 		Where("active = ?", true).
 		Select()
@@ -236,6 +237,7 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCIPipelineIds(ciPipelineI
 
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("parent_id in (?) ", pg.In(ciPipelineIds)).
+		Where("parent_type = ?", CIPIPELINE).
 		Where("type = ?", CDPIPELINE).
 		Where("active = ?", true).
 		Select()
