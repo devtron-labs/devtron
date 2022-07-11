@@ -178,6 +178,7 @@ message ReleaseInfo{
   string overrideValues = 3;
   string mergedValues = 4;
   string readme = 5;
+  string schemaJson = 6;
 }
 
 message ObjectRequest {

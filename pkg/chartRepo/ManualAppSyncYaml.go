@@ -23,7 +23,7 @@ func manualAppSyncJobByteArr() []byte {
         "containers": [
           {
             "name": "chart-sync",
-            "image": "quay.io/devtron/test:48ab58c7-288-528",
+            "image": "quay.io/devtron/test:a6bb388a-288-572",
             "env": [
               {
                 "name": "PG_ADDR",
