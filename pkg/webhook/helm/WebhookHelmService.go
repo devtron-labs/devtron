@@ -32,7 +32,6 @@ import (
 
 const (
 	DEFAULT_NAMESPACE   = "default"
-	DEFAULT_CLUSTER_ID  = 1
 	HELM_APP_DETAIL_URL = "%s/orchestrator/application/app?appId=%s"
 )
 
@@ -62,8 +61,8 @@ func NewWebhookHelmServiceImpl(logger *zap.SugaredLogger, helmAppService client.
 func (impl WebhookHelmServiceImpl) CreateOrUpdateHelmApplication(ctx context.Context, request *HelmAppCreateUpdateRequest) (result interface{}, errorCode string, errorMessage string, statusCode int) {
 	impl.logger.Infow("Request for create/update helm application from webhook", "request", request)
 
-	// initialise clusterId with default_cluster Id
-	clusterId := DEFAULT_CLUSTER_ID
+	// initialise clusterId
+	var clusterId int
 
 	// STEP-1 - get cluster info
 	clusterName := request.ClusterName

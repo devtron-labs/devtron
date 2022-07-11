@@ -50,9 +50,9 @@ components:
       properties:
         clusterName:
           type: string
-          description: Name of the cluster configured on devtron UI, if it is not provided - will be assumed as default_cluster
-          example: "qa"
-          nullable: true
+          description: Name of the cluster configured on devtron UI
+          example: "default_cluster"
+          nullable: false
         namespace:
           type: string
           description: namespace in that cluster, if it is not provided - will be assumed as default

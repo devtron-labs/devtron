@@ -1,7 +1,7 @@
 package webhookHelm
 
 type HelmAppCreateUpdateRequest struct {
-	ClusterName        string     `json:"clusterName,omitempty"`
+	ClusterName        string     `json:"clusterName,notnull" validate:"required"`
 	Namespace          string     `json:"namespace,omitempty"`
 	ReleaseName        string     `json:"releaseName,notnull" validate:"required"`
 	ValuesOverrideYaml string     `json:"valuesOverrideYaml,omitempty"`
