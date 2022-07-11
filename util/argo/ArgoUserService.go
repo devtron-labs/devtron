@@ -25,7 +25,7 @@ const (
 	DEVTRONCD_NAMESPACE              = "devtroncd"
 	ARGOCD_CM                        = "argocd-cm"
 	ARGOCD_SECRET                    = "argocd-secret"
-	DEVTRON_SECRET                   = "devtron-secret"
+	DEVTRON_SECRET                   = "orchestrator-secrets-3"
 	ARGO_USER_APIKEY_CAPABILITY      = "apiKey"
 	ARGO_USER_LOGIN_CAPABILITY       = "login"
 	DEVTRON_ARGOCD_USERNAME_KEY      = "DEVTRON_ACD_USER_NAME"
