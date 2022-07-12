@@ -167,17 +167,18 @@ func (impl *SMTPNotificationServiceImpl) FetchAllSMTPNotificationConfigAutocompl
 
 func (impl *SMTPNotificationServiceImpl) adaptSMTPConfig(smtpConfig *repository.SMTPConfig) *SMTPConfigDto {
 	smtpConfigDto := &SMTPConfigDto{
-		OwnerId:     smtpConfig.OwnerId,
-		Port:        smtpConfig.Port,
-		Host:        smtpConfig.Host,
-		AuthType:    smtpConfig.AuthType,
-		AuthUser:    smtpConfig.AuthUser,
-		FromEmail:   smtpConfig.FromEmail,
-		ConfigName:  smtpConfig.ConfigName,
-		Description: smtpConfig.Description,
-		Id:          smtpConfig.Id,
-		Default:     smtpConfig.Default,
-		Deleted:     false,
+		OwnerId:      smtpConfig.OwnerId,
+		Port:         smtpConfig.Port,
+		Host:         smtpConfig.Host,
+		AuthType:     smtpConfig.AuthType,
+		AuthUser:     smtpConfig.AuthUser,
+		AuthPassword: smtpConfig.AuthPassword,
+		FromEmail:    smtpConfig.FromEmail,
+		ConfigName:   smtpConfig.ConfigName,
+		Description:  smtpConfig.Description,
+		Id:           smtpConfig.Id,
+		Default:      smtpConfig.Default,
+		Deleted:      false,
 	}
 	return smtpConfigDto
 }
