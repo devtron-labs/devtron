@@ -246,29 +246,21 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 	}
 	dbElapsedTime := time.Since(start)
 	token := r.Header.Get("token")
-	v := r.URL.Query()
-	authEnabled := true
-	auth := v.Get("auth")
-	if len(auth) > 0 {
-		authEnabled, err = strconv.ParseBool(auth)
-		if err != nil {
-			authEnabled = true
-			err = nil
-			//ignore error, apply rbac by default
-		}
-	}
+	emailId, _ := impl.userService.GetEmailFromToken(token)
 	start = time.Now()
 	// RBAC enforcer applying
+	var teamNameList []string
+	for _, item := range teams {
+		teamNameList = append(teamNameList, strings.ToLower(item.Name))
+	}
+
+	result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
+
 	var grantedTeams []team.TeamRequest
 	for _, item := range teams {
-		if authEnabled == true {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(item.Name)); ok {
-				grantedTeams = append(grantedTeams, item)
-			}
-		} else {
+		if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {
 			grantedTeams = append(grantedTeams, item)
 		}
-
 	}
 	impl.logger.Infow("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
 		"token", token, "envSize", len(grantedTeams))

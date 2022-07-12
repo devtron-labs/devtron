@@ -274,27 +274,20 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	}
 	dbElapsedTime := time.Since(start)
 
-	v := r.URL.Query()
-	authEnabled := true
-	auth := v.Get("auth")
-	if len(auth) > 0 {
-		authEnabled, err = strconv.ParseBool(auth)
-		if err != nil {
-			authEnabled = true
-			err = nil
-			//ignore error, apply rbac by default
-		}
-	}
 	token := r.Header.Get("token")
+	emailId, _ := impl.userService.GetEmailFromToken(token)
 	// RBAC enforcer applying
 	var grantedEnvironment []request.EnvironmentBean
 	start = time.Now()
+	var envIdentifierList []string
 	for _, item := range environments {
-		if authEnabled == true {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
-				grantedEnvironment = append(grantedEnvironment, item)
-			}
-		} else {
+		envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
+	}
+
+	result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+
+	for _, item := range environments {
+		if hasAccess := result[strings.ToLower(item.EnvironmentIdentifier)]; hasAccess {
 			grantedEnvironment = append(grantedEnvironment, item)
 		}
 	}
