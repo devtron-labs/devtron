@@ -368,40 +368,12 @@
               "limits": {
                 "type": "object",
                 "description": "the maximum values a container can reach",
-                "title": "Limits",
-                "properties": {
-                  "cpu": {
-                    "type": "string",
-                    "format": "cpu",
-                    "description": "limit of CPU",
-                    "title": "CPU"
-                  },
-                  "memory": {
-                    "type": "string",
-                    "format": "memory",
-                    "description": "limit of memory",
-                    "title": "Memory"
-                  }
-                }
+                "title": "Limits"
               },
               "requests": {
                 "type": "object",
                 "description": "request is what the container is guaranteed to get",
-                "title": "Requests",
-                "properties": {
-                  "cpu": {
-                    "type": "string",
-                    "format": "cpu",
-                    "description": "request value of CPU",
-                    "title": "CPU"
-                  },
-                  "memory": {
-                    "type": "string",
-                    "format": "memory",
-                    "description": "request value of memory",
-                    "title": "Memory"
-                  }
-                }
+                "title": "Requests"
               }
             }
           }
