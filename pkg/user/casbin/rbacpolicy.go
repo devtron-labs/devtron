@@ -41,7 +41,6 @@ const (
 	ResourceAdmin   = "admin"
 	ResourceGlobal  = "global-resource"
 	ResourceHelmApp = "helm-app"
-
 	ActionGet     = "get"
 	ActionCreate  = "create"
 	ActionUpdate  = "update"
