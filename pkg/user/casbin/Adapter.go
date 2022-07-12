@@ -19,6 +19,7 @@ package casbin
 
 import (
 	"fmt"
+	xormadapter "github.com/casbin/xorm-adapter"
 	"log"
 	"strings"
 
