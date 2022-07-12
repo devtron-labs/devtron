@@ -19,7 +19,7 @@ var (
 	DefaultRetriableCodes = []codes.Code{codes.ResourceExhausted, codes.Unavailable}
 
 	defaultOptions = &options{
-		max:            0, // disabed
+		max:            0, // disabled
 		perCallTimeout: 0, // disabled
 		includeHeader:  true,
 		codes:          DefaultRetriableCodes,
@@ -77,7 +77,7 @@ func WithBackoffContext(bf BackoffFuncContext) CallOption {
 
 // WithCodes sets which codes should be retried.
 //
-// Please *use with care*, as you may be retrying non-idempotend calls.
+// Please *use with care*, as you may be retrying non-idempotent calls.
 //
 // You cannot automatically retry on Cancelled and Deadline, please use `WithPerRetryTimeout` for these.
 func WithCodes(retryCodes ...codes.Code) CallOption {
@@ -96,6 +96,8 @@ func WithCodes(retryCodes ...codes.Code) CallOption {
 //
 // A value of 0 disables the timeout overrides completely and returns to each retry call using the
 // parent `context.Deadline`.
+//
+// Note that when this is enabled, any DeadlineExceeded errors that are propagated up will be retried.
 func WithPerRetryTimeout(timeout time.Duration) CallOption {
 	return CallOption{applyFunc: func(o *options) {
 		o.perCallTimeout = timeout

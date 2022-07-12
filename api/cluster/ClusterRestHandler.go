@@ -29,6 +29,8 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -52,12 +54,13 @@ type ClusterRestHandler interface {
 }
 
 type ClusterRestHandlerImpl struct {
-	clusterService cluster.ClusterService
-	logger         *zap.SugaredLogger
-	userService    user.UserService
-	validator      *validator.Validate
-	enforcer       casbin.Enforcer
-	deleteService  delete2.DeleteService
+	clusterService  cluster.ClusterService
+	logger          *zap.SugaredLogger
+	userService     user.UserService
+	validator       *validator.Validate
+	enforcer        casbin.Enforcer
+	deleteService   delete2.DeleteService
+	argoUserService argo.ArgoUserService
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
@@ -66,14 +69,15 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	validator *validator.Validate,
 	enforcer casbin.Enforcer,
 	deleteService delete2.DeleteService,
-) *ClusterRestHandlerImpl {
+	argoUserService argo.ArgoUserService) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
-		clusterService: clusterService,
-		logger:         logger,
-		userService:    userService,
-		validator:      validator,
-		enforcer:       enforcer,
-		deleteService:  deleteService,
+		clusterService:  clusterService,
+		logger:          logger,
+		userService:     userService,
+		validator:       validator,
+		enforcer:        enforcer,
+		deleteService:   deleteService,
+		argoUserService: argoUserService,
 	}
 }
 
@@ -116,7 +120,17 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(ctx, "token", token)
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+		ctx = context.WithValue(ctx, "token", token)
+	} else {
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+	}
 	bean, err = impl.clusterService.Save(ctx, bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Save", "err", err, "payload", bean)
@@ -244,7 +258,17 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+		ctx = context.WithValue(ctx, "token", token)
+	} else {
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+	}
 	_, err = impl.clusterService.Update(ctx, &bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)

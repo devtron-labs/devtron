@@ -19,12 +19,12 @@ package casbin
 
 import (
 	"fmt"
-	"github.com/casbin/casbin"
-	"github.com/casbin/xorm-adapter"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"strings"
+
+	"github.com/casbin/casbin"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var e *casbin.Enforcer
@@ -74,6 +74,7 @@ func setEnforcerImpl(ref *EnforcerImpl) {
 }
 
 func AddPolicy(policies []Policy) []Policy {
+	defer handlePanic()
 	LoadPolicy()
 	var failed = []Policy{}
 	var emailIdList []string
@@ -112,6 +113,7 @@ func AddPolicy(policies []Policy) []Policy {
 }
 
 func LoadPolicy() {
+	defer handlePanic()
 	err := e.LoadPolicy()
 	if err != nil {
 		fmt.Println("error in reloading policies", err)
@@ -121,6 +123,7 @@ func LoadPolicy() {
 }
 
 func RemovePolicy(policies []Policy) []Policy {
+	defer handlePanic()
 	var failed = []Policy{}
 	var emailIdList []string
 	for _, p := range policies {
@@ -170,4 +173,10 @@ func RemovePoliciesByRoles(roles string) bool {
 	enforcerImplRef.InvalidateCompleteCache()
 	roles = strings.ToLower(roles)
 	return e.RemovePolicy([]string{roles})
+}
+
+func handlePanic() {
+	if err := recover(); err != nil {
+		log.Println("panic occurred:", err)
+	}
 }
