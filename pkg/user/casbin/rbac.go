@@ -48,17 +48,17 @@ func NewEnforcerImpl(
 	sessionManager *middleware.SessionManager,
 	logger *zap.SugaredLogger) *EnforcerImpl {
 	lock := make(map[string]*sync.Mutex)
-	enf := &EnforcerImpl{lock: lock, Cache: checkCacheEnabled(), Enforcer: enforcer, logger: logger, SessionManager: sessionManager}
+	enf := &EnforcerImpl{lock: lock, Cache: checkCacheEnabled(logger), Enforcer: enforcer, logger: logger, SessionManager: sessionManager}
 	setEnforcerImpl(enf)
 	return enf
 }
 
-func checkCacheEnabled() *cache.Cache {
+func checkCacheEnabled(logger *zap.SugaredLogger) *cache.Cache {
 	enableEnforcerCache := os.Getenv("ENFORCER_CACHE")
 	enableEnforcerCacheVal, err := strconv.ParseBool(enableEnforcerCache)
 	if err != nil {
+		logger.Errorw("Error occurred while parsing cache_enable flag", "enableEnforcerCache", enableEnforcerCache, "reason", err)
 		enableEnforcerCacheVal = false
-		err = nil
 	}
 	if enableEnforcerCacheVal {
 		enforcerCacheExpirationInSec := os.Getenv("ENFORCER_CACHE_EXPIRATION_IN_SEC")
@@ -67,6 +67,7 @@ func checkCacheEnabled() *cache.Cache {
 		if err == nil {
 			enforcerCacheExpirationDuration = time.Second * time.Duration(enforcerCacheExpirationValue)
 		}
+		logger.Infow("enforce cache enabled", "expiry", enforcerCacheExpirationDuration)
 		return cache.New(enforcerCacheExpirationDuration, 5*time.Minute)
 	}
 	return nil
