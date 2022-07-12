@@ -19,15 +19,16 @@ package casbin
 
 import (
 	"fmt"
-	"github.com/casbin/casbin"
-	"github.com/casbin/xorm-adapter"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"log"
 	"strings"
+
+	"github.com/casbin/casbin"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
 var e *casbin.Enforcer
+var enforcerImplRef *EnforcerImpl
 
 type Subject string
 type Resource string
@@ -68,10 +69,15 @@ func Create() *casbin.Enforcer {
 	return e
 }
 
+func setEnforcerImpl(ref *EnforcerImpl) {
+	enforcerImplRef = ref
+}
+
 func AddPolicy(policies []Policy) []Policy {
 	defer handlePanic()
 	LoadPolicy()
 	var failed = []Policy{}
+	var emailIdList []string
 	for _, p := range policies {
 		success := false
 		if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
@@ -88,6 +94,9 @@ func AddPolicy(policies []Policy) []Policy {
 		if !success {
 			failed = append(failed, p)
 		}
+		if p.Sub != "" {
+			emailIdList = append(emailIdList, strings.ToLower(string(p.Sub)))
+		}
 	}
 	if len(policies) != len(failed) {
 		err := e.LoadPolicy()
@@ -96,6 +105,9 @@ func AddPolicy(policies []Policy) []Policy {
 		} else {
 			fmt.Println("policy reloaded successfully")
 		}
+	}
+	for _, emailId := range emailIdList {
+		enforcerImplRef.InvalidateCache(emailId)
 	}
 	return failed
 }
@@ -113,6 +125,7 @@ func LoadPolicy() {
 func RemovePolicy(policies []Policy) []Policy {
 	defer handlePanic()
 	var failed = []Policy{}
+	var emailIdList []string
 	for _, p := range policies {
 		success := false
 		if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
@@ -123,9 +136,15 @@ func RemovePolicy(policies []Policy) []Policy {
 		if !success {
 			failed = append(failed, p)
 		}
+		if p.Sub != "" {
+			emailIdList = append(emailIdList, strings.ToLower(string(p.Sub)))
+		}
 	}
 	if len(policies) != len(failed) {
 		_ = e.LoadPolicy()
+	}
+	for _, emailId := range emailIdList {
+		enforcerImplRef.InvalidateCache(emailId)
 	}
 	return failed
 }
@@ -136,6 +155,7 @@ func GetAllSubjects() []string {
 
 func DeleteRoleForUser(user string, role string) bool {
 	user = strings.ToLower(user)
+	enforcerImplRef.InvalidateCache(user)
 	return e.DeleteRoleForUser(user, role)
 }
 
@@ -150,6 +170,7 @@ func GetUserByRole(role string) ([]string, error) {
 }
 
 func RemovePoliciesByRoles(roles string) bool {
+	enforcerImplRef.InvalidateCompleteCache()
 	roles = strings.ToLower(roles)
 	return e.RemovePolicy([]string{roles})
 }

@@ -17,6 +17,8 @@
 
 package casbin
 
+import "time"
+
 const (
 	ResourceCluster           = "cluster"
 	ResourceGlobalEnvironment = "global-environment"
@@ -50,4 +52,7 @@ const (
 	ActionTrigger = "trigger"
 	ActionNotify  = "notify"
 	ActionExec    = "exec"
+
+	EnforcerBatchDefaultSize       = 1
+	EnforcerCacheDefaultExpiration = time.Minute * 60
 )
