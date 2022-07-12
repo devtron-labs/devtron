@@ -103,6 +103,7 @@ type WorkflowRequest struct {
 	RefPlugins                 []*bean2.RefPluginObject `json:"refPlugins"`
 	AppName                    string                   `json:"appName"`
 	TriggerByAuthor            string                   `json:"triggerByAuthor"`
+	TargetPlatform             string                   `json:"targetPlatform"`
 }
 
 const BLOB_STORAGE_AZURE = "AZURE"
@@ -230,7 +231,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 						Name: "ci",
 						Container: &v12.Container{
 							Env:   containerEnvVariables,
-							Image: workflowRequest.CiImage,
+							Image: workflowRequest.CiImage, //TODO need to check whether trigger buildx image or normal image
 							Args:  []string{string(workflowJson)},
 							SecurityContext: &v12.SecurityContext{
 								Privileged: &privileged,

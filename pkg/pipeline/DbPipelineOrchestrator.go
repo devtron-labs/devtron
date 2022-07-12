@@ -154,6 +154,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		Deleted:          createRequest.Deleted,
 		ParentCiPipeline: createRequest.ParentCiPipeline,
 		ScanEnabled:      createRequest.ScanEnabled,
+		TargetPlatform:   createRequest.TargetPlatform,
 		AuditLog:         sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
 	err = impl.ciPipelineRepository.Update(ciPipelineObject, tx)
