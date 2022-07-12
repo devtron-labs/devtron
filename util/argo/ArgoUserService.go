@@ -2,9 +2,11 @@ package argo
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/util/settings"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -25,7 +27,6 @@ const (
 	DEVTRONCD_NAMESPACE              = "devtroncd"
 	ARGOCD_CM                        = "argocd-cm"
 	ARGOCD_SECRET                    = "argocd-secret"
-	DEVTRON_SECRET                   = "devtron-secret"
 	ARGO_USER_APIKEY_CAPABILITY      = "apiKey"
 	ARGO_USER_LOGIN_CAPABILITY       = "login"
 	DEVTRON_ARGOCD_USERNAME_KEY      = "DEVTRON_ACD_USER_NAME"
@@ -37,21 +38,37 @@ type ArgoUserService interface {
 	GetLatestDevtronArgoCdUserToken() (string, error)
 }
 type ArgoUserServiceImpl struct {
-	logger         *zap.SugaredLogger
-	clusterService cluster.ClusterService
-	acdSettings    *settings.ArgoCDSettings
+	logger              *zap.SugaredLogger
+	clusterService      cluster.ClusterService
+	acdSettings         *settings.ArgoCDSettings
+	devtronSecretConfig *DevtronSecretConfig
 }
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
-	acdSettings *settings.ArgoCDSettings) (*ArgoUserServiceImpl, error) {
+	acdSettings *settings.ArgoCDSettings,
+	devtronSecretConfig *DevtronSecretConfig) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
-		logger:         Logger,
-		clusterService: clusterService,
-		acdSettings:    acdSettings,
+		logger:              Logger,
+		clusterService:      clusterService,
+		acdSettings:         acdSettings,
+		devtronSecretConfig: devtronSecretConfig,
 	}
 	go argoUserServiceImpl.UpdateArgoCdUserDetail()
 	return argoUserServiceImpl, nil
+}
+
+type DevtronSecretConfig struct {
+	DevtronSecretName string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
+}
+
+func GetDevtronSecretName() (*DevtronSecretConfig, error) {
+	secretConfig := &DevtronSecretConfig{}
+	err := env.Parse(secretConfig)
+	if err != nil {
+		return nil, errors.New(fmt.Sprintf("could not get devtron secret name from environment : %v", err))
+	}
+	return secretConfig, err
 }
 
 func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() {
@@ -67,7 +84,7 @@ func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() {
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 	}
-	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, DEVTRON_SECRET, k8sClient)
+	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 	}
@@ -156,7 +173,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 		return "", err
 	}
-	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, DEVTRON_SECRET, k8sClient)
+	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 		return "", err
@@ -196,7 +213,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 }
 
 func (impl *ArgoUserServiceImpl) UpdateArgoCdUserInfoInDevtronSecret(userinfo map[string]string, k8sClient *v1.CoreV1Client) error {
-	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, DEVTRON_SECRET, k8sClient)
+	devtronSecret, err := getSecret(DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting devtron secret", "err", err)
 		return err
