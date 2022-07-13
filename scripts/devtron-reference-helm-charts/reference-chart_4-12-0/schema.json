@@ -374,15 +374,13 @@
                     "type": "string",
                     "format": "cpu",
                     "description": "limit of CPU",
-                    "title": "CPU",
-                    "required": false
+                    "title": "CPU"
                   },
                   "memory": {
                     "type": "string",
                     "format": "memory",
                     "description": "limit of memory",
-                    "title": "Memory",
-                    "required": false
+                    "title": "Memory"
                   }
                 }
               },
@@ -395,15 +393,13 @@
                     "type": "string",
                     "format": "cpu",
                     "description": "request value of CPU",
-                    "title": "CPU",
-                    "required": false
+                    "title": "CPU"
                   },
                   "memory": {
                     "type": "string",
                     "format": "memory",
                     "description": "request value of memory",
-                    "title": "Memory",
-                    "required": false
+                    "title": "Memory"
                   }
                 }
               }
