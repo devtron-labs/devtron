@@ -1,6 +1,8 @@
 package user
 
 import (
+	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"go.uber.org/zap"
@@ -8,13 +10,25 @@ import (
 
 type SelfRegistrationRolesService interface {
 	Check() (CheckResponse, error)
-	SelfRegister(emailId string)
+	SelfRegister(emailId string) (*bean.UserInfo, error)
+	CheckAndCreateUserIfConfigured(emailId string) bool
+}
+
+type SelfRegistrationConfig struct {
+	SelfRegistrationEnabled bool `env:"SELF_REGISTRATION_ENABLED" envDefault:"false"`
+}
+
+func GetSelfRegistrationConfig() (*SelfRegistrationConfig, error) {
+	cfg := &SelfRegistrationConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
 }
 
 type SelfRegistrationRolesServiceImpl struct {
 	logger                          *zap.SugaredLogger
 	selfRegistrationRolesRepository repository.SelfRegistrationRolesRepository
 	userService                     UserService
+	selfRegistrationConfig          *SelfRegistrationConfig
 }
 
 func NewSelfRegistrationRolesServiceImpl(logger *zap.SugaredLogger,
@@ -72,11 +86,11 @@ func (impl *SelfRegistrationRolesServiceImpl) Check() (CheckResponse, error) {
 	checkResponse.Enabled = false
 	return checkResponse, nil
 }
-func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) {
+func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) (*bean.UserInfo, error) {
 
 	roles, err := impl.Check()
 	if err != nil || roles.Enabled == false {
-		return
+		return nil, err
 	}
 
 	userInfo := &bean.UserInfo{
@@ -84,8 +98,29 @@ func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) {
 		Roles:      roles.Roles,
 		SuperAdmin: false,
 	}
-	_, err = impl.userService.SelfRegisterUserIfNotExists(userInfo)
+	userInfos, err := impl.userService.SelfRegisterUserIfNotExists(userInfo)
 	if err != nil {
 		impl.logger.Errorw("error while register user", "error", err)
 	}
+	if len(userInfos) > 0 {
+		return userInfos[0], nil
+	} else {
+		return nil, fmt.Errorf("user not created")
+	}
+}
+
+func (impl *SelfRegistrationRolesServiceImpl) CheckAndCreateUserIfConfigured(emailId string) bool {
+	exists := impl.userService.UserExists(emailId)
+	if !exists {
+		if impl.selfRegistrationConfig.SelfRegistrationEnabled {
+			impl.logger.Infow("self registering user,  ", "email", emailId)
+			user, err := impl.SelfRegister(emailId)
+			if err != nil {
+				impl.logger.Errorw("error while register user", "error", err)
+			} else if user.UserId > 0 {
+				exists = true
+			}
+		}
+	}
+	return exists
 }
