@@ -13,8 +13,9 @@ import (
 )
 
 const (
-	CpuRegex    = "(^\\d*\\.?\\d+e?\\d*)(m?)$"
-	MemoryRegex = "(^\\d*\\.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$"
+	CpuRegex           = "(^\\d*\\.?\\d+e?\\d*)(m?)$"
+	MemoryRegex        = "(^\\d*\\.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$"
+	LatestChartVersion = "4.12.0"
 )
 
 var (
@@ -145,11 +146,11 @@ func CompareLimitsRequests(dat map[string]interface{}, chartVersion string) (boo
 	limit := validateAndBuildResourcesAssignment(dat, getResourcesLimitsKeys(false))
 	envoproxyLimit := validateAndBuildResourcesAssignment(dat, getResourcesLimitsKeys(true))
 	checkCPUlimit, ok := limit["cpu"]
-	if !ok && (chartVersion != "4.12.0") {
+	if !ok && (chartVersion != LatestChartVersion) {
 		return false, errors.New("resources.limits.cpu is required")
 	}
 	checkMemorylimit, ok := limit["memory"]
-	if !ok && (chartVersion != "4.12.0") {
+	if !ok && (chartVersion != LatestChartVersion) {
 		return false, errors.New("resources.limits.memory is required")
 	}
 	checkEnvoproxyCPUlimit, ok := envoproxyLimit["cpu"]
@@ -163,11 +164,11 @@ func CompareLimitsRequests(dat map[string]interface{}, chartVersion string) (boo
 	request := validateAndBuildResourcesAssignment(dat, getResourcesRequestsKeys(false))
 	envoproxyRequest := validateAndBuildResourcesAssignment(dat, getResourcesRequestsKeys(true))
 	checkCPURequests, ok := request["cpu"]
-	if !ok && (chartVersion != "4.12.0") {
+	if !ok && (chartVersion != LatestChartVersion) {
 		return true, nil
 	}
 	checkMemoryRequests, ok := request["memory"]
-	if !ok && (chartVersion != "4.12.0") {
+	if !ok && (chartVersion != LatestChartVersion) {
 		return true, nil
 	}
 	checkEnvoproxyCPURequests, ok := envoproxyRequest["cpu"]
@@ -227,9 +228,9 @@ func CompareLimitsRequests(dat map[string]interface{}, chartVersion string) (boo
 		return false, errors.New("envoyproxy.resources.limits.cpu must be greater than or equal to envoyproxy.resources.requests.cpu")
 	} else if envoproxyMemoryLimit < envoproxyMemoryRequest && envoproxyMemoryLimit != 0 {
 		return false, errors.New("envoyproxy.resources.limits.memory must be greater than or equal to envoyproxy.resources.requests.memory")
-	} else if (cpuLimit < cpuRequest && cpuLimit != 0) && (chartVersion != "4.12.0") {
+	} else if (cpuLimit < cpuRequest && cpuLimit != 0) && (chartVersion != LatestChartVersion) {
 		return false, errors.New("resources.limits.cpu must be greater than or equal to resources.requests.cpu")
-	} else if memoryLimit < memoryRequest && memoryLimit != 0 && (chartVersion != "4.12.0") {
+	} else if memoryLimit < memoryRequest && memoryLimit != 0 && (chartVersion != LatestChartVersion) {
 		return false, errors.New("resources.limits.memory must be greater than or equal to resources.requests.memory")
 	}
 	return true, nil
