@@ -32,11 +32,12 @@ type SelfRegistrationRolesServiceImpl struct {
 }
 
 func NewSelfRegistrationRolesServiceImpl(logger *zap.SugaredLogger,
-	selfRegistrationRolesRepository repository.SelfRegistrationRolesRepository, userService UserService) *SelfRegistrationRolesServiceImpl {
+	selfRegistrationRolesRepository repository.SelfRegistrationRolesRepository, userService UserService, selfRegistrationConfig *SelfRegistrationConfig) *SelfRegistrationRolesServiceImpl {
 	return &SelfRegistrationRolesServiceImpl{
 		logger:                          logger,
 		selfRegistrationRolesRepository: selfRegistrationRolesRepository,
 		userService:                     userService,
+		selfRegistrationConfig:          selfRegistrationConfig,
 	}
 }
 
