@@ -260,6 +260,7 @@ type DockerBuildConfig struct {
 	GitMaterialId  int               `json:"gitMaterialId,omitempty" validate:"required"`
 	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
 	Args           map[string]string `json:"args,omitempty"`
+	TargetPlatform string            `json:"targetPlatform"`
 	//Name Tag DockerfilePath RepoUrl
 }
 

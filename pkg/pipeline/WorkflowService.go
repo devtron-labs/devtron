@@ -70,6 +70,7 @@ type WorkflowRequest struct {
 	DockerConnection           string                   `json:"dockerConnection"`
 	DockerCert                 string                   `json:"dockerCert"`
 	DockerBuildArgs            string                   `json:"dockerBuildArgs"`
+	DockerBuildTargetPlatform  string                   `json:"dockerBuildTargetPlatform"`
 	DockerRepository           string                   `json:"dockerRepository"`
 	DockerFileLocation         string                   `json:"dockerfileLocation"`
 	DockerUsername             string                   `json:"dockerUsername"`
@@ -103,7 +104,6 @@ type WorkflowRequest struct {
 	RefPlugins                 []*bean2.RefPluginObject `json:"refPlugins"`
 	AppName                    string                   `json:"appName"`
 	TriggerByAuthor            string                   `json:"triggerByAuthor"`
-	TargetPlatform             string                   `json:"targetPlatform"`
 }
 
 const BLOB_STORAGE_AZURE = "AZURE"

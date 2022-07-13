@@ -42,7 +42,6 @@ type CiPipeline struct {
 	IsExternal       bool   `sql:"external,notnull"`
 	ParentCiPipeline int    `sql:"parent_ci_pipeline"`
 	ScanEnabled      bool   `sql:"scan_enabled,notnull"`
-	TargetPlatform   string `sql:"target_platform"`
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
