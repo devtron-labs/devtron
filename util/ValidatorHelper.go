@@ -13,9 +13,8 @@ import (
 )
 
 const (
-	CpuRegex           = "(^\\d*\\.?\\d+e?\\d*)(m?)$"
-	MemoryRegex        = "(^\\d*\\.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$"
-	LatestChartVersion = "4.12.0"
+	CpuRegex    = "(^\\d*\\.?\\d+e?\\d*)(m?)$"
+	MemoryRegex = "(^\\d*\\.?\\d+e?\\d*)(Ei?|Pi?|Ti?|Gi?|Mi?|Ki?|$)$"
 )
 
 var (
@@ -145,14 +144,8 @@ func CompareLimitsRequests(dat map[string]interface{}, chartVersion string) (boo
 	}
 	limit := validateAndBuildResourcesAssignment(dat, getResourcesLimitsKeys(false))
 	envoproxyLimit := validateAndBuildResourcesAssignment(dat, getResourcesLimitsKeys(true))
-	checkCPUlimit, ok := limit["cpu"]
-	if !ok && (chartVersion != LatestChartVersion) {
-		return false, errors.New("resources.limits.cpu is required")
-	}
-	checkMemorylimit, ok := limit["memory"]
-	if !ok && (chartVersion != LatestChartVersion) {
-		return false, errors.New("resources.limits.memory is required")
-	}
+	checkCPUlimit, cpulimitOk := limit["cpu"]
+	checkMemorylimit, memoryLimitOk := limit["memory"]
 	checkEnvoproxyCPUlimit, ok := envoproxyLimit["cpu"]
 	if !ok {
 		return false, errors.New("envoyproxy.resources.limits.cpu is required")
@@ -163,14 +156,8 @@ func CompareLimitsRequests(dat map[string]interface{}, chartVersion string) (boo
 	}
 	request := validateAndBuildResourcesAssignment(dat, getResourcesRequestsKeys(false))
 	envoproxyRequest := validateAndBuildResourcesAssignment(dat, getResourcesRequestsKeys(true))
-	checkCPURequests, ok := request["cpu"]
-	if !ok && (chartVersion != LatestChartVersion) {
-		return true, nil
-	}
-	checkMemoryRequests, ok := request["memory"]
-	if !ok && (chartVersion != LatestChartVersion) {
-		return true, nil
-	}
+	checkCPURequests, cpuRequestsOk := request["cpu"]
+	checkMemoryRequests, memoryRequestsOk := request["memory"]
 	checkEnvoproxyCPURequests, ok := envoproxyRequest["cpu"]
 	if !ok {
 		return true, nil
@@ -181,28 +168,28 @@ func CompareLimitsRequests(dat map[string]interface{}, chartVersion string) (boo
 	}
 	var cpuLimit int64
 	var err error
-	if checkCPUlimit != nil {
+	if checkCPUlimit != nil && cpulimitOk {
 		cpuLimit, err = CpuToNumber(checkCPUlimit.(string))
 		if err != nil {
 			return false, err
 		}
 	}
 	var memoryLimit int64
-	if checkMemorylimit != nil {
+	if checkMemorylimit != nil && memoryLimitOk {
 		memoryLimit, err = MemoryToNumber(checkMemorylimit.(string))
 		if err != nil {
 			return false, err
 		}
 	}
 	var cpuRequest int64
-	if checkCPURequests != nil {
+	if checkCPURequests != nil && cpuRequestsOk {
 		cpuRequest, err = CpuToNumber(checkCPURequests.(string))
 		if err != nil {
 			return false, err
 		}
 	}
 	var memoryRequest int64
-	if checkMemoryRequests != nil {
+	if checkMemoryRequests != nil && memoryRequestsOk {
 		memoryRequest, err = MemoryToNumber(checkMemoryRequests.(string))
 		if err != nil {
 			return false, err
@@ -228,9 +215,9 @@ func CompareLimitsRequests(dat map[string]interface{}, chartVersion string) (boo
 		return false, errors.New("envoyproxy.resources.limits.cpu must be greater than or equal to envoyproxy.resources.requests.cpu")
 	} else if envoproxyMemoryLimit < envoproxyMemoryRequest && envoproxyMemoryLimit != 0 {
 		return false, errors.New("envoyproxy.resources.limits.memory must be greater than or equal to envoyproxy.resources.requests.memory")
-	} else if (cpuLimit < cpuRequest && cpuLimit != 0) && (chartVersion != LatestChartVersion) {
+	} else if cpulimitOk && cpuRequestsOk && cpuLimit < cpuRequest && cpuLimit != 0 {
 		return false, errors.New("resources.limits.cpu must be greater than or equal to resources.requests.cpu")
-	} else if memoryLimit < memoryRequest && memoryLimit != 0 && (chartVersion != LatestChartVersion) {
+	} else if memoryLimitOk && memoryRequestsOk && memoryLimit < memoryRequest && memoryLimit != 0 {
 		return false, errors.New("resources.limits.memory must be greater than or equal to resources.requests.memory")
 	}
 	return true, nil
