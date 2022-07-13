@@ -174,19 +174,23 @@ func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWri
 		return
 	}
 
-	authorizedApp := make([]openapi.HelmApp, 0)
-	for _, app := range *res.HelmApps {
-		appName := *app.AppName
-		envId := (*app.EnvironmentDetail).EnvironmentId
-		//rbac block starts from here
-		object := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appName, int(*envId))
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
-			continue
+	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+
+	if !isActionUserSuperAdmin {
+		authorizedApp := make([]openapi.HelmApp, 0)
+		for _, app := range *res.HelmApps {
+			appName := *app.AppName
+			envId := (*app.EnvironmentDetail).EnvironmentId
+			//rbac block starts from here
+			object := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appName, int(*envId))
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
+				continue
+			}
+			authorizedApp = append(authorizedApp, app)
+			//rback block ends here
 		}
-		authorizedApp = append(authorizedApp, app)
-		//rback block ends here
+		res.HelmApps = &authorizedApp
 	}
-	res.HelmApps = &authorizedApp
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
