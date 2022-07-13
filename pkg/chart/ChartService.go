@@ -129,7 +129,7 @@ type ChartService interface {
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
 	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
-	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error)
+	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error)
 	CheckChartExists(chartRefId int) error
@@ -1190,7 +1190,7 @@ const cpu = "cpu"
 const memory = "memory"
 
 func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error) {
-	schemajson, err := impl.JsonSchemaExtractFromFile(chartRefId)
+	schemajson, version, err := impl.JsonSchemaExtractFromFile(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
 		return true, nil
@@ -1221,7 +1221,7 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}
 			return false, err
 		}
 
-		_, err := util2.CompareLimitsRequests(dat)
+		_, err := util2.CompareLimitsRequests(dat, version)
 		if err != nil {
 			impl.logger.Errorw("LimitRequestCompare err, DeploymentTemplateValidate", "err", err)
 			return false, err
@@ -1249,41 +1249,41 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}
 	}
 }
 
-func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, error) {
+func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error) {
 	err := impl.CheckChartExists(chartRefId)
 	if err != nil {
 		impl.logger.Errorw("refChartDir Not Found", "err", err)
-		return nil, err
+		return nil, "", err
 	}
 
-	refChartDir, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	refChartDir, _, err, version := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
-		return nil, err
+		return nil, "", err
 	}
 	fileStatus := filepath.Join(refChartDir, "schema.json")
 	if _, err := os.Stat(fileStatus); os.IsNotExist(err) {
 		impl.logger.Errorw("Schema File Not Found err, JsonSchemaExtractFromFile", err)
-		return nil, err
+		return nil, "", err
 	} else {
 		jsonFile, err := os.Open(fileStatus)
 		if err != nil {
 			impl.logger.Errorw("jsonfile open err, JsonSchemaExtractFromFile", "err", err)
-			return nil, err
+			return nil, "", err
 		}
 		byteValueJsonFile, err := ioutil.ReadAll(jsonFile)
 		if err != nil {
 			impl.logger.Errorw("byteValueJsonFile read err, JsonSchemaExtractFromFile", "err", err)
-			return nil, err
+			return nil, "", err
 		}
 
 		var schemajson map[string]interface{}
 		err = json.Unmarshal([]byte(byteValueJsonFile), &schemajson)
 		if err != nil {
 			impl.logger.Errorw("Unmarshal err in byteValueJsonFile, DeploymentTemplateValidate", "err", err)
-			return nil, err
+			return nil, "", err
 		}
-		return schemajson, nil
+		return schemajson, version, nil
 	}
 }
 
