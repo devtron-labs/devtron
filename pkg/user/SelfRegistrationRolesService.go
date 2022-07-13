@@ -118,10 +118,11 @@ func (impl *SelfRegistrationRolesServiceImpl) CheckAndCreateUserIfConfigured(ema
 			user, err := impl.SelfRegister(emailId)
 			if err != nil {
 				impl.logger.Errorw("error while register user", "error", err)
-			} else if user.UserId > 0 {
+			} else if user != nil && user.UserId > 0 {
 				exists = true
 			}
 		}
 	}
+	impl.logger.Infow("user status", "email", emailId, "status", exists)
 	return exists
 }
