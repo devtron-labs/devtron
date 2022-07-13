@@ -102,7 +102,9 @@ func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) (*bea
 	userInfos, err := impl.userService.SelfRegisterUserIfNotExists(userInfo)
 	if err != nil {
 		impl.logger.Errorw("error while register user", "error", err)
+		return nil, err
 	}
+	impl.logger.Errorw("registerd user", "user", userInfos)
 	if len(userInfos) > 0 {
 		return userInfos[0], nil
 	} else {
