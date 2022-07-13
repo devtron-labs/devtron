@@ -232,7 +232,8 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	var errorList string
 	if len(regexMaterial) != 0 {
 		for _, material := range regexMaterial {
-			if !impl.CheckStringMatchRegex(material.Value, materialGitMap[material.GitMaterialId]) {
+			val, exists := materialGitMap[material.GitMaterialId]
+			if exists && !impl.CheckStringMatchRegex(material.Value, val) {
 				if errorList == "" {
 					errorList = "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
 				} else {
