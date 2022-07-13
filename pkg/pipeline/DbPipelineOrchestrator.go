@@ -207,16 +207,40 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			pipelineMaterial.GitMaterialId = material.GitMaterialId
 			pipelineMaterial.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
 			materialGitMap[material.GitMaterialId] = config.Value
-		}
 
-		if material.Id == 0 {
-			pipelineMaterial.CiPipelineId = createRequest.Id
-			pipelineMaterial.CreatedBy = userId
-			pipelineMaterial.CreatedOn = time.Now()
-			materialsAdd = append(materialsAdd, &pipelineMaterial)
-		} else {
-			materialsUpdate = append(materialsUpdate, &pipelineMaterial)
+			fetchedMaterial, err := impl.CiPipelineMaterialRepository.GetMaterial(createRequest.Id, material.GitMaterialId, config.Type)
+			if err != nil {
+				impl.logger.Errorw("Error getting materials", "err", err)
+			}
+			if fetchedMaterial == nil {
+				pipelineMaterial.CiPipelineId = createRequest.Id
+				pipelineMaterial.CreatedBy = userId
+				pipelineMaterial.CreatedOn = time.Now()
+				materialsAdd = append(materialsAdd, &pipelineMaterial)
+			} else {
+				pipelineMaterial.Id = fetchedMaterial.Id
+				materialsUpdate = append(materialsUpdate, &pipelineMaterial)
+			}
 		}
+	}
+	regexMaterial, err := impl.CiPipelineMaterialRepository.GetRegexByPipelineId(createRequest.Id)
+	if err != nil {
+		impl.logger.Errorw("err", "err", err)
+	}
+	var errorList string
+	if len(regexMaterial) != 0 {
+		for _, material := range regexMaterial {
+			if !impl.CheckStringMatchRegex(material.Value, materialGitMap[material.GitMaterialId]) {
+				if errorList == "" {
+					errorList = "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
+				} else {
+					errorList = errorList + "; " + "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
+				}
+			}
+		}
+	}
+	if errorList != "" {
+		return nil, errors.New(errorList)
 	}
 	if len(materialsAdd) > 0 {
 		err = impl.CiPipelineMaterialRepository.Save(tx, materialsAdd...)
@@ -238,25 +262,6 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			return nil, err
 		}
 	} else {
-		regexMaterial, err := impl.CiPipelineMaterialRepository.GetRegexByPipelineId(createRequest.Id)
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-		}
-		var errorList string
-		if len(regexMaterial) != 0 {
-			for _, material := range regexMaterial {
-				if !impl.CheckStringMatchRegex(material.Value, materialGitMap[material.GitMaterialId]) {
-					if errorList == "" {
-						errorList = "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
-					} else {
-						errorList = errorList + "; " + "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
-					}
-				}
-			}
-		}
-		if errorList != "" {
-			return nil, errors.New(errorList)
-		}
 		err = impl.addPipelineMaterialInGitSensor(materials)
 		if err != nil {
 			impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", materials, "err", err)

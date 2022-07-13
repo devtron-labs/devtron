@@ -51,6 +51,7 @@ type CiPipelineMaterialRepository interface {
 	GetByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	CheckRegexExistsForMaterial(id int, gitMaterialId int) bool
+	GetMaterial(id int, gitMaterialId int, sourceType SourceType) (*CiPipelineMaterial, error)
 }
 
 type CiPipelineMaterialRepositoryImpl struct {
@@ -147,4 +148,19 @@ func (impl CiPipelineMaterialRepositoryImpl) CheckRegexExistsForMaterial(id int,
 		return false
 	}
 	return exists
+}
+
+func (impl CiPipelineMaterialRepositoryImpl) GetMaterial(id int, gitMaterialId int, sourceType SourceType) (*CiPipelineMaterial, error) {
+	ciPipelineMaterial := &CiPipelineMaterial{}
+	err := impl.dbConnection.Model(ciPipelineMaterial).
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
+		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
+		Where("ci_pipeline_material.git_material_id = ?", gitMaterialId).
+		Where("ci_pipeline_material.active = ?", true).
+		Where("ci_pipeline_material.type = ?", sourceType).
+		Select()
+	if err != nil {
+		return nil, err
+	}
+	return ciPipelineMaterial, nil
 }
