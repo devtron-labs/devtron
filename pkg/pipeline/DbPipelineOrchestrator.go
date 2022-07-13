@@ -206,7 +206,9 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			pipelineMaterial.Active = createRequest.Active
 			pipelineMaterial.GitMaterialId = material.GitMaterialId
 			pipelineMaterial.AuditLog = sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()}
-			materialGitMap[material.GitMaterialId] = config.Value
+			if config.Type == pipelineConfig.SOURCE_TYPE_BRANCH_FIXED {
+				materialGitMap[material.GitMaterialId] = config.Value
+			}
 
 			fetchedMaterial, err := impl.CiPipelineMaterialRepository.GetMaterial(createRequest.Id, material.GitMaterialId, config.Type)
 			if err != nil {
