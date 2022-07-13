@@ -88,7 +88,7 @@ func (impl *SelfRegistrationRolesServiceImpl) Check() (CheckResponse, error) {
 	return checkResponse, nil
 }
 func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) (*bean.UserInfo, error) {
-
+	impl.logger.Infow("self register start")
 	roles, err := impl.Check()
 	if err != nil || roles.Enabled == false {
 		return nil, err
@@ -99,6 +99,8 @@ func (impl *SelfRegistrationRolesServiceImpl) SelfRegister(emailId string) (*bea
 		Roles:      roles.Roles,
 		SuperAdmin: false,
 	}
+	impl.logger.Infow("self register start 2")
+
 	userInfos, err := impl.userService.SelfRegisterUserIfNotExists(userInfo)
 	if err != nil {
 		impl.logger.Errorw("error while register user", "error", err)
@@ -118,11 +120,14 @@ func (impl *SelfRegistrationRolesServiceImpl) CheckAndCreateUserIfConfigured(ema
 		if impl.selfRegistrationConfig.SelfRegistrationEnabled {
 			impl.logger.Infow("self registering user,  ", "email", emailId)
 			user, err := impl.SelfRegister(emailId)
+			impl.logger.Infow("step 1")
 			if err != nil {
 				impl.logger.Errorw("error while register user", "error", err)
 			} else if user != nil && user.UserId > 0 {
 				exists = true
 			}
+			impl.logger.Infow("step 2")
+
 		}
 	}
 	impl.logger.Infow("user status", "email", emailId, "status", exists)
