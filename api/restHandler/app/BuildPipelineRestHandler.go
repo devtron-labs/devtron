@@ -217,7 +217,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 	}
 	patchRequest.CiPipeline.CiMaterial = materialList
 
-	createResp, err := handler.pipelineBuilder.PatchRegexCiPipeline(&patchRequest)
+	_, err = handler.pipelineBuilder.PatchRegexCiPipeline(&patchRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -230,7 +230,6 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 		return
 	}
 	common.WriteJsonResp(w, err, resp, http.StatusOK)
-	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {
