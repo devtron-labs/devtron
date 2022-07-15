@@ -103,11 +103,6 @@ We suggest that super admin privileges should be given to only select few.
 
 If you don’t want to assign super admin permissions then you have to provide the rest of the information.
 
-### Group Permissions
-
-This is used to assign user to a particular group and user inherits all the permissions granted to this group. The Group permissions section contains a drop-down of all existing groups on which you have access. This is optional field and more than one groups can be selected for a user.
-
-We will discuss how to create groups in the later section.
 
 ### Devtron Apps permissions
 
@@ -212,49 +207,3 @@ Then you can edit the user permissions here.
 After you have done editing the user permissions, click on `Save`.
 
 If you want to delete the user/users with particular permissions, click on `Delete`.
-
-## Groups
-
-The advantage of the groups is to define a set of privileges like create, edit, or delete for the given set of resources that can be shared among the users within the group. Users can be added to an existing group to utilize the privileges that it grants. Any access change to group is reflected immediately in user access.
-
-You can select the group which you are creating in the `Group permissions` section inside `Add users`.
-
-### 1. Add new Group
-
-Go to  `Groups` and click on `Add Group`, to create a new group.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/Add+group+permission_dashboard_1.JPG)
-
-Enter the `Group Name` and `Description`.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/group+permission_description_2.JPG)
-
-### 2. Create Group Permissions
-
-Once you have given the group name and group description.
-
-Then, control the access permissions of groups in the Devtron Apps, Helm Apps or Group Chart Permissions section. Manage the Project, Environment, Application, and Role access the same as we discuss in the above users section.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/group+permission_devtron+app_3.JPG)
-
-You can add multiple rows, for the Devtron Apps and Helm Apps Permissions section.
-
-Once you have finished assigning the appropriate permissions for the listed users, Click on `Save`.
-
-### 3. Edit Group Permissions
-
-You can edit the group permissions, by clicking on the `downward arrow.`
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/group+permission_dropdown_4.JPG)
-
-Then you can edit the user permissions here.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/edit+group+permission_devtron+app_5.JPG)
-
-Once you are done editing the group permissions. Click on `Save`.
-
-If you want to delete the groups with particular permissions. Click on `Delete`.
-
-### 4. Manage Chart Group Permissions
-
-The chart group permissions for the group will be managed in the same way as for the users. For reference, check Manage chart group permissions for users.

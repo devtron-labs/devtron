@@ -23,6 +23,7 @@
     * [SSO Login Service](user-guide/global-configurations/sso-login.md)
     * [Authorization](user-guide/global-configurations/authorization/README.md)
       * [User Permissions](user-guide/global-configurations/authorization/user-access.md)
+      * [Permission Groups](user-guide/global-configurations/authorization/permission-groups.md)
       * [API Tokens](user-guide/global-configurations/authorization/api-token.md)
     * [Manage Notification](user-guide/global-configurations/manage-notification.md)
     * [Deploy a sample App](user-guide/Deploy-sample-app/nodejs_app.md)
