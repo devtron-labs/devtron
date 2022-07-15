@@ -61,6 +61,7 @@ type AppStoreDeploymentService interface {
 	GetDeploymentHistoryInfo(ctx context.Context, installedApp *appStoreBean.InstallAppVersionDTO, installedAppVersionHistoryId int) (*openapi.HelmAppDeploymentManifestDetail, error)
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
+	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -314,6 +315,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 
 	return installAppVersionRequest, nil
 }
+
 func (impl AppStoreDeploymentServiceImpl) UpdateInstallAppVersionHistory(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) error {
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -1015,6 +1017,7 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 		AppOfferingMode:    app.InstalledApp.App.AppOfferingMode,
 		ClusterId:          app.InstalledApp.Environment.ClusterId,
 		Namespace:          app.InstalledApp.Environment.Namespace,
+		DeploymentAppType:  app.InstalledApp.DeploymentAppType,
 	}
 	return installAppVersion, err
 }
@@ -1084,4 +1087,12 @@ func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(ctx context.Contex
 	}
 
 	return installAppVersionRequest, installedAppVersion, err
+}
+func (impl AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
+	installAppVersionRequest, err := impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
+	if err != nil {
+		impl.logger.Errorw("error while installing app via helm", "error", err)
+		return installAppVersionRequest, err
+	}
+	return installAppVersionRequest, nil
 }

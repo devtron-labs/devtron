@@ -32,6 +32,7 @@ import (
 	sso2 "github.com/devtron-labs/devtron/api/sso"
 	team2 "github.com/devtron-labs/devtron/api/team"
 	user2 "github.com/devtron-labs/devtron/api/user"
+	webhookHelm2 "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -108,6 +109,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
+	"github.com/devtron-labs/devtron/pkg/webhook/helm"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -271,7 +273,11 @@ func InitializeApp() (*App, error) {
 	v := informer.NewGlobalMapClusterNamespace()
 	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig)
 	clusterServiceImplExtended := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, environmentRepositoryImpl, grafanaClientImpl, sugaredLogger, installedAppRepositoryImpl, k8sUtil, clusterServiceClientImpl, k8sInformerFactoryImpl)
-	argoUserServiceImpl, err := argo.NewArgoUserServiceImpl(sugaredLogger, clusterServiceImplExtended, argoCDSettings)
+	devtronSecretConfig, err := argo.GetDevtronSecretName()
+	if err != nil {
+		return nil, err
+	}
+	argoUserServiceImpl, err := argo.NewArgoUserServiceImpl(sugaredLogger, clusterServiceImplExtended, argoCDSettings, devtronSecretConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -383,7 +389,9 @@ func InitializeApp() (*App, error) {
 	pubSubClientRestHandlerImpl := restHandler.NewPubSubClientRestHandlerImpl(natsPublishClientImpl, sugaredLogger, cdConfig)
 	webhookRouterImpl := router.NewWebhookRouterImpl(gitWebhookRestHandlerImpl, pipelineConfigRestHandlerImpl, externalCiRestHandlerImpl, pubSubClientRestHandlerImpl)
 	userAuthHandlerImpl := user2.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger)
-	userAuthRouterImpl, err := user2.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, userServiceImpl, dexConfig)
+	selfRegistrationRolesRepositoryImpl := repository2.NewSelfRegistrationRolesRepositoryImpl(db, sugaredLogger)
+	selfRegistrationRolesServiceImpl := user.NewSelfRegistrationRolesServiceImpl(sugaredLogger, selfRegistrationRolesRepositoryImpl, userServiceImpl)
+	userAuthRouterImpl, err := user2.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, selfRegistrationRolesServiceImpl, dexConfig)
 	if err != nil {
 		return nil, err
 	}
@@ -568,10 +576,6 @@ func InitializeApp() (*App, error) {
 	globalPluginServiceImpl := plugin.NewGlobalPluginService(sugaredLogger, globalPluginRepositoryImpl)
 	globalPluginRestHandlerImpl := restHandler.NewGlobalPluginRestHandler(sugaredLogger, globalPluginServiceImpl, enforcerUtilImpl, enforcerImpl, pipelineBuilderImpl)
 	globalPluginRouterImpl := router.NewGlobalPluginRouter(sugaredLogger, globalPluginRestHandlerImpl)
-	selfRegistrationRolesRepositoryImpl := repository2.NewSelfRegistrationRolesRepositoryImpl(db, sugaredLogger)
-	selfRegistrationRolesServiceImpl := user.NewSelfRegistrationRolesServiceImpl(sugaredLogger, selfRegistrationRolesRepositoryImpl, userServiceImpl)
-	selfRegistrationRolesHandlerImpl := user2.NewSelfRegistrationRolesHandlerImpl(sugaredLogger, selfRegistrationRolesServiceImpl, userServiceImpl)
-	selfRegistrationRolesRouterImpl := user2.NewSelfRegistrationRolesRouterImpl(sugaredLogger, selfRegistrationRolesHandlerImpl)
 	moduleRepositoryImpl := module.NewModuleRepositoryImpl(db)
 	moduleActionAuditLogRepositoryImpl := module.NewModuleActionAuditLogRepositoryImpl(db)
 	serverCacheServiceImpl := server.NewServerCacheServiceImpl(sugaredLogger, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, helmAppServiceImpl)
@@ -607,7 +611,10 @@ func InitializeApp() (*App, error) {
 	k8sCapacityServiceImpl := k8s.NewK8sCapacityServiceImpl(sugaredLogger, clusterServiceImplExtended, k8sApplicationServiceImpl, k8sClientServiceImpl, clusterCronServiceImpl)
 	k8sCapacityRestHandlerImpl := k8s.NewK8sCapacityRestHandlerImpl(sugaredLogger, k8sCapacityServiceImpl, userServiceImpl, enforcerImpl, clusterServiceImplExtended, environmentServiceImpl)
 	k8sCapacityRouterImpl := k8s.NewK8sCapacityRouterImpl(k8sCapacityRestHandlerImpl)
-	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appLabelRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, selfRegistrationRolesRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, helmApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl)
+	webhookHelmServiceImpl := webhookHelm.NewWebhookHelmServiceImpl(sugaredLogger, helmAppServiceImpl, clusterServiceImplExtended, chartRepositoryServiceImpl, attributesServiceImpl)
+	webhookHelmRestHandlerImpl := webhookHelm2.NewWebhookHelmRestHandlerImpl(sugaredLogger, webhookHelmServiceImpl, userServiceImpl, enforcerImpl, validate)
+	webhookHelmRouterImpl := webhookHelm2.NewWebhookHelmRouterImpl(webhookHelmRestHandlerImpl)
+	muxRouter := router.NewMuxRouter(sugaredLogger, helmRouterImpl, pipelineConfigRouterImpl, migrateDbRouterImpl, appListingRouterImpl, environmentRouterImpl, clusterRouterImpl, webhookRouterImpl, userAuthRouterImpl, applicationRouterImpl, cdRouterImpl, projectManagementRouterImpl, gitProviderRouterImpl, gitHostRouterImpl, dockerRegRouterImpl, notificationRouterImpl, teamRouterImpl, gitWebhookHandlerImpl, workflowStatusUpdateHandlerImpl, applicationStatusUpdateHandlerImpl, ciEventHandlerImpl, pubSubClient, userRouterImpl, cronBasedEventReceiverImpl, chartRefRouterImpl, configMapRouterImpl, appStoreRouterImpl, chartRepositoryRouterImpl, releaseMetricsRouterImpl, deploymentGroupRouterImpl, batchOperationRouterImpl, chartGroupRouterImpl, testSuitRouterImpl, imageScanRouterImpl, policyRouterImpl, gitOpsConfigRouterImpl, dashboardRouterImpl, attributesRouterImpl, commonRouterImpl, grafanaRouterImpl, ssoLoginRouterImpl, telemetryRouterImpl, telemetryEventClientImplExtended, bulkUpdateRouterImpl, webhookListenerRouterImpl, appLabelRouterImpl, coreAppRouterImpl, helmAppRouterImpl, k8sApplicationRouterImpl, pProfRouterImpl, deploymentConfigRouterImpl, dashboardTelemetryRouterImpl, commonDeploymentRouterImpl, externalLinkRouterImpl, globalPluginRouterImpl, moduleRouterImpl, serverRouterImpl, apiTokenRouterImpl, helmApplicationStatusUpdateHandlerImpl, k8sCapacityRouterImpl, webhookHelmRouterImpl)
 	mainApp := NewApp(muxRouter, sugaredLogger, sseSSE, versionServiceImpl, enforcer, db, pubSubClient, sessionManager)
 	return mainApp, nil
 }

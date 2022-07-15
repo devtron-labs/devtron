@@ -19,6 +19,12 @@ package cluster
 
 import (
 	"encoding/json"
+	"net/http"
+	"regexp"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
@@ -28,10 +34,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
 )
 
 const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
@@ -263,36 +265,35 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	start := time.Now()
 	environments, err := impl.environmentClusterMappingsService.GetEnvironmentListForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("service err, GetEnvironmentListForAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	dbElapsedTime := time.Since(start)
 
-	v := r.URL.Query()
-	authEnabled := true
-	auth := v.Get("auth")
-	if len(auth) > 0 {
-		authEnabled, err = strconv.ParseBool(auth)
-		if err != nil {
-			authEnabled = true
-			err = nil
-			//ignore error, apply rbac by default
-		}
-	}
 	token := r.Header.Get("token")
+	emailId, _ := impl.userService.GetEmailFromToken(token)
 	// RBAC enforcer applying
 	var grantedEnvironment []request.EnvironmentBean
+	start = time.Now()
+	var envIdentifierList []string
 	for _, item := range environments {
-		if authEnabled == true {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
-				grantedEnvironment = append(grantedEnvironment, item)
-			}
-		} else {
+		envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
+	}
+
+	result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+
+	for _, item := range environments {
+		if hasAccess := result[strings.ToLower(item.EnvironmentIdentifier)]; hasAccess {
 			grantedEnvironment = append(grantedEnvironment, item)
 		}
 	}
+	elapsedTime := time.Since(start)
+	impl.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
+		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
 	//RBAC enforcer Ends
 	if len(grantedEnvironment) == 0 {
 		grantedEnvironment = make([]request.EnvironmentBean, 0)

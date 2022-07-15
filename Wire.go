@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
+	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -128,6 +129,7 @@ func InitializeApp() (*App, error) {
 		server.ServerWireSet,
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
+		webhookHelm.WebhookHelmWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -725,6 +727,7 @@ func InitializeApp() (*App, error) {
 
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
+		argo.GetDevtronSecretName,
 		//	AuthWireSet,
 		cron.NewHelmApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.HelmApplicationStatusUpdateHandler), new(*cron.HelmApplicationStatusUpdateHandlerImpl)),

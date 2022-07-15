@@ -186,18 +186,29 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 				uniqueTeams[envContainer.TeamId] = envContainer.TeamName
 			}
 		}
+
+		objectArray := make([]string, len(uniqueTeams))
+		for _, teamName := range uniqueTeams {
+			object := strings.ToLower(teamName)
+			objectArray = append(objectArray, object)
+		}
+
+		resultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray)
 		for teamId, teamName := range uniqueTeams {
 			object := strings.ToLower(teamName)
-			if ok := handler.enforcer.EnforceByEmail(userEmailId, casbin.ResourceTeam, casbin.ActionGet, object); ok {
+			if ok := resultMap[object]; ok {
 				authorizedTeams[teamId] = true
 			}
 		}
+
 		filteredAppEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
 		for _, envContainer := range envContainers {
 			if _, ok := authorizedTeams[envContainer.TeamId]; ok {
 				filteredAppEnvContainers = append(filteredAppEnvContainers, envContainer)
 			}
 		}
+
+		objectArray = make([]string, len(filteredAppEnvContainers))
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
 			if fetchAppListingRequest.DeploymentGroupId > 0 {
 				if filteredAppEnvContainer.EnvironmentId != 0 && filteredAppEnvContainer.EnvironmentId != dg.EnvironmentId {
@@ -206,10 +217,23 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 			object := fmt.Sprintf("%s/%s", filteredAppEnvContainer.TeamName, filteredAppEnvContainer.AppName)
 			object = strings.ToLower(object)
-			if ok := handler.enforcer.EnforceByEmail(userEmailId, casbin.ResourceApplications, casbin.ActionGet, object); ok {
+			objectArray = append(objectArray, object)
+		}
+
+		resultMap = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
+			if fetchAppListingRequest.DeploymentGroupId > 0 {
+				if filteredAppEnvContainer.EnvironmentId != 0 && filteredAppEnvContainer.EnvironmentId != dg.EnvironmentId {
+					continue
+				}
+			}
+			object := fmt.Sprintf("%s/%s", filteredAppEnvContainer.TeamName, filteredAppEnvContainer.AppName)
+			object = strings.ToLower(object)
+			if ok := resultMap[object]; ok {
 				appEnvContainers = append(appEnvContainers, filteredAppEnvContainer)
 			}
 		}
+
 	}
 	t2 = time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3")
