@@ -21,7 +21,7 @@ Enter the `Group Name` and `Description`.
 
 Once you have given the group name and group description.
 
-Assign the permissions of groups in the `Devtron Apps`, `Helm Apps` or `Group Chart` permissions section. Manage the project, environment, application and role access the same as we discuss in the user access section.
+Assign the permissions of groups in the `Devtron Apps`, `Helm Apps` or `Group Chart` permissions section. Manage the project, environment, application and role access the same as we discuss in the user permissions section.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/permission-group/permission-group-3.png)
 
