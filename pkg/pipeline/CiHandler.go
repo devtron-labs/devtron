@@ -124,6 +124,7 @@ type CiPipelineMaterialResponse struct {
 	IsBranchError   bool                   `json:"isBranchError"`
 	BranchErrorMsg  string                 `json:"branchErrorMsg"`
 	Url             string                 `json:"url"`
+	Regex           bool                   `json:"regex"`
 }
 
 type WorkflowResponse struct {
@@ -263,32 +264,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 		impl.Logger.Errorw("ciMaterials fetch failed", "err", err)
 	}
 	var ciPipelineMaterialResponses []CiPipelineMaterialResponse
-	if len(ciMaterials) == 0 {
-		regexMaterials, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(pipelineId)
-		if err != nil {
-			impl.Logger.Errorw("regex ciMaterials fetch failed", "err", err)
-			return []CiPipelineMaterialResponse{}, err
-		}
-		for _, k := range regexMaterials {
-			r := CiPipelineMaterialResponse{
-				Id:              k.Id,
-				GitMaterialId:   k.GitMaterialId,
-				GitMaterialName: k.GitMaterial.Name[strings.Index(k.GitMaterial.Name, "-")+1:],
-				Type:            string(k.Type),
-				Value:           k.Value,
-				Active:          k.Active,
-				GitMaterialUrl:  k.GitMaterial.Url,
-				History:         nil,
-				IsRepoError:     false,
-				RepoErrorMsg:    "",
-				IsBranchError:   false,
-				BranchErrorMsg:  "",
-			}
-			ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
-		}
-
-		return ciPipelineMaterialResponses, nil
-	}
+	var responseMap = make(map[int]bool)
 
 	ciMaterialHistoryMap := make(map[*pipelineConfig.CiPipelineMaterial]*gitSensor.MaterialChangeResp)
 	for _, m := range ciMaterials {
@@ -319,9 +295,39 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 			RepoErrorMsg:    v.RepoErrorMsg,
 			IsBranchError:   v.IsBranchError,
 			BranchErrorMsg:  v.BranchErrorMsg,
+			Regex:           impl.ciPipelineMaterialRepository.CheckRegexExistsForMaterial(pipelineId, k.GitMaterialId),
 		}
+		responseMap[k.GitMaterialId] = true
 		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
 	}
+
+	regexMaterials, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(pipelineId)
+	if err != nil {
+		impl.Logger.Errorw("regex ciMaterials fetch failed", "err", err)
+		return []CiPipelineMaterialResponse{}, err
+	}
+	for _, k := range regexMaterials {
+		r := CiPipelineMaterialResponse{
+			Id:              k.Id,
+			GitMaterialId:   k.GitMaterialId,
+			GitMaterialName: k.GitMaterial.Name[strings.Index(k.GitMaterial.Name, "-")+1:],
+			Type:            string(k.Type),
+			Value:           k.Value,
+			Active:          k.Active,
+			GitMaterialUrl:  k.GitMaterial.Url,
+			History:         nil,
+			IsRepoError:     false,
+			RepoErrorMsg:    "",
+			IsBranchError:   false,
+			BranchErrorMsg:  "",
+			Regex:           true,
+		}
+		_, exists := responseMap[k.GitMaterialId]
+		if !exists {
+			ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
+		}
+	}
+
 	return ciPipelineMaterialResponses, nil
 }
 
