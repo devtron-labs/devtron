@@ -21,7 +21,10 @@
     * [Cluster And Environments](user-guide/global-configurations/cluster-and-environments.md)
     * [Projects](user-guide/global-configurations/projects.md)
     * [SSO Login Service](user-guide/global-configurations/sso-login.md)
-    * [User Access](user-guide/global-configurations/user-access.md)
+    * [Authorization]
+      * [User Permissions](user-guide/global-configurations/authorization/user-access.md)
+      * [Permission Group](user-guide/global-configurations/authorization/permission-group.md)
+      * [API Tokens](user-guide/global-configurations/authorization/api-token.md)
     * [Manage Notification](user-guide/global-configurations/manage-notification.md)
     * [Deploy a sample App](user-guide/Deploy-sample-app/nodejs_app.md)
     * [External links](user-guide/global-configurations/external-links.md)
