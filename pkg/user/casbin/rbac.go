@@ -118,7 +118,7 @@ func EnforceByEmailInBatchSync(e *EnforcerImpl, wg *sync.WaitGroup, mutex *sync.
 	start := time.Now()
 	batchResult := make(map[string]bool)
 	for _, item := range vals {
-		batchResult[item] = e.EnforceByEmail(emailId, resource, action, item)
+		batchResult[item] = e.EnforceByEmail(strings.ToLower(emailId), resource, action, item)
 	}
 	duration := time.Since(start)
 	mutex.Lock()
