@@ -24,7 +24,7 @@
     * [Authorization](user-guide/global-configurations/authorization/README.md)
       * [User Permissions](user-guide/global-configurations/authorization/user-access.md)
       * [Permission Groups](user-guide/global-configurations/authorization/permission-groups.md)
-      * [API Tokens](user-guide/global-configurations/authorization/api-token.md)
+      * [API Tokens](user-guide/global-configurations/authorization/api-tokens.md)
     * [Manage Notification](user-guide/global-configurations/manage-notification.md)
     * [Deploy a sample App](user-guide/Deploy-sample-app/nodejs_app.md)
     * [External links](user-guide/global-configurations/external-links.md)
