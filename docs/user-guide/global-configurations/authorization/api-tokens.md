@@ -1,4 +1,4 @@
-# API Token
+# API Tokens
 API tokens are like ordinary OAuth access tokens. They can be used instead of username and password for programmatic access to API.
 API token allows users to generate API tokens with the desired access. Only super admin users can generate tokens and see generated tokens.
 
