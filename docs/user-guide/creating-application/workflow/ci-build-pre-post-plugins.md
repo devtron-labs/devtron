@@ -48,7 +48,7 @@ The example shows a Post-build stage with a task created using a preset plugin -
 2. Select **+ Add task**.
 3. Select **Sonarqube** from **PRESET PLUGINS**.
 
-![Preset plugin - Sonarqube](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/preset-plugin-sonarqube.png)
+![Preset plugin - Sonarqube](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/preset-plugin-sonarqube-2.png)
 
 | Field name | Required/Optional | Field description |
 | --- | --- | --- |
