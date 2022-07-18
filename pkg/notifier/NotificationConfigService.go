@@ -736,14 +736,14 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 
 		//UPDATE - config updated, MAY BE THERE IS NO NEED OF UPDATE HERE
 
-		for i, ns := range nsOptions {
+		for _, ns := range nsOptions {
 			config, err := json.Marshal(nsConfig.Providers)
 			if err != nil {
 				impl.logger.Error(err)
 				return 0, err
 			}
 			ns.Config = string(config)
-			_, err = impl.notificationSettingsRepository.UpdateNotificationSettings(&nsOptions[i], tx)
+			_, err = impl.notificationSettingsRepository.UpdateNotificationSettings(&ns, tx)
 			if err != nil {
 				impl.logger.Errorw("failed to fetch existing notification settings view", "err", err)
 				return 0, err
