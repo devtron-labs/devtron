@@ -57,6 +57,15 @@ The example shows a Post-build stage with a task created using a preset plugin -
 | Input variables | Optional | VALUE: A value for the input variable. The value may be any of the values from the previous build stages, a global variable, or a custom value |
 | Trigger/Skip Condition | Optional | A conditional statement to execute or skip the task |
 
+#### Input Variables
+
+| Variable | Format | Description |
+| ---- | ---- | ---- |
+| SonarqubeProjectKey | String | Project key of sonarqube account. |
+| SonarqubeApiKey | String | Api key of sonarqube account. |
+| SonarqubeEndpoint | String | Api endpoint of sonarqube account. |
+| CheckoutPath | String | Checkout path of git material. |
+
 Select **Update Pipeline**.
 
 ### Execute custom script
