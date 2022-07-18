@@ -546,6 +546,8 @@ func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) (
 				configName = slackConfigNameMap[c.ConfigId]
 			} else if c.Destination == util.SES {
 				configName = sesConfigNamesMap[c.ConfigId]
+			} else if c.Destination == util.SMTP {
+				configName = smtpConfigNamesMap[c.ConfigId]
 			}
 			providerConfig := ProvidersConfig{
 				Id:         c.ConfigId,
