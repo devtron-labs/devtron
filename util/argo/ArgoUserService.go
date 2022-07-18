@@ -54,7 +54,7 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 		acdSettings:         acdSettings,
 		devtronSecretConfig: devtronSecretConfig,
 	}
-	//go argoUserServiceImpl.UpdateArgoCdUserDetail()
+	go argoUserServiceImpl.UpdateArgoCdUserDetail()
 	return argoUserServiceImpl, nil
 }
 
