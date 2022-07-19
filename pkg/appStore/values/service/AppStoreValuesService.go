@@ -380,8 +380,9 @@ func (impl AppStoreValuesServiceImpl) GetSelectedChartMetaData(req *ChartMetaDat
 func (impl AppStoreValuesServiceImpl) setUpdatedByUserEmail(appStoreVersionValuesDTO []*appStoreBean.AppStoreVersionValuesDTO) error {
 	uniqueUserIdsMap := make(map[int32]bool)
 	for _, dto := range appStoreVersionValuesDTO {
-		if dto.Id > 0 {
-			uniqueUserIdsMap[dto.UpdatedByUserId] = true
+		updatedByUserId := dto.UpdatedByUserId
+		if updatedByUserId > 0 {
+			uniqueUserIdsMap[updatedByUserId] = true
 		}
 	}
 	if len(uniqueUserIdsMap) == 0 {
