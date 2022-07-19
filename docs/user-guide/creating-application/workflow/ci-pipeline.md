@@ -46,7 +46,7 @@ The Pre-Build and Post-Build stages allow you to create Pre/Post-Build CI tasks 
 
 To Perform the security scan after the container image is built, enable the **Scan for vulnerabilities** toggle in the build stage.
 
-![scan-for-vulnerabilities](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/scan-for-vulnerabilities.png)
+![scan-for-vulnerabilities](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/scan-for-vulnerabilities-1.png)
 
 
 ### Build stage
