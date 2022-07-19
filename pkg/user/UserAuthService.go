@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/casbin/casbin"
 	"github.com/devtron-labs/authenticator/middleware"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
@@ -34,14 +33,12 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/util/session"
 	"github.com/caarlos0/env"
 	"github.com/coreos/go-oidc"
 	"github.com/devtron-labs/devtron/api/bean"
 	session2 "github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/auth"
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/gorilla/sessions"
 	"go.uber.org/zap"
@@ -348,66 +345,6 @@ func (impl UserAuthServiceImpl) HandleDexCallback(w http.ResponseWriter, r *http
 	fmt.Print()
 
 	http.Redirect(w, r, "/", http.StatusFound)
-}
-
-// Authorizer is a middleware for authorization
-func Authorizer(e *casbin.Enforcer, sessionManager *session.SessionManager) func(next http.Handler) http.Handler {
-	return func(next http.Handler) http.Handler {
-		fn := func(w http.ResponseWriter, r *http.Request) {
-			//var users []string
-			cookie, _ := r.Cookie("argocd.token")
-			token := ""
-			if cookie != nil {
-				token = cookie.Value
-				r.Header.Set("token", token)
-			}
-			if token == "" && cookie == nil {
-				token = r.Header.Get("token")
-				//if cookie == nil && len(token) != 0 {
-				//	http.SetCookie(w, &http.Cookie{Name: "argocd.token", Value: token, Path: "/"})
-				//}
-			}
-			//users = append(users, "anonymous")
-			authEnabled := true
-			pass := false
-			config := auth.GetConfig()
-			authEnabled = config.AuthEnabled
-
-			if token != "" && authEnabled && !WhitelistChecker(r.URL.Path) {
-				_, err := sessionManager.VerifyToken(token)
-				if err != nil {
-					log.Printf("Error verifying token: %+v\n", err)
-					http.SetCookie(w, &http.Cookie{Name: "argocd.token", Value: token, Path: "/", MaxAge: -1})
-					writeResponse(http.StatusUnauthorized, "Unauthorized", w, err)
-					return
-				}
-				pass = true
-				//TODO - we also can set user info in session (to avoid fetch it for all create n active)
-			}
-			if pass {
-				next.ServeHTTP(w, r)
-			} else if WhitelistChecker(r.URL.Path) {
-				if r.URL.Path == "/app/ci-pipeline/github-webhook/trigger" {
-					apiKey := r.Header.Get("api-key")
-					t, err := GetWebhookToken()
-					if err != nil || t.WebhookToken == "" || t.WebhookToken != apiKey {
-						writeResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, errors.New("unauthenticated"))
-						return
-					}
-				}
-				next.ServeHTTP(w, r)
-			} else if token == "" {
-				writeResponse(http.StatusUnauthorized, "UN-AUTHENTICATED", w, errors.New("unauthenticated"))
-				return
-			} else {
-				writeResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
-				return
-			}
-
-		}
-
-		return http.HandlerFunc(fn)
-	}
 }
 
 func WhitelistChecker(url string) bool {

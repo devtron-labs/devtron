@@ -123,7 +123,13 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx = context.WithValue(r.Context(), "token", acdToken)
 	createResp, err := handler.chartService.Create(templateRequest, ctx)
 	if err != nil {
 		handler.Logger.Errorw("service err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
@@ -182,8 +188,13 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		}
 	}
 	//RBAC
-
-	ctx := context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
 	createResp, err := handler.pipelineBuilder.CreateCdPipelines(&cdPipeline, ctx)
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateCdPipeline", "err", err, "payload", cdPipeline)
@@ -252,8 +263,13 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
-	ctx := context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
 	createResp, err := handler.pipelineBuilder.PatchCdPipelines(&cdPipeline, ctx)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCdPipeline", "err", err, "payload", cdPipeline)
@@ -324,7 +340,13 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 					}
 				}(ctx.Done(), cn.CloseNotify())
 			}
-			ctx = context.WithValue(r.Context(), "token", token)
+			acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+			if err != nil {
+				handler.Logger.Errorw("error in getting acd token", "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+			ctx = context.WithValue(r.Context(), "token", acdToken)
 			templateRequest := chart.TemplateRequest{
 				AppId:          appId,
 				ChartRefId:     envConfigProperties.ChartRefId,
@@ -1073,17 +1095,6 @@ func (handler PipelineConfigRestHandlerImpl) AppMetricsEnableDisable(w http.Resp
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(r.Context(), "token", token)
 	createResp, err := handler.chartService.AppMetricsEnableDisable(appMetricEnableDisableRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, AppMetricsEnableDisable", "err", err, "appId", appId, "payload", appMetricEnableDisableRequest)
@@ -1725,7 +1736,13 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx = context.WithValue(r.Context(), "token", acdToken)
 
 	var appIds []int
 	if chartUpgradeRequest.All || len(chartUpgradeRequest.AppIds) == 0 {

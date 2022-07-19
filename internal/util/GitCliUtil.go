@@ -102,7 +102,7 @@ func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) erro
 }
 
 func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string, password string) (response, errMsg string, err error) {
-	impl.logger.Infow("input", rootDir, remoteUrl, username, password)
+	impl.logger.Infow("input", rootDir, remoteUrl, username)
 	err = impl.Init(rootDir, remoteUrl, false)
 	if err != nil {
 		return "", "", err

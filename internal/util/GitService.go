@@ -98,18 +98,26 @@ func (factory *GitFactory) Reload() error {
 }
 
 func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) (string, error) {
-	git := gitlab.NewClient(nil, gitOpsConfig.Token)
+	var gitLabClient *gitlab.Client
+	var err error
 	if len(gitOpsConfig.Host) > 0 {
-		_, err := url.ParseRequestURI(gitOpsConfig.Host)
+		_, err = url.ParseRequestURI(gitOpsConfig.Host)
 		if err != nil {
 			return "", err
 		}
-		err = git.SetBaseURL(gitOpsConfig.Host)
+		gitLabClient, err = gitlab.NewClient(gitOpsConfig.Token, gitlab.WithBaseURL(gitOpsConfig.Host))
 		if err != nil {
+			factory.logger.Errorw("error in getting new gitlab client", "err", err)
+			return "", err
+		}
+	} else {
+		gitLabClient, err = gitlab.NewClient(gitOpsConfig.Token)
+		if err != nil {
+			factory.logger.Errorw("error in getting new gitlab client", "err", err)
 			return "", err
 		}
 	}
-	group, _, err := git.Groups.GetGroup(gitOpsConfig.GitLabGroupId)
+	group, _, err := gitLabClient.Groups.GetGroup(gitOpsConfig.GitLabGroupId, &gitlab.GetGroupOptions{})
 	if err != nil {
 		factory.logger.Errorw("error in fetching gitlab group name", "err", err, "gitLab groupID", gitOpsConfig.GitLabGroupId)
 		return "", err
@@ -238,13 +246,19 @@ func NewGitOpsClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 }
 
 func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService GitService) (GitClient, error) {
-	git := gitlab.NewClient(nil, config.GitToken)
+	var gitLabClient *gitlab.Client
+	var err error
 	if len(config.GitHost) > 0 {
-		_, err := url.ParseRequestURI(config.GitHost)
+		_, err = url.ParseRequestURI(config.GitHost)
 		if err != nil {
 			return nil, err
 		}
-		err = git.SetBaseURL(config.GitHost)
+		gitLabClient, err = gitlab.NewClient(config.GitToken, gitlab.WithBaseURL(config.GitHost))
+		if err != nil {
+			return nil, err
+		}
+	} else {
+		gitLabClient, err = gitlab.NewClient(config.GitToken)
 		if err != nil {
 			return nil, err
 		}
@@ -255,7 +269,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 		if _, err := strconv.Atoi(config.GitlabGroupId); err == nil {
 			gitlabGroupId = config.GitlabGroupId
 		} else {
-			groups, res, err := git.Groups.SearchGroup(config.GitlabGroupId)
+			groups, res, err := gitLabClient.Groups.SearchGroup(config.GitlabGroupId)
 			if err != nil {
 				responseStatus := 0
 				if res != nil {
@@ -279,7 +293,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 	if gitlabGroupId == "" {
 		return nil, fmt.Errorf("no gitlab group id found")
 	}
-	group, _, err := git.Groups.GetGroup(gitlabGroupId)
+	group, _, err := gitLabClient.Groups.GetGroup(gitlabGroupId, &gitlab.GetGroupOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -288,7 +302,7 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 	}
 	logger.Debugw("gitlab config", "config", config)
 	return &GitLabClient{
-		client:     git,
+		client:     gitLabClient,
 		config:     config,
 		logger:     logger,
 		gitService: gitService,
@@ -438,10 +452,13 @@ func (impl GitLabClient) GetRepoUrl(projectName string, repoOptions *bitbucket.R
 }
 
 func (impl GitLabClient) CreateReadme(namespace, projectName, userName, userEmailId string) (string, error) {
+	fileAction := gitlab.FileCreate
+	filePath := "README.md"
+	fileContent := "devtron licence"
 	actions := &gitlab.CreateCommitOptions{
 		Branch:        gitlab.String("master"),
 		CommitMessage: gitlab.String("test commit"),
-		Actions:       []*gitlab.CommitAction{{Action: gitlab.FileCreate, FilePath: "README.md", Content: "devtron licence"}},
+		Actions:       []*gitlab.CommitActionOptions{{Action: &fileAction, FilePath: &filePath, Content: &fileContent}},
 		AuthorEmail:   &userEmailId,
 		AuthorName:    &userName,
 	}
@@ -457,7 +474,7 @@ func (impl GitLabClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	exists, err := impl.checkIfFileExists(config.ChartRepoName, branch, path)
-	var fileAction gitlab.FileAction
+	var fileAction gitlab.FileActionValue
 	if exists {
 		fileAction = gitlab.FileUpdate
 	} else {
@@ -466,7 +483,7 @@ func (impl GitLabClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId 
 	actions := &gitlab.CreateCommitOptions{
 		Branch:        &branch,
 		CommitMessage: gitlab.String(config.ReleaseMessage),
-		Actions:       []*gitlab.CommitAction{{Action: fileAction, FilePath: path, Content: config.FileContent}},
+		Actions:       []*gitlab.CommitActionOptions{{Action: &fileAction, FilePath: &path, Content: &config.FileContent}},
 		AuthorEmail:   &config.UserEmailId,
 		AuthorName:    &config.UserName,
 	}

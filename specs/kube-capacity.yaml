@@ -1,0 +1,374 @@
+openapi: "3.0.0"
+info:
+  title: Kube capacity
+  version: "1.0"
+paths:
+  /orchestrator/k8s/capacity/cluster/list:
+    get:
+      description: get list of clusters
+      operationId: GetClusterList
+      responses:
+        '200':
+          description: Successfully return list of cluster
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ClusterCapacityDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/k8s/capacity/cluster/{clusterId}:
+    get:
+      description: get cluster detail
+      operationId: GetClusterDetail
+      parameters:
+        - name: clusterId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return detail of cluster
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ClusterCapacityDetailDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/k8s/capacity/node/list:
+    get:
+      description: get node list
+      operationId: GetNodeList
+      parameters:
+        - name: clusterId
+          in: query
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return list of node
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/NodeCapacityDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/k8s/capacity/node:
+    get:
+      description: get node detail
+      operationId: GetNodeDetail
+      parameters:
+        - name: clusterId
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: name
+          in: query
+          required: true
+          schema:
+            type: string
+            description: name of node
+      responses:
+        '200':
+          description: Successfully return node detail
+          content:
+            application/json:
+              schema:
+                  $ref: '#/components/schemas/NodeCapacityDetailDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+    put:
+      description: update node manifest
+      operationId: UpdateNodeManifest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeManifestUpdateDto'
+      responses:
+        '200':
+          description: Successfully return updated node manifest
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeManifestUpdateResponse'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+components:
+  schemas:
+    ClusterCapacityDto:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        nodeCount:
+          type: integer
+        nodeErrors:
+          type: array
+          items:
+            type: string
+        nodeK8sVersions:
+          type: array
+          items:
+            type: string
+        errorInNodeListing:
+          type: boolean
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
+    ClusterCapacityDetailDto:
+      type: object
+      properties:
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
+    NodeCapacityDto:
+      type: object
+      properties:
+        name:
+          type: string
+        status:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeError'
+        k8sVersion:
+          type: string
+        podCount:
+          type: integer
+        taintCount:
+          type: integer
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        age:
+          type: string
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelTaintObject'
+    NodeCapacityDetailObject:
+      type: object
+      properties:
+        name:
+          type: string
+        roles:
+          type: array
+          items:
+            type: string
+        k8sVersion:
+          type: string
+        unschedulable:
+          type: boolean
+        createdAt:
+          type: string
+        internalIp:
+          type: string
+        externalIp:
+          type: string
+        resources:
+          type: array
+          items:
+            $ref: '#/components/schemas/ResourceDetailObject'
+        labels:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelTaintObject'
+        annotations:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelTaintObject'
+        taints:
+          type: array
+          items:
+            $ref: '#/components/schemas/LabelTaintObject'
+        conditions:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeConditionObject'
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/NodeError'
+        pods:
+          type: array
+          items:
+            $ref: '#/components/schemas/PodCapacityDto'
+        manifest:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+    NodeError:
+      type: object
+      description: map of conditionType(key) and error(value)
+    PodCapacityDto:
+      type: object
+      properties:
+        name:
+          type: string
+        namespace:
+          type: string
+        cpu:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        memory:
+          $ref: '#/components/schemas/ResourceDetailObject'
+        age:
+          type: string
+    NodeManifestUpdateDto:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+        name:
+          type: string
+        manifestPatch:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+    NodeManifestUpdateResponse:
+      type: object
+      properties:
+        manifest:
+          type: string
+    ResourceDetailObject:
+      type: object
+      properties:
+        name:
+          type: string
+        capacity:
+          type: string
+        allocatable:
+          type: string
+        usage:
+          type: string
+        request:
+          type: string
+        limit:
+          type: string
+        usagePercentage:
+          type: string
+        requestPercentage:
+          type: string
+        limitPercentage:
+          type: string
+    LabelTaintObject:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        effect:
+          type: string
+    NodeConditionObject:
+      type: object
+      properties:
+        type:
+          type: string
+        haveIssue:
+          type: boolean
+        reason:
+          type: string
+        message:
+          type: string

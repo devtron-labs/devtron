@@ -20,7 +20,7 @@ package pubsub
 import (
 	"encoding/json"
 
-	v1alpha12 "github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
