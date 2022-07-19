@@ -1,6 +1,25 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
+
+ExternalSecrets:
+  enabled: true
+  secrets:
+  - name: ext-secret-1
+    refreshInterval: 1h
+    secretStoreName: mysecretstore
+    secretData:
+    - secretKey: mypin
+      awssmsecretname: mysmname
+      property: pin
+    - secretKey: mystate
+      awssmsecretname: mysmname
+      property: state
+    - secretKey: username
+      awssmsecretname: password
+      property: cred
+
+
 imagePullSecrets:
   - test1
   - test2
