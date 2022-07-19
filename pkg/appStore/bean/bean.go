@@ -188,13 +188,17 @@ const REFERENCE_TYPE_DEPLOYED string = "DEPLOYED"
 const REFERENCE_TYPE_EXISTING string = "EXISTING"
 
 type AppStoreVersionValuesDTO struct {
-	Id                int    `json:"id,omitempty"`
-	AppStoreVersionId int    `json:"appStoreVersionId,omitempty,notnull"`
-	Name              string `json:"name,omitempty"`
-	Values            string `json:"values,omitempty"` //yaml format user value
-	ChartVersion      string `json:"chartVersion,omitempty"`
-	EnvironmentName   string `json:"environmentName,omitempty"`
-	UserId            int32  `json:"-"`
+	Id                 int       `json:"id,omitempty"`
+	AppStoreVersionId  int       `json:"appStoreVersionId,omitempty,notnull"`
+	Name               string    `json:"name,omitempty"`
+	Values             string    `json:"values,omitempty"` //yaml format user value
+	ChartVersion       string    `json:"chartVersion,omitempty"`
+	EnvironmentName    string    `json:"environmentName,omitempty"`
+	Description        string    `json:"description,omitempty"`
+	UpdatedByUserEmail string    `json:"updatedBy,omitempty"`
+	UpdatedByUserId    int32     `json:"-"`
+	UpdatedOn          time.Time `json:"updatedOn"`
+	UserId             int32     `json:"-"`
 }
 
 type AppStoreVersionValuesCategoryWiseDTO struct {
