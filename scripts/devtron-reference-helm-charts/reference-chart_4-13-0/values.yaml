@@ -1,0 +1,453 @@
+# Default values for myapp.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+replicaCount: 1
+MinReadySeconds: 5
+MaxSurge: 1
+MaxUnavailable: 0
+GracePeriod: 30
+ContainerPort:
+  - name: app
+    port: 8080
+    servicePort: 80
+    envoyPort: 8799
+    envoyTimeout: 15s
+    useHTTP2: false
+    supportStreaming: false
+    idleTimeout: 1800s
+#    servicemonitor:
+#      enabled: true
+#      path: /abc
+#      scheme: 'http'
+#      interval: 30s
+#      scrapeTimeout: 20s
+#      metricRelabelings:
+#        - sourceLabels: [namespace]
+#          regex: '(.*)'
+#          replacement: myapp
+#          targetLabel: target_namespace
+
+  - name: app1
+    port: 8090
+    servicePort: 8080
+    useGRPC: true
+
+pauseForSecondsBeforeSwitchActive: 30
+waitForSecondsBeforeScalingDown: 30
+autoPromotionSeconds: 30
+
+Spec:
+ Affinity:
+  Key:
+#  Key: kops.k8s.io/instancegroup 
+  Values:
+
+
+image:
+  pullPolicy: IfNotPresent
+
+autoscaling:
+  enabled: false
+  MinReplicas: 1
+  MaxReplicas: 2
+  TargetCPUUtilizationPercentage: 90
+  TargetMemoryUtilizationPercentage: 80
+  annotations: {}
+  labels: {}
+  behavior: {}
+#    scaleDown:
+#      stabilizationWindowSeconds: 300
+#      policies:
+#      - type: Percent
+#        value: 100
+#        periodSeconds: 15
+#    scaleUp:
+#      stabilizationWindowSeconds: 0
+#      policies:
+#      - type: Percent
+#        value: 100
+#        periodSeconds: 15
+#      - type: Pods
+#        value: 4
+#        periodSeconds: 15
+#      selectPolicy: Max
+  extraMetrics: []
+#    - external:
+#        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
+#        metricSelector:
+#          matchLabels:
+#            resource.labels.subscription_id: echo-read
+#        targetAverageValue: "2"
+#      type: External
+#
+
+kedaAutoscaling:
+  enabled: false
+  envSourceContainerName: "" # Optional. Default: .spec.template.spec.containers[0]
+  cooldownPeriod: 300 # Optional. Default: 300 seconds
+  minReplicaCount: 1 
+  maxReplicaCount: 2
+  idleReplicaCount: 0 # Optional. Must be less than minReplicaCount
+  pollingInterval: 30 # Optional. Default: 30 seconds
+  # The fallback section is optional. It defines a number of replicas to fallback to if a scaler is in an error state.
+  fallback: {} # Optional. Section to specify fallback options
+    # failureThreshold: 3 # Mandatory if fallback section is included
+    # replicas: 6
+  advanced: {}
+    # horizontalPodAutoscalerConfig: # Optional. Section to specify HPA related options
+    # behavior: # Optional. Use to modify HPA's scaling behavior
+    #   scaleDown:
+    #     stabilizationWindowSeconds: 300
+    #     policies:
+    #     - type: Percent
+    #       value: 100
+    #       periodSeconds: 15
+  triggers: []
+  triggerAuthentication:
+    enabled: false
+    name: ""
+    spec: {}
+  authenticationRef: {}
+
+secret:
+  enabled: false
+
+service:
+  type: ClusterIP
+#  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
+  annotations: {}
+    # test1: test2
+    # test3: test4
+
+server:
+ deployment:
+   image_tag: 1-95af053
+   image: ""
+
+EnvVariablesFromFieldPath:
+- name: POD_NAME
+  fieldPath: metadata.name
+
+EnvVariables:
+  - name: FLASK_ENV
+    value: qa
+
+LivenessProbe:
+  Path: /
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders: []
+#    - name: Custom-Header
+#      value: abc
+
+ReadinessProbe:
+  Path: /
+  port: 8080
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+  httpHeaders: []
+#    - name: Custom-Header
+#      value: abc
+
+prometheus:
+  release: monitoring
+
+servicemonitor:
+  additionalLabels: {}
+
+
+prometheusRule:
+  enabled: false
+  additionalLabels: {}
+  namespace: ""
+#  rules:
+#    # These are just examples rules, please adapt them to your needs
+#    - alert: TooMany500s
+#      expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"5.+"} ) / sum(nginx_ingress_controller_requests) ) > 5
+#      for: 1m
+#      labels:
+#        severity: critical
+#      annotations:
+#        description: Too many 5XXs
+#        summary: More than 5% of the all requests did return 5XX, this require your attention
+#    - alert: TooMany400s
+#      expr: 100 * ( sum( nginx_ingress_controller_requests{status=~"4.+"} ) / sum(nginx_ingress_controller_requests) ) > 5
+#      for: 1m
+#      labels:
+#        severity: critical
+#      annotations:
+#        description: Too many 4XXs
+#        summary: More than 5% of the all requests did return 4XX, this require your attention
+#
+
+ingress:
+  enabled: false
+  className: ""
+  labels: {}
+  annotations: {}
+#    nginx.ingress.kubernetes.io/rewrite-target: /
+#    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+#    kubernetes.io/ingress.class: nginx
+#    kubernetes.io/tls-acme: "true"
+#    nginx.ingress.kubernetes.io/canary: "true"
+#    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  hosts:
+    - host: chart-example1.local
+      pathType: "ImplementationSpecific"
+      paths:
+        - /example1
+    - host: chart-example2.local
+      pathType: "ImplementationSpecific"
+      paths:
+        - /example2
+        - /example2/healthz
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+ingressInternal:
+  enabled: false
+  className: ""
+  annotations: {}
+ #    kubernetes.io/ingress.class: nginx
+ #    kubernetes.io/tls-acme: "true"
+ #    nginx.ingress.kubernetes.io/canary: "true"
+ #    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  hosts:
+    - host: chart-example1.internal
+      pathType: "ImplementationSpecific"
+      paths:
+        - /example1
+    - host: chart-example2.internal
+      pathType: "ImplementationSpecific"
+      paths:
+        - /example2
+        - /example2/healthz
+  tls: []
+ #  - secretName: chart-example-tls
+ #    hosts:
+ #      - chart-example.local
+
+dbMigrationConfig:
+  enabled: false
+
+command:
+ enabled: false
+ value: []
+
+args:
+ enabled: false
+ value: []
+
+resources: {}
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+
+volumeMounts: []
+#     - name: log-volume
+#       mountPath: /var/log
+
+volumes: []
+#     - name: log-volume
+#       emptyDir: {}
+
+
+nodeSelector: {}
+
+# If you need to provide some extra specs for pod which are not included by default in deployment template
+# then provide them here
+podExtraSpecs: {}
+
+# If you need to provide some extra specs for main container which are not included by default in deployment template
+# then provide them here
+containerExtraSpecs: {}
+
+#used for deployment algo selection
+orchestrator.deploymant.algo: 1
+
+ConfigMaps:
+ enabled: false
+ maps: []
+#  - name: config-map-1
+#    type: environment
+#    external: false
+#    data:
+#     key1: key1value-1
+#     key2: key2value-1
+#     key3: key3value-1
+#  - name: config-map-2
+#    type: volume
+#    external: false
+#    mountPath: /etc/config/2
+#    data:
+#     key1: |
+#      club : manchester utd
+#      nation : england
+#     key2: abc-2
+#     key3: abc-2
+#  - name: config-map-3
+#    type: environment
+#    external: true
+#    mountPath: /etc/config/3
+#    data: []
+#  - name: config-map-4
+#    type: volume
+#    external: true
+#    mountPath: /etc/config/4
+#    data: []
+
+
+ConfigSecrets:
+ enabled: false
+ secrets: []
+#  - name: config-secret-1
+#    type: environment
+#    external: false
+#    data:
+#     key1: key1value-1
+#     key2: key2value-1
+#     key3: key3value-1
+#  - name: config-secret-2
+#    type: volume
+#    external: false
+#    mountPath: /etc/config/2
+#    data:
+#     key1: |
+#      club : manchester utd
+#      nation : england
+#     key2: abc-2
+
+
+initContainers: []
+  ## Additional init containers to run before the Scheduler pods.
+  ## for example, be used to run a sidecar that chown Logs storage .
+  #- name: volume-mount-hack
+  #  image: busybox
+  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #  volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+  #      name: logs-data
+  ## Uncomment below line ONLY IF you want to reuse the container image.
+  ## This will assign your application's docker image to init container.
+  #  reuseContainerImage: true
+
+containers: []
+  ## Additional init containers to run before the Scheduler pods.
+  ## for example, be used to run a sidecar that chown Logs storage .
+  #- name: volume-mount-hack
+  #  image: busybox
+  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #  volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+  #      name: logs-data
+
+
+rawYaml: []
+# - apiVersion: v1
+#   kind: Service
+#   metadata:
+#    annotations:
+#    labels:
+#     app: sample-metrics-app
+#    name: sample-metrics-app
+#    namespace: default
+#   spec:
+#    ports:
+#     - name: web
+#       port: 80
+#       protocol: TCP
+#       targetPort: 8080
+#    selector:
+#     app: sample-metrics-app
+#    sessionAffinity: None
+#    type: ClusterIP
+# - apiVersion: v1
+#   kind: Service
+#   metadata:
+#    annotations:
+#    labels:
+#     app: sample-metrics-app
+#    name: sample-metrics-app
+#    namespace: default
+#   spec:
+#    ports:
+#     - name: web
+#       port: 80
+#       protocol: TCP
+#       targetPort: 8080
+#    selector:
+#     app: sample-metrics-app
+#    sessionAffinity: None
+#    type: ClusterIP
+
+topologySpreadConstraints: []
+  # - maxSkew: 1
+  #   topologyKey: zone
+  #   whenUnsatisfiable: DoNotSchedule
+  #   autoLabelSelector: true
+  #   customLabelSelector: {}
+
+envoyproxy:
+ image: quay.io/devtron/envoy:v1.14.1
+ configMapName: ""
+ resources:
+   limits:
+     cpu: 50m
+     memory: 50Mi
+   requests:
+     cpu: 50m
+     memory: 50Mi
+
+podDisruptionBudget: {}
+#  minAvailable: 1
+#  maxUnavailable: 1
+
+  ## Node tolerations for server scheduling to nodes with taints
+  ## Ref: https://kubernetes.io/docs/concepts/configuration/assign-pod-node/
+  ##
+
+podSecurityContext: {}
+  # runAsUser: 1000
+  # runAsGroup: 3000
+  # fsGroup: 2000
+
+containerSecurityContext: {}
+  # allowPrivilegeEscalation: false
+
+## Pods Service Account
+## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+##
+serviceAccount:
+  ## @param serviceAccount.create Enable creation of ServiceAccount for pods
+  ##  
+  create: false
+  ## @param serviceAccount.name The name of the ServiceAccount to use.
+  ## If not set and create is true, a name is generated using the `.Chart.Name .fullname` template
+  name: ""
+  ## @param serviceAccount.annotations Annotations for service account. Evaluated as a template.
+  ## Only used if `create` is `true`.
+  ##  
+  annotations: {}
+
+tolerations: []
+  #  - key: "key"
+  #    operator: "Equal|Exists"
+  #    value: "value"
+  #    effect: "NoSchedule|PreferNoSchedule|NoExecute(1.6 only)"
+
+imagePullSecrets: []
+  # - test1
+  # - test2

@@ -1,6 +1,10 @@
 {{- with .Values.components.migrator }}
 ---
+{{- if $.Capabilities.APIVersions.Has "batch/v1" -}}
 apiVersion: batch/v1
+{{- else -}}
+apiVersion: batch/v1beta1
+{{- end }}
 kind: Job
 metadata:
   name: postgresql-migrate-devtron-{{ randAlphaNum 5 | lower }}
@@ -42,7 +46,11 @@ spec:
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 ---
+{{- if $.Capabilities.APIVersions.Has "batch/v1" -}}
 apiVersion: batch/v1
+{{- else -}}
+apiVersion: batch/v1beta1
+{{- end }}
 kind: Job
 metadata:
   name: postgresql-migrate-casbin-{{ randAlphaNum 5 | lower }}
