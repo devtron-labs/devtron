@@ -1745,7 +1745,6 @@ func (impl AppServiceImpl) TemplateFixForAllApps() {
 	content := "{{- range .Values.rawYaml }}\n---\n{{ toYaml . }}\n  {{- end -}}"
 	impl.logger.Infow("data fix for app", "content", content, "app size", len(apps))
 	for _, app := range apps {
-		impl.logger.Info(app)
 		impl.updateGenericInTemplateForApp(app.Id, content)
 	}
 }
