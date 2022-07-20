@@ -283,6 +283,8 @@ github.com/denisenkom/go-mssqldb v0.0.0-20190707035753-2be1aa521ff4 h1:YcpmyvADG
 github.com/denisenkom/go-mssqldb v0.0.0-20190707035753-2be1aa521ff4/go.mod h1:zAg7JM8CkOJ43xKXIj7eRO9kmWm/TW578qo+oDO6tuM=
 github.com/devtron-labs/authenticator v0.4.30 h1:cdgkv5hllVwFIn38lcV3LVxtA4RdiujqW5UdP1Lqi14=
 github.com/devtron-labs/authenticator v0.4.30/go.mod h1:pywHrsXFWAkkuST8wR1uABqVvIyI/4eUpw/+EMnqJJM=
+github.com/devtron-labs/authenticator v0.4.31-0.20220713060637-8fe220e198c5 h1:pC0JJUu4aMlYCrIlSusQv2apO5J9Vb4YzRPSVFt6ZcE=
+github.com/devtron-labs/authenticator v0.4.31-0.20220713060637-8fe220e198c5/go.mod h1:pywHrsXFWAkkuST8wR1uABqVvIyI/4eUpw/+EMnqJJM=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/rVNCu3HqELle0jiPLLBs70cWOduZpkS1E78=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=

@@ -31,6 +31,7 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 )
 
 const PROJECT_DELETE_SUCCESS_RESP = "Project deleted successfully."
@@ -236,20 +237,34 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	start := time.Now()
 	teams, err := impl.teamService.FetchForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("service err, FetchForAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	dbElapsedTime := time.Since(start)
 	token := r.Header.Get("token")
+	emailId, _ := impl.userService.GetEmailFromToken(token)
+	start = time.Now()
 	// RBAC enforcer applying
+	var teamNameList []string
+	for _, item := range teams {
+		teamNameList = append(teamNameList, strings.ToLower(item.Name))
+	}
+
+	result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
+
 	var grantedTeams []team.TeamRequest
 	for _, item := range teams {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+		if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {
 			grantedTeams = append(grantedTeams, item)
 		}
 	}
+	impl.logger.Infow("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
+		"token", token, "envSize", len(grantedTeams))
+
 	//RBAC enforcer Ends
 	if len(grantedTeams) == 0 {
 		grantedTeams = make([]team.TeamRequest, 0)
