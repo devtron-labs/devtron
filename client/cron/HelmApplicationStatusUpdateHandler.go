@@ -37,11 +37,6 @@ func NewHelmApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appSer
 		installedAppService: installedAppService,
 		CdHandler:           CdHandler,
 	}
-	_, err := cron.AddFunc(HelmAppStatusUpdateCronExpr, impl.HelmApplicationStatusUpdate)
-	if err != nil {
-		logger.Errorw("error in starting helm application status update cron job", "err", err)
-		return nil
-	}
 	return impl
 }
 

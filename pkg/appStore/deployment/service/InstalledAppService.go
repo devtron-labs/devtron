@@ -33,13 +33,11 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
-	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/ktrysmt/go-bitbucket"
 
 	/* #nosec */
 	"crypto/sha1"
-	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -52,13 +50,11 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -89,7 +85,6 @@ type InstalledAppServiceImpl struct {
 	appRepository                        app.AppRepository
 	acdClient                            application2.ServiceClient
 	appStoreValuesService                service.AppStoreValuesService
-	pubsubClient                         *pubsub.PubSubClient
 	tokenCache                           *util2.TokenCache
 	chartGroupDeploymentRepository       repository2.ChartGroupDeploymentRepository
 	envService                           cluster2.EnvironmentService
@@ -113,7 +108,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appRepository app.AppRepository,
 	acdClient application2.ServiceClient,
 	appStoreValuesService service.AppStoreValuesService,
-	pubsubClient *pubsub.PubSubClient,
 	tokenCache *util2.TokenCache,
 	chartGroupDeploymentRepository repository2.ChartGroupDeploymentRepository,
 	envService cluster2.EnvironmentService, argoK8sClient argocdServer.ArgoK8sClient,
@@ -134,7 +128,6 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appRepository:                        appRepository,
 		acdClient:                            acdClient,
 		appStoreValuesService:                appStoreValuesService,
-		pubsubClient:                         pubsubClient,
 		tokenCache:                           tokenCache,
 		chartGroupDeploymentRepository:       chartGroupDeploymentRepository,
 		envService:                           envService,
@@ -148,14 +141,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		argoUserService:                      argoUserService,
 	}
-	err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
-	if err != nil {
-		return nil, err
-	}
-	err = impl.Subscribe()
-	if err != nil {
-		return nil, err
-	}
+
 	return impl, nil
 }
 
@@ -495,60 +481,9 @@ func (impl InstalledAppServiceImpl) requestBuilderForBulkDeployment(installReque
 
 func (impl *InstalledAppServiceImpl) triggerDeploymentEvent(installAppVersions []*appStoreBean.InstallAppVersionDTO) {
 
-	for _, versions := range installAppVersions {
-		var status appStoreBean.AppstoreDeploymentStatus
-		payload := &appStoreBean.DeployPayload{InstalledAppVersionId: versions.InstalledAppVersionId}
-		data, err := json.Marshal(payload)
-		if err != nil {
-			status = appStoreBean.QUE_ERROR
-		} else {
-			err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
-
-			if err != nil {
-				impl.logger.Errorw("Error while adding stream.", "error", err)
-			}
-			//Generate random string for passing as Header Id in message
-			randString := "MsgHeaderId-" + util3.Generate(10)
-			_, err = impl.pubsubClient.JetStrCtxt.Publish(util3.BULK_APPSTORE_DEPLOY_TOPIC, data, nats.MsgId(randString))
-			if err != nil {
-				impl.logger.Errorw("err while publishing msg for app-store bulk deploy", "msg", data, "err", err)
-				status = appStoreBean.QUE_ERROR
-			} else {
-				status = appStoreBean.ENQUEUED
-			}
-
-		}
-		if versions.Status == appStoreBean.DEPLOY_INIT || versions.Status == appStoreBean.QUE_ERROR || versions.Status == appStoreBean.ENQUEUED {
-			impl.logger.Debugw("status for bulk app-store deploy", "status", status)
-			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(payload.InstalledAppVersionId, status)
-			if err != nil {
-				impl.logger.Errorw("error while bulk app-store deploy status update", "err", err)
-			}
-		}
-	}
 }
 
 func (impl *InstalledAppServiceImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util3.BULK_APPSTORE_DEPLOY_TOPIC, util3.BULK_APPSTORE_DEPLOY_GROUP, func(msg *nats.Msg) {
-		impl.logger.Debug("cd stage event received")
-		defer msg.Ack()
-		deployPayload := &appStoreBean.DeployPayload{}
-		err := json.Unmarshal([]byte(string(msg.Data)), &deployPayload)
-		if err != nil {
-			impl.logger.Error("Error while unmarshalling deployPayload json object", "error", err)
-			return
-		}
-		impl.logger.Debugw("deployPayload:", "deployPayload", deployPayload)
-		//using userId 1 - for system user
-		_, err = impl.performDeployStage(deployPayload.InstalledAppVersionId, 1)
-		if err != nil {
-			impl.logger.Errorw("error in performing deploy stage", "deployPayload", deployPayload, "err", err)
-		}
-	}, nats.Durable(util3.BULK_APPSTORE_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util3.ORCHESTRATOR_STREAM))
-	if err != nil {
-		impl.logger.Error("err", err)
-		return err
-	}
 	return nil
 }
 

@@ -64,19 +64,8 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		PosthogClient:   PosthogClient,
 	}
 
-	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
-	if err != nil {
-		logger.Errorw("error in starting summery event", "err", err)
-		return nil, err
-	}
 
-	_, err = cron.AddFunc(HeartbeatCronExpr, watcher.HeartbeatEventForTelemetry)
-	if err != nil {
-		logger.Errorw("error in starting heartbeat event", "err", err)
-		return nil, err
-	}
-	return watcher, err
+	return watcher, nil
 }
 
 func (impl *TelemetryEventClientImpl) StopCron() {

@@ -31,7 +31,6 @@ import (
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
@@ -40,13 +39,12 @@ import (
 )
 
 type App struct {
-	MuxRouter    *router.MuxRouter
-	Logger       *zap.SugaredLogger
-	SSE          *sse.SSE
-	Enforcer     *casbin.Enforcer
-	server       *http.Server
-	db           *pg.DB
-	pubsubClient *pubsub.PubSubClient
+	MuxRouter *router.MuxRouter
+	Logger    *zap.SugaredLogger
+	SSE       *sse.SSE
+	Enforcer  *casbin.Enforcer
+	server    *http.Server
+	db        *pg.DB
 	// used for local dev only
 	serveTls        bool
 	sessionManager2 *authMiddleware.SessionManager
@@ -58,7 +56,6 @@ func NewApp(router *router.MuxRouter,
 	versionService argocdServer.VersionService,
 	enforcer *casbin.Enforcer,
 	db *pg.DB,
-	pubsubClient *pubsub.PubSubClient,
 	sessionManager2 *authMiddleware.SessionManager,
 ) *App {
 	//check argo connection
@@ -72,7 +69,6 @@ func NewApp(router *router.MuxRouter,
 		SSE:             sse,
 		Enforcer:        enforcer,
 		db:              db,
-		pubsubClient:    pubsubClient,
 		serveTls:        false,
 		sessionManager2: sessionManager2,
 	}
@@ -126,7 +122,6 @@ func (app *App) Stop() {
 		app.Logger.Errorw("error in closing db connection", "err", err)
 	}
 	//Close not needed if you Drain.
-	err = app.pubsubClient.Conn.Drain()
 
 	if err != nil {
 		app.Logger.Errorw("Error in draining nats connection", "error", err)

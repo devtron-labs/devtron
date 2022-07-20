@@ -37,7 +37,6 @@ import (
 
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -47,11 +46,9 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user"
-	util4 "github.com/devtron-labs/devtron/util"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -73,7 +70,6 @@ type WorkflowDagExecutorImpl struct {
 	logger                        *zap.SugaredLogger
 	pipelineRepository            pipelineConfig.PipelineRepository
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
-	pubsubClient                  *pubsub.PubSubClient
 	appService                    app.AppService
 	cdWorkflowService             CdWorkflowService
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
@@ -122,7 +118,6 @@ type CdStageCompleteEvent struct {
 
 func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pipelineConfig.PipelineRepository,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	pubsubClient *pubsub.PubSubClient,
 	appService app.AppService,
 	cdWorkflowService CdWorkflowService,
 	cdConfig *CdConfig,
@@ -143,7 +138,6 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
-		pubsubClient:                  pubsubClient,
 		appService:                    appService,
 		cdWorkflowService:             cdWorkflowService,
 		ciPipelineRepository:          ciPipelineRepository,
@@ -166,61 +160,11 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 		argoUserService:               argoUserService,
 	}
-	err := util4.AddStream(wde.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM, util4.CI_RUNNER_STREAM)
-	if err != nil {
-		return nil
-	}
-	err = wde.Subscribe()
-	if err != nil {
-		return nil
-	}
-	err = wde.subscribeTriggerBulkAction()
-	if err != nil {
-		return nil
-	}
-	err = wde.subscribeHibernateBulkAction()
-	if err != nil {
-		return nil
-	}
+
 	return wde
 }
 
 func (impl *WorkflowDagExecutorImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util4.CD_STAGE_COMPLETE_TOPIC, util4.CD_COMPLETE_GROUP, func(msg *nats.Msg) {
-		impl.logger.Debug("cd stage event received")
-		defer msg.Ack()
-		cdStageCompleteEvent := CdStageCompleteEvent{}
-		err := json.Unmarshal([]byte(string(msg.Data)), &cdStageCompleteEvent)
-		if err != nil {
-			impl.logger.Errorw("error while unmarshalling cdStageCompleteEvent object", "err", err, "msg", string(msg.Data))
-			return
-		}
-		impl.logger.Debugw("cd stage event:", "workflowRunnerId", cdStageCompleteEvent.WorkflowRunnerId)
-		wf, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdStageCompleteEvent.WorkflowRunnerId)
-		if err != nil {
-			impl.logger.Errorw("could not get wf runner", "err", err)
-			return
-		}
-		if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-			impl.logger.Debugw("received pre stage success event for workflow runner ", "wfId", strconv.Itoa(wf.Id))
-			err = impl.HandlePreStageSuccessEvent(cdStageCompleteEvent)
-			if err != nil {
-				impl.logger.Errorw("deployment success event error", "err", err)
-				return
-			}
-		} else if wf.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-			impl.logger.Debugw("received post stage success event for workflow runner ", "wfId", strconv.Itoa(wf.Id))
-			err = impl.HandlePostStageSuccessEvent(wf.CdWorkflowId, cdStageCompleteEvent.CdPipelineId, cdStageCompleteEvent.TriggeredBy)
-			if err != nil {
-				impl.logger.Errorw("deployment success event error", "err", err)
-				return
-			}
-		}
-	}, nats.Durable(util4.CD_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util4.CI_RUNNER_STREAM))
-	if err != nil {
-		impl.logger.Error("error", "err", err)
-		return err
-	}
 	return nil
 }
 
@@ -1117,155 +1061,20 @@ type DeploymentGroupAppWithEnv struct {
 }
 
 func (impl *WorkflowDagExecutorImpl) TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error) {
-	dg, err := impl.groupRepository.FindByIdWithApp(request.DeploymentGroupId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching dg", "err", err)
-		return nil, err
-	}
 
-	for _, app := range dg.DeploymentGroupApps {
-		deploymentGroupAppWithEnv := &DeploymentGroupAppWithEnv{
-			AppId:             app.AppId,
-			EnvironmentId:     dg.EnvironmentId,
-			DeploymentGroupId: dg.Id,
-			Active:            dg.Active,
-			UserId:            request.UserId,
-			RequestType:       request.RequestType,
-		}
-
-		data, err := json.Marshal(deploymentGroupAppWithEnv)
-		if err != nil {
-			impl.logger.Errorw("error while writing app stop event to nats ", "app", app.AppId, "deploymentGroup", app.DeploymentGroupId, "err", err)
-		} else {
-			err = util4.AddStream(impl.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM)
-			if err != nil {
-				impl.logger.Errorw("Error while adding stream", "error", err)
-			}
-			//Generate random string for passing as Header Id in message
-			randString := "MsgHeaderId-" + util4.Generate(10)
-			_, err = impl.pubsubClient.JetStrCtxt.Publish(util4.BULK_HIBERNATE_TOPIC, data, nats.MsgId(randString))
-			if err != nil {
-				impl.logger.Errorw("Error while publishing request", "topic", util4.BULK_HIBERNATE_TOPIC, "error", err)
-			}
-		}
-	}
 	return nil, nil
 }
 
 func (impl *WorkflowDagExecutorImpl) triggerNatsEventForBulkAction(cdWorkflows []*pipelineConfig.CdWorkflow) {
-	for _, wf := range cdWorkflows {
-		data, err := json.Marshal(wf)
-		if err != nil {
-			wf.WorkflowStatus = pipelineConfig.QUE_ERROR
-		} else {
-			err = util4.AddStream(impl.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM)
-			if err != nil {
-				impl.logger.Errorw("Error while adding stream", "error", err)
-			}
-			//Generate random string for passing as Header Id in message
-			randString := "MsgHeaderId-" + util4.Generate(10)
-			_, err := impl.pubsubClient.JetStrCtxt.Publish(util4.BULK_DEPLOY_TOPIC, data, nats.MsgId(randString))
 
-			if err != nil {
-				wf.WorkflowStatus = pipelineConfig.QUE_ERROR
-			} else {
-				wf.WorkflowStatus = pipelineConfig.ENQUEUED
-			}
-		}
-		err = impl.cdWorkflowRepository.UpdateWorkFlow(wf)
-		if err != nil {
-			impl.logger.Errorw("error in publishing wf msg", "wf", wf, "err", err)
-		}
-	}
 }
 
 func (impl *WorkflowDagExecutorImpl) subscribeTriggerBulkAction() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util4.BULK_DEPLOY_TOPIC, util4.BULK_DEPLOY_GROUP, func(msg *nats.Msg) {
-		impl.logger.Debug("subscribeTriggerBulkAction event received")
-		defer msg.Ack()
-		cdWorkflow := new(pipelineConfig.CdWorkflow)
-		err := json.Unmarshal([]byte(string(msg.Data)), cdWorkflow)
-		if err != nil {
-			impl.logger.Error("Error while unmarshalling cdWorkflow json object", "error", err)
-			return
-		}
-		impl.logger.Debugw("subscribeTriggerBulkAction event:", "cdWorkflow", cdWorkflow)
-		wf := &pipelineConfig.CdWorkflow{
-			Id:           cdWorkflow.Id,
-			CiArtifactId: cdWorkflow.CiArtifactId,
-			PipelineId:   cdWorkflow.PipelineId,
-			AuditLog: sql.AuditLog{
-				UpdatedOn: time.Now(),
-			},
-		}
-		latest, err := impl.cdWorkflowRepository.IsLatestWf(cdWorkflow.PipelineId, cdWorkflow.Id)
-		if err != nil {
-			impl.logger.Errorw("error in determining latest", "wf", cdWorkflow, "err", err)
-			wf.WorkflowStatus = pipelineConfig.DEQUE_ERROR
-			impl.cdWorkflowRepository.UpdateWorkFlow(wf)
-			return
-		}
-		if !latest {
-			wf.WorkflowStatus = pipelineConfig.DROPPED_STALE
-			impl.cdWorkflowRepository.UpdateWorkFlow(wf)
-			return
-		}
-		pipeline, err := impl.pipelineRepository.FindById(cdWorkflow.PipelineId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching pipeline", "err", err)
-			wf.WorkflowStatus = pipelineConfig.TRIGGER_ERROR
-			impl.cdWorkflowRepository.UpdateWorkFlow(wf)
-			return
-		}
-		artefact, err := impl.ciArtifactRepository.Get(cdWorkflow.CiArtifactId)
-		if err != nil {
-			impl.logger.Errorw("error in fetching artefact", "err", err)
-			wf.WorkflowStatus = pipelineConfig.TRIGGER_ERROR
-			impl.cdWorkflowRepository.UpdateWorkFlow(wf)
-			return
-		}
-		err = impl.triggerStageForBulk(wf, pipeline, artefact, false, false, cdWorkflow.CreatedBy)
-		if err != nil {
-			impl.logger.Errorw("error in cd trigger ", "err", err)
-			wf.WorkflowStatus = pipelineConfig.TRIGGER_ERROR
-		} else {
-			wf.WorkflowStatus = pipelineConfig.WF_STARTED
-		}
-		impl.cdWorkflowRepository.UpdateWorkFlow(wf)
-	}, nats.Durable(util4.BULK_DEPLOY_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util4.ORCHESTRATOR_STREAM))
-	return err
+	return nil
 }
 
 func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util4.BULK_HIBERNATE_TOPIC, util4.BULK_HIBERNATE_GROUP, func(msg *nats.Msg) {
-		impl.logger.Debug("subscribeHibernateBulkAction event received")
-		defer msg.Ack()
-		deploymentGroupAppWithEnv := new(DeploymentGroupAppWithEnv)
-		err := json.Unmarshal([]byte(string(msg.Data)), deploymentGroupAppWithEnv)
-		if err != nil {
-			impl.logger.Error("Error while unmarshalling deploymentGroupAppWithEnv json object", err)
-			return
-		}
-		impl.logger.Debugw("subscribeHibernateBulkAction event:", "DeploymentGroupAppWithEnv", deploymentGroupAppWithEnv)
-
-		stopAppRequest := &StopAppRequest{
-			AppId:         deploymentGroupAppWithEnv.AppId,
-			EnvironmentId: deploymentGroupAppWithEnv.EnvironmentId,
-			UserId:        deploymentGroupAppWithEnv.UserId,
-			RequestType:   deploymentGroupAppWithEnv.RequestType,
-		}
-		ctx, err := impl.buildACDContext()
-		if err != nil {
-			impl.logger.Errorw("error in creating acd synch context", "err", err)
-			return
-		}
-		_, err = impl.StopStartApp(stopAppRequest, ctx)
-		if err != nil {
-			impl.logger.Errorw("error in stop app request", "err", err)
-			return
-		}
-	}, nats.Durable(util4.BULK_HIBERNATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util4.ORCHESTRATOR_STREAM))
-	return err
+	return nil
 }
 
 func (impl *WorkflowDagExecutorImpl) buildACDContext() (acdContext context.Context, err error) {

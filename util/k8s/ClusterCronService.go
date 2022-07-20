@@ -33,14 +33,6 @@ func NewClusterCronServiceImpl(logger *zap.SugaredLogger, clusterService cluster
 	// initialise cron
 	newCron := cron.New(cron.WithChain())
 	newCron.Start()
-
-	// add function into cron
-	//TODO: get cron time from env var
-	_, err := newCron.AddFunc(fmt.Sprint("@every 15m"), clusterCronServiceImpl.GetAndUpdateClusterConnectionStatus)
-	if err != nil {
-		fmt.Println("error in adding cron function into cluster cron service")
-		return clusterCronServiceImpl, err
-	}
 	return clusterCronServiceImpl, nil
 }
 
