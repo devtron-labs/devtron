@@ -115,7 +115,6 @@ func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName st
 	stopper := make(chan struct{})
 	nsInformer.Informer().AddEventHandler(cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj interface{}) {
-			impl.logger.Debugw("add event handler", "cluster", clusterName, "object", obj.(metav1.Object))
 			if mobject, ok := obj.(metav1.Object); ok {
 				mutex.Lock()
 				defer mutex.Unlock()
