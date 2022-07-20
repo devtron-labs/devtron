@@ -205,11 +205,12 @@ func NewAppService(
 		argoUserService:                  argoUserService,
 		cron:                             cron,
 	}
-	_, err := cron.AddFunc(TemplateFixCronExpr, appServiceImpl.TemplateFixForAllApps)
+	/*_, err := cron.AddFunc(TemplateFixCronExpr, appServiceImpl.TemplateFixForAllApps)
 	if err != nil {
 		logger.Errorw("error in starting TemplateFixForAllApps cron job", "err", err)
 		return nil
-	}
+	}*/
+	appServiceImpl.TemplateFixForAllApps()
 	return appServiceImpl
 }
 func (impl AppServiceImpl) getValuesFileForEnv(environmentId int) string {
@@ -1732,7 +1733,7 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 	return true, nil
 }
 
-const TemplateFixCronExpr string = "*/1 * * * *"
+const TemplateFixCronExpr string = "*/5 * * * *"
 
 func (impl AppServiceImpl) TemplateFixForAllApps() {
 	impl.logger.Info("data fix cron ..........")
@@ -1764,9 +1765,9 @@ func (impl AppServiceImpl) updateGenericInTemplateForApp(appId int, content stri
 			FileName:       "generic.yaml",
 			FileContent:    content,
 			ChartName:      chart.ChartName,
-			ChartLocation:  chart.ChartLocation,
+			ChartLocation:  fmt.Sprintf("%s/templates", chart.ChartLocation),
 			ChartRepoName:  chartRepoName,
-			ReleaseMessage: "content fix",
+			ReleaseMessage: "template generic content fix",
 			UserName:       "devtron",
 			UserEmailId:    "devtron@devtron.ai",
 		}
