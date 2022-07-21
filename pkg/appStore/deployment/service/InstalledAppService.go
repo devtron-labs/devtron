@@ -334,41 +334,7 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 		},
 	}
 }
-
-func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
-	ctx := context.Background()
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return nil, err
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
-		return nil, err
-	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
-	}
-
-	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
-	if err != nil {
-		return nil, err
-	}
-
-	if !isGitOpsConfigured {
-		// if git-ops not configured, bulk chart deployment not supported
-		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.TRIGGER_ERROR)
-		if err != nil {
-			impl.logger.Errorw("error", "err", err)
-			return nil, err
-		}
-		err = &util.ApiError{Code: "400", HttpStatusCode: 200, UserMessage: "unable to found git-ops configuration in cluster, please configure"}
-		return nil, err
-	}
-
+func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion *appStoreBean.InstallAppVersionDTO, ctx context.Context, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	chartGitAttr := &util.ChartGitAttribute{}
 	if installedAppVersion.Status == appStoreBean.DEPLOY_INIT ||
 		installedAppVersion.Status == appStoreBean.ENQUEUED ||
@@ -432,12 +398,12 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		installedAppVersion.Status == appStoreBean.GIT_SUCCESS ||
 		installedAppVersion.Status == appStoreBean.ACD_ERROR {
 		//step 3 acd operation register, sync
-		_, err = impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installedAppVersion, chartGitAttr, ctx)
+		_, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installedAppVersion, chartGitAttr, ctx)
 		if err != nil {
-			impl.logger.Errorw(" error", "chartGitAttr", chartGitAttr, "err", err)
+			impl.logger.Errorw("error", "chartGitAttr", chartGitAttr, "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.ACD_ERROR)
 			if err != nil {
-				impl.logger.Errorw(" error", "err", err)
+				impl.logger.Errorw("error", "err", err)
 				return nil, err
 			}
 			return nil, err
@@ -445,16 +411,50 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		impl.logger.Infow("ACD SUCCESSFUL", "chartGitAttr", chartGitAttr)
 		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.ACD_SUCCESS)
 		if err != nil {
-			impl.logger.Errorw(" error", "err", err)
+			impl.logger.Errorw("error", "err", err)
 			return nil, err
 		}
 	} else {
 		impl.logger.Infow("DB and GIT and ACD operation already done for this app and env. process has been completed", "installedAppId", installedAppVersion.InstalledAppId, "existing status", installedAppVersion.Status)
 	}
+	return installedAppVersion, nil
+}
+func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
+	ctx := context.Background()
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.logger.Errorw("error in getting acd token", "err", err)
+		return nil, err
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
+	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
+	if err != nil {
+		return nil, err
+	}
+
+	if installedAppVersion.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		_, err := impl.performDeployStageOnAcd(installedAppVersion, ctx, userId)
+		if err != nil {
+			impl.logger.Errorw("error", "err", err)
+			return nil, err
+		}
+	} else if installedAppVersion.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		_, err = impl.appStoreDeploymentService.InstallAppByHelm(installedAppVersion, ctx)
+		if err != nil {
+			impl.logger.Errorw("error", "err", err)
+			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.HELM_ERROR)
+			if err != nil {
+				impl.logger.Errorw("error", "err", err)
+				return nil, err
+			}
+			return nil, err
+		}
+	}
+
 	//step 4 db operation status triggered
 	_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
 	if err != nil {
-		impl.logger.Errorw(" error", "err", err)
+		impl.logger.Errorw("error", "err", err)
 		return nil, err
 	}
 

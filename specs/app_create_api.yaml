@@ -323,6 +323,8 @@ components:
           type: string
         dockerfileRelativePath:
           type: string
+        targetPlatform:
+          type: string
         args:
           type: array
           items:

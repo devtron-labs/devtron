@@ -53,6 +53,7 @@ type NotificationConfigServiceImpl struct {
 	pipelineRepository             pipelineConfig.PipelineRepository
 	slackRepository                repository.SlackNotificationRepository
 	sesRepository                  repository.SESNotificationRepository
+	smtpRepository                 repository.SMTPNotificationRepository
 	teamRepository                 repository2.TeamRepository
 	environmentRepository          repository3.EnvironmentRepository
 	appRepository                  app.AppRepository
@@ -164,7 +165,8 @@ type ProvidersConfig struct {
 
 func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSettingsRepository repository.NotificationSettingsRepository, notificationConfigBuilder NotificationConfigBuilder, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, slackRepository repository.SlackNotificationRepository,
-	sesRepository repository.SESNotificationRepository, teamRepository repository2.TeamRepository,
+	sesRepository repository.SESNotificationRepository, smtpRepository repository.SMTPNotificationRepository,
+	teamRepository repository2.TeamRepository,
 	environmentRepository repository3.EnvironmentRepository, appRepository app.AppRepository,
 	userRepository repository4.UserRepository, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *NotificationConfigServiceImpl {
 	return &NotificationConfigServiceImpl{
@@ -175,6 +177,7 @@ func NewNotificationConfigServiceImpl(logger *zap.SugaredLogger, notificationSet
 		ciPipelineRepository:           ciPipelineRepository,
 		sesRepository:                  sesRepository,
 		slackRepository:                slackRepository,
+		smtpRepository:                 smtpRepository,
 		teamRepository:                 teamRepository,
 		environmentRepository:          environmentRepository,
 		appRepository:                  appRepository,
@@ -363,13 +366,16 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 
 		if config.Providers != nil && len(config.Providers) > 0 {
 			var slackIds []*int
-			var userIds []int32
+			var sesUserIds []int32
+			var smtpUserIds []int32
 			var directRecipients []string
 			for _, item := range config.Providers {
 				if item.Destination == util.Slack {
 					slackIds = append(slackIds, &item.ConfigId)
 				} else if item.Destination == util.SES {
-					userIds = append(userIds, int32(item.ConfigId))
+					sesUserIds = append(sesUserIds, int32(item.ConfigId))
+				} else if item.Destination == util.SMTP {
+					smtpUserIds = append(smtpUserIds, int32(item.ConfigId))
 				} else {
 					directRecipients = append(directRecipients, item.Recipient)
 				}
@@ -386,14 +392,24 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				}
 			}
 
-			if len(userIds) > 0 {
-				sesConfigs, err := impl.userRepository.GetByIds(userIds)
+			if len(sesUserIds) > 0 {
+				sesConfigs, err := impl.userRepository.GetByIds(sesUserIds)
 				if err != nil && err != pg.ErrNoRows {
 					impl.logger.Errorw("error in fetching user", "error", err)
 					return notificationSettingsResponses, deletedItemCount, err
 				}
 				for _, item := range sesConfigs {
 					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: int(item.Id), ConfigName: item.EmailId, Dest: string(util.SES)})
+				}
+			}
+			if len(smtpUserIds) > 0 {
+				smtpConfigs, err := impl.userRepository.GetByIds(smtpUserIds)
+				if err != nil && err != pg.ErrNoRows {
+					impl.logger.Errorw("error in fetching user", "error", err)
+					return notificationSettingsResponses, deletedItemCount, err
+				}
+				for _, item := range smtpConfigs {
+					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: int(item.Id), ConfigName: item.EmailId, Dest: string(util.SMTP)})
 				}
 			}
 			for _, item := range directRecipients {
@@ -460,6 +476,7 @@ func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) (
 	if len(config.Providers) > 0 {
 		sesConfigNamesMap := map[int]string{}
 		slackConfigNameMap := map[int]string{}
+		smtpConfigNamesMap := map[int]string{}
 		for _, c := range config.Providers {
 			if util.Slack == c.Destination {
 				if _, ok := slackConfigNameMap[c.ConfigId]; ok {
@@ -471,17 +488,26 @@ func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) (
 					continue
 				}
 				sesConfigNamesMap[c.ConfigId] = ""
+			} else if util.SMTP == c.Destination {
+				if _, ok := smtpConfigNamesMap[c.ConfigId]; ok {
+					continue
+				}
+				smtpConfigNamesMap[c.ConfigId] = ""
 			}
 		}
 
 		slackIds := make([]int, 0, len(slackConfigNameMap))
 		sesIds := make([]int, 0, len(sesConfigNamesMap))
+		smtpIds := make([]int, 0, len(smtpConfigNamesMap))
 
 		for k := range slackConfigNameMap {
 			slackIds = append(slackIds, k)
 		}
 		for k := range sesConfigNamesMap {
 			sesIds = append(sesIds, k)
+		}
+		for k := range smtpConfigNamesMap {
+			smtpIds = append(smtpIds, k)
 		}
 
 		if len(slackIds) > 0 {
@@ -504,12 +530,24 @@ func (impl *NotificationConfigServiceImpl) buildProvidersConfig(config config) (
 				sesConfigNamesMap[s.Id] = s.ConfigName
 			}
 		}
+		if len(smtpIds) > 0 {
+			smtpConfigs, err := impl.smtpRepository.FindByIdsIn(sesIds)
+			if err != nil {
+				impl.logger.Errorw("error on fetch smtp configs", "err", err)
+				return []ProvidersConfig{}, err
+			}
+			for _, s := range smtpConfigs {
+				smtpConfigNamesMap[s.Id] = s.ConfigName
+			}
+		}
 		for _, c := range config.Providers {
 			var configName string
 			if c.Destination == util.Slack {
 				configName = slackConfigNameMap[c.ConfigId]
 			} else if c.Destination == util.SES {
 				configName = sesConfigNamesMap[c.ConfigId]
+			} else if c.Destination == util.SMTP {
+				configName = smtpConfigNamesMap[c.ConfigId]
 			}
 			providerConfig := ProvidersConfig{
 				Id:         c.ConfigId,
@@ -698,14 +736,14 @@ func (impl *NotificationConfigServiceImpl) updateNotificationSetting(notificatio
 
 		//UPDATE - config updated, MAY BE THERE IS NO NEED OF UPDATE HERE
 
-		for i, ns := range nsOptions {
+		for _, ns := range nsOptions {
 			config, err := json.Marshal(nsConfig.Providers)
 			if err != nil {
 				impl.logger.Error(err)
 				return 0, err
 			}
 			ns.Config = string(config)
-			_, err = impl.notificationSettingsRepository.UpdateNotificationSettings(&nsOptions[i], tx)
+			_, err = impl.notificationSettingsRepository.UpdateNotificationSettings(&ns, tx)
 			if err != nil {
 				impl.logger.Errorw("failed to fetch existing notification settings view", "err", err)
 				return 0, err

@@ -1,4 +1,8 @@
+{{- if $.Capabilities.APIVersions.Has "batch/v1" -}}
 apiVersion: batch/v1
+{{- else -}}
+apiVersion: batch/v1beta1
+{{- end }}
 kind: Job
 metadata:
   name: app-sync-job-{{ randAlphaNum 5 | lower }}
@@ -25,9 +29,12 @@ spec:
                 name: devtron-secret
           restartPolicy: OnFailure
       backoffLimit: 4
-      activeDeadlineSeconds: 120
 ---
+{{- if $.Capabilities.APIVersions.Has "batch/v1" -}}
 apiVersion: batch/v1
+{{- else -}}
+apiVersion: batch/v1beta1
+{{- end }}
 kind: CronJob
 metadata:
   name: app-sync-cronjob
