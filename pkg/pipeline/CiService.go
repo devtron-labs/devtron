@@ -395,6 +395,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		DockerRegistryURL:          pipeline.CiTemplate.DockerRegistry.RegistryURL,
 		DockerRepository:           pipeline.CiTemplate.DockerRepository,
 		DockerBuildArgs:            string(merged),
+		DockerBuildTargetPlatform:  pipeline.CiTemplate.TargetPlatform,
 		DockerFileLocation:         dockerfilePath,
 		DockerUsername:             pipeline.CiTemplate.DockerRegistry.Username,
 		DockerPassword:             pipeline.CiTemplate.DockerRegistry.Password,

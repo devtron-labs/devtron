@@ -276,6 +276,7 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 			GitMaterialId:  dockerfileGitMaterial,
 			DockerfilePath: refCiConf.DockerBuildConfig.DockerfilePath,
 			Args:           refCiConf.DockerBuildConfig.Args,
+			TargetPlatform: refCiConf.DockerBuildConfig.TargetPlatform,
 		},
 		DockerRegistryUrl: refCiConf.DockerRegistry,
 		CiTemplateName:    refCiConf.CiTemplateName,

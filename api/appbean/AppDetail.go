@@ -43,6 +43,7 @@ type DockerBuildConfig struct {
 	GitCheckoutPath        string            `json:"gitCheckoutPath,omitempty" validate:"required"`
 	DockerfileRelativePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
 	Args                   map[string]string `json:"args,omitempty"`
+	TargetPlatform         string            `json:"targetPlatform"`
 }
 
 type DeploymentTemplate struct {
