@@ -228,15 +228,13 @@ func getCacheData(e *EnforcerImpl, emailId string, resource string, action strin
 }
 
 func batchEnforceFromCache(e *EnforcerImpl, emailId string, resource string, action string, resourceItems []string) (map[string]bool, []string) {
-	var result map[string]bool
+	var result = make(map[string]bool)
 	var notFoundDataList []string
 	cacheLock := getEnforcerCacheLock(e, emailId)
 	cacheLock.RLock()
 	defer cacheLock.RUnlock()
 	enforceData := getCacheData(e, emailId, resource, action)
-	if enforceData == nil {
-		result = make(map[string]bool)
-	} else {
+	if enforceData != nil {
 		for _, resourceItem := range resourceItems {
 			data, found := enforceData[resourceItem]
 			if found {
