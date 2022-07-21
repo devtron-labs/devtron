@@ -35,9 +35,9 @@ import (
 )
 
 type Enforcer interface {
-	Enforce(rvals ...interface{}) bool
-	EnforceErr(rvals ...interface{}) error
-	EnforceByEmail(rvals ...interface{}) bool
+	Enforce(emailId string, resource string, action string, resourceItem string) bool
+	EnforceErr(emailId string, resource string, action string, resourceItem string) error
+	EnforceByEmail(emailId string, resource string, action string, resourceItem string) bool
 	EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
 	InvalidateCache(emailId string) bool
 	InvalidateCompleteCache()
