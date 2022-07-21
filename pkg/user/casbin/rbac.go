@@ -193,7 +193,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 
 func getBatchRequestLock(e *EnforcerImpl, emailId string) *sync.Mutex {
 	emailBatchRequestMutex, found := e.batchRequestLock[getLockKey(emailId)]
-	if found {
+	if !found {
 		emailBatchRequestMutex = &sync.Mutex{}
 		e.batchRequestLock[getLockKey(emailId)] = emailBatchRequestMutex
 	}
