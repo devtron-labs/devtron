@@ -70,6 +70,7 @@ type WorkflowRequest struct {
 	DockerConnection           string                   `json:"dockerConnection"`
 	DockerCert                 string                   `json:"dockerCert"`
 	DockerBuildArgs            string                   `json:"dockerBuildArgs"`
+	DockerBuildTargetPlatform  string                   `json:"dockerBuildTargetPlatform"`
 	DockerRepository           string                   `json:"dockerRepository"`
 	DockerFileLocation         string                   `json:"dockerfileLocation"`
 	DockerUsername             string                   `json:"dockerUsername"`
@@ -230,7 +231,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 						Name: "ci",
 						Container: &v12.Container{
 							Env:   containerEnvVariables,
-							Image: workflowRequest.CiImage,
+							Image: workflowRequest.CiImage, //TODO need to check whether trigger buildx image or normal image
 							Args:  []string{string(workflowJson)},
 							SecurityContext: &v12.SecurityContext{
 								Privileged: &privileged,
