@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
@@ -55,23 +56,25 @@ type ChartRepositoryService interface {
 }
 
 type ChartRepositoryServiceImpl struct {
-	logger         *zap.SugaredLogger
-	repoRepository chartRepoRepository.ChartRepoRepository
-	K8sUtil        *util.K8sUtil
-	clusterService cluster.ClusterService
-	aCDAuthConfig  *util2.ACDAuthConfig
-	client         *http.Client
+	logger          *zap.SugaredLogger
+	repoRepository  chartRepoRepository.ChartRepoRepository
+	K8sUtil         *util.K8sUtil
+	clusterService  cluster.ClusterService
+	aCDAuthConfig   *util2.ACDAuthConfig
+	client          *http.Client
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig
 }
 
 func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, K8sUtil *util.K8sUtil, clusterService cluster.ClusterService,
-	aCDAuthConfig *util2.ACDAuthConfig, client *http.Client) *ChartRepositoryServiceImpl {
+	aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, serverEnvConfig *serverEnvConfig.ServerEnvConfig) *ChartRepositoryServiceImpl {
 	return &ChartRepositoryServiceImpl{
-		logger:         logger,
-		repoRepository: repoRepository,
-		K8sUtil:        K8sUtil,
-		clusterService: clusterService,
-		aCDAuthConfig:  aCDAuthConfig,
-		client:         client,
+		logger:          logger,
+		repoRepository:  repoRepository,
+		K8sUtil:         K8sUtil,
+		clusterService:  clusterService,
+		aCDAuthConfig:   aCDAuthConfig,
+		client:          client,
+		serverEnvConfig: serverEnvConfig,
 	}
 }
 
@@ -377,7 +380,7 @@ func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual() error {
 		return err
 	}
 
-	manualAppSyncJobByteArr := manualAppSyncJobByteArr()
+	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage)
 
 	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, impl.aCDAuthConfig.ACDConfigMapNamespace, defaultClusterConfig)
 	if err != nil {
