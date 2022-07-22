@@ -2709,4 +2709,4 @@ spec:
             port: 8082
           initialDelaySeconds: 5
           periodSeconds: 10
-      serviceAccountName: argocd-application-controllerv
+      serviceAccountName: argocd-application-controller
