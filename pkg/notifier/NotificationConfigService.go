@@ -23,7 +23,6 @@ import (
 	repository3 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/team"
 	repository4 "github.com/devtron-labs/devtron/pkg/user/repository"
-	"strings"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -368,19 +367,21 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 			var slackIds []*int
 			var sesUserIds []int32
 			var smtpUserIds []int32
-			var directRecipients []string
+			var providerConfigs []*ProvidersConfig
 			for _, item := range config.Providers {
-				if item.Destination == util.Slack {
-					slackIds = append(slackIds, &item.ConfigId)
-				} else if item.Destination == util.SES {
-					sesUserIds = append(sesUserIds, int32(item.ConfigId))
-				} else if item.Destination == util.SMTP {
-					smtpUserIds = append(smtpUserIds, int32(item.ConfigId))
+				// if item.ConfigId > 0 that means, user is of user repository, else user email is custom
+				if item.ConfigId > 0 {
+					if item.Destination == util.Slack {
+						slackIds = append(slackIds, &item.ConfigId)
+					} else if item.Destination == util.SES {
+						sesUserIds = append(sesUserIds, int32(item.ConfigId))
+					} else if item.Destination == util.SMTP {
+						smtpUserIds = append(smtpUserIds, int32(item.ConfigId))
+					}
 				} else {
-					directRecipients = append(directRecipients, item.Recipient)
+					providerConfigs = append(providerConfigs, &ProvidersConfig{Dest: string(item.Destination), Recipient: item.Recipient})
 				}
 			}
-			var providerConfigs []*ProvidersConfig
 			if len(slackIds) > 0 {
 				slackConfigs, err := impl.slackRepository.FindByIds(slackIds)
 				if err != nil && err != pg.ErrNoRows {
@@ -410,13 +411,6 @@ func (impl *NotificationConfigServiceImpl) BuildNotificationSettingsResponse(not
 				}
 				for _, item := range smtpConfigs {
 					providerConfigs = append(providerConfigs, &ProvidersConfig{Id: int(item.Id), ConfigName: item.EmailId, Dest: string(util.SMTP)})
-				}
-			}
-			for _, item := range directRecipients {
-				if strings.Contains(item, "https://") {
-					providerConfigs = append(providerConfigs, &ProvidersConfig{Dest: string(util.Slack), Recipient: item})
-				} else {
-					providerConfigs = append(providerConfigs, &ProvidersConfig{Dest: string(util.SES), Recipient: item})
 				}
 			}
 			notificationSettingsResponse.ProvidersConfig = providerConfigs
