@@ -31,6 +31,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 )
 
@@ -47,11 +48,17 @@ func NewEnforcerImpl(
 	enforcer *casbin.Enforcer,
 	sessionManager *middleware.SessionManager,
 	logger *zap.SugaredLogger) *EnforcerImpl {
-	lock := make(map[string]*sync.RWMutex)
+	lock := make(map[string]*CacheData)
 	batchRequestLock := make(map[string]*sync.Mutex)
 	enf := &EnforcerImpl{lock: lock, batchRequestLock: batchRequestLock, Cache: checkCacheEnabled(logger), Enforcer: enforcer, logger: logger, SessionManager: sessionManager}
 	setEnforcerImpl(enf)
 	return enf
+}
+
+type CacheData struct {
+	lock              *sync.RWMutex
+	cacheCleaningFlag bool
+	enforceReqCounter int64
 }
 
 func checkCacheEnabled(logger *zap.SugaredLogger) *cache.Cache {
@@ -81,7 +88,7 @@ func checkCacheEnabled(logger *zap.SugaredLogger) *cache.Cache {
 // * supports a user-defined bolicy
 // * supports a custom JWT claims enforce function
 type EnforcerImpl struct {
-	lock             map[string]*sync.RWMutex
+	lock             map[string]*CacheData
 	batchRequestLock map[string]*sync.Mutex
 	*cache.Cache
 	*casbin.Enforcer
@@ -177,9 +184,17 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	}
 
 	enforcerCacheMutex := getEnforcerCacheLock(e, emailId)
-	enforcerCacheMutex.Lock()
-	defer enforcerCacheMutex.Unlock()
-	storeCacheData(e, emailId, resource, action, result)
+	enforcerCacheMutex.lock.Lock()
+	defer enforcerCacheMutex.lock.Unlock()
+	returnVal := atomic.AddInt64(&enforcerCacheMutex.enforceReqCounter, -1)
+
+	if enforcerCacheMutex.cacheCleaningFlag {
+		if returnVal == 0 {
+			enforcerCacheMutex.cacheCleaningFlag = false
+		}
+	} else {
+		storeCacheData(e, emailId, resource, action, result)
+	}
 
 	if batchSize > 0 {
 		avgTimegap = float64(totalTimeGap / int64(batchSize))
@@ -200,10 +215,15 @@ func getBatchRequestLock(e *EnforcerImpl, emailId string) *sync.Mutex {
 	return emailBatchRequestMutex
 }
 
-func getEnforcerCacheLock(e *EnforcerImpl, emailId string) *sync.RWMutex {
+func getEnforcerCacheLock(e *EnforcerImpl, emailId string) *CacheData {
 	enforcerCacheMutex, found := e.lock[getLockKey(emailId)]
 	if !found {
-		enforcerCacheMutex = &sync.RWMutex{}
+		enforcerCacheMutex =
+			&CacheData{
+				lock:              &sync.RWMutex{},
+				enforceReqCounter: int64(0),
+				cacheCleaningFlag: false,
+			}
 		e.lock[getLockKey(emailId)] = enforcerCacheMutex
 	}
 	return enforcerCacheMutex
@@ -231,8 +251,9 @@ func batchEnforceFromCache(e *EnforcerImpl, emailId string, resource string, act
 	var result = make(map[string]bool)
 	var notFoundDataList []string
 	cacheLock := getEnforcerCacheLock(e, emailId)
-	cacheLock.RLock()
-	defer cacheLock.RUnlock()
+	cacheLock.lock.RLock()
+	defer cacheLock.lock.RUnlock()
+	atomic.AddInt64(&cacheLock.enforceReqCounter, 1)
 	enforceData := getCacheData(e, emailId, resource, action)
 	if enforceData != nil {
 		for _, resourceItem := range resourceItems {
@@ -250,8 +271,9 @@ func batchEnforceFromCache(e *EnforcerImpl, emailId string, resource string, act
 
 func enforceFromCache(e *EnforcerImpl, emailId string, resource string, action string, resourceItem string) (bool, bool) {
 	cacheLock := getEnforcerCacheLock(e, emailId)
-	cacheLock.RLock()
-	defer cacheLock.RUnlock()
+	cacheLock.lock.RLock()
+	defer cacheLock.lock.RUnlock()
+	atomic.AddInt64(&cacheLock.enforceReqCounter, 1)
 	enforceData := getCacheData(e, emailId, resource, action)
 	data, found := enforceData[resourceItem]
 	return data, found
@@ -279,8 +301,9 @@ func getLockKey(emailId string) string {
 
 func (e *EnforcerImpl) InvalidateCache(emailId string) bool {
 	cacheLock := getEnforcerCacheLock(e, emailId)
-	cacheLock.Lock()
-	defer cacheLock.Unlock()
+	cacheLock.lock.Lock()
+	defer cacheLock.lock.Unlock()
+	cacheLock.cacheCleaningFlag = true
 	if e.Cache != nil {
 		e.Cache.Delete(emailId)
 		return true
@@ -289,6 +312,9 @@ func (e *EnforcerImpl) InvalidateCache(emailId string) bool {
 }
 
 func (e *EnforcerImpl) InvalidateCompleteCache() {
+	for emailId, _ := range e.lock {
+		e.InvalidateCache(emailId)
+	}
 	if e.Cache != nil {
 		e.Cache.Flush()
 	}
@@ -305,14 +331,19 @@ func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, token string, resource stri
 }
 
 func enforceAndUpdateCache(enf *casbin.Enforcer, e *EnforcerImpl, email string, resource string, action string, resourceItem string) bool {
-	//response, found := enforceFromCache(e, email, resource, action, resourceItem)
-	//if found {
-	//	return response
-	//} //TODO reqd. this or not
+	cacheData := getEnforcerCacheLock(e, email)
+	cacheData.lock.Lock()
+	defer cacheData.lock.Unlock()
 	enforcedStatus := enf.Enforce(email, resource, action, resourceItem)
-	cacheLock := getEnforcerCacheLock(e, email)
-	cacheLock.Lock()
-	defer cacheLock.Unlock()
+	returnVal := atomic.AddInt64(&cacheData.enforceReqCounter, -1)
+	if cacheData.cacheCleaningFlag {
+		if returnVal == 0 {
+			cacheData.cacheCleaningFlag = false
+		}
+		e.logger.Debugw("not updating enforcer status for cache", "email", email, "resource", resource,
+			"action", action, "resourceItem", resourceItem, "enforceReqCounter", cacheData.enforceReqCounter)
+		return enforcedStatus
+	}
 	enforceData := getCacheData(e, email, resource, action)
 	enforceData[resourceItem] = enforcedStatus
 	storeCacheData(e, email, resource, action, enforceData)
@@ -341,6 +372,13 @@ func (e *EnforcerImpl) enforceByEmail(enf *casbin.Enforcer, emailId string, reso
 	defer handlePanic()
 	response, found := enforceFromCache(e, emailId, resource, action, resourceItem)
 	if found {
+		cacheData := getEnforcerCacheLock(e, emailId)
+		cacheData.lock.Lock()
+		defer cacheData.lock.Unlock()
+		returnVal := atomic.AddInt64(&cacheData.enforceReqCounter, -1)
+		if returnVal == 0 && cacheData.cacheCleaningFlag {
+			cacheData.cacheCleaningFlag = false
+		}
 		return response
 	}
 	enforcedStatus := enforceAndUpdateCache(enf, e, emailId, resource, action, resourceItem)
