@@ -183,17 +183,18 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 		}
 	}
 
-	enforcerCacheMutex := getEnforcerCacheLock(e, emailId)
-	enforcerCacheMutex.lock.Lock()
-	defer enforcerCacheMutex.lock.Unlock()
-	returnVal := atomic.AddInt64(&enforcerCacheMutex.enforceReqCounter, -1)
-
-	if enforcerCacheMutex.cacheCleaningFlag {
+	enforcerCacheData := getEnforcerCacheLock(e, emailId)
+	enforcerCacheData.lock.Lock()
+	defer enforcerCacheData.lock.Unlock()
+	returnVal := atomic.AddInt64(&enforcerCacheData.enforceReqCounter, -1)
+	dataCached := false
+	if enforcerCacheData.cacheCleaningFlag {
 		if returnVal == 0 {
-			enforcerCacheMutex.cacheCleaningFlag = false
+			enforcerCacheData.cacheCleaningFlag = false
 		}
 	} else {
 		storeCacheData(e, emailId, resource, action, result)
+		dataCached = true
 	}
 
 	if batchSize > 0 {
@@ -201,7 +202,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	}
 	e.logger.Infow("enforce request for batch with data", "emailId", emailId, "resource", resource,
 		"action", action, "totalElapsedTime", totalTimeGap, "maxTimegap", maxTimegap, "minTimegap",
-		minTimegap, "avgTimegap", avgTimegap, "size", len(vals), "batchSize", batchSize, "cached", e.Cache != nil)
+		minTimegap, "avgTimegap", avgTimegap, "size", len(vals), "batchSize", batchSize, "cached", e.Cache != nil && dataCached)
 
 	return result
 }
@@ -227,11 +228,6 @@ func getEnforcerCacheLock(e *EnforcerImpl, emailId string) *CacheData {
 		e.lock[getLockKey(emailId)] = enforcerCacheMutex
 	}
 	return enforcerCacheMutex
-}
-
-func clearCacheLock(e *EnforcerImpl, emailId string, cacheMutex *sync.RWMutex) {
-	cacheMutex.Unlock()
-	//delete(e.lock, getLockKey(emailId))
 }
 
 func getCacheData(e *EnforcerImpl, emailId string, resource string, action string) map[string]bool {
@@ -303,6 +299,7 @@ func (e *EnforcerImpl) InvalidateCache(emailId string) bool {
 	cacheLock := getEnforcerCacheLock(e, emailId)
 	cacheLock.lock.Lock()
 	defer cacheLock.lock.Unlock()
+	e.logger.Debugw("invalidating cache & setting flag ", "emailId", emailId)
 	cacheLock.cacheCleaningFlag = true
 	if e.Cache != nil {
 		e.Cache.Delete(emailId)
