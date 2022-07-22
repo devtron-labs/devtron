@@ -2,6 +2,7 @@ package casbin
 
 import (
 	"github.com/patrickmn/go-cache"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -16,12 +17,9 @@ func TestEnforcerCache(t *testing.T) {
 	cache123 := cache.New(-1, 5*time.Minute)
 
 	t.Run("requesterAndWriter", func(t *testing.T) {
-		abort := true
-		for !abort {
-			emailId := "abcd@gmail"
-			if getAndSet(lock, emailId, cache123) {
-				return
-			}
+		for i := 0; i < 100_000; i++ {
+			emailId := GetRandomStringOfGivenLength(rand.Intn(1000)) + "@yopmail.com"
+			getAndSet(lock, emailId, cache123)
 		}
 	})
 	t.Run("CacheInvalidate", func(t *testing.T) {
@@ -33,6 +31,19 @@ func TestEnforcerCache(t *testing.T) {
 		//	fmt.Println("hello-world")
 		//}
 	})
+}
+
+func GetRandomStringOfGivenLength(length int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyz" +
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+	var seededRand = rand.New(
+		rand.NewSource(time.Now().UnixNano()))
+	b := make([]byte, length)
+	for i := range b {
+		b[i] = charset[seededRand.Intn(len(charset))]
+	}
+	return string(b)
 }
 
 func invalidateCache_123(lock map[string]*CacheData, cache *cache.Cache) {
