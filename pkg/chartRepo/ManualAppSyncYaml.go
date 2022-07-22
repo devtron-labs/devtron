@@ -6,14 +6,14 @@ import (
 	"text/template"
 )
 
-type AppSync struct {
+type AppSyncConfig struct {
 	DbConfig    sql.Config
 	DockerImage string
 }
 
 func manualAppSyncJobByteArr(dockerImage string) []byte {
 	cfg, _ := sql.GetConfig()
-	configValues := AppSync{
+	configValues := AppSyncConfig{
 		DbConfig:    sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
 		DockerImage: dockerImage,
 	}
