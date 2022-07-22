@@ -47,10 +47,10 @@ Here, you provide a relative path where your docker file is located. Ensure that
 
 ### Set target platform for the build
 
-Using this option, we can build images for a specific or multiple **architectures and opereting systems (target platforms)**. You can select the target platform from the drop-down or can type to select a custom target platform. 
-![Select target platform from drop-down](https://s3.console.aws.amazon.com/s3/object/devtron-public-asset?region=us-east-2&prefix=images/creating-application/docker-build-configuration/set-target-platform.png)
+Using this option, we can build images for a specific or multiple **architectures and opereting systems (target platforms)**. You can select the target platform from the drop-down or can type to select a custom target platform.
+![Select target platform from drop-down](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/set-target-platform.png)
 
-![Select custom target platform](https://s3.console.aws.amazon.com/s3/object/devtron-public-asset?region=us-east-2&prefix=images/creating-application/docker-build-configuration/set-target-platform-2.png)
+![Select custom target platform](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/set-target-platform-2.png)
 
 If you are selecting a custom target platform, first ensure that the architecture and the operating system is supported by the `registry type` you are using. Otherwise build will not succeeded. If you are building images for mutiple target Platform then make sure CPU is not getting throttled, in case it is, then you can fast your build time by increasing `request` and `limit` of CI-Runner pod. You can do this by increasing value of `LIMIT_CI_CPU`, by editing `devtron-cm` configmap under `devtroncd` namespace.
 If target platform is not set, Devtron will build image for architecture and operating system of the k8s node on which CI is running.
