@@ -22,7 +22,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
-	"strings"
 	"time"
 )
 
@@ -170,17 +169,7 @@ func (impl NotificationConfigBuilderImpl) buildNotificationSetting(notificationS
 }
 
 func (impl NotificationConfigBuilderImpl) BuildNotificationSettingWithPipeline(teamId *int, envId *int, appId *int, pipelineId *int, pipelineType util.PipelineType, eventTypeId int, viewId int, providers []*Provider) (repository.NotificationSettings, error) {
-
-	for _, provider := range providers {
-		if len(provider.Recipient) > 0 {
-			if strings.Contains(provider.Recipient, "@") {
-				provider.Destination = util.SES
-			} else {
-				provider.Destination = util.Slack
-			}
-		}
-	}
-
+	
 	providersJson, err := json.Marshal(providers)
 	if err != nil {
 		impl.logger.Error(err)
