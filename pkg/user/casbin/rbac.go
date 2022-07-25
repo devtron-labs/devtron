@@ -239,6 +239,9 @@ func getCacheData(e *EnforcerImpl, emailId string, resource string, action strin
 	if found {
 		emailResultMap := emailResult.(map[string]map[string]bool)
 		result = emailResultMap[getCacheKey(resource, action)]
+		if result == nil {
+			result = make(map[string]bool)
+		}
 	}
 	return result
 }
