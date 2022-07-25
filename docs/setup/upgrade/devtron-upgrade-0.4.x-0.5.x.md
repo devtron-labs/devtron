@@ -20,7 +20,7 @@ kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync
 
 ### 1. Run the Devtron v0.5.0 pre-upgrade patch job
 ```
-kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/scripts/utilities/argocd-helm-patch.yaml
+kubectl apply -f https://raw.githubusercontent.com/devtron-labs/utilities/main/scripts/jobs/argocd-2.4.0-prerequisites-patch-job.yaml
 ```
 
 
