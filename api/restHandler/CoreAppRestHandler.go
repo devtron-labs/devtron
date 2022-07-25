@@ -497,6 +497,7 @@ func (handler CoreAppRestHandlerImpl) buildDockerConfig(appId int) (*appBean.Doc
 		BuildConfig: &appBean.DockerBuildConfig{
 			Args:                   ciConfig.DockerBuildConfig.Args,
 			DockerfileRelativePath: ciConfig.DockerBuildConfig.DockerfilePath,
+			TargetPlatform:         ciConfig.DockerBuildConfig.TargetPlatform,
 			GitCheckoutPath:        gitMaterial.CheckoutPath,
 		},
 	}
@@ -1256,6 +1257,7 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 		GitMaterialId:  gitMaterial.Id,
 		DockerfilePath: dockerConfig.BuildConfig.DockerfileRelativePath,
 		Args:           dockerBuildArgs,
+		TargetPlatform: dockerConfig.BuildConfig.TargetPlatform,
 	}
 	createDockerConfigRequest.DockerBuildConfig = dockerBuildConfigRequest
 

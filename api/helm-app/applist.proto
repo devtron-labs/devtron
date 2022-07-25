@@ -178,6 +178,7 @@ message ReleaseInfo{
   string overrideValues = 3;
   string mergedValues = 4;
   string readme = 5;
+  string valuesSchemaJson = 6;
 }
 
 message ObjectRequest {
@@ -253,15 +254,15 @@ message TemplateChartResponse {
 }
 
 message HelmInstallCustomRequest {
-    string valuesYaml = 1;
-    ChartContent chartContent = 2;
-    ReleaseIdentifier releaseIdentifier = 3;
+  string valuesYaml = 1;
+  ChartContent chartContent = 2;
+  ReleaseIdentifier releaseIdentifier = 3;
 }
 
 message HelmInstallCustomResponse {
-    bool success = 1;
+  bool success = 1;
 }
 
 message ChartContent {
-    bytes Content = 1;
+  bytes Content = 1;
 }

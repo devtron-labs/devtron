@@ -34,7 +34,7 @@ type AppStoreRestHandler interface {
 	FindAllApps(w http.ResponseWriter, r *http.Request)
 	GetChartDetailsForVersion(w http.ResponseWriter, r *http.Request)
 	GetChartVersions(w http.ResponseWriter, r *http.Request)
-	GetReadme(w http.ResponseWriter, r *http.Request)
+	GetChartInfo(w http.ResponseWriter, r *http.Request)
 	SearchAppStoreChartByName(w http.ResponseWriter, r *http.Request)
 }
 
@@ -157,7 +157,7 @@ func (handler *AppStoreRestHandlerImpl) GetChartVersions(w http.ResponseWriter, 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *AppStoreRestHandlerImpl) GetReadme(w http.ResponseWriter, r *http.Request) {
+func (handler *AppStoreRestHandlerImpl) GetChartInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
@@ -167,14 +167,14 @@ func (handler *AppStoreRestHandlerImpl) GetReadme(w http.ResponseWriter, r *http
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["appStoreApplicationVersionId"])
 	if err != nil {
-		handler.Logger.Errorw("request err, GetReadme", "err", err, "appStoreApplicationVersionId", id)
+		handler.Logger.Errorw("request err, GetChartInfo", "err", err, "appStoreApplicationVersionId", id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, GetReadme, app store", "appStoreApplicationVersionId", id)
-	res, err := handler.appStoreService.GetReadMeByAppStoreApplicationVersionId(id)
+	handler.Logger.Infow("request payload, GetChartInfo, app store", "appStoreApplicationVersionId", id)
+	res, err := handler.appStoreService.GetChartInfoByAppStoreApplicationVersionId(id)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetReadme, fetching resource tree", "err", err, "appStoreApplicationVersionId", id)
+		handler.Logger.Errorw("service err, GetChartInfo, fetching resource tree", "err", err, "appStoreApplicationVersionId", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

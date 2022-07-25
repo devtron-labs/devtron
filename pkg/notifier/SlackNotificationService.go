@@ -215,7 +215,7 @@ func (impl *SlackNotificationServiceImpl) RecipientListingSuggestion(value strin
 		results = append(results, result)
 	}
 
-	userList, err := impl.userRepository.FetchUserMatchesByEmailId(value)
+	userList, err := impl.userRepository.FetchUserMatchesByEmailIdExcludingApiTokenUser(value)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("cannot find all slack config", "err", err)
 		return []*NotificationRecipientListingResponse{}, err

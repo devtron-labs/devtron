@@ -434,6 +434,12 @@ func InitializeApp() (*App, error) {
 		repository.NewSESNotificationRepositoryImpl,
 		wire.Bind(new(repository.SESNotificationRepository), new(*repository.SESNotificationRepositoryImpl)),
 
+		notifier.NewSMTPNotificationServiceImpl,
+		wire.Bind(new(notifier.SMTPNotificationService), new(*notifier.SMTPNotificationServiceImpl)),
+
+		repository.NewSMTPNotificationRepositoryImpl,
+		wire.Bind(new(repository.SMTPNotificationRepository), new(*repository.SMTPNotificationRepositoryImpl)),
+
 		notifier.NewNotificationConfigBuilderImpl,
 		wire.Bind(new(notifier.NotificationConfigBuilder), new(*notifier.NotificationConfigBuilderImpl)),
 

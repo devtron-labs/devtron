@@ -33,7 +33,7 @@ type AppStoreApplicationVersionRepository interface {
 	FindVersionsByAppStoreId(id int) ([]*AppStoreApplicationVersion, error)
 	FindChartVersionByAppStoreId(id int) ([]*AppStoreApplicationVersion, error)
 	FindByIds(ids []int) ([]*AppStoreApplicationVersion, error)
-	GetReadMeById(id int) (*AppStoreApplicationVersion, error)
+	GetChartInfoById(id int) (*AppStoreApplicationVersion, error)
 	FindByAppStoreName(name string) (*appStoreBean.AppStoreWithVersion, error)
 	SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error)
 }
@@ -65,14 +65,16 @@ type AppStoreApplicationVersion struct {
 	Latest      bool      `sql:"latest"`
 	AppStoreId  int       `sql:"app_store_id"`
 	sql.AuditLog
-	RawValues string `sql:"raw_values"`
-	Readme    string `sql:"readme"`
-	AppStore  *AppStore
+	RawValues        string `sql:"raw_values"`
+	Readme           string `sql:"readme"`
+	ValuesSchemaJson string `sql:"values_schema_json"`
+	Notes            string `sql:"notes"`
+	AppStore         *AppStore
 }
 
-func (impl AppStoreApplicationVersionRepositoryImpl) GetReadMeById(id int) (*AppStoreApplicationVersion, error) {
+func (impl AppStoreApplicationVersionRepositoryImpl) GetChartInfoById(id int) (*AppStoreApplicationVersion, error) {
 	var appStoreWithVersion AppStoreApplicationVersion
-	err := impl.dbConnection.Model(&appStoreWithVersion).Column("readme", "id").
+	err := impl.dbConnection.Model(&appStoreWithVersion).Column("readme", "values_schema_json", "notes", "id").
 		Where("id= ?", id).Select()
 	return &appStoreWithVersion, err
 }
