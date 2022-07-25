@@ -6,10 +6,17 @@ import (
 	"text/template"
 )
 
-func manualAppSyncJobByteArr() []byte {
-	cfg, _ := sql.GetConfig()
-	configValues := sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password}
+type AppSyncConfig struct {
+	DbConfig    sql.Config
+	DockerImage string
+}
 
+func manualAppSyncJobByteArr(dockerImage string) []byte {
+	cfg, _ := sql.GetConfig()
+	configValues := AppSyncConfig{
+		DbConfig:    sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
+		DockerImage: dockerImage,
+	}
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
   "kind": "Job",
@@ -23,23 +30,23 @@ func manualAppSyncJobByteArr() []byte {
         "containers": [
           {
             "name": "chart-sync",
-            "image": "quay.io/devtron/chart-sync:1227622d-132-3775",
+            "image": "{{.DockerImage}}",
             "env": [
               {
                 "name": "PG_ADDR",
-                "value": "{{.Addr}}"
+                "value": "{{.DbConfig.Addr}}"
               },
               {
                 "name": "PG_DATABASE",
-                "value": "{{.Database}}"
+                "value": "{{.DbConfig.Database}}"
               },
               {
                 "name": "PG_USER",
-                "value": "{{.User}}"
+                "value": "{{.DbConfig.User}}"
               },
               {
                 "name": "PG_PASSWORD",
-                "value": "{{.Password}}"
+                "value": "{{.DbConfig.Password}}"
               }
             ]
           }

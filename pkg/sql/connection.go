@@ -19,6 +19,7 @@ package sql
 
 import (
 	"go.uber.org/zap"
+	"reflect"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -29,7 +30,7 @@ type Config struct {
 	Addr            string `env:"PG_ADDR" envDefault:"127.0.0.1"`
 	Port            string `env:"PG_PORT" envDefault:"5432"`
 	User            string `env:"PG_USER" envDefault:""`
-	Password        string `env:"PG_PASSWORD" envDefault:""`
+	Password        string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
 	Database        string `env:"PG_DATABASE" envDefault:"orchestrator"`
 	ApplicationName string `env:"APP" envDefault:"orchestrator"`
 	LogQuery        bool   `env:"PG_LOG_QUERY" envDefault:"true"`
@@ -55,10 +56,10 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 	_, err := dbConnection.QueryOne(&test, `SELECT 1`)
 
 	if err != nil {
-		logger.Errorw("error in connecting db ", "db", cfg, "err", err)
+		logger.Errorw("error in connecting db ", "db", obfuscateSecretTags(cfg), "err", err)
 		return nil, err
 	} else {
-		logger.Infow("connected with db", "db", cfg)
+		logger.Infow("connected with db", "db", obfuscateSecretTags(cfg))
 	}
 	//--------------
 	if cfg.LogQuery {
@@ -73,6 +74,21 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 		})
 	}
 	return dbConnection, err
+}
+
+func obfuscateSecretTags(cfg interface{}) interface{} {
+
+	cfgDpl := reflect.New(reflect.ValueOf(cfg).Elem().Type()).Interface()
+	cfgDplElm := reflect.ValueOf(cfgDpl).Elem()
+	t := cfgDplElm.Type()
+	for i := 0; i < t.NumField(); i++ {
+		if _, ok := t.Field(i).Tag.Lookup("secretData"); ok {
+			cfgDplElm.Field(i).SetString("********")
+		} else {
+			cfgDplElm.Field(i).Set(reflect.ValueOf(cfg).Elem().Field(i))
+		}
+	}
+	return cfgDpl
 }
 
 /*type DbConnectionHolder struct {

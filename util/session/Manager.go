@@ -19,27 +19,12 @@ package session
 
 import (
 	"context"
-	"github.com/argoproj/argo-cd/util/session"
-	"github.com/argoproj/argo-cd/util/settings"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/pkg/dex"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/tools/clientcmd"
 	"log"
 )
-
-var (
-	sessionManager *session.SessionManager
-)
-
-func SessionManager(settings *settings.SettingsManager, cfg *dex.Config) *session.SessionManager {
-	//cfg, err := cfg
-	//if err != nil {
-	//	log.Fatal(err)
-	//}
-	dexServerAddress := cfg.Host + ":" + cfg.Port
-	return session.NewSessionManager(settings, dexServerAddress)
-}
 
 func CDSettingsManager(settings *settings.SettingsManager) (*settings.ArgoCDSettings, error) {
 	at, err := settings.GetSettings()

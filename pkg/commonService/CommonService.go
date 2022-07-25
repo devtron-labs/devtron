@@ -79,7 +79,7 @@ type GlobalChecklist struct {
 }
 
 type ChartChecklist struct {
-	GitOps      int `json:"gitOps"`
+	GitOps      int `json:"gitOps,omitempty"`
 	Project     int `json:"project"`
 	Environment int `json:"environment"`
 }
@@ -125,11 +125,6 @@ func (impl *CommonServiceImpl) FetchLatestChart(appId int, envId int) (*chartRep
 }
 
 func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
-	gitOps, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GlobalChecklist, error while getting error", "err", err)
-		return nil, err
-	}
 
 	dockerReg, err := impl.dockerReg.FindActiveDefaultStore()
 	if err != nil && err != pg.ErrNoRows {
@@ -184,10 +179,6 @@ func (impl *CommonServiceImpl) GlobalChecklist() (*GlobalChecklist, error) {
 		appChecklist.Project = 1
 	}
 
-	if gitOps.Id > 0 {
-		chartChecklist.GitOps = 1
-		//appChecklist.GitOps = 1
-	}
 	if len(dockerReg.Id) > 0 {
 		appChecklist.Docker = 1
 	}

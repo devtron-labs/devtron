@@ -21,12 +21,16 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/devtron-labs/devtron/api/restHandler/common"
-	delete2 "github.com/devtron-labs/devtron/pkg/delete"
-	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
+
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -50,12 +54,13 @@ type ClusterRestHandler interface {
 }
 
 type ClusterRestHandlerImpl struct {
-	clusterService cluster.ClusterService
-	logger         *zap.SugaredLogger
-	userService    user.UserService
-	validator      *validator.Validate
-	enforcer       casbin.Enforcer
-	deleteService  delete2.DeleteService
+	clusterService  cluster.ClusterService
+	logger          *zap.SugaredLogger
+	userService     user.UserService
+	validator       *validator.Validate
+	enforcer        casbin.Enforcer
+	deleteService   delete2.DeleteService
+	argoUserService argo.ArgoUserService
 }
 
 func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
@@ -64,14 +69,15 @@ func NewClusterRestHandlerImpl(clusterService cluster.ClusterService,
 	validator *validator.Validate,
 	enforcer casbin.Enforcer,
 	deleteService delete2.DeleteService,
-) *ClusterRestHandlerImpl {
+	argoUserService argo.ArgoUserService) *ClusterRestHandlerImpl {
 	return &ClusterRestHandlerImpl{
-		clusterService: clusterService,
-		logger:         logger,
-		userService:    userService,
-		validator:      validator,
-		enforcer:       enforcer,
-		deleteService:  deleteService,
+		clusterService:  clusterService,
+		logger:          logger,
+		userService:     userService,
+		validator:       validator,
+		enforcer:        enforcer,
+		deleteService:   deleteService,
+		argoUserService: argoUserService,
 	}
 }
 
@@ -114,7 +120,17 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(ctx, "token", token)
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+		ctx = context.WithValue(ctx, "token", token)
+	} else {
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+	}
 	bean, err = impl.clusterService.Save(ctx, bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Save", "err", err, "payload", bean)
@@ -218,7 +234,7 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Errorw("request payload, Update", "payload", bean)
+	impl.logger.Infow("request payload, Update", "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validate err, Update", "error", err, "payload", bean)
@@ -242,7 +258,17 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+		ctx = context.WithValue(ctx, "token", token)
+	} else {
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+	}
 	_, err = impl.clusterService.Update(ctx, &bean, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, Update", "error", err, "payload", bean)
@@ -254,7 +280,9 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 }
 
 func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
 	clusterList, err := impl.clusterService.FindAllForAutoComplete()
+	dbOperationTime := time.Since(start)
 	if err != nil {
 		impl.logger.Errorw("service err, FindAllForAutoComplete", "error", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -274,6 +302,7 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
+	start = time.Now()
 	for _, item := range clusterList {
 		if authEnabled == true {
 			if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, item.ClusterName); ok {
@@ -284,6 +313,7 @@ func (impl ClusterRestHandlerImpl) FindAllForAutoComplete(w http.ResponseWriter,
 		}
 
 	}
+	impl.logger.Infow("Cluster elapsed Time for enforcer", "dbElapsedTime", dbOperationTime, "enforcerTime", time.Since(start), "token", token, "envSize", len(result))
 	//RBAC enforcer Ends
 
 	if len(result) == 0 {

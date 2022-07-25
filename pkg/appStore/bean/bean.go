@@ -93,6 +93,7 @@ type InstallAppVersionDTO struct {
 	GitHash                   string                     `json:"gitHash"`
 	EnvironmentName           string                     `json:"-"`
 	InstallAppVersionChartDTO *InstallAppVersionChartDTO `json:"-"`
+	DeploymentAppType         string                     `json:"-"`
 }
 
 type InstallAppVersionChartDTO struct {
@@ -250,6 +251,8 @@ type AppStoreApplicationVersionResponse struct {
 	CreatedOn               time.Time `json:"createdOn"`
 	RawValues               string    `json:"rawValues"`
 	Readme                  string    `json:"readme"`
+	ValuesSchemaJson        string    `json:"valuesSchemaJson"`
+	Notes                   string    `json:"notes"`
 	UpdatedOn               time.Time `json:"updatedOn"`
 	IsChartRepoActive       bool      `json:"isChartRepoActive"`
 }
@@ -259,9 +262,11 @@ type AppStoreVersionsResponse struct {
 	Id      int    `json:"id"`
 }
 
-type ReadmeRes struct {
+type ChartInfoRes struct {
 	AppStoreApplicationVersionId int    `json:"appStoreApplicationVersionId"`
 	Readme                       string `json:"readme"`
+	ValuesSchemaJson             string `json:"valuesSchemaJson"`
+	Notes                        string `json:"notes"`
 }
 
 type AppStoreWithVersion struct {
@@ -316,8 +321,11 @@ const (
 	GIT_SUCCESS
 	ACD_ERROR
 	ACD_SUCCESS
+	HELM_ERROR
+	HELM_SUCCESS
 )
 
 func (a AppstoreDeploymentStatus) String() string {
-	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "DEQUE_ERROR", "TRIGGER_ERROR", "DEPLOY_SUCCESS", "DEPLOY_INIT", "GIT_ERROR", "GIT_SUCCESS", "ACD_ERROR", "ACD_SUCCESS"}[a]
+	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "DEQUE_ERROR", "TRIGGER_ERROR", "DEPLOY_SUCCESS", "DEPLOY_INIT", "GIT_ERROR", "GIT_SUCCESS", "ACD_ERROR", "ACD_SUCCESS", "HELM_ERROR",
+		"HELM_SUCCESS"}[a]
 }

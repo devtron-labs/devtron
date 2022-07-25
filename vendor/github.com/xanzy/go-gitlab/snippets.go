@@ -1,5 +1,5 @@
 //
-// Copyright 2017, Sander van Harmelen
+// Copyright 2021, Sander van Harmelen
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@ package gitlab
 import (
 	"bytes"
 	"fmt"
+	"net/http"
 	"time"
 )
 
@@ -50,6 +51,10 @@ type Snippet struct {
 	CreatedAt *time.Time `json:"created_at"`
 	WebURL    string     `json:"web_url"`
 	RawURL    string     `json:"raw_url"`
+	Files     []struct {
+		Path   string `json:"path"`
+		RawURL string `json:"raw_url"`
+	} `json:"files"`
 }
 
 func (s Snippet) String() string {
@@ -64,8 +69,8 @@ type ListSnippetsOptions ListOptions
 // ListSnippets gets a list of snippets.
 //
 // GitLab API docs: https://docs.gitlab.com/ce/api/snippets.html#list-snippets
-func (s *SnippetsService) ListSnippets(opt *ListSnippetsOptions, options ...OptionFunc) ([]*Snippet, *Response, error) {
-	req, err := s.client.NewRequest("GET", "snippets", opt, options)
+func (s *SnippetsService) ListSnippets(opt *ListSnippetsOptions, options ...RequestOptionFunc) ([]*Snippet, *Response, error) {
+	req, err := s.client.NewRequest(http.MethodGet, "snippets", opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -83,10 +88,10 @@ func (s *SnippetsService) ListSnippets(opt *ListSnippetsOptions, options ...Opti
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/snippets.html#single-snippet
-func (s *SnippetsService) GetSnippet(snippet int, options ...OptionFunc) (*Snippet, *Response, error) {
+func (s *SnippetsService) GetSnippet(snippet int, options ...RequestOptionFunc) (*Snippet, *Response, error) {
 	u := fmt.Sprintf("snippets/%d", snippet)
 
-	req, err := s.client.NewRequest("GET", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -100,6 +105,15 @@ func (s *SnippetsService) GetSnippet(snippet int, options ...OptionFunc) (*Snipp
 	return ps, resp, err
 }
 
+// SnippetFile represents the object that is used to create snippets
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ce/api/snippets.html#create-new-snippet
+type SnippetFile struct {
+	FilePath *string `url:"file_path,omitempty" json:"file_path,omitempty"`
+	Content  *string `url:"content,omitempty" json:"content,omitempty"`
+}
+
 // CreateSnippetOptions represents the available CreateSnippet() options.
 //
 // GitLab API docs:
@@ -110,6 +124,7 @@ type CreateSnippetOptions struct {
 	Description *string          `url:"description,omitempty" json:"description,omitempty"`
 	Content     *string          `url:"content,omitempty" json:"content,omitempty"`
 	Visibility  *VisibilityValue `url:"visibility,omitempty" json:"visibility,omitempty"`
+	Files       *[]*SnippetFile  `url:"files,omitempty" json:"files,omitempty"`
 }
 
 // CreateSnippet creates a new snippet. The user must have permission
@@ -117,8 +132,8 @@ type CreateSnippetOptions struct {
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/snippets.html#create-new-snippet
-func (s *SnippetsService) CreateSnippet(opt *CreateSnippetOptions, options ...OptionFunc) (*Snippet, *Response, error) {
-	req, err := s.client.NewRequest("POST", "snippets", opt, options)
+func (s *SnippetsService) CreateSnippet(opt *CreateSnippetOptions, options ...RequestOptionFunc) (*Snippet, *Response, error) {
+	req, err := s.client.NewRequest(http.MethodPost, "snippets", opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -149,10 +164,10 @@ type UpdateSnippetOptions struct {
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/snippets.html#update-snippet
-func (s *SnippetsService) UpdateSnippet(snippet int, opt *UpdateSnippetOptions, options ...OptionFunc) (*Snippet, *Response, error) {
+func (s *SnippetsService) UpdateSnippet(snippet int, opt *UpdateSnippetOptions, options ...RequestOptionFunc) (*Snippet, *Response, error) {
 	u := fmt.Sprintf("snippets/%d", snippet)
 
-	req, err := s.client.NewRequest("PUT", u, opt, options)
+	req, err := s.client.NewRequest(http.MethodPut, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -172,10 +187,10 @@ func (s *SnippetsService) UpdateSnippet(snippet int, opt *UpdateSnippetOptions, 
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/snippets.html#delete-snippet
-func (s *SnippetsService) DeleteSnippet(snippet int, options ...OptionFunc) (*Response, error) {
+func (s *SnippetsService) DeleteSnippet(snippet int, options ...RequestOptionFunc) (*Response, error) {
 	u := fmt.Sprintf("snippets/%d", snippet)
 
-	req, err := s.client.NewRequest("DELETE", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
 	if err != nil {
 		return nil, err
 	}
@@ -187,10 +202,10 @@ func (s *SnippetsService) DeleteSnippet(snippet int, options ...OptionFunc) (*Re
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/snippets.html#snippet-content
-func (s *SnippetsService) SnippetContent(snippet int, options ...OptionFunc) ([]byte, *Response, error) {
+func (s *SnippetsService) SnippetContent(snippet int, options ...RequestOptionFunc) ([]byte, *Response, error) {
 	u := fmt.Sprintf("snippets/%d/raw", snippet)
 
-	req, err := s.client.NewRequest("GET", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -214,8 +229,8 @@ type ExploreSnippetsOptions ListOptions
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/snippets.html#explore-all-public-snippets
-func (s *SnippetsService) ExploreSnippets(opt *ExploreSnippetsOptions, options ...OptionFunc) ([]*Snippet, *Response, error) {
-	req, err := s.client.NewRequest("GET", "snippets/public", nil, options)
+func (s *SnippetsService) ExploreSnippets(opt *ExploreSnippetsOptions, options ...RequestOptionFunc) ([]*Snippet, *Response, error) {
+	req, err := s.client.NewRequest(http.MethodGet, "snippets/public", opt, options)
 	if err != nil {
 		return nil, nil, err
 	}

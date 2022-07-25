@@ -28,7 +28,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -395,6 +395,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		DockerRegistryURL:          pipeline.CiTemplate.DockerRegistry.RegistryURL,
 		DockerRepository:           pipeline.CiTemplate.DockerRepository,
 		DockerBuildArgs:            string(merged),
+		DockerBuildTargetPlatform:  pipeline.CiTemplate.TargetPlatform,
 		DockerFileLocation:         dockerfilePath,
 		DockerUsername:             pipeline.CiTemplate.DockerRegistry.Username,
 		DockerPassword:             pipeline.CiTemplate.DockerRegistry.Password,

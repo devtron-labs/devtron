@@ -101,7 +101,7 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest CiLogRequest
 		}
 	}
 	req := kubeClient.CoreV1().Pods(ciLogRequest.Namespace).GetLogs(ciLogRequest.WorkflowName, podLogOpts)
-	podLogs, err := req.Stream()
+	podLogs, err := req.Stream(context.Background())
 	if podLogs == nil || err != nil {
 		impl.logger.Errorw("error in opening stream", "name", ciLogRequest.WorkflowName)
 		return nil, nil, err

@@ -36,7 +36,7 @@ import (
 	"strings"
 	"time"
 
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -399,7 +399,7 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		DockerRepository:  template.DockerRepository,
 		DockerRegistry:    template.DockerRegistry.Id,
 		DockerRegistryUrl: regHost,
-		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId},
+		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId, TargetPlatform: template.TargetPlatform},
 		Version:           template.Version,
 		CiTemplateName:    template.TemplateName,
 		Materials:         materials,
@@ -630,6 +630,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		DockerfilePath:    originalCiConf.DockerBuildConfig.DockerfilePath,
 		GitMaterialId:     originalCiConf.DockerBuildConfig.GitMaterialId,
 		Args:              string(argByte),
+		TargetPlatform:    originalCiConf.DockerBuildConfig.TargetPlatform,
 		BeforeDockerBuild: string(beforeByte),
 		AfterDockerBuild:  string(afterByte),
 		Version:           originalCiConf.Version,
@@ -709,6 +710,7 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 		GitMaterialId:     createRequest.DockerBuildConfig.GitMaterialId,
 		DockerfilePath:    createRequest.DockerBuildConfig.DockerfilePath,
 		Args:              string(argByte),
+		TargetPlatform:    createRequest.DockerBuildConfig.TargetPlatform,
 		Active:            true,
 		TemplateName:      createRequest.CiTemplateName,
 		Version:           createRequest.Version,
@@ -1216,8 +1218,11 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
 		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			//todo: provide option for cascading to user
+			cascadeDelete := true
 			req := &application2.ApplicationDeleteRequest{
-				Name: &deploymentAppName,
+				Name:    &deploymentAppName,
+				Cascade: &cascadeDelete,
 			}
 			if _, err := impl.application.Delete(ctx, req); err != nil {
 				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)

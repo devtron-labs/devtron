@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/util/argo"
 	"io"
 	"net/http"
 	"strconv"
@@ -112,6 +113,7 @@ type PipelineConfigRestHandlerImpl struct {
 	scanResultRepository         security.ImageScanResultRepository
 	gitProviderRepo              repository.GitProviderRepository
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
+  argoUserService         argo.ArgoUserService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -133,7 +135,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineConfigRestHandlerImpl {
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+  argoUserService argo.ArgoUserService) *PipelineConfigRestHandlerImpl {
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:              pipelineBuilder,
 		Logger:                       Logger,
@@ -161,6 +164,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		scanResultRepository:         scanResultRepository,
 		gitProviderRepo:              gitProviderRepo,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
+    argoUserService:         argoUserService,
 	}
 }
 
@@ -263,7 +267,14 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		ctx = context.WithValue(r.Context(), "token", token)
+		var acdToken string
+		acdToken, err = handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
 		createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
 	}
 	if err != nil {

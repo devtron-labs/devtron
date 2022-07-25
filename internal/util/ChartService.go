@@ -21,8 +21,8 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	repository3 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	repository3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	repository4 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -258,11 +258,14 @@ func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenc
 	} else {
 		err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
 		if err != nil {
+			impl.logger.Errorw("error in pulling git repo", "url", repoUrl, "err", err)
 			return err
 		}
 	}
 
 	dir := filepath.Join(clonedDir, referenceTemplate, version)
+	pushChartToGit := true
+
 	//if chart already exists don't overrides it by reference template
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
 		err = os.MkdirAll(dir, os.ModePerm)
@@ -275,29 +278,48 @@ func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenc
 			impl.logger.Errorw("error copying dir", "err", err)
 			return err
 		}
+	} else {
+		// auto-healing : data corruption fix - sometimes reference chart contents are not pushed in git-ops repo.
+		// copying content from reference template dir to cloned dir (if Chart.yaml file is not found)
+		// if Chart.yaml file is not found, we are assuming here that reference chart contents are not pushed in git-ops repo
+		if _, err := os.Stat(filepath.Join(dir, "Chart.yaml")); os.IsNotExist(err) {
+			impl.logger.Infow("auto-healing: Chart.yaml not found in cloned repo from git-ops. copying content", "from", tempReferenceTemplateDir, "to", dir)
+			err = dirCopy.Copy(tempReferenceTemplateDir, dir)
+			if err != nil {
+				impl.logger.Errorw("error copying content in auto-healing", "err", err)
+				return err
+			}
+		} else {
+			// chart exists on git, hence not performing first commit
+			pushChartToGit = false
+		}
 	}
 
-	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
-	commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
-	if err != nil {
-		impl.logger.Errorw("error in pushing git", "err", err)
-		impl.logger.Warn("re-trying, taking pull and then push again")
-		err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
-		if err != nil {
-			return err
-		}
-		err = dirCopy.Copy(tempReferenceTemplateDir, dir)
-		if err != nil {
-			impl.logger.Errorw("error copying dir", "err", err)
-			return err
-		}
-		commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+	// if push needed, then only push
+	if pushChartToGit {
+		userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
+		commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
-			return err
+			impl.logger.Warn("re-trying, taking pull and then push again")
+			err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
+			if err != nil {
+				return err
+			}
+			err = dirCopy.Copy(tempReferenceTemplateDir, dir)
+			if err != nil {
+				impl.logger.Errorw("error copying dir", "err", err)
+				return err
+			}
+			commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+			if err != nil {
+				impl.logger.Errorw("error in pushing git", "err", err)
+				return err
+			}
 		}
+		impl.logger.Debugw("template committed", "url", repoUrl, "commit", commit)
 	}
-	impl.logger.Debugw("template committed", "url", repoUrl, "commit", commit)
+
 	defer impl.CleanDir(clonedDir)
 	return nil
 }

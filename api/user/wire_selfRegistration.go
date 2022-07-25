@@ -15,8 +15,4 @@ var SelfRegistrationWireSet = wire.NewSet(
 
 	user.NewSelfRegistrationRolesServiceImpl,
 	wire.Bind(new(user.SelfRegistrationRolesService), new(*user.SelfRegistrationRolesServiceImpl)),
-	NewSelfRegistrationRolesHandlerImpl,
-	wire.Bind(new(SelfRegistrationRolesHandler), new(*SelfRegistrationRolesHandlerImpl)),
-	NewSelfRegistrationRolesRouterImpl,
-	wire.Bind(new(SelfRegistrationRolesRouter), new(*SelfRegistrationRolesRouterImpl)),
 )

@@ -227,7 +227,7 @@ func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStat
 		Join("inner join cd_workflow cdwf on cdwf.pipeline_id = p.id").
 		Join("inner join cd_workflow_runner cdwfr on cdwfr.cd_workflow_id = cdwf.id").
 		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_HELM).
-		Where("cdwfr.status not in (?)", pg.In([]string{application.Degraded, application.HIBERNATING, "Failed", "Aborted"})).
+		Where("cdwfr.status not in (?)", pg.In([]string{application.Degraded, application.HIBERNATING, application.Healthy, "Failed", "Aborted"})).
 		Where("cdwfr.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
 		Where("p.deleted = ?", false).
 		Select()

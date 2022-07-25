@@ -1,5 +1,5 @@
 //
-// Copyright 2018, Patrick Webster
+// Copyright 2021, Patrick Webster
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package gitlab
 
 import (
 	"fmt"
+	"net/http"
 	"net/url"
 )
 
@@ -35,28 +36,42 @@ type ProjectVariablesService struct {
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/project_level_variables.html
 type ProjectVariable struct {
-	Key              string `json:"key"`
-	Value            string `json:"value"`
-	Protected        bool   `json:"protected"`
-	EnvironmentScope string `json:"environment_scope"`
+	Key              string            `json:"key"`
+	Value            string            `json:"value"`
+	VariableType     VariableTypeValue `json:"variable_type"`
+	Protected        bool              `json:"protected"`
+	Masked           bool              `json:"masked"`
+	EnvironmentScope string            `json:"environment_scope"`
 }
 
 func (v ProjectVariable) String() string {
 	return Stringify(v)
 }
 
+//VariableFilter filters available for project variable related functions
+type VariableFilter struct {
+	EnvironmentScope string `url:"environment_scope, omitempty" json:"environment_scope,omitempty"`
+}
+
+// ListProjectVariablesOptions represents the available options for listing variables
+// in a project.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/project_level_variables.html#list-project-variables
+type ListProjectVariablesOptions ListOptions
+
 // ListVariables gets a list of all variables in a project.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/project_level_variables.html#list-project-variables
-func (s *ProjectVariablesService) ListVariables(pid interface{}, options ...OptionFunc) ([]*ProjectVariable, *Response, error) {
+func (s *ProjectVariablesService) ListVariables(pid interface{}, opt *ListProjectVariablesOptions, options ...RequestOptionFunc) ([]*ProjectVariable, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/variables", url.QueryEscape(project))
+	u := fmt.Sprintf("projects/%s/variables", PathEscape(project))
 
-	req, err := s.client.NewRequest("GET", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -70,18 +85,27 @@ func (s *ProjectVariablesService) ListVariables(pid interface{}, options ...Opti
 	return vs, resp, err
 }
 
+// GetProjectVariableOptions represents the available GetVariable()
+// options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/project_level_variables.html#show-variable-details
+type GetProjectVariableOptions struct {
+	Filter *VariableFilter `url:"filter,omitempty" json:"filter,omitempty"`
+}
+
 // GetVariable gets a variable.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/project_level_variables.html#show-variable-details
-func (s *ProjectVariablesService) GetVariable(pid interface{}, key string, options ...OptionFunc) (*ProjectVariable, *Response, error) {
+func (s *ProjectVariablesService) GetVariable(pid interface{}, key string, opt *GetProjectVariableOptions, options ...RequestOptionFunc) (*ProjectVariable, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/variables/%s", url.QueryEscape(project), url.QueryEscape(key))
+	u := fmt.Sprintf("projects/%s/variables/%s", PathEscape(project), url.PathEscape(key))
 
-	req, err := s.client.NewRequest("GET", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -95,30 +119,32 @@ func (s *ProjectVariablesService) GetVariable(pid interface{}, key string, optio
 	return v, resp, err
 }
 
-// CreateVariableOptions represents the available
-// CreateVariable() options.
+// CreateProjectVariableOptions represents the available CreateVariable()
+// options.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/project_level_variables.html#create-variable
-type CreateVariableOptions struct {
-	Key              *string `url:"key,omitempty" json:"key,omitempty"`
-	Value            *string `url:"value,omitempty" json:"value,omitempty"`
-	Protected        *bool   `url:"protected,omitempty" json:"protected,omitempty"`
-	EnvironmentScope *string `url:"environment_scope,omitempty" json:"environment_scope,omitempty"`
+type CreateProjectVariableOptions struct {
+	Key              *string            `url:"key,omitempty" json:"key,omitempty"`
+	Value            *string            `url:"value,omitempty" json:"value,omitempty"`
+	VariableType     *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
+	Protected        *bool              `url:"protected,omitempty" json:"protected,omitempty"`
+	Masked           *bool              `url:"masked,omitempty" json:"masked,omitempty"`
+	EnvironmentScope *string            `url:"environment_scope,omitempty" json:"environment_scope,omitempty"`
 }
 
 // CreateVariable creates a new project variable.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/project_level_variables.html#create-variable
-func (s *ProjectVariablesService) CreateVariable(pid interface{}, opt *CreateVariableOptions, options ...OptionFunc) (*ProjectVariable, *Response, error) {
+func (s *ProjectVariablesService) CreateVariable(pid interface{}, opt *CreateProjectVariableOptions, options ...RequestOptionFunc) (*ProjectVariable, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/variables", url.QueryEscape(project))
+	u := fmt.Sprintf("projects/%s/variables", PathEscape(project))
 
-	req, err := s.client.NewRequest("POST", u, opt, options)
+	req, err := s.client.NewRequest(http.MethodPost, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -132,32 +158,32 @@ func (s *ProjectVariablesService) CreateVariable(pid interface{}, opt *CreateVar
 	return v, resp, err
 }
 
-// UpdateVariableOptions represents the available
-// UpdateVariable() options.
+// UpdateProjectVariableOptions represents the available UpdateVariable()
+// options.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/project_level_variables.html#update-variable
-type UpdateVariableOptions struct {
-	Value            *string `url:"value,omitempty" json:"value,omitempty"`
-	Protected        *bool   `url:"protected,omitempty" json:"protected,omitempty"`
-	EnvironmentScope *string `url:"environment_scope,omitempty" json:"environment_scope,omitempty"`
+type UpdateProjectVariableOptions struct {
+	Value            *string            `url:"value,omitempty" json:"value,omitempty"`
+	VariableType     *VariableTypeValue `url:"variable_type,omitempty" json:"variable_type,omitempty"`
+	Protected        *bool              `url:"protected,omitempty" json:"protected,omitempty"`
+	Masked           *bool              `url:"masked,omitempty" json:"masked,omitempty"`
+	EnvironmentScope *string            `url:"environment_scope,omitempty" json:"environment_scope,omitempty"`
+	Filter           *VariableFilter    `url:"filter,omitempty" json:"filter,omitempty"`
 }
 
-// UpdateVariable updates a project's variable
+// UpdateVariable updates a project's variable.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/project_level_variables.html#update-variable
-func (s *ProjectVariablesService) UpdateVariable(pid interface{}, key string, opt *UpdateVariableOptions, options ...OptionFunc) (*ProjectVariable, *Response, error) {
+func (s *ProjectVariablesService) UpdateVariable(pid interface{}, key string, opt *UpdateProjectVariableOptions, options ...RequestOptionFunc) (*ProjectVariable, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/variables/%s",
-		url.QueryEscape(project),
-		url.QueryEscape(key),
-	)
+	u := fmt.Sprintf("projects/%s/variables/%s", PathEscape(project), url.PathEscape(key))
 
-	req, err := s.client.NewRequest("PUT", u, opt, options)
+	req, err := s.client.NewRequest(http.MethodPut, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -169,23 +195,29 @@ func (s *ProjectVariablesService) UpdateVariable(pid interface{}, key string, op
 	}
 
 	return v, resp, err
+}
+
+// RemoveProjectVariableOptions represents the available RemoveVariable()
+// options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ee/api/project_level_variables.html#remove-variable
+type RemoveProjectVariableOptions struct {
+	Filter *VariableFilter `url:"filter,omitempty" json:"filter,omitempty"`
 }
 
 // RemoveVariable removes a project's variable.
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/project_level_variables.html#remove-variable
-func (s *ProjectVariablesService) RemoveVariable(pid interface{}, key string, options ...OptionFunc) (*Response, error) {
+func (s *ProjectVariablesService) RemoveVariable(pid interface{}, key string, opt *RemoveProjectVariableOptions, options ...RequestOptionFunc) (*Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, err
 	}
-	u := fmt.Sprintf("projects/%s/variables/%s",
-		url.QueryEscape(project),
-		url.QueryEscape(key),
-	)
+	u := fmt.Sprintf("projects/%s/variables/%s", PathEscape(project), url.PathEscape(key))
 
-	req, err := s.client.NewRequest("DELETE", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodDelete, u, opt, options)
 	if err != nil {
 		return nil, err
 	}

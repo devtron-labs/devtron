@@ -20,10 +20,10 @@ package repository
 import (
 	"context"
 	"errors"
-	repository2 "github.com/argoproj/argo-cd/pkg/apiclient/repository"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/util/settings"
+	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"go.uber.org/zap"
@@ -76,7 +76,7 @@ func (r ServiceClientImpl) List(ctx context.Context, query *repository2.RepoQuer
 	if err != nil {
 		return nil, err
 	}
-	return client.List(ctx, query)
+	return client.ListRepositories(ctx, query)
 }
 
 func (r ServiceClientImpl) ListApps(ctx context.Context, query *repository2.RepoAppsQuery) (*repository2.RepoAppsResponse, error) {
@@ -106,7 +106,7 @@ func (r ServiceClientImpl) Create(ctx context.Context, query *repository2.RepoCr
 	if err != nil {
 		return nil, err
 	}
-	return client.Create(ctx, query)
+	return client.CreateRepository(ctx, query)
 }
 
 func (r ServiceClientImpl) Update(ctx context.Context, query *repository2.RepoUpdateRequest) (*v1alpha1.Repository, error) {
@@ -116,7 +116,7 @@ func (r ServiceClientImpl) Update(ctx context.Context, query *repository2.RepoUp
 	if err != nil {
 		return nil, err
 	}
-	return client.Update(ctx, query)
+	return client.UpdateRepository(ctx, query)
 }
 
 func (r ServiceClientImpl) Delete(ctx context.Context, query *repository2.RepoQuery) (*repository2.RepoResponse, error) {
@@ -126,5 +126,5 @@ func (r ServiceClientImpl) Delete(ctx context.Context, query *repository2.RepoQu
 	if err != nil {
 		return nil, err
 	}
-	return client.Delete(ctx, query)
+	return client.DeleteRepository(ctx, query)
 }

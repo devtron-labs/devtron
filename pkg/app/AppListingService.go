@@ -21,15 +21,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util/argo"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -140,6 +141,7 @@ type AppListingServiceImpl struct {
 	envLevelMetricsRepository  repository.EnvLevelAppMetricsRepository
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
 	environmentRepository      repository2.EnvironmentRepository
+	argoUserService            argo.ArgoUserService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -148,7 +150,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
-) *AppListingServiceImpl {
+	argoUserService argo.ArgoUserService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                     Logger,
 		appListingRepository:       appListingRepository,
@@ -162,6 +164,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		cdWorkflowRepository:       cdWorkflowRepository,
 		pipelineOverrideRepository: pipelineOverrideRepository,
 		environmentRepository:      environmentRepository,
+		argoUserService:            argoUserService,
 	}
 	return serviceImpl
 }
@@ -437,7 +440,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			}
 			if cdStageRunner != nil {
 				status := cdStageRunner.Status
-				if status == v1alpha1.HealthStatusHealthy {
+				if status == string(health.HealthStatusHealthy) {
 					stopType := releaseMap[pipeline.Id]
 					if stopType {
 						status = application2.HIBERNATING
@@ -518,8 +521,13 @@ func (impl AppListingServiceImpl) getAppACDStatus(env bean.AppEnvironmentContain
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		ctx = context.WithValue(ctx, "token", token)
 		defer cancel()
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.Logger.Errorw("error in getting acd token", "err", err)
+			return "", err
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
 		impl.Logger.Debugf("Getting status for app %s in env %s", env.AppId, env.EnvironmentId)
 		start := time.Now()
 		resp, err := impl.application.ResourceTree(ctx, query)

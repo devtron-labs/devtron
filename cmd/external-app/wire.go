@@ -20,6 +20,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
+	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/client/dashboard"
 	"github.com/devtron-labs/devtron/client/telemetry"
@@ -35,6 +36,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/google/wire"
@@ -42,6 +44,7 @@ import (
 
 func InitializeApp() (*App, error) {
 	wire.Build(
+		user.SelfRegistrationWireSet,
 
 		sql.PgSqlWireSet,
 		user.UserWireSet,
@@ -60,6 +63,7 @@ func InitializeApp() (*App, error) {
 		server.ServerWireSet,
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
+		webhookHelm.WebhookHelmWireSet,
 
 		NewApp,
 		NewMuxRouter,
@@ -109,6 +113,13 @@ func InitializeApp() (*App, error) {
 		dashboardEvent.NewDashboardTelemetryRouterImpl,
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRouter),
 			new(*dashboardEvent.DashboardTelemetryRouterImpl)),
+
+		repository.NewGitOpsConfigRepositoryImpl,
+		wire.Bind(new(repository.GitOpsConfigRepository), new(*repository.GitOpsConfigRepositoryImpl)),
+
+		//binding argoUserService to helm via dummy implementation(HelmUserServiceImpl)
+		argo.NewHelmUserServiceImpl,
+		wire.Bind(new(argo.ArgoUserService), new(*argo.HelmUserServiceImpl)),
 	)
 	return &App{}, nil
 }

@@ -102,6 +102,7 @@ type CiPipeline struct {
 	AppWorkflowId            int                    `json:"appWorkflowId,omitempty"`
 	PreBuildStage            *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
 	PostBuildStage           *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
+	TargetPlatform           string                 `json:"targetPlatform,omitempty"`
 }
 
 type CiPipelineMin struct {
@@ -259,6 +260,7 @@ type DockerBuildConfig struct {
 	GitMaterialId  int               `json:"gitMaterialId,omitempty" validate:"required"`
 	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
 	Args           map[string]string `json:"args,omitempty"`
+	TargetPlatform string            `json:"targetPlatform"`
 	//Name Tag DockerfilePath RepoUrl
 }
 

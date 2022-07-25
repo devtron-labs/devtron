@@ -123,6 +123,7 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 	}
 
 	chart := &chartRepoRepository.Chart{
+		Id:                      environmentConfig.ChartId,
 		ChartName:               environmentConfig.ChartName,
 		ChartLocation:           environmentConfig.ChartLocation,
 		GlobalOverride:          environmentConfig.GlobalOverride,
