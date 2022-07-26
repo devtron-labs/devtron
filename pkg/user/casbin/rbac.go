@@ -19,6 +19,7 @@ package casbin
 
 import (
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/casbin/casbin"
 	"github.com/devtron-labs/authenticator/jwt"
 	"github.com/devtron-labs/authenticator/middleware"
@@ -26,9 +27,8 @@ import (
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	"log"
 	"math"
-	"os"
-	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -50,7 +50,8 @@ func NewEnforcerImpl(
 	logger *zap.SugaredLogger) *EnforcerImpl {
 	lock := make(map[string]*CacheData)
 	batchRequestLock := make(map[string]*sync.Mutex)
-	enf := &EnforcerImpl{lock: lock, batchRequestLock: batchRequestLock, Cache: checkCacheEnabled(logger), Enforcer: enforcer, logger: logger, SessionManager: sessionManager}
+	enforcerConfig := getConfig()
+	enf := &EnforcerImpl{lock: lock, batchRequestLock: batchRequestLock, enforcerConfig: enforcerConfig, Cache: getEnforcerCache(logger, enforcerConfig), Enforcer: enforcer, logger: logger, SessionManager: sessionManager}
 	setEnforcerImpl(enf)
 	return enf
 }
@@ -61,20 +62,25 @@ type CacheData struct {
 	enforceReqCounter int64
 }
 
-func checkCacheEnabled(logger *zap.SugaredLogger) *cache.Cache {
-	enableEnforcerCache := os.Getenv("ENFORCER_CACHE")
-	enableEnforcerCacheVal, err := strconv.ParseBool(enableEnforcerCache)
+type EnforcerConfig struct {
+	cacheEnabled          bool `env:"ENFORCER_CACHE" envDefault:"false"`
+	cacheExpirationInSecs int  `env:"ENFORCER_CACHE_EXPIRATION_IN_SEC" envDefault:"86400"`
+	enforcerBatchSize     int  `env:"ENFORCER_MAX_BATCH_SIZE" envDefault:"1"`
+}
+
+func getConfig() *EnforcerConfig {
+	cacheConfig := &EnforcerConfig{}
+	err := env.Parse(cacheConfig)
 	if err != nil {
-		logger.Errorw("Error occurred while parsing cache_enable flag", "enableEnforcerCache", enableEnforcerCache, "reason", err)
-		enableEnforcerCacheVal = false
+		log.Fatal(err)
 	}
+	return cacheConfig
+}
+
+func getEnforcerCache(logger *zap.SugaredLogger, enforcerConfig *EnforcerConfig) *cache.Cache {
+	enableEnforcerCacheVal := enforcerConfig.cacheEnabled
 	if enableEnforcerCacheVal {
-		enforcerCacheExpirationInSec := os.Getenv("ENFORCER_CACHE_EXPIRATION_IN_SEC")
-		enforcerCacheExpirationDuration := EnforcerCacheDefaultExpiration
-		enforcerCacheExpirationValue, err := strconv.Atoi(enforcerCacheExpirationInSec)
-		if err == nil {
-			enforcerCacheExpirationDuration = time.Second * time.Duration(enforcerCacheExpirationValue)
-		}
+		enforcerCacheExpirationDuration := time.Second * time.Duration(enforcerConfig.cacheExpirationInSecs)
 		logger.Infow("enforce cache enabled", "expiry", enforcerCacheExpirationDuration)
 		return cache.New(enforcerCacheExpirationDuration, 5*time.Minute)
 	}
@@ -93,7 +99,8 @@ type EnforcerImpl struct {
 	*cache.Cache
 	*casbin.Enforcer
 	*middleware.SessionManager
-	logger *zap.SugaredLogger
+	logger         *zap.SugaredLogger
+	enforcerConfig *EnforcerConfig
 }
 
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
@@ -118,7 +125,7 @@ func (e *EnforcerImpl) EnforceErr(emailId string, resource string, action string
 	return nil
 }
 
-func EnforceByEmailInBatchSync(e *EnforcerImpl, wg *sync.WaitGroup, mutex *sync.RWMutex, result map[string]bool, metrics map[int]int64, index int, emailId string, resource string, action string, vals []string) {
+func (e *EnforcerImpl) enforceByEmailInBatchSync(wg *sync.WaitGroup, mutex *sync.RWMutex, result map[string]bool, metrics map[int]int64, index int, emailId string, resource string, action string, vals []string) {
 	defer wg.Done()
 	start := time.Now()
 	batchResult := make(map[string]bool)
@@ -140,19 +147,13 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	var maxTimegap int64 = 0
 	var minTimegap int64 = math.MaxInt64
 	var avgTimegap float64
-	enforcerMaxBatchSize := os.Getenv("ENFORCER_MAX_BATCH_SIZE")
-	batchSize, err := strconv.Atoi(enforcerMaxBatchSize)
-	if err != nil {
-		batchSize = EnforcerBatchDefaultSize
-		err = nil
-	}
-
-	batchRequestLock := getBatchRequestLock(e, emailId)
+	batchSize := e.enforcerConfig.enforcerBatchSize
+	batchRequestLock := e.getBatchRequestLock(emailId)
 	batchRequestLock.Lock()
 	defer batchRequestLock.Unlock()
 
 	var metrics = make(map[int]int64)
-	result, notFoundItemList := batchEnforceFromCache(e, emailId, resource, action, vals)
+	result, notFoundItemList := e.batchEnforceFromCache(emailId, resource, action, vals)
 	if len(result) > 0 {
 		vals = notFoundItemList
 	}
@@ -170,7 +171,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 		if endIndex > totalSize {
 			endIndex = totalSize
 		}
-		go EnforceByEmailInBatchSync(e, wg, batchMutex, result, metrics, i, emailId, resource, action, vals[startIndex:endIndex])
+		go e.enforceByEmailInBatchSync(wg, batchMutex, result, metrics, i, emailId, resource, action, vals[startIndex:endIndex])
 	}
 	wg.Wait()
 	for _, duration := range metrics {
@@ -183,7 +184,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 		}
 	}
 
-	enforcerCacheData := getEnforcerCacheLock(e, emailId)
+	enforcerCacheData := e.getEnforcerCacheLock(emailId)
 	enforcerCacheData.lock.Lock()
 	defer enforcerCacheData.lock.Unlock()
 	returnVal := atomic.AddInt64(&enforcerCacheData.enforceReqCounter, -1)
@@ -193,7 +194,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 			enforcerCacheData.cacheCleaningFlag = false
 		}
 	} else {
-		storeCacheData(e, emailId, resource, action, result)
+		e.storeCacheData(emailId, resource, action, result)
 		dataCached = true
 	}
 
@@ -207,7 +208,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	return result
 }
 
-func getBatchRequestLock(e *EnforcerImpl, emailId string) *sync.Mutex {
+func (e *EnforcerImpl) getBatchRequestLock(emailId string) *sync.Mutex {
 	emailBatchRequestMutex, found := e.batchRequestLock[getLockKey(emailId)]
 	if !found {
 		emailBatchRequestMutex = &sync.Mutex{}
@@ -216,7 +217,7 @@ func getBatchRequestLock(e *EnforcerImpl, emailId string) *sync.Mutex {
 	return emailBatchRequestMutex
 }
 
-func getEnforcerCacheLock(e *EnforcerImpl, emailId string) *CacheData {
+func (e *EnforcerImpl) getEnforcerCacheLock(emailId string) *CacheData {
 	enforcerCacheMutex, found := e.lock[getLockKey(emailId)]
 	if !found {
 		enforcerCacheMutex =
@@ -230,7 +231,7 @@ func getEnforcerCacheLock(e *EnforcerImpl, emailId string) *CacheData {
 	return enforcerCacheMutex
 }
 
-func getCacheData(e *EnforcerImpl, emailId string, resource string, action string) map[string]bool {
+func (e *EnforcerImpl) getCacheData(emailId string, resource string, action string) map[string]bool {
 	result := make(map[string]bool)
 	if e.Cache == nil {
 		return result
@@ -246,14 +247,13 @@ func getCacheData(e *EnforcerImpl, emailId string, resource string, action strin
 	return result
 }
 
-func batchEnforceFromCache(e *EnforcerImpl, emailId string, resource string, action string, resourceItems []string) (map[string]bool, []string) {
+func (e *EnforcerImpl) batchEnforceFromCache(emailId string, resource string, action string, resourceItems []string) (map[string]bool, []string) {
 	var result = make(map[string]bool)
 	var notFoundDataList []string
-	cacheLock := getEnforcerCacheLock(e, emailId)
+	cacheLock := e.getEnforcerCacheLock(emailId)
 	cacheLock.lock.RLock()
-	defer cacheLock.lock.RUnlock()
-	atomic.AddInt64(&cacheLock.enforceReqCounter, 1)
-	enforceData := getCacheData(e, emailId, resource, action)
+	defer freeCacheReadLock(cacheLock)
+	enforceData := e.getCacheData(emailId, resource, action)
 	if enforceData != nil {
 		for _, resourceItem := range resourceItems {
 			data, found := enforceData[resourceItem]
@@ -268,17 +268,21 @@ func batchEnforceFromCache(e *EnforcerImpl, emailId string, resource string, act
 	return result, notFoundDataList
 }
 
-func enforceFromCache(e *EnforcerImpl, emailId string, resource string, action string, resourceItem string) (bool, bool) {
-	cacheLock := getEnforcerCacheLock(e, emailId)
+func (e *EnforcerImpl) enforceFromCache(emailId string, resource string, action string, resourceItem string) (bool, bool) {
+	cacheLock := e.getEnforcerCacheLock(emailId)
 	cacheLock.lock.RLock()
-	defer cacheLock.lock.RUnlock()
-	atomic.AddInt64(&cacheLock.enforceReqCounter, 1)
-	enforceData := getCacheData(e, emailId, resource, action)
+	defer freeCacheReadLock(cacheLock)
+	enforceData := e.getCacheData(emailId, resource, action)
 	data, found := enforceData[resourceItem]
 	return data, found
 }
 
-func storeCacheData(e *EnforcerImpl, emailId string, resource string, action string, result map[string]bool) {
+func freeCacheReadLock(cacheData *CacheData) {
+	atomic.AddInt64(&cacheData.enforceReqCounter, 1)
+	cacheData.lock.RUnlock()
+}
+
+func (e *EnforcerImpl) storeCacheData(emailId string, resource string, action string, result map[string]bool) {
 	if e.Cache == nil {
 		return
 	}
@@ -299,7 +303,7 @@ func getLockKey(emailId string) string {
 }
 
 func (e *EnforcerImpl) InvalidateCache(emailId string) bool {
-	cacheLock := getEnforcerCacheLock(e, emailId)
+	cacheLock := e.getEnforcerCacheLock(emailId)
 	cacheLock.lock.Lock()
 	defer cacheLock.lock.Unlock()
 	e.logger.Debugw("invalidating cache & setting flag ", "emailId", emailId)
@@ -323,18 +327,18 @@ func (e *EnforcerImpl) InvalidateCompleteCache() {
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
 func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, token string, resource string, action string, resourceItem string) bool {
 	// check the default role
-	email, invalid := verifyTokenAndGetEmail(e, token)
+	email, invalid := e.verifyTokenAndGetEmail(token)
 	if invalid {
 		return false
 	}
 	return e.enforceByEmail(enf, email, resource, action, resourceItem)
 }
 
-func enforceAndUpdateCache(enf *casbin.Enforcer, e *EnforcerImpl, email string, resource string, action string, resourceItem string) bool {
-	cacheData := getEnforcerCacheLock(e, email)
+func (e *EnforcerImpl) enforceAndUpdateCache(enf *casbin.Enforcer, email string, resource string, action string, resourceItem string) bool {
+	cacheData := e.getEnforcerCacheLock(email)
 	cacheData.lock.Lock()
-	defer cacheData.lock.Unlock()
 	enforcedStatus := enf.Enforce(email, resource, action, resourceItem)
+	defer cacheData.lock.Unlock()
 	returnVal := atomic.AddInt64(&cacheData.enforceReqCounter, -1)
 	if cacheData.cacheCleaningFlag {
 		if returnVal == 0 {
@@ -344,13 +348,13 @@ func enforceAndUpdateCache(enf *casbin.Enforcer, e *EnforcerImpl, email string, 
 			"action", action, "resourceItem", resourceItem, "enforceReqCounter", cacheData.enforceReqCounter)
 		return enforcedStatus
 	}
-	enforceData := getCacheData(e, email, resource, action)
+	enforceData := e.getCacheData(email, resource, action)
 	enforceData[resourceItem] = enforcedStatus
-	storeCacheData(e, email, resource, action, enforceData)
+	e.storeCacheData(email, resource, action, enforceData)
 	return enforcedStatus
 }
 
-func verifyTokenAndGetEmail(e *EnforcerImpl, tokenString string) (string, bool) {
+func (e *EnforcerImpl) verifyTokenAndGetEmail(tokenString string) (string, bool) {
 	claims, err := e.SessionManager.VerifyToken(tokenString)
 	if err != nil {
 		return "", true
@@ -370,9 +374,9 @@ func verifyTokenAndGetEmail(e *EnforcerImpl, tokenString string) (string, bool) 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
 func (e *EnforcerImpl) enforceByEmail(enf *casbin.Enforcer, emailId string, resource string, action string, resourceItem string) bool {
 	defer handlePanic()
-	response, found := enforceFromCache(e, emailId, resource, action, resourceItem)
+	response, found := e.enforceFromCache(emailId, resource, action, resourceItem)
 	if found {
-		cacheData := getEnforcerCacheLock(e, emailId)
+		cacheData := e.getEnforcerCacheLock(emailId)
 		cacheData.lock.Lock()
 		defer cacheData.lock.Unlock()
 		returnVal := atomic.AddInt64(&cacheData.enforceReqCounter, -1)
@@ -381,7 +385,7 @@ func (e *EnforcerImpl) enforceByEmail(enf *casbin.Enforcer, emailId string, reso
 		}
 		return response
 	}
-	enforcedStatus := enforceAndUpdateCache(enf, e, emailId, resource, action, resourceItem)
+	enforcedStatus := e.enforceAndUpdateCache(enf, emailId, resource, action, resourceItem)
 	return enforcedStatus
 }
 

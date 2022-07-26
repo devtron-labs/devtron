@@ -78,7 +78,6 @@ func AddPolicy(policies []Policy) []Policy {
 	defer handlePanic()
 	LoadPolicy()
 	var failed = []Policy{}
-	var emailIdList []string
 	for _, p := range policies {
 		success := false
 		if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
@@ -95,9 +94,6 @@ func AddPolicy(policies []Policy) []Policy {
 		if !success {
 			failed = append(failed, p)
 		}
-		if p.Sub != "" {
-			emailIdList = append(emailIdList, strings.ToLower(string(p.Sub)))
-		}
 	}
 	if len(policies) != len(failed) {
 		err := e.LoadPolicy()
@@ -107,9 +103,7 @@ func AddPolicy(policies []Policy) []Policy {
 			fmt.Println("policy reloaded successfully")
 		}
 	}
-	for _, emailId := range emailIdList {
-		enforcerImplRef.InvalidateCache(emailId)
-	}
+	enforcerImplRef.InvalidateCompleteCache()
 	return failed
 }
 
@@ -126,7 +120,6 @@ func LoadPolicy() {
 func RemovePolicy(policies []Policy) []Policy {
 	defer handlePanic()
 	var failed = []Policy{}
-	var emailIdList []string
 	for _, p := range policies {
 		success := false
 		if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
@@ -137,16 +130,11 @@ func RemovePolicy(policies []Policy) []Policy {
 		if !success {
 			failed = append(failed, p)
 		}
-		if p.Sub != "" {
-			emailIdList = append(emailIdList, strings.ToLower(string(p.Sub)))
-		}
 	}
 	if len(policies) != len(failed) {
 		_ = e.LoadPolicy()
 	}
-	for _, emailId := range emailIdList {
-		enforcerImplRef.InvalidateCache(emailId)
-	}
+	enforcerImplRef.InvalidateCompleteCache()
 	return failed
 }
 
@@ -156,8 +144,9 @@ func GetAllSubjects() []string {
 
 func DeleteRoleForUser(user string, role string) bool {
 	user = strings.ToLower(user)
-	enforcerImplRef.InvalidateCache(user)
-	return e.DeleteRoleForUser(user, role)
+	response := e.DeleteRoleForUser(user, role)
+	enforcerImplRef.InvalidateCompleteCache()
+	return response
 }
 
 func GetRolesForUser(user string) ([]string, error) {
@@ -171,9 +160,10 @@ func GetUserByRole(role string) ([]string, error) {
 }
 
 func RemovePoliciesByRoles(roles string) bool {
-	enforcerImplRef.InvalidateCompleteCache()
 	roles = strings.ToLower(roles)
-	return e.RemovePolicy([]string{roles})
+	policyResponse := e.RemovePolicy([]string{roles})
+	enforcerImplRef.InvalidateCompleteCache()
+	return policyResponse
 }
 
 func handlePanic() {

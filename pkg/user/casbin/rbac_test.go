@@ -1,8 +1,10 @@
 package casbin
 
 import (
+	"fmt"
 	"github.com/patrickmn/go-cache"
 	"math/rand"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -14,23 +16,22 @@ func TestEnforcerCache(t *testing.T) {
 	t.SkipNow()
 
 	lock := make(map[string]*CacheData)
-	cache123 := cache.New(-1, 5*time.Minute)
+	enforcerCacheExpirationInSec := "432000"
+	cacheExpiration, _ := strconv.Atoi(enforcerCacheExpirationInSec)
+	cache123 := cache.New(time.Second*time.Duration(cacheExpiration), 5*time.Minute)
 
 	t.Run("requesterAndWriter", func(t *testing.T) {
 		for i := 0; i < 100_000; i++ {
 			emailId := GetRandomStringOfGivenLength(rand.Intn(1000)) + "@yopmail.com"
 			getAndSet(lock, emailId, cache123)
+			result, expiration, b := cache123.GetWithExpiration(emailId)
+			fmt.Println("result", result, "expiration", expiration, "found", b)
 		}
 	})
 	t.Run("CacheInvalidate", func(t *testing.T) {
 		invalidateCache_123(lock, cache123)
 	})
 
-	t.Run("cache123-maintainer", func(t *testing.T) {
-		//for true {
-		//	fmt.Println("hello-world")
-		//}
-	})
 }
 
 func GetRandomStringOfGivenLength(length int) string {
@@ -78,7 +79,7 @@ func getAndSet(lock map[string]*CacheData, emailId string, cache *cache.Cache) b
 	resultVal := enforce(emailId)
 	cacheLock.lock.Lock()
 	if !cacheLock.cacheCleaningFlag {
-		cache.Set(emailId, resultVal, -1)
+		cache.Set(emailId, resultVal, 0)
 	}
 	returnVal := atomic.AddInt64(&cacheLock.enforceReqCounter, -1)
 	if cacheLock.cacheCleaningFlag {

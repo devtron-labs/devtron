@@ -17,8 +17,6 @@
 
 package casbin
 
-import "time"
-
 const (
 	ResourceCluster           = "cluster"
 	ResourceGlobalEnvironment = "global-environment"
@@ -43,15 +41,12 @@ const (
 	ResourceAdmin   = "admin"
 	ResourceGlobal  = "global-resource"
 	ResourceHelmApp = "helm-app"
-	ActionGet     = "get"
-	ActionCreate  = "create"
-	ActionUpdate  = "update"
-	ActionDelete  = "delete"
-	ActionSync    = "sync"
-	ActionTrigger = "trigger"
-	ActionNotify  = "notify"
-	ActionExec    = "exec"
-
-	EnforcerBatchDefaultSize       = 1
-	EnforcerCacheDefaultExpiration = time.Minute * 60
+	ActionGet       = "get"
+	ActionCreate    = "create"
+	ActionUpdate    = "update"
+	ActionDelete    = "delete"
+	ActionSync      = "sync"
+	ActionTrigger   = "trigger"
+	ActionNotify    = "notify"
+	ActionExec      = "exec"
 )
