@@ -44,6 +44,34 @@ In this field, you have to provide the Git checkout path of your repository. Thi
 Here, you provide a relative path where your docker file is located. Ensure that the dockerfile is present on this path.
 
 ## Advanced 
+
+### Set Target Platform for the build
+
+Using this option, users can build images for a specific or multiple **architectures and operating systems (target platforms)**. They can select the target platform from the drop-down or can type to select a custom target platform.
+![Select target platform from drop-down](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/set-target-platform.png)
+
+![Select custom target platform](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/set-target-platform-2.png)
+
+Before selecting a custom target platform, please ensure that the architecture and the operating system is supported by the `registry type` you are using, otherwise builds will fail. Devtron uses BuildX to build images for mutiple target Platforms, which requires higher CI worker resources. To allocate more resources, you can increase value of the following parameters in the `devtron-cm` configmap in `devtroncd` namespace.
+
+- LIMIT_CI_CPU 
+- REQ_CI_CPU
+- REQ_CI_MEM
+- LIMIT_CI_MEM
+
+To edit the `devtron-cm` configmap in `devtroncd` namespace:
+```
+kubectl edit configmap devtron-cm -n devtroncd 
+```
+
+
+
+If target platform is not set, Devtron will build image for architecture and operating system of the k8s node on which CI is running.
+
+The Target Platform feature might not work in minikube & microk8s clusters as of now.
+
+
+
  Docker build arguments is a collapsed view including
    * Key
    * Value
