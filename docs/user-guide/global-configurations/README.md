@@ -20,7 +20,7 @@ _**This documentation consists of the Global Configurations available in Devtron
 
 [SSO Login Service](sso-login.md)
 
-[User Access](user-access.md)
+[Authorization](authorization/README.md)
 
 [Manage Notification](manage-notification.md)
 
