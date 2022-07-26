@@ -42,16 +42,18 @@ type Enforcer interface {
 	EnforceByEmailInBatch(emailId string, resource string, action string, vals []string) map[string]bool
 	InvalidateCache(emailId string) bool
 	InvalidateCompleteCache()
+	ReloadPolicy() error
 }
 
 func NewEnforcerImpl(
-	enforcer *casbin.Enforcer,
+	enforcer *casbin.SyncedEnforcer,
 	sessionManager *middleware.SessionManager,
 	logger *zap.SugaredLogger) *EnforcerImpl {
 	lock := make(map[string]*CacheData)
 	batchRequestLock := make(map[string]*sync.Mutex)
 	enforcerConfig := getConfig()
-	enf := &EnforcerImpl{lock: lock, batchRequestLock: batchRequestLock, enforcerConfig: enforcerConfig, Cache: getEnforcerCache(logger, enforcerConfig), Enforcer: enforcer, logger: logger, SessionManager: sessionManager}
+	enf := &EnforcerImpl{lockCacheData: lock, enforcerRWLock: &sync.RWMutex{}, batchRequestLock: batchRequestLock, enforcerConfig: enforcerConfig,
+		Cache: getEnforcerCache(logger, enforcerConfig), SyncedEnforcer: enforcer, logger: logger, SessionManager: sessionManager}
 	setEnforcerImpl(enf)
 	return enf
 }
@@ -94,24 +96,31 @@ func getEnforcerCache(logger *zap.SugaredLogger, enforcerConfig *EnforcerConfig)
 // * supports a user-defined bolicy
 // * supports a custom JWT claims enforce function
 type EnforcerImpl struct {
-	lock             map[string]*CacheData
+	lockCacheData    map[string]*CacheData
 	batchRequestLock map[string]*sync.Mutex
 	*cache.Cache
-	*casbin.Enforcer
+	*casbin.SyncedEnforcer
 	*middleware.SessionManager
 	logger         *zap.SugaredLogger
 	enforcerConfig *EnforcerConfig
+	enforcerRWLock *sync.RWMutex
 }
 
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
 func (e *EnforcerImpl) Enforce(emailId string, resource string, action string, resourceItem string) bool {
-	return e.enforce(e.Enforcer, emailId, resource, action, resourceItem)
+	return e.enforce(emailId, resource, action, resourceItem)
 }
 
 func (e *EnforcerImpl) EnforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
-	allowed := e.enforceByEmail(e.Enforcer, emailId, resource, action, resourceItem)
+	allowed := e.enforceByEmail(emailId, resource, action, resourceItem)
 	return allowed
+}
+
+func (e *EnforcerImpl) ReloadPolicy() error {
+	//e.enforcerRWLock.Lock()
+	//defer e.enforcerRWLock.Unlock()
+	return e.SyncedEnforcer.LoadPolicy()
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -130,7 +139,7 @@ func (e *EnforcerImpl) enforceByEmailInBatchSync(wg *sync.WaitGroup, mutex *sync
 	start := time.Now()
 	batchResult := make(map[string]bool)
 	for _, resourceItem := range vals {
-		batchResult[resourceItem] = e.Enforcer.Enforce(strings.ToLower(emailId), resource, action, resourceItem)
+		batchResult[resourceItem] = e.enforcerEnforce(strings.ToLower(emailId), resource, action, resourceItem)
 	}
 	duration := time.Since(start)
 	mutex.Lock()
@@ -218,7 +227,7 @@ func (e *EnforcerImpl) getBatchRequestLock(emailId string) *sync.Mutex {
 }
 
 func (e *EnforcerImpl) getEnforcerCacheLock(emailId string) *CacheData {
-	enforcerCacheMutex, found := e.lock[getLockKey(emailId)]
+	enforcerCacheMutex, found := e.lockCacheData[getLockKey(emailId)]
 	if !found {
 		enforcerCacheMutex =
 			&CacheData{
@@ -226,7 +235,7 @@ func (e *EnforcerImpl) getEnforcerCacheLock(emailId string) *CacheData {
 				enforceReqCounter: int64(0),
 				cacheCleaningFlag: false,
 			}
-		e.lock[getLockKey(emailId)] = enforcerCacheMutex
+		e.lockCacheData[getLockKey(emailId)] = enforcerCacheMutex
 	}
 	return enforcerCacheMutex
 }
@@ -316,7 +325,7 @@ func (e *EnforcerImpl) InvalidateCache(emailId string) bool {
 }
 
 func (e *EnforcerImpl) InvalidateCompleteCache() {
-	for emailId, _ := range e.lock {
+	for emailId, _ := range e.lockCacheData {
 		e.InvalidateCache(emailId)
 	}
 	if e.Cache != nil {
@@ -325,19 +334,19 @@ func (e *EnforcerImpl) InvalidateCompleteCache() {
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
-func (e *EnforcerImpl) enforce(enf *casbin.Enforcer, token string, resource string, action string, resourceItem string) bool {
+func (e *EnforcerImpl) enforce(token string, resource string, action string, resourceItem string) bool {
 	// check the default role
 	email, invalid := e.verifyTokenAndGetEmail(token)
 	if invalid {
 		return false
 	}
-	return e.enforceByEmail(enf, email, resource, action, resourceItem)
+	return e.enforceByEmail(email, resource, action, resourceItem)
 }
 
-func (e *EnforcerImpl) enforceAndUpdateCache(enf *casbin.Enforcer, email string, resource string, action string, resourceItem string) bool {
+func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, action string, resourceItem string) bool {
 	cacheData := e.getEnforcerCacheLock(email)
 	cacheData.lock.Lock()
-	enforcedStatus := enf.Enforce(email, resource, action, resourceItem)
+	enforcedStatus := e.enforcerEnforce(email, resource, action, resourceItem)
 	defer cacheData.lock.Unlock()
 	returnVal := atomic.AddInt64(&cacheData.enforceReqCounter, -1)
 	if cacheData.cacheCleaningFlag {
@@ -352,6 +361,17 @@ func (e *EnforcerImpl) enforceAndUpdateCache(enf *casbin.Enforcer, email string,
 	enforceData[resourceItem] = enforcedStatus
 	e.storeCacheData(email, resource, action, enforceData)
 	return enforcedStatus
+}
+
+func (e *EnforcerImpl) enforcerEnforce(email string, resource string, action string, resourceItem string) bool {
+	//e.enforcerRWLock.RLock()
+	//defer e.enforcerRWLock.RUnlock()
+	response, err := e.SyncedEnforcer.EnforceSafe(email, resource, action, resourceItem)
+	if err != nil {
+		e.logger.Errorw("error occurred while enforcing safe", "email", email,
+			"resource", resource, "action", action, "resourceItem", resourceItem, "reason", err)
+	}
+	return response
 }
 
 func (e *EnforcerImpl) verifyTokenAndGetEmail(tokenString string) (string, bool) {
@@ -372,7 +392,7 @@ func (e *EnforcerImpl) verifyTokenAndGetEmail(tokenString string) (string, bool)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
-func (e *EnforcerImpl) enforceByEmail(enf *casbin.Enforcer, emailId string, resource string, action string, resourceItem string) bool {
+func (e *EnforcerImpl) enforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
 	defer handlePanic()
 	response, found := e.enforceFromCache(emailId, resource, action, resourceItem)
 	if found {
@@ -385,7 +405,7 @@ func (e *EnforcerImpl) enforceByEmail(enf *casbin.Enforcer, emailId string, reso
 		}
 		return response
 	}
-	enforcedStatus := e.enforceAndUpdateCache(enf, emailId, resource, action, resourceItem)
+	enforcedStatus := e.enforceAndUpdateCache(emailId, resource, action, resourceItem)
 	return enforcedStatus
 }
 
