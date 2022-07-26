@@ -45,17 +45,30 @@ Here, you provide a relative path where your docker file is located. Ensure that
 
 ## Advanced 
 
-### Set target platform for the build
+### Set Target Platform for the build
 
-Using this option, we can build images for a specific or multiple **architectures and opereting systems (target platforms)**. You can select the target platform from the drop-down or can type to select a custom target platform.
+Using this option, users can build images for a specific or multiple **architectures and operating systems (target platforms)**. They can select the target platform from the drop-down or can type to select a custom target platform.
 ![Select target platform from drop-down](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/set-target-platform.png)
 
 ![Select custom target platform](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/set-target-platform-2.png)
 
-If you are selecting a custom target platform, first ensure that the architecture and the operating system is supported by the `registry type` you are using. Otherwise build will not succeeded. If you are building images for mutiple target Platform then make sure CPU is not getting throttled, in case it is, then you can fast your build time by increasing `limit` of CI-Runner pod. You can do this by increasing value of `LIMIT_CI_CPU`, by editing `devtron-cm` configmap under `devtroncd` namespace.
+Before selecting a custom target platform, please ensure that the architecture and the operating system is supported by the `registry type` you are using, otherwise builds will fail. Devtron uses BuildX to build images for mutiple target Platforms, which requires higher CI worker resources. To allocate more resources, you can increase value of the following parameters in the `devtron-cm` configmap in `devtroncd` namespace.
+
+- LIMIT_CI_CPU 
+- REQ_CI_CPU
+- REQ_CI_MEM
+- LIMIT_CI_MEM
+
+To edit the `devtron-cm` configmap in `devtroncd` namespace:
+```
+kubectl edit configmap devtron-cm -n devtroncd 
+```
+
+
+
 If target platform is not set, Devtron will build image for architecture and operating system of the k8s node on which CI is running.
 
-Our target Platform feature might not work in minikube & microk8s cluster as of now.
+The Target Platform feature might not work in minikube & microk8s clusters as of now.
 
 
 
