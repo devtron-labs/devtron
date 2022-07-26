@@ -63,9 +63,9 @@ type CacheData struct {
 }
 
 type EnforcerConfig struct {
-	cacheEnabled          bool `env:"ENFORCER_CACHE" envDefault:"false"`
-	cacheExpirationInSecs int  `env:"ENFORCER_CACHE_EXPIRATION_IN_SEC" envDefault:"86400"`
-	enforcerBatchSize     int  `env:"ENFORCER_MAX_BATCH_SIZE" envDefault:"1"`
+	CacheEnabled          bool `env:"ENFORCER_CACHE" envDefault:"false"`
+	CacheExpirationInSecs int  `env:"ENFORCER_CACHE_EXPIRATION_IN_SEC" envDefault:"86400"`
+	EnforcerBatchSize     int  `env:"ENFORCER_MAX_BATCH_SIZE" envDefault:"1"`
 }
 
 func getConfig() *EnforcerConfig {
@@ -78,9 +78,9 @@ func getConfig() *EnforcerConfig {
 }
 
 func getEnforcerCache(logger *zap.SugaredLogger, enforcerConfig *EnforcerConfig) *cache.Cache {
-	enableEnforcerCacheVal := enforcerConfig.cacheEnabled
+	enableEnforcerCacheVal := enforcerConfig.CacheEnabled
 	if enableEnforcerCacheVal {
-		enforcerCacheExpirationDuration := time.Second * time.Duration(enforcerConfig.cacheExpirationInSecs)
+		enforcerCacheExpirationDuration := time.Second * time.Duration(enforcerConfig.CacheExpirationInSecs)
 		logger.Infow("enforce cache enabled", "expiry", enforcerCacheExpirationDuration)
 		return cache.New(enforcerCacheExpirationDuration, 5*time.Minute)
 	}
@@ -147,7 +147,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	var maxTimegap int64 = 0
 	var minTimegap int64 = math.MaxInt64
 	var avgTimegap float64
-	batchSize := e.enforcerConfig.enforcerBatchSize
+	batchSize := e.enforcerConfig.EnforcerBatchSize
 	batchRequestLock := e.getBatchRequestLock(emailId)
 	batchRequestLock.Lock()
 	defer batchRequestLock.Unlock()
