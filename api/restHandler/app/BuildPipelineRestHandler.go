@@ -197,18 +197,13 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 	var materialList []*bean.CiMaterial
 	for _, material := range patchRequest.CiPipeline.CiMaterial {
 		if handler.ciPipelineMaterialRepository.CheckRegexExistsForMaterial(patchRequest.CiPipeline.Id, material.GitMaterialId) {
-			var sourceList []*bean.SourceTypeConfig
-			for _, config := range material.Source {
-				if config.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
-					source := &bean.SourceTypeConfig{
-						Type:  config.Type,
-						Value: config.Value,
-					}
-					sourceList = append(sourceList, source)
+			if material.Source.Value != "" {
+				material.Source = &bean.SourceTypeConfig{
+					Type:  material.Source.Type,
+					Value: material.Source.Value,
 				}
+				materialList = append(materialList, material)
 			}
-			material.Source = sourceList
-			materialList = append(materialList, material)
 		}
 	}
 	if len(materialList) == 0 {

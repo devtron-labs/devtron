@@ -676,16 +676,14 @@ func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline 
 			handler.logger.Errorw("service err, GitMaterialById in GetAppAllDetail", "err", err, "appId", appId)
 			return nil, err
 		}
-		for _, config := range ciMaterial.Source {
-			ciPipelineMaterialConfig := &appBean.CiPipelineMaterialConfig{
-				Type:         config.Type,
-				Value:        config.Value,
-				CheckoutPath: gitMaterial.CheckoutPath,
-			}
-			ciPipelineMaterialsConfig = append(ciPipelineMaterialsConfig, ciPipelineMaterialConfig)
+		ciPipelineMaterialConfig := &appBean.CiPipelineMaterialConfig{
+			Type:         ciMaterial.Source.Type,
+			Value:        ciMaterial.Source.Value,
+			CheckoutPath: gitMaterial.CheckoutPath,
 		}
-
+		ciPipelineMaterialsConfig = append(ciPipelineMaterialsConfig, ciPipelineMaterialConfig)
 	}
+
 	ciPipelineResp.CiPipelineMaterialsConfig = ciPipelineMaterialsConfig
 
 	//build docker pre-build script
@@ -1530,18 +1528,14 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			return 0, err
 		}
 
-		var sourceList []*bean.SourceTypeConfig
-		source := &bean.SourceTypeConfig{
-			Type:  ciMaterial.Type,
-			Value: ciMaterial.Value,
-		}
-		sourceList = append(sourceList, source)
-
 		ciMaterialRequest := &bean.CiMaterial{
 			GitMaterialId:   gitMaterial.Id,
 			GitMaterialName: gitMaterial.Name,
-			Source:          sourceList,
-			CheckoutPath:    gitMaterial.CheckoutPath,
+			Source: &bean.SourceTypeConfig{
+				Type:  ciMaterial.Type,
+				Value: ciMaterial.Value,
+			},
+			CheckoutPath: gitMaterial.CheckoutPath,
 		}
 		ciMaterialsRequest = append(ciMaterialsRequest, ciMaterialRequest)
 	}

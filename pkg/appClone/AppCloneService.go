@@ -667,11 +667,6 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 			var ciMaterilas []*bean.CiMaterial
 			for _, refCiMaterial := range refCiPipeline.CiMaterial {
 				//FIXME
-				var sourceList []*bean.SourceTypeConfig
-				for _, config := range refCiMaterial.Source {
-					source := &bean.SourceTypeConfig{Type: config.Type, Value: config.Value}
-					sourceList = append(sourceList, source)
-				}
 				gitMaterialId := req.gitMaterialMapping[refCiMaterial.GitMaterialId]
 				if refCiPipeline.ParentCiPipeline != 0 {
 					gitMaterialId = refCiMaterial.GitMaterialId
@@ -679,7 +674,10 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 				ciMaterial := &bean.CiMaterial{
 					GitMaterialId: gitMaterialId,
 					Id:            0,
-					Source:        sourceList,
+					Source: &bean.SourceTypeConfig{
+						Type:  refCiMaterial.Source.Type,
+						Value: refCiMaterial.Source.Value,
+					},
 				}
 				ciMaterilas = append(ciMaterilas, ciMaterial)
 			}

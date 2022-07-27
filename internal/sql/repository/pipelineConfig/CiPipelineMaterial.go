@@ -37,6 +37,7 @@ type CiPipelineMaterial struct {
 	ScmName      string     `sql:"scm_name"`    //gocd scm name
 	ScmVersion   string     `sql:"scm_version"` //gocd scm version
 	Active       bool       `sql:"active,notnull"`
+	Regex        string     `json:"regex"`
 	GitTag       string     `sql:"-"`
 	CiPipeline   *CiPipeline
 	GitMaterial  *GitMaterial
@@ -51,7 +52,7 @@ type CiPipelineMaterialRepository interface {
 	GetByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	CheckRegexExistsForMaterial(id int, gitMaterialId int) bool
-	GetMaterial(id int, gitMaterialId int, sourceType SourceType) (*CiPipelineMaterial, error)
+	//GetMaterial(id int, gitMaterialId int, sourceType SourceType) (*CiPipelineMaterial, error)
 }
 
 type CiPipelineMaterialRepositoryImpl struct {
@@ -82,7 +83,7 @@ func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineId(id int) ([]*CiPipel
 		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
 		Where("ci_pipeline_material.active = ?", true).
-		Where("ci_pipeline_material.type != ?", SOURCE_TYPE_BRANCH_REGEX).
+		Where("ci_pipeline_material.value != ?", "").
 		Select()
 	return ciPipelineMaterials, err
 }
@@ -142,7 +143,7 @@ func (impl CiPipelineMaterialRepositoryImpl) CheckRegexExistsForMaterial(id int,
 		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
 		Where("ci_pipeline_material.git_material_id = ?", gitMaterialId).
 		Where("ci_pipeline_material.active = ?", true).
-		Where("ci_pipeline_material.type = ?", SOURCE_TYPE_BRANCH_REGEX).
+		Where("ci_pipeline_material.regex != ?", "").
 		Exists()
 	if err != nil {
 		return false
@@ -150,17 +151,17 @@ func (impl CiPipelineMaterialRepositoryImpl) CheckRegexExistsForMaterial(id int,
 	return exists
 }
 
-func (impl CiPipelineMaterialRepositoryImpl) GetMaterial(id int, gitMaterialId int, sourceType SourceType) (*CiPipelineMaterial, error) {
-	ciPipelineMaterial := &CiPipelineMaterial{}
-	err := impl.dbConnection.Model(ciPipelineMaterial).
-		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
-		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
-		Where("ci_pipeline_material.git_material_id = ?", gitMaterialId).
-		Where("ci_pipeline_material.active = ?", true).
-		Where("ci_pipeline_material.type = ?", sourceType).
-		Select()
-	if err != nil {
-		return nil, err
-	}
-	return ciPipelineMaterial, nil
-}
+//func (impl CiPipelineMaterialRepositoryImpl) GetMaterial(id int, gitMaterialId int, sourceType SourceType) (*CiPipelineMaterial, error) {
+//	ciPipelineMaterial := &CiPipelineMaterial{}
+//	err := impl.dbConnection.Model(ciPipelineMaterial).
+//		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
+//		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
+//		Where("ci_pipeline_material.git_material_id = ?", gitMaterialId).
+//		Where("ci_pipeline_material.active = ?", true).
+//		Where("ci_pipeline_material.type = ?", sourceType).
+//		Select()
+//	if err != nil {
+//		return nil, err
+//	}
+//	return ciPipelineMaterial, nil
+//}

@@ -179,7 +179,6 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 	}
 
 	for _, material := range build.BuildMaterials {
-		var sourceList []*bean.SourceTypeConfig
 		stc := bean.SourceTypeConfig{
 			Value: material.Source.Value,
 		}
@@ -193,9 +192,8 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 			stc.Type = pc.SOURCE_TYPE_WEBHOOK
 		}
 
-		sourceList = append(sourceList, &stc)
 		cm := bean.CiMaterial{
-			Source: sourceList,
+			Source: &stc,
 		}
 
 		for _, gm := range gitMaterials {
