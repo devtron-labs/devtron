@@ -11,12 +11,19 @@ To generate API tokens, go to global configurations -> Authorizations -> API tok
 2. Add Description. 
 
 3. Select an Expiration date for the token(7 days, 30 days, 60 days, 90 days, custom and no expiration) 
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-2.png)
-    To select a custom expiration date, select `Custom` from the drop-down. This will pop-up a calender from where you can select your custom expiration date for the API token.
+
+To select a custom expiration date, select `Custom` from the drop-down. This will pop-up a calender from where you can select your custom expiration date for the API token.
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-12.png) 
+
 4. Assign  permissions to the token. To generate a token with super admin permission, select super admin permission. 
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-4.png)
+
 Or select specific permission if you want to generate a token with a specific role over a particular Devtron app or Helm app or chart group.
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-3.png)
 
 5. Now click on Generate Token.
@@ -24,6 +31,7 @@ Or select specific permission if you want to generate a token with a specific ro
 
 
 A pop-up window will appear over the screen from where you can copy the API token.
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-5.png)
 
 
