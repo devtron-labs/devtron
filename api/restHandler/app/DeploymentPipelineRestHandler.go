@@ -650,12 +650,16 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		stage = "PRE"
 	}
 	handler.Logger.Infow("request payload, GetArtifactsByCDPipeline", "cdPipelineId", cdPipelineId, "stage", stage)
+	handler.Logger.Info("DEBUGGING before FindPipelineById")
 	deploymentPipeline, err := handler.pipelineBuilder.FindPipelineById(cdPipelineId)
+	handler.Logger.Info("DEBUGGING after FindPipelineById")
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	handler.Logger.Info("DEBUGGING before GetApp")
 	app, err := handler.pipelineBuilder.GetApp(deploymentPipeline.AppId)
+	handler.Logger.Info("DEBUGGING after GetApp")
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -676,7 +680,9 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 	}
 	//rbac block ends here
 
+	handler.Logger.Info("DEBUGGING before GetArtifactsByCDPipeline")
 	ciArtifactResponse, err := handler.pipelineBuilder.GetArtifactsByCDPipeline(cdPipelineId, bean2.WorkflowType(stage))
+	handler.Logger.Info("DEBUGGING after GetArtifactsByCDPipeline")
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -688,23 +694,31 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		digests = append(digests, item.ImageDigest)
 	}
 
+	handler.Logger.Infow("DEBUGGING digests length", "digests", len(digests))
+
 	//FIXME: next 3 loops are same combine them
 	//FIXME: already fetched above as deployment pipeline
+	handler.Logger.Info("DEBUGGING before pipelineRepository.FindById")
 	pipelineModel, err := handler.pipelineRepository.FindById(cdPipelineId)
+	handler.Logger.Info("DEBUGGING after pipelineRepository.FindById")
 	if err != nil {
 		handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
 	if len(digests) > 0 {
 		vulnerableMap := make(map[string]bool)
+		handler.Logger.Info("DEBUGGING before GetApplicablePolicy")
 		cvePolicy, severityPolicy, err := handler.policyService.GetApplicablePolicy(pipelineModel.Environment.ClusterId, pipelineModel.EnvironmentId, pipelineModel.AppId, pipelineModel.App.AppStore)
+		handler.Logger.Info("DEBUGGING after GetApplicablePolicy")
 		if err != nil {
 			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		}
 		for _, digest := range digests {
 			if len(digest) > 0 {
 				var cveStores []*security.CveStore
+				handler.Logger.Info("DEBUGGING before FindByImageDigest")
 				imageScanResult, err := handler.scanResultRepository.FindByImageDigest(digest)
+				handler.Logger.Info("DEBUGGING after FindByImageDigest")
 				if err != nil && err != pg.ErrNoRows {
 					handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 					continue //skip for other artifact to complete
@@ -712,7 +726,9 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 				for _, item := range imageScanResult {
 					cveStores = append(cveStores, &item.CveStore)
 				}
+				handler.Logger.Info("DEBUGGING before HasBlockedCVE")
 				vulnerableMap[digest] = handler.policyService.HasBlockedCVE(cveStores, cvePolicy, severityPolicy)
+				handler.Logger.Info("DEBUGGING after HasBlockedCVE")
 			}
 		}
 		var ciArtifactsFinal []bean.CiArtifactBean
