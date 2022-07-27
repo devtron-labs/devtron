@@ -179,6 +179,13 @@ type CiPatchRequest struct {
 	UserId        int32       `json:"-"`
 }
 
+type CiRegexPatchRequest struct {
+	CiPipelineMaterial []*CiPipelineMaterial `json:"ciPipelineMaterial,omitempty"`
+	Id                 int                   `json:"id,omitempty" `
+	AppId              int                   `json:"appId,omitempty"`
+	UserId             int32                 `json:"-"`
+}
+
 type GitCiTriggerRequest struct {
 	CiPipelineMaterial CiPipelineMaterial `json:"ciPipelineMaterial" validate:"required"`
 	TriggeredBy        int32              `json:"triggeredBy"`

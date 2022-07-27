@@ -147,7 +147,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	var patchRequest bean.CiPatchRequest
+	var patchRequest bean.CiRegexPatchRequest
 	err = decoder.Decode(&patchRequest)
 	patchRequest.UserId = userId
 	if err != nil {
@@ -155,13 +155,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, PatchCiPipelines", "PatchCiPipelines", patchRequest)
-	err = handler.validator.Struct(patchRequest)
-	if err != nil {
-		handler.Logger.Errorw("validation err", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
+
 	handler.Logger.Debugw("update request ", "req", patchRequest)
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
@@ -175,52 +169,27 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 		return
 	}
 
-	pipelineData, err := handler.pipelineRepository.FindActiveByAppIdAndPipelineId(patchRequest.AppId, patchRequest.CiPipeline.Id)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	var environmentIds []int
-	for _, pipeline := range pipelineData {
-		environmentIds = append(environmentIds, pipeline.EnvironmentId)
-	}
-	if handler.appWorkflowService.CheckCdPipelineByCiPipelineId(patchRequest.CiPipeline.Id) {
-		for _, envId := range environmentIds {
-			envObject := handler.enforcerUtil.GetEnvRBACNameByCiPipelineIdAndEnvId(patchRequest.CiPipeline.Id, envId)
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, envObject); !ok {
-				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
-				return
-			}
-		}
-	}
-
-	var materialList []*bean.CiMaterial
-	for _, material := range patchRequest.CiPipeline.CiMaterial {
-		if handler.ciPipelineMaterialRepository.CheckRegexExistsForMaterial(patchRequest.CiPipeline.Id, material.GitMaterialId) {
-			if material.Source.Value != "" {
-				material.Source = &bean.SourceTypeConfig{
-					Type:  material.Source.Type,
-					Value: material.Source.Value,
-				}
-				materialList = append(materialList, material)
-			}
+	var materialList []*bean.CiPipelineMaterial
+	for _, material := range patchRequest.CiPipelineMaterial {
+		if handler.ciPipelineMaterialRepository.CheckRegexExistsForMaterial(material.Id) {
+			materialList = append(materialList, material)
 		}
 	}
 	if len(materialList) == 0 {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	patchRequest.CiPipeline.CiMaterial = materialList
+	patchRequest.CiPipelineMaterial = materialList
 
-	_, err = handler.pipelineBuilder.PatchRegexCiPipeline(&patchRequest)
+	err = handler.pipelineBuilder.PatchRegexCiPipeline(&patchRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(patchRequest.CiPipeline.Id)
+	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(patchRequest.Id)
 	if err != nil {
-		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", patchRequest.CiPipeline.Id)
+		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", patchRequest.Id)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
 		return
 	}

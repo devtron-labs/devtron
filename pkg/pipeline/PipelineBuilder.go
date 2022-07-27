@@ -104,7 +104,7 @@ type PipelineBuilder interface {
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
 	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
-	PatchRegexCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
+	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
 }
 
 type PipelineBuilderImpl struct {
@@ -146,6 +146,7 @@ type PipelineBuilderImpl struct {
 	chartService                     chart.ChartService
 	helmAppService                   client.HelmAppService
 	deploymentGroupRepository        repository.DeploymentGroupRepository
+	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -181,7 +182,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	pipelineStageService PipelineStageService, chartRefRepository chartRepoRepository.ChartRefRepository,
 	chartTemplateService util.ChartTemplateService, chartService chart.ChartService,
 	helmAppService client.HelmAppService,
-	deploymentGroupRepository repository.DeploymentGroupRepository) *PipelineBuilderImpl {
+	deploymentGroupRepository repository.DeploymentGroupRepository,
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -221,6 +223,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		chartService:                     chartService,
 		helmAppService:                   helmAppService,
 		deploymentGroupRepository:        deploymentGroupRepository,
+		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
 	}
 }
 
@@ -880,18 +883,50 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	}
 
 }
-func (impl PipelineBuilderImpl) PatchRegexCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error) {
-	ciConfig, err = impl.getCiTemplateVariables(request.AppId)
+
+func (impl PipelineBuilderImpl) PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error) {
+	var materials []*pipelineConfig.CiPipelineMaterial
+	for _, material := range request.CiPipelineMaterial {
+		materialDbObject, err := impl.ciPipelineMaterialRepository.GetById(material.Id)
+		if err != nil {
+			impl.logger.Errorw("err in fetching material, ", "err", err)
+			return err
+		}
+		if materialDbObject.Regex != "" {
+			if !impl.pipelineStageService.CheckStringMatchRegex(materialDbObject.Regex, material.Value) {
+				impl.logger.Errorw("not matching given regex, ", "err", err)
+				return errors.New("not matching given regex")
+			}
+		}
+		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+			Id:            material.Id,
+			Value:         material.Value,
+			Type:          pipelineConfig.SourceType(material.Type),
+			Active:        true,
+			GitMaterialId: materialDbObject.GitMaterialId,
+			AuditLog:      sql.AuditLog{UpdatedBy: request.UserId, UpdatedOn: time.Now()},
+		}
+		materials = append(materials, pipelineMaterial)
+	}
+	dbConnection := impl.pipelineRepository.GetConnection()
+	tx, err := dbConnection.Begin()
 	if err != nil {
-		impl.logger.Errorw("err in fetching template for pipeline patch, ", "err", err, "appId", request.AppId)
-		return nil, err
+		return err
 	}
-	ciConfig.AppWorkflowId = request.AppWorkflowId
-	ciConfig.UserId = request.UserId
-	if request.CiPipeline != nil {
-		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+	if err != nil {
+		return err
 	}
-	return impl.patchCiPipelineUpdateSource(ciConfig, request.CiPipeline)
+
+	err = impl.dbPipelineOrchestrator.AddPipelineMaterialInGitSensor(materials)
+	if err != nil {
+		impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", materials, "err", err)
+		return err
+	}
+	return nil
 }
 func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error) {
 

@@ -34,7 +34,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"path"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -68,7 +67,7 @@ type DbPipelineOrchestrator interface {
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	GetByEnvOverrideId(envOverrideId int) (*bean.CdPipelines, error)
 	BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript
-	CheckStringMatchRegex(regex string, value string) bool
+	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error
 }
 
 type DbPipelineOrchestratorImpl struct {
@@ -77,7 +76,7 @@ type DbPipelineOrchestratorImpl struct {
 	materialRepository            pipelineConfig.MaterialRepository
 	pipelineRepository            pipelineConfig.PipelineRepository
 	ciPipelineRepository          pipelineConfig.CiPipelineRepository
-	CiPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
+	ciPipelineMaterialRepository  pipelineConfig.CiPipelineMaterialRepository
 	GitSensorClient               gitSensor.GitSensorClient
 	ciConfig                      *CiConfig
 	appWorkflowRepository         appWorkflow.AppWorkflowRepository
@@ -97,7 +96,7 @@ func NewDbPipelineOrchestrator(
 	materialRepository pipelineConfig.MaterialRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	CiPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	GitSensorClient gitSensor.GitSensorClient, ciConfig *CiConfig,
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	envRepository repository2.EnvironmentRepository,
@@ -114,7 +113,7 @@ func NewDbPipelineOrchestrator(
 		materialRepository:            materialRepository,
 		pipelineRepository:            pipelineRepository,
 		ciPipelineRepository:          ciPipelineRepository,
-		CiPipelineMaterialRepository:  CiPipelineMaterialRepository,
+		ciPipelineMaterialRepository:  ciPipelineMaterialRepository,
 		GitSensorClient:               GitSensorClient,
 		ciConfig:                      ciConfig,
 		appWorkflowRepository:         appWorkflowRepository,
@@ -131,14 +130,6 @@ func NewDbPipelineOrchestrator(
 
 const BEFORE_DOCKER_BUILD string = "BEFORE_DOCKER_BUILD"
 const AFTER_DOCKER_BUILD string = "AFTER_DOCKER_BUILD"
-
-func (impl DbPipelineOrchestratorImpl) CheckStringMatchRegex(regex string, value string) bool {
-	response, err := regexp.MatchString(regex, value)
-	if err != nil {
-		return false
-	}
-	return response
-}
 
 func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.CiPipeline, userId int32) (*bean.CiPipeline, error) {
 	argByte, err := json.Marshal(createRequest.DockerArgs)
@@ -218,7 +209,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 		}
 	}
-	regexMaterial, err := impl.CiPipelineMaterialRepository.GetRegexByPipelineId(createRequest.Id)
+	regexMaterial, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(createRequest.Id)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
 	}
@@ -226,7 +217,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	if len(regexMaterial) != 0 {
 		for _, material := range regexMaterial {
 			val, exists := materialGitMap[material.GitMaterialId]
-			if exists && !impl.CheckStringMatchRegex(material.Value, val) {
+			if exists && !impl.pipelineStageService.CheckStringMatchRegex(material.Regex, val) {
 				if errorList == "" {
 					errorList = "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
 				} else {
@@ -239,12 +230,12 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		return nil, errors.New(errorList)
 	}
 	if len(materialsAdd) > 0 {
-		err = impl.CiPipelineMaterialRepository.Save(tx, materialsAdd...)
+		err = impl.ciPipelineMaterialRepository.Save(tx, materialsAdd...)
 		if err != nil {
 			return nil, err
 		}
 	}
-	err = impl.CiPipelineMaterialRepository.Update(tx, materialsUpdate...)
+	err = impl.ciPipelineMaterialRepository.Update(tx, materialsUpdate...)
 	if err != nil {
 		return nil, err
 	}
@@ -258,7 +249,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			return nil, err
 		}
 	} else {
-		err = impl.addPipelineMaterialInGitSensor(materials)
+		err = impl.AddPipelineMaterialInGitSensor(materials)
 		if err != nil {
 			impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", materials, "err", err)
 			return nil, err
@@ -293,7 +284,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 
 	if len(childrenCiPipelineIds) > 0 {
 
-		ciPipelineMaterials, err := impl.CiPipelineMaterialRepository.FindByCiPipelineIdsIn(childrenCiPipelineIds)
+		ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(childrenCiPipelineIds)
 		if err != nil {
 			impl.logger.Errorw("error in fetching  ciPipelineMaterials", "err", err)
 			return nil, err
@@ -317,7 +308,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 				return nil, fmt.Errorf("error while updating linked pipeline")
 			}
 		}
-		err = impl.CiPipelineMaterialRepository.Update(tx, linkedMaterials...)
+		err = impl.ciPipelineMaterialRepository.Update(tx, linkedMaterials...)
 		if err != nil {
 			return nil, err
 		}
@@ -358,13 +349,13 @@ func (impl DbPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig
 	}
 
 	if rows == 0 {
-		err = impl.addPipelineMaterialInGitSensor(materials)
+		err = impl.AddPipelineMaterialInGitSensor(materials)
 		if err != nil {
 			impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", materials, "err", err)
 			return err
 		}
 	}
-	err = impl.CiPipelineMaterialRepository.Update(tx, materials...)
+	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
 	return err
 }
 
@@ -420,9 +411,12 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				Active:        true,
 				AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 			}
+			if r.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+				material.Regex = r.Source.Value
+			}
 			pipelineMaterials = append(pipelineMaterials, material)
 		}
-		err = impl.CiPipelineMaterialRepository.Save(tx, pipelineMaterials...)
+		err = impl.ciPipelineMaterialRepository.Save(tx, pipelineMaterials...)
 		if err != nil {
 			impl.logger.Errorf("error in saving pipelineMaterials in db", "materials", pipelineMaterials, "err", err)
 			return nil, err
@@ -444,7 +438,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			}
 		} else {
 			//save pipeline in db end
-			err = impl.addPipelineMaterialInGitSensor(pipelineMaterials)
+			err = impl.AddPipelineMaterialInGitSensor(pipelineMaterials)
 			if err != nil {
 				impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", pipelineMaterials, "err", err)
 				return nil, err
@@ -493,7 +487,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			}
 		}
 		for _, r := range ciPipeline.CiMaterial {
-			ciMaterial, err := impl.CiPipelineMaterialRepository.GetById(r.Id)
+			ciMaterial, err := impl.ciPipelineMaterialRepository.GetById(r.Id)
 			if err != nil && pg.ErrNoRows != err {
 				return nil, err
 			}
@@ -617,17 +611,19 @@ func (impl DbPipelineOrchestratorImpl) deleteExternalCiDetails(ciPipeline *pipel
 	return rows, err
 }
 
-func (impl DbPipelineOrchestratorImpl) addPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error {
+func (impl DbPipelineOrchestratorImpl) AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error {
 	var materials []*gitSensor.CiPipelineMaterial
 	for _, ciPipelineMaterial := range pipelineMaterials {
-		material := &gitSensor.CiPipelineMaterial{
-			Id:            ciPipelineMaterial.Id,
-			Active:        ciPipelineMaterial.Active,
-			Value:         ciPipelineMaterial.Value,
-			GitMaterialId: ciPipelineMaterial.GitMaterialId,
-			Type:          gitSensor.SourceType(ciPipelineMaterial.Type),
+		if ciPipelineMaterial.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
+			material := &gitSensor.CiPipelineMaterial{
+				Id:            ciPipelineMaterial.Id,
+				Active:        ciPipelineMaterial.Active,
+				Value:         ciPipelineMaterial.Value,
+				GitMaterialId: ciPipelineMaterial.GitMaterialId,
+				Type:          gitSensor.SourceType(ciPipelineMaterial.Type),
+			}
+			materials = append(materials, material)
 		}
-		materials = append(materials, material)
 	}
 
 	_, err := impl.GitSensorClient.SavePipelineMaterial(materials)

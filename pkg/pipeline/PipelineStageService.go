@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"regexp"
 	"time"
 )
 
@@ -16,6 +17,7 @@ type PipelineStageService interface {
 	UpdateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error
 	DeleteCiStage(stageReq *bean.PipelineStageDto, userId int32, tx *pg.Tx) error
 	BuildPrePostAndRefPluginStepsDataForWfRequest(ciPipelineId int) ([]*bean.StepObject, []*bean.StepObject, []*bean.RefPluginObject, error)
+	CheckStringMatchRegex(regex string, value string) bool
 }
 
 func NewPipelineStageService(logger *zap.SugaredLogger,
@@ -1621,6 +1623,14 @@ func (impl *PipelineStageServiceImpl) BuildPluginVariableAndConditionDataForWfRe
 		}
 	}
 	return inputVariables, outputVariables, triggerSkipConditions, successFailureConditions, nil
+}
+
+func (impl *PipelineStageServiceImpl) CheckStringMatchRegex(regex string, value string) bool {
+	response, err := regexp.MatchString(regex, value)
+	if err != nil {
+		return false
+	}
+	return response
 }
 
 //BuildPrePostAndRefPluginStepsDataForWfRequest and related methods ends

@@ -295,7 +295,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 			RepoErrorMsg:    v.RepoErrorMsg,
 			IsBranchError:   v.IsBranchError,
 			BranchErrorMsg:  v.BranchErrorMsg,
-			Regex:           impl.ciPipelineMaterialRepository.CheckRegexExistsForMaterial(pipelineId, k.GitMaterialId),
+			Regex:           impl.ciPipelineMaterialRepository.CheckRegexExistsForMaterial(k.Id),
 		}
 		responseMap[k.GitMaterialId] = true
 		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
