@@ -282,7 +282,7 @@ type AppStoreWithVersion struct {
 	UpdatedOn                    time.Time `json:"updated_on"`
 	Version                      string    `json:"version"`
 	Deprecated                   bool      `json:"deprecated"`
-	Description                  bool      `json:"description"`
+	Description                  string    `json:"description"`
 }
 
 type AppStoreFilter struct {
