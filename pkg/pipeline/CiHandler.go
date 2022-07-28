@@ -124,7 +124,7 @@ type CiPipelineMaterialResponse struct {
 	IsBranchError   bool                   `json:"isBranchError"`
 	BranchErrorMsg  string                 `json:"branchErrorMsg"`
 	Url             string                 `json:"url"`
-	Regex           bool                   `json:"regex"`
+	Regex           string                 `json:"regex"`
 }
 
 type WorkflowResponse struct {
@@ -295,7 +295,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 			RepoErrorMsg:    v.RepoErrorMsg,
 			IsBranchError:   v.IsBranchError,
 			BranchErrorMsg:  v.BranchErrorMsg,
-			Regex:           impl.ciPipelineMaterialRepository.CheckRegexExistsForMaterial(k.Id),
+			Regex:           k.Regex,
 		}
 		responseMap[k.GitMaterialId] = true
 		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
@@ -320,7 +320,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 			RepoErrorMsg:    "",
 			IsBranchError:   false,
 			BranchErrorMsg:  "",
-			Regex:           true,
+			Regex:           k.Regex,
 		}
 		_, exists := responseMap[k.GitMaterialId]
 		if !exists {

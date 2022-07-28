@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"path"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -68,6 +69,7 @@ type DbPipelineOrchestrator interface {
 	GetByEnvOverrideId(envOverrideId int) (*bean.CdPipelines, error)
 	BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript
 	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error
+	CheckStringMatchRegex(regex string, value string) bool
 }
 
 type DbPipelineOrchestratorImpl struct {
@@ -217,7 +219,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	if len(regexMaterial) != 0 {
 		for _, material := range regexMaterial {
 			val, exists := materialGitMap[material.GitMaterialId]
-			if exists && !impl.pipelineStageService.CheckStringMatchRegex(material.Regex, val) {
+			if exists && !impl.CheckStringMatchRegex(material.Regex, val) {
 				if errorList == "" {
 					errorList = "string is mismatching with regex " + strconv.Itoa(material.GitMaterialId)
 				} else {
@@ -628,6 +630,14 @@ func (impl DbPipelineOrchestratorImpl) AddPipelineMaterialInGitSensor(pipelineMa
 
 	_, err := impl.GitSensorClient.SavePipelineMaterial(materials)
 	return err
+}
+
+func (impl DbPipelineOrchestratorImpl) CheckStringMatchRegex(regex string, value string) bool {
+	response, err := regexp.MatchString(regex, value)
+	if err != nil {
+		return false
+	}
+	return response
 }
 
 func (impl DbPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {

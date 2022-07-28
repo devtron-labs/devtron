@@ -893,7 +893,7 @@ func (impl PipelineBuilderImpl) PatchRegexCiPipeline(request *bean.CiRegexPatchR
 			return err
 		}
 		if materialDbObject.Regex != "" {
-			if !impl.pipelineStageService.CheckStringMatchRegex(materialDbObject.Regex, material.Value) {
+			if !impl.dbPipelineOrchestrator.CheckStringMatchRegex(materialDbObject.Regex, material.Value) {
 				impl.logger.Errorw("not matching given regex, ", "err", err)
 				return errors.New("not matching given regex")
 			}
