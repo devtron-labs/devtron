@@ -339,6 +339,9 @@ func (e *EnforcerImpl) InvalidateCompleteCache() {
 }
 
 func (e *EnforcerImpl) GetCacheDump() string {
+	if e.Cache == nil {
+		return "not-enabled"
+	}
 	items := e.Cache.Items()
 	cacheData, err := json.Marshal(items)
 	if err != nil {
