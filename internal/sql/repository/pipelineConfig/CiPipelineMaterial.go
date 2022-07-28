@@ -52,6 +52,7 @@ type CiPipelineMaterialRepository interface {
 	GetByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error)
 	CheckRegexExistsForMaterial(id int) bool
+	UpdateBranch(materials []*CiPipelineMaterial) error
 	//GetMaterial(id int, gitMaterialId int, sourceType SourceType) (*CiPipelineMaterial, error)
 }
 
@@ -147,6 +148,16 @@ func (impl CiPipelineMaterialRepositoryImpl) CheckRegexExistsForMaterial(id int)
 		return false
 	}
 	return exists
+}
+
+func (impl CiPipelineMaterialRepositoryImpl) UpdateBranch(materials []*CiPipelineMaterial) error {
+	for _, pipelineMaterial := range materials {
+		err := impl.dbConnection.Update(pipelineMaterial)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 //func (impl CiPipelineMaterialRepositoryImpl) GetMaterial(id int, gitMaterialId int, sourceType SourceType) (*CiPipelineMaterial, error) {
