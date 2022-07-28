@@ -83,7 +83,7 @@ func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineId(id int) ([]*CiPipel
 		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
 		Where("ci_pipeline_material.active = ?", true).
-		Where("ci_pipeline_material.value != ?", "").
+		Where("ci_pipeline_material.type != ?", SOURCE_TYPE_BRANCH_REGEX).
 		Select()
 	return ciPipelineMaterials, err
 }
