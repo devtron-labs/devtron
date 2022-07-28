@@ -1,0 +1,1 @@
+delete from docker_artifact_store where id = 'devtron-preset-container-registry';

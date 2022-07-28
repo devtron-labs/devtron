@@ -19,9 +19,11 @@ package restHandler
 
 import (
 	"encoding/json"
+	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	util2 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"strings"
 
@@ -165,6 +167,8 @@ func (impl DockerRegRestHandlerImpl) FetchAllDockerAccounts(w http.ResponseWrite
 	}
 	//RBAC enforcer Ends
 
+	result = modifyResponseForPresetRegistry(result)
+
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
@@ -186,7 +190,9 @@ func (impl DockerRegRestHandlerImpl) FetchOneDockerAccounts(w http.ResponseWrite
 	}
 	//RBAC enforcer Ends
 
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	registries := []pipeline.DockerArtifactStoreBean{*res}
+	registries = modifyResponseForPresetRegistry(registries)
+	common.WriteJsonResp(w, err, registries[0], http.StatusOK)
 }
 
 func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseWriter, r *http.Request) {
@@ -213,6 +219,13 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 		err = impl.validator.Struct(bean)
 		if err != nil {
 			impl.logger.Errorw("validation err, UpdateDockerRegistryConfig", "err", err, "payload", bean)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+
+		if bean.Id == util2.DockerPresetContainerRegistry {
+			impl.logger.Errorw("error in updating devtron preset container registry", "registry", bean.Id)
+			err = errors.New("preset registry can't be updated")
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
@@ -245,6 +258,7 @@ func (impl DockerRegRestHandlerImpl) FetchAllDockerRegistryForAutocomplete(w htt
 		return
 	}
 
+	res = modifyResponseForPresetRegistry(res)
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -300,4 +314,23 @@ func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseW
 		return
 	}
 	common.WriteJsonResp(w, err, REG_DELETE_SUCCESS_RESP, http.StatusOK)
+}
+
+func modifyResponseForPresetRegistry(response []pipeline.DockerArtifactStoreBean) []pipeline.DockerArtifactStoreBean {
+	var modifiedResponse []pipeline.DockerArtifactStoreBean
+	for _, bean := range response {
+		if bean.Id == util2.DockerPresetContainerRegistry {
+			modifiedBean := pipeline.DockerArtifactStoreBean{
+				Id:           bean.Id,
+				RegistryURL:  bean.RegistryURL,
+				RegistryType: bean.RegistryType,
+				Active:       bean.Active,
+				IsDefault:    bean.IsDefault,
+			}
+			modifiedResponse = append(modifiedResponse, modifiedBean)
+		} else {
+			modifiedResponse = append(modifiedResponse, bean)
+		}
+	}
+	return modifiedResponse
 }

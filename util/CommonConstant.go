@@ -26,4 +26,5 @@ const (
 	ConfigMapSecretUsageTypeEnvironment string = "environment"
 	ConfigMapSecretUsageTypeVolume      string = "volume"
 	YamlSeparator                       string = "---\n"
+	DockerPresetContainerRegistry       string = "devtron-preset-container-registry"
 )

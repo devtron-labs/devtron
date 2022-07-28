@@ -18,8 +18,10 @@
 package pipeline
 
 import (
+	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	util2 "github.com/devtron-labs/devtron/util"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -243,6 +245,10 @@ func (impl DockerRegistryConfigImpl) Delete(storeId string) (string, error) {
 }
 
 func (impl DockerRegistryConfigImpl) DeleteReg(bean *DockerArtifactStoreBean) error {
+	if bean.Id == util2.DockerPresetContainerRegistry {
+		impl.logger.Errorw("error in deleting devtron preset container registry", "registry", bean.Id)
+		return errors.New("preset registry can't be deleted")
+	}
 	dockerReg, err := impl.dockerArtifactStoreRepository.FindOne(bean.Id)
 	if err != nil {
 		impl.logger.Errorw("No matching entry found for delete.", "id", bean.Id, "err", err)
