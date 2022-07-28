@@ -28,7 +28,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var e *casbin.SyncedEnforcer
+var e *casbin.Enforcer
 var enforcerImplRef *EnforcerImpl
 
 type Subject string
@@ -45,7 +45,7 @@ type Policy struct {
 	Obj  Object     `json:"obj"`
 }
 
-func Create() *casbin.SyncedEnforcer {
+func Create() *casbin.Enforcer {
 	metav1.Now()
 	config, err := sql.GetConfig() //FIXME: use this from wire
 	if err != nil {
@@ -56,7 +56,7 @@ func Create() *casbin.SyncedEnforcer {
 	if err != nil {
 		log.Fatal(err)
 	}
-	auth, err1 := casbin.NewSyncedEnforcerSafe("./auth_model.conf", a)
+	auth, err1 := casbin.NewEnforcerSafe("./auth_model.conf", a)
 	if err1 != nil {
 		log.Fatal(err1)
 	}

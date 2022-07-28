@@ -43,7 +43,7 @@ type App struct {
 	MuxRouter    *router.MuxRouter
 	Logger       *zap.SugaredLogger
 	SSE          *sse.SSE
-	Enforcer     *casbin.SyncedEnforcer
+	Enforcer     *casbin.Enforcer
 	server       *http.Server
 	db           *pg.DB
 	pubsubClient *pubsub.PubSubClient
@@ -56,7 +56,7 @@ func NewApp(router *router.MuxRouter,
 	Logger *zap.SugaredLogger,
 	sse *sse.SSE,
 	versionService argocdServer.VersionService,
-	enforcer *casbin.SyncedEnforcer,
+	enforcer *casbin.Enforcer,
 	db *pg.DB,
 	pubsubClient *pubsub.PubSubClient,
 	sessionManager2 *authMiddleware.SessionManager,

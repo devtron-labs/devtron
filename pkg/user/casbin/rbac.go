@@ -48,14 +48,14 @@ type Enforcer interface {
 }
 
 func NewEnforcerImpl(
-	enforcer *casbin.SyncedEnforcer,
+	enforcer *casbin.Enforcer,
 	sessionManager *middleware.SessionManager,
 	logger *zap.SugaredLogger) *EnforcerImpl {
 	lock := make(map[string]*CacheData)
 	batchRequestLock := make(map[string]*sync.Mutex)
 	enforcerConfig := getConfig()
 	enf := &EnforcerImpl{lockCacheData: lock, enforcerRWLock: &sync.RWMutex{}, batchRequestLock: batchRequestLock, enforcerConfig: enforcerConfig,
-		Cache: getEnforcerCache(logger, enforcerConfig), SyncedEnforcer: enforcer, logger: logger, SessionManager: sessionManager}
+		Cache: getEnforcerCache(logger, enforcerConfig), Enforcer: enforcer, logger: logger, SessionManager: sessionManager}
 	setEnforcerImpl(enf)
 	return enf
 }
@@ -101,7 +101,7 @@ type EnforcerImpl struct {
 	lockCacheData    map[string]*CacheData
 	batchRequestLock map[string]*sync.Mutex
 	*cache.Cache
-	*casbin.SyncedEnforcer
+	*casbin.Enforcer
 	*middleware.SessionManager
 	logger         *zap.SugaredLogger
 	enforcerConfig *EnforcerConfig
@@ -120,9 +120,9 @@ func (e *EnforcerImpl) EnforceByEmail(emailId string, resource string, action st
 }
 
 func (e *EnforcerImpl) ReloadPolicy() error {
-	//e.enforcerRWLock.Lock()
-	//defer e.enforcerRWLock.Unlock()
-	return e.SyncedEnforcer.LoadPolicy()
+	e.enforcerRWLock.Lock()
+	defer e.enforcerRWLock.Unlock()
+	return e.Enforcer.LoadPolicy()
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -382,14 +382,14 @@ func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, acti
 }
 
 func (e *EnforcerImpl) enforcerEnforce(email string, resource string, action string, resourceItem string) (bool, error) {
-	//e.enforcerRWLock.RLock()
-	//defer e.enforcerRWLock.RUnlock()
-	response, err := e.SyncedEnforcer.EnforceSafe(email, resource, action, resourceItem)
-	if err != nil {
-		e.logger.Errorw("error occurred while enforcing safe", "email", email,
-			"resource", resource, "action", action, "resourceItem", resourceItem, "reason", err)
-	}
-	return response, err
+	e.enforcerRWLock.RLock()
+	defer e.enforcerRWLock.RUnlock()
+	response := e.Enforcer.Enforce(email, resource, action, resourceItem)
+	//if err != nil {
+	//	e.logger.Errorw("error occurred while enforcing safe", "email", email,
+	//		"resource", resource, "action", action, "resourceItem", resourceItem, "reason", err)
+	//}
+	return response, nil
 }
 
 func (e *EnforcerImpl) verifyTokenAndGetEmail(tokenString string) (string, bool) {
