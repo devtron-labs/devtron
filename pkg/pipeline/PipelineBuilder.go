@@ -510,6 +510,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				ScmName:         material.ScmName,
 				ScmVersion:      material.ScmVersion,
 				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
+				Regex:           material.Regex,
 			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
