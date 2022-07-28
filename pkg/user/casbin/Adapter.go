@@ -62,6 +62,7 @@ func Create() *casbin.SyncedEnforcer {
 	}
 	e = auth
 	err = e.LoadPolicy()
+	log.Println("casbin Policies Loaded Successfully")
 	if err != nil {
 		log.Fatal(err)
 	}
