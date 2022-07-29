@@ -220,7 +220,7 @@ spec:
         spec:
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:1227622d-132-3775
+            image: quay.io/devtron/chart-sync:57e17953-150-9922"
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd
