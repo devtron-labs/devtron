@@ -268,21 +268,20 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 		impl.logger.Errorw("error in fetching app", "err", err, "app", chart.AppId)
 		return isHealthy, err
 	}
-	appName := dbApp.AppName
 	if dbApp.Id > 0 && dbApp.AppStore == true {
-		impl.logger.Debugw("skipping application status update as this app is chart", "appName", appName)
+		impl.logger.Debugw("skipping application status update as this app is chart", "dbApp", dbApp)
 		return isHealthy, nil
 	}
 
 	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatus(app.Name)
 	if err != nil && !IsErrNoRows(err) {
-		impl.logger.Errorw("error in fetching deployment status", "err", err)
+		impl.logger.Errorw("error in fetching deployment status", "dbApp", dbApp, "err", err)
 		return isHealthy, err
 	}
 
 	if string(application.Healthy) != deploymentStatus.Status {
 		if deploymentStatus.Status == string(app.Status.Health.Status) {
-			impl.logger.Debug("not updating same statuses from " + deploymentStatus.Status + " to " + string(app.Status.Health.Status))
+			impl.logger.Debugw("not updating same statuses from", "last status", deploymentStatus.Status, "new status", string(app.Status.Health.Status), "deploymentStatus", deploymentStatus)
 			return isHealthy, nil
 		}
 
@@ -294,7 +293,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 		}
 		pipelineOverride, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
 		if err != nil {
-			impl.logger.Errorw("error on update application status", "pipelineOverride", pipelineOverride, "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
+			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "dbApp", dbApp, "err", err)
 			return isHealthy, err
 		}
 
@@ -305,11 +304,11 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 
 		releaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineOverride.PipelineId)
 		if err != nil {
-			impl.logger.Errorw("error on update application status", "releaseCounter", releaseCounter, "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
+			impl.logger.Errorw("error on update application status", "releaseCounter", releaseCounter, "gitHash", gitHash, "pipelineOverride", pipelineOverride, "dbApp", dbApp, "err", err)
 			return isHealthy, err
 		}
 		if pipelineOverride.PipelineReleaseCounter == releaseCounter {
-			impl.logger.Debug("inserting new app status: " + string(app.Status.Health.Status))
+			impl.logger.Debugw("inserting new app status", "status", string(app.Status.Health.Status), "dbApp", dbApp)
 			newDeploymentStatus := &repository.DeploymentStatus{
 				AppName:   app.Name,
 				AppId:     deploymentStatus.AppId,
@@ -344,6 +343,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 			}
 			if string(application.Healthy) == newDeploymentStatus.Status {
 				isHealthy = true
+				impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "newDeploymentStatus", newDeploymentStatus)
 				go impl.WriteCDSuccessEvent(newDeploymentStatus.AppId, newDeploymentStatus.EnvId, pipelineOverride)
 			}
 		} else {
@@ -355,11 +355,11 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(app v1alpha1
 
 func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
 	event := impl.eventFactory.Build(util.Success, &override.PipelineId, appId, &envId, util.CD)
-	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event)
+	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteEvent(event)
 	if evtErr != nil {
-		impl.logger.Errorw("error in writing event", "err", evtErr)
+		impl.logger.Errorw("error in writing event", "event", event, "err", evtErr)
 	}
 }
 
@@ -759,7 +759,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	middleware.CdTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(pipeline.EnvironmentId), strconv.Itoa(pipeline.Id)).Inc()
 	return releaseId, saveErr
 }
-
 
 func (impl AppServiceImpl) autoHealChartLocationInChart(envOverride *chartConfig.EnvConfigOverride) error {
 	chartId := envOverride.Chart.Id

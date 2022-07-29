@@ -644,11 +644,13 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 	if len(gitHash) > 0 && pipelineOverrideId == 0 {
 		pipelineOverride, err = impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
 		if err != nil {
+			impl.logger.Errorw("error in fetching pipeline trigger by hash", "gitHash", gitHash)
 			return err
 		}
 	} else if len(gitHash) == 0 && pipelineOverrideId > 0 {
 		pipelineOverride, err = impl.pipelineOverrideRepository.FindById(pipelineOverrideId)
 		if err != nil {
+			impl.logger.Errorw("error in fetching pipeline trigger by override id", "pipelineOverrideId", pipelineOverrideId)
 			return err
 		}
 	} else {
@@ -656,6 +658,7 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 	}
 	cdWorkflow, err := impl.cdWorkflowRepository.FindById(pipelineOverride.CdWorkflowId)
 	if err != nil {
+		impl.logger.Errorw("error in fetching cd workflow by id", "pipelineOverride", pipelineOverride)
 		return err
 	}
 	if len(pipelineOverride.Pipeline.PostStageConfig) > 0 {

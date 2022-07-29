@@ -108,7 +108,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 				return
 			}
 		}
-		impl.logger.Debug("app" + application.Name + " updated")
+		impl.logger.Debugw("application status update completed", "app", application.Name)
 	}, nats.Durable(util.APPLICATION_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.KUBEWATCH_STREAM))
 
 	if err != nil {
