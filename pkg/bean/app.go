@@ -78,6 +78,7 @@ type CiMaterial struct {
 	ScmVersion      string            `json:"scmVersion,omitempty"`
 	Id              int               `json:"id,omitempty"`
 	GitMaterialName string            `json:"gitMaterialName"`
+	IsRegex         bool              `json:"isRegex"`
 }
 
 type CiPipeline struct {

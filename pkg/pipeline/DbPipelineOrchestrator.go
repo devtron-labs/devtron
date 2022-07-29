@@ -196,6 +196,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			Value:         material.Source.Value,
 			Type:          material.Source.Type,
 			Active:        createRequest.Active,
+			Regex:         material.Source.Regex,
 			GitMaterialId: material.GitMaterialId,
 			AuditLog:      sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 		}
@@ -208,9 +209,6 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			pipelineMaterial.CreatedOn = time.Now()
 			materialsAdd = append(materialsAdd, pipelineMaterial)
 		} else {
-			if material.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
-				pipelineMaterial.Regex = pipelineMaterial.Value
-			}
 			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 		}
 	}
