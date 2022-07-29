@@ -15,7 +15,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
       cicdAuthenticator: "quay.io/argoproj/argocd:v1.8.1"
   kubelink:
-    image: "quay.io/devtron/kubelink:59a0df88-318-9226"
+    image: "quay.io/devtron/kubelink:7f5e1584-318-9924"
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
   
