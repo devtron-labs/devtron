@@ -78,8 +78,8 @@
 * [FAQs & Troubleshooting](FAQs/faqs.md)
   * [Devtron Troubleshooting](FAQs/devtron-troubleshoot.md)
 
-### [Hyperion](hyperion/devtron.md)
-<!-- * [Introduction](hyperion/README.md)
+<!-- ### [Hyperion](hyperion/devtron.md)
+ * [Introduction](hyperion/README.md)
 * [Setup](hyperion/setup/setup.md)
   * [Install Hyperion](hyperion/setup/install.md)
   * [Global Configurations](hyperion/user-guide/global-configurations/README.md)

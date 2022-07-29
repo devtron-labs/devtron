@@ -20,6 +20,7 @@ package user
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
@@ -52,6 +53,8 @@ type UserRestHandler interface {
 	CheckUserRoles(w http.ResponseWriter, r *http.Request)
 	SyncOrchestratorToCasbin(w http.ResponseWriter, r *http.Request)
 	UpdateTriggerPolicyForTerminalAccess(w http.ResponseWriter, r *http.Request)
+	GetRoleCacheDump(w http.ResponseWriter, r *http.Request)
+	InvalidateRoleCache(w http.ResponseWriter, r *http.Request)
 }
 
 type userNamePassword struct {
@@ -714,4 +717,47 @@ func (handler UserRestHandlerImpl) UpdateTriggerPolicyForTerminalAccess(w http.R
 		return
 	}
 	common.WriteJsonResp(w, nil, "Trigger policy updated successfully.", http.StatusOK)
+}
+
+func (handler UserRestHandlerImpl) GetRoleCacheDump(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		handler.logger.Errorw("unauthorized user, GetRoleCacheDump", "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+	if !isSuperAdmin {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	} else {
+		cacheDump := handler.enforcer.GetCacheDump()
+		common.WriteJsonResp(w, nil, cacheDump, http.StatusOK)
+	}
+}
+
+func (handler UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		handler.logger.Errorw("unauthorized user, InvalidateRoleCache", "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	isSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
+		return
+	}
+	if !isSuperAdmin {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+	} else {
+		handler.enforcer.InvalidateCompleteCache()
+		common.WriteJsonResp(w, nil, "Cache Cleaned Successfully", http.StatusOK)
+	}
+
 }
