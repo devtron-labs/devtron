@@ -411,7 +411,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				CheckoutPath:  r.CheckoutPath,
 				CiPipelineId:  ciPipelineObject.Id,
 				Active:        true,
-				Regex:         r.Regex,
+				Regex:         r.Source.Regex,
 				AuditLog:      sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 			}
 			if material.Regex == "" && r.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {

@@ -509,8 +509,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
 				ScmName:         material.ScmName,
 				ScmVersion:      material.ScmVersion,
-				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
-				Regex:           material.Regex,
+				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
@@ -2362,8 +2361,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 			GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
 			ScmName:         material.ScmName,
 			ScmVersion:      material.ScmVersion,
-			Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
-			Regex:           material.Regex,
+			Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 		}
 		ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 	}
