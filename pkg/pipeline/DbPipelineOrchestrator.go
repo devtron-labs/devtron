@@ -210,8 +210,6 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		} else {
 			if material.Source.Type == pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
 				pipelineMaterial.Regex = pipelineMaterial.Value
-				pipelineMaterial.Type = "" // clearing these so that update call will not clear existing branch set
-				pipelineMaterial.Value = ""
 			}
 			materialsUpdate = append(materialsUpdate, pipelineMaterial)
 		}
