@@ -304,16 +304,14 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 	nodeLimitsResourceList := make(metav1.ResourceList)
 	var podDetailList []*PodCapacityDetail
 	for _, pod := range podList.Items {
-		if pod.Spec.NodeName == node.Name {
+		if pod.Spec.NodeName == node.Name && pod.Status.Phase != metav1.PodSucceeded && pod.Status.Phase != metav1.PodFailed {
 			if callForList {
 				podCount++
 			} else {
 				var requests, limits metav1.ResourceList
-				if pod.Status.Phase != metav1.PodSucceeded && pod.Status.Phase != metav1.PodFailed {
-					requests, limits = resourcehelper.PodRequestsAndLimits(&pod)
-					nodeRequestsResourceList = AddTwoResourceList(nodeRequestsResourceList, requests)
-					nodeLimitsResourceList = AddTwoResourceList(nodeLimitsResourceList, limits)
-				}
+				requests, limits = resourcehelper.PodRequestsAndLimits(&pod)
+				nodeRequestsResourceList = AddTwoResourceList(nodeRequestsResourceList, requests)
+				nodeLimitsResourceList = AddTwoResourceList(nodeLimitsResourceList, limits)
 				podDetailList = append(podDetailList, getPodDetail(pod, cpuAllocatable, memoryAllocatable, limits, requests))
 			}
 		}
