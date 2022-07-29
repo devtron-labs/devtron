@@ -197,12 +197,16 @@ func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifa
 	if ciPipelineId > 0 {
 		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipelineId)
 		if err != nil {
-			impl.logger.Errorw("err", err)
+			impl.logger.Errorw("error on fetching materials for", "ciPipelineId", ciPipelineId, "err", err)
 			return nil, err
 		}
 
 		var ciMaterialsArr []CiPipelineMaterialResponse
 		for _, m := range ciMaterials {
+			if m.GitMaterial == nil {
+				impl.logger.Warnw("git material are empty", "material", m)
+				continue
+			}
 			res := CiPipelineMaterialResponse{
 				Id:              m.Id,
 				GitMaterialId:   m.GitMaterialId,
