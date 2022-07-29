@@ -2363,6 +2363,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 			ScmName:         material.ScmName,
 			ScmVersion:      material.ScmVersion,
 			Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
+			Regex:           material.Regex,
 		}
 		ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 	}
