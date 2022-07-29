@@ -18,6 +18,7 @@
 package casbin
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/casbin/casbin"
@@ -43,6 +44,7 @@ type Enforcer interface {
 	InvalidateCache(emailId string) bool
 	InvalidateCompleteCache()
 	ReloadPolicy() error
+	GetCacheDump() string
 }
 
 func NewEnforcerImpl(
@@ -139,7 +141,10 @@ func (e *EnforcerImpl) enforceByEmailInBatchSync(wg *sync.WaitGroup, mutex *sync
 	start := time.Now()
 	batchResult := make(map[string]bool)
 	for _, resourceItem := range vals {
-		batchResult[resourceItem] = e.enforcerEnforce(strings.ToLower(emailId), resource, action, resourceItem)
+		data, err := e.enforcerEnforce(strings.ToLower(emailId), resource, action, resourceItem)
+		if err == nil {
+			batchResult[resourceItem] = data
+		}
 	}
 	duration := time.Since(start)
 	mutex.Lock()
@@ -333,6 +338,19 @@ func (e *EnforcerImpl) InvalidateCompleteCache() {
 	}
 }
 
+func (e *EnforcerImpl) GetCacheDump() string {
+	if e.Cache == nil {
+		return "not-enabled"
+	}
+	items := e.Cache.Items()
+	cacheData, err := json.Marshal(items)
+	if err != nil {
+		e.logger.Infow("error occurred while taking cache dump", "reason", err)
+		return ""
+	}
+	return string(cacheData)
+}
+
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
 func (e *EnforcerImpl) enforce(token string, resource string, action string, resourceItem string) bool {
 	// check the default role
@@ -346,15 +364,15 @@ func (e *EnforcerImpl) enforce(token string, resource string, action string, res
 func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, action string, resourceItem string) bool {
 	cacheData := e.getEnforcerCacheLock(email)
 	cacheData.lock.Lock()
-	enforcedStatus := e.enforcerEnforce(email, resource, action, resourceItem)
 	defer cacheData.lock.Unlock()
+	enforcedStatus, err := e.enforcerEnforce(email, resource, action, resourceItem)
 	returnVal := atomic.AddInt64(&cacheData.enforceReqCounter, -1)
-	if cacheData.cacheCleaningFlag {
+	if cacheData.cacheCleaningFlag || err != nil {
 		if returnVal == 0 {
 			cacheData.cacheCleaningFlag = false
 		}
 		e.logger.Debugw("not updating enforcer status for cache", "email", email, "resource", resource,
-			"action", action, "resourceItem", resourceItem, "enforceReqCounter", cacheData.enforceReqCounter)
+			"action", action, "resourceItem", resourceItem, "enforceReqCounter", cacheData.enforceReqCounter, "err", err == nil)
 		return enforcedStatus
 	}
 	enforceData := e.getCacheData(email, resource, action)
@@ -363,7 +381,7 @@ func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, acti
 	return enforcedStatus
 }
 
-func (e *EnforcerImpl) enforcerEnforce(email string, resource string, action string, resourceItem string) bool {
+func (e *EnforcerImpl) enforcerEnforce(email string, resource string, action string, resourceItem string) (bool, error) {
 	//e.enforcerRWLock.RLock()
 	//defer e.enforcerRWLock.RUnlock()
 	response, err := e.SyncedEnforcer.EnforceSafe(email, resource, action, resourceItem)
@@ -371,7 +389,7 @@ func (e *EnforcerImpl) enforcerEnforce(email string, resource string, action str
 		e.logger.Errorw("error occurred while enforcing safe", "email", email,
 			"resource", resource, "action", action, "resourceItem", resourceItem, "reason", err)
 	}
-	return response
+	return response, err
 }
 
 func (e *EnforcerImpl) verifyTokenAndGetEmail(tokenString string) (string, bool) {
