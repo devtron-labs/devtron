@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	util3 "github.com/devtron-labs/devtron/util"
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"go.uber.org/zap"
 )
@@ -385,15 +386,21 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		return nil, err
 	}
 	dockerfilePath := filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
+	dockerRepository := pipeline.CiTemplate.DockerRepository
+	dockerRegistryId := pipeline.CiTemplate.DockerRegistry.Id
+	if dockerRegistryId == util3.DockerPresetContainerRegistry {
+		dockerRepository = getPresetRegistryRepoName(dockerRepository, dockerImageTag)
+		dockerImageTag = "24h"
+	}
 	workflowRequest := &WorkflowRequest{
 		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
 		PipelineName:               pipeline.Name,
 		PipelineId:                 pipeline.Id,
-		DockerRegistryId:           pipeline.CiTemplate.DockerRegistry.Id,
+		DockerRegistryId:           dockerRegistryId,
 		DockerRegistryType:         string(pipeline.CiTemplate.DockerRegistry.RegistryType),
 		DockerImageTag:             dockerImageTag,
 		DockerRegistryURL:          pipeline.CiTemplate.DockerRegistry.RegistryURL,
-		DockerRepository:           pipeline.CiTemplate.DockerRepository,
+		DockerRepository:           dockerRepository,
 		DockerBuildArgs:            string(merged),
 		DockerBuildTargetPlatform:  pipeline.CiTemplate.TargetPlatform,
 		DockerFileLocation:         dockerfilePath,
@@ -448,6 +455,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
 	}
 	return workflowRequest, nil
+}
+
+func getPresetRegistryRepoName(dockerRepository string, dockerImgTag string) string {
+	return "devtron-preset-" + dockerRepository + "-" + dockerImgTag
 }
 
 func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*bean2.StepObject {

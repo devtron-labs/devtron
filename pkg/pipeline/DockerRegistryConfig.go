@@ -18,6 +18,7 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -263,4 +264,72 @@ func (impl DockerRegistryConfigImpl) DeleteReg(bean *DockerArtifactStoreBean) er
 		return err
 	}
 	return nil
+}
+
+// TODO configure this function in CRON job
+func (impl DockerRegistryConfigImpl) SyncAndUpdatePresetContainerRegistry() {
+	presetContainerRegistryByteArr, err := util2.ReadFromUrlWithRetry("central-api-url-for-container-registry")
+	centralDockerRegistryConfig := &repository.DockerArtifactStore{}
+	err = json.Unmarshal(presetContainerRegistryByteArr, centralDockerRegistryConfig)
+	if err != nil {
+		impl.logger.Errorw("err during unmarshal for preset container registry response from central-api", "err", err)
+		return
+	}
+	registryId := util2.DockerPresetContainerRegistry
+	dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(registryId)
+	if err != nil {
+		impl.logger.Errorw("err in extracting docker registry from DB", "id", registryId, "err", err)
+		return
+	}
+	if changed := impl.compareCentralRegistryAndConfigured(centralDockerRegistryConfig, dockerArtifactStore); changed {
+		centralDockerRegistryConfig.Id = registryId
+		err := impl.dockerArtifactStoreRepository.Update(centralDockerRegistryConfig)
+		if err != nil {
+			impl.logger.Errorw("err in updating central-api docker registry into DB", "id", registryId, "err", err)
+			return
+		}
+		impl.logger.Info("docker preset container registry updated from central api")
+	} else {
+		impl.logger.Debug("docker preset container registry not updated as there is not diff, will check after sometime again!!")
+	}
+
+}
+
+func (impl DockerRegistryConfigImpl) compareCentralRegistryAndConfigured(centralDockerRegistry *repository.DockerArtifactStore,
+	dbDockerRegistry *repository.DockerArtifactStore) bool {
+	if centralDockerRegistry.PluginId != dbDockerRegistry.PluginId {
+		return true
+	}
+	if centralDockerRegistry.RegistryURL != dbDockerRegistry.RegistryURL {
+		return true
+	}
+	if centralDockerRegistry.RegistryType != dbDockerRegistry.RegistryType {
+		return true
+	}
+	if centralDockerRegistry.Username != dbDockerRegistry.Username {
+		return true
+	}
+	if centralDockerRegistry.Password != dbDockerRegistry.Password {
+		return true
+	}
+	if centralDockerRegistry.AWSRegion != dbDockerRegistry.AWSRegion {
+		return true
+	}
+	if centralDockerRegistry.AWSAccessKeyId != dbDockerRegistry.AWSAccessKeyId {
+		return true
+	}
+	if centralDockerRegistry.AWSSecretAccessKey != dbDockerRegistry.AWSSecretAccessKey {
+		return true
+	}
+	if centralDockerRegistry.Active != dbDockerRegistry.Active {
+		return true
+	}
+	if centralDockerRegistry.Cert != dbDockerRegistry.Cert {
+		return true
+	}
+	if centralDockerRegistry.Connection != dbDockerRegistry.Connection {
+		return true
+	}
+
+	return false
 }
