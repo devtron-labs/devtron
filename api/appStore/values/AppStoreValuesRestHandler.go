@@ -94,6 +94,7 @@ func (handler AppStoreValuesRestHandlerImpl) UpdateAppStoreVersionValues(w http.
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	request.UserId = userId
 	handler.Logger.Infow("request payload, UpdateAppStoreVersionValues", "payload", request)
 	res, err := handler.appStoreValuesService.UpdateAppStoreVersionValues(&request)
 	if err != nil {
