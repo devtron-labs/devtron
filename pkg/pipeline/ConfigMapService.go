@@ -335,8 +335,12 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 		return configMapRequest, err
 	}
 	var model *chartConfig.ConfigMapEnvModel
-	if configMapRequest.Id > 0 {
-		model, err = impl.configMapRepository.GetByIdEnvLevel(configMapRequest.Id)
+	if configMapRequest.Id > 0 || (configMapRequest.AppId > 0 && configMapRequest.EnvironmentId > 0) {
+		if configMapRequest.Id > 0 {
+			model, err = impl.configMapRepository.GetByIdEnvLevel(configMapRequest.Id)
+		} else if configMapRequest.AppId > 0 && configMapRequest.EnvironmentId > 0 {
+			model, err = impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(configMapRequest.AppId, configMapRequest.EnvironmentId)
+		}
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
@@ -693,8 +697,12 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 		return configMapRequest, err
 	}
 	var model *chartConfig.ConfigMapEnvModel
-	if configMapRequest.Id > 0 {
-		model, err = impl.configMapRepository.GetByIdEnvLevel(configMapRequest.Id)
+	if configMapRequest.Id > 0 || (configMapRequest.AppId > 0 && configMapRequest.EnvironmentId > 0) {
+		if configMapRequest.Id > 0 {
+			model, err = impl.configMapRepository.GetByIdEnvLevel(configMapRequest.Id)
+		} else if configMapRequest.AppId > 0 && configMapRequest.EnvironmentId > 0 {
+			model, err = impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(configMapRequest.AppId, configMapRequest.EnvironmentId)
+		}
 		if err != nil {
 			impl.logger.Errorw("error while fetching from db", "error", err)
 			return nil, err
