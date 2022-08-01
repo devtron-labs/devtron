@@ -1067,7 +1067,7 @@ func (handler PipelineConfigRestHandlerImpl) GetCommitMetadataForPipelineMateria
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, commit, http.StatusCreated)
+	common.WriteJsonResp(w, err, commit, http.StatusOK
 }
 
 func (handler PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.ResponseWriter, r *http.Request) {
