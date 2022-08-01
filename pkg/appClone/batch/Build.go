@@ -181,6 +181,7 @@ func executeBuildCreate(impl BuildActionImpl, build *v1.Build) error {
 	for _, material := range build.BuildMaterials {
 		stc := bean.SourceTypeConfig{
 			Value: material.Source.Value,
+			Regex: material.Source.Regex,
 		}
 		if material.Source.Type == v1.BranchFixed {
 			stc.Type = pc.SOURCE_TYPE_BRANCH_FIXED
