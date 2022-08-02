@@ -421,10 +421,12 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
 			timeline.StatusDetail = "App status is Degraded."
 		}
-		err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
-		if err != nil {
-			impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
-			return err
+		if haveNewTimeline {
+			err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+			if err != nil {
+				impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+				return err
+			}
 		}
 	}
 
