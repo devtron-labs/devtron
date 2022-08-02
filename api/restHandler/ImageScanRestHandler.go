@@ -89,6 +89,7 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 		}
 		return
 	}
+	impl.logger.Infow("SCAN-DEBUGGING deployInfoList count", "count", len(deployInfoList))
 	token := r.Header.Get("token")
 	var ids []int
 	for _, item := range deployInfoList {
@@ -121,8 +122,10 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 		}
 		// skip for pod
 	}
+	impl.logger.Info("SCAN-DEBUGGING rbac done")
 
 	results, err := impl.imageScanService.FetchScanExecutionListing(request, ids)
+	impl.logger.Info("SCAN-DEBUGGING scanning done")
 	if err != nil {
 		impl.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
