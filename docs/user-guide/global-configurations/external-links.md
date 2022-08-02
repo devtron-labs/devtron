@@ -66,8 +66,8 @@ Before you begin, configure an application in the Devtron dashboard.
                 <li>{appId}</li>
                 <li>{envId}</li>
                 <li>{namespace}</li>
-                <li>{podName}: If used, the link will only be visible at the pod level on the <a href="https://docs.devtron.ai/devtron/user-guide/app-details">App details</a> page. </li>
-                <li>{containerName}: If used, the link will only be visible at the container level on the <a href="https://docs.devtron.ai/devtron/user-guide/app-details">App details</a> page. </li>
+                <li>{podName}: If used, the link will only be visible at the pod level on the <a href="../creating-application/app-details.md">App details</a> page. </li>
+                <li>{containerName}: If used, the link will only be visible at the container level on the <a href="../creating-application/app-details.md">App details</a> page. </li>
             </ul>
             <b>Note: The env variables will be dynamically replaced by the values that you used to configure the link.            
         </td>
@@ -80,7 +80,7 @@ Select **Save**.
 
 ## Access an external link
 
-The users (admin and others) can access the configured external link from the [App details](././../creating-application/app-details.md) page.
+The users (admin and others) can access the configured external link from the [App details](../creating-application/app-details.md) page.
 
 ## Manage external links
 

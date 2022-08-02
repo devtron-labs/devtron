@@ -2,7 +2,7 @@
 
 This feature allows you to add more chart repositories to Devtron. Once added they will be available in the `Discover section` of the `Chart Store`. 
 
-Learn more about [Discover chart link](https://docs.devtron.ai/user-guide/deploy-chart/overview-of-charts#deploying-chart)
+Learn more about [Discover chart link](../deploy-chart/overview-of-charts.md#deploying-chart)
 
 > Note : After the successfull installation of Devtron, click on `Refresh Charts` to sync & download all the default charts listed on the dashboard. 
 
@@ -24,7 +24,7 @@ Provide a `Name` to your Chart Repository. This name is added as prefix to the n
 
 ### 2. URL
 
-Provide the `URL`. **For example**- github.com for Github, [https://gitlab.com](https://gitlab.com) for GitLab, etc.
+Provide the `URL`. **For example**- [https://github.com](https://github.com) for Github, [https://gitlab.com](https://gitlab.com) for GitLab, etc.
 
 ### 3. Authentication type
 
@@ -59,6 +59,6 @@ You can update your saved chart repository settings at any point in time. Just c
 > Note: You can enable and disable your chart repository setting. If you enable it, then you will be able to see that enabled chart in `Discover` section of `Chart Store`.
 
 
-Learn more about [Discover chart link](https://docs.devtron.ai/user-guide/deploy-chart/overview-of-charts#deploying-chart)
+Learn more about [Discover chart link](../deploy-chart/overview-of-charts.md#deploying-chart)
 
 ![](../../user-guide/global-configurations/images/chart-repo-list.jpg)

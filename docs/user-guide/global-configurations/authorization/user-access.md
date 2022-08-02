@@ -93,7 +93,7 @@ In the `Email address` box, you have to provide the mail ID of the user to whom 
 
 ### Assign super admin permissions
 
-If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear. Please check [above](#access-levels) to see permission levels. Only users with super admin permissions can assign super admin permissions to a user.
+If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear. Please check [above](user-access.md#access-levels) to see permission levels. Only users with super admin permissions can assign super admin permissions to a user.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/add-user-2.jpg)
 

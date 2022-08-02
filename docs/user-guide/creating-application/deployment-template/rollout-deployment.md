@@ -21,7 +21,7 @@ One can see multiple chart version options available in the drop-down. you can s
 
 Every chart version has its own YAML file. Helm charts are used to provide specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
 
-If you want to see [Application Metrics](rollout-deployment.md#3.-Show-application-metrics) (For example Status codes 2xx, 3xx, 5xx; throughput, and latency) for your application, then you need to select the latest chart version.
+If you want to see [Application Metrics](rollout-deployment.md#3.-show-application-metrics) (For example Status codes 2xx, 3xx, 5xx; throughput, and latency) for your application, then you need to select the latest chart version.
 
 Application Metrics is not supported for Chart version older than 3.7 version.
 

@@ -14,13 +14,15 @@ _**This documentation consists of the Global Configurations available in Devtron
 
 [Chart Repositories](chart-repo.md)
 
+[Custom Charts](custom-charts.md)
+
 [Cluster And Environments](cluster-and-environments.md)
 
 [Projects](projects.md)
 
 [SSO Login Service](sso-login.md)
 
-[User Access](user-access.md)
+[Authorization](authorization/README.md)
 
 [Manage Notification](manage-notification.md)
 

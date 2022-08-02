@@ -7,7 +7,7 @@ You can build custom pre/post tasks or use one from the standard preset plugins 
 
 ## Before you begin
 
-Create a [CI build pipeline](./ci-pipeline2.md) if you haven't done that already!
+Create a [CI build pipeline](./ci-pipeline.md) if you haven't done that already!
 
 ## Configuring Pre/Post-build stages
 
@@ -75,7 +75,7 @@ Select **Update Pipeline**.
 2. Select **+ Add task**.
 3. Select **Execute custom script**.
 
-The task type of the custom script may be a [Shell](#custom-script---shell) or a [Container image](#custom-script---container-image).
+The task type of the custom script may be a [Shell](#custom-script-shell) or a [Container image](#custom-script-container-image).
 
 #### Custom script - Shell
 

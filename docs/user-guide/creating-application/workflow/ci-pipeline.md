@@ -6,7 +6,7 @@
 
 A CI Pipeline can be created in one of the three ways:
 
-* [Continuous Integration](#1-continuous-integration)
+* [Continuous Integration](#1.-continuous-integration)
 * [Linked CI Pipeline](#2.-linked-ci-pipeline)
 * [Incoming Webhook](#3.-incoming-webhook)
 
