@@ -410,11 +410,14 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		}
 	}
 	if oldApp.Status.Health.Status != newApp.Status.Health.Status {
+		haveNewTimeline = false
 		timeline.Id = 0
 		if newApp.Status.Health.Status == health.HealthStatusHealthy {
+			haveNewTimeline = true
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
 			timeline.StatusDetail = "App status is Healthy."
 		} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
+			haveNewTimeline = true
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
 			timeline.StatusDetail = "App status is Degraded."
 		}
