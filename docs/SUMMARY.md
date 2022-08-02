@@ -81,7 +81,9 @@
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
 * [Telemetry Overview](user-guide/telemetry.md)
 
-### Hyperion (Depricated)
+
+* [Hyperion](hyperion/devtron.md)
+<!-- ### Hyperion (Depricated)
 * [Introduction](hyperion/README.md)
 * [Setup](hyperion/setup/setup.md)
   * [Install Hyperion](hyperion/setup/install.md)
@@ -91,4 +93,4 @@
     * [User Access](hyperion/user-guide/global-configurations/user-access.md)
 * [Upgrade to Devtron Full mode](hyperion/setup/upgrade-to-devtron.md)
 * [FAQs & Troubleshooting](hyperion/FAQs/faqs.md)
-  * [Hyperion Troubleshooting](hyperion/FAQs/hyperion-troubleshoot.md)
+  * [Hyperion Troubleshooting](hyperion/FAQs/hyperion-troubleshoot.md) -->
