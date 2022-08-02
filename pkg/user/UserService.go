@@ -38,7 +38,7 @@ import (
 type UserService interface {
 	CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
 	SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
-	UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo, error)
+	UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(token string, object string) bool) (*bean.UserInfo, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
 
@@ -266,7 +266,7 @@ func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *
 	updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
 	updateUserInfo.UserId = userInfo.UserId
 	updateUserInfo.EmailId = emailId // override case sensitivity
-	updateUserInfo, err = impl.UpdateUser(updateUserInfo)
+	updateUserInfo, err = impl.UpdateUser(updateUserInfo, "", nil)
 	if err != nil {
 		impl.logger.Errorw("error while update user", "error", err)
 		return nil, err
@@ -497,7 +497,7 @@ func (impl UserServiceImpl) mergeGroups(oldGroups []string, newGroups []string) 
 	return groups
 }
 
-func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo, error) {
+func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(token string, object string) bool) (*bean.UserInfo, error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isUserSuperAdmin, err := impl.IsSuperAdmin(int(userInfo.Id))
 	if err != nil {
@@ -552,19 +552,28 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 		}
 
 		// DELETE Removed Items
-		items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPolicies(userInfo, existingRoleIds, eliminatedRoleIds, tx)
+		items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPolicies(userInfo, existingRoleIds, eliminatedRoleIds, tx, token, managerAuth)
 		if err != nil {
 			return nil, err
 		}
 		eliminatedPolicies = append(eliminatedPolicies, items...)
 		//Adding New Policies
 		for _, roleFilter := range userInfo.RoleFilters {
+
+			//TODO - here we need to add AUTH
+			rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+			isValidAuth := managerAuth(token, rbacObject)
+			if !isValidAuth {
+				continue
+			}
+
 			if roleFilter.EntityName == "" {
 				roleFilter.EntityName = "NONE"
 			}
 			if roleFilter.Environment == "" {
 				roleFilter.Environment = "NONE"
 			}
+
 			entityNames := strings.Split(roleFilter.EntityName, ",")
 			environments := strings.Split(roleFilter.Environment, ",")
 			for _, environment := range environments {
@@ -630,6 +639,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 						addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.EmailId), Obj: casbin2.Object(roleModel.Role)})
 					} else {
 						if roleModel.Id > 0 {
+							//TODO - here we need to add AUTH
 							userRoleModel := &repository2.UserRoleModel{UserId: model.Id, RoleId: roleModel.Id}
 							userRoleModel.CreatedBy = userInfo.UserId
 							userRoleModel.UpdatedBy = userInfo.UserId

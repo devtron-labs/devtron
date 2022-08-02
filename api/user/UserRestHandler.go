@@ -174,6 +174,13 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
+func (handler UserRestHandlerImpl) checkManagerAuth(token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
+		return false
+	}
+	return true
+}
+
 func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
@@ -261,7 +268,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	if userInfo.EmailId == "admin@github.com/devtron-labs" {
 		userInfo.EmailId = "admin"
 	}
-	res, err := handler.userService.UpdateUser(&userInfo)
+	res, err := handler.userService.UpdateUser(&userInfo, token, handler.checkManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)

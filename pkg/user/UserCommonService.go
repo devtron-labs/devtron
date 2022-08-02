@@ -1,6 +1,7 @@
 package user
 
 import (
+	"fmt"
 	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/bean"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -12,7 +13,7 @@ import (
 )
 
 type UserCommonService interface {
-	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx) ([]casbin2.Policy, error)
+	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx, token string, managerAuth func(token string, object string) bool) ([]casbin2.Policy, error)
 	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, eliminatedRoles map[int]*repository2.RoleGroupRoleMapping, tx *pg.Tx) ([]casbin2.Policy, error)
 }
 
@@ -40,10 +41,18 @@ func NewUserCommonServiceImpl(userAuthRepository repository2.UserAuthRepository,
 	return serviceImpl
 }
 
-func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx) ([]casbin2.Policy, error) {
+func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx, token string, managerAuth func(token string, object string) bool) ([]casbin2.Policy, error) {
 	var eliminatedPolicies []casbin2.Policy
 	// DELETE Removed Items
 	for _, roleFilter := range userInfo.RoleFilters {
+
+		//TODO - here we need to add AUTH
+		rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+		isValidAuth := managerAuth(token, rbacObject)
+		if !isValidAuth {
+			continue
+		}
+
 		if roleFilter.EntityName == "" {
 			roleFilter.EntityName = "NONE"
 		}
@@ -81,13 +90,18 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 	// which are existing but not provided in this request
 
 	for _, userRoleModel := range eliminatedRoleIds {
-		_, err := impl.userAuthRepository.DeleteUserRoleMapping(userRoleModel, tx)
-		if err != nil {
-			impl.logger.Errorw("Error in delete user role mapping", "user", userInfo)
-			return nil, err
-		}
 		role, err := impl.userAuthRepository.GetRoleById(userRoleModel.RoleId)
 		if err != nil {
+			return nil, err
+		}
+		rbacObject := fmt.Sprintf("%s", strings.ToLower(role.Team))
+		isValidAuth := managerAuth(token, rbacObject)
+		if !isValidAuth {
+			continue
+		}
+		_, err = impl.userAuthRepository.DeleteUserRoleMapping(userRoleModel, tx)
+		if err != nil {
+			impl.logger.Errorw("Error in delete user role mapping", "user", userInfo)
 			return nil, err
 		}
 		eliminatedPolicies = append(eliminatedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(role.Role)})
