@@ -150,15 +150,18 @@ func (impl ImageScanServiceImpl) FetchAllDeployInfo(request *ImageScanRequest) (
 }
 
 func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanRequest, deployInfoIds []int) (*ImageScanHistoryListingResponse, error) {
+	impl.Logger.Infow("SCAN-DEBUGGING FetchScanExecutionListing init", "count", len(deployInfoIds), "deployInfoIds", deployInfoIds)
 	size := request.Size
 	request.Size = 0
 	groupByListCount, err := impl.imageScanDeployInfoRepository.ScanListingWithFilter(&request.ImageScanFilter, request.Size, request.Offset, deployInfoIds)
+	impl.Logger.Info("SCAN-DEBUGGING after first ScanListingWithFilter")
 	if err != nil {
 		impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 		return nil, err
 	}
 	request.Size = size
 	groupByList, err := impl.imageScanDeployInfoRepository.ScanListingWithFilter(&request.ImageScanFilter, request.Size, request.Offset, deployInfoIds)
+	impl.Logger.Info("SCAN-DEBUGGING after second ScanListingWithFilter")
 	if err != nil {
 		impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 		return nil, err
@@ -172,7 +175,9 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 		responseList := make([]*ImageScanHistoryResponse, 0)
 		return &ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, nil
 	}
+	impl.Logger.Info("SCAN-DEBUGGING before imageScanDeployInfoRepository.FindByIds")
 	deployedList, err := impl.imageScanDeployInfoRepository.FindByIds(ids)
+	impl.Logger.Info("SCAN-DEBUGGING after imageScanDeployInfoRepository.FindByIds")
 	if err != nil {
 		impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 		return nil, err
@@ -184,6 +189,7 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 	}
 
 	var finalResponseList []*ImageScanHistoryResponse
+	impl.Logger.Infow("SCAN-DEBUGGING groupByList", "count", len(groupByList))
 	for _, item := range groupByList {
 		imageScanHistoryResponse := &ImageScanHistoryResponse{}
 		var lastChecked time.Time
@@ -193,7 +199,9 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 		lowCount := 0
 		imageScanDeployInfo := groupByListMap[item.Id]
 		if imageScanDeployInfo != nil {
+			impl.Logger.Infow("SCAN-DEBUGGING before FetchByScanExecutionIds", "id", imageScanDeployInfo.ImageScanExecutionHistoryId)
 			scanResultList, err := impl.scanResultRepository.FetchByScanExecutionIds(imageScanDeployInfo.ImageScanExecutionHistoryId)
+			impl.Logger.Info("SCAN-DEBUGGING after FetchByScanExecutionIds")
 			if err != nil && err != pg.ErrNoRows {
 				impl.Logger.Errorw("error while fetching scan execution result", "err", err)
 				//return nil, err
@@ -236,7 +244,9 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 			}
 		} else {
 			if item.ObjectType == security.ScanObjectType_APP || item.ObjectType == security.ScanObjectType_CHART {
+				impl.Logger.Info("SCAN-DEBUGGING before appRepository.FindById")
 				app, err := impl.appRepository.FindById(item.ScanObjectMetaId)
+				impl.Logger.Info("SCAN-DEBUGGING after appRepository.FindById")
 				if err != nil {
 					return nil, err
 				}
@@ -244,7 +254,9 @@ func (impl ImageScanServiceImpl) FetchScanExecutionListing(request *ImageScanReq
 				imageScanHistoryResponse.Name = app.AppName
 				imageScanHistoryResponse.Type = item.ObjectType
 			} else if item.ObjectType == security.ScanObjectType_POD {
+				impl.Logger.Infow("SCAN-DEBUGGING before scanObjectMetaRepository.FindOne", "id", item.ScanObjectMetaId)
 				scanObjectMeta, err := impl.scanObjectMetaRepository.FindOne(item.ScanObjectMetaId)
+				impl.Logger.Info("SCAN-DEBUGGING after scanObjectMetaRepository.FindOne")
 				if err != nil {
 					return nil, err
 				}
