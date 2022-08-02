@@ -61,7 +61,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimeline(timeline *Pipelin
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByPipelineId(pipelineId int) ([]*PipelineStatusTimeline, error) {
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
-		Join("INNER JOIN cd_workflow_runner wfr ON wfr.id = cd_pipeline_status_timeline.cd_workflow_runner_id").
+		Join("INNER JOIN cd_workflow_runner wfr ON wfr.id = pipeline_status_timeline.cd_workflow_runner_id").
 		Join("INNER JOIN cd_workflow cw ON cw.id=wfr.cd_workflow_id").
 		Where("cd_workflow.pipelineId = ?", pipelineId).Select()
 	if err != nil {
@@ -85,10 +85,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByWfrId(wfrId in
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(cdWorkflowId int, status TimelineStatus) (*PipelineStatusTimeline, error) {
 	timeline := &PipelineStatusTimeline{}
 	err := impl.dbConnection.Model(timeline).
-		Join("INNER JOIN cd_workflow_runner wfr ON wfr.id = cd_pipeline_status_timeline.cd_workflow_runner_id").
+		Join("INNER JOIN cd_workflow_runner wfr ON wfr.id = pipeline_status_timeline.cd_workflow_runner_id").
 		Join("INNER JOIN cd_workflow cw ON cw.id=wfr.cd_workflow_id").
 		Where("cd_workflow.id = ?", cdWorkflowId).
-		Where("cd_pipeline_status_timeline.status = ?", status).
+		Where("pipeline_status_timeline.status = ?", status).
 		Order("cw.id DESC").Limit(1).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timeline of latest wf by pipelineId and status", "err", err, "cdWorkflowId", cdWorkflowId)
@@ -100,10 +100,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineOfLatestWfByCdWor
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckTimelineExistsOfLatestWfByCdWorkflowIdAndStatus(cdWorkflowId int, status TimelineStatus) (bool, error) {
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
-		Join("INNER JOIN cd_workflow_runner wfr ON wfr.id = cd_pipeline_status_timeline.cd_workflow_runner_id").
+		Join("INNER JOIN cd_workflow_runner wfr ON wfr.id = pipeline_status_timeline.cd_workflow_runner_id").
 		Join("INNER JOIN cd_workflow cw ON cw.id=wfr.cd_workflow_id").
 		Where("cd_workflow.id = ?", cdWorkflowId).
-		Where("cd_pipeline_status_timeline.status = ?", status).
+		Where("pipeline_status_timeline.status = ?", status).
 		Order("cw.id DESC").Limit(1).Exists()
 	if err != nil {
 		impl.logger.Errorw("error in getting timeline of latest wf by pipelineId and status", "err", err, "cdWorkflowId", cdWorkflowId)
