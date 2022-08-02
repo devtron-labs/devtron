@@ -111,7 +111,7 @@ type AppServiceImpl struct {
 	chartRefRepository               chartRepoRepository.ChartRefRepository
 	chartService                     chart.ChartService
 	argoUserService                  argo.ArgoUserService
-	cdPipelineStatusTimelineRepo     pipelineConfig.CdPipelineStatusTimelineRepository
+	cdPipelineStatusTimelineRepo     pipelineConfig.PipelineStatusTimelineRepository
 }
 
 type AppService interface {
@@ -156,7 +156,7 @@ func NewAppService(
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
-	cdPipelineStatusTimelineRepo pipelineConfig.CdPipelineStatusTimelineRepository) *AppServiceImpl {
+	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -380,7 +380,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		return err
 	}
 	// creating cd pipeline status timeline for git commit
-	timeline := &pipelineConfig.CdPipelineStatusTimeline{
+	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: cdWfr.CdWorkflowId,
 		Status:             pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
 		StatusDetail:       "Git commit done successfully.",
@@ -684,7 +684,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			return 0, err
 		}
 		// creating cd pipeline status timeline for git commit
-		timeline := &pipelineConfig.CdPipelineStatusTimeline{
+		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: wfrId,
 			Status:             pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
 			StatusDetail:       "Git commit done successfully.",

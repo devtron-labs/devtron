@@ -732,8 +732,8 @@ func InitializeApp() (*App, error) {
 		cron.NewHelmApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.HelmApplicationStatusUpdateHandler), new(*cron.HelmApplicationStatusUpdateHandlerImpl)),
 
-		pipelineConfig.NewCdPipelineStatusTimelineRepositoryImpl,
-		wire.Bind(new(pipelineConfig.CdPipelineStatusTimelineRepository), new(*pipelineConfig.CdPipelineStatusTimelineRepositoryImpl)),
+		pipelineConfig.NewPipelineStatusTimelineRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusTimelineRepository), new(*pipelineConfig.PipelineStatusTimelineRepositoryImpl)),
 	)
 	return &App{}, nil
 }
