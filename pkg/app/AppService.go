@@ -298,7 +298,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
-	if string(application.Healthy) != deploymentStatus.Status {
+	if application.Healthy != deploymentStatus.Status {
 		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
@@ -379,11 +379,10 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		impl.logger.Errorw("error in finding cd wfr by workflowId and runnerType", "err", err)
 		return err
 	}
+	haveNewTimeline := false
 	// creating cd pipeline status timeline for git commit
 	timeline := &pipelineConfig.PipelineStatusTimeline{
-		CdWorkflowRunnerId: cdWfr.CdWorkflowId,
-		Status:             pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
-		StatusDetail:       "Git commit done successfully.",
+		CdWorkflowRunnerId: cdWfr.Id,
 		StatusTime:         time.Now(),
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
@@ -393,26 +392,32 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		},
 	}
 	if oldApp.Status.Sync.Revision != newApp.Status.Sync.Revision {
+		haveNewTimeline = true
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
 		timeline.StatusDetail = "Kubectl apply initiated successfully."
 	} else if oldApp.Status.Sync.Status != newApp.Status.Sync.Status {
 		if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
+			haveNewTimeline = true
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = "Kubectl apply synced successfully."
 		}
 	} else if oldApp.Status.Health.Status != newApp.Status.Health.Status {
 		if newApp.Status.Health.Status == health.HealthStatusHealthy {
+			haveNewTimeline = true
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
 			timeline.StatusDetail = "App status is Healthy."
 		} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
+			haveNewTimeline = true
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
 			timeline.StatusDetail = "App status is Degraded."
 		}
 	}
-	err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
-	if err != nil {
-		impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
-		return err
+	if haveNewTimeline {
+		err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+		if err != nil {
+			impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+			return err
+		}
 	}
 	return nil
 }
