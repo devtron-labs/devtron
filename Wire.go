@@ -90,6 +90,7 @@ import (
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	pipelineCron "github.com/devtron-labs/devtron/pkg/pipeline/cron"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -731,6 +732,9 @@ func InitializeApp() (*App, error) {
 		//	AuthWireSet,
 		cron.NewHelmApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.HelmApplicationStatusUpdateHandler), new(*cron.HelmApplicationStatusUpdateHandlerImpl)),
+
+		pipelineCron.NewPresetContainerRegistryHandlerImpl,
+		wire.Bind(new(pipelineCron.PresetContainerRegistryUpdateHandler), new(*pipelineCron.PresetContainerRegistryUpdateHandlerImpl)),
 	)
 	return &App{}, nil
 }

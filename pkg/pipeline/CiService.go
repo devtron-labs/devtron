@@ -460,7 +460,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 }
 
 func isPublicRegistry(url string) bool {
-	return strings.Contains(url, "ttl.sh")
+	return strings.Index(url, "ttl.sh") == 0
 }
 
 func getPublicRegistryRepoName(dockerRepository string, dockerImgTag string) string {

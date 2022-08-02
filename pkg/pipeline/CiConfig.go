@@ -67,6 +67,8 @@ type CiConfig struct {
 	DefaultAddressPoolBaseCidr string   `env:"CI_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
 	DefaultAddressPoolSize     int      `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
 
+	DefaultRegistryRepoName string `env:"DEFAULT_REGISTRY_REPO_NAME" envDefault:"devtron-preset-registry-repo"`
+
 	AzureAccountKey string `env:"AZURE_ACCOUNT_KEY"`
 	ClusterConfig   *rest.Config
 	NodeLabel       map[string]string
