@@ -82,6 +82,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 }
 
 const WorkflowStarting = "Starting"
+const WorkflowInProgress = "In Progress"
 const WorkflowAborted = "Aborted"
 const WorkflowFailed = "Failed"
 
