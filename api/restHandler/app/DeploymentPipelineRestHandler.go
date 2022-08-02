@@ -736,10 +736,11 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		// build digest vs scan-results
 		digestVsScanResults := make(map[string][]*security.ImageScanExecutionResult)
 		for _, imageScanResult := range imageScanResults {
-			if val, ok := digestVsScanResults[imageScanResult.ImageScanExecutionHistory.ImageHash]; !ok {
+			imageHash := imageScanResult.ImageScanExecutionHistory.ImageHash
+			if val, ok := digestVsScanResults[imageHash]; !ok {
 				var scanResults []*security.ImageScanExecutionResult
 				scanResults = append(scanResults, imageScanResult)
-				digestVsScanResults[imageScanResult.ImageScanExecutionHistory.ImageHash] = scanResults
+				digestVsScanResults[imageHash] = scanResults
 			} else {
 				val = append(val, imageScanResult)
 			}
