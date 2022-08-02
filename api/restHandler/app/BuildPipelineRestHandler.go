@@ -46,6 +46,7 @@ type DevtronAppBuildMaterialRestHandler interface {
 	FetchMaterialInfo(w http.ResponseWriter, r *http.Request)
 	FetchChanges(w http.ResponseWriter, r *http.Request)
 	DeleteMaterial(w http.ResponseWriter, r *http.Request)
+	GetCommitMetadataForPipelineMaterial(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildHistoryRestHandler interface {
@@ -1021,6 +1022,52 @@ func (handler PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter,
 		return
 	}
 	common.WriteJsonResp(w, err, changes.Commits, http.StatusCreated)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetCommitMetadataForPipelineMaterial(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	ciPipelineMaterialId, err := strconv.Atoi(vars["ciPipelineMaterialId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	gitHash := vars["gitHash"]
+	handler.Logger.Infow("request payload, GetCommitMetadataForPipelineMaterial", "ciPipelineMaterialId", ciPipelineMaterialId, "gitHash", gitHash)
+
+	// get ci-pipeline-material
+	ciPipelineMaterial, err := handler.ciPipelineMaterialRepository.GetById(ciPipelineMaterialId)
+	if err != nil {
+		handler.Logger.Errorw("error while fetching ciPipelineMaterial", "err", err, "ciPipelineMaterialId", ciPipelineMaterialId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	//RBAC
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+
+	commitMetadataRequest := &gitSensor.CommitMetadataRequest{
+		PipelineMaterialId: ciPipelineMaterialId,
+		GitHash:            gitHash,
+	}
+	commit, err := handler.gitSensorClient.GetCommitMetadataForPipelineMaterial(commitMetadataRequest)
+	if err != nil {
+		handler.Logger.Errorw("error while fetching commit metadata for pipeline material", "commitMetadataRequest", commitMetadataRequest, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, commit, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.ResponseWriter, r *http.Request) {

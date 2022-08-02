@@ -94,7 +94,8 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindAll() ([]appStoreBean.
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *appStoreBean.AppStoreFilter) ([]appStoreBean.AppStoreWithVersion, error) {
 	var appStoreWithVersion []appStoreBean.AppStoreWithVersion
-	query := "SELECT asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name" +
+	query := "SELECT asv.version, asv.icon,asv.deprecated,asv.id as app_store_application_version_id," +
+		" asv.description, aps.*, ch.name as chart_name" +
 		" FROM app_store_application_version asv" +
 		" INNER JOIN app_store aps ON asv.app_store_id = aps.id" +
 		" INNER JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +

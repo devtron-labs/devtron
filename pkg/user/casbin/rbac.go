@@ -110,8 +110,8 @@ type EnforcerImpl struct {
 
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
-func (e *EnforcerImpl) Enforce(emailId string, resource string, action string, resourceItem string) bool {
-	return e.enforce(emailId, resource, action, resourceItem)
+func (e *EnforcerImpl) Enforce(token string, resource string, action string, resourceItem string) bool {
+	return e.enforce(token, resource, action, resourceItem)
 }
 
 func (e *EnforcerImpl) EnforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
@@ -358,7 +358,7 @@ func (e *EnforcerImpl) enforce(token string, resource string, action string, res
 	if invalid {
 		return false
 	}
-	return e.enforceByEmail(email, resource, action, resourceItem)
+	return e.enforceByEmail(strings.ToLower(email), resource, action, resourceItem)
 }
 
 func (e *EnforcerImpl) enforceAndUpdateCache(email string, resource string, action string, resourceItem string) bool {

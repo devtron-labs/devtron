@@ -1,6 +1,6 @@
 # Secrets
 
-Secrets and configmaps both are used to store environment variables but there is one major difference between them: Configmap stores key-values in normal text format while secrets store them in base64 encrypted form. Devtron platform hides the data of secrets for the normal users and it is only visible to the users having edit permission.
+Secrets and configmaps both are used to store environment variables but there is one major difference between them: Configmap stores key-values in normal text format while secrets store them in base64 encrypted form. Devtron hides the data of secrets for the normal users and it is only visible to the users having edit permission.
 
 Secret objects let you store and manage sensitive information, such as passwords, authentication tokens, and ssh keys. Embedding this information in secrets is safer and more flexible than putting it verbatim in a Pod definition or in a container image.
 
@@ -24,9 +24,9 @@ Click on `Add Secret` to add a new secret.
 
 ## Volume Mount Path
 
-Specify the Volume Mount folder path in `Volume Mount Path`, a path where the data volume needs to be mounted. This volume will be accessible to the Containers running in a pod.
+Specify the volume mount folder path in `Volume Mount Path`, a path where the data volume needs to be mounted. This volume will be accessible to the containers running in a pod.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/creating-applications-secrets-3.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/secret-volume-mount-path.jpg)
 
 ## Sub Path
 For multiple files mount at the same location you need to check sub path `bool` field, it will use the file name (key) as sub path. 
