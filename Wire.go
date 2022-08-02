@@ -735,6 +735,7 @@ func InitializeApp() (*App, error) {
 
 		pipelineCron.NewPresetContainerRegistryHandlerImpl,
 		wire.Bind(new(pipelineCron.PresetContainerRegistryUpdateHandler), new(*pipelineCron.PresetContainerRegistryUpdateHandlerImpl)),
+		pipelineCron.GetPresetDockerRegistryConfigBean,
 	)
 	return &App{}, nil
 }

@@ -17,10 +17,30 @@ type PresetContainerRegistryUpdateHandler interface {
 }
 
 type PresetContainerRegistryUpdateHandlerImpl struct {
-	logger                 *zap.SugaredLogger
-	cron                   *cron.Cron
-	dockerRegConfigService pipeline.DockerRegistryConfig
-	config                 *PresetDockerRegistryConfigBean
+	logger                         *zap.SugaredLogger
+	dockerRegistryConfig           pipeline.DockerRegistryConfig
+	presetDockerRegistryConfigBean *PresetDockerRegistryConfigBean
+	cron                           *cron.Cron
+}
+
+func NewPresetContainerRegistryHandlerImpl(logger *zap.SugaredLogger, dockerRegistryConfig pipeline.DockerRegistryConfig,
+	presetDockerRegistryConfigBean *PresetDockerRegistryConfigBean) *PresetContainerRegistryUpdateHandlerImpl {
+	cron := cron.New(
+		cron.WithChain())
+	cron.Start()
+
+	impl := &PresetContainerRegistryUpdateHandlerImpl{
+		logger:                         logger,
+		cron:                           cron,
+		dockerRegistryConfig:           dockerRegistryConfig,
+		presetDockerRegistryConfigBean: presetDockerRegistryConfigBean,
+	}
+	_, err := cron.AddFunc(presetDockerRegistryConfigBean.PresetRegistryUpdateCronExpr, impl.SyncAndUpdatePresetContainerRegistry)
+	if err != nil {
+		logger.Errorw("error in starting preset container registry update cron job", "err", err)
+		return nil
+	}
+	return impl
 }
 
 type PresetDockerRegistryConfigBean struct {
@@ -29,13 +49,7 @@ type PresetDockerRegistryConfigBean struct {
 	PresetRegistryRepoName       string `env:"PRESET_REGISTRY_REPO_NAME" envDefault:"devtron-preset-registry-repo"`
 }
 
-type PresetRegistrySyncResponseBean struct {
-	code   float64
-	status string
-	result *pipeline.DockerArtifactStoreBean
-}
-
-func GetPresetRegistryConfig() *PresetDockerRegistryConfigBean {
+func GetPresetDockerRegistryConfigBean() *PresetDockerRegistryConfigBean {
 	cfg := &PresetDockerRegistryConfigBean{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -44,37 +58,17 @@ func GetPresetRegistryConfig() *PresetDockerRegistryConfigBean {
 	return cfg
 }
 
-func NewPresetContainerRegistryHandlerImpl(logger *zap.SugaredLogger, dockerRegConfig pipeline.DockerRegistryConfig) *PresetContainerRegistryUpdateHandlerImpl {
-	cron := cron.New(
-		cron.WithChain())
-	cron.Start()
-
-	config := GetPresetRegistryConfig()
-	impl := &PresetContainerRegistryUpdateHandlerImpl{
-		logger:                 logger,
-		cron:                   cron,
-		dockerRegConfigService: dockerRegConfig,
-		config:                 config,
-	}
-	_, err := cron.AddFunc(config.PresetRegistryUpdateCronExpr, impl.SyncAndUpdatePresetContainerRegistry)
-	if err != nil {
-		logger.Errorw("error in starting preset container registry update cron job", "err", err)
-		return nil
-	}
-	return impl
-}
-
 func (impl *PresetContainerRegistryUpdateHandlerImpl) SyncAndUpdatePresetContainerRegistry() {
-	presetSyncUrl := impl.config.PresetRegistrySyncUrl
+	presetSyncUrl := impl.presetDockerRegistryConfigBean.PresetRegistrySyncUrl
 	presetContainerRegistryByteArr, err := util2.ReadFromUrlWithRetry(presetSyncUrl)
-	centralDockerRegistryConfig, err := extractRegistryConfig(presetContainerRegistryByteArr)
+	centralDockerRegistryConfig, err := impl.extractRegistryConfig(presetContainerRegistryByteArr)
 	if err != nil {
 		impl.logger.Errorw("err during unmarshal for preset container registry response from central-api", "err", err)
 		return
 	}
 
 	registryId := util2.DockerPresetContainerRegistry
-	dockerArtifactStore, err := impl.dockerRegConfigService.FetchOneDockerAccount(registryId)
+	dockerArtifactStore, err := impl.dockerRegistryConfig.FetchOneDockerAccount(registryId)
 	if err != nil {
 		impl.logger.Errorw("err in extracting docker registry from DB", "id", registryId, "err", err)
 		return
@@ -82,7 +76,7 @@ func (impl *PresetContainerRegistryUpdateHandlerImpl) SyncAndUpdatePresetContain
 	if changed := impl.compareCentralRegistryAndConfigured(centralDockerRegistryConfig, dockerArtifactStore); changed {
 		centralDockerRegistryConfig.Id = registryId
 		centralDockerRegistryConfig.User = 1 // system
-		_, err := impl.dockerRegConfigService.Update(centralDockerRegistryConfig)
+		_, err := impl.dockerRegistryConfig.Update(centralDockerRegistryConfig)
 		if err != nil {
 			impl.logger.Errorw("err in updating central-api docker registry into DB", "id", registryId, "err", err)
 			return
@@ -94,7 +88,7 @@ func (impl *PresetContainerRegistryUpdateHandlerImpl) SyncAndUpdatePresetContain
 
 }
 
-func extractRegistryConfig(arr []byte) (*pipeline.DockerArtifactStoreBean, error) {
+func (impl *PresetContainerRegistryUpdateHandlerImpl) extractRegistryConfig(arr []byte) (*pipeline.DockerArtifactStoreBean, error) {
 
 	var result map[string]interface{}
 	err := json.Unmarshal(arr, &result)

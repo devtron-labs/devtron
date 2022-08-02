@@ -605,7 +605,8 @@ func InitializeApp() (*App, error) {
 	apiTokenRestHandlerImpl := apiToken2.NewApiTokenRestHandlerImpl(sugaredLogger, apiTokenServiceImpl, userServiceImpl, enforcerImpl, validate)
 	apiTokenRouterImpl := apiToken2.NewApiTokenRouterImpl(apiTokenRestHandlerImpl)
 	helmApplicationStatusUpdateHandlerImpl := cron.NewHelmApplicationStatusUpdateHandlerImpl(sugaredLogger, appServiceImpl, workflowDagExecutorImpl, installedAppServiceImpl, cdHandlerImpl)
-	presetContainerRegistryUpdateHandlerImpl := cron2.NewPresetContainerRegistryHandlerImpl(sugaredLogger, dockerRegistryConfigImpl)
+	presetDockerRegistryConfigBean := cron2.GetPresetDockerRegistryConfigBean()
+	presetContainerRegistryUpdateHandlerImpl := cron2.NewPresetContainerRegistryHandlerImpl(sugaredLogger, dockerRegistryConfigImpl, presetDockerRegistryConfigBean)
 	clusterCronServiceImpl, err := k8s.NewClusterCronServiceImpl(sugaredLogger, clusterServiceImplExtended, k8sApplicationServiceImpl, clusterRepositoryImpl)
 	if err != nil {
 		return nil, err

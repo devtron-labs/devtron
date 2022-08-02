@@ -393,7 +393,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	dockerRegistryId := pipeline.CiTemplate.DockerRegistry.Id
 	registryUrl := pipeline.CiTemplate.DockerRegistry.RegistryURL
 	if dockerRegistryId == util3.DockerPresetContainerRegistry {
-		dockerRepository = pipelineCron.GetPresetRegistryConfig().PresetRegistryRepoName
+		dockerRepository = pipelineCron.GetPresetDockerRegistryConfigBean().PresetRegistryRepoName
 		if isPublicRegistry(registryUrl) {
 			dockerRepository = getPublicRegistryRepoName(dockerRepository, dockerImageTag)
 			dockerImageTag = "24h"
