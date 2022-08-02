@@ -380,7 +380,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		return err
 	}
 	haveNewTimeline := false
-	// creating cd pipeline status timeline for git commit
+	// creating cd pipeline status timeline
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: cdWfr.Id,
 		StatusTime:         time.Now(),
@@ -401,16 +401,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = "Kubectl apply synced successfully."
 		}
-	} else if oldApp.Status.Health.Status != newApp.Status.Health.Status {
-		if newApp.Status.Health.Status == health.HealthStatusHealthy {
-			haveNewTimeline = true
-			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
-			timeline.StatusDetail = "App status is Healthy."
-		} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
-			haveNewTimeline = true
-			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
-			timeline.StatusDetail = "App status is Degraded."
-		}
 	}
 	if haveNewTimeline {
 		err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
@@ -419,6 +409,22 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			return err
 		}
 	}
+	if oldApp.Status.Health.Status != newApp.Status.Health.Status {
+		timeline.Id = 0
+		if newApp.Status.Health.Status == health.HealthStatusHealthy {
+			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
+			timeline.StatusDetail = "App status is Healthy."
+		} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
+			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
+			timeline.StatusDetail = "App status is Degraded."
+		}
+		err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+		if err != nil {
+			impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+			return err
+		}
+	}
+
 	return nil
 }
 
