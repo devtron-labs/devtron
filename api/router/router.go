@@ -40,7 +40,7 @@ import (
 	"github.com/devtron-labs/devtron/client/dashboard"
 	pubsub2 "github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/client/telemetry"
-	pipelineCron "github.com/devtron-labs/devtron/pkg/pipeline/cron"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/k8s"
@@ -113,7 +113,7 @@ type MuxRouter struct {
 	helmApplicationStatusUpdateHandler   cron.HelmApplicationStatusUpdateHandler
 	k8sCapacityRouter                    k8s.K8sCapacityRouter
 	webhookHelmRouter                    webhookHelm.WebhookHelmRouter
-	presetContainerRegistryUpdateHandler pipelineCron.PresetContainerRegistryUpdateHandler
+	presetContainerRegistryUpdateHandler pipeline.PresetContainerRegistryUpdateHandler
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -139,7 +139,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
 	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
-	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler, presetContainerRegistryUpdateHandler pipelineCron.PresetContainerRegistryUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter, webhookHelmRouter webhookHelm.WebhookHelmRouter) *MuxRouter {
+	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler, presetContainerRegistryUpdateHandler pipeline.PresetContainerRegistryUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter, webhookHelmRouter webhookHelm.WebhookHelmRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                               mux.NewRouter(),
 		HelmRouter:                           HelmRouter,

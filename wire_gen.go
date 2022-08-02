@@ -91,7 +91,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/module"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	cron2 "github.com/devtron-labs/devtron/pkg/pipeline/cron"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository7 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -605,8 +604,8 @@ func InitializeApp() (*App, error) {
 	apiTokenRestHandlerImpl := apiToken2.NewApiTokenRestHandlerImpl(sugaredLogger, apiTokenServiceImpl, userServiceImpl, enforcerImpl, validate)
 	apiTokenRouterImpl := apiToken2.NewApiTokenRouterImpl(apiTokenRestHandlerImpl)
 	helmApplicationStatusUpdateHandlerImpl := cron.NewHelmApplicationStatusUpdateHandlerImpl(sugaredLogger, appServiceImpl, workflowDagExecutorImpl, installedAppServiceImpl, cdHandlerImpl)
-	presetDockerRegistryConfigBean := cron2.GetPresetDockerRegistryConfigBean()
-	presetContainerRegistryUpdateHandlerImpl := cron2.NewPresetContainerRegistryHandlerImpl(sugaredLogger, dockerRegistryConfigImpl, presetDockerRegistryConfigBean)
+	presetDockerRegistryConfigBean := pipeline.GetPresetDockerRegistryConfigBean()
+	presetContainerRegistryUpdateHandlerImpl := pipeline.NewPresetContainerRegistryHandlerImpl(sugaredLogger, dockerRegistryConfigImpl, presetDockerRegistryConfigBean)
 	clusterCronServiceImpl, err := k8s.NewClusterCronServiceImpl(sugaredLogger, clusterServiceImplExtended, k8sApplicationServiceImpl, clusterRepositoryImpl)
 	if err != nil {
 		return nil, err

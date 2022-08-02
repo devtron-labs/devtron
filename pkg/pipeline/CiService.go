@@ -20,7 +20,6 @@ package pipeline
 import (
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
-	pipelineCron "github.com/devtron-labs/devtron/pkg/pipeline/cron"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/plugin/repository"
@@ -393,7 +392,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	dockerRegistryId := pipeline.CiTemplate.DockerRegistry.Id
 	registryUrl := pipeline.CiTemplate.DockerRegistry.RegistryURL
 	if dockerRegistryId == util3.DockerPresetContainerRegistry {
-		dockerRepository = pipelineCron.GetPresetDockerRegistryConfigBean().PresetRegistryRepoName
+		dockerRepository = GetPresetDockerRegistryConfigBean().PresetRegistryRepoName
 		if isPublicRegistry(registryUrl) {
 			dockerRepository = getPublicRegistryRepoName(dockerRepository, dockerImageTag)
 			dockerImageTag = "24h"

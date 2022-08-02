@@ -1,11 +1,10 @@
-package cron
+package pipeline
 
 import (
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
@@ -18,12 +17,13 @@ type PresetContainerRegistryUpdateHandler interface {
 
 type PresetContainerRegistryUpdateHandlerImpl struct {
 	logger                         *zap.SugaredLogger
-	dockerRegistryConfig           pipeline.DockerRegistryConfig
+	dockerRegistryConfig           DockerRegistryConfig
 	presetDockerRegistryConfigBean *PresetDockerRegistryConfigBean
 	cron                           *cron.Cron
 }
 
-func NewPresetContainerRegistryHandlerImpl(logger *zap.SugaredLogger, dockerRegistryConfig pipeline.DockerRegistryConfig,
+func NewPresetContainerRegistryHandlerImpl(logger *zap.SugaredLogger,
+	dockerRegistryConfig DockerRegistryConfig,
 	presetDockerRegistryConfigBean *PresetDockerRegistryConfigBean) *PresetContainerRegistryUpdateHandlerImpl {
 	cron := cron.New(
 		cron.WithChain())
@@ -88,7 +88,7 @@ func (impl *PresetContainerRegistryUpdateHandlerImpl) SyncAndUpdatePresetContain
 
 }
 
-func (impl *PresetContainerRegistryUpdateHandlerImpl) extractRegistryConfig(arr []byte) (*pipeline.DockerArtifactStoreBean, error) {
+func (impl *PresetContainerRegistryUpdateHandlerImpl) extractRegistryConfig(arr []byte) (*DockerArtifactStoreBean, error) {
 
 	var result map[string]interface{}
 	err := json.Unmarshal(arr, &result)
@@ -102,13 +102,13 @@ func (impl *PresetContainerRegistryUpdateHandlerImpl) extractRegistryConfig(arr 
 	}
 	responseBean := result["result"]
 	response1, _ := json.Marshal(responseBean.(map[string]interface{}))
-	centralDockerRegistryConfig := &pipeline.DockerArtifactStoreBean{}
+	centralDockerRegistryConfig := &DockerArtifactStoreBean{}
 	err = json.Unmarshal(response1, centralDockerRegistryConfig)
 	return centralDockerRegistryConfig, err
 }
 
-func (impl *PresetContainerRegistryUpdateHandlerImpl) compareCentralRegistryAndConfigured(centralDockerRegistry *pipeline.DockerArtifactStoreBean,
-	dbDockerRegistry *pipeline.DockerArtifactStoreBean) bool {
+func (impl *PresetContainerRegistryUpdateHandlerImpl) compareCentralRegistryAndConfigured(centralDockerRegistry *DockerArtifactStoreBean,
+	dbDockerRegistry *DockerArtifactStoreBean) bool {
 	if centralDockerRegistry.PluginId != dbDockerRegistry.PluginId {
 		return true
 	}
