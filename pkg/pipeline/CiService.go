@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -388,8 +389,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	dockerfilePath := filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
 	dockerRepository := pipeline.CiTemplate.DockerRepository
 	dockerRegistryId := pipeline.CiTemplate.DockerRegistry.Id
-	if dockerRegistryId == util3.DockerPresetContainerRegistry {
-		dockerRepository = getPresetRegistryRepoName(dockerRepository, dockerImageTag)
+	registryUrl := pipeline.CiTemplate.DockerRegistry.RegistryURL
+	if dockerRegistryId == util3.DockerPresetContainerRegistry && isPublicRegistry(registryUrl) {
+		dockerRepository = getPublicRegistryRepoName(dockerRepository, dockerImageTag)
 		dockerImageTag = "24h"
 	}
 	workflowRequest := &WorkflowRequest{
@@ -399,7 +401,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		DockerRegistryId:           dockerRegistryId,
 		DockerRegistryType:         string(pipeline.CiTemplate.DockerRegistry.RegistryType),
 		DockerImageTag:             dockerImageTag,
-		DockerRegistryURL:          pipeline.CiTemplate.DockerRegistry.RegistryURL,
+		DockerRegistryURL:          registryUrl,
 		DockerRepository:           dockerRepository,
 		DockerBuildArgs:            string(merged),
 		DockerBuildTargetPlatform:  pipeline.CiTemplate.TargetPlatform,
@@ -457,8 +459,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	return workflowRequest, nil
 }
 
-func getPresetRegistryRepoName(dockerRepository string, dockerImgTag string) string {
-	return "devtron-preset-" + dockerRepository + "-" + dockerImgTag
+func isPublicRegistry(url string) bool {
+	return strings.Contains(url, "ttl.sh")
+}
+
+func getPublicRegistryRepoName(dockerRepository string, dockerImgTag string) string {
+	return dockerRepository + "-" + dockerImgTag
 }
 
 func buildCiStepsDataFromDockerBuildScripts(dockerBuildScripts []*bean.CiScript) []*bean2.StepObject {
