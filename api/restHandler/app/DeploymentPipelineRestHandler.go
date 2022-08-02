@@ -742,7 +742,7 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 				scanResults = append(scanResults, imageScanResult)
 				digestVsScanResults[imageHash] = scanResults
 			} else {
-				val = append(val, imageScanResult)
+				digestVsScanResults[imageHash] = append(val, imageScanResult)
 			}
 		}
 
