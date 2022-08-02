@@ -9,6 +9,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
+	"log"
 )
 
 type PresetContainerRegistryUpdateHandler interface {
@@ -19,12 +20,13 @@ type PresetContainerRegistryUpdateHandlerImpl struct {
 	logger                 *zap.SugaredLogger
 	cron                   *cron.Cron
 	dockerRegConfigService pipeline.DockerRegistryConfig
-	config                 *DockerRegistryConfigBean
+	config                 *PresetDockerRegistryConfigBean
 }
 
-type DockerRegistryConfigBean struct {
+type PresetDockerRegistryConfigBean struct {
 	PresetRegistrySyncUrl        string `env:"PRESET_REGISTRY_SYNC_URL" envDefault:"https://api-stage.devtron.ai/presetCR"`
 	PresetRegistryUpdateCronExpr string `env:"PRESET_REGISTRY_UPDATE_CRON_EXPR" envDefault:"0 */1 * * *"`
+	PresetRegistryRepoName       string `env:"PRESET_REGISTRY_REPO_NAME" envDefault:"devtron-preset-registry-repo"`
 }
 
 type PresetRegistrySyncResponseBean struct {
@@ -33,10 +35,13 @@ type PresetRegistrySyncResponseBean struct {
 	result *pipeline.DockerArtifactStoreBean
 }
 
-func GetConfig() (*DockerRegistryConfigBean, error) {
-	cfg := &DockerRegistryConfigBean{}
+func GetPresetRegistryConfig() *PresetDockerRegistryConfigBean {
+	cfg := &PresetDockerRegistryConfigBean{}
 	err := env.Parse(cfg)
-	return cfg, err
+	if err != nil {
+		log.Fatal("error occurred while loading docker registry config ")
+	}
+	return cfg
 }
 
 func NewPresetContainerRegistryHandlerImpl(logger *zap.SugaredLogger, dockerRegConfig pipeline.DockerRegistryConfig) *PresetContainerRegistryUpdateHandlerImpl {
@@ -44,17 +49,14 @@ func NewPresetContainerRegistryHandlerImpl(logger *zap.SugaredLogger, dockerRegC
 		cron.WithChain())
 	cron.Start()
 
-	config, err := GetConfig()
-	if err != nil {
-		logger.Fatalw("error occurred while loading docker registry config ")
-	}
+	config := GetPresetRegistryConfig()
 	impl := &PresetContainerRegistryUpdateHandlerImpl{
 		logger:                 logger,
 		cron:                   cron,
 		dockerRegConfigService: dockerRegConfig,
 		config:                 config,
 	}
-	_, err = cron.AddFunc(config.PresetRegistryUpdateCronExpr, impl.SyncAndUpdatePresetContainerRegistry)
+	_, err := cron.AddFunc(config.PresetRegistryUpdateCronExpr, impl.SyncAndUpdatePresetContainerRegistry)
 	if err != nil {
 		logger.Errorw("error in starting preset container registry update cron job", "err", err)
 		return nil
