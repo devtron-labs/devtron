@@ -82,7 +82,7 @@
 * [Telemetry Overview](user-guide/telemetry.md)
 
 
-* [Hyperion](hyperion/devtron.md)
+## [Hyperion](hyperion/devtron.md)
 <!-- ### Hyperion (Depricated)
 * [Introduction](hyperion/README.md)
 * [Setup](hyperion/setup/setup.md)
