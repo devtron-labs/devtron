@@ -561,10 +561,12 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 		for _, roleFilter := range userInfo.RoleFilters {
 
 			//TODO - here we need to add AUTH
-			rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
-			isValidAuth := managerAuth(token, rbacObject)
-			if !isValidAuth {
-				continue
+			if len(roleFilter.Entity) == 0 { // check auth only for apps permission, skip for chart group
+				rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+				isValidAuth := managerAuth(token, rbacObject)
+				if !isValidAuth || len(roleFilter.Entity) == 0 {
+					continue
+				}
 			}
 
 			if roleFilter.EntityName == "" {
@@ -674,13 +676,61 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 			}
 			newGroupMap[userGroup.CasbinName] = userGroup.CasbinName
 			if _, ok := oldGroupMap[userGroup.CasbinName]; !ok {
-				addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(userGroup.CasbinName)})
+				//check permission for new group which is going to add
+				roles, err := impl.roleGroupRepository.GetRolesByGroupCasbinName(userGroup.CasbinName)
+				if err != nil && err != pg.ErrNoRows {
+					impl.logger.Errorw("error while fetching user from db", "error", err)
+					return nil, err
+				}
+				hasAccessToGroup := true
+				for _, role := range roles {
+					//TODO -fixme
+					isActionUserSuperAdmin := true
+					if role.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
+						return nil, fmt.Errorf("unauthoriz")
+					}
+					if len(role.Team) > 0 {
+						rbacObject := fmt.Sprintf("%s", strings.ToLower(role.Team))
+						isValidAuth := managerAuth(token, rbacObject)
+						if !isValidAuth {
+							hasAccessToGroup = false
+							continue
+						}
+					}
+				}
+				if hasAccessToGroup {
+					addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(userGroup.CasbinName)})
+				}
 			}
 		}
 		for _, item := range userCasbinRoles {
 			if _, ok := newGroupMap[item]; !ok {
 				if item != bean.SUPERADMIN {
-					eliminatedPolicies = append(eliminatedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(item)})
+					//check permission for group which is going to eliminate
+					roles, err := impl.roleGroupRepository.GetRolesByGroupCasbinName(item)
+					if err != nil && err != pg.ErrNoRows {
+						impl.logger.Errorw("error while fetching user from db", "error", err)
+						return nil, err
+					}
+					hasAccessToGroup := true
+					for _, role := range roles {
+						//TODO -fixme
+						isActionUserSuperAdmin := true
+						if role.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
+							return nil, fmt.Errorf("unauthoriz")
+						}
+						if len(role.Team) > 0 {
+							rbacObject := fmt.Sprintf("%s", strings.ToLower(role.Team))
+							isValidAuth := managerAuth(token, rbacObject)
+							if !isValidAuth {
+								hasAccessToGroup = false
+								continue
+							}
+						}
+					}
+					if hasAccessToGroup {
+						eliminatedPolicies = append(eliminatedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(item)})
+					}
 				}
 			}
 		}

@@ -47,10 +47,12 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 	for _, roleFilter := range userInfo.RoleFilters {
 
 		//TODO - here we need to add AUTH
-		rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
-		isValidAuth := managerAuth(token, rbacObject)
-		if !isValidAuth {
-			continue
+		if len(roleFilter.Entity) == 0 { // check auth only for apps permission, skip for chart group
+			rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+			isValidAuth := managerAuth(token, rbacObject)
+			if !isValidAuth {
+				continue
+			}
 		}
 
 		if roleFilter.EntityName == "" {
@@ -93,6 +95,9 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 		role, err := impl.userAuthRepository.GetRoleById(userRoleModel.RoleId)
 		if err != nil {
 			return nil, err
+		}
+		if len(role.Team) == 0 { // skip for chart group, in case present in eliminated roles ids
+			continue
 		}
 		rbacObject := fmt.Sprintf("%s", strings.ToLower(role.Team))
 		isValidAuth := managerAuth(token, rbacObject)
