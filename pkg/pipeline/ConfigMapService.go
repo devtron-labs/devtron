@@ -344,7 +344,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 		impl.logger.Errorw("error while fetching from db", "error", err)
 		return nil, err
 	}
-	if err != nil && model.Id > 0 {
+	if err == nil && model.Id > 0 {
 		configsList := &ConfigsList{}
 		found := false
 		var configs []*ConfigData
