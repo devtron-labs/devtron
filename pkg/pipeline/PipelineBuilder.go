@@ -1813,7 +1813,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 				if runningOnParentCd {
 					ciArtifact.RunningOnParentCd = runningOnParentCd
 				}
-				impl.checkAndUpdatePresetRegistryData(ciArtifact, presetDockerRegistryConfigBean, wfr.CdWorkflow.CiArtifact.CreatedOn)
+				impl.checkAndUpdatePresetRegistryData(&ciArtifact, presetDockerRegistryConfigBean, wfr.CdWorkflow.CiArtifact.CreatedOn)
 				dockerImage := ciArtifact.Image
 				presetRegistryRepoName := presetDockerRegistryConfigBean.PresetRegistryRepoName
 				buildUsingPresetRegistry := strings.Contains(dockerImage, presetRegistryRepoName)
@@ -1865,14 +1865,14 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, ciAr
 				ScanEnabled:  artifact.ScanEnabled,
 				Scanned:      artifact.Scanned,
 			}
-			impl.checkAndUpdatePresetRegistryData(artifactBean, presetDockerRegistryConfigBean, artifact.CreatedOn)
+			impl.checkAndUpdatePresetRegistryData(&artifactBean, presetDockerRegistryConfigBean, artifact.CreatedOn)
 			ciArtifacts = append(ciArtifacts, artifactBean)
 		}
 	}
 	return ciArtifacts, nil
 }
 
-func (impl PipelineBuilderImpl) checkAndUpdatePresetRegistryData(artifactBean bean.CiArtifactBean, presetDockerRegistryConfigBean *PresetDockerRegistryConfigBean, createdOn time.Time) {
+func (impl PipelineBuilderImpl) checkAndUpdatePresetRegistryData(artifactBean *bean.CiArtifactBean, presetDockerRegistryConfigBean *PresetDockerRegistryConfigBean, createdOn time.Time) {
 	dockerImage := artifactBean.Image
 	presetRegistryRepoName := presetDockerRegistryConfigBean.PresetRegistryRepoName
 	buildUsingPresetRegistry := strings.Contains(dockerImage, presetRegistryRepoName)
