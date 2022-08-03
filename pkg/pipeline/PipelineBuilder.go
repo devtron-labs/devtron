@@ -30,6 +30,7 @@ import (
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	util1 "github.com/devtron-labs/devtron/util"
 	"net/http"
 	"net/url"
 	"sort"
@@ -393,12 +394,17 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		impl.logger.Errorw("invalid reg url", "err", err)
 		return nil, err
 	}
+	dockerRepository := template.DockerRepository
+	dockerRegistryId := template.DockerRegistry.Id
+	if dockerRegistryId == util1.DockerPresetContainerRegistryId {
+		dockerRepository = impl.presetRegistryHandler.GetPresetDockerRegistryConfigBean().PresetRegistryRepoName
+	}
 	ciConfig = &bean.CiConfigRequest{
 		Id:                template.Id,
 		AppId:             template.AppId,
 		AppName:           template.App.AppName,
-		DockerRepository:  template.DockerRepository,
-		DockerRegistry:    template.DockerRegistry.Id,
+		DockerRepository:  dockerRepository,
+		DockerRegistry:    dockerRegistryId,
 		DockerRegistryUrl: regHost,
 		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId, TargetPlatform: template.TargetPlatform},
 		Version:           template.Version,
