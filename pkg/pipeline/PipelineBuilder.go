@@ -1813,6 +1813,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 				if runningOnParentCd {
 					ciArtifact.RunningOnParentCd = runningOnParentCd
 				}
+				impl.checkAndUpdatePresetRegistryData(ciArtifact, presetDockerRegistryConfigBean, wfr.CdWorkflow.CiArtifact.CreatedOn)
 				dockerImage := ciArtifact.Image
 				presetRegistryRepoName := presetDockerRegistryConfigBean.PresetRegistryRepoName
 				buildUsingPresetRegistry := strings.Contains(dockerImage, presetRegistryRepoName)
@@ -1848,6 +1849,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, ciAr
 		impl.logger.Errorw("error in getting artifacts for ci", "err", err)
 		return ciArtifacts, err
 	}
+	presetDockerRegistryConfigBean := impl.presetRegistryHandler.GetPresetDockerRegistryConfigBean()
 	for _, artifact := range artifacts {
 		if _, ok := artifactMap[artifact.Id]; !ok {
 			mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
@@ -1855,17 +1857,32 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, ciAr
 				mInfo = []byte("[]")
 				impl.logger.Errorw("Error in parsing artifact material info", "err", err, "artifact", artifact)
 			}
-			ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
+			artifactBean := bean.CiArtifactBean{
 				Id:           artifact.Id,
 				Image:        artifact.Image,
 				ImageDigest:  artifact.ImageDigest,
 				MaterialInfo: mInfo,
 				ScanEnabled:  artifact.ScanEnabled,
 				Scanned:      artifact.Scanned,
-			})
+			}
+			impl.checkAndUpdatePresetRegistryData(artifactBean, presetDockerRegistryConfigBean, artifact.CreatedOn)
+			ciArtifacts = append(ciArtifacts, artifactBean)
 		}
 	}
 	return ciArtifacts, nil
+}
+
+func (impl PipelineBuilderImpl) checkAndUpdatePresetRegistryData(artifactBean bean.CiArtifactBean, presetDockerRegistryConfigBean *PresetDockerRegistryConfigBean, createdOn time.Time) {
+	dockerImage := artifactBean.Image
+	presetRegistryRepoName := presetDockerRegistryConfigBean.PresetRegistryRepoName
+	buildUsingPresetRegistry := strings.Contains(dockerImage, presetRegistryRepoName)
+	artifactBean.BuildUsingPresetRegistry = buildUsingPresetRegistry
+	if buildUsingPresetRegistry {
+		imageCreatedTime := createdOn
+		timegapDurationSinceBuild := time.Since(imageCreatedTime)
+		presetExpiryCnfigrdDuration := time.Duration(presetDockerRegistryConfigBean.PresetRegistryImageExpiryTimeInSecs) * time.Second
+		artifactBean.PresetImageDeleted = timegapDurationSinceBuild > presetExpiryCnfigrdDuration
+	}
 }
 
 func (impl PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId int) (bean.CiArtifactResponse, error) {
