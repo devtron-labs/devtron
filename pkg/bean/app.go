@@ -531,6 +531,8 @@ type CiArtifactBean struct {
 	IsVulnerable                  bool            `json:"vulnerable,notnull"`
 	ScanEnabled                   bool            `json:"scanEnabled,notnull"`
 	Scanned                       bool            `json:"scanned,notnull"`
+	BuildUsingPresetRegistry      bool            `json:"buildUsingPresetRegistry,omitempty"`
+	PresetImageDeleted            bool            `json:"imageDeleted,omitempty"`
 }
 
 type CiArtifactResponse struct {
