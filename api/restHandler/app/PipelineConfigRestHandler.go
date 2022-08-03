@@ -87,32 +87,33 @@ type PipelineConfigRestHandler interface {
 }
 
 type PipelineConfigRestHandlerImpl struct {
-	pipelineBuilder         pipeline.PipelineBuilder
-	ciPipelineRepository    pipelineConfig.CiPipelineRepository
-	ciHandler               pipeline.CiHandler
-	Logger                  *zap.SugaredLogger
-	chartService            chart.ChartService
-	propertiesConfigService pipeline.PropertiesConfigService
-	dbMigrationService      pipeline.DbMigrationService
-	application             application.ServiceClient
-	userAuthService         user.UserService
-	validator               *validator.Validate
-	teamService             team.TeamService
-	enforcer                casbin.Enforcer
-	gitSensorClient         gitSensor.GitSensorClient
-	pipelineRepository      pipelineConfig.PipelineRepository
-	appWorkflowService      appWorkflow.AppWorkflowService
-	enforcerUtil            rbac.EnforcerUtil
-	envService              request.EnvironmentService
-	gitRegistryConfig       pipeline.GitRegistryConfig
-	dockerRegistryConfig    pipeline.DockerRegistryConfig
-	cdHandler               pipeline.CdHandler
-	appCloneService         appClone.AppCloneService
-	materialRepository      pipelineConfig.MaterialRepository
-	policyService           security2.PolicyService
-	scanResultRepository    security.ImageScanResultRepository
-	gitProviderRepo         repository.GitProviderRepository
-	argoUserService         argo.ArgoUserService
+	pipelineBuilder              pipeline.PipelineBuilder
+	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
+	ciHandler                    pipeline.CiHandler
+	Logger                       *zap.SugaredLogger
+	chartService                 chart.ChartService
+	propertiesConfigService      pipeline.PropertiesConfigService
+	dbMigrationService           pipeline.DbMigrationService
+	application                  application.ServiceClient
+	userAuthService              user.UserService
+	validator                    *validator.Validate
+	teamService                  team.TeamService
+	enforcer                     casbin.Enforcer
+	gitSensorClient              gitSensor.GitSensorClient
+	pipelineRepository           pipelineConfig.PipelineRepository
+	appWorkflowService           appWorkflow.AppWorkflowService
+	enforcerUtil                 rbac.EnforcerUtil
+	envService                   request.EnvironmentService
+	gitRegistryConfig            pipeline.GitRegistryConfig
+	dockerRegistryConfig         pipeline.DockerRegistryConfig
+	cdHandler                    pipeline.CdHandler
+	appCloneService              appClone.AppCloneService
+	materialRepository           pipelineConfig.MaterialRepository
+	policyService                security2.PolicyService
+	scanResultRepository         security.ImageScanResultRepository
+	gitProviderRepo              repository.GitProviderRepository
+	argoUserService              argo.ArgoUserService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -134,34 +135,35 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
-	argoUserService argo.ArgoUserService) *PipelineConfigRestHandlerImpl {
+	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineConfigRestHandlerImpl {
 	return &PipelineConfigRestHandlerImpl{
-		pipelineBuilder:         pipelineBuilder,
-		Logger:                  Logger,
-		chartService:            chartService,
-		propertiesConfigService: propertiesConfigService,
-		dbMigrationService:      dbMigrationService,
-		application:             application,
-		userAuthService:         userAuthService,
-		validator:               validator,
-		teamService:             teamService,
-		enforcer:                enforcer,
-		ciHandler:               ciHandler,
-		gitSensorClient:         gitSensorClient,
-		ciPipelineRepository:    ciPipelineRepository,
-		pipelineRepository:      pipelineRepository,
-		enforcerUtil:            enforcerUtil,
-		envService:              envService,
-		gitRegistryConfig:       gitRegistryConfig,
-		dockerRegistryConfig:    dockerRegistryConfig,
-		cdHandler:               cdHandler,
-		appCloneService:         appCloneService,
-		appWorkflowService:      appWorkflowService,
-		materialRepository:      materialRepository,
-		policyService:           policyService,
-		scanResultRepository:    scanResultRepository,
-		gitProviderRepo:         gitProviderRepo,
-		argoUserService:         argoUserService,
+		pipelineBuilder:              pipelineBuilder,
+		Logger:                       Logger,
+		chartService:                 chartService,
+		propertiesConfigService:      propertiesConfigService,
+		dbMigrationService:           dbMigrationService,
+		application:                  application,
+		userAuthService:              userAuthService,
+		validator:                    validator,
+		teamService:                  teamService,
+		enforcer:                     enforcer,
+		ciHandler:                    ciHandler,
+		gitSensorClient:              gitSensorClient,
+		ciPipelineRepository:         ciPipelineRepository,
+		pipelineRepository:           pipelineRepository,
+		enforcerUtil:                 enforcerUtil,
+		envService:                   envService,
+		gitRegistryConfig:            gitRegistryConfig,
+		dockerRegistryConfig:         dockerRegistryConfig,
+		cdHandler:                    cdHandler,
+		appCloneService:              appCloneService,
+		appWorkflowService:           appWorkflowService,
+		materialRepository:           materialRepository,
+		policyService:                policyService,
+		scanResultRepository:         scanResultRepository,
+		gitProviderRepo:              gitProviderRepo,
+		argoUserService:              argoUserService,
+		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 	}
 }
 
