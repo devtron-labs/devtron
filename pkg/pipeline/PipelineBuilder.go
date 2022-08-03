@@ -905,15 +905,8 @@ func (impl PipelineBuilderImpl) PatchRegexCiPipeline(request *bean.CiRegexPatchR
 			Type:          pipelineConfig.SourceType(material.Type),
 			Active:        true,
 			GitMaterialId: materialDbObject.GitMaterialId,
-			Path:          materialDbObject.Path,
-			CheckoutPath:  materialDbObject.CheckoutPath,
-			CiPipelineId:  materialDbObject.CiPipelineId,
-			ScmId:         materialDbObject.ScmId,
-			ScmName:       materialDbObject.ScmName,
-			ScmVersion:    materialDbObject.ScmVersion,
 			Regex:         materialDbObject.Regex,
-			GitTag:        materialDbObject.GitTag,
-			AuditLog:      sql.AuditLog{UpdatedBy: request.UserId, UpdatedOn: time.Now(), CreatedOn: materialDbObject.CreatedOn, CreatedBy: materialDbObject.CreatedBy},
+			AuditLog:      sql.AuditLog{UpdatedBy: request.UserId, UpdatedOn: time.Now()},
 		}
 		materials = append(materials, pipelineMaterial)
 	}
@@ -925,7 +918,12 @@ func (impl PipelineBuilderImpl) PatchRegexCiPipeline(request *bean.CiRegexPatchR
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	err = impl.ciPipelineMaterialRepository.UpdateBranch(materials)
+	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
 	if err != nil {
 		return err
 	}
