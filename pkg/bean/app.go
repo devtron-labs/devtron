@@ -532,7 +532,7 @@ type CiArtifactBean struct {
 	ScanEnabled                   bool            `json:"scanEnabled,notnull"`
 	Scanned                       bool            `json:"scanned,notnull"`
 	BuildUsingPresetRegistry      bool            `json:"buildUsingPresetRegistry,omitempty"`
-	PresetImageDeleted            bool            `json:"imageDeleted,omitempty"`
+	PresetImageDeleted            bool            `json:"presetImageDeleted,omitempty"`
 }
 
 type CiArtifactResponse struct {
