@@ -5,52 +5,60 @@ import (
 	"errors"
 	"fmt"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"log"
+	"strconv"
 )
 
-type PresetContainerRegistryUpdateHandler interface {
+type PresetContainerRegistryHandler interface {
 	SyncAndUpdatePresetContainerRegistry()
+	GetPresetDockerRegistryConfigBean() *PresetDockerRegistryConfigBean
 }
 
-type PresetContainerRegistryUpdateHandlerImpl struct {
+type PresetContainerRegistryHandlerImpl struct {
 	logger                         *zap.SugaredLogger
 	dockerRegistryConfig           DockerRegistryConfig
 	presetDockerRegistryConfigBean *PresetDockerRegistryConfigBean
 	cron                           *cron.Cron
+	attributeService               attributes.AttributesService
 }
 
+const PresetRegistryRepoNameKey = "PresetRegistryRepoName"
+const PresetRegistryExpiryTimeKey = "PresetRegistryExpiryTime"
+
 func NewPresetContainerRegistryHandlerImpl(logger *zap.SugaredLogger,
-	dockerRegistryConfig DockerRegistryConfig,
-	presetDockerRegistryConfigBean *PresetDockerRegistryConfigBean) *PresetContainerRegistryUpdateHandlerImpl {
+	dockerRegistryConfig DockerRegistryConfig, attributeService attributes.AttributesService) *PresetContainerRegistryHandlerImpl {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
-
-	impl := &PresetContainerRegistryUpdateHandlerImpl{
+	presetDockerRegistryConfigBean := LoadConfig()
+	impl := &PresetContainerRegistryHandlerImpl{
 		logger:                         logger,
 		cron:                           cron,
 		dockerRegistryConfig:           dockerRegistryConfig,
 		presetDockerRegistryConfigBean: presetDockerRegistryConfigBean,
+		attributeService:               attributeService,
 	}
 	_, err := cron.AddFunc(presetDockerRegistryConfigBean.PresetRegistryUpdateCronExpr, impl.SyncAndUpdatePresetContainerRegistry)
 	if err != nil {
 		logger.Errorw("error in starting preset container registry update cron job", "err", err)
 		return nil
 	}
+	go impl.loadExpiryAndRepoNameFromDb()
 	return impl
 }
 
 type PresetDockerRegistryConfigBean struct {
 	PresetRegistrySyncUrl               string `env:"PRESET_REGISTRY_SYNC_URL" envDefault:"https://api-stage.devtron.ai/presetCR"`
-	PresetRegistryUpdateCronExpr        string `env:"PRESET_REGISTRY_UPDATE_CRON_EXPR" envDefault:"0 */1 * * *"`
-	PresetRegistryRepoName              string `env:"PRESET_REGISTRY_REPO_NAME" envDefault:"devtron-preset-registry-repo"`
-	PresetRegistryImageExpiryTimeInSecs int    `env:"PRESET_REGISTRY_IMAGE_EXPIRY_TIME_SECs" envDefault:"86400"`
+	PresetRegistryUpdateCronExpr        string `env:"PRESET_REGISTRY_UPDATE_CRON_EXPR" envDefault:"*/1 * * * *"`
+	PresetRegistryRepoName              string
+	PresetRegistryImageExpiryTimeInSecs int
 }
 
-func GetPresetDockerRegistryConfigBean() *PresetDockerRegistryConfigBean {
+func LoadConfig() *PresetDockerRegistryConfigBean {
 	cfg := &PresetDockerRegistryConfigBean{}
 	err := env.Parse(cfg)
 	if err != nil {
@@ -59,16 +67,54 @@ func GetPresetDockerRegistryConfigBean() *PresetDockerRegistryConfigBean {
 	return cfg
 }
 
-func (impl *PresetContainerRegistryUpdateHandlerImpl) SyncAndUpdatePresetContainerRegistry() {
+func (impl *PresetContainerRegistryHandlerImpl) GetPresetDockerRegistryConfigBean() *PresetDockerRegistryConfigBean {
+
+	cfg := impl.presetDockerRegistryConfigBean
+	if cfg.PresetRegistryImageExpiryTimeInSecs == 0 || cfg.PresetRegistryRepoName == "" {
+		impl.loadExpiryAndRepoNameFromDb()
+	}
+	return cfg
+}
+
+func (impl *PresetContainerRegistryHandlerImpl) loadExpiryAndRepoNameFromDb() {
+	imageExpiryTimeInSecs := 0
+	presetRepoName := ""
+	keys := []string{PresetRegistryExpiryTimeKey, PresetRegistryRepoNameKey}
+	keyAttributes, err := impl.attributeService.GetByKeys(keys)
+	if err != nil {
+		return
+	}
+	for _, attribute := range keyAttributes {
+		attrValue := attribute.Value
+		attrKey := attribute.Key
+		if attrKey == PresetRegistryRepoNameKey {
+			presetRepoName = attrValue
+		} else if attrKey == PresetRegistryExpiryTimeKey {
+			imageExpiryTimeInSecs, _ = strconv.Atoi(attrValue)
+		}
+	}
+	registryConfigBean := impl.presetDockerRegistryConfigBean
+	if registryConfigBean.PresetRegistryImageExpiryTimeInSecs == 0 {
+		registryConfigBean.PresetRegistryImageExpiryTimeInSecs = imageExpiryTimeInSecs
+	}
+	if registryConfigBean.PresetRegistryRepoName == "" {
+		registryConfigBean.PresetRegistryRepoName = presetRepoName
+	}
+}
+
+func (impl *PresetContainerRegistryHandlerImpl) SyncAndUpdatePresetContainerRegistry() {
 	presetSyncUrl := impl.presetDockerRegistryConfigBean.PresetRegistrySyncUrl
 	presetContainerRegistryByteArr, err := util2.ReadFromUrlWithRetry(presetSyncUrl)
-	centralDockerRegistryConfig, err := impl.extractRegistryConfig(presetContainerRegistryByteArr)
+	centralDockerRegistryConfig, registryRepoName, registryExpiryTimeInSecs, err := impl.extractRegistryConfig(presetContainerRegistryByteArr)
 	if err != nil {
 		impl.logger.Errorw("err during unmarshal for preset container registry response from central-api", "err", err)
 		return
 	}
 
-	registryId := util2.DockerPresetContainerRegistry
+	impl.compareAndUpdateExpiryTime(registryExpiryTimeInSecs)
+	impl.compareAndUpdateRepoName(registryRepoName)
+
+	registryId := util2.DockerPresetContainerRegistryId
 	dockerArtifactStore, err := impl.dockerRegistryConfig.FetchOneDockerAccount(registryId)
 	if err != nil {
 		impl.logger.Errorw("err in extracting docker registry from DB", "id", registryId, "err", err)
@@ -89,26 +135,29 @@ func (impl *PresetContainerRegistryUpdateHandlerImpl) SyncAndUpdatePresetContain
 
 }
 
-func (impl *PresetContainerRegistryUpdateHandlerImpl) extractRegistryConfig(arr []byte) (*DockerArtifactStoreBean, error) {
+func (impl *PresetContainerRegistryHandlerImpl) extractRegistryConfig(arr []byte) (*DockerArtifactStoreBean, string, int, error) {
 
 	var result map[string]interface{}
 	err := json.Unmarshal(arr, &result)
 	if err != nil {
-		return nil, err
+		return nil, "", 0, err
 	}
 	statusCode := result["code"]
 	sCodeStr := statusCode.(float64)
 	if sCodeStr != 200 {
-		return nil, errors.New("api failed with code" + fmt.Sprint(sCodeStr))
+		return nil, "", 0, errors.New("api failed with code" + fmt.Sprint(sCodeStr))
 	}
 	responseBean := result["result"]
-	response1, _ := json.Marshal(responseBean.(map[string]interface{}))
+	responseBeanMap := responseBean.(map[string]interface{})
+	expiryTimeIsSecs := responseBeanMap["expiryTimeInSecs"]
+	registryDefaultRepoName := responseBeanMap["presetRepoName"]
+	response1, _ := json.Marshal(responseBeanMap)
 	centralDockerRegistryConfig := &DockerArtifactStoreBean{}
 	err = json.Unmarshal(response1, centralDockerRegistryConfig)
-	return centralDockerRegistryConfig, err
+	return centralDockerRegistryConfig, registryDefaultRepoName.(string), int(expiryTimeIsSecs.(float64)), err
 }
 
-func (impl *PresetContainerRegistryUpdateHandlerImpl) compareCentralRegistryAndConfigured(centralDockerRegistry *DockerArtifactStoreBean,
+func (impl *PresetContainerRegistryHandlerImpl) compareCentralRegistryAndConfigured(centralDockerRegistry *DockerArtifactStoreBean,
 	dbDockerRegistry *DockerArtifactStoreBean) bool {
 	if centralDockerRegistry.PluginId != dbDockerRegistry.PluginId {
 		return true
@@ -145,4 +194,47 @@ func (impl *PresetContainerRegistryUpdateHandlerImpl) compareCentralRegistryAndC
 	}
 
 	return false
+}
+
+func (impl *PresetContainerRegistryHandlerImpl) compareAndUpdateExpiryTime(syncedExpiryTimeInSecs int) int {
+	cachedExpiryTimeInSecs := impl.presetDockerRegistryConfigBean.PresetRegistryImageExpiryTimeInSecs
+
+	if syncedExpiryTimeInSecs != cachedExpiryTimeInSecs {
+		attributesDto, err := impl.attributeService.GetByKey(PresetRegistryExpiryTimeKey)
+		request := &attributes.AttributesDto{
+			Id:     attributesDto.Id,
+			Key:    PresetRegistryExpiryTimeKey,
+			Value:  strconv.Itoa(syncedExpiryTimeInSecs),
+			UserId: 1,
+		}
+		updateAttributeValue, err := impl.attributeService.UpdateAttributes(request)
+		if err != nil {
+			return syncedExpiryTimeInSecs
+		}
+		expiryTimeInSecStr := updateAttributeValue.Value
+		updatedExpiryTimeInSec, err := strconv.Atoi(expiryTimeInSecStr)
+		impl.presetDockerRegistryConfigBean.PresetRegistryImageExpiryTimeInSecs = updatedExpiryTimeInSec
+	}
+	return syncedExpiryTimeInSecs
+}
+
+func (impl *PresetContainerRegistryHandlerImpl) compareAndUpdateRepoName(syncedRepoName string) string {
+	cachedRegistryRepoName := impl.presetDockerRegistryConfigBean.PresetRegistryRepoName
+
+	if cachedRegistryRepoName != syncedRepoName {
+		attributesDto, err := impl.attributeService.GetByKey(PresetRegistryRepoNameKey)
+		request := &attributes.AttributesDto{
+			Id:     attributesDto.Id,
+			Key:    PresetRegistryRepoNameKey,
+			Value:  syncedRepoName,
+			UserId: 1,
+		}
+		updateAttributeValue, err := impl.attributeService.UpdateAttributes(request)
+		if err != nil {
+			return syncedRepoName
+		}
+		updatedRegistryRepoName := updateAttributeValue.Value
+		impl.presetDockerRegistryConfigBean.PresetRegistryRepoName = updatedRegistryRepoName
+	}
+	return syncedRepoName
 }

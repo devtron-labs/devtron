@@ -58,6 +58,7 @@ type CiServiceImpl struct {
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
 	userService                   user.UserService
+	presetRegistryHandler         PresetContainerRegistryHandler
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -66,7 +67,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
-	userService user.UserService) *CiServiceImpl {
+	userService user.UserService, presetContainerRegistryHandler PresetContainerRegistryHandler) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
 		workflowService:               workflowService,
@@ -80,6 +81,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
 		userService:                   userService,
+		presetRegistryHandler:         presetContainerRegistryHandler,
 	}
 }
 
@@ -391,8 +393,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	dockerRepository := pipeline.CiTemplate.DockerRepository
 	dockerRegistryId := pipeline.CiTemplate.DockerRegistry.Id
 	registryUrl := pipeline.CiTemplate.DockerRegistry.RegistryURL
-	if dockerRegistryId == util3.DockerPresetContainerRegistry {
-		dockerRepository = GetPresetDockerRegistryConfigBean().PresetRegistryRepoName
+	if dockerRegistryId == util3.DockerPresetContainerRegistryId {
+		dockerRepository = impl.presetRegistryHandler.GetPresetDockerRegistryConfigBean().PresetRegistryRepoName
 		if isPublicRegistry(registryUrl) {
 			dockerRepository = getPublicRegistryRepoName(dockerRepository, dockerImageTag)
 			dockerImageTag = "24h"

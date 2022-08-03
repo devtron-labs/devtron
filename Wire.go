@@ -733,9 +733,8 @@ func InitializeApp() (*App, error) {
 		cron.NewHelmApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.HelmApplicationStatusUpdateHandler), new(*cron.HelmApplicationStatusUpdateHandlerImpl)),
 
-		pipeline.GetPresetDockerRegistryConfigBean,
 		pipeline.NewPresetContainerRegistryHandlerImpl,
-		wire.Bind(new(pipeline.PresetContainerRegistryUpdateHandler), new(*pipeline.PresetContainerRegistryUpdateHandlerImpl)),
+		wire.Bind(new(pipeline.PresetContainerRegistryHandler), new(*pipeline.PresetContainerRegistryHandlerImpl)),
 	)
 	return &App{}, nil
 }

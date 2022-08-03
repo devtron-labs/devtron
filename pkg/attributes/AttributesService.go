@@ -30,10 +30,11 @@ type AttributesService interface {
 	GetById(id int) (*AttributesDto, error)
 	GetActiveList() ([]*AttributesDto, error)
 	GetByKey(key string) (*AttributesDto, error)
+	GetByKeys(keys []string) ([]*AttributesDto, error)
 }
 
 const (
-	HostUrlKey string = "url"
+	HostUrlKey     string = "url"
 	API_SECRET_KEY string = "apiTokenSecret"
 )
 
@@ -195,4 +196,26 @@ func (impl AttributesServiceImpl) GetByKey(key string) (*AttributesDto, error) {
 		Value:  model.Value,
 	}
 	return dto, nil
+}
+
+func (impl AttributesServiceImpl) GetByKeys(keys []string) ([]*AttributesDto, error) {
+	results := make([]*AttributesDto, 0)
+	models, err := impl.attributesRepository.FindByKeys(keys)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching attributes", "error", err, "keys", keys)
+		return nil, err
+	}
+	if err == pg.ErrNoRows {
+		return results, nil
+	}
+	for _, model := range models {
+		dto := &AttributesDto{
+			Id:     model.Id,
+			Active: model.Active,
+			Key:    model.Key,
+			Value:  model.Value,
+		}
+		results = append(results, dto)
+	}
+	return results, nil
 }

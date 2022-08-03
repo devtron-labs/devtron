@@ -223,7 +223,7 @@ func (impl DockerRegRestHandlerImpl) UpdateDockerRegistryConfig(w http.ResponseW
 			return
 		}
 
-		if bean.Id == util2.DockerPresetContainerRegistry {
+		if bean.Id == util2.DockerPresetContainerRegistryId {
 			impl.logger.Errorw("error in updating devtron preset container registry", "registry", bean.Id)
 			err = errors.New("preset registry can't be updated")
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -319,7 +319,7 @@ func (impl DockerRegRestHandlerImpl) DeleteDockerRegistryConfig(w http.ResponseW
 func modifyResponseForPresetRegistry(response []pipeline.DockerArtifactStoreBean) []pipeline.DockerArtifactStoreBean {
 	var modifiedResponse []pipeline.DockerArtifactStoreBean
 	for _, bean := range response {
-		if bean.Id == util2.DockerPresetContainerRegistry {
+		if bean.Id == util2.DockerPresetContainerRegistryId {
 			modifiedBean := pipeline.DockerArtifactStoreBean{
 				Id:           bean.Id,
 				RegistryURL:  bean.RegistryURL,

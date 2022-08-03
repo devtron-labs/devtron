@@ -35,6 +35,7 @@ type AttributesRepository interface {
 	Save(model *Attributes, tx *pg.Tx) (*Attributes, error)
 	Update(model *Attributes, tx *pg.Tx) error
 	FindByKey(key string) (*Attributes, error)
+	FindByKeys(keys []string) ([]*Attributes, error)
 	FindById(id int) (*Attributes, error)
 	FindActiveList() ([]*Attributes, error)
 	GetConnection() (dbConnection *pg.DB)
@@ -67,6 +68,13 @@ func (repo AttributesRepositoryImpl) FindByKey(key string) (*Attributes, error) 
 	err := repo.dbConnection.Model(model).Where("key = ?", key).Where("active = ?", true).
 		Select()
 	return model, err
+}
+
+func (repo AttributesRepositoryImpl) FindByKeys(keys []string) ([]*Attributes, error) {
+	var models []*Attributes
+	err := repo.dbConnection.Model(&models).Where("key IN (?)", pg.In(keys)).Where("active = ?", true).
+		Select()
+	return models, err
 }
 
 func (repo AttributesRepositoryImpl) FindById(id int) (*Attributes, error) {

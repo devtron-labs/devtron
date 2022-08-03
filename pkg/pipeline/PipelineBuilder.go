@@ -145,6 +145,7 @@ type PipelineBuilderImpl struct {
 	chartService                     chart.ChartService
 	helmAppService                   client.HelmAppService
 	deploymentGroupRepository        repository.DeploymentGroupRepository
+	presetRegistryHandler            PresetContainerRegistryHandler
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -180,7 +181,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	pipelineStageService PipelineStageService, chartRefRepository chartRepoRepository.ChartRefRepository,
 	chartTemplateService util.ChartTemplateService, chartService chart.ChartService,
 	helmAppService client.HelmAppService,
-	deploymentGroupRepository repository.DeploymentGroupRepository) *PipelineBuilderImpl {
+	deploymentGroupRepository repository.DeploymentGroupRepository, presetRegistryHandler PresetContainerRegistryHandler) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -220,6 +221,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		chartService:                     chartService,
 		helmAppService:                   helmAppService,
 		deploymentGroupRepository:        deploymentGroupRepository,
+		presetRegistryHandler:            presetRegistryHandler,
 	}
 }
 
@@ -1761,7 +1763,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForParentStage(cdPipelineId int, p
 func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, parent bool, limit int, parentCdId int) ([]bean.CiArtifactBean, map[int]int, error) {
 	//getting running artifact id for parent cd
 	parentCdRunningArtifactId := 0
-	presetDockerRegistryConfigBean := GetPresetDockerRegistryConfigBean()
+	presetDockerRegistryConfigBean := impl.presetRegistryHandler.GetPresetDockerRegistryConfigBean()
 	if parentCdId > 0 && parent {
 		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(parentCdId, bean2.CD_WORKFLOW_TYPE_DEPLOY, 1)
 		if err != nil {

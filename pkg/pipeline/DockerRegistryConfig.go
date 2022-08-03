@@ -245,7 +245,7 @@ func (impl DockerRegistryConfigImpl) Delete(storeId string) (string, error) {
 }
 
 func (impl DockerRegistryConfigImpl) DeleteReg(bean *DockerArtifactStoreBean) error {
-	if bean.Id == util2.DockerPresetContainerRegistry {
+	if bean.Id == util2.DockerPresetContainerRegistryId {
 		impl.logger.Errorw("error in deleting devtron preset container registry", "registry", bean.Id)
 		return errors.New("preset registry can't be deleted")
 	}
