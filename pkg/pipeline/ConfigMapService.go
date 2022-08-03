@@ -337,10 +337,14 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 	var model *chartConfig.ConfigMapEnvModel
 	if configMapRequest.Id > 0 {
 		model, err = impl.configMapRepository.GetByIdEnvLevel(configMapRequest.Id)
-		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
-			return nil, err
-		}
+	} else if configMapRequest.AppId > 0 && configMapRequest.EnvironmentId > 0 {
+		model, err = impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(configMapRequest.AppId, configMapRequest.EnvironmentId)
+	}
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return nil, err
+	}
+	if err == nil && model.Id > 0 {
 		configsList := &ConfigsList{}
 		found := false
 		var configs []*ConfigData
@@ -383,7 +387,7 @@ func (impl ConfigMapServiceImpl) CMEnvironmentAddUpdate(configMapRequest *Config
 		}
 		configMapRequest.Id = configMap.Id
 
-	} else {
+	} else if err == pg.ErrNoRows {
 		//creating config map record for first time
 		configsList := &ConfigsList{
 			ConfigData: configMapRequest.ConfigData,
@@ -695,10 +699,14 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 	var model *chartConfig.ConfigMapEnvModel
 	if configMapRequest.Id > 0 {
 		model, err = impl.configMapRepository.GetByIdEnvLevel(configMapRequest.Id)
-		if err != nil {
-			impl.logger.Errorw("error while fetching from db", "error", err)
-			return nil, err
-		}
+	} else if configMapRequest.AppId > 0 && configMapRequest.EnvironmentId > 0 {
+		model, err = impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(configMapRequest.AppId, configMapRequest.EnvironmentId)
+	}
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching from db", "error", err)
+		return nil, err
+	}
+	if err == nil && model.Id > 0 {
 		configsList := &SecretsList{}
 		found := false
 		var configs []*ConfigData
@@ -743,7 +751,7 @@ func (impl ConfigMapServiceImpl) CSEnvironmentAddUpdate(configMapRequest *Config
 		}
 		configMapRequest.Id = configMap.Id
 
-	} else {
+	} else if err == pg.ErrNoRows {
 		//creating config map record for first time
 		secretsList := &SecretsList{
 			ConfigData: configMapRequest.ConfigData,
