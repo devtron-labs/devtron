@@ -341,14 +341,13 @@ func (impl DbPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig
 		if err != nil {
 			return err
 		}
-		if materialDbObject.Type != pipelineConfig.SOURCE_TYPE_BRANCH_REGEX {
-			pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
-				Id:       material.Id,
-				Active:   false,
-				AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-			}
-			materials = append(materials, pipelineMaterial)
+		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+			Id:       material.Id,
+			Active:   false,
+			Type:     materialDbObject.Type,
+			AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 		}
+		materials = append(materials, pipelineMaterial)
 	}
 
 	rows, err := impl.deleteExternalCiDetails(p, userId, tx)
