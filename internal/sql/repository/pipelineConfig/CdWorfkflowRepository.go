@@ -34,7 +34,7 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error)
 
-	SaveWorkFlowRunner(wfr *CdWorkflowRunner) error
+	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
 	UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
@@ -344,9 +344,9 @@ func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByEnvironmentId(
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunner(wfr *CdWorkflowRunner) error {
+func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error) {
 	err := impl.dbConnection.Insert(wfr)
-	return err
+	return wfr, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error {

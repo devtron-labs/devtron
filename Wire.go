@@ -731,6 +731,9 @@ func InitializeApp() (*App, error) {
 		//	AuthWireSet,
 		cron.NewHelmApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.HelmApplicationStatusUpdateHandler), new(*cron.HelmApplicationStatusUpdateHandlerImpl)),
+
+		pipelineConfig.NewPipelineStatusTimelineRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusTimelineRepository), new(*pipelineConfig.PipelineStatusTimelineRepositoryImpl)),
 	)
 	return &App{}, nil
 }
