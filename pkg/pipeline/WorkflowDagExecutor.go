@@ -359,7 +359,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		impl.logger.Debugw("env", "env", env)
 		runner.Namespace = env.Namespace
 	}
-	err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 	if err != nil {
 		return err
 	}
@@ -426,7 +426,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		runner.Namespace = env.Namespace
 	}
 
-	err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+	_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 	if err != nil {
 		return err
 	}
@@ -755,13 +755,13 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		Name:         pipeline.Name,
 		WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
-		Status:       WorkflowStarting, //starting
+		Status:       WorkflowInProgress, //starting
 		TriggeredBy:  1,
 		StartedOn:    triggeredAt,
 		Namespace:    impl.cdConfig.DefaultNamespace,
 		CdWorkflowId: cdWf.Id,
 	}
-	err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+	savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 	if err != nil {
 		return err
 	}
@@ -801,14 +801,14 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			impl.logger.Errorw("error in updating status", "err", err)
 			return err
 		}
-		err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		_, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 		if err != nil {
 			return err
 		}
 		return nil
 	}
 
-	err = impl.appService.TriggerCD(artifact, cdWf.Id, pipeline, async, triggeredAt)
+	err = impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, async, triggeredAt)
 	err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, err, triggeredAt)
 	if err1 != nil || err != nil {
 		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
@@ -981,13 +981,13 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			Name:         cdPipeline.Name,
 			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-			Status:       WorkflowStarting,
+			Status:       WorkflowInProgress,
 			TriggeredBy:  overrideRequest.UserId,
 			StartedOn:    triggeredAt,
 			Namespace:    impl.cdConfig.DefaultNamespace,
 			CdWorkflowId: cdWorkflowId,
 		}
-		err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+		savedWfr, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 		if err != nil {
 			impl.logger.Errorw("err", "err", err)
 			return 0, err
@@ -1025,14 +1025,14 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				Name:         cdPipeline.Name,
 				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
-				Status:       WorkflowFailed, //starting
+				Status:       WorkflowFailed,
 				TriggeredBy:  1,
 				StartedOn:    triggeredAt,
 				Namespace:    impl.cdConfig.DefaultNamespace,
 				CdWorkflowId: cdWorkflowId,
 				Message:      "Found vulnerability on image",
 			}
-			err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
+			_, err := impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 			if err != nil {
 				impl.logger.Errorw("err", "err", err)
 				return 0, err
@@ -1040,7 +1040,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			return 0, fmt.Errorf("found vulnerability for image digest %s", artifact.ImageDigest)
 		}
 
-		releaseId, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId)
+		releaseId, err = impl.appService.TriggerRelease(overrideRequest, ctx, triggeredAt, overrideRequest.UserId, savedWfr.Id)
 		//	return after error handling
 		/*if err != nil {
 			return 0, err
