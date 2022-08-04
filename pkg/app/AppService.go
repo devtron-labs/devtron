@@ -370,9 +370,6 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 }
 
 func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp *v1alpha1.Application, pipelineOverride *chartConfig.PipelineOverride) error {
-	if oldApp == nil {
-		return nil
-	}
 	//get wfr by cdWorkflowId & runnerType
 	cdWfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
@@ -392,39 +389,61 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		},
 	}
 	toUpdate := false
-	if oldApp.Status.Sync.Revision != newApp.Status.Sync.Revision {
-		haveNewTimeline = true
+	if oldApp == nil {
+		//case of first trigger
+		//committing timeline for kubectl apply as revision will be started when
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
 		timeline.StatusDetail = "Kubectl apply initiated successfully."
-	} else if oldApp.Status.Sync.Status != newApp.Status.Sync.Status {
+		err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+		if err != nil {
+			impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+			return err
+		}
 		if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
-			haveNewTimeline = true
+			timeline.Id = 0
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = "Kubectl apply synced successfully."
-			//checking if this timeline is present or not because sync status can change from synced to some other status and back to synced
-			latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, timeline.Status)
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
-				return err
-			}
-			if latestTimeline != nil {
-				timeline.Id = latestTimeline.Id
-				toUpdate = true
-			}
-		}
-	}
-	if haveNewTimeline {
-		if toUpdate {
-			err = impl.cdPipelineStatusTimelineRepo.UpdateTimeline(timeline)
-			if err != nil {
-				impl.logger.Errorw("error in updating timeline status", "err", err, "timeline", timeline)
-				return err
-			}
-		} else {
 			err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
 				return err
+			}
+		}
+	} else {
+		if oldApp.Status.Sync.Revision != newApp.Status.Sync.Revision {
+			haveNewTimeline = true
+			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
+			timeline.StatusDetail = "Kubectl apply initiated successfully."
+		} else if oldApp.Status.Sync.Status != newApp.Status.Sync.Status {
+			if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
+				haveNewTimeline = true
+				timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
+				timeline.StatusDetail = "Kubectl apply synced successfully."
+				//checking if this timeline is present or not because sync status can change from synced to some other status and back to synced
+				latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, timeline.Status)
+				if err != nil && err != pg.ErrNoRows {
+					impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
+					return err
+				}
+				if latestTimeline != nil {
+					timeline.Id = latestTimeline.Id
+					toUpdate = true
+				}
+			}
+		}
+		if haveNewTimeline {
+			if toUpdate {
+				err = impl.cdPipelineStatusTimelineRepo.UpdateTimeline(timeline)
+				if err != nil {
+					impl.logger.Errorw("error in updating timeline status", "err", err, "timeline", timeline)
+					return err
+				}
+			} else {
+				err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+				if err != nil {
+					impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+					return err
+				}
 			}
 		}
 	}
