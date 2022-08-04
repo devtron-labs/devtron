@@ -466,7 +466,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 	}
 	haveNewTimeline = false
 	timeline.Id = 0
-	toUpdate := false
 	if newApp.Status.Health.Status == health.HealthStatusHealthy {
 		haveNewTimeline = true
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
@@ -477,7 +476,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		timeline.StatusDetail = "App status is Degraded."
 	}
 	if haveNewTimeline {
-		toUpdate = false
+		toSave = false
 		//checking because we are not comparing health status with previous application object health status and always updating it
 		// and comparison is not done because there are cases when new deployment status is same as old one (for ex when no change in deployment then it will instantly become healthy)
 		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, timeline.Status)
@@ -486,16 +485,9 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			return err
 		}
 		if latestTimeline != nil {
-			timeline.Id = latestTimeline.Id
-			toUpdate = true
+			toSave = false
 		}
-		if toUpdate {
-			err = impl.cdPipelineStatusTimelineRepo.UpdateTimeline(timeline)
-			if err != nil {
-				impl.logger.Errorw("error in updating timeline status", "err", err, "timeline", timeline)
-				return err
-			}
-		} else {
+		if toSave {
 			err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
