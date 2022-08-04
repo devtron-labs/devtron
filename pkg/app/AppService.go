@@ -476,7 +476,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		timeline.StatusDetail = "App status is Degraded."
 	}
 	if haveNewTimeline {
-		toSave = false
+		toSave = true
 		//checking because we are not comparing health status with previous application object health status and always updating it
 		// and comparison is not done because there are cases when new deployment status is same as old one (for ex when no change in deployment then it will instantly become healthy)
 		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, timeline.Status)
