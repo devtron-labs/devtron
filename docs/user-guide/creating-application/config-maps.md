@@ -24,7 +24,7 @@ You can configure a configmap in two ways-
 | `Use configmap as Data Volume` | Select this option, if you want to configure a Data Volume that is accessible to Containers running in a pod and provide a Volume mount path. |
 | `Key-Value` | Provide the actual key-value configuration data here. Key and corresponding value to the provided key. |
 
-![](../../.gitbook/assets/config1%20%282%29.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/configure-configmap.jpg)
 
 ### \(A\) Using Kubernetes ConfigMap
 
@@ -69,13 +69,13 @@ If you select `Environment Variable` in 3rd option, then you can provide your en
 
 `Data in YAML` \(please Check below screenshot\)
 
-![](../../.gitbook/assets/configmap-mountpath-1.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/configure-configmap.jpg)
 
 Now, Click on `Save ConfigMap` to save your configmap configuration.
 
 **Kubernetes ConfigMap using Data Volume**
 
-![](../../.gitbook/assets/configmap-filepermission-1.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/cm-data-volume.jpg)
 
 ## Volume Mount Path
 

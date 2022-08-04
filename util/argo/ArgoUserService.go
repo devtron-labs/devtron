@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/caarlos0/env"
+	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -42,19 +43,24 @@ type ArgoUserServiceImpl struct {
 	clusterService      cluster.ClusterService
 	acdSettings         *settings.ArgoCDSettings
 	devtronSecretConfig *DevtronSecretConfig
+	runTimeConfig       *client.RuntimeConfig
 }
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	acdSettings *settings.ArgoCDSettings,
-	devtronSecretConfig *DevtronSecretConfig) (*ArgoUserServiceImpl, error) {
+	devtronSecretConfig *DevtronSecretConfig,
+	runTimeConfig *client.RuntimeConfig) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:              Logger,
 		clusterService:      clusterService,
 		acdSettings:         acdSettings,
 		devtronSecretConfig: devtronSecretConfig,
+		runTimeConfig:       runTimeConfig,
 	}
-	go argoUserServiceImpl.UpdateArgoCdUserDetail()
+	if !runTimeConfig.LocalDevMode {
+		go argoUserServiceImpl.UpdateArgoCdUserDetail()
+	}
 	return argoUserServiceImpl, nil
 }
 

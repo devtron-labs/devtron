@@ -89,6 +89,7 @@ type PipelineConfigRestHandler interface {
 type PipelineConfigRestHandlerImpl struct {
 	pipelineBuilder              pipeline.PipelineBuilder
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
 	ciHandler                    pipeline.CiHandler
 	Logger                       *zap.SugaredLogger
 	chartService                 chart.ChartService
@@ -112,8 +113,7 @@ type PipelineConfigRestHandlerImpl struct {
 	policyService                security2.PolicyService
 	scanResultRepository         security.ImageScanResultRepository
 	gitProviderRepo              repository.GitProviderRepository
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
-  argoUserService         argo.ArgoUserService
+	argoUserService              argo.ArgoUserService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -135,8 +135,7 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
 	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-  argoUserService argo.ArgoUserService) *PipelineConfigRestHandlerImpl {
+	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineConfigRestHandlerImpl {
 	return &PipelineConfigRestHandlerImpl{
 		pipelineBuilder:              pipelineBuilder,
 		Logger:                       Logger,
@@ -163,8 +162,8 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 		policyService:                policyService,
 		scanResultRepository:         scanResultRepository,
 		gitProviderRepo:              gitProviderRepo,
+		argoUserService:              argoUserService,
 		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
-    argoUserService:         argoUserService,
 	}
 }
 
