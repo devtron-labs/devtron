@@ -388,57 +388,36 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			UpdatedOn: time.Now(),
 		},
 	}
-	toUpdate := false
+	toSave := true
 	if oldApp == nil {
 		//case of first trigger
 		//committing timeline for kubectl apply as revision will be started when
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
 		timeline.StatusDetail = "Kubectl apply initiated successfully."
-		err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
-		if err != nil {
-			impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+		//checking if this timeline is present or not because kubewatch may stream same objects multiple times
+		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, timeline.Status)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
 			return err
 		}
-		if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
-			timeline.Id = 0
-			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
-			timeline.StatusDetail = "Kubectl apply synced successfully."
+		if latestTimeline == nil {
 			err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
 				return err
 			}
 		}
-	} else {
-		if oldApp.Status.Sync.Revision != newApp.Status.Sync.Revision {
-			haveNewTimeline = true
-			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
-			timeline.StatusDetail = "Kubectl apply initiated successfully."
-		} else if oldApp.Status.Sync.Status != newApp.Status.Sync.Status {
-			if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
-				haveNewTimeline = true
-				timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
-				timeline.StatusDetail = "Kubectl apply synced successfully."
-				//checking if this timeline is present or not because sync status can change from synced to some other status and back to synced
-				latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, timeline.Status)
-				if err != nil && err != pg.ErrNoRows {
-					impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
-					return err
-				}
-				if latestTimeline != nil {
-					timeline.Id = latestTimeline.Id
-					toUpdate = true
-				}
+		if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
+			timeline.Id = 0
+			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
+			timeline.StatusDetail = "Kubectl apply synced successfully."
+			//checking if this timeline is present or not because kubewatch may stream same objects multiple times
+			latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, timeline.Status)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
+				return err
 			}
-		}
-		if haveNewTimeline {
-			if toUpdate {
-				err = impl.cdPipelineStatusTimelineRepo.UpdateTimeline(timeline)
-				if err != nil {
-					impl.logger.Errorw("error in updating timeline status", "err", err, "timeline", timeline)
-					return err
-				}
-			} else {
+			if latestTimeline == nil {
 				err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 				if err != nil {
 					impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
@@ -446,9 +425,48 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 				}
 			}
 		}
+	} else {
+		if oldApp.Status.Sync.Revision != newApp.Status.Sync.Revision {
+			haveNewTimeline = true
+			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
+			timeline.StatusDetail = "Kubectl apply initiated successfully."
+			//checking if this timeline is present or not because kubewatch may stream same objects multiple times
+			latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, timeline.Status)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
+				return err
+			}
+			if latestTimeline != nil {
+				toSave = false
+			}
+		} else if oldApp.Status.Sync.Status != newApp.Status.Sync.Status {
+			if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
+				haveNewTimeline = true
+				timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
+				timeline.StatusDetail = "Kubectl apply synced successfully."
+				//checking if this timeline is present or not because sync status can change from synced to some other status
+				//and back to synced, or kubewatch may stream same objects multiple times
+				latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, timeline.Status)
+				if err != nil && err != pg.ErrNoRows {
+					impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
+					return err
+				}
+				if latestTimeline != nil {
+					toSave = false
+				}
+			}
+		}
+		if haveNewTimeline && toSave {
+			err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+			if err != nil {
+				impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+				return err
+			}
+		}
 	}
 	haveNewTimeline = false
 	timeline.Id = 0
+	toUpdate := false
 	if newApp.Status.Health.Status == health.HealthStatusHealthy {
 		haveNewTimeline = true
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
