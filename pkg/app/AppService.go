@@ -391,6 +391,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			UpdatedOn: time.Now(),
 		},
 	}
+	toUpdate := false
 	if oldApp.Status.Sync.Revision != newApp.Status.Sync.Revision {
 		haveNewTimeline = true
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
@@ -400,28 +401,64 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			haveNewTimeline = true
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = "Kubectl apply synced successfully."
+			//checking if this timeline is present or not because sync status can change from synced to some other status and back to synced
+			latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, timeline.Status)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
+				return err
+			}
+			if latestTimeline != nil {
+				timeline.Id = latestTimeline.Id
+				toUpdate = true
+			}
 		}
 	}
 	if haveNewTimeline {
-		err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
-		if err != nil {
-			impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
-			return err
+		if toUpdate {
+			err = impl.cdPipelineStatusTimelineRepo.UpdateTimeline(timeline)
+			if err != nil {
+				impl.logger.Errorw("error in updating timeline status", "err", err, "timeline", timeline)
+				return err
+			}
+		} else {
+			err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+			if err != nil {
+				impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+				return err
+			}
 		}
 	}
-	if oldApp.Status.Health.Status != newApp.Status.Health.Status {
-		haveNewTimeline = false
-		timeline.Id = 0
-		if newApp.Status.Health.Status == health.HealthStatusHealthy {
-			haveNewTimeline = true
-			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
-			timeline.StatusDetail = "App status is Healthy."
-		} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
-			haveNewTimeline = true
-			timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
-			timeline.StatusDetail = "App status is Degraded."
+	haveNewTimeline = false
+	timeline.Id = 0
+	if newApp.Status.Health.Status == health.HealthStatusHealthy {
+		haveNewTimeline = true
+		timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
+		timeline.StatusDetail = "App status is Healthy."
+	} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
+		haveNewTimeline = true
+		timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
+		timeline.StatusDetail = "App status is Degraded."
+	}
+	if haveNewTimeline {
+		toUpdate = false
+		//checking because we are not comparing health status with previous application object health status and always updating it
+		// and comparison is not done because there are cases when new deployment status is same as old one (for ex when no change in deployment then it will instantly become healthy)
+		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, timeline.Status)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
+			return err
 		}
-		if haveNewTimeline {
+		if latestTimeline != nil {
+			timeline.Id = latestTimeline.Id
+			toUpdate = true
+		}
+		if toUpdate {
+			err = impl.cdPipelineStatusTimelineRepo.UpdateTimeline(timeline)
+			if err != nil {
+				impl.logger.Errorw("error in updating timeline status", "err", err, "timeline", timeline)
+				return err
+			}
+		} else {
 			err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
