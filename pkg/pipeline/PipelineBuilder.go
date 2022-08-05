@@ -1820,16 +1820,6 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 					ciArtifact.RunningOnParentCd = runningOnParentCd
 				}
 				impl.checkAndUpdatePresetRegistryData(&ciArtifact, presetDockerRegistryConfigBean, wfr.CdWorkflow.CiArtifact.CreatedOn)
-				dockerImage := ciArtifact.Image
-				presetRegistryRepoName := presetDockerRegistryConfigBean.PresetRegistryRepoName
-				buildUsingPresetRegistry := strings.Contains(dockerImage, presetRegistryRepoName)
-				ciArtifact.BuildUsingPresetRegistry = buildUsingPresetRegistry
-				if buildUsingPresetRegistry {
-					imageCreatedTime := wfr.CdWorkflow.CiArtifact.CreatedOn
-					timegapDurationSinceBuild := time.Since(imageCreatedTime)
-					presetExpiryCnfigrdDuration := time.Duration(presetDockerRegistryConfigBean.PresetRegistryImageExpiryTimeInSecs) * time.Second
-					ciArtifact.PresetImageDeleted = timegapDurationSinceBuild > presetExpiryCnfigrdDuration
-				}
 				ciArtifacts = append(ciArtifacts, ciArtifact)
 				//storing index of ci artifact for using when updating old entry
 				artifactMap[wfr.CdWorkflow.CiArtifact.Id] = len(ciArtifacts) - 1

@@ -52,8 +52,10 @@ func NewPresetContainerRegistryHandlerImpl(logger *zap.SugaredLogger,
 }
 
 type PresetDockerRegistryConfigBean struct {
-	PresetRegistrySyncUrl               string `env:"PRESET_REGISTRY_SYNC_URL" envDefault:"https://api-stage.devtron.ai/presetCR"`
+	PresetRegistrySyncUrl               string `env:"PRESET_REGISTRY_SYNC_URL" envDefault:"https://api.devtron.ai/presetCR"`
 	PresetRegistryUpdateCronExpr        string `env:"PRESET_REGISTRY_UPDATE_CRON_EXPR" envDefault:"0 */1 * * *"`
+	PresetPublicRegistryImgTagValue     string `env:"PRESET_PUBLIC_REGISTRY_IMG_TAG" envDefault:"24h"`
+	PresetPublicRegistry                string `env:"PRESET_PUBLIC_REGISTRY" envDefault:"ttl.sh"`
 	PresetRegistryRepoName              string
 	PresetRegistryImageExpiryTimeInSecs int
 }

@@ -394,10 +394,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	dockerRegistryId := pipeline.CiTemplate.DockerRegistry.Id
 	registryUrl := pipeline.CiTemplate.DockerRegistry.RegistryURL
 	if dockerRegistryId == util3.DockerPresetContainerRegistryId {
-		dockerRepository = impl.presetRegistryHandler.GetPresetDockerRegistryConfigBean().PresetRegistryRepoName
-		if isPublicRegistry(registryUrl) {
+		registryConfigBean := impl.presetRegistryHandler.GetPresetDockerRegistryConfigBean()
+		dockerRepository = registryConfigBean.PresetRegistryRepoName
+		if isPublicRegistry(registryConfigBean, registryUrl) {
 			dockerRepository = getPublicRegistryRepoName(dockerRepository, dockerImageTag)
-			dockerImageTag = "24h"
+			dockerImageTag = registryConfigBean.PresetPublicRegistryImgTagValue
 		}
 	}
 	workflowRequest := &WorkflowRequest{
@@ -465,8 +466,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	return workflowRequest, nil
 }
 
-func isPublicRegistry(url string) bool {
-	return strings.Index(url, "ttl.sh") == 0
+func isPublicRegistry(configBean *PresetDockerRegistryConfigBean, url string) bool {
+	publicRegistry := configBean.PresetPublicRegistry
+	return strings.Index(url, publicRegistry) == 0
 }
 
 func getPublicRegistryRepoName(dockerRepository string, dockerImgTag string) string {
