@@ -18,6 +18,7 @@
 package attributes
 
 import (
+	"errors"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -60,7 +61,7 @@ func (impl UserAttributesServiceImpl) AddUserAttributes(request *UserAttributesD
 	_, err := impl.attributesRepository.AddUserAttribute(dao)
 	if err != nil {
 		impl.logger.Errorw("error in creating new user attributes for req", "req", request, "error", err)
-		return nil, err
+		return nil, errors.New("error occurred while creating user attributes")
 	}
 	return request, nil
 }
@@ -70,14 +71,14 @@ func (impl UserAttributesServiceImpl) UpdateUserAttributes(request *UserAttribut
 	userAttribute, err := impl.GetUserAttribute(request)
 	if err != nil {
 		impl.logger.Errorw("error while getting user attributes during update request", "req", request, "error", err)
-		return nil, err
+		return nil, errors.New("error occurred while updating user attributes")
 	}
 	if userAttribute == nil {
 		impl.logger.Info("not data found for request, so going to add instead of update", "req", request)
 		attributes, err := impl.AddUserAttributes(request)
 		if err != nil {
 			impl.logger.Errorw("error in adding new user attributes", "req", request, "error", err)
-			return nil, err
+			return nil, errors.New("error occurred while updating user attributes")
 		}
 		return attributes, nil
 	}
@@ -90,7 +91,7 @@ func (impl UserAttributesServiceImpl) UpdateUserAttributes(request *UserAttribut
 	err = impl.attributesRepository.UpdateDataValByKey(dao)
 	if err != nil {
 		impl.logger.Errorw("error in update new attributes", "req", request, "error", err)
-		return nil, err
+		return nil, errors.New("error occurred while updating user attributes")
 	}
 	return request, nil
 }
@@ -109,7 +110,7 @@ func (impl UserAttributesServiceImpl) GetUserAttribute(request *UserAttributesDt
 	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching user attributes", "req", request, "error", err)
-		return nil, err
+		return nil, errors.New("error occurred while getting user attributes")
 	}
 	resAttrDto := &UserAttributesDto{
 		EmailId: request.EmailId,
