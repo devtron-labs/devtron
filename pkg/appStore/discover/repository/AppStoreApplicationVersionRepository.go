@@ -165,11 +165,9 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(id
 	var appStoreApplicationVersions []*AppStoreApplicationVersion
 	err := impl.dbConnection.
 		Model(&appStoreApplicationVersions).
-		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo").
-		Join("inner join app_store aps on aps.id = app_store_application_version.app_store_id").
-		Join("inner join chart_repo as cr on cr.id = aps.chart_repo_id").
-		Where("aps.id = ?", id).
-		Order("app_store_application_version.created DESC").
+		Column("app_store_application_version.id", "app_store_application_version.version").
+		Where("app_store_id = ?", id).
+		Order("created DESC").
 		Select()
 	return appStoreApplicationVersions, err
 }
