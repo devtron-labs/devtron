@@ -189,20 +189,12 @@ func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingByRoleGroupIds(roleGr
 
 func (impl RoleGroupRepositoryImpl) GetRolesByGroupCasbinName(groupName string) ([]*RoleModel, error) {
 	var roleModels []*RoleModel
-	/*
-		query := "SELECT r.* from roles r" +
-			" INNER JOIN role_group_role_mapping rgm on rgm.role_id=r.id" +
-			" INNER JOIN role_group rg on rg.id=rgm.role_group_id" +
-			" WHERE rg.casbin_name = ?;"
-		_, err := impl.dbConnection.Query(&roleModels, query, groupName)
-	*/
+	query := "SELECT r.* from roles r" +
+		" INNER JOIN role_group_role_mapping rgm on rgm.role_id=r.id" +
+		" INNER JOIN role_group rg on rg.id=rgm.role_group_id" +
+		" WHERE rg.casbin_name = ?;"
+	_, err := impl.dbConnection.Query(&roleModels, query, groupName)
 
-	err := impl.dbConnection.
-		Model(&roleModels).
-		Join("INNER JOIN role_group_role_mapping rgm on rgm.role_id=r.id").
-		Join("INNER JOIN role_group rg on rg.id=rgm.role_group_id").
-		Where("WHERE rg.casbin_name = ?", groupName).
-		Select()
 	if err != nil {
 		return roleModels, err
 	}

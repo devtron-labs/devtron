@@ -675,7 +675,7 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, ma
 			newGroupMap[userGroup.CasbinName] = userGroup.CasbinName
 			if _, ok := oldGroupMap[userGroup.CasbinName]; !ok {
 				//check permission for new group which is going to add
-				hasAccessToGroup := impl.checkGroupAuth(item, token, managerAuth, isActionPerformingUserSuperAdmin)
+				hasAccessToGroup := impl.checkGroupAuth(userGroup.CasbinName, token, managerAuth, isActionPerformingUserSuperAdmin)
 				if hasAccessToGroup {
 					addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(userGroup.CasbinName)})
 				}
