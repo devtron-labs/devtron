@@ -159,7 +159,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	res, err := handler.userService.CreateUser(&userInfo)
+	res, err := handler.userService.CreateUser(&userInfo, token, handler.checkManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateUser", "err", err, "payload", userInfo)
 		if _, ok := err.(*util.ApiError); ok {
