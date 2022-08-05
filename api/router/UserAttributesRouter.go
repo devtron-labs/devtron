@@ -42,6 +42,6 @@ func (router UserAttributesRouterImpl) initAttributesRouter(attributesRouter *mu
 		HandlerFunc(router.userAttributesRestHandler.AddUserAttributes).Methods("POST")
 	attributesRouter.Path("/update").
 		HandlerFunc(router.userAttributesRestHandler.UpdateUserAttributes).Methods("PUT")
-	attributesRouter.Path("").
-		HandlerFunc(router.userAttributesRestHandler.GetUserAttribute).Methods("GET")
+	attributesRouter.Path("/get").
+		HandlerFunc(router.userAttributesRestHandler.GetUserAttribute).Methods("POST")
 }
