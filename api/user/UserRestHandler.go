@@ -174,13 +174,6 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) checkManagerAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
-		return false
-	}
-	return true
-}
-
 func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
@@ -355,24 +348,21 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 	// NOTE: if no role assigned, user will be visible to all manager.
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	isActionUserSuperAdmin := false
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
-		isActionUserSuperAdmin = true
-	}
+	filteredRoleFilter := make([]bean.RoleFilter, 0)
 	if res.RoleFilters != nil && len(res.RoleFilters) > 0 {
 		for _, filter := range res.RoleFilters {
-			if filter.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
-				common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-				return
-			}
+			authPass := true
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); !ok {
-					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-					return
+					authPass = false
 				}
+			}
+			if authPass {
+				filteredRoleFilter = append(filteredRoleFilter, filter)
 			}
 		}
 	}
+	res.RoleFilters = filteredRoleFilter
 	//RBAC enforcer Ends
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
@@ -460,39 +450,13 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 	handler.logger.Infow("request payload, UpdateRoleGroup", "err", err, "payload", request)
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	isActionUserSuperAdmin := false
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
-		isActionUserSuperAdmin = true
-	}
-	if request.RoleFilters != nil && len(request.RoleFilters) > 0 {
-		for _, filter := range request.RoleFilters {
-			if filter.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
-				common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-				return
-			}
-			if len(filter.Team) > 0 {
-				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(filter.Team)); !ok {
-					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-					return
-				}
-			}
-		}
-	} else {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, "*"); !ok {
-			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-			return
-		}
-	}
-	//RBAC enforcer Ends
-
 	err = handler.validator.Struct(request)
 	if err != nil {
 		handler.logger.Errorw("validation err, UpdateRoleGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	res, err := handler.roleGroupService.UpdateRoleGroup(&request)
+	res, err := handler.roleGroupService.UpdateRoleGroup(&request, token, handler.checkManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateRoleGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -703,4 +667,11 @@ func (handler UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, nil, "Cache Cleaned Successfully", http.StatusOK)
 	}
 
+}
+
+func (handler UserRestHandlerImpl) checkManagerAuth(token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
+		return false
+	}
+	return true
 }

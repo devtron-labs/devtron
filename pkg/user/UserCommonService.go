@@ -14,7 +14,7 @@ import (
 
 type UserCommonService interface {
 	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx, token string, managerAuth func(token string, object string) bool) ([]casbin2.Policy, error)
-	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, eliminatedRoles map[int]*repository2.RoleGroupRoleMapping, tx *pg.Tx) ([]casbin2.Policy, error)
+	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, eliminatedRoles map[int]*repository2.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(token string, object string) bool) ([]casbin2.Policy, error)
 }
 
 type UserCommonServiceImpl struct {
@@ -45,8 +45,6 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 	var eliminatedPolicies []casbin2.Policy
 	// DELETE Removed Items
 	for _, roleFilter := range userInfo.RoleFilters {
-
-		//TODO - here we need to add AUTH
 		if len(roleFilter.Team) > 0 { // check auth only for apps permission, skip for chart group
 			rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
 			isValidAuth := managerAuth(token, rbacObject)
@@ -114,10 +112,18 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 	return eliminatedPolicies, nil
 }
 
-func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, eliminatedRoles map[int]*repository2.RoleGroupRoleMapping, tx *pg.Tx) ([]casbin2.Policy, error) {
+func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, eliminatedRoles map[int]*repository2.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(token string, object string) bool) ([]casbin2.Policy, error) {
 	// Filter out removed items in current request
 	//var policies []casbin2.Policy
 	for _, roleFilter := range request.RoleFilters {
+		if len(roleFilter.Team) > 0 { // check auth only for apps permission, skip for chart group
+			rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+			isValidAuth := managerAuth(token, rbacObject)
+			if !isValidAuth {
+				continue
+			}
+		}
+
 		if roleFilter.EntityName == "" {
 			roleFilter.EntityName = "NONE"
 		}
@@ -156,11 +162,18 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 	// which are existing but not provided in this request
 	var eliminatedPolicies []casbin2.Policy
 	for _, model := range eliminatedRoles {
-		_, err := impl.roleGroupRepository.DeleteRoleGroupRoleMapping(model, tx)
+		role, err := impl.userAuthRepository.GetRoleById(model.RoleId)
 		if err != nil {
 			return nil, err
 		}
-		role, err := impl.userAuthRepository.GetRoleById(model.RoleId)
+		if len(role.Team) > 0 {
+			rbacObject := fmt.Sprintf("%s", strings.ToLower(role.Team))
+			isValidAuth := managerAuth(token, rbacObject)
+			if !isValidAuth {
+				continue
+			}
+		}
+		_, err = impl.roleGroupRepository.DeleteRoleGroupRoleMapping(model, tx)
 		if err != nil {
 			return nil, err
 		}
