@@ -54,12 +54,12 @@ func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClie
 	}
 	err := util.AddStream(appStatusUpdateHandlerImpl.pubsubClient.JetStrCtxt, util.KUBEWATCH_STREAM)
 	if err != nil {
-		logger.Error("err", err)
+		//logger.Error("err", err)
 		return nil
 	}
 	err = appStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
-		logger.Error("err", err)
+		//logger.Error("err", err)
 		return nil
 	}
 	return appStatusUpdateHandlerImpl
@@ -82,7 +82,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 		}
 		newApp := applicationDetail.Application
 		oldApp := applicationDetail.OldApplication
-		impl.logger.Infow("app update request", "application", newApp)
+		//impl.logger.Infow("app update request", "application", newApp)
 
 		isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp)
 		if err != nil {

@@ -34,7 +34,7 @@ import (
 
 type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
-	UpdateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
+	UpdateRoleGroup(request *bean.RoleGroup, token string, managerAuth func(token string, object string) bool) (*bean.RoleGroup, error)
 
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
 	FetchRoleGroups() ([]*bean.RoleGroup, error)
@@ -207,7 +207,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 	return request, nil
 }
 
-func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token string, managerAuth func(token string, object string) bool) (*bean.RoleGroup, error) {
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -246,7 +246,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 
 	// DELETE PROCESS STARTS
 	var eliminatedPolicies []casbin2.Policy
-	items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx)
+	items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx, token, managerAuth)
 	if err != nil {
 		return nil, err
 	}
@@ -260,6 +260,15 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 	//Adding New Policies
 	var policies []casbin2.Policy
 	for _, roleFilter := range request.RoleFilters {
+		if len(roleFilter.Team) > 0 {
+			// check auth only for apps permission, skip for chart group
+			rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+			isValidAuth := managerAuth(token, rbacObject)
+			if !isValidAuth {
+				continue
+			}
+		}
+
 		if roleFilter.EntityName == "" {
 			roleFilter.EntityName = "NONE"
 		}
