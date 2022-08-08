@@ -486,6 +486,12 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.Response
 		return
 	}
 
+	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
+		return
+	}
+
 	appType := v.Get("appType")
 	handler.Logger.Infow("request payload, GetAppListByTeamIds", "payload", params)
 	var teamIds []int
@@ -510,6 +516,10 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.Response
 	for _, project := range projectWiseApps {
 		var accessedApps []*pipeline.AppBean
 		for _, app := range project.AppList {
+			if isActionUserSuperAdmin {
+				accessedApps = append(accessedApps, app)
+				continue
+			}
 			object := fmt.Sprintf("%s/%s", project.ProjectName, app.Name)
 			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
 				accessedApps = append(accessedApps, app)
