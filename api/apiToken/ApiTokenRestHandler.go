@@ -30,6 +30,7 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type ApiTokenRestHandler interface {
@@ -119,7 +120,7 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 	}
 
 	// service call
-	res, err := impl.apiTokenService.CreateApiToken(request, userId)
+	res, err := impl.apiTokenService.CreateApiToken(request, userId, impl.checkManagerAuth)
 	if err != nil {
 		impl.logger.Errorw("service err, CreateApiToken", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -208,4 +209,11 @@ func (impl ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *htt
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler ApiTokenRestHandlerImpl) checkManagerAuth(token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
+		return false
+	}
+	return true
 }

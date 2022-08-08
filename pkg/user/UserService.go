@@ -36,9 +36,9 @@ import (
 )
 
 type UserService interface {
-	CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
+	CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(token string, object string) bool) ([]*bean.UserInfo, error)
 	SelfRegisterUserIfNotExists(userInfo *bean.UserInfo) ([]*bean.UserInfo, error)
-	UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo, error)
+	UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(token string, object string) bool) (*bean.UserInfo, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
 
@@ -214,7 +214,7 @@ func (impl UserServiceImpl) saveUser(userInfo *bean.UserInfo, emailId string) (*
 	return userInfo, nil
 }
 
-func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInfo, error) {
+func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, managerAuth func(token string, object string) bool) ([]*bean.UserInfo, error) {
 	var pass []string
 	var userResponse []*bean.UserInfo
 	emailIds := strings.Split(userInfo.EmailId, ",")
@@ -227,7 +227,7 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 
 		//if found, update it with new roles
 		if dbUser != nil && dbUser.Id > 0 {
-			userInfo, err = impl.updateUserIfExists(userInfo, dbUser, emailId)
+			userInfo, err = impl.updateUserIfExists(userInfo, dbUser, emailId, token, managerAuth)
 			if err != nil {
 				impl.logger.Errorw("error while create user if exists in db", "error", err)
 				return nil, err
@@ -252,7 +252,8 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo) ([]*bean.UserInf
 	return userResponse, nil
 }
 
-func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *repository2.UserModel, emailId string) (*bean.UserInfo, error) {
+func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *repository2.UserModel, emailId string,
+	token string, managerAuth func(token string, object string) bool) (*bean.UserInfo, error) {
 	updateUserInfo, err := impl.GetById(dbUser.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching user from db", "error", err)
@@ -266,7 +267,7 @@ func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *
 	updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
 	updateUserInfo.UserId = userInfo.UserId
 	updateUserInfo.EmailId = emailId // override case sensitivity
-	updateUserInfo, err = impl.UpdateUser(updateUserInfo)
+	updateUserInfo, err = impl.UpdateUser(updateUserInfo, token, managerAuth)
 	if err != nil {
 		impl.logger.Errorw("error while update user", "error", err)
 		return nil, err
@@ -497,7 +498,7 @@ func (impl UserServiceImpl) mergeGroups(oldGroups []string, newGroups []string) 
 	return groups
 }
 
-func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo, error) {
+func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(token string, object string) bool) (*bean.UserInfo, error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isUserSuperAdmin, err := impl.IsSuperAdmin(int(userInfo.Id))
 	if err != nil {
@@ -552,13 +553,22 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 		}
 
 		// DELETE Removed Items
-		items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPolicies(userInfo, existingRoleIds, eliminatedRoleIds, tx)
+		items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPolicies(userInfo, existingRoleIds, eliminatedRoleIds, tx, token, managerAuth)
 		if err != nil {
 			return nil, err
 		}
 		eliminatedPolicies = append(eliminatedPolicies, items...)
 		//Adding New Policies
 		for _, roleFilter := range userInfo.RoleFilters {
+			if len(roleFilter.Team) > 0 {
+				// check auth only for apps permission, skip for chart group
+				rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+				isValidAuth := managerAuth(token, rbacObject)
+				if !isValidAuth {
+					continue
+				}
+			}
+
 			if roleFilter.EntityName == "" {
 				roleFilter.EntityName = "NONE"
 			}
@@ -664,20 +674,27 @@ func (impl UserServiceImpl) UpdateUser(userInfo *bean.UserInfo) (*bean.UserInfo,
 			}
 			newGroupMap[userGroup.CasbinName] = userGroup.CasbinName
 			if _, ok := oldGroupMap[userGroup.CasbinName]; !ok {
-				addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(userGroup.CasbinName)})
+				//check permission for new group which is going to add
+				hasAccessToGroup := impl.checkGroupAuth(userGroup.CasbinName, token, managerAuth, isActionPerformingUserSuperAdmin)
+				if hasAccessToGroup {
+					addedPolicies = append(addedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(userGroup.CasbinName)})
+				}
 			}
 		}
 		for _, item := range userCasbinRoles {
 			if _, ok := newGroupMap[item]; !ok {
 				if item != bean.SUPERADMIN {
-					eliminatedPolicies = append(eliminatedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(item)})
+					//check permission for group which is going to eliminate
+					hasAccessToGroup := impl.checkGroupAuth(item, token, managerAuth, isActionPerformingUserSuperAdmin)
+					if hasAccessToGroup {
+						eliminatedPolicies = append(eliminatedPolicies, casbin2.Policy{Type: "g", Sub: casbin2.Subject(userInfo.EmailId), Obj: casbin2.Object(item)})
+					}
 				}
 			}
 		}
 		// END GROUP POLICY
 
 	} else if userInfo.SuperAdmin == true {
-
 		flag, err := impl.userAuthRepository.CreateRoleForSuperAdminIfNotExists(tx)
 		if err != nil || flag == false {
 			return nil, err
@@ -1120,4 +1137,28 @@ func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 		CreatedOn: time.Now(),
 	}
 	impl.userAuditService.Save(userAudit)
+}
+
+func (impl UserServiceImpl) checkGroupAuth(groupName string, token string, managerAuth func(token string, object string) bool, isActionUserSuperAdmin bool) bool {
+	//check permission for group which is going to add/eliminate
+	roles, err := impl.roleGroupRepository.GetRolesByGroupCasbinName(groupName)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return false
+	}
+	hasAccessToGroup := true
+	for _, role := range roles {
+		if role.AccessType == bean.APP_ACCESS_TYPE_HELM && !isActionUserSuperAdmin {
+			hasAccessToGroup = false
+		}
+		if len(role.Team) > 0 {
+			rbacObject := fmt.Sprintf("%s", strings.ToLower(role.Team))
+			isValidAuth := managerAuth(token, rbacObject)
+			if !isValidAuth {
+				hasAccessToGroup = false
+				continue
+			}
+		}
+	}
+	return hasAccessToGroup
 }
