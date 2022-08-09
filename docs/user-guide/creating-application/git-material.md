@@ -12,7 +12,7 @@ Devtron also supports multiple git repositories in a single deployment. We will 
 
 ## 1. Git Account
 
-In this section, you have to select the git account of your code repository. If the authentication type of the Git account is anonymous, only public git repository will be aceessible. If you are using a private git repository, you can configure your git provider via [git accounts](../global-configurations/git-accounts.md).
+In this section, you have to select the git account of your code repository. If the authentication type of the Git account is anonymous, only public git repository will be accessible. If you are using a private git repository, you can configure your git provider via [git accounts](../global-configurations/git-accounts.md).
 
 ## 2. Git Repo URL
 
