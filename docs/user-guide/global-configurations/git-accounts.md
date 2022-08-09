@@ -28,11 +28,12 @@ Provide the `URL`. **For example**- [https://github.com](https://github.com) for
 
 ### 4. Authentication type
 
-Here provide the type of authentication required by your version controller. Devtron support three types of authentications. you can choose the one that suits you the best.
+Here provide the type of authentication required by your version controller. Devtron supports three types of authentications. You can choose the one that suits you the best.
 
 * **Anonymous**
 
-If authentication type is set as `Anonymous` then you do not need to provide any username, password/authentication token or SSH key. Just click on `Save` to save the git account provider details. If authentication type is set as `Anonymous`, only public git repository will be accessible.
+If authentication type is set as `Anonymous` then you do not need to provide any username, password/authentication token or SSH key. Just click on `Save` to save the git account provider details. 
+>If authentication type is set as `Anonymous`, only public git repository will be accessible.
 
 ![](../../user-guide/global-configurations/images/git-accounts-anonymous.jpg)
 
@@ -50,7 +51,11 @@ If you choose `SSH Key` then you have to provide the `Private SSH Key` correspon
 
 ## Update Git Account
 
-You can update your saved git account settings at any point on time. You just need to click on the git account which you want to update. Make the required changes and click on `Update` to save the changes.
+You can update your saved git account settings at anytime. To update the git account:
+
+1. Click on the git account which you want to update. 
+2. Make the required changes 
+3. Click on `Update` to save the changes.
 
 Updates can only be made within one Authentication type or one protocol type, i.e. HTTPS(Anonymous or User Auth) & SSH. You can update from Anonymous to User Auth & vice versa, but not from Anonymous/User Auth to SSH or reverse.
 
@@ -58,6 +63,8 @@ Updates can only be made within one Authentication type or one protocol type, i.
 
 ### Note:
 
-You can enable and disable the git account settings. If you enable it, then you can see that enabled git account in the drop-down of [Git repository](../creating-application/git-material.md).
+You can enable or disable a git account. Enabled git accounts will be available to be used in Application configuration > [Git repository](../creating-application/git-material.md).
+
+Disabled git accounts will be unavailable for use in future applications. Applications already using a disabled git account will not be affected.
 
 ![](../../user-guide/global-configurations/images/git-account-enable-disable.jpg)
