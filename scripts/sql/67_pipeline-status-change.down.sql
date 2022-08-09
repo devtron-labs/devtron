@@ -1,23 +1,11 @@
 UPDATE pipeline_status_timeline
-SET
-    status = REPLACE (
-            status,
-            'KUBECTL_APPLY_SYNCED',
-            'KUBECTL APPLY SYNCED'
-        );
+SET status ='KUBECTL APPLY SYNCED'
+WHERE status = 'KUBECTL_APPLY_SYNCED';
 
 UPDATE pipeline_status_timeline
-SET
-    status = REPLACE (
-            status,
-            'KUBECTL_APPLY_STARTED',
-            'KUBECTL APPLY STARTED'
-        );
+SET status ='KUBECTL APPLY STARTED'
+WHERE status = 'KUBECTL_APPLY_STARTED';
 
 UPDATE pipeline_status_timeline
-SET
-    status = REPLACE (
-            status,
-            'GIT_COMMIT',
-            'GIT COMMIT'
-        );
+SET status ='GIT COMMIT'
+WHERE status = 'GIT_COMMIT';
