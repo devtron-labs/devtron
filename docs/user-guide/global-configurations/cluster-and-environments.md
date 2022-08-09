@@ -44,7 +44,7 @@ Provide the endpoint/URL of your kubernetes cluster.It is recommended to use a s
 
 * **Bearer token**
 
-Provide your kubernetes cluster’s Bearer token for authentication purposes so that the Devtron tool will be able to talk to your kubernetes cluster and can deploy your application in your kubernetes cluster.
+Provide your kubernetes cluster’s Bearer token for authentication purposes so that Devtron is able to communicate with your kubernetes cluster and can deploy your application in your kubernetes cluster.
 
 Get the server url and generate the bearer token by running the following command: 
 
