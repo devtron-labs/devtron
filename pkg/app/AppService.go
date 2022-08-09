@@ -281,10 +281,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 		impl.logger.Errorw("error in fetching deployment status", "dbApp", dbApp, "err", err)
 		return isHealthy, err
 	}
-	gitHash := ""
-	if newApp.Operation != nil && newApp.Operation.Sync != nil {
-		gitHash = newApp.Operation.Sync.Revision
-	}
+	gitHash := newApp.Status.Sync.Revision
 	pipelineOverride, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
 	if err != nil {
 		impl.logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "dbApp", dbApp, "err", err)
