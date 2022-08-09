@@ -10,7 +10,7 @@ import (
 type TimelineStatus string
 
 const (
-	TIMELINE_STATUS_GIT_COMMIT            TimelineStatus = "GIT COMMIT"
+	TIMELINE_STATUS_GIT_COMMIT            TimelineStatus = "GIT_COMMIT"
 	TIMELINE_STATUS_KUBECTL_APPLY_STARTED TimelineStatus = "KUBECTL_APPLY_STARTED"
 	TIMELINE_STATUS_KUBECTL_APPLY_SYNCED  TimelineStatus = "KUBECTL_APPLY_SYNCED"
 	TIMELINE_STATUS_APP_HEALTHY           TimelineStatus = "HEALTHY"

@@ -13,3 +13,11 @@ SET
             'KUBECTL APPLY STARTED',
             'KUBECTL_APPLY_STARTED'
         );
+
+UPDATE pipeline_status_timeline
+SET
+    status = REPLACE (
+            status,
+            'GIT COMMIT',
+            'GIT_COMMIT'
+        );
