@@ -296,6 +296,8 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
+	impl.logger.Infow("before terminal status loop", "newApp", newApp, "deploymentStatus", deploymentStatus, "cdWorkflowId", pipelineOverride.CdWorkflowId, "gitHash", gitHash)
+
 	if !IsTerminalStatus(deploymentStatus.Status) {
 		impl.logger.Infow("got into not terminal status loop", "deploymentStatus", deploymentStatus, "cdWorkflowId", pipelineOverride.CdWorkflowId, "gitHash", gitHash)
 		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
@@ -304,6 +306,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 			return isHealthy, err
 		}
 		reconciledAt := newApp.Status.ReconciledAt
+		impl.logger.Infow("reconciledAt check step", "latestTimeline", latestTimeline, "reconciledAt", reconciledAt, "cdWorkflowId", pipelineOverride.CdWorkflowId, "gitHash", gitHash)
 		if latestTimeline != nil && reconciledAt.After(latestTimeline.StatusTime) {
 			if deploymentStatus.Status == string(newApp.Status.Health.Status) {
 				impl.logger.Debugw("not updating same statuses from", "last status", deploymentStatus.Status, "new status", string(newApp.Status.Health.Status), "deploymentStatus", deploymentStatus)
@@ -337,6 +340,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 				}
 				// Rollback tx on error.
 				defer tx.Rollback()
+				impl.logger.Infow("not terminal status loop - updating deploymentStatus", "newDeploymentStatus", deploymentStatus, "cdWorkflowId", pipelineOverride.CdWorkflowId, "gitHash", gitHash)
 
 				err = impl.appListingRepository.SaveNewDeployment(newDeploymentStatus, tx)
 				if err != nil {
