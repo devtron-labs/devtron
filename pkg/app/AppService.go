@@ -297,6 +297,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
 	if !IsTerminalStatus(deploymentStatus.Status) {
+		impl.logger.Infow("got into not terminal status loop", "deploymentStatus", deploymentStatus, "cdWorkflowId", pipelineOverride.CdWorkflowId, "gitHash", gitHash)
 		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
