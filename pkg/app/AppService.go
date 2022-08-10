@@ -24,7 +24,6 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util/argo"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
@@ -202,6 +201,10 @@ func NewAppService(
 	}
 	return appServiceImpl
 }
+
+const WorkflowAborted = "Aborted"
+const WorkflowFailed = "Failed"
+
 func (impl AppServiceImpl) getValuesFileForEnv(environmentId int) string {
 	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
 }
@@ -369,8 +372,8 @@ func IsTerminalStatus(status string) bool {
 	case
 		string(health.HealthStatusHealthy),
 		string(health.HealthStatusDegraded),
-		pipeline.WorkflowAborted,
-		pipeline.WorkflowFailed:
+		WorkflowAborted,
+		WorkflowFailed:
 		return true
 	}
 	return false
