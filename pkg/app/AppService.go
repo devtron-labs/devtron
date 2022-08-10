@@ -296,17 +296,14 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
-	impl.logger.Infow("before terminal status loop", "newApp", newApp, "deploymentStatus", deploymentStatus, "cdWorkflowId", pipelineOverride.CdWorkflowId, "gitHash", gitHash)
 
 	if !IsTerminalStatus(deploymentStatus.Status) {
-		impl.logger.Infow("got into not terminal status loop", "deploymentStatus", deploymentStatus, "cdWorkflowId", pipelineOverride.CdWorkflowId, "gitHash", gitHash)
 		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
 			return isHealthy, err
 		}
 		reconciledAt := newApp.Status.ReconciledAt
-		impl.logger.Infow("reconciledAt check step", "latestTimeline", latestTimeline, "reconciledAt", reconciledAt, "cdWorkflowId", pipelineOverride.CdWorkflowId, "gitHash", gitHash)
 		if latestTimeline != nil && reconciledAt.After(latestTimeline.StatusTime) {
 			if deploymentStatus.Status == string(newApp.Status.Health.Status) {
 				impl.logger.Debugw("not updating same statuses from", "last status", deploymentStatus.Status, "new status", string(newApp.Status.Health.Status), "deploymentStatus", deploymentStatus)
@@ -340,7 +337,6 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 				}
 				// Rollback tx on error.
 				defer tx.Rollback()
-				impl.logger.Infow("not terminal status loop - updating deploymentStatus", "newDeploymentStatus", deploymentStatus, "cdWorkflowId", pipelineOverride.CdWorkflowId, "gitHash", gitHash)
 
 				err = impl.appListingRepository.SaveNewDeployment(newDeploymentStatus, tx)
 				if err != nil {
@@ -391,7 +387,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		impl.logger.Errorw("error in finding cd wfr by workflowId and runnerType", "err", err)
 		return err
 	}
-	haveNewTimeline := false
 	// creating cd pipeline status timeline
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: cdWfr.Id,
@@ -427,20 +422,21 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		}
 	} else {
 		if oldApp.Status.Sync.Revision != newApp.Status.Sync.Revision {
-			haveNewTimeline = true
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
 			timeline.StatusDetail = "Kubectl apply initiated successfully."
-			//will check if this timeline is present or not because kubewatch may stream same objects multiple times
-		} else if oldApp.Status.Sync.Status != newApp.Status.Sync.Status {
-			if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
-				haveNewTimeline = true
-				timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
-				timeline.StatusDetail = "Kubectl apply synced successfully."
-				//will check if this timeline is present or not because sync status can change from synced to some other status
-				//and back to synced, or kubewatch may stream same objects multiple times
+			//save after checking if this timeline is present or not because kubewatch may stream same objects multiple times
+			err = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
+			if err != nil {
+				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
+				return err
 			}
 		}
-		if haveNewTimeline {
+		if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
+			timeline.Id = 0
+			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
+			timeline.StatusDetail = "Kubectl apply synced successfully."
+			//save after checking if this timeline is present or not because sync status can change from synced to some other status
+			//and back to synced, or kubewatch may stream same objects multiple times
 			err = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
@@ -448,7 +444,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			}
 		}
 	}
-	haveNewTimeline = false
+	haveNewTimeline := false
 	timeline.Id = 0
 	if newApp.Status.Health.Status == health.HealthStatusHealthy {
 		haveNewTimeline = true
