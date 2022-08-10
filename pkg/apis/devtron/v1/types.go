@@ -85,6 +85,7 @@ type BuildMaterial struct {
 	Source         struct {
 		Type  string `json:"type"`
 		Value string `json:"value"`
+		Regex string `json:"regex"`
 	} `json:"source"`
 }
 
