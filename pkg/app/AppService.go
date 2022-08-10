@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util/argo"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
@@ -292,7 +293,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
-	if application.Healthy != deploymentStatus.Status {
+	if !IsTerminalStatus(deploymentStatus.Status) {
 		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
@@ -361,6 +362,18 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 		}
 	}
 	return isHealthy, nil
+}
+
+func IsTerminalStatus(status string) bool {
+	switch status {
+	case
+		string(health.HealthStatusHealthy),
+		string(health.HealthStatusDegraded),
+		pipeline.WorkflowAborted,
+		pipeline.WorkflowFailed:
+		return true
+	}
+	return false
 }
 
 func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp *v1alpha1.Application, pipelineOverride *chartConfig.PipelineOverride) error {
