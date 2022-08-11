@@ -31,11 +31,6 @@ redirects:
     setup/global-configurations/authorization/permission-groups: user-guide/global-configurations/authorization/permission-groups.md
     setup/global-configurations/authorization/api-tokens: user-guide/global-configurations/authorization/api-tokens.md
     setup/global-configurations/nodejs_app: user-guide/Deploy-sample-app/nodejs_app.md
-    user-guide/app-details: user-guide/creating-application/app-details.md
-    user-guide/deploying-application: user-guide/deploying-application/README.md
-    user-guide/creating-application/workflow: user-guide/creating-application/workflow/README.md
-    user-guide/creating-application/workflow/ci-pipeline/ci-build-pre-post-plugins: user-guide/creating-application/workflow/ci-build-pre-post-plugins.md
-    user-guide/creating-application/workflow/automated-test: user-guide/creating-application/workflow/automated-test.md
     user-guide/creating-application: user-guide/applications.md
     user-guide/creating-application/git-material: usage/applications/creating-application/git-material
     user-guide/creating-application/docker-build-configuration: usage/applications/creating-application/docker-build-configuration
@@ -57,7 +52,6 @@ redirects:
     user-guide/deploying-application: usage/applications/deploying-application
     user-guide/deploying-application/triggering-ci: usage/applications/deploying-application/triggering-ci
     user-guide/deploying-application/triggering-cd: usage/applications/deploying-application/triggering-cd
-    user-guide/deploy-chart/examples: user-guide/deploy-chart/examples/README.md
     user-guide/deploy-chart: user-guide/deploy-chart/README.md
     user-guide/deploy-chart/overview-of-charts: usage/deploy-chart/overview-of-charts
     user-guide/deploy-chart/deployment-of-charts: usage/deploy-chart/deployment-of-charts
@@ -70,9 +64,8 @@ redirects:
     user-guide/deleting-application: usage/applications/creating-application/deleting-application
     user-guide/bulk-update: usage/bulk-update
     user-guide/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job: resources/use-cases/devtron-generic-helm-chart-to-run-cron-job-or-one-time-job
-    user-guide/use-cases: resources/use-cases/README.md
+    user-guide/use-cases: resources/use-cases
     user-guide/use-cases/connect-springboot-with-mysql-database: resources/use-cases/connect-springboot-with-mysql-database
     user-guide/use-cases/connect-expressjs-with-mongodb-database: resources/use-cases/connect-expressjs-with-mongodb-database
     user-guide/use-cases/connect-django-with-mysql-database: resources/use-cases/connect-django-with-mysql-database
     user-guide/telemetry: resources/telemetry
-    user-guide/command-bar: user-guide/command-bar.md
