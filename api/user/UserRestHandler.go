@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
@@ -68,12 +69,20 @@ type UserRestHandlerImpl struct {
 	logger           *zap.SugaredLogger
 	enforcer         casbin.Enforcer
 	roleGroupService user.RoleGroupService
+	teamRepository   team.TeamRepository
 }
 
 func NewUserRestHandlerImpl(userService user.UserService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService) *UserRestHandlerImpl {
-	userAuthHandler := &UserRestHandlerImpl{userService: userService, validator: validator, logger: logger,
-		enforcer: enforcer, roleGroupService: roleGroupService}
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService,
+	teamRepository team.TeamRepository) *UserRestHandlerImpl {
+	userAuthHandler := &UserRestHandlerImpl{
+		userService:      userService,
+		validator:        validator,
+		logger:           logger,
+		enforcer:         enforcer,
+		roleGroupService: roleGroupService,
+		teamRepository:   teamRepository,
+	}
 	return userAuthHandler
 }
 
@@ -261,6 +270,37 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 }
 
 func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	isAuthorised := false
+	//checking for superadmin access
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isAuthorised = true
+	}
+	//getting all projects
+	teams, err := handler.teamRepository.FindAllActive()
+	if err != nil {
+		handler.logger.Errorw("error in getting all active teams", "err", err)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	for _, team := range teams {
+		//checking if user has manager access to atleast one team, if yes then the user is authorised
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, strings.ToLower(team.Name)); ok {
+			isAuthorised = true
+			break
+		}
+	}
+	if !isAuthorised {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
 	res, err := handler.userService.GetAll()
 	if err != nil {
 		handler.logger.Errorw("service err, GetAll", "err", err)
