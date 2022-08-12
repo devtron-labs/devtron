@@ -72,8 +72,13 @@ type UserRestHandlerImpl struct {
 
 func NewUserRestHandlerImpl(userService user.UserService, validator *validator.Validate,
 	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService) *UserRestHandlerImpl {
-	userAuthHandler := &UserRestHandlerImpl{userService: userService, validator: validator, logger: logger,
-		enforcer: enforcer, roleGroupService: roleGroupService}
+	userAuthHandler := &UserRestHandlerImpl{
+		userService:      userService,
+		validator:        validator,
+		logger:           logger,
+		enforcer:         enforcer,
+		roleGroupService: roleGroupService,
+	}
 	return userAuthHandler
 }
 
@@ -261,6 +266,44 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 }
 
 func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	isAuthorised := false
+	//checking superAdmin access
+	isAuthorised, err = handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.logger.Errorw("error in checking superAdmin access of user", "err", err)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	if !isAuthorised {
+		user, err := handler.userService.GetById(userId)
+		if err != nil {
+			handler.logger.Errorw("error in getting user by id", "err", err)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return
+		}
+		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
+			for _, filter := range user.RoleFilters {
+				if len(filter.Team) > 0 {
+					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); ok {
+						isAuthorised = true
+						break
+					}
+				}
+			}
+		}
+	}
+	if !isAuthorised {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
 	res, err := handler.userService.GetAll()
 	if err != nil {
 		handler.logger.Errorw("service err, GetAll", "err", err)
