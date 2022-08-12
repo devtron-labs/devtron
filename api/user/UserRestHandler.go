@@ -282,19 +282,20 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 	//checking for superadmin access
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
 		isAuthorised = true
-	}
-	//getting all projects
-	teams, err := handler.teamRepository.FindAllActive()
-	if err != nil {
-		handler.logger.Errorw("error in getting all active teams", "err", err)
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-		return
-	}
-	for _, team := range teams {
-		//checking if user has manager access to atleast one team, if yes then the user is authorised
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, strings.ToLower(team.Name)); ok {
-			isAuthorised = true
-			break
+	} else {
+		//getting all projects
+		teams, err := handler.teamRepository.FindAllActive()
+		if err != nil {
+			handler.logger.Errorw("error in getting all active teams", "err", err)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return
+		}
+		for _, team := range teams {
+			//checking if user has manager access to atleast one team, if yes then the user is authorised
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, strings.ToLower(team.Name)); ok {
+				isAuthorised = true
+				break
+			}
 		}
 	}
 	if !isAuthorised {
