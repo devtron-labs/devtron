@@ -66,6 +66,7 @@ type Event struct {
 	CorrelationId      string            `json:"correlationId"`
 	Payload            *Payload          `json:"payload"`
 	EventTime          string            `json:"eventTime"`
+	EventTimestamp     int64             `json:"eventTimestamp"`
 	TeamId             int               `json:"teamId"`
 	AppId              int               `json:"appId"`
 	EnvId              int               `json:"envId"`
