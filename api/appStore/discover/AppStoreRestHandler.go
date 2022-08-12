@@ -48,10 +48,10 @@ type AppStoreRestHandlerImpl struct {
 func NewAppStoreRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, appStoreService service.AppStoreService,
 	enforcer casbin.Enforcer) *AppStoreRestHandlerImpl {
 	return &AppStoreRestHandlerImpl{
-		Logger:           Logger,
-		appStoreService:  appStoreService,
-		userAuthService:  userAuthService,
-		enforcer:         enforcer,
+		Logger:          Logger,
+		appStoreService: appStoreService,
+		userAuthService: userAuthService,
+		enforcer:        enforcer,
 	}
 }
 
