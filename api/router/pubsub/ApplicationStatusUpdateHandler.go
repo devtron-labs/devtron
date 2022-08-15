@@ -82,6 +82,9 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 		}
 		newApp := applicationDetail.Application
 		oldApp := applicationDetail.OldApplication
+		if newApp == nil {
+			return
+		}
 		//impl.logger.Infow("app update request", "application", newApp)
 
 		isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp)
