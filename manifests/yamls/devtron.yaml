@@ -106,11 +106,6 @@ data:
           cpu: 50m
           memory: 100Mi
 ---
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: devtron-custom-cm
----
 # Source: devtron/templates/service.yaml
 apiVersion: v1
 kind: Service
