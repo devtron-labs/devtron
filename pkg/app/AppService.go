@@ -1205,7 +1205,7 @@ func (impl AppServiceImpl) synchCD(pipeline *pipelineConfig.Pipeline, ctx contex
 	req := new(application2.ApplicationSyncRequest)
 	pipelineName := pipeline.App.AppName + "-" + envOverride.Environment.Name
 	req.Name = &pipelineName
-	prune := true
+	prune := false
 	req.Prune = &prune
 	if ctx == nil {
 		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineId", overrideRequest.PipelineId)
