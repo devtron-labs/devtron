@@ -25,11 +25,6 @@
     "syncPolicy": {
       "automated": {},
       "retry": {
-        "backoff": {
-          "duration": "5s",
-          "factor": 2,
-          "maxDuration": "3m"
-        },
         "limit": 5
       }
     }
