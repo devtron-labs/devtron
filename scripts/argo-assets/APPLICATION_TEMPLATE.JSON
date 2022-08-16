@@ -30,9 +30,9 @@
         "backoff": {
           "duration": "5s",
           "factor": 2,
-          "maxDuration": "5s"
+          "maxDuration": "3m"
         },
-        "limit": 1
+        "limit": 5
       }
     }
   }
