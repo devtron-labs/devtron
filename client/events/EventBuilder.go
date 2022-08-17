@@ -79,7 +79,6 @@ func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *in
 	event.PipelineType = string(pipelineType)
 	event.CorrelationId = fmt.Sprintf("%s", correlationId)
 	event.EventTime = fmt.Sprintf("%s", time.Now())
-	event.EventTimestamp = time.Now().Unix()
 	return event
 }
 
