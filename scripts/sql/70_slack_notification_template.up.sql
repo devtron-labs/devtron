@@ -16,7 +16,7 @@ set template_payload = '{
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":arrow_forward: *Build Pipeline triggered*\n<!date^{{eventTimestamp}}^{date_long} {time} | {{eventTime}}> \n Triggered by {{triggeredBy}}"
+                "text": ":arrow_forward: *Build Pipeline triggered*\n<!date^{{eventTime}}^{date_long} {time} | ""> \n Triggered by {{triggeredBy}}"
             },
             "accessory": {
                 "type": "image",
@@ -147,7 +147,7 @@ set template_payload = '{
       "type": "section",
       "text": {
         "type": "mrkdwn",
-        "text": ":tada: *Build Pipeline successful*\n<!date^{{eventTimestamp}}^{date_long} {time} | {{eventTime}}> \n Triggered by {{triggeredBy}}"
+        "text": ":tada: *Build Pipeline successful*\n<!date^{{eventTime}}^{date_long} {time} | ""> \n Triggered by {{triggeredBy}}"
       },
       "accessory": {
         "type": "image",
@@ -281,7 +281,7 @@ set template_payload = '{
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":x: *Build Pipeline failed*\n<!date^{{eventTimestamp}}^{date_long} {time} | {{eventTime}}> \n Triggered by {{triggeredBy}}"
+                "text": ":x: *Build Pipeline failed*\n<!date^{{eventTime}}^{date_long} {time} | ""> \n Triggered by {{triggeredBy}}"
             },
             "accessory": {
                 "type": "image",
@@ -411,7 +411,7 @@ set template_payload = '{
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":arrow_forward: *Deployment Pipeline triggered on {{envName}}*\n<!date^{{eventTimestamp}}^{date_long} {time} | {{eventTime}}> \n by {{triggeredBy}}"
+                "text": ":arrow_forward: *Deployment Pipeline triggered on {{envName}}*\n<!date^{{eventTime}}^{date_long} {time} | ""> \n by {{triggeredBy}}"
             },
             "accessory": {
                 "type": "image",
@@ -566,7 +566,7 @@ set template_payload = '{
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":tada: *Deployment Pipeline successful on {{envName}}*\n<!date^{{eventTimestamp}}^{date_long} {time} | {{eventTime}}> \n by {{triggeredBy}}"
+                "text": ":tada: *Deployment Pipeline successful on {{envName}}*\n<!date^{{eventTime}}^{date_long} {time} | ""> \n by {{triggeredBy}}"
             },
             "accessory": {
                 "type": "image",
@@ -720,7 +720,7 @@ set template_payload = '{
             "type": "section",
             "text": {
                 "type": "mrkdwn",
-                "text": ":x: *Deployment Pipeline failed on {{envName}}*\n<!date^{{eventTimestamp}}^{date_long} {time} | {{eventTime}}> \n by {{triggeredBy}}"
+                "text": ":x: *Deployment Pipeline failed on {{envName}}*\n<!date^{{eventTime}}^{date_long} {time} | ""> \n by {{triggeredBy}}"
             },
             "accessory": {
                 "type": "image",
