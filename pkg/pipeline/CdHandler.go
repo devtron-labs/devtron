@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
@@ -53,7 +54,8 @@ type CdHandler interface {
 	FetchCdPrePostStageStatus(pipelineId int) ([]pipelineConfig.CdWorkflowWithArtifact, error)
 	CancelStage(workflowRunnerId int) (int, error)
 	FetchAppWorkflowStatusForTriggerView(pipelineId int) ([]*pipelineConfig.CdWorkflowStatus, error)
-	CheckHelmAppStatusPeriodicallyAndUpdateInDb() error
+	CheckHelmAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error
+	CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error
 }
 
 type CdHandlerImpl struct {
@@ -72,6 +74,7 @@ type CdHandlerImpl struct {
 	helmAppService               client.HelmAppService
 	pipelineOverrideRepository   chartConfig.PipelineOverrideRepository
 	workflowDagExecutor          WorkflowDagExecutor
+	appListingService            app.AppListingService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -84,7 +87,8 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	envRepository repository2.EnvironmentRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
 	ciConfig *CiConfig, helmAppService client.HelmAppService,
-	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor) *CdHandlerImpl {
+	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, workflowDagExecutor WorkflowDagExecutor,
+	appListingService app.AppListingService) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                       Logger,
 		cdConfig:                     cdConfig,
@@ -101,12 +105,41 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		helmAppService:               helmAppService,
 		pipelineOverrideRepository:   pipelineOverrideRepository,
 		workflowDagExecutor:          workflowDagExecutor,
+		appListingService:            appListingService,
 	}
 }
 
 const DegradeTime time.Duration = 10
 
-func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
+func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error {
+	deploymentStatuses, err := impl.appListingService.GetLastDeploymentStatuses()
+	if err != nil {
+		impl.Logger.Errorw("err in getting latest deployment statuses for argo pipelines", err)
+		return err
+	}
+	for _, deploymentStatus := range deploymentStatuses {
+		if impl.isDeploymentFailed(deploymentStatus, timeForDegradation) {
+			cdWfr, err := impl.cdWorkflowRepository.FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(deploymentStatus.AppId, deploymentStatus.EnvId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+			if err != nil {
+				//only log this error and continue for next deployment status
+				impl.Logger.Errorw("found error, skipping argo apps status update for this trigger", "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId, "err", err)
+				continue
+			}
+			cdWfr.Status = application.Degraded
+			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(cdWfr)
+			if err != nil {
+				impl.Logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
+				return err
+			}
+			//TODO: check fail event handling (notification handling) refer DeploymentFailureHandler.go:72
+		}
+	}
+	return nil
+}
+func (impl *CdHandlerImpl) isDeploymentFailed(ds repository.DeploymentStatus, timeForDegradation int) bool {
+	return ds.Status == application.Degraded && time.Since(ds.UpdatedOn) > time.Duration(timeForDegradation)*time.Minute
+}
+func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error {
 	pipelineOverrides, err := impl.pipelineOverrideRepository.FetchHelmTypePipelineOverridesForStatusUpdate()
 	if err != nil {
 		impl.Logger.Errorw("error on fetching all the recent deployment trigger for helm app type", "err", err)
@@ -134,7 +167,7 @@ func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb() error {
 			impl.Logger.Warnw("found error, skipping helm apps status update for this trigger", "CdWorkflowId", pipelineOverride.CdWorkflowId, "err", err)
 			continue
 		}
-		if pipelineOverride.CreatedOn.Before(time.Now().Add(-time.Minute * DegradeTime)) {
+		if pipelineOverride.CreatedOn.Before(time.Now().Add(-time.Minute * time.Duration(timeForDegradation))) {
 			// apps which are still not healthy after DegradeTime, make them "Degraded"
 			cdWf.Status = application.Degraded
 		} else {

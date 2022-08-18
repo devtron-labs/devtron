@@ -109,7 +109,7 @@ type MuxRouter struct {
 	moduleRouter                       module.ModuleRouter
 	serverRouter                       server.ServerRouter
 	apiTokenRouter                     apiToken.ApiTokenRouter
-	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler
+	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
 	k8sCapacityRouter                  k8s.K8sCapacityRouter
 	webhookHelmRouter                  webhookHelm.WebhookHelmRouter
 }
@@ -137,7 +137,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
 	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
-	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter, webhookHelmRouter webhookHelm.WebhookHelmRouter) *MuxRouter {
+	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter, webhookHelmRouter webhookHelm.WebhookHelmRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
