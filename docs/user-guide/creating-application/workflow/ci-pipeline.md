@@ -82,7 +82,7 @@ In case of branch fixed, users cannot change the branch name in ci-pipeline with
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow/branch-regex.jpg)
 
-You must need to use the branch name maching the branch regex i.e. if branch regex is `devtron-*`, you can use branch name maching `devtron-`.
+For example if the user sets the Branch Regex as `feature-*`, then users can trigger from branches such as `feature-1450`, `feature-hot-fix` etc.
 
 ### Configuring Webhook
 
