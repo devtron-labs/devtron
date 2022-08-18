@@ -28,7 +28,7 @@ Continuous Integration Pipeline allows you to build the container image from a s
 
 | Field Name | Required/Optional | Description |
 | :--- | :--- | :--- |
-| Source type | Required | Source type to trigger the CI. Available options: [Branch Fixed](#source-type-branch-fixed) \| [Pull Request](#source-type-pull-request) \| [Tag Creation](#source-type-tag-creation) |
+| Source type | Required | Source type to trigger the CI. Available options: [Branch Fixed](#source-type-branch-fixed) \| [Branch Regex](#source-type-branch-regex) |[Pull Request](#source-type-pull-request) \| [Tag Creation](#source-type-tag-creation) |
 | Branch Name | Required | Branch that triggers the CI build |
 | Advanced Options | Optional | Create Pre-Build, Build, and Post-Build tasks |
 
@@ -62,7 +62,7 @@ The Build stage allows you to configure a build pipeline from the source code.
 | :--- | :--- | :--- |
 | TRIGGER BUILD PIPELINE | Required | The build execution may be set to: <ul><li>**Automatically (default)**: Build is triggered automatically as the Git source code changes.</li><li>**Manually**: Build is triggered manually.</li></ul> 
 | Pipeline Name | Required | A name for the pipeline |
-| Source type | Required | Select the source type to build the CI pipeline: [Branch Fixed](#source-type-branch-fixed) \| [Pull Request](#source-type-pull-request) \| [Tag Creation](#source-type-tag-creation) |
+| Source type | Required | Select the source type to build the CI pipeline: [Branch Fixed](#source-type-branch-fixed) \| [Branch Regex](#source-type-branch-regex)| [Pull Request](#source-type-pull-request) \| [Tag Creation](#source-type-tag-creation) |
 | Branch Name | Required | Branch that triggers the CI build |
 | Docker build arguments | Optional | Override docker build configurations for this pipeline. <br> <ul><li>Key: Field name</li><li>Value: Field value</li></ul>
 
@@ -73,6 +73,16 @@ Select **Update Pipeline**.
 The **Source type** - "Branch Fixed" allows you to trigger a CI build whenever there is a code change on the specified branch.
 
 Select the **Source type** as "Branch Fixed" and enter the **Branch Name**.
+
+### Source type: Branch Regex
+
+`Branch Regex` allows users to easily switch between branches matching the configured Regex before triggering the build pipeline.
+In case of `Branch Fixed`, users cannot change the branch name in ci-pipeline unless they have admin access for the app. So, if users with 
+`Build and Deploy` access should be allowed to switch branch name before triggering ci-pipeline, `Branch Regex` should be selected as source type by a user with Admin access.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow/branch-regex.jpg)
+
+For example if the user sets the Branch Regex as `feature-*`, then users can trigger from branches such as `feature-1450`, `feature-hot-fix` etc.
 
 ### Configuring Webhook
 
