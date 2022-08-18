@@ -92,6 +92,12 @@ func (handler *UserAttributesRestHandlerImpl) AddUserAttributes(w http.ResponseW
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
+// @Summary update user attributes
+// @version 1.0
+// @produce application/json
+// @Param payload body attributes.UserAttributesDto true "Input key"
+// @Success 200 {object} attributes.UserAttributesDto
+// @Router /orchestrator/attributes/user/update [POST]
 func (handler *UserAttributesRestHandlerImpl) UpdateUserAttributes(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -133,6 +139,12 @@ func (handler *UserAttributesRestHandlerImpl) UpdateUserAttributes(w http.Respon
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
+// @Summary get user attributes
+// @version 1.0
+// @produce application/json
+// @Param name query string true "Input key"
+// @Success 200 {object} attributes.UserAttributesDto
+// @Router /orchestrator/attributes/user/get [GET]
 func (handler *UserAttributesRestHandlerImpl) GetUserAttribute(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
