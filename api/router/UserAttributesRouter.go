@@ -38,10 +38,8 @@ func NewUserAttributesRouterImpl(userAttributesRestHandler user.UserAttributesRe
 }
 
 func (router UserAttributesRouterImpl) initAttributesRouter(attributesRouter *mux.Router) {
-	attributesRouter.Path("/create").
-		HandlerFunc(router.userAttributesRestHandler.AddUserAttributes).Methods("POST")
-	attributesRouter.Path("/update").
-		HandlerFunc(router.userAttributesRestHandler.UpdateUserAttributes).Methods("PUT")
-	attributesRouter.Path("/get").
-		HandlerFunc(router.userAttributesRestHandler.GetUserAttribute).Methods("POST")
+	attributesRouter.Path("/").
+		HandlerFunc(router.userAttributesRestHandler.UpdateUserAttributes).Methods("POST")
+	attributesRouter.Path("/").
+		HandlerFunc(router.userAttributesRestHandler.GetUserAttribute).Queries("key", "{key}").Methods("GET")
 }
