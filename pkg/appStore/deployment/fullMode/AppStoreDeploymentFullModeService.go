@@ -262,7 +262,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 		return nil, err
 	}
 	//STEP 6: Force Sync ACD - works like trigger deployment
-	impl.SyncACD(installAppVersionRequest.ACDAppName, ctx)
+	//impl.SyncACD(installAppVersionRequest.ACDAppName, ctx)
 
 	return installAppVersionRequest, nil
 }

@@ -90,9 +90,6 @@ func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
 	router.Path("/{name}").
 		Methods("GET").
 		HandlerFunc(r.handler.Get)
-	router.Path("/{name}/sync").
-		Methods("POST").
-		HandlerFunc(r.handler.Sync)
 	router.Path("/{appName}/operation").
 		Methods("DELETE").
 		HandlerFunc(r.handler.TerminateOperation)

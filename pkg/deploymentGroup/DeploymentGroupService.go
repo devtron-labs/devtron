@@ -285,6 +285,7 @@ func (impl *DeploymentGroupServiceImpl) FetchParentCiForDG(deploymentGroupId int
 			}
 			materialTemp = append(materialTemp, &ciMaterial)
 		}
+
 		pipeline.Repositories = materialTemp
 		results = append(results, pipeline)
 

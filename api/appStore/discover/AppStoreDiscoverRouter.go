@@ -26,7 +26,7 @@ type AppStoreDiscoverRouter interface {
 }
 
 type AppStoreDiscoverRouterImpl struct {
-	appStoreRestHandler       AppStoreRestHandler
+	appStoreRestHandler AppStoreRestHandler
 }
 
 func NewAppStoreDiscoverRouterImpl(appStoreRestHandler AppStoreRestHandler) *AppStoreDiscoverRouterImpl {

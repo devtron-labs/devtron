@@ -22,7 +22,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util/event"
 	"github.com/satori/go.uuid"
@@ -79,7 +78,7 @@ func (impl *EventSimpleFactoryImpl) Build(eventType util.EventType, sourceId *in
 	}
 	event.PipelineType = string(pipelineType)
 	event.CorrelationId = fmt.Sprintf("%s", correlationId)
-	event.EventTime = time.Now().Format(bean.LayoutRFC3339)
+	event.EventTime = fmt.Sprintf("%s", time.Now())
 	return event
 }
 

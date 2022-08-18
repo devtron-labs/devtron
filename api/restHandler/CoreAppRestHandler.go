@@ -683,6 +683,7 @@ func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline 
 		}
 		ciPipelineMaterialsConfig = append(ciPipelineMaterialsConfig, ciPipelineMaterialConfig)
 	}
+
 	ciPipelineResp.CiPipelineMaterialsConfig = ciPipelineMaterialsConfig
 
 	//build docker pre-build script

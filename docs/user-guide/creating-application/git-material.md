@@ -2,7 +2,7 @@
 
 Git Repository is used to pull your application source code during the CI step. Select `Git Repository` section of the  `App Configuration`. Inside `Git Repository` when you click on `Add Git Repository` you will see three options as shown below:
 
-1. Git Provider
+1. Git Account
 2. Git Repo URL
 3. Checkout Path
 
@@ -10,9 +10,9 @@ Devtron also supports multiple git repositories in a single deployment. We will 
 
 ![](../../.gitbook/assets/create-app-git-account.gif)
 
-## 1. Git Provider
+## 1. Git Account
 
-In this section, you have to select the git provider of your code repository like- Github, Gitlab, and Bitbucket, etc. If you are using a private git repository, you can configure your git provider via [git accounts](../global-configurations/git-accounts.md).
+In this section, you have to select the git account of your code repository. If the authentication type of the Git account is anonymous, only public git repository will be accessible. If you are using a private git repository, you can configure your git provider via [git accounts](../global-configurations/git-accounts.md).
 
 ## 2. Git Repo URL
 

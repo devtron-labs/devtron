@@ -33,6 +33,7 @@ const (
 type SourceTypeConfig struct {
 	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
 	Value string                    `json:"value,omitempty" `
+	Regex string                    `json:"regex"`
 }
 
 type CreateAppDTO struct {
@@ -77,6 +78,7 @@ type CiMaterial struct {
 	ScmVersion      string            `json:"scmVersion,omitempty"`
 	Id              int               `json:"id,omitempty"`
 	GitMaterialName string            `json:"gitMaterialName"`
+	IsRegex         bool              `json:"isRegex"`
 }
 
 type CiPipeline struct {
@@ -176,6 +178,13 @@ type CiPatchRequest struct {
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
 	UserId        int32       `json:"-"`
+}
+
+type CiRegexPatchRequest struct {
+	CiPipelineMaterial []*CiPipelineMaterial `json:"ciPipelineMaterial,omitempty"`
+	Id                 int                   `json:"id,omitempty" `
+	AppId              int                   `json:"appId,omitempty"`
+	UserId             int32                 `json:"-"`
 }
 
 type GitCiTriggerRequest struct {
