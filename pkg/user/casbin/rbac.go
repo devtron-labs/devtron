@@ -182,7 +182,7 @@ func (e *EnforcerImpl) EnforceByEmailInBatch(emailId string, resource string, ac
 	for i := 0; i < batchSize; i++ {
 		startIndex := i * totalSize / batchSize
 		endIndex := startIndex + totalSize/batchSize
-		if endIndex > totalSize {
+		if i == (batchSize - 1) {
 			endIndex = totalSize
 		}
 		go e.enforceByEmailInBatchSync(wg, batchMutex, result, metrics, i, emailId, resource, action, vals[startIndex:endIndex])
