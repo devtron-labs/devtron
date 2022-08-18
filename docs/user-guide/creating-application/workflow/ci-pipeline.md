@@ -74,6 +74,16 @@ The **Source type** - "Branch Fixed" allows you to trigger a CI build whenever t
 
 Select the **Source type** as "Branch Fixed" and enter the **Branch Name**.
 
+### Source type: Branch Regex
+
+`Branch Regex` allows you to easily switch between branches matching the configured regex before triggering the build pipeline.
+In case of branch fixed, users cannot change the branch name in ci-pipeline without having admin access. So, if you have 
+`build and deploy` access and you want to change branch name before triggering ci-pipeline, you can select `branch regex` as source type.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow/branch-regex.jpg)
+
+You must need to use the branch name maching the branch regex i.e. if branch regex is `devtron-*`, you can use branch name maching `devtron-`.
+
 ### Configuring Webhook
 
 > **Info**:
