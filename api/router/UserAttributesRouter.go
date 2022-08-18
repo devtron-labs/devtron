@@ -23,7 +23,7 @@ import (
 )
 
 type UserAttributesRouter interface {
-	initAttributesRouter(helmRouter *mux.Router)
+	initUserAttributesRouter(helmRouter *mux.Router)
 }
 
 type UserAttributesRouterImpl struct {
@@ -37,9 +37,9 @@ func NewUserAttributesRouterImpl(userAttributesRestHandler user.UserAttributesRe
 	return router
 }
 
-func (router UserAttributesRouterImpl) initAttributesRouter(attributesRouter *mux.Router) {
-	attributesRouter.Path("/").
+func (router UserAttributesRouterImpl) initUserAttributesRouter(attributesRouter *mux.Router) {
+	attributesRouter.Path("/update").
 		HandlerFunc(router.userAttributesRestHandler.UpdateUserAttributes).Methods("POST")
-	attributesRouter.Path("/").
+	attributesRouter.Path("/get").
 		HandlerFunc(router.userAttributesRestHandler.GetUserAttribute).Queries("key", "{key}").Methods("GET")
 }
