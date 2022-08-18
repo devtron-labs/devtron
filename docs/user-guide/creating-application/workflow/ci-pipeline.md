@@ -76,9 +76,9 @@ Select the **Source type** as "Branch Fixed" and enter the **Branch Name**.
 
 ### Source type: Branch Regex
 
-`Branch Regex` allows you to easily switch between branches matching the configured regex before triggering the build pipeline.
-In case of branch fixed, users cannot change the branch name in ci-pipeline without having admin access. So, if you have 
-`build and deploy` access and you want to change branch name before triggering ci-pipeline, you can select `branch regex` as source type.
+`Branch Regex` allows users to easily switch between branches matching the configured Regex before triggering the build pipeline.
+In case of `Branch Fixed`, users cannot change the branch name in ci-pipeline unless they have admin access for the app. So, if users with 
+`Build and Deploy` access should be allowed to switch branch name before triggering ci-pipeline, `Branch Regex` should be selected as source type by a user with Admin access.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow/branch-regex.jpg)
 
