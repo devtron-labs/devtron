@@ -849,7 +849,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			} else {
 				impl.logger.Debug("argo-cd failed to update, ignoring it")
 			}
-			impl.synchCD(pipeline, ctx, overrideRequest, envOverride)
+			//	impl.synchCD(pipeline, ctx, overrideRequest, envOverride)
 		}
 
 		deploymentStatus := &repository.DeploymentStatus{

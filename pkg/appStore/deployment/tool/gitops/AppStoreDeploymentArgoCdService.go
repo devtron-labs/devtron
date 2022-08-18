@@ -231,7 +231,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) RollbackRelease(ctx context.Cont
 		return installedApp, false, nil
 	}
 	//ACD sync operation
-	impl.appStoreDeploymentFullModeService.SyncACD(installedApp.ACDAppName, ctx)
+	//impl.appStoreDeploymentFullModeService.SyncACD(installedApp.ACDAppName, ctx)
 	return installedApp, true, nil
 }
 
@@ -402,7 +402,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 	installAppVersionRequest.Environment = environment
 
 	//ACD sync operation
-	impl.appStoreDeploymentFullModeService.SyncACD(installAppVersionRequest.ACDAppName, ctx)
+	//impl.appStoreDeploymentFullModeService.SyncACD(installAppVersionRequest.ACDAppName, ctx)
 
 	return installAppVersionRequest, nil
 }
@@ -429,7 +429,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 		impl.Logger.Errorw("error in creating argo app ", "name", installAppVersionRequest.ACDAppName, "patch", string(reqbyte), "err", err)
 		return nil, err
 	}
-	impl.appStoreDeploymentFullModeService.SyncACD(installAppVersionRequest.ACDAppName, ctx)
+	//impl.appStoreDeploymentFullModeService.SyncACD(installAppVersionRequest.ACDAppName, ctx)
 	return installAppVersionRequest, nil
 }
 
