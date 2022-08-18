@@ -21,9 +21,10 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	user2 "github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
 )
@@ -38,11 +39,11 @@ type UserAttributesRestHandlerImpl struct {
 	logger                *zap.SugaredLogger
 	enforcer              casbin.Enforcer
 	userService           user.UserService
-	userAttributesService user2.UserAttributesService
+	userAttributesService attributes.UserAttributesService
 }
 
 func NewUserAttributesRestHandlerImpl(logger *zap.SugaredLogger, enforcer casbin.Enforcer,
-	userService user.UserService, userAttributesService user2.UserAttributesService) *UserAttributesRestHandlerImpl {
+	userService user.UserService, userAttributesService attributes.UserAttributesService) *UserAttributesRestHandlerImpl {
 	userAuthHandler := &UserAttributesRestHandlerImpl{
 		logger:                logger,
 		enforcer:              enforcer,
@@ -51,14 +52,15 @@ func NewUserAttributesRestHandlerImpl(logger *zap.SugaredLogger, enforcer casbin
 	}
 	return userAuthHandler
 }
-func (handler UserAttributesRestHandlerImpl) AddUserAttributes(w http.ResponseWriter, r *http.Request) {
+
+func (handler *UserAttributesRestHandlerImpl) AddUserAttributes(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var dto user2.UserAttributesDto
+	var dto attributes.UserAttributesDto
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, AddUserAttributes", "err", err, "payload", dto)
@@ -72,6 +74,13 @@ func (handler UserAttributesRestHandlerImpl) AddUserAttributes(w http.ResponseWr
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
+	emailId, err := handler.userService.GetEmailFromToken(token)
+	if err != nil {
+		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	dto.EmailId = emailId
 
 	handler.logger.Infow("request payload, AddUserAttributes", "payload", dto)
 	resp, err := handler.userAttributesService.AddUserAttributes(&dto)
@@ -83,7 +92,7 @@ func (handler UserAttributesRestHandlerImpl) AddUserAttributes(w http.ResponseWr
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler UserAttributesRestHandlerImpl) UpdateUserAttributes(w http.ResponseWriter, r *http.Request) {
+func (handler *UserAttributesRestHandlerImpl) UpdateUserAttributes(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -91,7 +100,7 @@ func (handler UserAttributesRestHandlerImpl) UpdateUserAttributes(w http.Respons
 	}
 
 	decoder := json.NewDecoder(r.Body)
-	var dto user2.UserAttributesDto
+	var dto attributes.UserAttributesDto
 	err = decoder.Decode(&dto)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
@@ -106,6 +115,14 @@ func (handler UserAttributesRestHandlerImpl) UpdateUserAttributes(w http.Respons
 		return
 	}
 
+	emailId, err := handler.userService.GetEmailFromToken(token)
+	if err != nil {
+		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	dto.EmailId = emailId
+
 	handler.logger.Infow("request payload, UpdateUserAttributes", "payload", dto)
 	resp, err := handler.userAttributesService.UpdateUserAttributes(&dto)
 	if err != nil {
@@ -116,18 +133,17 @@ func (handler UserAttributesRestHandlerImpl) UpdateUserAttributes(w http.Respons
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler UserAttributesRestHandlerImpl) GetUserAttribute(w http.ResponseWriter, r *http.Request) {
+func (handler *UserAttributesRestHandlerImpl) GetUserAttribute(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
-	decoder := json.NewDecoder(r.Body)
-	var dto user2.UserAttributesDto
-	err = decoder.Decode(&dto)
-	if err != nil {
-		handler.logger.Errorw("request err, GetUserAttribute", "err", err, "payload", dto)
+	vars := mux.Vars(r)
+	key := vars["key"]
+	if key == "" {
+		handler.logger.Errorw("request err, GetUserAttribute", "err", err, "key", key)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -137,6 +153,17 @@ func (handler UserAttributesRestHandlerImpl) GetUserAttribute(w http.ResponseWri
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
+
+	dto := attributes.UserAttributesDto{}
+
+	emailId, err := handler.userService.GetEmailFromToken(token)
+	if err != nil {
+		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	dto.EmailId = emailId
+	dto.Key = key
 
 	res, err := handler.userAttributesService.GetUserAttribute(&dto)
 	if err != nil {
