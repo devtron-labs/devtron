@@ -677,6 +677,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					Source: &bean.SourceTypeConfig{
 						Type:  refCiMaterial.Source.Type,
 						Value: refCiMaterial.Source.Value,
+						Regex: refCiMaterial.Source.Regex,
 					},
 				}
 				ciMaterilas = append(ciMaterilas, ciMaterial)

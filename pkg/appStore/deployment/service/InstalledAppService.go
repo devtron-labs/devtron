@@ -74,7 +74,7 @@ type InstalledAppService interface {
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
-	UpdateInstalledAppVersionStatus(application v1alpha1.Application) (bool, error)
+	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -829,7 +829,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId
 	return result, err
 }
 
-func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application v1alpha1.Application) (bool, error) {
+func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error) {
 	isHealthy := false
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()

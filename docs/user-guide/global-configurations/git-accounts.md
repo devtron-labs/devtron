@@ -1,6 +1,6 @@
 # Git Accounts
 
-Git Accounts allow you to connect your code source with Devtron. You’ll be able to use these git accounts to build code using the CI pipeline.
+Git Accounts allow you to connect your code source with Devtron. You will be able to use these git accounts to build the code using the CI pipeline.
 
 ## Git Account Configuration
 
@@ -28,29 +28,34 @@ Provide the `URL`. **For example**- [https://github.com](https://github.com) for
 
 ### 4. Authentication type
 
-Here you have to provide the type of authentication required by your version controller. We support three types of authentications. You can choose the one that suits you the best.
+Here provide the type of authentication required by your version controller. Devtron supports three types of authentications. You can choose the one that suits you the best.
 
 * **Anonymous**
 
-If you select `Anonymous` then you do not have to provide any username, password/authentication token or SSH key. Just click on `Save` to save your git account provider details.
+If authentication type is set as `Anonymous` then you do not need to provide any username, password/authentication token or SSH key. Just click on `Save` to save the git account provider details. 
+>If authentication type is set as `Anonymous`, only public git repository will be accessible.
 
 ![](../../user-guide/global-configurations/images/git-accounts-anonymous.jpg)
 
 * **User Auth**
 
-If you select `User Auth` then you have to provide the `Username` and either of `Password` or `Auth Token` for the authentication of your version controller account. Click on `Save` to save your git account provider details.
+If you select `User Auth` then you have to provide the `Username` and either of `Password` or `Auth Token` for the authentication of your version controller account. Click on `Save` to save the git account provider details.
 
 ![](../../user-guide/global-configurations/images/git-accounts-user-auth.jpg)
 
 * **SSH Key**
 
-If you choose `SSH Key` then you have to provide the `Private SSH Key` corresponding to the public key added in your version controller account. Click on `Save` to save your git account provider details.
+If you choose `SSH Key` then you have to provide the `Private SSH Key` corresponding to the public key added in your version controller account. Click on `Save` to save the git account provider details.
 
 ![](../../user-guide/global-configurations/images/git-accounts-ssh.jpg)
 
 ## Update Git Account
 
-You can update your saved git account settings at any point in time. Just click on the git account which you want to update. Make the required changes and click on `Update` to save you changes.
+You can update your saved git account settings at anytime. To update the git account:
+
+1. Click on the git account which you want to update. 
+2. Make the required changes 
+3. Click on `Update` to save the changes.
 
 Updates can only be made within one Authentication type or one protocol type, i.e. HTTPS(Anonymous or User Auth) & SSH. You can update from Anonymous to User Auth & vice versa, but not from Anonymous/User Auth to SSH or reverse.
 
@@ -58,6 +63,8 @@ Updates can only be made within one Authentication type or one protocol type, i.
 
 ### Note:
 
-You can enable and disable your git account settings. If you enable it, then you will be able to see that enabled git account in the drop-down of Git provider.
+You can enable or disable a git account. Enabled git accounts will be available to be used in Application configuration > [Git repository](../creating-application/git-material.md).
+
+Disabled git accounts will be unavailable for use in future applications. Applications already using a disabled git account will not be affected.
 
 ![](../../user-guide/global-configurations/images/git-account-enable-disable.jpg)

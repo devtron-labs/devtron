@@ -36,6 +36,8 @@ type DevtronAppBuildRestHandler interface {
 	FetchWorkflowDetails(w http.ResponseWriter, r *http.Request)
 	// CancelWorkflow CancelBuild
 	CancelWorkflow(w http.ResponseWriter, r *http.Request)
+
+	UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildMaterialRestHandler interface {
@@ -137,6 +139,62 @@ func (handler PipelineConfigRestHandlerImpl) UpdateCiTemplate(w http.ResponseWri
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var patchRequest bean.CiRegexPatchRequest
+	err = decoder.Decode(&patchRequest)
+	patchRequest.UserId = userId
+	if err != nil {
+		handler.Logger.Errorw("request err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	handler.Logger.Debugw("update request ", "req", patchRequest)
+	token := r.Header.Get("token")
+	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	var materialList []*bean.CiPipelineMaterial
+	for _, material := range patchRequest.CiPipelineMaterial {
+		if handler.ciPipelineMaterialRepository.CheckRegexExistsForMaterial(material.Id) {
+			materialList = append(materialList, material)
+		}
+	}
+	if len(materialList) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	patchRequest.CiPipelineMaterial = materialList
+
+	err = handler.pipelineBuilder.PatchRegexCiPipeline(&patchRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(patchRequest.Id)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", patchRequest.Id)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {

@@ -40,6 +40,7 @@ type RoleGroupRepository interface {
 	GetConnection() (dbConnection *pg.DB)
 	GetRoleGroupListByNames(groupNames []string) ([]*RoleGroup, error)
 	GetRoleGroupRoleMappingByRoleGroupIds(roleGroupIds []int32) ([]*RoleModel, error)
+	GetRolesByGroupCasbinName(groupName string) ([]*RoleModel, error)
 }
 
 type RoleGroupRepositoryImpl struct {
@@ -180,6 +181,20 @@ func (impl RoleGroupRepositoryImpl) GetRoleGroupRoleMappingByRoleGroupIds(roleGr
 		" INNER JOIN role_group_role_mapping rgm on rgm.role_id=r.id" +
 		" WHERE rgm.role_group_id in (?);"
 	_, err := impl.dbConnection.Query(&roleModels, query, pg.In(roleGroupIds))
+	if err != nil {
+		return roleModels, err
+	}
+	return roleModels, nil
+}
+
+func (impl RoleGroupRepositoryImpl) GetRolesByGroupCasbinName(groupName string) ([]*RoleModel, error) {
+	var roleModels []*RoleModel
+	query := "SELECT r.* from roles r" +
+		" INNER JOIN role_group_role_mapping rgm on rgm.role_id=r.id" +
+		" INNER JOIN role_group rg on rg.id=rgm.role_group_id" +
+		" WHERE rg.casbin_name = ?;"
+	_, err := impl.dbConnection.Query(&roleModels, query, groupName)
+
 	if err != nil {
 		return roleModels, err
 	}
