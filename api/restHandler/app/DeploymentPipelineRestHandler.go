@@ -347,11 +347,16 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 				return
 			}
 			ctx = context.WithValue(r.Context(), "token", acdToken)
+			appMetrics := false
+			if envConfigProperties.AppMetrics != nil {
+				appMetrics = *envConfigProperties.AppMetrics
+			}
 			templateRequest := chart.TemplateRequest{
-				AppId:          appId,
-				ChartRefId:     envConfigProperties.ChartRefId,
-				ValuesOverride: []byte("{}"),
-				UserId:         userId,
+				AppId:               appId,
+				ChartRefId:          envConfigProperties.ChartRefId,
+				ValuesOverride:      []byte("{}"),
+				UserId:              userId,
+				IsAppMetricsEnabled: appMetrics,
 			}
 
 			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)

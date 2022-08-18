@@ -54,7 +54,6 @@ type ArgoApplicationRestHandler interface {
 	GetManifests(w http.ResponseWriter, r *http.Request)
 	Get(w http.ResponseWriter, r *http.Request)
 
-	Sync(w http.ResponseWriter, r *http.Request)
 	TerminateOperation(w http.ResponseWriter, r *http.Request)
 	PatchResource(w http.ResponseWriter, r *http.Request)
 	DeleteResource(w http.ResponseWriter, r *http.Request)
@@ -523,40 +522,6 @@ func (impl ArgoApplicationRestHandlerImpl) Get(w http.ResponseWriter, r *http.Re
 	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 	recv, err := impl.client.Get(ctx, query)
-	impl.pump.StartMessage(w, recv, err)
-}
-
-func (impl ArgoApplicationRestHandlerImpl) Sync(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	name := vars["name"]
-	decoder := json.NewDecoder(r.Body)
-	query := new(application2.ApplicationSyncRequest)
-	err := decoder.Decode(query)
-	query.Name = &name
-	if err != nil {
-		impl.logger.Error(err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
-	defer cancel()
-	recv, err := impl.client.Sync(ctx, query)
 	impl.pump.StartMessage(w, recv, err)
 }
 
