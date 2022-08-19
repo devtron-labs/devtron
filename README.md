@@ -6,6 +6,8 @@
 <br>
 <a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
+<a href="https://preview.devtron.ai/dashboard/" rel="nofollow"><strong>Try Devtron Demo »</strong></a>
+<br>
 <a href="https://devtron.ai/">Website</a>
 ·
 <a href="https://devtron.ai/blog/">Blogs</a>
