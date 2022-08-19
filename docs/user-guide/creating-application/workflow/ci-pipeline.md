@@ -28,7 +28,7 @@ Continuous Integration Pipeline allows you to build the container image from a s
 
 | Field Name | Required/Optional | Description |
 | :--- | :--- | :--- |
-| Source type | Required | Source type to trigger the CI. Available options: [Branch Fixed](#source-type-branch-fixed) \| [Branch Regex](#source-type-branch-regex) |[Pull Request](#source-type-pull-request) \| [Tag Creation](#source-type-tag-creation) |
+| Source type | Required | Source type to trigger the CI. Available options: [Branch Fixed](#source-type-branch-fixed) \| [Branch Regex](#source-type-branch-regex) \|[Pull Request](#source-type-pull-request) \| [Tag Creation](#source-type-tag-creation) |
 | Branch Name | Required | Branch that triggers the CI build |
 | Advanced Options | Optional | Create Pre-Build, Build, and Post-Build tasks |
 
@@ -62,7 +62,7 @@ The Build stage allows you to configure a build pipeline from the source code.
 | :--- | :--- | :--- |
 | TRIGGER BUILD PIPELINE | Required | The build execution may be set to: <ul><li>**Automatically (default)**: Build is triggered automatically as the Git source code changes.</li><li>**Manually**: Build is triggered manually.</li></ul> 
 | Pipeline Name | Required | A name for the pipeline |
-| Source type | Required | Select the source type to build the CI pipeline: [Branch Fixed](#source-type-branch-fixed) \| [Branch Regex](#source-type-branch-regex)| [Pull Request](#source-type-pull-request) \| [Tag Creation](#source-type-tag-creation) |
+| Source type | Required | Select the source type to build the CI pipeline: [Branch Fixed](#source-type-branch-fixed) \| [Branch Regex](#source-type-branch-regex) \| [Pull Request](#source-type-pull-request) \| [Tag Creation](#source-type-tag-creation) |
 | Branch Name | Required | Branch that triggers the CI build |
 | Docker build arguments | Optional | Override docker build configurations for this pipeline. <br> <ul><li>Key: Field name</li><li>Value: Field value</li></ul>
 
