@@ -322,12 +322,13 @@ ConfigSecrets:
 initContainers: []
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
-  #- name: volume-mount-hack
-  #  image: busybox
-  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
-  #  volumeMounts:
-  #    - mountPath: /usr/local/airflow/logs
-#      name: logs-data
+  # - name: volume-mount-hack
+  #   image: busybox
+  #   command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #   volumeMounts:
+  #     - mountPath: /usr/local/airflow/logs
+  #       name: logs-data
+  #   reuseContainerImage: true
 
 containers: []
   ## Additional init containers to run before the Scheduler pods.
@@ -424,6 +425,9 @@ serviceAccount:
   ##
   annotations:
      kubernetes.io/service-account.name: build-robot
+containerSecurityContext: {}
+  # allowPrivilegeEscalation: false
+# privileged: true
 hostAliases: []
 #  - ip: "127.0.0.1"
 #    hostnames:
