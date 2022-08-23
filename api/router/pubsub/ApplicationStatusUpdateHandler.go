@@ -19,7 +19,6 @@ package pubsub
 
 import (
 	"encoding/json"
-
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -57,11 +56,7 @@ func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClie
 		//logger.Error("err", err)
 		return nil
 	}
-	err = appStatusUpdateHandlerImpl.Subscribe()
-	if err != nil {
-		//logger.Error("err", err)
-		return nil
-	}
+	go appStatusUpdateHandlerImpl.Subscribe()
 	return appStatusUpdateHandlerImpl
 }
 
@@ -71,60 +66,74 @@ type ApplicationDetail struct {
 }
 
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.APPLICATION_STATUS_UPDATE_TOPIC, util.APPLICATION_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
-		impl.logger.Debug("received app update request")
-		defer msg.Ack()
-		applicationDetail := ApplicationDetail{}
-		err := json.Unmarshal([]byte(string(msg.Data)), &applicationDetail)
-		if err != nil {
-			impl.logger.Errorw("unmarshal error on app update status", "err", err)
-			return
-		}
-		newApp := applicationDetail.Application
-		oldApp := applicationDetail.OldApplication
-		if newApp == nil {
-			return
-		}
-		//impl.logger.Infow("app update request", "application", newApp)
+	//_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.APPLICATION_STATUS_UPDATE_TOPIC, util.APPLICATION_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
+	//	impl.logger.Debug("received app update request")
+	//	isErr := impl.processMsg(msg)
+	//	if isErr {
+	//		return
+	//	}
+	//}, nats.Durable(util.APPLICATION_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.KUBEWATCH_STREAM))
 
-		isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp)
-		if err != nil {
-			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
+	topic := util.APPLICATION_STATUS_UPDATE_TOPIC
+	subs, err := impl.pubsubClient.JetStrCtxt.PullSubscribe(topic, util.APPLICATION_STATUS_UPDATE_DURABLE,
+		nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.KUBEWATCH_STREAM))
 
-			//TODO - check update for charts - fix this call
-			if err == pg.ErrNoRows {
-				// if not found in charts (which is for devtron apps) try to find in installed app (which is for devtron charts)
-				_, err := impl.installedAppService.UpdateInstalledAppVersionStatus(newApp)
-				if err != nil {
-					impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
-					return
-				}
-			}
-			// return anyways weather updates or failure, no further processing for charts status update
-			return
-		}
+	if err != nil {
+		impl.logger.Fatalw("error occurred while registering pull subscriber ", "topic", topic, "err", err)
+		return err
+	}
 
-		// invoke DagExecutor, for cd success which will trigger post stage if exist.
-		if isHealthy {
-			impl.logger.Debugw("git hash history", "list", newApp.Status.History)
-			var gitHash string
-			if newApp.Operation != nil && newApp.Operation.Sync != nil {
-				gitHash = newApp.Operation.Sync.Revision
-			} else if newApp.Status.OperationState != nil && newApp.Status.OperationState.Operation.Sync != nil {
-				gitHash = newApp.Status.OperationState.Operation.Sync.Revision
-			}
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
+	impl.logger.Infow("subscriber registered ", "topic", topic)
+	util.HandleMessageBatch(subs, impl.logger, impl.processMsg)
+	return nil
+}
+
+func (impl *ApplicationStatusUpdateHandlerImpl) processMsg(msgData string) {
+	applicationDetail := ApplicationDetail{}
+	err := json.Unmarshal([]byte(msgData), &applicationDetail)
+	if err != nil {
+		impl.logger.Errorw("unmarshal error on app update status", "err", err)
+		return
+	}
+	newApp := applicationDetail.Application
+	oldApp := applicationDetail.OldApplication
+	if newApp == nil {
+		return
+	}
+	//impl.logger.Infow("app update request", "application", newApp)
+
+	isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp)
+	if err != nil {
+		impl.logger.Errorw("error on application status update", "err", err, "msg", string(msgData))
+
+		//TODO - check update for charts - fix this call
+		if err == pg.ErrNoRows {
+			// if not found in charts (which is for devtron apps) try to find in installed app (which is for devtron charts)
+			_, err := impl.installedAppService.UpdateInstalledAppVersionStatus(newApp)
 			if err != nil {
-				impl.logger.Errorw("deployment success event error", "gitHash", gitHash, "err", err)
+				impl.logger.Errorw("error on application status update", "err", err, "msg", string(msgData))
 				return
 			}
 		}
-		impl.logger.Debugw("application status update completed", "app", newApp.Name)
-	}, nats.Durable(util.APPLICATION_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.KUBEWATCH_STREAM))
-
-	if err != nil {
-		impl.logger.Error(err)
-		return err
+		// return anyways weather updates or failure, no further processing for charts status update
+		return
 	}
-	return nil
+
+	// invoke DagExecutor, for cd success which will trigger post stage if exist.
+	if isHealthy {
+		impl.logger.Debugw("git hash history", "list", newApp.Status.History)
+		var gitHash string
+		if newApp.Operation != nil && newApp.Operation.Sync != nil {
+			gitHash = newApp.Operation.Sync.Revision
+		} else if newApp.Status.OperationState != nil && newApp.Status.OperationState.Operation.Sync != nil {
+			gitHash = newApp.Status.OperationState.Operation.Sync.Revision
+		}
+		err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
+		if err != nil {
+			impl.logger.Errorw("deployment success event error", "gitHash", gitHash, "err", err)
+			return
+		}
+	}
+	impl.logger.Debugw("application status update completed", "app", newApp.Name)
+	return
 }
