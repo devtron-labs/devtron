@@ -304,6 +304,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 			return isHealthy, err
 		}
 		reconciledAt := newApp.Status.ReconciledAt
+		impl.logger.Infow("received latest timeline for kubectl apply synced", "latestTimeline", latestTimeline, "cdWorkflowIf", pipelineOverride.CdWorkflowId, "reconciledAt", reconciledAt)
 		if latestTimeline != nil && reconciledAt.After(latestTimeline.StatusTime) {
 			if deploymentStatus.Status == string(newApp.Status.Health.Status) {
 				impl.logger.Debugw("not updating same statuses from", "last status", deploymentStatus.Status, "new status", string(newApp.Status.Health.Status), "deploymentStatus", deploymentStatus)
@@ -381,6 +382,7 @@ func IsTerminalStatus(status string) bool {
 }
 
 func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp *v1alpha1.Application, pipelineOverride *chartConfig.PipelineOverride) error {
+	impl.logger.Infow("updating pipeline status timeline", "newApp", newApp, "oldApp", oldApp, "pipelineOverride", pipelineOverride)
 	//get wfr by cdWorkflowId & runnerType
 	cdWfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
@@ -447,6 +449,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 	haveNewTimeline := false
 	timeline.Id = 0
 	if newApp.Status.Health.Status == health.HealthStatusHealthy {
+		impl.logger.Infow("updating pipeline status timeline for healthy app", "newApp", newApp)
 		haveNewTimeline = true
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
 		timeline.StatusDetail = "App status is Healthy."
@@ -1603,6 +1606,7 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	}
 	wfr.Status = string(app.Status.Health.Status)
 	wfr.FinishedOn = time.Now()
+	impl.logger.Infow("updating cd wfr by acd object", "wfr", wfr)
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
