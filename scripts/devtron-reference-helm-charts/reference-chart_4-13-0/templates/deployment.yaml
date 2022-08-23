@@ -125,16 +125,9 @@ spec:
         - name: {{ $.Chart.Name }}-init-{{ add1 $i }}
           image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
-{{- if and $.Values.containerSecurityContext $.Values.privileged }}
+{{- if .securityContext }}
           securityContext:
-            privileged: true
-{{ toYaml $.Values.containerSecurityContext | indent 12 }}
-{{- else if $.Values.privileged }}
-          securityContext:
-            privileged: true
-{{- else if $.Values.containerSecurityContext }}
-          securityContext:
-{{ toYaml $.Values.containerSecurityContext | indent 12 }}
+{{ toYaml .securityContext | indent 12 }}
 {{- end }}
 {{- if .command}}
           command:
