@@ -6,6 +6,8 @@
 <br>
 <a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
+<a href="https://preview.devtron.ai/dashboard/" rel="nofollow"><strong>Try Devtron Demo »</strong></a>
+<br>
 <a href="https://devtron.ai/">Website</a>
 ·
 <a href="https://devtron.ai/blog/">Blogs</a>
@@ -40,6 +42,11 @@ Devtron deeply integrates with products across the lifecycle of microservices,i.
 <p align="center"><img src="./assets/readme-comic.png"></p>
 
 [Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
+
+
+## Devtron Demo environment
+
+Please log in the <a href="https://preview.devtron.ai/dashboard/" rel="nofollow">Demo environment</a> using github credentials. Please note the user is granted view access.
 
 ## Devtron features
 

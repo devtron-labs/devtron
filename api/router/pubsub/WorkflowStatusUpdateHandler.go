@@ -62,100 +62,115 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 		logger.Error("err", err)
 		return nil
 	}
-	err = workflowStatusUpdateHandlerImpl.Subscribe()
-	if err != nil {
-		logger.Error("err", err)
-		return nil
-	}
-	err = workflowStatusUpdateHandlerImpl.SubscribeCD()
-	if err != nil {
-		logger.Error("err", err)
-		return nil
-	}
+	go workflowStatusUpdateHandlerImpl.Subscribe()
+	go workflowStatusUpdateHandlerImpl.SubscribeCD()
 	return workflowStatusUpdateHandlerImpl
 }
 
 func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util1.WORKFLOW_STATUS_UPDATE_TOPIC, util1.WORKFLOW_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
-		impl.logger.Debug("received wf update request")
-		defer msg.Ack()
-		wfStatus := v1alpha1.WorkflowStatus{}
-		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
-		if err != nil {
-			impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", string(msg.Data))
-			return
-		}
+	//_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util1.WORKFLOW_STATUS_UPDATE_TOPIC, util1.WORKFLOW_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
+	//	impl.logger.Debug("received wf update request")
+	//	impl.processMsg(msg)
+	//}, nats.Durable(util1.WORKFLOW_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util1.KUBEWATCH_STREAM))
 
-		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
-		if err != nil {
-			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
-			return
-		}
-	}, nats.Durable(util1.WORKFLOW_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util1.KUBEWATCH_STREAM))
+	topic := util1.WORKFLOW_STATUS_UPDATE_TOPIC
+	subs, err := impl.pubsubClient.JetStrCtxt.PullSubscribe(topic, util1.WORKFLOW_STATUS_UPDATE_DURABLE,
+		nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util1.KUBEWATCH_STREAM))
 
 	if err != nil {
-		impl.logger.Error("err", err)
+		impl.logger.Fatalw("error occurred while registering pull subscriber ", "topic", topic, "err", err)
 		return err
 	}
+
+	impl.logger.Infow("subscriber registered ", "topic", topic)
+	util1.HandleMessageBatch(subs, impl.logger, impl.processMsg)
 	return nil
 }
 
+func (impl *WorkflowStatusUpdateHandlerImpl) processMsg(msgData string) {
+	wfStatus := v1alpha1.WorkflowStatus{}
+	err := json.Unmarshal([]byte(string(msgData)), &wfStatus)
+	if err != nil {
+		impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", string(msgData))
+		return
+	}
+
+	_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
+	if err != nil {
+		impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msgData))
+		return
+	}
+}
+
 func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util1.CD_WORKFLOW_STATUS_UPDATE, util1.CD_WORKFLOW_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
-		impl.logger.Debug("received cd wf update request")
-		defer msg.Ack()
-		wfStatus := v1alpha1.WorkflowStatus{}
-		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
-		if err != nil {
-			impl.logger.Error("Error while unmarshalling wfStatus json object", "error", err)
-			return
-		}
+	//_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util1.CD_WORKFLOW_STATUS_UPDATE, util1.CD_WORKFLOW_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
+	//	impl.logger.Debug("received cd wf update request")
+	//	defer msg.Ack()
+	//	msgData := string(msg.Data)
+	//	impl.processCDMsg(msgData)
+	//}, nats.Durable(util1.CD_WORKFLOW_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util1.KUBEWATCH_STREAM))
 
-		impl.logger.Debugw("received cd wf update request body", "body", wfStatus)
-		wfrId, wfrStatus, err := impl.cdHandler.UpdateWorkflow(wfStatus)
-		impl.logger.Debug(wfrId)
-		if err != nil {
-			impl.logger.Error("err", err)
-			return
-		}
-
-		wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
-		if err != nil {
-			impl.logger.Errorw("could not get wf runner", "err", err)
-			return
-		}
-		if wfrStatus == string(v1alpha1.NodeSucceeded) ||
-			wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-			eventType := util.EventType(0)
-			if wfrStatus == string(v1alpha1.NodeSucceeded) {
-				eventType = util.Success
-			} else if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
-				eventType = util.Fail
-			}
-			if wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
-				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
-				impl.logger.Debugw("event pre stage", "event", event)
-				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, bean.CD_WORKFLOW_TYPE_PRE)
-				_, evtErr := impl.eventClient.WriteEvent(event)
-				if evtErr != nil {
-					impl.logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
-				}
-
-			} else if wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
-				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
-				impl.logger.Debugw("event post stage", "event", event)
-				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, bean.CD_WORKFLOW_TYPE_POST)
-				_, evtErr := impl.eventClient.WriteEvent(event)
-				if evtErr != nil {
-					impl.logger.Errorw("CD stage post fail or success event not sent", "error", evtErr)
-				}
-			}
-		}
-	}, nats.Durable(util1.CD_WORKFLOW_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util1.KUBEWATCH_STREAM))
+	topic := util1.CD_WORKFLOW_STATUS_UPDATE
+	subs, err := impl.pubsubClient.JetStrCtxt.PullSubscribe(topic, util1.CD_WORKFLOW_STATUS_UPDATE_GROUP,
+		nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util1.KUBEWATCH_STREAM))
 
 	if err != nil {
-		impl.logger.Error("err", err)
+		impl.logger.Fatalw("error occurred while registering pull subscriber ", "topic", topic, "err", err)
 		return err
 	}
+
+	impl.logger.Infow("subscriber registered ", "topic", topic)
+	util1.HandleMessageBatch(subs, impl.logger, impl.processCDMsg)
+
 	return nil
+}
+
+func (impl *WorkflowStatusUpdateHandlerImpl) processCDMsg(msgData string) {
+	wfStatus := v1alpha1.WorkflowStatus{}
+	err := json.Unmarshal([]byte(msgData), &wfStatus)
+	if err != nil {
+		impl.logger.Error("Error while unmarshalling wfStatus json object", "error", err)
+		return
+	}
+
+	impl.logger.Debugw("received cd wf update request body", "body", wfStatus)
+	wfrId, wfrStatus, err := impl.cdHandler.UpdateWorkflow(wfStatus)
+	impl.logger.Debug(wfrId)
+	if err != nil {
+		impl.logger.Error("err", err)
+		return
+	}
+
+	wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(wfrId)
+	if err != nil {
+		impl.logger.Errorw("could not get wf runner", "err", err)
+		return
+	}
+	if wfrStatus == string(v1alpha1.NodeSucceeded) ||
+		wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
+		eventType := util.EventType(0)
+		if wfrStatus == string(v1alpha1.NodeSucceeded) {
+			eventType = util.Success
+		} else if wfrStatus == string(v1alpha1.NodeFailed) || wfrStatus == string(v1alpha1.NodeError) {
+			eventType = util.Fail
+		}
+		if wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
+			event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
+			impl.logger.Debugw("event pre stage", "event", event)
+			event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, bean.CD_WORKFLOW_TYPE_PRE)
+			_, evtErr := impl.eventClient.WriteEvent(event)
+			if evtErr != nil {
+				impl.logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
+			}
+
+		} else if wfr.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
+			event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
+			impl.logger.Debugw("event post stage", "event", event)
+			event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, bean.CD_WORKFLOW_TYPE_POST)
+			_, evtErr := impl.eventClient.WriteEvent(event)
+			if evtErr != nil {
+				impl.logger.Errorw("CD stage post fail or success event not sent", "error", evtErr)
+			}
+		}
+	}
 }
