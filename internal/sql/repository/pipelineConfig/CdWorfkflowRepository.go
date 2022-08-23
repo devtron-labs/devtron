@@ -36,12 +36,15 @@ type CdWorkflowRepository interface {
 
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
+	UpdateWorkFlowRunnerWithTxn(wfr *CdWorkflowRunner, tx *pg.Tx) error
 	UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 	FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (*CdWorkflowRunner, error)
+
+	GetConnection() *pg.DB
 
 	FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error)
 	FindLastPreOrPostTriggeredByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error)
@@ -288,6 +291,10 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowRunnerByEnvironmentIdAndRunn
 	return wfr, err
 }
 
+func (impl *CdWorkflowRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
+}
+
 func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, limit int) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
 	err := impl.dbConnection.
@@ -375,6 +382,12 @@ func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner
 	err := impl.dbConnection.Update(wfr)
 	return err
 }
+
+func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnerWithTxn(wfr *CdWorkflowRunner, tx *pg.Tx) error {
+	err := impl.dbConnection.Update(wfr)
+	return err
+}
+
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error {
 	_, err := impl.dbConnection.Model(&wfr).Update()
 	return err

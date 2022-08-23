@@ -16,7 +16,7 @@
  */
 
 /*
-	@description: app listing view
+@description: app listing view
 */
 package repository
 
@@ -66,6 +66,8 @@ type DeploymentStatus struct {
 }
 
 const NewDeployment string = "Deployment Initiated"
+const Success = "SUCCESS"
+const Failure = "FAILURE"
 
 type AppListingRepositoryImpl struct {
 	dbConnection                     *pg.DB
@@ -77,7 +79,8 @@ func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB,
 	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder}
 }
 
-/**
+/*
+*
 It will return the list of filtered apps with details related to each env
 */
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
@@ -152,7 +155,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	return appEnvArr, nil
 }
 
-//It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
+// It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
 func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int, envId int) (bean.DeploymentDetailContainer, error) {
 	impl.Logger.Debugf("reached at AppListingRepository:")
 	var deploymentDetail bean.DeploymentDetailContainer
