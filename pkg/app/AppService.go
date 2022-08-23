@@ -382,6 +382,9 @@ func IsTerminalStatus(status string) bool {
 }
 
 func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp *v1alpha1.Application, pipelineOverride *chartConfig.PipelineOverride) error {
+	b, _ := json.Marshal(newApp)
+	impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "timeline", "data", string(b))
+
 	impl.logger.Infow("updating pipeline status timeline", "newApp", newApp, "oldApp", oldApp, "pipelineOverride", pipelineOverride, "APP_TO_UPDATE", newApp.Name)
 	//get wfr by cdWorkflowId & runnerType
 	cdWfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
@@ -464,6 +467,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 			return err
 		}
+		impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "data", string(b), "status", timeline.Status)
 	}
 	return nil
 }
@@ -1606,7 +1610,10 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	}
 	wfr.Status = string(app.Status.Health.Status)
 	wfr.FinishedOn = time.Now()
-	impl.logger.Infow("updating cd wfr by acd object", "wfr", wfr, "APP_TO_UPDATE", app.Name)
+	if string(app.Status.Health.Status) == application.Healthy {
+		d, _ := json.Marshal(app)
+		impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "wf_healthy", "data", string(d))
+	}
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
