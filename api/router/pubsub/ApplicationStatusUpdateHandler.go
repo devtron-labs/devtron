@@ -19,15 +19,13 @@ package pubsub
 
 import (
 	"encoding/json"
+	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -37,27 +35,22 @@ type ApplicationStatusUpdateHandler interface {
 
 type ApplicationStatusUpdateHandlerImpl struct {
 	logger              *zap.SugaredLogger
-	pubsubClient        *pubsub.PubSubClient
+	pubSubClient        *pubsub_lib.PubSubClientServiceImpl
 	appService          app.AppService
 	workflowDagExecutor pipeline.WorkflowDagExecutor
 	installedAppService service.InstalledAppService
 }
 
-func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, appService app.AppService,
+func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubSubClient *pubsub_lib.PubSubClientServiceImpl, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService) *ApplicationStatusUpdateHandlerImpl {
 	appStatusUpdateHandlerImpl := &ApplicationStatusUpdateHandlerImpl{
 		logger:              logger,
-		pubsubClient:        pubsubClient,
+		pubSubClient:        pubSubClient,
 		appService:          appService,
 		workflowDagExecutor: workflowDagExecutor,
 		installedAppService: installedAppService,
 	}
-	err := util.AddStream(appStatusUpdateHandlerImpl.pubsubClient.JetStrCtxt, util.KUBEWATCH_STREAM)
-	if err != nil {
-		//logger.Error("err", err)
-		return nil
-	}
-	err = appStatusUpdateHandlerImpl.Subscribe()
+	err := appStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
 		//logger.Error("err", err)
 		return nil
@@ -71,11 +64,10 @@ type ApplicationDetail struct {
 }
 
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.APPLICATION_STATUS_UPDATE_TOPIC, util.APPLICATION_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
+	err := impl.pubSubClient.Subscribe(pubsub_lib.APPLICATION_STATUS_UPDATE_TOPIC, func(msg *pubsub_lib.PubSubMsg) {
 		impl.logger.Debug("received app update request")
-		defer msg.Ack()
 		applicationDetail := ApplicationDetail{}
-		err := json.Unmarshal([]byte(string(msg.Data)), &applicationDetail)
+		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
 		if err != nil {
 			impl.logger.Errorw("unmarshal error on app update status", "err", err)
 			return
@@ -120,7 +112,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			}
 		}
 		impl.logger.Debugw("application status update completed", "app", newApp.Name)
-	}, nats.Durable(util.APPLICATION_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.KUBEWATCH_STREAM))
+	})
 
 	if err != nil {
 		impl.logger.Error(err)
