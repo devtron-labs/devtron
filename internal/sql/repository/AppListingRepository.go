@@ -50,6 +50,7 @@ type AppListingRepository interface {
 	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
 	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
 	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
+	FindLastDeployedStatusesForAllActiveAppsWithActiveEnv() ([]DeploymentStatus, error)
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 }
@@ -491,6 +492,17 @@ func (impl AppListingRepositoryImpl) FindLastDeployedStatuses(appNames []string)
 func (impl AppListingRepositoryImpl) FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error) {
 	var deploymentStatuses []DeploymentStatus
 	query := "select distinct app_name, status, max(id) as id, app_id, env_id, created_on, updated_on from deployment_status group by app_name, status, app_id, env_id, created_on, updated_on order by id desc"
+	_, err := impl.dbConnection.Query(&deploymentStatuses, query)
+	if err != nil {
+		impl.Logger.Error("err", err)
+		return []DeploymentStatus{}, err
+	}
+	return deploymentStatuses, nil
+}
+
+func (impl AppListingRepositoryImpl) FindLastDeployedStatusesForAllActiveAppsWithActiveEnv() ([]DeploymentStatus, error) {
+	var deploymentStatuses []DeploymentStatus
+	query := "select distinct ds.app_name, status, max(ds.id) as id, app_id, env_id, ds.created_on, ds.updated_on from deployment_status ds inner join app on app.id=ds.app_id inner join environment env on env.id=ds.env_id where app.active=true and env.active=true group by ds.app_name, status,app_id, env_id, ds.created_on, ds.updated_on order by id desc;"
 	_, err := impl.dbConnection.Query(&deploymentStatuses, query)
 	if err != nil {
 		impl.Logger.Error("err", err)

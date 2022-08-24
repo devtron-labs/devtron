@@ -127,7 +127,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 }
 
 func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error {
-	deploymentStatuses, err := impl.appListingService.GetLastDeploymentStatuses()
+	deploymentStatuses, err := impl.appListingService.GetLastDeploymentStatusesOfActiveAppsWithActiveEnvs()
 	if err != nil {
 		impl.Logger.Errorw("err in getting latest deployment statuses for argo pipelines", err)
 		return err
@@ -164,6 +164,7 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDe
 			// Rollback tx on error.
 			defer tx.Rollback()
 			newDeploymentStatus := deploymentStatus
+			newDeploymentStatus.Id = 0
 			newDeploymentStatus.Status = appStatus
 			newDeploymentStatus.CreatedOn = time.Now()
 			newDeploymentStatus.UpdatedOn = time.Now()
