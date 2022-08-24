@@ -23,7 +23,6 @@ import (
 
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/pkg/event"
-	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 )
 
@@ -52,7 +51,7 @@ func NewCronBasedEventReceiverImpl(logger *zap.SugaredLogger, pubSubClient *pubs
 }
 
 func (impl *CronBasedEventReceiverImpl) Subscribe() error {
-	err := impl.pubSubClient.Subscribe(util.CRON_EVENTS, func(msg *pubsub_lib.PubSubMsg) {
+	err := impl.pubSubClient.Subscribe(pubsub_lib.CRON_EVENTS, func(msg *pubsub_lib.PubSubMsg) {
 		impl.logger.Debug("received cron event")
 		event := client.Event{}
 		err := json.Unmarshal([]byte(msg.Data), &event)
