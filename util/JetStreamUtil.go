@@ -18,12 +18,9 @@
 package util
 
 import (
-	"github.com/nats-io/nats.go"
-	"go.uber.org/zap"
 	"log"
-	"os"
-	"strconv"
-	"time"
+
+	"github.com/nats-io/nats.go"
 )
 
 const (
@@ -48,13 +45,13 @@ const (
 	CI_COMPLETE_DURABLE               string = "CI-COMPLETE_DURABLE-1"
 	APPLICATION_STATUS_UPDATE_TOPIC   string = "APPLICATION_STATUS_UPDATE"
 	APPLICATION_STATUS_UPDATE_GROUP   string = "APPLICATION_STATUS_UPDATE_GROUP-1"
-	APPLICATION_STATUS_UPDATE_DURABLE string = "APPLICATION_STATUS_UPDATE_DURABLE-2"
+	APPLICATION_STATUS_UPDATE_DURABLE string = "APPLICATION_STATUS_UPDATE_DURABLE-1"
 	CRON_EVENTS                       string = "CRON_EVENTS"
 	CRON_EVENTS_GROUP                 string = "CRON_EVENTS_GROUP-2"
 	CRON_EVENTS_DURABLE               string = "CRON_EVENTS_DURABLE-2"
 	WORKFLOW_STATUS_UPDATE_TOPIC      string = "WORKFLOW_STATUS_UPDATE"
 	WORKFLOW_STATUS_UPDATE_GROUP      string = "WORKFLOW_STATUS_UPDATE_GROUP-1"
-	WORKFLOW_STATUS_UPDATE_DURABLE    string = "WORKFLOW_STATUS_UPDATE_DURABLE-2"
+	WORKFLOW_STATUS_UPDATE_DURABLE    string = "WORKFLOW_STATUS_UPDATE_DURABLE-1"
 	CD_WORKFLOW_STATUS_UPDATE         string = "CD_WORKFLOW_STATUS_UPDATE"
 	CD_WORKFLOW_STATUS_UPDATE_GROUP   string = "CD_WORKFLOW_STATUS_UPDATE_GROUP-1"
 	CD_WORKFLOW_STATUS_UPDATE_DURABLE string = "CD_WORKFLOW_STATUS_UPDATE_DURABLE-1"
@@ -105,37 +102,4 @@ func AddStream(js nats.JetStreamContext, streamNames ...string) error {
 		}
 	}
 	return err
-}
-
-func HandleMessageBatch(subs *nats.Subscription, logger *zap.SugaredLogger, processMsgCallback func(msgData string)) {
-	for true {
-		batchSize := getNatsMaxPullBatchSize()
-		msgs, err := subs.Fetch(batchSize)
-		if err != nil && err == nats.ErrTimeout {
-			logger.Debugw(" timeout occurred during nats msg pull but we have to try again")
-			time.Sleep(5 * time.Second)
-			continue
-		} else if err != nil {
-			logger.Errorw("error occurred while pulling msg from nats", err)
-			return
-		}
-		logger.Debug("received nats msgs of count ", len(msgs))
-		for _, nxtMsg := range msgs {
-			handleNatsMsg(nxtMsg, processMsgCallback)
-		}
-	}
-}
-
-func handleNatsMsg(nxtMsg *nats.Msg, callback func(msgData string)) {
-	defer nxtMsg.Ack()
-	callback(string(nxtMsg.Data))
-}
-
-func getNatsMaxPullBatchSize() int {
-	natsMaxBatchSize := os.Getenv("NATS_MSG_PULL_MAX_SIZE")
-	maxBatchSizeValue, err := strconv.Atoi(natsMaxBatchSize)
-	if err != nil {
-		maxBatchSizeValue = 10
-	}
-	return maxBatchSizeValue
 }
