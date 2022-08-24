@@ -384,7 +384,7 @@ func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnerWithTxn(wfr *CdWorkflowRunner, tx *pg.Tx) error {
-	err := impl.dbConnection.Update(wfr)
+	err := tx.Update(wfr)
 	return err
 }
 
