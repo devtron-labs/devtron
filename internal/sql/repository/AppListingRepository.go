@@ -47,6 +47,7 @@ type AppListingRepository interface {
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 
 	SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error
+	SaveNewDeploymentsWithTxn(deploymentStatuses []DeploymentStatus, tx *pg.Tx) error
 	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
 	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
 	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
@@ -67,8 +68,6 @@ type DeploymentStatus struct {
 }
 
 const NewDeployment string = "Deployment Initiated"
-const Success = "SUCCESS"
-const Failure = "FAILURE"
 
 type AppListingRepositoryImpl struct {
 	dbConnection                     *pg.DB
@@ -456,6 +455,11 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 
 func (impl AppListingRepositoryImpl) SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error {
 	err := tx.Insert(deploymentStatus)
+	return err
+}
+
+func (impl AppListingRepositoryImpl) SaveNewDeploymentsWithTxn(deploymentStatuses []DeploymentStatus, tx *pg.Tx) error {
+	err := tx.Insert(&deploymentStatuses)
 	return err
 }
 

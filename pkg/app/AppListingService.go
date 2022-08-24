@@ -80,7 +80,7 @@ type AppListingService interface {
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	GetLastDeploymentStatusesByAppNames(appNames []string) ([]repository.DeploymentStatus, error)
 	GetLastDeploymentStatuses() (map[string]repository.DeploymentStatus, error)
-	GetLastDeploymentStatusesOfActiveAppsWithActiveEnvs() (map[string]repository.DeploymentStatus, error)
+	GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs() (map[string]repository.DeploymentStatus, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
@@ -506,7 +506,7 @@ func (impl AppListingServiceImpl) GetLastDeploymentStatuses() (map[string]reposi
 	return existingAppEnvStatusMapping, nil
 }
 
-func (impl AppListingServiceImpl) GetLastDeploymentStatusesOfActiveAppsWithActiveEnvs() (map[string]repository.DeploymentStatus, error) {
+func (impl AppListingServiceImpl) GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs() (map[string]repository.DeploymentStatus, error) {
 	deploymentStatuses, err := impl.appListingRepository.FindLastDeployedStatusesForAllActiveAppsWithActiveEnv()
 	if err != nil {
 		return map[string]repository.DeploymentStatus{}, err

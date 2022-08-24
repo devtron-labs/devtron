@@ -127,53 +127,24 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 }
 
 func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error {
-	deploymentStatuses, err := impl.appListingService.GetLastDeploymentStatusesOfActiveAppsWithActiveEnvs()
+	deploymentStatuses, err := impl.appListingService.GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs()
 	if err != nil {
 		impl.Logger.Errorw("err in getting latest deployment statuses for argo pipelines", err)
 		return err
 	}
+	var newDeploymentStatuses []repository.DeploymentStatus
+	var newCdWfrs []pipelineConfig.CdWorkflowRunner
+	var timelines []pipelineConfig.PipelineStatusTimeline
 	for _, deploymentStatus := range deploymentStatuses {
 		if impl.isDeploymentFailed(deploymentStatus, timeForDegradation) {
-			//try fetching status from argo cd
-			acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-			if err != nil {
-				impl.Logger.Errorw("error in getting acd token", "err", err)
-			}
-			ctx := context.WithValue(context.Background(), "token", acdToken)
-			query := &application2.ResourcesQuery{
-				ApplicationName: &deploymentStatus.AppName,
-			}
-			var appStatus string
-			resp, err := impl.application.ResourceTree(ctx, query)
-			if err != nil {
-				impl.Logger.Errorw("error in getting resource tree of acd", "err", err, "appName", deploymentStatus.AppName)
-				appStatus = WorkflowFailed
-			} else {
-				if resp.Status == string(health.HealthStatusHealthy) || resp.Status == string(health.HealthStatusDegraded) {
-					appStatus = resp.Status
-				} else {
-					appStatus = WorkflowFailed
-				}
-			}
-			dbConnection := impl.cdWorkflowRepository.GetConnection()
-			tx, err := dbConnection.Begin()
-			if err != nil {
-				impl.Logger.Errorw("error on update status, db get txn failed", "err", err)
-				return err
-			}
-			// Rollback tx on error.
-			defer tx.Rollback()
+			timelineStatus, appStatus, statusMessage := impl.GetAppStatusByResourceTreeFetchFromArgo(deploymentStatus.AppName)
 			newDeploymentStatus := deploymentStatus
 			newDeploymentStatus.Id = 0
 			newDeploymentStatus.Status = appStatus
 			newDeploymentStatus.CreatedOn = time.Now()
 			newDeploymentStatus.UpdatedOn = time.Now()
-			err = impl.appListingRepository.SaveNewDeployment(&newDeploymentStatus, tx)
-			if err != nil {
-				impl.Logger.Errorw("error on saving new deployment status for wf", "err", err)
-				return err
-			}
-			var cdWfr *pipelineConfig.CdWorkflowRunner
+			newDeploymentStatuses = append(newDeploymentStatuses, newDeploymentStatus)
+			var cdWfr pipelineConfig.CdWorkflowRunner
 			cdWfr, err = impl.cdWorkflowRepository.FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(deploymentStatus.AppId, deploymentStatus.EnvId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 			if err != nil {
 				//only log this error and continue for next deployment status
@@ -181,16 +152,12 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDe
 				continue
 			}
 			cdWfr.Status = appStatus
-			err = impl.cdWorkflowRepository.UpdateWorkFlowRunnerWithTxn(cdWfr, tx)
-			if err != nil {
-				impl.Logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
-				return err
-			}
-			// creating cd pipeline status timeline for git commit
-			timeline := &pipelineConfig.PipelineStatusTimeline{
+			newCdWfrs = append(newCdWfrs, cdWfr)
+			// creating cd pipeline status timeline for degraded app
+			timeline := pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: cdWfr.Id,
-				Status:             pipelineConfig.TIMELINE_STATUS_APP_DEGRADED,
-				StatusDetail:       "App is degraded.",
+				Status:             timelineStatus,
+				StatusDetail:       statusMessage,
 				StatusTime:         time.Now(),
 				AuditLog: sql.AuditLog{
 					CreatedBy: 1,
@@ -199,22 +166,80 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDe
 					UpdatedOn: time.Now(),
 				},
 			}
-			err = impl.pipelineStatusTimelineRepository.SaveTimelineWithTxn(timeline, tx)
-			if err != nil {
-				impl.Logger.Errorw("error in creating timeline status for degraded app", "err", err, "timeline", timeline)
-			}
-			err = tx.Commit()
-			if err != nil {
-				impl.Logger.Errorw("error on db transaction commit for", "err", err)
-				return err
-			}
+			timelines = append(timelines, timeline)
 			//writing pipeline failure event
 			impl.deploymentFailureHandler.WriteCDFailureEvent(cdWfr.CdWorkflow.PipelineId, deploymentStatus.AppId, deploymentStatus.EnvId)
 		}
 	}
+	dbConnection := impl.cdWorkflowRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.Logger.Errorw("error on update status, db get txn failed", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	if len(newDeploymentStatuses) > 0 {
+		err = impl.appListingRepository.SaveNewDeploymentsWithTxn(newDeploymentStatuses, tx)
+		if err != nil {
+			impl.Logger.Errorw("error on saving new deployment statuses for wf", "err", err)
+			return err
+		}
+	}
+	if len(newCdWfrs) > 0 {
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunnersWithTxn(newCdWfrs, tx)
+		if err != nil {
+			impl.Logger.Errorw("error on update cd workflow runners", "cdWfr", newCdWfrs, "err", err)
+			return err
+		}
+	}
+	if len(timelines) > 0 {
+		err = impl.pipelineStatusTimelineRepository.SaveTimelinesWithTxn(timelines, tx)
+		if err != nil {
+			impl.Logger.Errorw("error in creating timeline statuses for degraded app", "err", err, "timelines", timelines)
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.Logger.Errorw("error on db transaction commit for", "err", err)
+		return err
+	}
 	return nil
 }
 
+func (impl *CdHandlerImpl) GetAppStatusByResourceTreeFetchFromArgo(appName string) (timelineStatus pipelineConfig.TimelineStatus, appStatus, statusMessage string) {
+	//try fetching status from argo cd
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		impl.Logger.Errorw("error in getting acd token", "err", err)
+	}
+	ctx := context.WithValue(context.Background(), "token", acdToken)
+	query := &application2.ResourcesQuery{
+		ApplicationName: &appName,
+	}
+	resp, err := impl.application.ResourceTree(ctx, query)
+	if err != nil {
+		impl.Logger.Errorw("error in getting resource tree of acd", "err", err, "appName", appName)
+		appStatus = WorkflowFailed
+		timelineStatus = pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED
+		statusMessage = "Deployment is failed."
+	} else {
+		if resp.Status == string(health.HealthStatusHealthy) {
+			appStatus = resp.Status
+			timelineStatus = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
+			statusMessage = "App is healthy."
+		} else if resp.Status == string(health.HealthStatusDegraded) {
+			appStatus = resp.Status
+			timelineStatus = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
+			statusMessage = "App is degraded."
+		} else {
+			appStatus = WorkflowFailed
+			timelineStatus = pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED
+			statusMessage = "Deployment is failed."
+		}
+	}
+	return timelineStatus, appStatus, statusMessage
+}
 func (impl *CdHandlerImpl) isDeploymentFailed(ds repository.DeploymentStatus, timeForDegradation int) bool {
 	return ds.Status == application.Progressing && time.Since(ds.UpdatedOn) > time.Duration(timeForDegradation)*time.Minute
 }

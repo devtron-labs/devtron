@@ -15,11 +15,12 @@ const (
 	TIMELINE_STATUS_KUBECTL_APPLY_SYNCED  TimelineStatus = "KUBECTL_APPLY_SYNCED"
 	TIMELINE_STATUS_APP_HEALTHY           TimelineStatus = "HEALTHY"
 	TIMELINE_STATUS_APP_DEGRADED          TimelineStatus = "DEGRADED"
+	TIMELINE_STATUS_DEPLOYMENT_FAILED     TimelineStatus = "FAILED"
 )
 
 type PipelineStatusTimelineRepository interface {
 	SaveTimeline(timeline *PipelineStatusTimeline) error
-	SaveTimelineWithTxn(timeline *PipelineStatusTimeline, tx *pg.Tx) error
+	SaveTimelinesWithTxn(timelines []PipelineStatusTimeline, tx *pg.Tx) error
 	UpdateTimeline(timeline *PipelineStatusTimeline) error
 	FetchTimelinesByPipelineId(pipelineId int) ([]*PipelineStatusTimeline, error)
 	FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error)
@@ -60,10 +61,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimeline(timeline *Pipelin
 	return nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimelineWithTxn(timeline *PipelineStatusTimeline, tx *pg.Tx) error {
-	err := tx.Insert(timeline)
+func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimelinesWithTxn(timelines []PipelineStatusTimeline, tx *pg.Tx) error {
+	err := tx.Insert(&timelines)
 	if err != nil {
-		impl.logger.Errorw("error in saving timeline of cd pipeline status", "err", err, "timeline", timeline)
+		impl.logger.Errorw("error in saving timelines of cd pipeline status", "err", err, "timelines", timelines)
 		return err
 	}
 	return nil
