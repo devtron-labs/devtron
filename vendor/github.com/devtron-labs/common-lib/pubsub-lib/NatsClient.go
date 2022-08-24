@@ -27,15 +27,17 @@ import (
 )
 
 type NatsClient struct {
-	logger       *zap.SugaredLogger
-	JetStrCtxt   nats.JetStreamContext
-	streamConfig *nats.StreamConfig
-	Conn         nats.Conn
+	logger                     *zap.SugaredLogger
+	JetStrCtxt                 nats.JetStreamContext
+	streamConfig               *nats.StreamConfig
+	NatsMsgProcessingBatchSize int
+	Conn                       nats.Conn
 }
 
 type NatsClientConfig struct {
-	NatsServerHost   string `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
-	NatsStreamConfig string `env:"NATS_STREAM_CONFIG" envDefault:"{}"`
+	NatsServerHost             string `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
+	NatsMsgProcessingBatchSize int    `env:"NATS_MSG_PROCESSING_BATCH_SIZE" envDefault:"2"`
+	NatsStreamConfig           string `env:"NATS_STREAM_CONFIG" envDefault:"{}"`
 }
 
 /* #nosec */
@@ -56,6 +58,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 			logger.Errorw("error occurred while parsing streamConfigJson ", "configJson", configJson, "reason", err)
 		}
 	}
+	logger.Infow("nats config loaded", "config", streamCfg)
 
 	//Connect to NATS
 	nc, err := nats.Connect(cfg.NatsServerHost,
@@ -82,9 +85,10 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 	}
 
 	natsClient := &NatsClient{
-		logger:       logger,
-		JetStrCtxt:   js,
-		streamConfig: streamCfg,
+		logger:                     logger,
+		JetStrCtxt:                 js,
+		streamConfig:               streamCfg,
+		NatsMsgProcessingBatchSize: cfg.NatsMsgProcessingBatchSize,
 	}
 	return natsClient, nil
 }

@@ -4,6 +4,7 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"sync"
 )
 
 type PubSubClientService interface {
@@ -62,15 +63,37 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *P
 	if streamConfig.Retention == nats.WorkQueuePolicy {
 		deliveryOption = nats.DeliverAll()
 	}
-	_, err := natsClient.JetStrCtxt.QueueSubscribe(topic, queueName, func(msg *nats.Msg) {
-		defer msg.Ack()
-		subMsg := &PubSubMsg{Data: string(msg.Data)}
-		callback(subMsg)
-	}, nats.Durable(consumerName), deliveryOption, nats.ManualAck(), nats.BindStream(streamName))
+	processingBatchSize := natsClient.NatsMsgProcessingBatchSize
+	channel := make(chan *nats.Msg, 64)
+	_, err := natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel, nats.Durable(consumerName), deliveryOption, nats.ManualAck(),
+		nats.BindStream(streamName))
 	if err != nil {
 		impl.logger.Fatalw("error while subscribing", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
-
+	wg := new(sync.WaitGroup)
+	wg.Add(processingBatchSize)
+	index := 0
+	for msg := range channel {
+		go processMsg(wg, msg, callback)
+		index++
+		if index == processingBatchSize {
+			wg.Wait()
+			wg = new(sync.WaitGroup)
+			wg.Add(processingBatchSize)
+			index = 0
+		}
+	}
 	return nil
+}
+
+func processMsg(wg *sync.WaitGroup, msg *nats.Msg, callback func(msg *PubSubMsg)) {
+	defer completeState(wg, msg)
+	subMsg := &PubSubMsg{Data: string(msg.Data)}
+	callback(subMsg)
+}
+
+func completeState(wg *sync.WaitGroup, msg *nats.Msg) {
+	msg.Ack()
+	wg.Done()
 }
