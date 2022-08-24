@@ -71,6 +71,11 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *P
 		impl.logger.Fatalw("error while subscribing", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
+	go impl.startListeningForEvents(processingBatchSize, channel, callback)
+	return nil
+}
+
+func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize int, channel chan *nats.Msg, callback func(msg *PubSubMsg)) {
 	wg := new(sync.WaitGroup)
 	wg.Add(processingBatchSize)
 	index := 0
@@ -84,7 +89,6 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *P
 			index = 0
 		}
 	}
-	return nil
 }
 
 func processMsg(wg *sync.WaitGroup, msg *nats.Msg, callback func(msg *PubSubMsg)) {
