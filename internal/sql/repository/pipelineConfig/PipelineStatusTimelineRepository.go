@@ -84,7 +84,8 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByPipelineId(pip
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error) {
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
-		Where("cd_workflow_runner_id = ?", wfrId).Select()
+		Where("cd_workflow_runner_id = ?", wfrId).
+		Order("status_time ASC").Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
 		return nil, err

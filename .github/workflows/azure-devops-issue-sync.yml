@@ -3,7 +3,7 @@ name: Sync issue to Azure DevOps work item
 on:
   issues:
     types:
-      [opened, edited, deleted, closed, reopened, labeled, unlabeled, assigned]
+      [opened, edited, deleted, closed, reopened]
 
 jobs:
   alert:
