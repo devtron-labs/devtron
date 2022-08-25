@@ -191,6 +191,21 @@ func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJs
 				item.Data = byteData
 				item.SecretData = nil
 			}
+			//TODO: update eso types and confirm chartVersion dependency
+		} else if item.ExternalType == util.ESO && chartMajorVersion >= 4 {
+			if item.SecretData != nil {
+				var externalSecret map[string]interface{}
+				err = json.Unmarshal(item.SecretData, &externalSecret)
+				if err != nil {
+					m.Logger.Debugw("error in Unmarshal ", "appLevelSecretJson", appLevelSecretJson, "envLevelSecretJson", envLevelSecretJson, "err", err)
+				}
+				byteData, err := json.Marshal(externalSecret)
+				if err != nil {
+					m.Logger.Debugw("error in marshal ", "err", err)
+				}
+				item.Data = byteData
+				item.SecretData = nil
+			}
 		}
 	}
 

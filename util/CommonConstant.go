@@ -22,6 +22,7 @@ const (
 	AWSSecretsManager                   string = "AWSSecretsManager"
 	AWSSystemManager                    string = "AWSSystemManager"
 	HashiCorpVault                      string = "HashiCorpVault"
+	ESO                                 string = "ESO"
 	KubernetesExternalSecret            string = "KubernetesExternalSecret"
 	ConfigMapSecretUsageTypeEnvironment string = "environment"
 	ConfigMapSecretUsageTypeVolume      string = "volume"
