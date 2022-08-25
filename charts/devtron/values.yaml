@@ -73,7 +73,7 @@ components:
       #      - devtron.example.com
 
   argocdDexServer:
-    image: "quay.io/dexidp/dex:v2.25.0"
+    image: "ghcr.io/dexidp/dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
