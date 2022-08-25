@@ -47,7 +47,7 @@ components:
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:72e36aff-280-9764"
+    image: "quay.io/devtron/hyperion:9f6f3d27-280-10148"
     cicdImage: "quay.io/devtron/devtron:571e0fd6-326-10154"
     imagePullPolicy: IfNotPresent
     serviceMonitor:
@@ -77,10 +77,10 @@ components:
     imagePullPolicy: IfNotPresent
     initContainer:
       authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
-      cicdAuthenticator: "quay.io/argoproj/argocd:v1.8.1"
+      cicdAuthenticator: "quay.io/argoproj/argocd:v2.4.0"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:59a0df88-318-9226"
+    image: "quay.io/devtron/kubelink:7f5e1584-318-10138"
     imagePullPolicy: IfNotPresent
 
   postgres:
@@ -90,7 +90,7 @@ components:
       volumeSize: "20Gi"
 
   migrator:
-    image: "quay.io/devtron/migrator:6687f572-133-2208"
+    image: "quay.io/devtron/migrator:9c933d29-149-10140"
     envVars:
       devtron:
         GIT_BRANCH: "main"
