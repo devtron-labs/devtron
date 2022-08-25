@@ -29,11 +29,11 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 
 type PipelineStatusTimelineDto struct {
 	Id                           int                           `json:"id"`
-	InstalledAppVersionHistoryId int                           `json:"installed_app_version_history_id,omitempty"`
-	CdWorkflowRunnerId           int                           `json:"cd_workflow_runner_id"`
+	InstalledAppVersionHistoryId int                           `json:"InstalledAppVersionHistoryId,omitempty"`
+	CdWorkflowRunnerId           int                           `json:"cdWorkflowRunnerId"`
 	Status                       pipelineConfig.TimelineStatus `json:"status"`
 	StatusDetail                 string                        `json:"statusDetail"`
-	StatusTime                   time.Time                     `json:"status_time"`
+	StatusTime                   time.Time                     `json:"statusTime"`
 }
 
 func (impl *PipelineStatusTimelineServiceImpl) FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimelineDto, error) {
