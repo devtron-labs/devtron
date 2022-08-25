@@ -128,11 +128,9 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 		} else {
 			config := streamInfo.Config
 			if checkConfigChangeReqd(&config, streamConfig) {
-				streamConfig.Name = streamName
-				streamConfig.Subjects = GetStreamSubjects(streamName)
-				_, err1 := js.UpdateStream(streamConfig)
+				_, err1 := js.UpdateStream(&config)
 				if err1 != nil {
-					log.Println("error occurred while updating stream config", "streamName", streamName, "streamConfig", streamConfig, "error", err1)
+					log.Println("error occurred while updating stream config", "streamName", streamName, "streamConfig", config, "error", err1)
 				} else {
 					log.Println("stream config updated successfully", "config", config, "new", streamConfig)
 				}
@@ -145,9 +143,8 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 func checkConfigChangeReqd(existingConfig *nats.StreamConfig, toUpdateConfig *nats.StreamConfig) bool {
 	configChanged := false
 	if toUpdateConfig.MaxAge != time.Duration(0) && toUpdateConfig.MaxAge != existingConfig.MaxAge {
+		existingConfig.MaxAge = toUpdateConfig.MaxAge
 		configChanged = true
-	} else {
-		toUpdateConfig.MaxAge = existingConfig.MaxAge
 	}
 
 	return configChanged

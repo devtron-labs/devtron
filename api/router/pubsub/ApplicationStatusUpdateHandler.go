@@ -19,9 +19,8 @@ package pubsub
 
 import (
 	"encoding/json"
-	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
-
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	pubSubLib "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -35,13 +34,13 @@ type ApplicationStatusUpdateHandler interface {
 
 type ApplicationStatusUpdateHandlerImpl struct {
 	logger              *zap.SugaredLogger
-	pubSubClient        *pubsub_lib.PubSubClientServiceImpl
+	pubSubClient        *pubSubLib.PubSubClientServiceImpl
 	appService          app.AppService
 	workflowDagExecutor pipeline.WorkflowDagExecutor
 	installedAppService service.InstalledAppService
 }
 
-func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubSubClient *pubsub_lib.PubSubClientServiceImpl, appService app.AppService,
+func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubSubClient *pubSubLib.PubSubClientServiceImpl, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService) *ApplicationStatusUpdateHandlerImpl {
 	appStatusUpdateHandlerImpl := &ApplicationStatusUpdateHandlerImpl{
 		logger:              logger,
@@ -64,7 +63,7 @@ type ApplicationDetail struct {
 }
 
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	err := impl.pubSubClient.Subscribe(pubsub_lib.APPLICATION_STATUS_UPDATE_TOPIC, func(msg *pubsub_lib.PubSubMsg) {
+	err := impl.pubSubClient.Subscribe(pubSubLib.APPLICATION_STATUS_UPDATE_TOPIC, func(msg *pubSubLib.PubSubMsg) {
 		impl.logger.Debug("received app update request")
 		applicationDetail := ApplicationDetail{}
 		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
