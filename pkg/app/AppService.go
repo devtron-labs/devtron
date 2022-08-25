@@ -471,7 +471,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 					timeline.StatusDetail = "App status is Degraded."
 				}
 				if haveNewTimeline {
-					//not checking if this status is already present or not because
+					//not checking if this status is already present or not because already checked for terminal status existence earlier
 					err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 					if err != nil {
 						impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
@@ -500,6 +500,7 @@ func (impl *AppServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(cdWork
 	}
 	return latestTimeline, nil
 }
+
 func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
 	event := impl.eventFactory.Build(util.Success, &override.PipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
