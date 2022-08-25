@@ -19,7 +19,7 @@ package pubsub
 
 import (
 	"encoding/json"
-	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
+	pubSubLib "github.com/devtron-labs/common-lib/pubsub-lib"
 
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/pkg/event"
@@ -32,11 +32,11 @@ type CronBasedEventReceiver interface {
 
 type CronBasedEventReceiverImpl struct {
 	logger       *zap.SugaredLogger
-	pubSubClient *pubsub_lib.PubSubClientServiceImpl
+	pubSubClient *pubSubLib.PubSubClientServiceImpl
 	eventService event.EventService
 }
 
-func NewCronBasedEventReceiverImpl(logger *zap.SugaredLogger, pubSubClient *pubsub_lib.PubSubClientServiceImpl, eventService event.EventService) *CronBasedEventReceiverImpl {
+func NewCronBasedEventReceiverImpl(logger *zap.SugaredLogger, pubSubClient *pubSubLib.PubSubClientServiceImpl, eventService event.EventService) *CronBasedEventReceiverImpl {
 	cronBasedEventReceiverImpl := &CronBasedEventReceiverImpl{
 		logger:       logger,
 		pubSubClient: pubSubClient,
@@ -51,7 +51,7 @@ func NewCronBasedEventReceiverImpl(logger *zap.SugaredLogger, pubSubClient *pubs
 }
 
 func (impl *CronBasedEventReceiverImpl) Subscribe() error {
-	err := impl.pubSubClient.Subscribe(pubsub_lib.CRON_EVENTS, func(msg *pubsub_lib.PubSubMsg) {
+	err := impl.pubSubClient.Subscribe(pubSubLib.CRON_EVENTS, func(msg *pubSubLib.PubSubMsg) {
 		impl.logger.Debug("received cron event")
 		event := client.Event{}
 		err := json.Unmarshal([]byte(msg.Data), &event)
