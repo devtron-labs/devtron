@@ -244,6 +244,10 @@ ingressInternal:
 ```yaml
 initContainers: 
   - reuseContainerImage: true
+    securityContext:
+      runAsUser: 1000
+      runAsGroup: 3000
+      fsGroup: 2000
     volumeMounts:
      - mountPath: /etc/ls-oms
        name: ls-oms-cm-vol
@@ -253,11 +257,13 @@ initContainers:
      - migrate
 
   - name: nginx
-        image: nginx:1.14.2
-        ports:
-        - containerPort: 80
-        command: ["/usr/local/bin/nginx"]
-        args: ["-g", "daemon off;"]
+    image: nginx:1.14.2
+    securityContext:
+      privileged: true
+    ports:
+    - containerPort: 80
+    command: ["/usr/local/bin/nginx"]
+    args: ["-g", "daemon off;"]
 ```
 Specialized containers that run before app containers in a Pod. Init containers can contain utilities or setup scripts not present in an app image. One can use base image inside initContainer by setting the reuseContainerImage flag to `true`.
 

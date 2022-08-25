@@ -125,6 +125,10 @@ spec:
         - name: {{ $.Chart.Name }}-init-{{ add1 $i }}
           image: "{{ $.Values.server.deployment.image }}:{{ $.Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
+{{- if .securityContext }}
+          securityContext:
+{{ toYaml .securityContext | indent 12 }}
+{{- end }}
 {{- if .command}}
           command:
 {{ toYaml .command | indent 12 -}}
@@ -138,7 +142,8 @@ spec:
 {{ toYaml .volumeMounts | indent 12 -}}
 {{- end}}
 {{- else}}
-{{ toYaml $.Values.initContainers | indent 8 -}}
+      -
+{{ toYaml . | indent 8 }}
 {{- end}}
 {{- end}}
 {{- end}}
