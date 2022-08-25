@@ -20,7 +20,7 @@ package pubsub
 import (
 	"encoding/json"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
+	pubSubLib "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -35,7 +35,7 @@ type WorkflowStatusUpdateHandler interface {
 
 type WorkflowStatusUpdateHandlerImpl struct {
 	logger               *zap.SugaredLogger
-	pubSubClient         *pubsub_lib.PubSubClientServiceImpl
+	pubSubClient         *pubSubLib.PubSubClientServiceImpl
 	ciHandler            pipeline.CiHandler
 	cdHandler            pipeline.CdHandler
 	eventFactory         client.EventFactory
@@ -43,7 +43,7 @@ type WorkflowStatusUpdateHandlerImpl struct {
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository
 }
 
-func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubSubClient *pubsub_lib.PubSubClientServiceImpl, ciHandler pipeline.CiHandler, cdHandler pipeline.CdHandler,
+func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubSubClient *pubSubLib.PubSubClientServiceImpl, ciHandler pipeline.CiHandler, cdHandler pipeline.CdHandler,
 	eventFactory client.EventFactory, eventClient client.EventClient, cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *WorkflowStatusUpdateHandlerImpl {
 	workflowStatusUpdateHandlerImpl := &WorkflowStatusUpdateHandlerImpl{
 		logger:               logger,
@@ -68,7 +68,7 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubSubClient 
 }
 
 func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
-	err := impl.pubSubClient.Subscribe(pubsub_lib.WORKFLOW_STATUS_UPDATE_TOPIC, func(msg *pubsub_lib.PubSubMsg) {
+	err := impl.pubSubClient.Subscribe(pubSubLib.WORKFLOW_STATUS_UPDATE_TOPIC, func(msg *pubSubLib.PubSubMsg) {
 		impl.logger.Debug("received wf update request")
 		wfStatus := v1alpha1.WorkflowStatus{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &wfStatus)
@@ -92,7 +92,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 }
 
 func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
-	err := impl.pubSubClient.Subscribe(pubsub_lib.CD_WORKFLOW_STATUS_UPDATE, func(msg *pubsub_lib.PubSubMsg) {
+	err := impl.pubSubClient.Subscribe(pubSubLib.CD_WORKFLOW_STATUS_UPDATE, func(msg *pubSubLib.PubSubMsg) {
 		impl.logger.Debug("received cd wf update request")
 		wfStatus := v1alpha1.WorkflowStatus{}
 		err := json.Unmarshal([]byte(msg.Data), &wfStatus)

@@ -31,13 +31,15 @@ type NatsClient struct {
 	JetStrCtxt                 nats.JetStreamContext
 	streamConfig               *nats.StreamConfig
 	NatsMsgProcessingBatchSize int
+	NatsMsgBufferSize          int
 	Conn                       nats.Conn
 }
 
 type NatsClientConfig struct {
 	NatsServerHost             string `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
 	NatsMsgProcessingBatchSize int    `env:"NATS_MSG_PROCESSING_BATCH_SIZE" envDefault:"2"`
-	NatsStreamConfig           string `env:"NATS_STREAM_CONFIG" envDefault:"{}"`
+	NatsMsgBufferSize          int    `env:"NATS_MSG_BUFFER_SIZE" envDefault:"64"`
+	NatsStreamConfig           string `env:"NATS_STREAM_CONFIG" envDefault:"{\"max_age\":86400000000000}"`
 }
 
 /* #nosec */
@@ -88,6 +90,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 		logger:                     logger,
 		JetStrCtxt:                 js,
 		streamConfig:               streamCfg,
+		NatsMsgBufferSize:          cfg.NatsMsgBufferSize,
 		NatsMsgProcessingBatchSize: cfg.NatsMsgProcessingBatchSize,
 	}
 	return natsClient, nil
