@@ -832,10 +832,13 @@ func (impl *CiHandlerImpl) BuildManualTriggerCommitHashesForSourceTypeBranchFix(
 		GitHash:            ciPipelineMaterial.GitCommit.Commit,
 		GitTag:             ciPipelineMaterial.GitTag,
 	}
-	gitCommitResponse, err := impl.gitSensorClient.GetCommitMetadata(commitMetadataRequest)
+	gitCommitResponse, err := impl.gitSensorClient.GetCommitMetadataForPipelineMaterial(commitMetadataRequest)
 	if err != nil {
-		impl.Logger.Errorw("err", "err", err)
+		impl.Logger.Errorw("err in fetching commit metadata", "commitMetadataRequest", commitMetadataRequest, "err", err)
 		return bean.GitCommit{}, err
+	}
+	if gitCommitResponse == nil {
+		return bean.GitCommit{}, errors.New("commit not found")
 	}
 
 	gitCommit := bean.GitCommit{
