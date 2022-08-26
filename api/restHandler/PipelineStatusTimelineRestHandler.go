@@ -61,21 +61,12 @@ func (handler *PipelineStatusTimelineRestHandlerImpl) FetchTimelines(w http.Resp
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	var timelines []*app.PipelineStatusTimelineDto
-	if wfrId == 0 {
-		timelines, err = handler.pipelineStatusTimelineService.FetchTimelinesForLatestTriggerByAppIdAndEnvId(appId, envId)
-		if err != nil {
-			handler.logger.Errorw("error in getting cd pipeline status timelines by appId & envId", "err", err, "appId", appId, "envId", envId)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-	} else {
-		timelines, err = handler.pipelineStatusTimelineService.FetchTimelinesByWfrId(wfrId)
-		if err != nil {
-			handler.logger.Errorw("error in getting cd pipeline status timelines by wfrId", "err", err, "wfrId", wfrId)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
+
+	timelines, err := handler.pipelineStatusTimelineService.FetchTimelines(appId, envId, wfrId)
+	if err != nil {
+		handler.logger.Errorw("error in getting cd pipeline status timelines by wfrId", "err", err, "wfrId", wfrId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
 	}
 	common.WriteJsonResp(w, err, timelines, http.StatusOK)
 	return
