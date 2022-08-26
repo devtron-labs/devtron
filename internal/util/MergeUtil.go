@@ -192,7 +192,7 @@ func (m MergeUtil) ConfigSecretMerge(appLevelSecretJson string, envLevelSecretJs
 				item.SecretData = nil
 			}
 		} else if item.ExternalType == util.ESOAWSSecretsManager || item.ExternalType == util.ESOAzureSecretsManager || item.ExternalType == util.ESOGoogleSecretsManager || item.ExternalType == util.ESOHashiCorpVault {
-			if item.SecretData != nil && chartMajorVersion >= 4 && chartMinorVersion > 13 {
+			if item.SecretData != nil && chartMajorVersion >= 4 && chartMinorVersion >= 13 {
 				var externalSecret map[string]interface{}
 				err = json.Unmarshal(item.SecretData, &externalSecret)
 				if err != nil {
