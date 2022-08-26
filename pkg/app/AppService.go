@@ -782,9 +782,9 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 					UpdatedOn: time.Now(),
 				},
 			}
-			err := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
-			if err != nil {
-				impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
+			timelineErr := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+			if timelineErr != nil {
+				impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
 			}
 			return 0, err
 		} else {
