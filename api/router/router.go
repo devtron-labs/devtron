@@ -327,7 +327,7 @@ func (r MuxRouter) Init() {
 	r.attributesRouter.initAttributesRouter(attributeRouter)
 
 	userAttributeRouter := r.Router.PathPrefix("/orchestrator/attributes/user").Subrouter()
-	r.userAttributesRouter.initUserAttributesRouter(userAttributeRouter)
+	r.userAttributesRouter.InitUserAttributesRouter(userAttributeRouter)
 
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
