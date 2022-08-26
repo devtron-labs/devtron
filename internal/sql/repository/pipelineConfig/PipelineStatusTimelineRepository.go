@@ -10,11 +10,14 @@ import (
 type TimelineStatus string
 
 const (
+	TIMELINE_STATUS_DEPLOYMENT_INITIATED  TimelineStatus = "DEPLOYMENT_INITIATED"
 	TIMELINE_STATUS_GIT_COMMIT            TimelineStatus = "GIT_COMMIT"
+	TIMELINE_STATUS_GIT_COMMIT_FAILED     TimelineStatus = "GIT_COMMIT_FAILED"
 	TIMELINE_STATUS_KUBECTL_APPLY_STARTED TimelineStatus = "KUBECTL_APPLY_STARTED"
 	TIMELINE_STATUS_KUBECTL_APPLY_SYNCED  TimelineStatus = "KUBECTL_APPLY_SYNCED"
 	TIMELINE_STATUS_APP_HEALTHY           TimelineStatus = "HEALTHY"
 	TIMELINE_STATUS_APP_DEGRADED          TimelineStatus = "DEGRADED"
+	TIMELINE_STATUS_DEPLOYMENT_FAILED     TimelineStatus = "FAILED"
 )
 
 type PipelineStatusTimelineRepository interface {
@@ -23,7 +26,8 @@ type PipelineStatusTimelineRepository interface {
 	FetchTimelinesByPipelineId(pipelineId int) ([]*PipelineStatusTimeline, error)
 	FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error)
 	FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineId int, status TimelineStatus) (*PipelineStatusTimeline, error)
-	CheckTimelineExistsOfLatestWfByCdWorkflowIdAndStatus(cdWorkflowId int, status TimelineStatus) (bool, error)
+	FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error)
+	CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error)
 }
 
 type PipelineStatusTimelineRepositoryImpl struct {
@@ -84,7 +88,8 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByPipelineId(pip
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error) {
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
-		Where("cd_workflow_runner_id = ?", wfrId).Select()
+		Where("cd_workflow_runner_id = ?", wfrId).
+		Order("status_time ASC").Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
 		return nil, err
@@ -101,22 +106,33 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineOfLatestWfByCdWor
 		Where("pipeline_status_timeline.status = ?", status).
 		Order("cw.id DESC").Limit(1).Select()
 	if err != nil {
-		impl.logger.Errorw("error in getting timeline of latest wf by pipelineId and status", "err", err, "cdWorkflowId", cdWorkflowId)
+		impl.logger.Errorw("error in getting timeline of latest wf by cdWorkflowId and status", "err", err, "cdWorkflowId", cdWorkflowId)
 		return nil, err
 	}
 	return timeline, nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) CheckTimelineExistsOfLatestWfByCdWorkflowIdAndStatus(cdWorkflowId int, status TimelineStatus) (bool, error) {
+func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error) {
+	timeline := &PipelineStatusTimeline{}
+	err := impl.dbConnection.Model(timeline).
+		Where("cd_workflow_runner_id = ?", wfrId).
+		Where("status = ?", status).
+		Limit(1).Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting timeline of latest wf by wfrId and status", "err", err, "wfrId", wfrId)
+		return nil, err
+	}
+	return timeline, nil
+}
+
+func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error) {
+	terminalStatus := []string{string(TIMELINE_STATUS_APP_HEALTHY), string(TIMELINE_STATUS_APP_DEGRADED), string(TIMELINE_STATUS_DEPLOYMENT_FAILED), string(TIMELINE_STATUS_GIT_COMMIT_FAILED)}
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
-		Join("INNER JOIN cd_workflow_runner wfr ON wfr.id = pipeline_status_timeline.cd_workflow_runner_id").
-		Join("INNER JOIN cd_workflow cw ON cw.id=wfr.cd_workflow_id").
-		Where("cw.id = ?", cdWorkflowId).
-		Where("pipeline_status_timeline.status = ?", status).
-		Order("cw.id DESC").Limit(1).Exists()
+		Where("cd_workflow_runner_id = ?", wfrId).
+		Where("status in (?)", pg.In(terminalStatus)).Exists()
 	if err != nil {
-		impl.logger.Errorw("error in getting timeline of latest wf by pipelineId and status", "err", err, "cdWorkflowId", cdWorkflowId)
+		impl.logger.Errorw("error in checking if terminal timeline of latest wf by pipelineId and status", "err", err, "wfrId", wfrId)
 		return false, err
 	}
 	return exists, nil
