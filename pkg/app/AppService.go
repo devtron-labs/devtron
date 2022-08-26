@@ -769,28 +769,46 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
 			gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
 			gitCommitStatusDetail = fmt.Sprintf("Git commit failed - %v", err)
+			// creating cd pipeline status timeline for git commit
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				CdWorkflowRunnerId: wfrId,
+				Status:             gitCommitStatus,
+				StatusDetail:       gitCommitStatusDetail,
+				StatusTime:         time.Now(),
+				AuditLog: sql.AuditLog{
+					CreatedBy: overrideRequest.UserId,
+					CreatedOn: time.Now(),
+					UpdatedBy: overrideRequest.UserId,
+					UpdatedOn: time.Now(),
+				},
+			}
+			err := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+			if err != nil {
+				impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
+			}
 			return 0, err
 		} else {
 			gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
 			gitCommitStatusDetail = "Git commit done successfully."
+			// creating cd pipeline status timeline for git commit
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				CdWorkflowRunnerId: wfrId,
+				Status:             gitCommitStatus,
+				StatusDetail:       gitCommitStatusDetail,
+				StatusTime:         time.Now(),
+				AuditLog: sql.AuditLog{
+					CreatedBy: overrideRequest.UserId,
+					CreatedOn: time.Now(),
+					UpdatedBy: overrideRequest.UserId,
+					UpdatedOn: time.Now(),
+				},
+			}
+			err := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+			if err != nil {
+				impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
+			}
 		}
-		// creating cd pipeline status timeline for git commit
-		timeline := &pipelineConfig.PipelineStatusTimeline{
-			CdWorkflowRunnerId: wfrId,
-			Status:             gitCommitStatus,
-			StatusDetail:       gitCommitStatusDetail,
-			StatusTime:         time.Now(),
-			AuditLog: sql.AuditLog{
-				CreatedBy: overrideRequest.UserId,
-				CreatedOn: time.Now(),
-				UpdatedBy: overrideRequest.UserId,
-				UpdatedOn: time.Now(),
-			},
-		}
-		err := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
-		if err != nil {
-			impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
-		}
+
 		// ACD app creation STARTS HERE, it will use existing if already created
 		impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
 		name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride, pipeline, deployedBy)
