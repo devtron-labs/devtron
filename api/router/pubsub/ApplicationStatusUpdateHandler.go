@@ -65,6 +65,7 @@ type ApplicationDetail struct {
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 	err := impl.pubSubClient.Subscribe(pubSubLib.APPLICATION_STATUS_UPDATE_TOPIC, func(msg *pubSubLib.PubSubMsg) {
 		impl.logger.Debug("received app update request")
+		impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "raw", "data", msg.Data)
 		applicationDetail := ApplicationDetail{}
 		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
 		if err != nil {
