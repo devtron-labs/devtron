@@ -83,7 +83,7 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 
 	eventType := payload["eventType"]
 	eventTypeString := eventType.(string)
-	err = handler.telemetryEventClient.EnqueueGenericEvent(eventTypeString, payload)
+	err = handler.telemetryEventClient.SendGenericTelemetryEvent(eventTypeString, payload)
 
 	if err != nil {
 		handler.logger.Errorw("service err, SendTelemetryData", "err", err)
