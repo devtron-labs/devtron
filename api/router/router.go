@@ -19,6 +19,8 @@ package router
 
 import (
 	"encoding/json"
+	"net/http"
+
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
@@ -46,7 +48,6 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
-	"net/http"
 )
 
 type MuxRouter struct {
@@ -327,7 +328,7 @@ func (r MuxRouter) Init() {
 	r.attributesRouter.initAttributesRouter(attributeRouter)
 
 	userAttributeRouter := r.Router.PathPrefix("/orchestrator/attributes/user").Subrouter()
-	r.userAttributesRouter.initUserAttributesRouter(userAttributeRouter)
+	r.userAttributesRouter.InitUserAttributesRouter(userAttributeRouter)
 
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
