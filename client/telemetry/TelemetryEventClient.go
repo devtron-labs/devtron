@@ -45,7 +45,7 @@ type TelemetryEventClient interface {
 	SendTelemetryInstallEventEA() (*TelemetryEventType, error)
 	SendTelemetryDashboardAccessEvent() error
 	SendTelemetryDashboardLoggedInEvent() error
-	EnqueueGenericEvent(eventType string, prop map[string]interface{}) error
+	SendGenericTelemetryEvent(eventType string, prop map[string]interface{}) error
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
@@ -209,7 +209,7 @@ func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType Tele
 	return impl.EnqueueGenericPostHogEvent(ucid, string(eventType), prop)
 }
 
-func (impl *TelemetryEventClientImpl) EnqueueGenericEvent(eventType string, prop map[string]interface{}) error {
+func (impl *TelemetryEventClientImpl) SendGenericTelemetryEvent(eventType string, prop map[string]interface{}) error {
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry generic event", "err", err)
