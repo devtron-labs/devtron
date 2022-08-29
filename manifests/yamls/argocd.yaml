@@ -3112,6 +3112,12 @@ spec:
         - argocd-repo-server
         - --redis
         - argocd-redis:6379
+        - --repo-cache-expiration
+        - 24h
+        - --parallelismlimit
+        - "50"
+        - --loglevel
+        - warn
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
@@ -3562,6 +3568,16 @@ spec:
       containers:
       - command:
         - argocd-application-controller
+        - --operation-processors
+        - "25"
+        - --status-processors
+        - "50"
+        - --kubectl-parallelism-limit
+        - "35"
+        - --repo-server-timeout-seconds
+        - "200"
+        - --loglevel
+        - "warn"
         env:
         - name: ARGOCD_RECONCILIATION_TIMEOUT
           valueFrom:
