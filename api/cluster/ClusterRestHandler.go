@@ -120,8 +120,7 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	// TODO : manish-gitops (check if gitopsModuleNotInstalled)
-	if util2.IsBaseStack() || 1 != 1 {
+	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
 	} else {
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
@@ -259,8 +258,7 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	// TODO : manish-gitops (check if gitopsModuleNotInstalled)
-	if util2.IsBaseStack() || 1 != 1 {
+	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
 	} else {
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
