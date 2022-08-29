@@ -1250,7 +1250,7 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		if util.IsAcdApp(pipeline.DeploymentAppType) {
 			//todo: provide option for cascading to user
 			cascadeDelete := true
 			req := &application2.ApplicationDeleteRequest{
@@ -1279,7 +1279,7 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 				}
 			}
 			impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", deploymentAppName)
-		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		} else if util.IsHelmApp(pipeline.DeploymentAppType) {
 			appIdentifier := &client.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
 				ReleaseName: deploymentAppName,

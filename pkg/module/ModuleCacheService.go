@@ -65,7 +65,7 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 	if serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeOssHelm {
 		// for hyperion mode, installer crd won't come in picture
 		// for full mode, need to update modules to installed in db in found as installing
-		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
+		if util2.IsFullStack() {
 			// handle cicd module status
 			impl.updateModuleStatusToInstalled()
 		}
