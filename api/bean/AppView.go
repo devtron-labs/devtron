@@ -123,6 +123,7 @@ type Environment struct {
 	AppMetrics      *bool  `json:"appMetrics"`
 	InfraMetrics    *bool  `json:"infraMetrics"`
 	Prod            bool   `json:"prod"`
+	ChartRefId      int    `json:"chartRefId"`
 }
 
 type InstanceDetail struct {
