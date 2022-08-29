@@ -45,7 +45,3 @@ func IsFullStack() bool {
 func IsHelmApp(appOfferingMode string) bool {
 	return appOfferingMode == SERVER_MODE_HYPERION
 }
-
-func IsAcdApp(appOfferingMode string) bool {
-	return appOfferingMode == SERVER_MODE_FULL
-}

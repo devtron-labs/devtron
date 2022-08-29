@@ -127,8 +127,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	}
 
 	var appInstallationMode string
-	// TODO : manish-gitops (check if gitopsModuleNotInstalled)
-	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) || 1 != 1 {
+	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) {
 		appInstallationMode = util2.SERVER_MODE_HYPERION
 	} else {
 		appInstallationMode = util2.SERVER_MODE_FULL
@@ -292,8 +291,7 @@ func (impl AppStoreDeploymentServiceImpl) InstallApp(installAppVersionRequest *a
 		return nil, err
 	}
 
-	// TODO : manish-gitops (check if gitopsModuleNotInstalled)
-	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) || 1 != 1 {
+	if util2.IsBaseStack() || util2.IsHelmApp(installAppVersionRequest.AppOfferingMode) || util.IsHelmApp(installAppVersionRequest.DeploymentAppType) {
 		installAppVersionRequest, err = impl.appStoreDeploymentHelmService.InstallApp(installAppVersionRequest, ctx)
 	} else {
 		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
@@ -697,7 +695,7 @@ func (impl AppStoreDeploymentServiceImpl) RollbackApplication(ctx context.Contex
 		return false, err
 	}
 
-	if util2.IsAcdApp(installedApp.AppOfferingMode) {
+	if installedApp.AppOfferingMode == util2.SERVER_MODE_FULL {
 		// create build history for version upgrade, chart upgrade or simple update
 		err = impl.UpdateInstallAppVersionHistory(installedApp)
 		if err != nil {
