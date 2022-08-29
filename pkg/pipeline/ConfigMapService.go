@@ -91,7 +91,7 @@ type ESOSecretData struct {
 type ESOData struct {
 	SecretKey string `json:"secretKey"`
 	Key       string `json:"key"`
-	Property  string `json:"property"`
+	Property  string `json:"property,omitempty"`
 }
 type ConfigData struct {
 	Name                  string           `json:"name"`
