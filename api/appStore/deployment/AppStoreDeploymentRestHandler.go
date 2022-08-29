@@ -142,8 +142,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	// TODO : manish-gitops (check if gitopsModuleNotInstalled)
-	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) || 1 != 1 {
+	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
@@ -213,6 +212,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w 
 }
 
 func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.ResponseWriter, r *http.Request) {
+
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -279,8 +279,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	// TODO : manish-gitops (check if gitopsModuleNotInstalled)
-	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) || 1 != 1 {
+	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
@@ -395,8 +394,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	// TODO : manish-gitops (check if gitopsModuleNotInstalled)
-	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) || 1 != 1 {
+	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
 		ctx = context.WithValue(r.Context(), "token", token)
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
