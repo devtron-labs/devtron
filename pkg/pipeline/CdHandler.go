@@ -133,6 +133,7 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDe
 		impl.Logger.Errorw("err in getting latest deployment statuses for argo pipelines", err)
 		return err
 	}
+	impl.Logger.Infow("received deployment statuses for stucked argo cd pipelines", "deploymentStatuses", deploymentStatuses)
 	var newDeploymentStatuses []repository.DeploymentStatus
 	var newCdWfrs []pipelineConfig.CdWorkflowRunner
 	var timelines []pipelineConfig.PipelineStatusTimeline

@@ -507,7 +507,7 @@ func (impl AppListingServiceImpl) GetLastDeploymentStatuses() (map[string]reposi
 }
 
 func (impl AppListingServiceImpl) GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs(timeForDegradation int) ([]repository.DeploymentStatus, error) {
-	deploymentStatuses, err := impl.appListingRepository.FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(application2.Progressing, timeForDegradation)
+	deploymentStatuses, err := impl.appListingRepository.FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(timeForDegradation)
 	if err != nil {
 		impl.Logger.Errorw("error in getting latest deployed status", "err", err)
 		return nil, err
