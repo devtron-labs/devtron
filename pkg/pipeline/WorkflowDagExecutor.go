@@ -829,7 +829,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: runner.Id,
 			Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-			StatusDetail:       "Deployment failed - Vulnerability policy violated for image.",
+			StatusDetail:       "Deployment failed: Vulnerability policy violated.",
 			StatusTime:         time.Now(),
 			AuditLog: sql.AuditLog{
 				CreatedBy: 1,
@@ -867,7 +867,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: currentRunner.Id,
 				Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-				StatusDetail:       fmt.Sprintf("Deployment failed - %v", err),
+				StatusDetail:       fmt.Sprintf("Deployment failed: %v", err),
 				StatusTime:         time.Now(),
 				AuditLog: sql.AuditLog{
 					CreatedBy: 1,
@@ -1119,7 +1119,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: runner.Id,
 				Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-				StatusDetail:       "Deployment failed - Vulnerability policy violated for image.",
+				StatusDetail:       "Deployment failed: Vulnerability policy violated.",
 				StatusTime:         time.Now(),
 				AuditLog: sql.AuditLog{
 					CreatedBy: 1,

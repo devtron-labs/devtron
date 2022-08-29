@@ -223,7 +223,7 @@ func (impl *CdHandlerImpl) GetAppStatusByResourceTreeFetchFromArgo(appName strin
 		impl.Logger.Errorw("error in getting resource tree of acd", "err", err, "appName", appName)
 		appStatus = WorkflowFailed
 		timelineStatus = pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED
-		statusMessage = "Deployment is failed."
+		statusMessage = "Failed to connect to Argo CD to fetch deployment status."
 	} else {
 		if resp.Status == string(health.HealthStatusHealthy) {
 			appStatus = resp.Status
@@ -236,7 +236,7 @@ func (impl *CdHandlerImpl) GetAppStatusByResourceTreeFetchFromArgo(appName strin
 		} else {
 			appStatus = WorkflowFailed
 			timelineStatus = pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED
-			statusMessage = "Deployment is failed."
+			statusMessage = "Deployment timed out. Failed to deploy application."
 		}
 	}
 	return timelineStatus, appStatus, statusMessage
