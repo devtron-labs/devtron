@@ -509,7 +509,7 @@ func (impl AppListingRepositoryImpl) FindLastDeployedStatusesForAllApps() ([]Dep
 
 func (impl AppListingRepositoryImpl) FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(deployedBeforeMinutes int) ([]DeploymentStatus, error) {
 	var deploymentStatuses []DeploymentStatus
-	terminalStatuses := fmt.Sprint("'Healthy', 'Degraded'")
+	terminalStatuses := fmt.Sprint("'Healthy', 'Degraded', 'Failed'")
 	query := fmt.Sprintf("select * from deployment_status where status not in (%s) and updated_on < NOW() - INTERVAL '%d minutes' and id in (select DISTINCT ON (ds.app_name) max(ds.id) as id  from deployment_status ds inner join pipeline p on p.app_id=ds.app_id where p.deleted=false and p.deployment_app_type='argo_cd' group by ds.app_name, status,ds.app_id, env_id, ds.created_on, ds.updated_on order by ds.app_name,id desc) order by id desc;", terminalStatuses, deployedBeforeMinutes)
 	_, err := impl.dbConnection.Query(&deploymentStatuses, query)
 	if err != nil {
