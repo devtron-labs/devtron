@@ -51,7 +51,7 @@ type AppListingRepository interface {
 	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
 	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
 	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
-	FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(pipelineStatus string, deployedBeforeMinutes int) ([]DeploymentStatus, error)
+	FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(deployedBeforeMinutes int) ([]DeploymentStatus, error)
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 }
