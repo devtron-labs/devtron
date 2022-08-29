@@ -51,7 +51,7 @@ type AppListingRepository interface {
 	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
 	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
 	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
-	FindLastDeployedStatusesForAllActiveAppsWithActiveEnv() ([]DeploymentStatus, error)
+	FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(pipelineStatus string, deployedBeforeMinutes int) ([]DeploymentStatus, error)
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 }
@@ -504,13 +504,15 @@ func (impl AppListingRepositoryImpl) FindLastDeployedStatusesForAllApps() ([]Dep
 	return deploymentStatuses, nil
 }
 
-func (impl AppListingRepositoryImpl) FindLastDeployedStatusesForAllActiveAppsWithActiveEnv() ([]DeploymentStatus, error) {
+// below query will fetch latest status of all apps along with the filter
+// Status == application.Progressing && time.Since(UpdatedOn) > time.Duration(timeForDegradation)*time.Minute
+func (impl AppListingRepositoryImpl) FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(pipelineStatus string, deployedBeforeMinutes int) ([]DeploymentStatus, error) {
 	var deploymentStatuses []DeploymentStatus
-	query := "select distinct ds.app_name, status, max(ds.id) as id, app_id, env_id, ds.created_on, ds.updated_on from deployment_status ds inner join app on app.id=ds.app_id inner join environment env on env.id=ds.env_id where app.active=true and env.active=true group by ds.app_name, status,app_id, env_id, ds.created_on, ds.updated_on order by id desc;"
+	query := fmt.Sprintf("select * from deployment_status where status='%s' and updated_on < NOW() - INTERVAL '%d minutes' and id in (select DISTINCT ON (ds.app_name) max(ds.id) as id  from deployment_status ds inner join app on app.id=ds.app_id inner join environment env on env.id=ds.env_id where app.active=true and env.active=true group by ds.app_name, status,app_id, env_id, ds.created_on, ds.updated_on order by ds.app_name,id desc) order by id desc;", pipelineStatus, deployedBeforeMinutes)
 	_, err := impl.dbConnection.Query(&deploymentStatuses, query)
 	if err != nil {
 		impl.Logger.Error("err", err)
-		return []DeploymentStatus{}, err
+		return nil, err
 	}
 	return deploymentStatuses, nil
 }

@@ -127,7 +127,8 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 }
 
 func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error {
-	deploymentStatuses, err := impl.appListingService.GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs()
+	//getting all the progressing status that are stucked since some time
+	deploymentStatuses, err := impl.appListingService.GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs(timeForDegradation)
 	if err != nil {
 		impl.Logger.Errorw("err in getting latest deployment statuses for argo pipelines", err)
 		return err
@@ -136,41 +137,40 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDe
 	var newCdWfrs []pipelineConfig.CdWorkflowRunner
 	var timelines []pipelineConfig.PipelineStatusTimeline
 	for _, deploymentStatus := range deploymentStatuses {
-		if impl.isDeploymentFailed(deploymentStatus, timeForDegradation) {
-			timelineStatus, appStatus, statusMessage := impl.GetAppStatusByResourceTreeFetchFromArgo(deploymentStatus.AppName)
-			newDeploymentStatus := deploymentStatus
-			newDeploymentStatus.Id = 0
-			newDeploymentStatus.Status = appStatus
-			newDeploymentStatus.CreatedOn = time.Now()
-			newDeploymentStatus.UpdatedOn = time.Now()
-			newDeploymentStatuses = append(newDeploymentStatuses, newDeploymentStatus)
-			var cdWfr pipelineConfig.CdWorkflowRunner
-			cdWfr, err = impl.cdWorkflowRepository.FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(deploymentStatus.AppId, deploymentStatus.EnvId, bean.CD_WORKFLOW_TYPE_DEPLOY)
-			if err != nil {
-				//only log this error and continue for next deployment status
-				impl.Logger.Errorw("found error, skipping argo apps status update for this trigger", "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId, "err", err)
-				continue
-			}
-			cdWfr.Status = appStatus
-			newCdWfrs = append(newCdWfrs, cdWfr)
-			// creating cd pipeline status timeline for degraded app
-			timeline := pipelineConfig.PipelineStatusTimeline{
-				CdWorkflowRunnerId: cdWfr.Id,
-				Status:             timelineStatus,
-				StatusDetail:       statusMessage,
-				StatusTime:         time.Now(),
-				AuditLog: sql.AuditLog{
-					CreatedBy: 1,
-					CreatedOn: time.Now(),
-					UpdatedBy: 1,
-					UpdatedOn: time.Now(),
-				},
-			}
-			timelines = append(timelines, timeline)
-			//writing pipeline failure event
-			impl.deploymentFailureHandler.WriteCDFailureEvent(cdWfr.CdWorkflow.PipelineId, deploymentStatus.AppId, deploymentStatus.EnvId)
+		timelineStatus, appStatus, statusMessage := impl.GetAppStatusByResourceTreeFetchFromArgo(deploymentStatus.AppName)
+		newDeploymentStatus := deploymentStatus
+		newDeploymentStatus.Id = 0
+		newDeploymentStatus.Status = appStatus
+		newDeploymentStatus.CreatedOn = time.Now()
+		newDeploymentStatus.UpdatedOn = time.Now()
+		newDeploymentStatuses = append(newDeploymentStatuses, newDeploymentStatus)
+		var cdWfr pipelineConfig.CdWorkflowRunner
+		cdWfr, err = impl.cdWorkflowRepository.FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(deploymentStatus.AppId, deploymentStatus.EnvId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil {
+			//only log this error and continue for next deployment status
+			impl.Logger.Errorw("found error, skipping argo apps status update for this trigger", "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId, "err", err)
+			continue
 		}
+		cdWfr.Status = appStatus
+		newCdWfrs = append(newCdWfrs, cdWfr)
+		// creating cd pipeline status timeline for degraded app
+		timeline := pipelineConfig.PipelineStatusTimeline{
+			CdWorkflowRunnerId: cdWfr.Id,
+			Status:             timelineStatus,
+			StatusDetail:       statusMessage,
+			StatusTime:         time.Now(),
+			AuditLog: sql.AuditLog{
+				CreatedBy: 1,
+				CreatedOn: time.Now(),
+				UpdatedBy: 1,
+				UpdatedOn: time.Now(),
+			},
+		}
+		timelines = append(timelines, timeline)
+		//writing pipeline failure event
+		impl.deploymentFailureHandler.WriteCDFailureEvent(cdWfr.CdWorkflow.PipelineId, deploymentStatus.AppId, deploymentStatus.EnvId)
 	}
+
 	dbConnection := impl.cdWorkflowRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -239,9 +239,6 @@ func (impl *CdHandlerImpl) GetAppStatusByResourceTreeFetchFromArgo(appName strin
 		}
 	}
 	return timelineStatus, appStatus, statusMessage
-}
-func (impl *CdHandlerImpl) isDeploymentFailed(ds repository.DeploymentStatus, timeForDegradation int) bool {
-	return ds.Status == application.Progressing && time.Since(ds.UpdatedOn) > time.Duration(timeForDegradation)*time.Minute
 }
 
 func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error {
