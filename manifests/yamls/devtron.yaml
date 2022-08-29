@@ -89,9 +89,9 @@ data:
   GITOPS_REPO_PREFIX: "devtron"
   ENFORCER_CACHE: "true"
   ENFORCER_CACHE_EXPIRATION_IN_SEC: "345600"
-  ENFORCER_MAX_BATCH_SIZE: “1”
+  ENFORCER_MAX_BATCH_SIZE: "1"
   APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:57e17953-373-10147"
-  DEVTRON_SECRET_NAME: “devtron-secret”
+  DEVTRON_SECRET_NAME: "devtron-secret"
   
 
 ---
