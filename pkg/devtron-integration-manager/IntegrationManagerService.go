@@ -16,7 +16,7 @@ type IntegrationManagerService interface {
 
 type IntegrationManagerServiceImpl struct {
 	logger                       *zap.SugaredLogger
-	executorService              *TaskExecutorService
+	statusChecker                IntegrationModuleStatusChecker
 	integrationManagerRepository IntegrationManagerRepository
 }
 
@@ -26,10 +26,10 @@ type IntegrationModule struct {
 	DetailedStatus string `json:"detailedStatus,omitempty"`
 }
 
-func NewIntegrationManagerServiceImpl(logger *zap.SugaredLogger, executorService *TaskExecutorService, integrationManagerRepository IntegrationManagerRepository) *IntegrationManagerServiceImpl {
+func NewIntegrationManagerServiceImpl(logger *zap.SugaredLogger, statusChecker IntegrationModuleStatusChecker, integrationManagerRepository IntegrationManagerRepository) *IntegrationManagerServiceImpl {
 	integrationManager := &IntegrationManagerServiceImpl{
 		logger:                       logger,
-		executorService:              executorService,
+		statusChecker:                statusChecker,
 		integrationManagerRepository: integrationManagerRepository,
 	}
 
@@ -37,6 +37,8 @@ func NewIntegrationManagerServiceImpl(logger *zap.SugaredLogger, executorService
 }
 
 func (impl *IntegrationManagerServiceImpl) InstallModule(userId int32, moduleName string) error {
+
+	//TODO make request to kubelink
 	module := &IntegrationModuleEntity{
 		Name:   moduleName,
 		Status: "Installing",
@@ -46,6 +48,7 @@ func (impl *IntegrationManagerServiceImpl) InstallModule(userId int32, moduleNam
 	module.UpdatedOn = time.Now()
 	module.UpdatedBy = userId
 	err := impl.integrationManagerRepository.SaveIntegrationModule(module)
+	impl.statusChecker.AddIntegrationModule(moduleName)
 	return err
 }
 
@@ -59,28 +62,27 @@ func (impl *IntegrationManagerServiceImpl) GetAllModules() ([]*IntegrationModule
 			return nil, errors.New("error while fetching modules")
 		}
 	}
+	modules := impl.convertToModule(moduleEntities)
+	return modules, err
+}
+
+func (impl *IntegrationManagerServiceImpl) convertToModule(moduleEntities []*IntegrationModuleEntity) []*IntegrationModule {
 	var modules []*IntegrationModule
 	for _, moduleEntity := range moduleEntities {
 		module := &IntegrationModule{Name: moduleEntity.Name, Status: moduleEntity.Status, DetailedStatus: moduleEntity.DetailedStatus}
 		modules = append(modules, module)
 	}
-	return modules, err
+	return modules
 }
 
 func (impl *IntegrationManagerServiceImpl) GetModulesStatus(moduleNames []string) ([]*IntegrationModule, error) {
-	modules, err := impl.GetAllModules()
-	var finalModules []*IntegrationModule
+
+	moduleEntities, err := impl.integrationManagerRepository.GetModulesStatus(moduleNames)
 	if err != nil {
-		return nil, err
+		impl.logger.Errorw("error occurred while fetching modules status", "modules", moduleNames, "reason", err)
+		return nil, errors.New("error while fetching modules statuses")
 	}
-	for _, module := range modules {
-		for _, moduleName := range moduleNames {
-			if module.Name == moduleName {
-				finalModules = append(finalModules, module)
-				break
-			}
-		}
-	}
+	finalModules := impl.convertToModule(moduleEntities)
 	return finalModules, nil
 }
 

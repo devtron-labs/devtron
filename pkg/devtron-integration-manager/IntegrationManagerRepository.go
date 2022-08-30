@@ -11,6 +11,7 @@ type IntegrationManagerRepository interface {
 	UpdateIntegrationModuleStatus(userId int32, moduleName string, status string, detailedStatus string) error
 	GetIntegrationModule(moduleName string) (*IntegrationModuleEntity, error)
 	GetAlIntegrationModules() ([]*IntegrationModuleEntity, error)
+	GetModulesStatus(moduleNames []string) ([]*IntegrationModuleEntity, error)
 }
 
 type IntegrationModuleEntity struct {
@@ -59,4 +60,21 @@ func (impl *IntegrationManagerRepositoryImpl) GetAlIntegrationModules() ([]*Inte
 	var models []*IntegrationModuleEntity
 	err := impl.dbConnection.Model(&models).Select()
 	return models, err
+}
+
+func (impl *IntegrationManagerRepositoryImpl) GetModulesStatus(moduleNames []string) ([]*IntegrationModuleEntity, error) {
+	modules, err := impl.GetAlIntegrationModules()
+	if err != nil {
+		return nil, err
+	}
+	var finalModules []*IntegrationModuleEntity
+	for _, module := range modules {
+		for _, moduleName := range moduleNames {
+			if module.Name == moduleName {
+				finalModules = append(finalModules, module)
+				break
+			}
+		}
+	}
+	return finalModules, nil
 }
