@@ -10,7 +10,7 @@ import (
 type IntegrationManagerService interface {
 	InstallModule(userId int32, moduleName string) error
 	GetAllModules() ([]*IntegrationModule, error)
-	GetModulesStatus() ([]*IntegrationModule, error)
+	GetModulesStatus(moduleNames []string) ([]*IntegrationModule, error)
 	UpdateModuleStatus(userId int32, moduleName string, status string, detailedStatus string) error
 }
 
