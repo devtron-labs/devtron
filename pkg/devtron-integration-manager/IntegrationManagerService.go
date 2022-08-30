@@ -1,27 +1,32 @@
 package devtron_integration_manager
 
-import "go.uber.org/zap"
+import (
+	"errors"
+	"github.com/go-pg/pg"
+	"go.uber.org/zap"
+	"time"
+)
 
 type IntegrationManagerService interface {
-	InstallModule(moduleName string) error
-	GetAllModules() []*IntegrationModule
-	GetModulesStatus() []*IntegrationModule
-	UpdateModuleStatus() *IntegrationModule
+	InstallModule(userId int32, moduleName string) error
+	GetAllModules() ([]*IntegrationModule, error)
+	GetModulesStatus() ([]*IntegrationModule, error)
+	UpdateModuleStatus(userId int32, moduleName string, status string, detailedStatus string) error
 }
 
 type IntegrationManagerServiceImpl struct {
 	logger                       *zap.SugaredLogger
 	executorService              *TaskExecutorService
-	integrationManagerRepository *IntegrationManagerRepository
+	integrationManagerRepository IntegrationManagerRepository
 }
 
 type IntegrationModule struct {
-	name           string
-	status         string
-	detailedStatus string
+	Name           string `json:"name,omitempty"`
+	Status         string `json:"status,omitempty"`
+	DetailedStatus string `json:"detailedStatus,omitempty"`
 }
 
-func NewIntegrationManagerServiceImpl(logger *zap.SugaredLogger, executorService *TaskExecutorService, integrationManagerRepository *IntegrationManagerRepository) *IntegrationManagerServiceImpl {
+func NewIntegrationManagerServiceImpl(logger *zap.SugaredLogger, executorService *TaskExecutorService, integrationManagerRepository IntegrationManagerRepository) *IntegrationManagerServiceImpl {
 	integrationManager := &IntegrationManagerServiceImpl{
 		logger:                       logger,
 		executorService:              executorService,
@@ -31,17 +36,60 @@ func NewIntegrationManagerServiceImpl(logger *zap.SugaredLogger, executorService
 	return integrationManager
 }
 
-func (impl *IntegrationManagerServiceImpl) InstallModule(moduleName string) error {
-	return nil
+func (impl *IntegrationManagerServiceImpl) InstallModule(userId int32, moduleName string) error {
+	module := &IntegrationModuleEntity{
+		Name:   moduleName,
+		Status: "Installing",
+	}
+	module.CreatedOn = time.Now()
+	module.CreatedBy = userId
+	module.UpdatedOn = time.Now()
+	module.UpdatedBy = userId
+	err := impl.integrationManagerRepository.SaveIntegrationModule(module)
+	return err
 }
 
-func (impl *IntegrationManagerServiceImpl) GetAllModules() []*IntegrationModule {
-	return nil
+func (impl *IntegrationManagerServiceImpl) GetAllModules() ([]*IntegrationModule, error) {
+	moduleEntities, err := impl.integrationManagerRepository.GetAlIntegrationModules()
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching modules from db ", "reason", err)
+		if err != pg.ErrNoRows {
+			return []*IntegrationModule{}, nil
+		} else {
+			return nil, errors.New("error while fetching modules")
+		}
+	}
+	var modules []*IntegrationModule
+	for _, moduleEntity := range moduleEntities {
+		module := &IntegrationModule{Name: moduleEntity.Name, Status: moduleEntity.Status, DetailedStatus: moduleEntity.DetailedStatus}
+		modules = append(modules, module)
+	}
+	return modules, err
 }
 
-func (impl *IntegrationManagerServiceImpl) GetModulesStatus() []*IntegrationModule {
-	return nil
+func (impl *IntegrationManagerServiceImpl) GetModulesStatus(moduleNames []string) ([]*IntegrationModule, error) {
+	modules, err := impl.GetAllModules()
+	var finalModules []*IntegrationModule
+	if err != nil {
+		return nil, err
+	}
+	for _, module := range modules {
+		for _, moduleName := range moduleNames {
+			if module.Name == moduleName {
+				finalModules = append(finalModules, module)
+				break
+			}
+		}
+	}
+	return finalModules, nil
 }
-func (impl *IntegrationManagerServiceImpl) UpdateModuleStatus() *IntegrationModule {
+
+func (impl *IntegrationManagerServiceImpl) UpdateModuleStatus(userId int32, moduleName string, status string, detailedStatus string) error {
+	err := impl.integrationManagerRepository.UpdateIntegrationModuleStatus(userId, moduleName, status, detailedStatus)
+	if err != nil {
+		impl.logger.Errorw("error occurred while updating status for module ", "name", moduleName,
+			"status", status, "detailedStatus", detailedStatus, "user", userId, "error", err)
+		return errors.New("error while updating modules status")
+	}
 	return nil
 }

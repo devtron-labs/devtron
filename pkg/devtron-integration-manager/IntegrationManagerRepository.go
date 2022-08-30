@@ -8,7 +8,7 @@ import (
 
 type IntegrationManagerRepository interface {
 	SaveIntegrationModule(module *IntegrationModuleEntity) error
-	UpdateIntegrationModule(moduleName string, status string, detailedStatus string) error
+	UpdateIntegrationModuleStatus(userId int32, moduleName string, status string, detailedStatus string) error
 	GetIntegrationModule(moduleName string) (*IntegrationModuleEntity, error)
 	GetAlIntegrationModules() ([]*IntegrationModuleEntity, error)
 }
