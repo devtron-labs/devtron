@@ -104,7 +104,7 @@ spec:
     spec:
       containers:
       - name: postgresql-migrate-gitsensor
-        image: quay.io/devtron/migrator:e9175e98-4-10210
+        image: quay.io/devtron/migrator:9c933d29-149-10140
         env:
         - name: SCRIPT_LOCATION
           value: scripts/sql/
