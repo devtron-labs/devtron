@@ -334,15 +334,15 @@ ConfigSecrets:
 initContainers: []
   ## Additional init containers to run before the Scheduler pods.
   ## for example, be used to run a sidecar that chown Logs storage .
-  #- name: volume-mount-hack
-  #  image: busybox
-  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
-  #  volumeMounts:
+  # - name: volume-mount-hack
+  #   image: busybox
+  #   command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #   volumeMounts:
   #    - mountPath: /usr/local/airflow/logs
   #      name: logs-data
-  ## Uncomment below line ONLY IF you want to reuse the container image.
-  ## This will assign your application's docker image to init container.
-  #  reuseContainerImage: true
+  # # Uncomment below line ONLY IF you want to reuse the container image.
+  # # This will assign your application's docker image to init container.
+  #   reuseContainerImage: true
 
 containers: []
   ## Additional init containers to run before the Scheduler pods.
@@ -426,7 +426,6 @@ podSecurityContext: {}
 
 containerSecurityContext: {}
   # allowPrivilegeEscalation: false
-
 ## Pods Service Account
 ## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
 ##

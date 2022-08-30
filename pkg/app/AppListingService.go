@@ -82,6 +82,7 @@ type AppListingService interface {
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	GetLastDeploymentStatusesByAppNames(appNames []string) ([]repository.DeploymentStatus, error)
 	GetLastDeploymentStatuses() (map[string]repository.DeploymentStatus, error)
+	GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs(timeForDegradation int) ([]repository.DeploymentStatus, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
@@ -510,6 +511,15 @@ func (impl AppListingServiceImpl) GetLastDeploymentStatuses() (map[string]reposi
 		existingAppEnvStatusMapping[ds.AppName] = ds
 	}
 	return existingAppEnvStatusMapping, nil
+}
+
+func (impl AppListingServiceImpl) GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs(timeForDegradation int) ([]repository.DeploymentStatus, error) {
+	deploymentStatuses, err := impl.appListingRepository.FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(timeForDegradation)
+	if err != nil {
+		impl.Logger.Errorw("error in getting latest deployed status", "err", err)
+		return nil, err
+	}
+	return deploymentStatuses, nil
 }
 
 func (impl AppListingServiceImpl) getAppACDStatus(env bean.AppEnvironmentContainer, w http.ResponseWriter, r *http.Request, token string) (string, error) {

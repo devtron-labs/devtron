@@ -42,17 +42,33 @@ Provide the endpoint/URL of your kubernetes cluster.It is recommended to use a s
 
 **\(b\) Easy cluster migrations -** Cluster url is given in the name of the cloud provider used, so migrating your cluster from one provider to another will result in waste of time and effort. On the other hand, if using a self-hosted url migrations will be easy as the url is of single hosted domain independent of the cloud provider.
 
+To get the **`Server URL`**, run the following the command :
+
+```bash
+kubectl config view
+```
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/server-url.png)
+
 * **Bearer token**
 
 Provide your kubernetes cluster’s Bearer token for authentication purposes so that Devtron is able to communicate with your kubernetes cluster and can deploy your application in your kubernetes cluster.
 
-Get the server url and generate the bearer token by running the following command: 
+Generate the **`Bearer Token`** by running the following command: 
 
 ```bash
 curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && bash kubernetes_export_sa.sh cd-user devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/clusterrole.yaml
 ```
 
-Please ensure that kubectl and jq are installed on the bastion on which you’re running the command.
+Please ensure that kubectl and jq are installed on the bastion on which you are running the command.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/bearer-token.png)
+
+If you are using a **`microk8s cluster`**, run the following command to generate the bearer token:
+
+```bash
+curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && sed -i 's/kubectl/microk8s kubectl/g' kubernetes_export_sa.sh && bash kubernetes_export_sa.sh cd-user devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/clusterrole.yaml
+```
 
 ### 3. Prometheus Info
 
