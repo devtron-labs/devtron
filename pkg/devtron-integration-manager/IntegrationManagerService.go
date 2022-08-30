@@ -41,7 +41,7 @@ func (impl *IntegrationManagerServiceImpl) InstallModule(userId int32, moduleNam
 	//TODO make request to kubelink
 	module := &IntegrationModuleEntity{
 		Name:   moduleName,
-		Status: "Installing",
+		Status: ModuleStatusInstalling,
 	}
 	module.CreatedOn = time.Now()
 	module.CreatedBy = userId

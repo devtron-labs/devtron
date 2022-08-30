@@ -12,18 +12,16 @@ type IntegrationModuleStatusChecker interface {
 
 type IntegrationModuleStatusCheckerImpl struct {
 	logger                *zap.SugaredLogger
-	taskExecutorService   *TaskExecutorService
 	integrationRepository IntegrationManagerRepository
 	modulesToSync         map[string]bool
 	cron                  *cron.Cron
 	integrationConfig     *IntegrationManagerConfig
 }
 
-func NewIntegrationModuleStatusCheckerImpl(logger *zap.SugaredLogger, taskExecutorService *TaskExecutorService,
-	integrationRepository IntegrationManagerRepository, integrationConfig *IntegrationManagerConfig) (*IntegrationModuleStatusCheckerImpl, error) {
+func NewIntegrationModuleStatusCheckerImpl(logger *zap.SugaredLogger, integrationRepository IntegrationManagerRepository,
+	integrationConfig *IntegrationManagerConfig) (*IntegrationModuleStatusCheckerImpl, error) {
 	checkerImpl := &IntegrationModuleStatusCheckerImpl{
 		logger:                logger,
-		taskExecutorService:   taskExecutorService,
 		integrationRepository: integrationRepository,
 		integrationConfig:     integrationConfig,
 	}
@@ -38,8 +36,21 @@ func NewIntegrationModuleStatusCheckerImpl(logger *zap.SugaredLogger, taskExecut
 		fmt.Println("error in adding module status check function", err)
 		return nil, err
 	}
-
+	go checkerImpl.loadIntegrationModulesFromDb()
 	return checkerImpl, nil
+}
+
+func (impl *IntegrationModuleStatusCheckerImpl) loadIntegrationModulesFromDb() {
+	modules, err := impl.integrationRepository.GetAlIntegrationModules()
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching integration modules fromm db", "error", err)
+		return
+	}
+	for _, module := range modules {
+		if module.Status == ModuleStatusInstalling {
+			impl.modulesToSync[module.Name] = true
+		}
+	}
 }
 
 func (impl *IntegrationModuleStatusCheckerImpl) AddIntegrationModule(moduleName string) {
@@ -55,7 +66,7 @@ func (impl *IntegrationModuleStatusCheckerImpl) SyncModuleState() {
 
 	// check by hitting kubelink API
 	// update all installing status if success comes from kubelink
-	status := "Installed" // can be Failed too
+	status := ModuleStatusInstalled // can be Failed too
 	detailedStatus := "detailed-status"
 
 	var modules []string
@@ -71,7 +82,7 @@ func (impl *IntegrationModuleStatusCheckerImpl) SyncModuleState() {
 	for _, moduleEntity := range moduleEntities {
 		moduleName := moduleEntity.Name
 		moduleStatus := moduleEntity.Status
-		if moduleStatus != "Installing" {
+		if moduleStatus != ModuleStatusInstalling {
 			impl.logger.Warnw("fetched module status is not installing", "module", moduleName, "status", moduleStatus)
 		} else {
 			err := impl.integrationRepository.UpdateIntegrationModuleStatus(1, moduleName, status, detailedStatus)
