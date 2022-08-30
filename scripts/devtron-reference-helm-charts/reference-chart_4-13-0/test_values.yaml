@@ -327,7 +327,7 @@ ConfigSecrets:
   secrets:
   - name: config-secret-1
     type: environment
-    external: false
+    external: true
     externalType: AWSSecretsManager
     esoSecretData:
       secretStore:
@@ -362,7 +362,7 @@ ConfigSecrets:
   - name: config-secret-2
     type: environment
     external: true
-    externalType: HashiCorpVault
+    externalType: ESO_HashiCorpVault
     esoSecretData:
       secretStore:
         vault:
