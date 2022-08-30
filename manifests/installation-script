@@ -1,4 +1,4 @@
-LTAG="v0.4.27";
+LTAG="v0.5.0";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
@@ -401,6 +401,7 @@ kubeYamlEdit(argocd, `data.repositories`, helmRepo, `/ConfigMap//argocd-cm` );
 #kubeYamlEdit(argocd, `data`, argocdResource, `/ConfigMap//argocd-cm`, "asObject");
 
 kubeYamlEdit(argocd, `data.policy\.default`, `role:admin`, `/ConfigMap//argocd-rbac-cm`);
+kubeYamlEdit(argocd, `data.timeout\.reconciliation`, `60s`, `/ConfigMap//argocd-cm`);
 # patchLoad = '{"data":{"url":"' + baseURL + '", "dex.config:"' + dexConfig + '}}';
 # pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/merge-patch+json" -p patchLoad;
 
@@ -524,11 +525,8 @@ if cloudProvider=="AZURE" {
 #fix this, as this will result in fields getting changed, if exists then we need to pull existing values and apply again
 
 # populate acd password
-allDevtroncdPo = kubectl get po -n devtroncd;
-argocdPodNameSelector = `items.#(metadata.labels.app\.kubernetes\.io/name=="argocd-server").metadata.name`;
-acdPassword = jsonSelect(allDevtroncdPo, argocdPodNameSelector);
-acdPassword = base64EncoderPrefix + `echo "` + acdPassword + `" | tr -d ':\n' ` + base64EncoderSuffix;
-acdPassword = shellScript acdPassword;
+argocdInitialSecret = kubectl get secret argocd-initial-admin-secret -n devtroncd;
+acdPassword = jsonSelect(argocdInitialSecret, "data.password");
 
 if hasDevtron {
     devtronSecret = kubectl get secret -n devtroncd devtron-secret;
