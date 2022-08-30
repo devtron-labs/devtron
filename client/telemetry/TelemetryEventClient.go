@@ -45,6 +45,7 @@ type TelemetryEventClient interface {
 	SendTelemetryInstallEventEA() (*TelemetryEventType, error)
 	SendTelemetryDashboardAccessEvent() error
 	SendTelemetryDashboardLoggedInEvent() error
+	SendGenericTelemetryEvent(eventType string, prop map[string]interface{}) error
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
@@ -205,6 +206,25 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 }
 
 func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType TelemetryEventType, prop map[string]interface{}) error {
+	return impl.EnqueueGenericPostHogEvent(ucid, string(eventType), prop)
+}
+
+func (impl *TelemetryEventClientImpl) SendGenericTelemetryEvent(eventType string, prop map[string]interface{}) error {
+	ucid, err := impl.getUCID()
+	if err != nil {
+		impl.logger.Errorw("exception caught inside telemetry generic event", "err", err)
+		return nil
+	}
+
+	if IsOptOut {
+		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
+		return nil
+	}
+
+	return impl.EnqueueGenericPostHogEvent(ucid, eventType, prop)
+}
+
+func (impl *TelemetryEventClientImpl) EnqueueGenericPostHogEvent(ucid string, eventType string, prop map[string]interface{}) error {
 	if impl.PosthogClient.Client == nil {
 		impl.logger.Warn("no posthog client found, creating new")
 		client, err := impl.retryPosthogClient(PosthogApiKey, PosthogEndpoint)
@@ -215,11 +235,11 @@ func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType Tele
 	if impl.PosthogClient.Client != nil {
 		err := impl.PosthogClient.Client.Enqueue(posthog.Capture{
 			DistinctId: ucid,
-			Event:      string(eventType),
+			Event:      eventType,
 			Properties: prop,
 		})
 		if err != nil {
-			impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "error", err)
+			impl.logger.Errorw("EnqueueGenericPostHogEvent, failed to push event", "error", err)
 			return err
 		}
 	}

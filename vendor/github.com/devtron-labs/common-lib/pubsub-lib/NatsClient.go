@@ -37,7 +37,7 @@ type NatsClient struct {
 
 type NatsClientConfig struct {
 	NatsServerHost             string `env:"NATS_SERVER_HOST" envDefault:"nats://devtron-nats.devtroncd:4222"`
-	NatsMsgProcessingBatchSize int    `env:"NATS_MSG_PROCESSING_BATCH_SIZE" envDefault:"2"`
+	NatsMsgProcessingBatchSize int    `env:"NATS_MSG_PROCESSING_BATCH_SIZE" envDefault:"1"`
 	NatsMsgBufferSize          int    `env:"NATS_MSG_BUFFER_SIZE" envDefault:"64"`
 	NatsStreamConfig           string `env:"NATS_STREAM_CONFIG" envDefault:"{\"max_age\":86400000000000}"`
 }
@@ -48,7 +48,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 	cfg := &NatsClientConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
-		logger.Error("err", err)
+		logger.Error("error occurred while parsing nats client config", "err", err)
 		return &NatsClient{}, err
 	}
 
@@ -60,7 +60,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 			logger.Errorw("error occurred while parsing streamConfigJson ", "configJson", configJson, "reason", err)
 		}
 	}
-	logger.Infow("nats config loaded", "config", streamCfg)
+	logger.Infow("nats config loaded", "NatsMsgProcessingBatchSize", cfg.NatsMsgProcessingBatchSize, "NatsMsgBufferSize", cfg.NatsMsgBufferSize, "config", streamCfg)
 
 	//Connect to NATS
 	nc, err := nats.Connect(cfg.NatsServerHost,

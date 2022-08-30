@@ -1685,6 +1685,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			PostStageConfigMapSecretNames: dbPipeline.PostStageConfigMapSecretNames,
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
+			DeploymentAppType:             dbPipeline.DeploymentAppType,
 		}
 		pipelines = append(pipelines, pipeline)
 	}

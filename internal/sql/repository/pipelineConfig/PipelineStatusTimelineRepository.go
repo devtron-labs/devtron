@@ -22,6 +22,7 @@ const (
 
 type PipelineStatusTimelineRepository interface {
 	SaveTimeline(timeline *PipelineStatusTimeline) error
+	SaveTimelinesWithTxn(timelines []PipelineStatusTimeline, tx *pg.Tx) error
 	UpdateTimeline(timeline *PipelineStatusTimeline) error
 	FetchTimelinesByPipelineId(pipelineId int) ([]*PipelineStatusTimeline, error)
 	FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error)
@@ -58,6 +59,15 @@ func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimeline(timeline *Pipelin
 	err := impl.dbConnection.Insert(timeline)
 	if err != nil {
 		impl.logger.Errorw("error in saving timeline of cd pipeline status", "err", err, "timeline", timeline)
+		return err
+	}
+	return nil
+}
+
+func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimelinesWithTxn(timelines []PipelineStatusTimeline, tx *pg.Tx) error {
+	err := tx.Insert(&timelines)
+	if err != nil {
+		impl.logger.Errorw("error in saving timelines of cd pipeline status", "err", err, "timelines", timelines)
 		return err
 	}
 	return nil

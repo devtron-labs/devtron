@@ -829,7 +829,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: runner.Id,
 			Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-			StatusDetail:       "Deployment failed - Vulnerability policy violated for image.",
+			StatusDetail:       "Deployment failed: Vulnerability policy violated.",
 			StatusTime:         time.Now(),
 			AuditLog: sql.AuditLog{
 				CreatedBy: 1,
@@ -857,15 +857,17 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunner *pipelineConfig.CdWorkflowRunner, pipelineId int, err error, triggeredAt time.Time) error {
 	if err != nil {
 		//creating cd pipeline status timeline for deployment failed
-		_, timelineErr := impl.cdPipelineStatusTimelineRepo.FetchTimelineByWfrIdAndStatus(currentRunner.Id, pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED)
-		if timelineErr != nil && timelineErr != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting latest timeline", "err", timelineErr)
+		terminalStatusExists, timelineErr := impl.cdPipelineStatusTimelineRepo.CheckIfTerminalStatusTimelinePresentByWfrId(currentRunner.Id)
+		if timelineErr != nil {
+			impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", timelineErr, "wfrId", currentRunner.Id)
 			return timelineErr
-		} else if err == pg.ErrNoRows {
+		}
+		if !terminalStatusExists {
+			impl.logger.Infow("marking pipeline deployment failed", "err", err)
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: currentRunner.Id,
 				Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-				StatusDetail:       fmt.Sprintf("Deployment failed - %v", err),
+				StatusDetail:       fmt.Sprintf("Deployment failed: %v", err),
 				StatusTime:         time.Now(),
 				AuditLog: sql.AuditLog{
 					CreatedBy: 1,
@@ -1117,7 +1119,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: runner.Id,
 				Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-				StatusDetail:       "Deployment failed - Vulnerability policy violated for image.",
+				StatusDetail:       "Deployment failed: Vulnerability policy violated.",
 				StatusTime:         time.Now(),
 				AuditLog: sql.AuditLog{
 					CreatedBy: 1,

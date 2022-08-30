@@ -42,4 +42,7 @@ func NewTelemetryRouterImpl(logger *zap.SugaredLogger, handler restHandler.Telem
 func (router TelemetryRouterImpl) initTelemetryRouter(telemetryRouter *mux.Router) {
 	telemetryRouter.Path("/meta").
 		HandlerFunc(router.handler.GetTelemetryMetaInfo).Methods("GET")
+	telemetryRouter.Path("/event").
+		HandlerFunc(router.handler.SendTelemetryData).Methods("POST")
+
 }
