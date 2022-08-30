@@ -832,7 +832,7 @@ func (impl DbPipelineOrchestratorImpl) addRepositoryToGitSensor(materials []*bea
 	return err
 }
 
-//FIXME: not thread safe
+// FIXME: not thread safe
 func (impl DbPipelineOrchestratorImpl) createAppGroup(name string, userId int32, teamId int, tx *pg.Tx) (*app2.App, error) {
 	app, err := impl.appRepository.FindActiveByName(name)
 	if err != nil && err != pg.ErrNoRows {
@@ -1169,6 +1169,7 @@ func (impl DbPipelineOrchestratorImpl) GetCdPipelinesForApp(appId int) (cdPipeli
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			PreStageConfigMapSecretNames:  preStageConfigmapSecrets,
 			PostStageConfigMapSecretNames: postStageConfigmapSecrets,
+			DeploymentAppType:             dbPipeline.DeploymentAppType,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
