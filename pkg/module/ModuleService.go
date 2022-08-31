@@ -20,6 +20,7 @@ package module
 import (
 	"context"
 	"errors"
+	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/server"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
@@ -163,6 +164,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	extraValues := make(map[string]interface{})
 	extraValues["installer.release"] = moduleActionRequest.Version
 	extraValues["installer.modules"] = []interface{}{moduleName}
+	extraValues[fmt.Sprintf("%s.%s", moduleName, "enabled")] = true
 	extraValuesYamlUrl := util2.BuildDevtronBomUrl(impl.serverEnvConfig.DevtronBomUrl, moduleActionRequest.Version)
 
 	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)
