@@ -58,8 +58,6 @@ While installing Devtron and using the AWS-S3 bucket for storing the logs and ca
 
 While installing Devtron using Azure Blob Storage for storing logs and caches, the below parameters will be used in the ConfigMap.
 
-> NOTE: For using the storage containers it is mandatory to enable versioning on the storage account. [Refer this guide](https://docs.microsoft.com/en-us/azure/storage/blobs/versioning-enable?tabs=portal#enable-blob-versioning) to enable the same.
-
 | Parameter | Description | Default |
 | :--- | :--- | :--- |
 | **AZURE\_ACCOUNT\_NAME** | Account name for AZURE Blob Storage |  |

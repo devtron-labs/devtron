@@ -37,5 +37,5 @@ Refer to the [Creating a Production grade EKS cluster using EKSCTL](https://devt
  
 * [Install Devtron with CI/CD integration](install-devtron-with-cicd.md)
 * [Install Devtron](install-devtron.md)
-* [Upgrade Devtron to latest version](/docs/setup/upgrade/README.md)
+* [Upgrade Devtron to latest version](../../setup/upgrade/README.md)
  
