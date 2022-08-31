@@ -35,6 +35,9 @@ metadata:
     release: {{ $.Release.Name }}
     releaseVersion: {{ $.Values.releaseVersion | quote }}
     pipelineName: {{ .Values.pipelineName }}
+{ { - if .Values.appLabels } }
+{ { toYaml .Values.appLabels | indent 4 } }
+{ { - end } }
 spec:
   selector:
     matchLabels:
@@ -55,13 +58,13 @@ spec:
         appId: {{ $.Values.app | quote }}
         envId: {{ $.Values.env | quote }}
         release: {{ $.Release.Name }}
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 8 }}
+{{- end }}
 {{- if .Values.podLabels }}
 {{ toYaml .Values.podLabels | indent 8 }}
 {{- end }}
     spec:
-{{- if $.Values.podExtraSpecs }}	
-{{ toYaml .Values.podExtraSpecs | indent 6 }}	
-{{- end }}
       terminationGracePeriodSeconds: {{ $.Values.GracePeriod }}
       restartPolicy: Always
 {{- if $.Values.hostAliases }}
@@ -79,10 +82,9 @@ spec:
                 values:
                 - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
 {{- end }}
+
 {{- if $.Values.serviceAccountName }}
       serviceAccountName: {{ $.Values.serviceAccountName }}
-{{- else  }}
-      serviceAccountName: {{ template "serviceAccountName" . }}
 {{- end }}
   {{- if .Values.tolerations }}
       tolerations:
@@ -94,30 +96,6 @@ spec:
         - name: {{ . }}
   {{- end }}
 {{- end}}
-{{- if $.Values.topologySpreadConstraints }}
-      topologySpreadConstraints:
-{{- range $.Values.topologySpreadConstraints }}
-      - maxSkew: {{ .maxSkew }}
-        topologyKey: {{ .topologyKey }}
-        whenUnsatisfiable: {{ .whenUnsatisfiable }}
-        labelSelector:
-          matchLabels:
-          {{- if and .autoLabelSelector .customLabelSelector }}
-{{ toYaml .customLabelSelector | indent 12 }}
-          {{- else if .autoLabelSelector }}
-            app: {{ template ".Chart.Name .name" $ }}
-            appId: {{ $.Values.app | quote }}
-            envId: {{ $.Values.env | quote }}
-            release: {{ $.Release.Name }}
-          {{- else if .customLabelSelector }}
-{{ toYaml .customLabelSelector | indent 12 }}
-          {{- end }}
-{{- end }}
-{{- end }}
-{{- if $.Values.podSecurityContext }}
-      securityContext:
-{{ toYaml .Values.podSecurityContext | indent 8 }}
-{{- end }}
 {{- if $.Values.initContainers}}
       initContainers:
 {{- range $i, $c := .Values.initContainers }}
@@ -169,29 +147,16 @@ spec:
         - name: {{ $.Chart.Name }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
-{{- if and $.Values.containerSecurityContext $.Values.privileged }}
+{{- if $.Values.privileged }}
           securityContext:
             privileged: true
-{{ toYaml .Values.containerSecurityContext | indent 12 }}
-{{- else if $.Values.privileged }}
-          securityContext:
-            privileged: true
-{{- else if $.Values.containerSecurityContext }}
-          securityContext:
-{{ toYaml .Values.containerSecurityContext | indent 12 }}
-{{- end }}
-{{- if $.Values.containerExtraSpecs }}	
-{{ toYaml .Values.containerExtraSpecs | indent 10 }}	
-{{- end }}
+{{- end}}
           ports:
           {{- range $.Values.ContainerPort }}
             - name: {{ .name}}
               containerPort: {{ .port  }}
               protocol: TCP
           {{- end}}
-{{- if and $.Values.command.enabled $.Values.command.workingDir }}
-          workingDir: {{ $.Values.command.workingDir }}
-{{- end}}
 {{- if and $.Values.command.value $.Values.command.enabled}}
           command:
 {{ toYaml $.Values.command.value | indent 12 -}}
@@ -255,13 +220,6 @@ spec:
             httpGet:
               path: {{ $.Values.LivenessProbe.Path  }}
               port: {{ $.Values.LivenessProbe.port }}
-            {{- if $.Values.LivenessProbe.httpHeaders }}
-              httpHeaders:
-              {{- range $.Values.LivenessProbe.httpHeaders}}
-                - name: {{.name}}
-                  value: {{.value}}
-              {{- end}}
-	    {{- end }}
 {{- end }}
 {{- if $.Values.LivenessProbe.command }}
             exec:
@@ -284,13 +242,6 @@ spec:
             httpGet:
               path: {{ $.Values.ReadinessProbe.Path  }}
               port: {{ $.Values.ReadinessProbe.port }}
-            {{- if $.Values.ReadinessProbe.httpHeaders }}
-              httpHeaders:
-              {{- range $.Values.ReadinessProbe.httpHeaders}}
-                - name: {{.name}}
-                  value: {{.value}}
-              {{- end}}
-	    {{- end }}
 {{- end }}
 {{- if $.Values.ReadinessProbe.command }}
             exec:
@@ -322,7 +273,6 @@ spec:
           {{- if eq .subPath false }}
             - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath }}
-	  
           {{- else }}
           {{- range $k, $v := .data }}
             - name: {{ $cmName | replace "." "-"}}-vol
@@ -342,7 +292,13 @@ spec:
           {{- if eq .subPath false }}
             - name: {{ $cmName | replace "." "-"}}-vol
               mountPath: {{ $cmMountPath }}
-	      
+          {{- else if and (eq (.subPath) true) (eq (.externalType) "KubernetesSecret") }}
+          {{- else if and (eq (.subPath) true) (eq (.external) true) }}
+          {{- range .secretData }}
+            - name: {{ $cmName | replace "." "-"}}-vol
+              mountPath: {{ $cmMountPath}}/{{ .name }}
+              subPath: {{ .name }}
+          {{- end }}
           {{- else }}
           {{- range $k, $v := .data }}
             - name: {{ $cmName | replace "." "-"}}-vol
