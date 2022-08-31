@@ -579,5 +579,5 @@ type AppMetaInfoDto struct {
 }
 
 type AppLabelsJsonForGitops struct {
-	Labels []*Label `json:"appLabels"`
+	Labels map[string]string `json:"appLabels"`
 }

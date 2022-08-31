@@ -235,13 +235,9 @@ func (impl AppLabelServiceImpl) GetLabelsByAppIdForGitops(appId int) ([]byte, er
 		impl.logger.Errorw("error in getting app labels by appId", "err", err, "appId", appId)
 		return nil, err
 	}
-	labelsDto := make([]*bean.Label, 0)
+	labelsDto := make(map[string]string)
 	for _, label := range labels {
-		dto := &bean.Label{
-			Key:   label.Key,
-			Value: label.Value,
-		}
-		labelsDto = append(labelsDto, dto)
+		labelsDto[label.Key] = label.Value
 	}
 	appLabelJson.Labels = labelsDto
 	appLabelByte, err := json.Marshal(appLabelJson)
