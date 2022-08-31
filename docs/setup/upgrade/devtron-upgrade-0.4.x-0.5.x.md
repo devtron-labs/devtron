@@ -8,25 +8,8 @@ kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync
 
 ## Follow the below mentioned steps to upgrade the Devtron version using Helm
 
-### 1. Check the devtron release name
 
-```bash
-helm list --namespace devtroncd
-```
-
-### 2. Set release name in the variable
-```bash
-RELEASE_NAME=devtron
-```
-
-### 3. Fetch the latest Devtron helm chart
-
-```bash
-helm repo update
-```
-
-
-### 4. Apply Prerequisites Patch Job
+### 1. Apply Prerequisites Patch Job
 
 If you are using rawYaml in deployment template, this update can introduce breaking changes. We recommend you to update the `Chart Version`
 of your app to `v4.13.0` to make rawYaml section compatible to new argocd version `v2.4.0`.
@@ -39,6 +22,24 @@ and then only upgrade to `Devtron v0.5.x`.
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/utilities/main/scripts/jobs/argocd-2.4.0-prerequisites-patch-job.yaml
 ```
+
+### 2. Check the devtron release name
+
+```bash
+helm list --namespace devtroncd
+```
+
+### 3. Set release name in the variable
+```bash
+RELEASE_NAME=devtron
+```
+
+### 4. Fetch the latest Devtron helm chart
+
+```bash
+helm repo update
+```
+
 
 ### 5. Upgrade Devtron 
 
