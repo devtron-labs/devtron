@@ -25,6 +25,16 @@
 #       key: secrets/prod-mysql-secrets
 #       property: prodPassword
 
+rolloutLabels:
+  name: abhinav
+  Company: Dvetron
+  Job: DevOps
+
+rolloutAnnotations:
+  name: abhinav
+  Company: Dvetron
+  Job: DevOps
+
 imagePullSecrets:
   - test1
   - test2
@@ -38,6 +48,7 @@ ContainerPort:
     port: 8080
     servicePort: 80
     envoyTimeout: 15
+    targetPort: 8080
     envoyPort: 8799
     useHTTP2: false
     supportStreaming: false
@@ -56,6 +67,7 @@ ContainerPort:
 
   - name: app1
     port: 8090
+    targetPort: 1234
     servicePort: 8080
     useGRPC: true
     servicemonitor:
