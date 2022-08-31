@@ -1,6 +1,6 @@
 # CI Pipeline (Legacy)
 
-CI Pipeline can be created in three different ways, `Continuous Integration`, `Linked CI Pipeline` and `Incoming Webhook`.
+CI Pipeline can be created in three different ways, [`Continuous Integration`](/ci-pipeline-legacy.md#a-continuous-integration), [`Linked CI Pipeline`](/ci-pipeline-legacy.md#b-linked-ci-pipeline) and [`Incoming Webhook`](/ci-pipeline-legacy.md#c-incoming-webhook).
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/workflow-ci.jpg)
 
