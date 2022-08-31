@@ -70,10 +70,10 @@ func (handler *UserAttributesRestHandlerImpl) AddUserAttributes(w http.ResponseW
 
 	dto.UserId = userId
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
+	//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+	//	return
+	//}
 	emailId, err := handler.userService.GetEmailFromToken(token)
 	if err != nil {
 		handler.logger.Errorw("request err, UpdateUserAttributes", "err", err, "payload", dto)
@@ -116,10 +116,10 @@ func (handler *UserAttributesRestHandlerImpl) UpdateUserAttributes(w http.Respon
 
 	dto.UserId = userId
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
+	//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+	//	return
+	//}
 
 	emailId, err := handler.userService.GetEmailFromToken(token)
 	if err != nil {
@@ -161,10 +161,10 @@ func (handler *UserAttributesRestHandlerImpl) GetUserAttribute(w http.ResponseWr
 	}
 
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
+	//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+	//	return
+	//}
 
 	dto := attributes.UserAttributesDto{}
 
