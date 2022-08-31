@@ -28,6 +28,7 @@
   * [External links](user-guide/global-configurations/external-links.md)
 * [Devtron Upgrade](setup/upgrade/README.md)
   * [Update Devtron from Devtron UI](setup/upgrade/upgrade-devtron-ui.md)
+  * [0.4.x-0.5.x](setup/upgrade/devtron-upgrade-0.4.x-0.5.x.md)
   * [0.4.x-0.4.x](setup/upgrade/devtron-upgrade-0.4.x-0.4.x.md)
   * [0.3.x-0.4.x](setup/upgrade/devtron-upgrade-0.3.x-0.4.x.md)
   * [0.3.x-0.3.x](setup/upgrade/devtron-upgrade-0.3.x-0.3.x.md)
@@ -84,4 +85,3 @@
 ## Depricated
 
 * [Hyperion](hyperion/devtron.md)
-
