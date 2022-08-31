@@ -52,7 +52,6 @@ func ParseModuleEnvConfig() (*ModuleEnvConfig, error) {
 }
 
 type ModuleStatus = string
-type ModuleName = string
 
 const (
 	ModuleStatusNotInstalled  ModuleStatus = "notInstalled"
