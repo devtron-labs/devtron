@@ -432,13 +432,13 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		return nil, err
 	}
 
-	if installedAppVersion.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
 		_, err := impl.performDeployStageOnAcd(installedAppVersion, ctx, userId)
 		if err != nil {
 			impl.logger.Errorw("error", "err", err)
 			return nil, err
 		}
-	} else if installedAppVersion.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+	} else if util.IsHelmApp(installedAppVersion.DeploymentAppType) {
 		_, err = impl.appStoreDeploymentService.InstallAppByHelm(installedAppVersion, ctx)
 		if err != nil {
 			impl.logger.Errorw("error", "err", err)

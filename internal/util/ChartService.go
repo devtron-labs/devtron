@@ -668,3 +668,11 @@ func (impl ChartTemplateServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string
 	}
 	return nil
 }
+
+func IsHelmApp(deploymentAppType string) bool {
+	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_HELM
+}
+
+func IsAcdApp(deploymentAppType string) bool {
+	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD
+}
