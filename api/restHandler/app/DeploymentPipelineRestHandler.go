@@ -707,7 +707,9 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 
 	var digests []string
 	for _, item := range ciArtifactResponse.CiArtifacts {
-		digests = append(digests, item.ImageDigest)
+		if len(item.ImageDigest) > 0 {
+			digests = append(digests, item.ImageDigest)
+		}
 	}
 
 	//FIXME: next 3 loops are same combine them
@@ -723,20 +725,36 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		if err != nil {
 			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		}
-		for _, digest := range digests {
-			if len(digest) > 0 {
-				var cveStores []*security.CveStore
-				imageScanResult, err := handler.scanResultRepository.FindByImageDigest(digest)
-				if err != nil && err != pg.ErrNoRows {
-					handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
-					continue //skip for other artifact to complete
-				}
-				for _, item := range imageScanResult {
-					cveStores = append(cveStores, &item.CveStore)
-				}
-				vulnerableMap[digest] = handler.policyService.HasBlockedCVE(cveStores, cvePolicy, severityPolicy)
+
+		// get image scan results from DB for given digests
+		imageScanResults, err := handler.scanResultRepository.FindByImageDigests(digests)
+		// ignore error
+		if err != nil && err != pg.ErrNoRows {
+			handler.Logger.Errorw("service err, FindByImageDigests", "err", err, "cdPipelineId", cdPipelineId, "stage", stage, "digests", digests)
+		}
+
+		// build digest vs scan-results
+		digestVsScanResults := make(map[string][]*security.ImageScanExecutionResult)
+		for _, imageScanResult := range imageScanResults {
+			imageHash := imageScanResult.ImageScanExecutionHistory.ImageHash
+			if val, ok := digestVsScanResults[imageHash]; !ok {
+				var scanResults []*security.ImageScanExecutionResult
+				scanResults = append(scanResults, imageScanResult)
+				digestVsScanResults[imageHash] = scanResults
+			} else {
+				digestVsScanResults[imageHash] = append(val, imageScanResult)
 			}
 		}
+
+		// for each digest, check vulnerability
+		for digest, scanResults := range digestVsScanResults {
+			var cveStores []*security.CveStore
+			for _, item := range scanResults {
+				cveStores = append(cveStores, &item.CveStore)
+			}
+			vulnerableMap[digest] = handler.policyService.HasBlockedCVE(cveStores, cvePolicy, severityPolicy)
+		}
+
 		var ciArtifactsFinal []bean.CiArtifactBean
 		for _, item := range ciArtifactResponse.CiArtifacts {
 			if item.ScanEnabled { // skip setting for artifacts which have marked scan disabled, but here deal with same digest

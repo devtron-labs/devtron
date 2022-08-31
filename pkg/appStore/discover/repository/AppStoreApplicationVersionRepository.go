@@ -94,7 +94,8 @@ func (impl *AppStoreApplicationVersionRepositoryImpl) FindAll() ([]appStoreBean.
 
 func (impl *AppStoreApplicationVersionRepositoryImpl) FindWithFilter(filter *appStoreBean.AppStoreFilter) ([]appStoreBean.AppStoreWithVersion, error) {
 	var appStoreWithVersion []appStoreBean.AppStoreWithVersion
-	query := "SELECT asv.version, asv.icon,asv.deprecated ,asv.id as app_store_application_version_id, aps.*, ch.name as chart_name" +
+	query := "SELECT asv.version, asv.icon,asv.deprecated,asv.id as app_store_application_version_id," +
+		" asv.description, aps.*, ch.name as chart_name" +
 		" FROM app_store_application_version asv" +
 		" INNER JOIN app_store aps ON asv.app_store_id = aps.id" +
 		" INNER JOIN chart_repo ch ON aps.chart_repo_id = ch.id" +
@@ -164,11 +165,9 @@ func (impl AppStoreApplicationVersionRepositoryImpl) FindVersionsByAppStoreId(id
 	var appStoreApplicationVersions []*AppStoreApplicationVersion
 	err := impl.dbConnection.
 		Model(&appStoreApplicationVersions).
-		Column("app_store_application_version.*", "AppStore", "AppStore.ChartRepo").
-		Join("inner join app_store aps on aps.id = app_store_application_version.app_store_id").
-		Join("inner join chart_repo as cr on cr.id = aps.chart_repo_id").
-		Where("aps.id = ?", id).
-		Order("app_store_application_version.created DESC").
+		Column("app_store_application_version.id", "app_store_application_version.version").
+		Where("app_store_id = ?", id).
+		Order("created DESC").
 		Select()
 	return appStoreApplicationVersions, err
 }

@@ -35,7 +35,7 @@ import (
 
 type ApiTokenService interface {
 	GetAllActiveApiTokens() ([]*openapi.ApiToken, error)
-	CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32) (*openapi.CreateApiTokenResponse, error)
+	CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32, managerAuth func(token string, object string) bool) (*openapi.CreateApiTokenResponse, error)
 	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.UpdateApiTokenResponse, error)
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
 }
@@ -108,7 +108,7 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 	return apiTokens, nil
 }
 
-func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32) (*openapi.CreateApiTokenResponse, error) {
+func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32, managerAuth func(token string, object string) bool) (*openapi.CreateApiTokenResponse, error) {
 	impl.logger.Infow("Creating API token", "request", request, "createdBy", createdBy)
 
 	name := request.GetName()
@@ -148,7 +148,7 @@ func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRe
 		EmailId:  email,
 		UserType: bean.USER_TYPE_API_TOKEN,
 	}
-	createUserResponse, err := impl.userService.CreateUser(&createUserRequest)
+	createUserResponse, err := impl.userService.CreateUser(&createUserRequest, token, managerAuth)
 	if err != nil {
 		impl.logger.Errorw("error while creating user for api-token", "email", email, "error", err)
 		return nil, err

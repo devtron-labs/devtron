@@ -1,0 +1,126 @@
+openapi: "3.0.0"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/app-store/discover/:
+    get:
+      description: this api will return all the charts from charts repos.
+      parameters: [ ]
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    allOf:
+                      - type: object
+                        properties:
+                          appId:
+                            type: integer
+                            description: unique application id
+                        required:
+                          - appId
+                      - $ref: '#/components/schemas/AppStore'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+
+
+
+
+
+# components mentioned below
+components:
+  schemas:
+    AppStore:
+      type: object
+      required:
+        - id
+        - name
+      properties:
+        id:
+          type: integer
+          description: app store id
+        name:
+          type: string
+          description: app store name
+        appStoreApplicationVersionId:
+          type: integer
+          description: app store version id
+        chart_git_location:
+          type: string
+          description: chart git repo location
+        chart_name:
+          type: string
+          description: chart name
+        chart_repo_id:
+          type: integer
+          description: app store and chart repo link id
+        deprecated:
+          type: boolean
+          description: deprecated app store flag
+        description:
+          type: string
+          description: app store description, short summary
+        icon:
+          type: string
+          description: app store icon link
+        created_on:
+          type: string
+          description: created on
+        updated_on:
+          type: string
+          description: modification date
+        version:
+          type: string
+          description: app store version
+        active:
+          type: boolean
+          description: active app store
+
+    ErrorResponse:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error code
+        status:
+          type: string
+          description: Error message
+        errors:
+          type: array
+          description: errors
+          items:
+            $ref: '#/components/schemas/Error'
+
+    Error:
+      required:
+        - code
+        - status
+      properties:
+        code:
+          type: integer
+          format: int32
+          description: Error internal code
+        internalMessage:
+          type: string
+          description: Error internal message
+        userMessage:
+          type: string
+          description: Error user message

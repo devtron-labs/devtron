@@ -1,6 +1,7 @@
 package casbin
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/patrickmn/go-cache"
 	"math/rand"
@@ -32,6 +33,29 @@ func TestEnforcerCache(t *testing.T) {
 		invalidateCache_123(lock, cache123)
 	})
 
+	t.Run("CacheDump", func(t *testing.T) {
+		for i := 0; i < 100_000; i++ {
+			emailId := GetRandomStringOfGivenLength(rand.Intn(50)) + "@yopmail.com"
+			getAndSet(lock, emailId, cache123)
+			cache123.GetWithExpiration(emailId)
+			//result, expiration, b := cache123.GetWithExpiration(emailId)
+			//fmt.Println("result", result, "expiration", expiration, "found", b)
+		}
+		//invalidateCache_123(lock, cache123)
+
+		fmt.Println("dump: ", GetCacheDump(cache123))
+	})
+
+}
+
+func GetCacheDump(cache *cache.Cache) string {
+	items := cache.Items()
+	cacheData, err := json.Marshal(items)
+	if err != nil {
+		fmt.Println("error occurred while taking cache dump", "reason", err)
+		return ""
+	}
+	return string(cacheData)
 }
 
 func GetRandomStringOfGivenLength(length int) string {

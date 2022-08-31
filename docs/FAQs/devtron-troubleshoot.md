@@ -7,7 +7,7 @@ We always try to make your experience of using Devtron as smooth as possible but
 This occurs most of the time because any one or multiple jobs get failed during installation. To resolve this, you'll need to first check which jobs have failed. Follow these steps:
 
 - Run the following command and check which are the jobs with 0/1 completions:
-```
+```bash
 kubectl get jobs -n devtroncd
 ```
 - Note down or remember the names of jobs with 0/1 completions and check if their pods are in running state still or not by running the command:
@@ -15,7 +15,9 @@ kubectl get pods -n devtroncd
 - If they are in running condition, please wait for the jobs to be completed as it may be due to internet issue and if not in running condition, then delete those incomplete jobs using:
 kubectl delete jobs <job1-name> <job2-name> -n devtroncd
 - Now download migrator.yaml file from our github repository using the command:
+```bash
 wget https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/migrator.yaml
+```
 - Now edit the file you downloaded in step 3 and remove the postgresql-migrator secret resource creation and then apply the yaml file using the command:
 kubectl apply -f migrator.yaml -n devtroncd
 - It will re-create the failed jobs and you’ll see their pods created again. Just wait for a few minutes until the jobs gets completed then you are good to go. You should be able to save your global configurations now.
@@ -23,29 +25,33 @@ kubectl apply -f migrator.yaml -n devtroncd
 #### 2. Not able to see deployment metrics on production environment or Not able to enable application-metrics or Not able to deploy the app after creating a configmap or secret with data-volume option enabled
 
 Update the rollout crds to latest version, run the following command:
-```
+```bash
 kubectl apply -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/rollout.yaml -n devtroncd
 ```
 
 #### 3. SSO Login not working even after entering correct SSO Credentials
 
+```error: user/UserAuthHandler.go:236","msg":"service err, AuthVerification","err":"no token provided```
+Or
+```error: Failed to query provider "api/dex": Get "api/dex/.well-known/openid-configuration": unsupported protocol scheme```
+
 Delete devtron pod once to reload the configurations using:
-```
+```bash
 kubectl delete pod -n devtroncd -l app=devtron
 ```
 
 #### 4. Logs are not Visible on UI while running the build and not even able to abort the same
 
 Check if the pods are being created when you start a new build, run the command and look if a new pod is created when you started the build:
-```
+```bash
 kubectl get pods -n devtron-ci
 ```
 If yes, delete kubewatch and devtron pod so that kubewatch can restart and start sharing the logs again:
-```
+```bash
 kubectl delete pod -n devtroncd -l app=devtron; kubectl delete pod -n devtroncd -l app=kubewatch
 ```
 Wait for 5 minutes and then trigger a new build again, if still not resolved then run the following commands one by one
-```
+```bash
 kubectl delete pod -n devtroncd devtron-nats-0
 kubectl delete pod -n devtroncd devtron-stan-0
 kubectl delete pod -n devtroncd -l app=devtron
@@ -156,11 +162,11 @@ In `Global Configurations` >> `Cluters & Environments`, if you try to update a c
 #### 9. Postgresql is in crashloop with error - Failed to pull image
     
 There may be some other pods also in crashloop as they are not able to connect to database. To resolve this issue, you can either [update devtron to latest version](https://docs.devtron.ai/devtron/setup/upgrade) or run the following commands to fix instantly on the same version you are using: 
-```
+```bash
 kubectl patch -n devtroncd statefulset postgresql-postgresql -p '{"spec":{"template":{"spec":{"initContainers":[{"name":"init-chmod-data","image":"quay.io/devtron/minideb:latest"}],"containers":[{"name":"postgresql-postgresql","image":"quay.io/devtron/postgres:11.3.0-debian-9-r28"}]}}}}'
 ```
 Then delete postgresql pod so that it can fetch the updated images:
-```
+```bash
 kubectl delete pod -n devtroncd postgresql-postgresql-0
 ```
 You can also delete other pods which are in crashloop after postgresql is up and running so that they can restart and connect to postgresql and Devtron will be up and running again in a few moments.
@@ -168,7 +174,7 @@ You can also delete other pods which are in crashloop after postgresql is up and
 #### 10. Unable to fetch the latest commit and not able to trigger auto build.
 
 To solve this, bounce the git-sensor-0 pod.
-```
+```bash
 kubectl delete pod -n devtroncd git-sensor-0
 ```
 #### 11. If you have restricted devtron-service to be accessible on certain IPs only and SSO login isn’t working
@@ -188,10 +194,10 @@ CPU metrics should start showing up in a while.
 #### 13. If user not able to upload a file more than specific size. 
 
 `Please use below annotation in ingress`
-```
+```bash
 nginx.ingress.kubernetes.io/proxy-body-size: 100m
 ```
-`Note:- `Where m is is MiB.
+`Note:- `Where m is MiB.
 
 #### 14. If AWS Load balancer controller is unable to provision ALB and getting message in alb controller as unauthorized, attach these IAM policy to  the nodegroup IAM Role.
 
@@ -216,7 +222,7 @@ ERROR: database `<db-name>` is being accessed by other users
 DETAIL: There is 1 other session using the database.
 
 You have to terminate the connections to the database first, for that you can use the command.
-```
+```bash
 SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'TARGET_DB';
 ```
 Then run the command to delete database - `drop databases <db-name>`
@@ -225,13 +231,15 @@ Then run the command to delete database - `drop databases <db-name>`
 
 `Debug`
 
-Run the command for Admin Credentials and use it for login in dashboard
+Run the command for admin credentials and use it for login in dashboard:
 
-`kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d`
+```bash
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+```
 
 If you are getting an error message of  “invalid username or password”, follow the solution to solve it.
 
-`Solution`
+`Solution:`
 
 Run `kubectl get secret -n devtroncd` and then edit the `argocd-secret`, remove both the admin.password lines.
 
@@ -256,7 +264,7 @@ The other way is to get the password in the encoded form using the cmd
 `Debug:`
 1. Make sure to [annotate and label](https://docs.devtron.ai/devtron/setup/upgrade/devtron-upgrade-0.3.x-0.4.x#3.-annotate-and-label-all-the-devtron-resources) all the Devtron resources.
 2. Description of error
-```bash
+```
 Error: UPGRADE FAILED: cannot patch "postgresql-postgresql" with kind StatefulSet: StatefulSet.apps "postgresql-postgresql" is invalid: spec: Forbidden: updates to statefulset spec for fields other than 'replicas', 'template', 'updateStrategy' and 'minReadySeconds' are forbidden
 ```
 `Solution:`

@@ -71,8 +71,6 @@ func (impl AppStoreDeploymentCommonServiceImpl) GetInstalledAppByInstalledAppId(
 	}
 	installedApp := &installedAppVersion.InstalledApp
 	return impl.convert(installedApp, installedAppVersion), nil
-
-	return nil, nil
 }
 
 //converts db object to bean

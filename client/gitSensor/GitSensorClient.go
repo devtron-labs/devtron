@@ -211,6 +211,7 @@ type GitSensorClient interface {
 	GetHeadForPipelineMaterials(req *HeadRequest) (material []*CiPipelineMaterial, err error)
 	FetchChanges(changeRequest *FetchScmChangesRequest) (materialChangeResp *MaterialChangeResp, err error)
 	GetCommitMetadata(commitMetadataRequest *CommitMetadataRequest) (*GitCommit, error)
+	GetCommitMetadataForPipelineMaterial(commitMetadataRequest *CommitMetadataRequest) (*GitCommit, error)
 
 	SaveGitProvider(provider *GitProvider) (providerRes *GitProvider, err error)
 	AddRepo(material []*GitMaterial) (materialRes []*GitMaterial, err error)
@@ -360,6 +361,12 @@ func (session GitSensorClientImpl) GetCommitMetadata(commitMetadataRequest *Comm
 	commit := new(GitCommit)
 	request := &ClientRequest{ResponseBody: commit, Method: "POST", RequestBody: commitMetadataRequest, Path: "commit-metadata"}
 	_, _, err := session.doRequest(request)
+	return commit, err
+}
+
+func (session GitSensorClientImpl) GetCommitMetadataForPipelineMaterial(commitMetadataRequest *CommitMetadataRequest) (commit *GitCommit, err error) {
+	request := &ClientRequest{ResponseBody: &commit, Method: "GET", RequestBody: commitMetadataRequest, Path: "pipeline-material-commit-metadata"}
+	_, _, err = session.doRequest(request)
 	return commit, err
 }
 

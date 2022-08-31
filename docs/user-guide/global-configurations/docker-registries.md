@@ -1,6 +1,8 @@
 # Container Registries
 
-The global configuration helps you add your `Container Registry`. In the container registry, you provide credentials of your registry, where your images will be stored. And this will be shown to you as a drop-down on `Docker Build Config` Page.
+Container registries are used to store images built by the CI Pipeline. Here you can configure the container registry you want to use for storing images.
+
+When configuring an application, you can choose which registry and repository it should use in the App Configuration > [Docker Build Config](../creating-application/deployment-template.md) section.
 
 ## Add Container Registry configuration:
 
