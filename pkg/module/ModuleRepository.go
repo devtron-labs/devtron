@@ -36,6 +36,7 @@ type ModuleRepository interface {
 	FindOne(name string) (*Module, error)
 	Update(module *Module) error
 	FindAll() ([]Module, error)
+	ModuleExists() (bool, error)
 }
 
 type ModuleRepositoryImpl struct {
@@ -66,4 +67,11 @@ func (impl ModuleRepositoryImpl) FindAll() ([]Module, error) {
 	err := impl.dbConnection.Model(&modules).
 		Select()
 	return modules, err
+}
+
+func (impl ModuleRepositoryImpl) ModuleExists() (bool, error) {
+	module := &Module{}
+	exists, err := impl.dbConnection.Model(module).
+		Exists()
+	return exists, err
 }

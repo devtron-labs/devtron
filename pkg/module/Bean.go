@@ -52,6 +52,7 @@ func ParseModuleEnvConfig() (*ModuleEnvConfig, error) {
 }
 
 type ModuleStatus = string
+type ModuleName = string
 
 const (
 	ModuleStatusNotInstalled  ModuleStatus = "notInstalled"
@@ -60,3 +61,5 @@ const (
 	ModuleStatusInstallFailed ModuleStatus = "installFailed"
 	ModuleStatusTimeout       ModuleStatus = "timeout"
 )
+
+var SupportedModuleNamesList = []string{"cicd", "argo-cd"}

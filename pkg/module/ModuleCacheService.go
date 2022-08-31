@@ -64,6 +64,28 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 		helmAppService:   helmAppService,
 	}
 
+	// DB migration - if server mode is not base stack and data in modules table is empty, then insert entries in DB
+	if !util2.IsBaseStack() {
+		exists, err := impl.moduleRepository.ModuleExists()
+		if err != nil {
+			log.Fatalln("Error while checking if any module exists in database.", "error", err)
+		}
+		if !exists {
+			for _, supportedModuleName := range SupportedModuleNamesList {
+				module := &Module{
+					Name:      supportedModuleName,
+					Version:   serverDataStore.CurrentVersion,
+					Status:    ModuleStatusInstalled,
+					UpdatedOn: time.Now(),
+				}
+				err = impl.moduleRepository.Save(module)
+				if err != nil {
+					log.Fatalln("Error while saving module.", "error", err)
+				}
+			}
+		}
+	}
+
 	// if devtron user type is OSS_HELM then only installer object and modules installation is useful
 	if serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeOssHelm {
 		// for base mode, installer crd won't come in picture
