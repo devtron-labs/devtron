@@ -19,7 +19,6 @@ package module
 
 import (
 	"context"
-	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/util"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
@@ -49,11 +48,10 @@ type ModuleCacheServiceImpl struct {
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	serverDataStore  *serverDataStore.ServerDataStore
 	moduleRepository ModuleRepository
-	helmAppService   client.HelmAppService
 }
 
 func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
-	serverDataStore *serverDataStore.ServerDataStore, moduleRepository ModuleRepository, helmAppService client.HelmAppService) *ModuleCacheServiceImpl {
+	serverDataStore *serverDataStore.ServerDataStore, moduleRepository ModuleRepository) *ModuleCacheServiceImpl {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
 		K8sUtil:          K8sUtil,
@@ -61,7 +59,6 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 		serverEnvConfig:  serverEnvConfig,
 		serverDataStore:  serverDataStore,
 		moduleRepository: moduleRepository,
-		helmAppService:   helmAppService,
 	}
 
 	// DB migration - if server mode is not base stack and data in modules table is empty, then insert entries in DB
@@ -88,54 +85,12 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 
 	// if devtron user type is OSS_HELM then only installer object and modules installation is useful
 	if serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeOssHelm {
-		// for base mode, installer crd won't come in picture
-		// for non-base mode, need to update modules to installed in db in found as installing
-		if !util2.IsBaseStack() {
-			// handle module status (logic for installed status)
-			impl.updateModuleStatusToInstalled()
-		}
-
 		// listen in installer object to save status in-memory
 		// build informer to listen on installer object
 		go impl.buildInformerToListenOnInstallerObject()
 	}
 
 	return impl
-}
-
-func (impl *ModuleCacheServiceImpl) updateModuleStatusToInstalled() {
-	impl.logger.Debug("updating module status to installed")
-	modules, err := impl.moduleRepository.FindAll()
-	if err != nil {
-		log.Fatalln("not able to get all the module from DB.", "error", err)
-	}
-
-	for _, module := range modules {
-		if module.Status != ModuleStatusInstalling {
-			continue
-		}
-		appIdentifier := client.AppIdentifier{
-			ClusterId:   1,
-			Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
-			ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
-		}
-		appDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), &appIdentifier)
-		if err != nil {
-			log.Fatalln("Error occurred while fetching helm application detail to check if module is installed", "moduleName", module.Name, "err", err)
-		}
-		if appDetail.ApplicationStatus == serverBean.AppHealthStatusHealthy {
-			impl.updateModuleToInstalled(module)
-		}
-	}
-}
-
-func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(module Module) {
-	module.Status = ModuleStatusInstalled
-	module.UpdatedOn = time.Now()
-	err := impl.moduleRepository.Update(&module)
-	if err != nil {
-		log.Fatalln("error in updating module status to installed", "name", module.Name, "err", err)
-	}
 }
 
 func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
