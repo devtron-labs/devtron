@@ -38,6 +38,9 @@ metadata:
 {{- if .Values.rolloutLabels }}
 {{ toYaml .Values.rolloutLabels | indent 4 }}
 {{- end }}
+{ { - if .Values.appLabels } }
+{ { toYaml .Values.appLabels | indent 4 } }
+{ { - end } }
 
 {{- if .Values.rolloutAnnotations }}
   annotations:
@@ -64,6 +67,9 @@ spec:
         appId: {{ $.Values.app | quote }}
         envId: {{ $.Values.env | quote }}
         release: {{ $.Release.Name }}
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 8 }}
+{{- end }}
 {{- if .Values.podLabels }}
 {{ toYaml .Values.podLabels | indent 8 }}
 {{- end }}

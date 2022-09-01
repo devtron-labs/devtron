@@ -8,6 +8,9 @@ metadata:
     envId: {{ $.Values.env | quote }}
     chart: {{ template ".Chart.Name .chart" . }}
     release: {{ .Release.Name }}
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+{{- end }}
 {{- if .Values.service.annotations }}
   annotations:
 {{ toYaml .Values.service.annotations | indent 4 }}
