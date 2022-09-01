@@ -1,19 +1,19 @@
 installer:
-  release: "v0.5.0"
+  release: "v0.5.1"
   image: "quay.io/devtron/inception"
   tag: "c62d4c30-185-9354"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:299b2d71-6-10208"
+    image: "quay.io/devtron/dashboard:113e83c5-325-10243"
   devtron:
     image: "quay.io/devtron/hyperion:e9175e98-282-10212"
     cicdImage: "quay.io/devtron/devtron:e9175e98-4-10210"
   argocdDexServer:
-    image: "quay.io/dexidp/dex:v2.25.0"
+    image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
       authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
-      cicdAuthenticator: "quay.io/argoproj/argocd:v1.8.1"
+      cicdAuthenticator: "quay.io/argoproj/argocd:v2.4.0"
   kubelink:
     image: "quay.io/devtron/kubelink:59a0df88-318-9226"
   postgres:
