@@ -69,10 +69,11 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *P
 	_, err := natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel, nats.Durable(consumerName), deliveryOption, nats.ManualAck(),
 		nats.BindStream(streamName))
 	if err != nil {
-		impl.Logger.Fatalw("error while subscribing", "stream", streamName, "topic", topic, "error", err)
+		impl.Logger.Fatalw("error while subscribing to nats ", "stream", streamName, "topic", topic, "error", err)
 		return err
 	}
 	go impl.startListeningForEvents(processingBatchSize, channel, callback)
+	impl.Logger.Infow("Successfully subscribed with Nats", "stream", streamName, "topic", topic, "queue", queueName, "consumer", consumerName)
 	return nil
 }
 
@@ -84,6 +85,7 @@ func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize 
 		go processMessages(wg, channel, callback)
 	}
 	wg.Wait()
+	impl.Logger.Warn("msgs received Done from Nats side, going to end listening!!")
 }
 
 func processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *PubSubMsg)) {
