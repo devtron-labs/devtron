@@ -63,7 +63,7 @@ spec:
       containers:
       - command:
         {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
-        - /shared/argocd-util
+        - /shared/argocd-dex
         {{- else }}
         - /shared/authenticator
         {{- end }}
@@ -83,11 +83,12 @@ spec:
         - cp
         - -n
         {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
-        - /usr/local/bin/argocd-util
+        - /usr/local/bin/argocd
+        - /shared/argocd-dex
         {{- else }}
         - /authenticator
-        {{- end }}
         - /shared
+        {{- end }}
         {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
         image: {{ .initContainer.cicdAuthenticator }}
         {{- else }}

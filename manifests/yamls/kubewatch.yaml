@@ -160,7 +160,7 @@ spec:
     spec:
       containers:
       - name: kubewatch
-        image: "quay.io/devtron/kubewatch:c37873d1-142-9475"
+        image: "quay.io/devtron/kubewatch:030ff714-370-10205"
         env:
         - name: devtroncd_NAMESPACE
           value: "devtron-ci"
@@ -170,6 +170,8 @@ spec:
           value: devtroncd
         - name: ACD_INFORMER
           value: "true"
+        - name: NATS_STREAM_MAX_AGE
+          value: "10800"
         imagePullPolicy: IfNotPresent
         volumeMounts:
         - name: kubewatch-config-map
