@@ -889,7 +889,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		configMapJson = nil
 	}
 
-	appLabelJsonByte, err := impl.appLabelService.GetLabelsByAppIdForGitops(overrideRequest.AppId)
+	appLabelJsonByte, err := impl.appLabelService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 		appLabelJsonByte = nil
