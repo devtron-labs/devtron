@@ -1,11 +1,11 @@
 installer:
-  release: "v0.5.1"
+  release: "v0.5.2"
   image: "quay.io/devtron/inception"
   tag: "c62d4c30-185-9354"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:113e83c5-325-10243"
+    image: "quay.io/devtron/dashboard:22b5e4e1-325-10252"
   devtron:
     image: "quay.io/devtron/hyperion:e9175e98-282-10212"
     cicdImage: "quay.io/devtron/devtron:e9175e98-4-10210"
