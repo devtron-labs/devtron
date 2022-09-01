@@ -85,7 +85,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
-	"github.com/devtron-labs/devtron/pkg/event"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
@@ -405,9 +404,6 @@ func InitializeApp() (*App, error) {
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 
-		repository.NewEventRepositoryImpl,
-		wire.Bind(new(repository.EventRepository), new(*repository.EventRepositoryImpl)),
-
 		app.NewDeploymentFailureHandlerImpl,
 		wire.Bind(new(app.DeploymentFailureHandler), new(*app.DeploymentFailureHandlerImpl)),
 		chartConfig.NewPipelineConfigRepository,
@@ -444,12 +440,6 @@ func InitializeApp() (*App, error) {
 
 		notifier.NewNotificationConfigBuilderImpl,
 		wire.Bind(new(notifier.NotificationConfigBuilder), new(*notifier.NotificationConfigBuilderImpl)),
-
-		pubsub.NewCronBasedEventReceiverImpl,
-		wire.Bind(new(pubsub.CronBasedEventReceiver), new(*pubsub.CronBasedEventReceiverImpl)),
-
-		event.NewEventServiceImpl,
-		wire.Bind(new(event.EventService), new(*event.EventServiceImpl)),
 
 		appStoreRestHandler.NewInstalledAppRestHandlerImpl,
 		wire.Bind(new(appStoreRestHandler.InstalledAppRestHandler), new(*appStoreRestHandler.InstalledAppRestHandlerImpl)),
@@ -731,8 +721,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
 		argo.GetDevtronSecretName,
 		//	AuthWireSet,
-		cron.NewHelmApplicationStatusUpdateHandlerImpl,
-		wire.Bind(new(cron.HelmApplicationStatusUpdateHandler), new(*cron.HelmApplicationStatusUpdateHandlerImpl)),
+		cron.GetAppStatusConfig,
+		cron.NewCdApplicationStatusUpdateHandlerImpl,
+		wire.Bind(new(cron.CdApplicationStatusUpdateHandler), new(*cron.CdApplicationStatusUpdateHandlerImpl)),
 
 		restHandler.NewPipelineStatusTimelineRestHandlerImpl,
 		wire.Bind(new(restHandler.PipelineStatusTimelineRestHandler), new(*restHandler.PipelineStatusTimelineRestHandlerImpl)),

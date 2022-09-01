@@ -202,8 +202,12 @@ func NewAppService(
 	return appServiceImpl
 }
 
-const WorkflowAborted = "Aborted"
-const WorkflowFailed = "Failed"
+const (
+	WorkflowAborted = "Aborted"
+	WorkflowFailed  = "Failed"
+	Success         = "SUCCESS"
+	Failure         = "FAILURE"
+)
 
 func (impl AppServiceImpl) getValuesFileForEnv(environmentId int) string {
 	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
@@ -1843,9 +1847,9 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 			UpdatedOn: triggeredAt,
 		}
 		if isSuccess {
-			deploymentStatus.Status = repository.Success
+			deploymentStatus.Status = Success
 		} else {
-			deploymentStatus.Status = repository.Failure
+			deploymentStatus.Status = Failure
 		}
 		dbConnection := impl.pipelineRepository.GetConnection()
 		tx, err := dbConnection.Begin()
