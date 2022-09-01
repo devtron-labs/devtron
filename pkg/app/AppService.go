@@ -202,8 +202,12 @@ func NewAppService(
 	return appServiceImpl
 }
 
-const WorkflowAborted = "Aborted"
-const WorkflowFailed = "Failed"
+const (
+	WorkflowAborted = "Aborted"
+	WorkflowFailed  = "Failed"
+	Success         = "SUCCESS"
+	Failure         = "FAILURE"
+)
 
 func (impl AppServiceImpl) getValuesFileForEnv(environmentId int) string {
 	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
@@ -392,6 +396,15 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		impl.logger.Errorw("error in finding cd wfr by workflowId and runnerType", "err", err)
 		return err
 	}
+	terminalStatusExists, err := impl.cdPipelineStatusTimelineRepo.CheckIfTerminalStatusTimelinePresentByWfrId(cdWfr.Id)
+	if err != nil {
+		impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", err, "wfrId", cdWfr.Id)
+		return err
+	}
+	if terminalStatusExists {
+		impl.logger.Infow("terminal status timeline exists for cdWfr, skipping more timeline changes", "wfrId", cdWfr.Id)
+		return nil
+	}
 	// creating cd pipeline status timeline
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: cdWfr.Id,
@@ -451,7 +464,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			if currrentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
 				haveNewTimeline := false
 				timeline.Id = 0
-
 				if newApp.Status.Health.Status == health.HealthStatusHealthy {
 					impl.logger.Infow("updating pipeline status timeline for healthy app", "newApp", newApp, "APP_TO_UPDATE", newApp.Name)
 					haveNewTimeline = true
@@ -463,9 +475,10 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 					timeline.StatusDetail = "App status is Degraded."
 				}
 				if haveNewTimeline {
-					_, err = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
+					//not checking if this status is already present or not because already checked for terminal status existence earlier
+					err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 					if err != nil {
-						impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
+						impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
 						return err
 					}
 					impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "data", string(b), "status", timeline.Status)
@@ -473,7 +486,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			}
 		}
 	}
-
 	return nil
 }
 
@@ -492,6 +504,7 @@ func (impl *AppServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(cdWork
 	}
 	return latestTimeline, nil
 }
+
 func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
 	event := impl.eventFactory.Build(util.Success, &override.PipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
@@ -753,28 +766,53 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		}
 
 		userUploaded = chartData.UserUploaded
+		var gitCommitStatus pipelineConfig.TimelineStatus
+		var gitCommitStatusDetail string
 		err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
+			gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
+			gitCommitStatusDetail = fmt.Sprintf("Git commit failed - %v", err)
+			// creating cd pipeline status timeline for git commit
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				CdWorkflowRunnerId: wfrId,
+				Status:             gitCommitStatus,
+				StatusDetail:       gitCommitStatusDetail,
+				StatusTime:         time.Now(),
+				AuditLog: sql.AuditLog{
+					CreatedBy: overrideRequest.UserId,
+					CreatedOn: time.Now(),
+					UpdatedBy: overrideRequest.UserId,
+					UpdatedOn: time.Now(),
+				},
+			}
+			timelineErr := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+			if timelineErr != nil {
+				impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
+			}
 			return 0, err
+		} else {
+			gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
+			gitCommitStatusDetail = "Git commit done successfully."
+			// creating cd pipeline status timeline for git commit
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				CdWorkflowRunnerId: wfrId,
+				Status:             gitCommitStatus,
+				StatusDetail:       gitCommitStatusDetail,
+				StatusTime:         time.Now(),
+				AuditLog: sql.AuditLog{
+					CreatedBy: overrideRequest.UserId,
+					CreatedOn: time.Now(),
+					UpdatedBy: overrideRequest.UserId,
+					UpdatedOn: time.Now(),
+				},
+			}
+			err := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+			if err != nil {
+				impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
+			}
 		}
-		// creating cd pipeline status timeline for git commit
-		timeline := &pipelineConfig.PipelineStatusTimeline{
-			CdWorkflowRunnerId: wfrId,
-			Status:             pipelineConfig.TIMELINE_STATUS_GIT_COMMIT,
-			StatusDetail:       "Git commit done successfully.",
-			StatusTime:         time.Now(),
-			AuditLog: sql.AuditLog{
-				CreatedBy: overrideRequest.UserId,
-				CreatedOn: time.Now(),
-				UpdatedBy: overrideRequest.UserId,
-				UpdatedOn: time.Now(),
-			},
-		}
-		err := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
-		if err != nil {
-			impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
-		}
+
 		// ACD app creation STARTS HERE, it will use existing if already created
 		impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
 		name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride, pipeline, deployedBy)
@@ -1809,9 +1847,9 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 			UpdatedOn: triggeredAt,
 		}
 		if isSuccess {
-			deploymentStatus.Status = repository.Success
+			deploymentStatus.Status = Success
 		} else {
-			deploymentStatus.Status = repository.Failure
+			deploymentStatus.Status = Failure
 		}
 		dbConnection := impl.pipelineRepository.GetConnection()
 		tx, err := dbConnection.Begin()
