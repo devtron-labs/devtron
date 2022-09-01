@@ -373,8 +373,8 @@ func (impl ChartRefRepositoryImpl) FindById(id int) (*ChartRef, error) {
 
 func (impl ChartRefRepositoryImpl) GetAll() ([]*ChartRef, error) {
 	var chartRefs []*ChartRef
-	query := "select id, version from chart_Ref where active = ? ORDER  BY string_to_array(version, '.')::int[] desc;"
-	_, err := impl.dbConnection.Query(&chartRefs, query, true)
+	err := impl.dbConnection.Model(&chartRefs).
+		Where("active = ?", true).Select()
 	return chartRefs, err
 }
 
