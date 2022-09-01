@@ -101,7 +101,7 @@ func (repositoryImpl ChartRepositoryImpl) FindCurrentChartVersion(chartRepo, cha
 	return chart.ChartVersion, err
 }
 
-//Deprecated
+// Deprecated
 func (repositoryImpl ChartRepositoryImpl) FindActiveChart(appId int) (chart *Chart, err error) {
 	chart = &Chart{}
 	err = repositoryImpl.dbConnection.
@@ -112,7 +112,7 @@ func (repositoryImpl ChartRepositoryImpl) FindActiveChart(appId int) (chart *Cha
 	return chart, err
 }
 
-//Deprecated
+// Deprecated
 func (repositoryImpl ChartRepositoryImpl) FindLatestByAppId(appId int) (chart *Chart, err error) {
 	chart = &Chart{}
 	err = repositoryImpl.dbConnection.
@@ -374,7 +374,8 @@ func (impl ChartRefRepositoryImpl) FindById(id int) (*ChartRef, error) {
 func (impl ChartRefRepositoryImpl) GetAll() ([]*ChartRef, error) {
 	var chartRefs []*ChartRef
 	err := impl.dbConnection.Model(&chartRefs).
-		Where("active = ?", true).Select()
+		Where("active = ?", true).
+		Order("string_to_array(version, '.')::int[] desc").Select()
 	return chartRefs, err
 }
 
