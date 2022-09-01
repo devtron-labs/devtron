@@ -41,7 +41,7 @@ type UserService interface {
 	UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(token string, object string) bool) (*bean.UserInfo, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
-
+	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailFromToken(token string) (string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
 	GetByIds(ids []int32) ([]bean.UserInfo, error)
@@ -749,6 +749,19 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 		return nil, err
 	}
 
+	isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(model)
+	response := &bean.UserInfo{
+		Id:          model.Id,
+		EmailId:     model.EmailId,
+		RoleFilters: roleFilters,
+		Groups:      filterGroups,
+		SuperAdmin:  isSuperAdmin,
+	}
+
+	return response, nil
+}
+
+func (impl UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool, []bean.RoleFilter, []string) {
 	roles, err := impl.userAuthRepository.GetRolesByUserId(model.Id)
 	if err != nil {
 		impl.logger.Debugw("No Roles Found for user", "id", model.Id)
@@ -827,15 +840,7 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
-	response := &bean.UserInfo{
-		Id:          model.Id,
-		EmailId:     model.EmailId,
-		RoleFilters: roleFilters,
-		Groups:      filterGroups,
-		SuperAdmin:  isSuperAdmin,
-	}
-
-	return response, nil
+	return isSuperAdmin, roleFilters, filterGroups
 }
 
 // GetAll excluding API token user
@@ -852,6 +857,29 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 			EmailId:     m.EmailId,
 			RoleFilters: make([]bean.RoleFilter, 0),
 			Groups:      make([]string, 0),
+		})
+	}
+	if len(response) == 0 {
+		response = make([]bean.UserInfo, 0)
+	}
+	return response, nil
+}
+
+func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
+	models, err := impl.userRepository.GetAllExcludingApiTokenUser()
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	var response []bean.UserInfo
+	for _, model := range models {
+		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		response = append(response, bean.UserInfo{
+			Id:          model.Id,
+			EmailId:     model.EmailId,
+			RoleFilters: roleFilters,
+			Groups:      filterGroups,
+			SuperAdmin:  isSuperAdmin,
 		})
 	}
 	if len(response) == 0 {
