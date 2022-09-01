@@ -62,10 +62,10 @@ func NewApp(router *router.MuxRouter,
 	sessionManager2 *authMiddleware.SessionManager,
 ) *App {
 	//check argo connection
-	err := versionService.CheckVersion()
+	/*err := versionService.CheckVersion()
 	if err != nil {
 		log.Panic(err)
-	}
+	}*/
 	app := &App{
 		MuxRouter:       router,
 		Logger:          Logger,

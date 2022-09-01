@@ -115,7 +115,8 @@ func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *h
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		token := r.Header.Get("token")
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 		if err != nil {
 			handler.logger.Errorw("error in getting acd token", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

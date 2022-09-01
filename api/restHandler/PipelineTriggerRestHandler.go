@@ -112,7 +112,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 		return
 	}
 	//rback block ends here
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 	if err != nil {
 		handler.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -164,7 +164,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopApp(w http.ResponseWriter
 		return
 	}
 	//rback block ends here
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 	if err != nil {
 		handler.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -225,7 +225,7 @@ func (handler PipelineTriggerRestHandlerImpl) StartStopDeploymentGroup(w http.Re
 		return
 	}
 	//rback block ends here
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 	if err != nil {
 		handler.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

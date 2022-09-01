@@ -123,7 +123,7 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
 	} else {
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 		if err != nil {
 			impl.logger.Errorw("error in getting acd token", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -261,7 +261,7 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
 	} else {
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 		if err != nil {
 			impl.logger.Errorw("error in getting acd token", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

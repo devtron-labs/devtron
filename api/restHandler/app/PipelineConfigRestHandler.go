@@ -267,7 +267,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 			}(ctx.Done(), cn.CloseNotify())
 		}
 		var acdToken string
-		acdToken, err = handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		acdToken, err = handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 		if err != nil {
 			handler.Logger.Errorw("error in getting acd token", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

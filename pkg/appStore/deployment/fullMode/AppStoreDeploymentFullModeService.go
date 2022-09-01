@@ -319,7 +319,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 
 func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(appName string, environmentName string) (string, error) {
 	gitOpsRepoName := ""
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	//this method should only call in case of argo-integration and gitops configured
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken("EMPTY-TOKEN")
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		return "", err

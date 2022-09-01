@@ -209,8 +209,9 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDe
 }
 
 func (impl *CdHandlerImpl) GetAppStatusByResourceTreeFetchFromArgo(appName string) (timelineStatus pipelineConfig.TimelineStatus, appStatus, statusMessage string) {
+	//this should only be called when we have git-ops configured
 	//try fetching status from argo cd
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken("EMPTY-TOKEN")
 	if err != nil {
 		impl.Logger.Errorw("error in getting acd token", "err", err)
 	}

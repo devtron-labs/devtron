@@ -591,7 +591,8 @@ func (impl AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, ar
 }
 
 func (impl AppServiceImpl) buildACDContext() (acdContext context.Context, err error) {
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+	//this method should only call in case of argo-integration and gitops configured
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken("EMPTY-TOKEN")
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		return nil, err

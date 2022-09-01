@@ -123,7 +123,7 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 	if err != nil {
 		handler.Logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -188,7 +188,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		}
 	}
 	//RBAC
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 	if err != nil {
 		handler.Logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -263,7 +263,7 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 	if err != nil {
 		handler.Logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -340,7 +340,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 					}
 				}(ctx.Done(), cn.CloseNotify())
 			}
-			acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+			acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 			if err != nil {
 				handler.Logger.Errorw("error in getting acd token", "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -1754,7 +1754,7 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 	if err != nil {
 		handler.Logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

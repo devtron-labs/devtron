@@ -421,19 +421,19 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 }
 func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	ctx := context.Background()
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return nil, err
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
 	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
 	if err != nil {
 		return nil, err
 	}
-
 	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
-		_, err := impl.performDeployStageOnAcd(installedAppVersion, ctx, userId)
+		//this method should only call in case of argo-integration installed and git-ops has configured
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken("EMPTY-TOKEN")
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			return nil, err
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+		_, err = impl.performDeployStageOnAcd(installedAppVersion, ctx, userId)
 		if err != nil {
 			impl.logger.Errorw("error", "err", err)
 			return nil, err

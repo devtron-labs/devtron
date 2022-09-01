@@ -105,7 +105,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvD
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 		if err != nil {
 			impl.Logger.Errorw("error in getting acd token", "err", err)
 			return "", err

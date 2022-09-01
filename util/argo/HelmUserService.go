@@ -16,6 +16,6 @@ func NewHelmUserServiceImpl(Logger *zap.SugaredLogger) (*HelmUserServiceImpl, er
 	return helmUserServiceImpl, nil
 }
 
-func (impl *HelmUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, error) {
+func (impl *HelmUserServiceImpl) GetLatestDevtronArgoCdUserToken(headerToken string) (string, error) {
 	return "", errors.New("method GetLatestDevtronArgoCdUserToken not implemented")
 }

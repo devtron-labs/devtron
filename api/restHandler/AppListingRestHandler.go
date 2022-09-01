@@ -354,7 +354,7 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 	if err != nil {
 		handler.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -580,7 +580,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			}(ctx.Done(), cn.CloseNotify())
 		}
 		defer cancel()
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
 		if err != nil {
 			handler.logger.Errorw("error in getting acd token", "err", err)
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
