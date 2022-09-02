@@ -195,8 +195,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken(headerToken str
 		isGitOpsConfigured = true
 	}
 	if !isGitOpsConfigured {
-		//TODO FIX - CHECK INTEGRATION AVAILABLE OR NOT
-		if headerToken == "EMPTY-TOKEN" {
+		if len(headerToken) == 0 {
 			return "", fmt.Errorf("no token provided for deployment")
 		}
 		return headerToken, nil

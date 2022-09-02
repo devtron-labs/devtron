@@ -427,7 +427,7 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 	}
 	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
 		//this method should only call in case of argo-integration installed and git-ops has configured
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken("EMPTY-TOKEN")
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken("")
 		if err != nil {
 			impl.logger.Errorw("error in getting acd token", "err", err)
 			return nil, err
