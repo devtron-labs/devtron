@@ -23,6 +23,7 @@ import (
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
+	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -48,10 +49,11 @@ type ModuleCacheServiceImpl struct {
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	serverDataStore  *serverDataStore.ServerDataStore
 	moduleRepository ModuleRepository
+	teamService      team.TeamService
 }
 
 func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
-	serverDataStore *serverDataStore.ServerDataStore, moduleRepository ModuleRepository) *ModuleCacheServiceImpl {
+	serverDataStore *serverDataStore.ServerDataStore, moduleRepository ModuleRepository, teamService team.TeamService) *ModuleCacheServiceImpl {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
 		K8sUtil:          K8sUtil,
@@ -59,6 +61,7 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 		serverEnvConfig:  serverEnvConfig,
 		serverDataStore:  serverDataStore,
 		moduleRepository: moduleRepository,
+		teamService:      teamService,
 	}
 
 	// DB migration - if server mode is not base stack and data in modules table is empty, then insert entries in DB
@@ -68,16 +71,19 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 			log.Fatalln("Error while checking if any module exists in database.", "error", err)
 		}
 		if !exists {
-			for _, supportedModuleName := range SupportedModuleNamesList {
-				module := &Module{
-					Name:      supportedModuleName,
-					Version:   serverDataStore.CurrentVersion,
-					Status:    ModuleStatusInstalled,
-					UpdatedOn: time.Now(),
-				}
-				err = impl.moduleRepository.Save(module)
-				if err != nil {
-					log.Fatalln("Error while saving module.", "error", err)
+			// insert cicd module entry
+			impl.updateModuleToInstalled(ModuleNameCicd)
+
+			// if old installation (i.e. project was created more than 1 hour ago then insert rest entries)
+			teamId := 1
+			team, err := teamService.FetchOne(teamId)
+			if err != nil {
+				log.Fatalln("Error while getting team.", "teamId", teamId, "err", err)
+			}
+
+			if time.Now().After(team.CreatedOn.Add(1 * time.Hour)) {
+				for _, supportedModuleName := range SupportedModuleNamesListExcludingCicd {
+					impl.updateModuleToInstalled(supportedModuleName)
 				}
 			}
 		}
@@ -91,6 +97,19 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 	}
 
 	return impl
+}
+
+func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) {
+	module := &Module{
+		Name:      moduleName,
+		Version:   impl.serverDataStore.CurrentVersion,
+		Status:    ModuleStatusInstalled,
+		UpdatedOn: time.Now(),
+	}
+	err := impl.moduleRepository.Save(module)
+	if err != nil {
+		log.Fatalln("Error while saving module.", "moduleName", moduleName, "error", err)
+	}
 }
 
 func (impl *ModuleCacheServiceImpl) buildInformerToListenOnInstallerObject() {
