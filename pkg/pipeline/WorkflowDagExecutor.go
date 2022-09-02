@@ -559,10 +559,17 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 
 	var stageYaml string
+	var deployStageWfr pipelineConfig.CdWorkflowRunner
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 		stageYaml = cdPipeline.PreStageConfig
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 		stageYaml = cdPipeline.PostStageConfig
+		//getting deployment pipeline latest wfr by pipelineId
+		deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(cdPipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil {
+			impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", cdPipeline.Id)
+			return nil, err
+		}
 	} else {
 		return nil, fmt.Errorf("unsupported workflow triggerd")
 	}
@@ -590,6 +597,8 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		SecretKey:             ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
 		DockerRegistryType:    string(ciPipeline.CiTemplate.DockerRegistry.RegistryType),
 		DockerRegistryURL:     ciPipeline.CiTemplate.DockerRegistry.RegistryURL,
+		DeploymentTriggeredAt: deployStageWfr.StartedOn,
+		DeploymentTriggeredBy: deployStageWfr.DeploymentTriggeredBy,
 		CiArtifactDTO: CiArtifactDTO{
 			Id:           artifact.Id,
 			PipelineId:   artifact.PipelineId,
