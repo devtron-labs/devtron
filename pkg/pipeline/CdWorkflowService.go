@@ -95,8 +95,8 @@ type CdWorkflowRequest struct {
 	MinioEndpoint              string             `json:"minioEndpoint"`
 	DefaultAddressPoolBaseCidr string             `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                `json:"defaultAddressPoolSize"`
-	DeploymentTriggeredBy      string             `json:"deploymentTriggeredBy"`
-	DeploymentTriggeredAt      time.Time          `json:"deploymentTriggeredAt"`
+	DeploymentTriggeredBy      string             `json:"deploymentTriggeredBy,omitempty"`
+	DeploymentTriggeredAt      time.Time          `json:"deploymentTriggeredAt,omitempty"`
 }
 
 const PRE = "PRE"
