@@ -15,6 +15,7 @@ metadata:
 data:
   PG_ADDR: postgresql-postgresql.devtroncd
   PG_USER: postgres
+  COMMIT_STATS_TIMEOUT_IN_SEC: "2"
 ---
 # Source: gitsensor/templates/generic.yaml
 apiVersion: v1
@@ -54,7 +55,7 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: git-sensor
-          image: "quay.io/devtron/git-sensor:61790451-200-9474"
+          image: "quay.io/devtron/git-sensor:56168e03-200-10139"
           ports:
             - containerPort: 8080
               name: sensor

@@ -19,7 +19,7 @@ spec:
     spec:
       containers:
       - name: postgresql-migrate-devtron
-        image: quay.io/devtron/migrator:6687f572-133-2208
+        image: quay.io/devtron/migrator:9c933d29-149-10140
         env:
         - name: GIT_BRANCH
           value: main
@@ -40,7 +40,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 5bfdc97d4dabe5680338f96578fd876ad11bb57c
+          value: 588ebc7d5408069e994b239dfba2553fc283a91f
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -62,7 +62,7 @@ spec:
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
       initContainers:
       - name: postgresql-migrate-casbin
-        image: quay.io/devtron/migrator:6687f572-133-2208
+        image: quay.io/devtron/migrator:9c933d29-149-10140
         env:
         - name: SCRIPT_LOCATION
           value: scripts/casbin/
@@ -81,7 +81,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: 5bfdc97d4dabe5680338f96578fd876ad11bb57c
+          value: 588ebc7d5408069e994b239dfba2553fc283a91f
         - name: GIT_BRANCH
           value: main
         envFrom:
@@ -104,7 +104,7 @@ spec:
     spec:
       containers:
       - name: postgresql-migrate-gitsensor
-        image: quay.io/devtron/migrator:6687f572-133-2208
+        image: quay.io/devtron/migrator:9c933d29-149-10140
         env:
         - name: SCRIPT_LOCATION
           value: scripts/sql/
@@ -125,7 +125,7 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: 61790451e56a53ca5562681f6a659261eded6e88
+          value: 56168e03a472401fb4f8cda8f9a5664708409c55
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -142,7 +142,7 @@ spec:
     spec:
       containers:
       - name: postgresql-migrate-lens
-        image: quay.io/devtron/migrator:6687f572-133-2208
+        image: quay.io/devtron/migrator:9c933d29-149-10140
         env:
         - name: SCRIPT_LOCATION
           value: scripts/sql/
@@ -163,7 +163,7 @@ spec:
         - name: GIT_BRANCH
           value: main
         - name: GIT_HASH
-          value: 67e645874c0502167f889650f8e4ccbdaea1383e
+          value: c20fad054db2de04547cce65dbb74ccb61bfd76f
         envFrom:
           - secretRef:
               name: postgresql-migrator
@@ -220,7 +220,7 @@ spec:
         spec:
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:1227622d-132-3775
+            image: quay.io/devtron/chart-sync:57e17953-373-10147
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd

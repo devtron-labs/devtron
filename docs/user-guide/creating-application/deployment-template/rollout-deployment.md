@@ -21,7 +21,7 @@ One can see multiple chart version options available in the drop-down. you can s
 
 Every chart version has its own YAML file. Helm charts are used to provide specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
 
-If you want to see [Application Metrics](deployment-template.md#3.-Show-application-metrics) \(For example Status codes 2xx, 3xx, 5xx; throughput, and latency\) for your application, then you need to select the latest chart version.
+If you want to see [Application Metrics](rollout-deployment.md#3.-Show-application-metrics) (For example Status codes 2xx, 3xx, 5xx; throughput, and latency) for your application, then you need to select the latest chart version.
 
 Application Metrics is not supported for Chart version older than 3.7 version.
 
@@ -724,7 +724,7 @@ If you want to see application metrics like different HTTP status codes metrics,
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/application-metrics.jpg)
 
-Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](workflow/) to do CI/CD.
+Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](../workflow/README.md) to do CI/CD.
 
 ### Helm Chart Json Schema Table
 
@@ -732,10 +732,10 @@ Helm Chart json schema is used to validate the deployment template values.
 
 | Chart Version | Link |
 | :--- | :--- |
-| `reference-chart_3-12-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-12-0/schema.json) |
-| `reference-chart_3-11-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-11-0/schema.json) |
-| `reference-chart_3-10-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-10-0/schema.json) |
-| `reference-chart_3-9-0` | [Json Schema](../../../scripts/devtron-reference-helm-charts/reference-chart_3-9-0/schema.json) |
+| `reference-chart_3-12-0` | [Json Schema](https://github.com/devtron-labs/devtron/blob/main/scripts/devtron-reference-helm-charts/reference-chart_3-12-0/schema.json) |
+| `reference-chart_3-11-0` | [Json Schema](https://github.com/devtron-labs/devtron/blob/main/scripts/devtron-reference-helm-charts/reference-chart_3-11-0/schema.json) |
+| `reference-chart_3-10-0` | [Json Schema](https://github.com/devtron-labs/devtron/blob/main/scripts/devtron-reference-helm-charts/reference-chart_3-10-0/schema.json) |
+| `reference-chart_3-9-0` | [Json Schema](https://github.com/devtron-labs/devtron/blob/main/scripts/devtron-reference-helm-charts/reference-chart_3-9-0/schema.json) |
 
 
 ### Other Validations in Json Schema

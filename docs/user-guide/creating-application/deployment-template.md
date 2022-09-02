@@ -1,5 +1,7 @@
 # Devtron Charts
 
+**Make sure Global Configuration > GitOps is configured before moving ahead.**
+
 A deployment configuration is a manifest for the application. It defines the runtime behavior of the application.
 
 Devtron includes deployment template for both default as well as custom charts created by a super admin.
