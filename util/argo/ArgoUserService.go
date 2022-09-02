@@ -195,9 +195,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken(headerToken str
 		isGitOpsConfigured = true
 	}
 	if !isGitOpsConfigured {
-		if len(headerToken) == 0 {
-			return "", fmt.Errorf("no token provided for deployment")
-		}
+		//here if request comes for helm app than will send empty token, no acd token required for helm operations
 		return headerToken, nil
 	}
 
