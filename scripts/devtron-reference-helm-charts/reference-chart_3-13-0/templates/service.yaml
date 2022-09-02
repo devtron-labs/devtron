@@ -1,0 +1,74 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template ".servicename" . }}
+  labels:
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+{{- end }}
+{{- if .Values.service.annotations }}
+  annotations:
+{{ toYaml .Values.service.annotations | indent 4 }}
+{{- end}}
+spec:
+  type: {{ .Values.service.type | default "ClusterIP" }}
+{{- if (and (eq .Values.service.type "LoadBalancer") .Values.service.loadBalancerSourceRanges )}}
+  loadBalancerSourceRanges: 
+ {{- range .Values.service.loadBalancerSourceRanges }}
+  - {{ . }}
+ {{- end }}
+{{- end }}
+  ports:
+    {{- range .Values.ContainerPort }}
+      {{- if .servicePort }}
+    - port: {{ .servicePort }}
+      {{- else }}
+    - port: {{ .port }}
+       {{- end }}
+      targetPort: {{ .name }}
+      protocol: TCP
+      name: {{ .name }}
+    {{- end }}
+      {{- if $.Values.appMetrics }}
+    - port: 9901
+      name: envoy-admin
+      {{- end }}
+  selector:
+    app: {{ template ".Chart.Name .name" . }}
+{{- if eq .Values.deploymentType "BLUE-GREEN" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ template ".previewservicename" . }}
+  labels:
+    app: {{ template ".Chart.Name .name" . }}
+    appId: {{ $.Values.app | quote }}
+    envId: {{ $.Values.env | quote }}
+    chart: {{ template ".Chart.Name .chart" . }}
+    release: {{ .Release.Name }}
+spec:
+  type: ClusterIP
+  ports:
+    {{- range .Values.ContainerPort }}
+      {{- if .servicePort }}
+      - port: {{ .servicePort }}
+        {{- else }}
+      - port: {{ .port }}
+        {{- end }}
+        targetPort: {{ .name }}
+        protocol: TCP
+        name: {{ .name }}
+      {{- end }}
+      {{- if $.Values.appMetrics }}
+      - port: 9901
+        name: envoy-admin
+      {{- end }}
+  selector:
+    app: {{ template ".Chart.Name .name" . }}
+{{- end }}
