@@ -20,6 +20,7 @@ package cluster
 import (
 	"encoding/json"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -275,29 +276,31 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	dbElapsedTime := time.Since(start)
 
 	token := r.Header.Get("token")
-	emailId, _ := impl.userService.GetEmailFromToken(token)
-	// RBAC enforcer applying
-	var grantedEnvironment []request.EnvironmentBean
+	ignoreAuthCheck := os.Getenv("IGNORE_AUTOCOMPLETE_AUTH_CHECK")
+	ignoreAuthCheckValue, _ := strconv.ParseBool(ignoreAuthCheck)
+	var grantedEnvironment = environments
 	start = time.Now()
-	var envIdentifierList []string
-	for _, item := range environments {
-		envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
-	}
-
-	result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
-
-	for _, item := range environments {
-		if hasAccess := result[strings.ToLower(item.EnvironmentIdentifier)]; hasAccess {
-			grantedEnvironment = append(grantedEnvironment, item)
+	if !ignoreAuthCheckValue {
+		grantedEnvironment = make([]request.EnvironmentBean, 0)
+		emailId, _ := impl.userService.GetEmailFromToken(token)
+		// RBAC enforcer applying
+		var envIdentifierList []string
+		for _, item := range environments {
+			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
 		}
+
+		result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+		for _, item := range environments {
+			if hasAccess := result[strings.ToLower(item.EnvironmentIdentifier)]; hasAccess {
+				grantedEnvironment = append(grantedEnvironment, item)
+			}
+		}
+		//RBAC enforcer Ends
 	}
 	elapsedTime := time.Since(start)
 	impl.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
 		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
-	//RBAC enforcer Ends
-	if len(grantedEnvironment) == 0 {
-		grantedEnvironment = make([]request.EnvironmentBean, 0)
-	}
+
 	common.WriteJsonResp(w, err, grantedEnvironment, http.StatusOK)
 }
 
