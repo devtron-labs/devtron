@@ -29,6 +29,7 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -245,29 +246,31 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 		return
 	}
 	dbElapsedTime := time.Since(start)
+	ignoreAuthCheck := os.Getenv("IGNORE_AUTOCOMPLETE_AUTH_CHECK")
+	ignoreAuthCheckValue, _ := strconv.ParseBool(ignoreAuthCheck)
 	token := r.Header.Get("token")
-	emailId, _ := impl.userService.GetEmailFromToken(token)
+	var grantedTeams = teams
 	start = time.Now()
-	// RBAC enforcer applying
-	var teamNameList []string
-	for _, item := range teams {
-		teamNameList = append(teamNameList, strings.ToLower(item.Name))
-	}
+	if !ignoreAuthCheckValue {
+		grantedTeams = make([]team.TeamRequest, 0)
+		emailId, _ := impl.userService.GetEmailFromToken(token)
+		// RBAC enforcer applying
+		var teamNameList []string
+		for _, item := range teams {
+			teamNameList = append(teamNameList, strings.ToLower(item.Name))
+		}
 
-	result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
+		result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
 
-	var grantedTeams []team.TeamRequest
-	for _, item := range teams {
-		if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {
-			grantedTeams = append(grantedTeams, item)
+		for _, item := range teams {
+			if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {
+				grantedTeams = append(grantedTeams, item)
+			}
 		}
 	}
 	impl.logger.Infow("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
 		"token", token, "envSize", len(grantedTeams))
 
 	//RBAC enforcer Ends
-	if len(grantedTeams) == 0 {
-		grantedTeams = make([]team.TeamRequest, 0)
-	}
 	common.WriteJsonResp(w, err, grantedTeams, http.StatusOK)
 }
