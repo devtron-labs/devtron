@@ -111,6 +111,7 @@ type AppServiceImpl struct {
 	chartService                     chart.ChartService
 	argoUserService                  argo.ArgoUserService
 	cdPipelineStatusTimelineRepo     pipelineConfig.PipelineStatusTimelineRepository
+	appLabelService                  AppLabelService
 }
 
 type AppService interface {
@@ -155,7 +156,8 @@ func NewAppService(
 	chartRefRepository chartRepoRepository.ChartRefRepository,
 	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
-	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository) *AppServiceImpl {
+	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
+	appLabelService AppLabelService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -198,6 +200,7 @@ func NewAppService(
 		helmAppClient:                    helmAppClient,
 		argoUserService:                  argoUserService,
 		cdPipelineStatusTimelineRepo:     cdPipelineStatusTimelineRepo,
+		appLabelService:                  appLabelService,
 	}
 	return appServiceImpl
 }
@@ -886,7 +889,12 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		configMapJson = nil
 	}
 
-	releaseId, pipelineOverrideId, mergeAndSave, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, strategy, ctx, triggeredAt, deployedBy)
+	appLabelJsonByte, err := impl.appLabelService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
+		appLabelJsonByte = nil
+	}
+	releaseId, pipelineOverrideId, mergeAndSave, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, appLabelJsonByte, strategy, ctx, triggeredAt, deployedBy)
 	if releaseId != 0 {
 		//updating the acd app with updated values and sync operation
 		if pipeline.DeploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD {
@@ -1419,7 +1427,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	overrideRequest *bean.ValuesOverrideRequest,
 	dbMigrationOverride []byte,
 	artifact *repository.CiArtifact,
-	pipeline *pipelineConfig.Pipeline, configMapJson []byte, strategy *chartConfig.PipelineStrategy, ctx context.Context,
+	pipeline *pipelineConfig.Pipeline, configMapJson, appLabelJsonByte []byte, strategy *chartConfig.PipelineStrategy, ctx context.Context,
 	triggeredAt time.Time, deployedBy int32) (releaseId int, overrideId int, mergedValues string, err error) {
 
 	//register release , obtain release id TODO: populate releaseId to template
@@ -1472,13 +1480,20 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		}
 	}
 
+	if appLabelJsonByte != nil {
+		merged, err = impl.mergeUtil.JsonPatch(merged, appLabelJsonByte)
+		if err != nil {
+			return 0, 0, "", err
+		}
+	}
+
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
 
 	commitHash := ""
 	if pipeline.DeploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD {
 		chartRepoName := impl.GetChartRepoName(envOverride.Chart.GitRepoUrl)
-		//getting user name & emailId for commit author data
+		//getting username & emailId for commit author data
 		userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)
 		chartGitAttr := &ChartConfig{
 			FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),

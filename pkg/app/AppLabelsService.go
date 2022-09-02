@@ -18,6 +18,7 @@
 package app
 
 import (
+	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -34,6 +35,7 @@ type AppLabelService interface {
 	FindById(id int) (*bean.AppLabelDto, error)
 	FindAll() ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error)
+	GetLabelsByAppIdForDeployment(appId int) ([]byte, error)
 }
 type AppLabelServiceImpl struct {
 	logger             *zap.SugaredLogger
@@ -225,4 +227,23 @@ func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto,
 		Active:      app.Active,
 	}
 	return info, nil
+}
+func (impl AppLabelServiceImpl) GetLabelsByAppIdForDeployment(appId int) ([]byte, error) {
+	appLabelJson := &bean.AppLabelsJsonForDeployment{}
+	labels, err := impl.appLabelRepository.FindAllByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting app labels by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	labelsDto := make(map[string]string)
+	for _, label := range labels {
+		labelsDto[label.Key] = label.Value
+	}
+	appLabelJson.Labels = labelsDto
+	appLabelByte, err := json.Marshal(appLabelJson)
+	if err != nil {
+		impl.logger.Errorw("error in marshaling appLabels json", "err", err, "appLabelJson", appLabelJson)
+		return nil, err
+	}
+	return appLabelByte, nil
 }
