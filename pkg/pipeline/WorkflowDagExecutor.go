@@ -560,6 +560,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 
 	var stageYaml string
 	var deployStageWfr pipelineConfig.CdWorkflowRunner
+	deployStageTriggeredByUser := &bean.UserInfo{}
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 		stageYaml = cdPipeline.PreStageConfig
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
@@ -568,6 +569,11 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(cdPipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil {
 			impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", cdPipeline.Id)
+			return nil, err
+		}
+		deployStageTriggeredByUser, err = impl.user.GetById(deployStageWfr.TriggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error in getting userDetails by id", "err", err, "userId", deployStageWfr.TriggeredBy)
 			return nil, err
 		}
 	} else {
@@ -597,8 +603,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		SecretKey:             ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
 		DockerRegistryType:    string(ciPipeline.CiTemplate.DockerRegistry.RegistryType),
 		DockerRegistryURL:     ciPipeline.CiTemplate.DockerRegistry.RegistryURL,
-		DeploymentTriggeredAt: deployStageWfr.StartedOn,
-		DeploymentTriggeredBy: deployStageWfr.DeploymentTriggeredBy,
 		CiArtifactDTO: CiArtifactDTO{
 			Id:           artifact.Id,
 			PipelineId:   artifact.PipelineId,
@@ -612,6 +616,10 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		OrchestratorToken:         impl.cdConfig.OrchestratorToken,
 		ExtraEnvironmentVariables: extraEnvVariables,
 		CloudProvider:             impl.cdConfig.CloudProvider,
+	}
+	if deployStageTriggeredByUser != nil {
+		cdStageWorkflowRequest.DeploymentTriggeredAt = deployStageWfr.StartedOn
+		cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUser.EmailId
 	}
 	switch cdStageWorkflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
