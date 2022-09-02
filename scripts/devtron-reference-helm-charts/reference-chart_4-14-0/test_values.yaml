@@ -2,29 +2,6 @@
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
 
-# ESOSecrets:
-#   enabled: true
-#   secretStore:
-#     aws:
-#       service: SecretsManager
-#       region: us-east-1
-#       auth:
-#         secretRef:
-#           accessKeyIDSecretRef:
-#             name: awssm-secret
-#             key: access-key
-#           secretAccessKeySecretRef:
-#             name: awssm-secret
-#             key: secret-access-key
-
-#   esoData:
-#     - secretKey: prod-mysql-password
-#       key: secrets/prod-mysql-secrets
-#       property: prodPassword
-#     - secretKey: prod-mysql-password
-#       key: secrets/prod-mysql-secrets
-#       property: prodPassword
-
 rolloutLabels:
   name: abhinav
   Company: Devtron
@@ -335,11 +312,11 @@ ConfigMaps:
 
 
 ConfigSecrets:
-  enabled: true
+  enabled: false
   secrets:
   - name: config-secret-1
     type: environment
-    external: true
+    external: false
     externalType: AWSSecretsManager
     esoSecretData:
       secretStore:
@@ -373,7 +350,7 @@ ConfigSecrets:
       key3: key3value-1
   - name: config-secret-2
     type: environment
-    external: true
+    external: false
     externalType: ESO_HashiCorpVault
     esoSecretData:
       secretStore:

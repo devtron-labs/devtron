@@ -38,9 +38,9 @@ metadata:
 {{- if .Values.rolloutLabels }}
 {{ toYaml .Values.rolloutLabels | indent 4 }}
 {{- end }}
-{ { - if .Values.appLabels } }
-{ { toYaml .Values.appLabels | indent 4 } }
-{ { - end } }
+{{- if .Values.appLabels }}
+{{ toYaml .Values.appLabels | indent 4 }}
+{{- end }}
 
 {{- if .Values.rolloutAnnotations }}
   annotations:
