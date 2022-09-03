@@ -68,6 +68,7 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 ) *TeamRestHandlerImpl {
 	ignoreAuthCheck := os.Getenv(util.IgnoreAutocompleteAuthCheck)
 	ignoreAuthCheckValue, _ := strconv.ParseBool(ignoreAuthCheck)
+	logger.Infow("team rest handler initialized", "ignoreAuthCheckValue", ignoreAuthCheckValue)
 	return &TeamRestHandlerImpl{
 		logger:               logger,
 		teamService:          teamService,

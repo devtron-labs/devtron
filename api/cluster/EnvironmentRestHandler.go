@@ -69,6 +69,7 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 ) *EnvironmentRestHandlerImpl {
 	ignoreAuthCheck := os.Getenv(util.IgnoreAutocompleteAuthCheck)
 	ignoreAuthCheckValue, _ := strconv.ParseBool(ignoreAuthCheck)
+	logger.Infow("evironment rest handler initialized", "ignoreAuthCheckValue", ignoreAuthCheckValue)
 	return &EnvironmentRestHandlerImpl{
 		environmentClusterMappingsService: svc,
 		logger:                            logger,
