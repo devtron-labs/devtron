@@ -26,4 +26,5 @@ const (
 	ConfigMapSecretUsageTypeEnvironment string = "environment"
 	ConfigMapSecretUsageTypeVolume      string = "volume"
 	YamlSeparator                       string = "---\n"
+	IgnoreAutocompleteAuthCheck         string = "IGNORE_AUTOCOMPLETE_AUTH_CHECK"
 )
