@@ -88,6 +88,7 @@ type MuxRouter struct {
 	gitOpsConfigRouter                 GitOpsConfigRouter
 	dashboardRouter                    dashboard.DashboardRouter
 	attributesRouter                   AttributesRouter
+	userAttributesRouter               UserAttributesRouter
 	commonRouter                       CommonRouter
 	grafanaRouter                      GrafanaRouter
 	ssoLoginRouter                     sso.SsoLoginRouter
@@ -129,7 +130,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
-	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
+	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter, userAttributesRouter UserAttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
@@ -175,6 +176,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		policyRouter:                       policyRouter,
 		gitOpsConfigRouter:                 gitOpsConfigRouter,
 		attributesRouter:                   attributesRouter,
+		userAttributesRouter:               userAttributesRouter,
 		dashboardRouter:                    dashboardRouter,
 		commonRouter:                       commonRouter,
 		grafanaRouter:                      grafanaRouter,
@@ -322,6 +324,9 @@ func (r MuxRouter) Init() {
 	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
 	r.attributesRouter.initAttributesRouter(attributeRouter)
 
+	userAttributeRouter := r.Router.PathPrefix("/orchestrator/attributes/user").Subrouter()
+	r.userAttributesRouter.InitUserAttributesRouter(userAttributeRouter)
+
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
 
@@ -339,7 +344,7 @@ func (r MuxRouter) Init() {
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
 
 	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
-	r.telemetryRouter.initTelemetryRouter(telemetryRouter)
+	r.telemetryRouter.InitTelemetryRouter(telemetryRouter)
 
 	bulkUpdateRouter := r.Router.PathPrefix("/orchestrator/batch").Subrouter()
 	r.bulkUpdateRouter.initBulkUpdateRouter(bulkUpdateRouter)
