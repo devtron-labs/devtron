@@ -18,9 +18,7 @@
 package pubsub
 
 import (
-	"time"
-
-	"github.com/caarlos0/env"
+	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
@@ -36,42 +34,11 @@ type PubSubConfig struct {
 }
 
 /* #nosec */
-func NewPubSubClient(logger *zap.SugaredLogger) (*PubSubClient, error) {
-
-	cfg := &PubSubConfig{}
-	err := env.Parse(cfg)
-	if err != nil {
-		logger.Error("err", err)
-		return &PubSubClient{}, err
-	}
-
-	//Connect to NATS
-	nc, err := nats.Connect(cfg.NatsServerHost,
-		nats.ReconnectWait(10*time.Second), nats.MaxReconnects(100),
-		nats.DisconnectErrHandler(func(nc *nats.Conn, err error) {
-			logger.Errorw("Nats Connection got disconnected!", "Reason", err)
-		}),
-		nats.ReconnectHandler(func(nc *nats.Conn) {
-			logger.Infow("Nats Connection got reconnected", "url", nc.ConnectedUrl())
-		}),
-		nats.ClosedHandler(func(nc *nats.Conn) {
-			logger.Errorw("Nats Client Connection closed!", "Reason", nc.LastError())
-		}))
-	if err != nil {
-		logger.Error("err", err)
-		return &PubSubClient{}, err
-	}
-
-	//Create a jetstream context
-	js, err := nc.JetStream()
-
-	if err != nil {
-		logger.Errorw("Error while creating jetstream context", "error", err)
-	}
+func NewPubSubClient(puSubClientServiceImpl *pubsub_lib.PubSubClientServiceImpl) (*PubSubClient, error) {
 
 	natsClient := &PubSubClient{
-		logger:     logger,
-		JetStrCtxt: js,
+		logger:     puSubClientServiceImpl.Logger,
+		JetStrCtxt: puSubClientServiceImpl.NatsClient.JetStrCtxt,
 	}
 	return natsClient, nil
 }

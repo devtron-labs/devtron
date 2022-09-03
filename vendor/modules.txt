@@ -309,6 +309,10 @@ github.com/devtron-labs/authenticator/jwt
 github.com/devtron-labs/authenticator/middleware
 github.com/devtron-labs/authenticator/oidc
 github.com/devtron-labs/authenticator/password
+# github.com/devtron-labs/common-lib v0.0.0-20220901155612-e29599d007ef
+## explicit; go 1.18
+github.com/devtron-labs/common-lib/pubsub-lib
+github.com/devtron-labs/common-lib/utils
 # github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f
 ## explicit
 github.com/dgryski/go-rendezvous
@@ -676,6 +680,8 @@ github.com/microsoft/azure-devops-go-api/azuredevops/operations
 github.com/microsoft/azure-devops-go-api/azuredevops/policy
 github.com/microsoft/azure-devops-go-api/azuredevops/system
 github.com/microsoft/azure-devops-go-api/azuredevops/webapi
+# github.com/minio/highwayhash v1.0.2
+## explicit; go 1.15
 # github.com/mitchellh/copystructure v1.2.0
 ## explicit; go 1.15
 github.com/mitchellh/copystructure
@@ -708,7 +714,9 @@ github.com/modern-go/reflect2
 # github.com/monochromegane/go-gitignore v0.0.0-20200626010858-205db1a8cc00
 ## explicit
 github.com/monochromegane/go-gitignore
-# github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d
+# github.com/nats-io/jwt/v2 v2.3.0
+## explicit; go 1.16
+# github.com/nats-io/nats.go v1.15.0
 ## explicit; go 1.16
 github.com/nats-io/nats.go
 github.com/nats-io/nats.go/encoders/builtin
@@ -1048,7 +1056,7 @@ google.golang.org/grpc/serviceconfig
 google.golang.org/grpc/stats
 google.golang.org/grpc/status
 google.golang.org/grpc/tap
-# google.golang.org/protobuf v1.28.0
+# google.golang.org/protobuf v1.28.1
 ## explicit; go 1.11
 google.golang.org/protobuf/encoding/protojson
 google.golang.org/protobuf/encoding/prototext
