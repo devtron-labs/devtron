@@ -141,7 +141,7 @@ In case of AWS application load balancer, add following annotations under `ingre
     alb.ingress.kubernetes.io/certificate-arn: "<acm-arn-here>"
 ```
 
-### Azure Application Gateway
+### 3. Azure Application Gateway
 
 In case of AWS application load balancer, the following annotations need to be added under `ingress.annotations` to run devtron over `https`.
 
