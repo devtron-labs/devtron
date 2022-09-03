@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"strconv"
+	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
@@ -94,6 +95,8 @@ type CdWorkflowRequest struct {
 	MinioEndpoint              string             `json:"minioEndpoint"`
 	DefaultAddressPoolBaseCidr string             `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                `json:"defaultAddressPoolSize"`
+	DeploymentTriggeredBy      string             `json:"deploymentTriggeredBy,omitempty"`
+	DeploymentTriggerTime      time.Time          `json:"deploymentTriggerTime,omitempty"`
 }
 
 const PRE = "PRE"
