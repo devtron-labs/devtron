@@ -177,8 +177,7 @@ func (impl ArgoApplicationRestHandlerImpl) Watch(w http.ResponseWriter, r *http.
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	token := r.Header.Get("token")
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -245,8 +244,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, r *
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	token := r.Header.Get("token")
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -275,8 +273,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetResourceTree(w http.ResponseWriter
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	token := r.Header.Get("token")
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -311,8 +308,7 @@ func (impl ArgoApplicationRestHandlerImpl) ListResourceEvents(w http.ResponseWri
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	token := r.Header.Get("token")
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -351,8 +347,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetResource(w http.ResponseWriter, r 
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	token := r.Header.Get("token")
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -388,8 +383,7 @@ func (impl ArgoApplicationRestHandlerImpl) List(w http.ResponseWriter, r *http.R
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	token := r.Header.Get("token")
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -417,8 +411,7 @@ func (impl ArgoApplicationRestHandlerImpl) ManagedResources(w http.ResponseWrite
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	token := r.Header.Get("token")
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -452,8 +445,7 @@ func (impl ArgoApplicationRestHandlerImpl) Rollback(w http.ResponseWriter, r *ht
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	token := r.Header.Get("token")
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -484,8 +476,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetManifests(w http.ResponseWriter, r
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	token := r.Header.Get("token")
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -498,7 +489,6 @@ func (impl ArgoApplicationRestHandlerImpl) GetManifests(w http.ResponseWriter, r
 }
 
 func (impl ArgoApplicationRestHandlerImpl) Get(w http.ResponseWriter, r *http.Request) {
-	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	name := vars["name"]
 	v := r.URL.Query()
@@ -523,7 +513,7 @@ func (impl ArgoApplicationRestHandlerImpl) Get(w http.ResponseWriter, r *http.Re
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -551,8 +541,7 @@ func (impl ArgoApplicationRestHandlerImpl) TerminateOperation(w http.ResponseWri
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	token := r.Header.Get("token")
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -602,7 +591,7 @@ func (impl ArgoApplicationRestHandlerImpl) PatchResource(w http.ResponseWriter, 
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -679,7 +668,7 @@ func (impl ArgoApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter,
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -710,8 +699,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetServiceLink(w http.ResponseWriter,
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	token := r.Header.Get("token")
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

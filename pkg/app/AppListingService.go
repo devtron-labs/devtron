@@ -532,7 +532,7 @@ func (impl AppListingServiceImpl) getAppACDStatus(env bean.AppEnvironmentContain
 			}(ctx.Done(), cn.CloseNotify())
 		}
 		defer cancel()
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			impl.Logger.Errorw("error in getting acd token", "err", err)
 			return "", err

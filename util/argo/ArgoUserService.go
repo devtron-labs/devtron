@@ -38,7 +38,7 @@ const (
 )
 
 type ArgoUserService interface {
-	GetLatestDevtronArgoCdUserToken(headerToken string) (string, error)
+	GetLatestDevtronArgoCdUserToken() (string, error)
 }
 type ArgoUserServiceImpl struct {
 	logger              *zap.SugaredLogger
@@ -184,7 +184,7 @@ func (impl *ArgoUserServiceImpl) createNewArgoCdTokenForDevtron(username, passwo
 }
 
 //note: this function also called for no gitops case, where apps are installed via helm
-func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken(headerToken string) (string, error) {
+func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, error) {
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
@@ -195,8 +195,8 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken(headerToken str
 		isGitOpsConfigured = true
 	}
 	if !isGitOpsConfigured {
-		//here if request comes for helm app than will send empty token, no acd token required for helm operations
-		return headerToken, nil
+		//here acd token only required in context for argo cd calls
+		return "", nil
 	}
 
 	cluster, err := impl.clusterService.FindOne(cluster.DefaultClusterName)

@@ -368,8 +368,7 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWri
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		token := r.Header.Get("token")
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken(token)
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			handler.Logger.Errorw("error in getting acd token", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
