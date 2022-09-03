@@ -82,21 +82,7 @@ func GetDevtronSecretName() (*DevtronSecretConfig, error) {
 }
 
 func (impl *ArgoUserServiceImpl) updateArgoCdUserDetail() {
-
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
-		return
-	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
-	}
-	if !isGitOpsConfigured {
-		//TODO FIX - CHECK INTEGRATION AVAILABLE OR NOT
-		return
-	}
-
+	
 	cluster, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {
 		impl.logger.Errorw("error in getting default cluster", "err", err)
