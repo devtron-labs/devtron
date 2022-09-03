@@ -322,14 +322,12 @@ func (handler UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r 
 		return
 	}
 
-	isAuthorised := false
-	isAuthorised, err = handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("error in checking superAdmin access of user", "err", err)
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-		return
+	token := r.Header.Get("token")
+	isActionUserSuperAdmin := false
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isActionUserSuperAdmin = true
 	}
-	if !isAuthorised {
+	if !isActionUserSuperAdmin {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
