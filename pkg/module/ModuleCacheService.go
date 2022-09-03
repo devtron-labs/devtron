@@ -20,6 +20,7 @@ package module
 import (
 	"context"
 	"github.com/devtron-labs/devtron/internal/util"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
@@ -48,12 +49,12 @@ type ModuleCacheServiceImpl struct {
 	moduleEnvConfig  *ModuleEnvConfig
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	serverDataStore  *serverDataStore.ServerDataStore
-	moduleRepository ModuleRepository
+	moduleRepository moduleRepo.ModuleRepository
 	teamService      team.TeamService
 }
 
 func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
-	serverDataStore *serverDataStore.ServerDataStore, moduleRepository ModuleRepository, teamService team.TeamService) *ModuleCacheServiceImpl {
+	serverDataStore *serverDataStore.ServerDataStore, moduleRepository moduleRepo.ModuleRepository, teamService team.TeamService) *ModuleCacheServiceImpl {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
 		K8sUtil:          K8sUtil,
@@ -100,7 +101,7 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 }
 
 func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) {
-	module := &Module{
+	module := &moduleRepo.Module{
 		Name:      moduleName,
 		Version:   impl.serverDataStore.CurrentVersion,
 		Status:    ModuleStatusInstalled,
