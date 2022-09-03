@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -48,13 +49,14 @@ type TeamRestHandler interface {
 }
 
 type TeamRestHandlerImpl struct {
-	logger          *zap.SugaredLogger
-	teamService     team.TeamService
-	userService     user.UserService
-	validator       *validator.Validate
-	enforcer        casbin.Enforcer
-	userAuthService user.UserAuthService
-	deleteService   delete2.DeleteService
+	logger               *zap.SugaredLogger
+	teamService          team.TeamService
+	userService          user.UserService
+	validator            *validator.Validate
+	enforcer             casbin.Enforcer
+	userAuthService      user.UserAuthService
+	deleteService        delete2.DeleteService
+	ignoreAuthCheckValue bool
 }
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
@@ -64,14 +66,17 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	validator *validator.Validate, userAuthService user.UserAuthService,
 	deleteService delete2.DeleteService,
 ) *TeamRestHandlerImpl {
+	ignoreAuthCheck := os.Getenv(util.IgnoreAutocompleteAuthCheck)
+	ignoreAuthCheckValue, _ := strconv.ParseBool(ignoreAuthCheck)
 	return &TeamRestHandlerImpl{
-		logger:          logger,
-		teamService:     teamService,
-		userService:     userService,
-		validator:       validator,
-		enforcer:        enforcer,
-		userAuthService: userAuthService,
-		deleteService:   deleteService,
+		logger:               logger,
+		teamService:          teamService,
+		userService:          userService,
+		validator:            validator,
+		enforcer:             enforcer,
+		userAuthService:      userAuthService,
+		deleteService:        deleteService,
+		ignoreAuthCheckValue: ignoreAuthCheckValue,
 	}
 }
 
@@ -246,12 +251,10 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 		return
 	}
 	dbElapsedTime := time.Since(start)
-	ignoreAuthCheck := os.Getenv("IGNORE_AUTOCOMPLETE_AUTH_CHECK")
-	ignoreAuthCheckValue, _ := strconv.ParseBool(ignoreAuthCheck)
 	token := r.Header.Get("token")
 	var grantedTeams = teams
 	start = time.Now()
-	if !ignoreAuthCheckValue {
+	if !impl.ignoreAuthCheckValue {
 		grantedTeams = make([]team.TeamRequest, 0)
 		emailId, _ := impl.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying

@@ -31,6 +31,7 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -59,12 +60,15 @@ type EnvironmentRestHandlerImpl struct {
 	validator                         *validator.Validate
 	enforcer                          casbin.Enforcer
 	deleteService                     delete2.DeleteService
+	ignoreAuthCheckValue              bool
 }
 
 func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer,
 	deleteService delete2.DeleteService,
 ) *EnvironmentRestHandlerImpl {
+	ignoreAuthCheck := os.Getenv(util.IgnoreAutocompleteAuthCheck)
+	ignoreAuthCheckValue, _ := strconv.ParseBool(ignoreAuthCheck)
 	return &EnvironmentRestHandlerImpl{
 		environmentClusterMappingsService: svc,
 		logger:                            logger,
@@ -72,6 +76,7 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 		validator:                         validator,
 		enforcer:                          enforcer,
 		deleteService:                     deleteService,
+		ignoreAuthCheckValue:              ignoreAuthCheckValue,
 	}
 }
 
@@ -276,11 +281,9 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	dbElapsedTime := time.Since(start)
 
 	token := r.Header.Get("token")
-	ignoreAuthCheck := os.Getenv("IGNORE_AUTOCOMPLETE_AUTH_CHECK")
-	ignoreAuthCheckValue, _ := strconv.ParseBool(ignoreAuthCheck)
 	var grantedEnvironment = environments
 	start = time.Now()
-	if !ignoreAuthCheckValue {
+	if !impl.ignoreAuthCheckValue {
 		grantedEnvironment = make([]request.EnvironmentBean, 0)
 		emailId, _ := impl.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
