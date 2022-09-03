@@ -1118,6 +1118,7 @@ func (impl UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 	return true, nil
 }
 
+//Deprecated
 func (impl UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isSuperAdmin := false
