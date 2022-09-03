@@ -19,8 +19,9 @@ package cluster
 
 import (
 	"encoding/json"
+	"github.com/caarlos0/env/v6"
+	"github.com/devtron-labs/devtron/api/bean"
 	"net/http"
-	"os"
 	"regexp"
 	"strconv"
 	"strings"
@@ -31,7 +32,6 @@ import (
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -60,16 +60,20 @@ type EnvironmentRestHandlerImpl struct {
 	validator                         *validator.Validate
 	enforcer                          casbin.Enforcer
 	deleteService                     delete2.DeleteService
-	ignoreAuthCheckValue              bool
+	cfg                               *bean.Config
 }
 
 func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer,
 	deleteService delete2.DeleteService,
 ) *EnvironmentRestHandlerImpl {
-	ignoreAuthCheck := os.Getenv(util.IgnoreAutocompleteAuthCheck)
-	ignoreAuthCheckValue, _ := strconv.ParseBool(ignoreAuthCheck)
-	logger.Infow("evironment rest handler initialized", "ignoreAuthCheckValue", ignoreAuthCheckValue)
+	cfg := &bean.Config{}
+	err := env.Parse(cfg)
+	if err != nil {
+		logger.Errorw("error occurred while parsing config ", "err", err)
+		cfg.IgnoreAuthCheck = false
+	}
+	logger.Infow("evironment rest handler initialized", "ignoreAuthCheckValue", cfg.IgnoreAuthCheck)
 	return &EnvironmentRestHandlerImpl{
 		environmentClusterMappingsService: svc,
 		logger:                            logger,
@@ -77,7 +81,7 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 		validator:                         validator,
 		enforcer:                          enforcer,
 		deleteService:                     deleteService,
-		ignoreAuthCheckValue:              ignoreAuthCheckValue,
+		cfg:                               cfg,
 	}
 }
 
@@ -284,7 +288,7 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	token := r.Header.Get("token")
 	var grantedEnvironment = environments
 	start = time.Now()
-	if !impl.ignoreAuthCheckValue {
+	if !impl.cfg.IgnoreAuthCheck {
 		grantedEnvironment = make([]request.EnvironmentBean, 0)
 		emailId, _ := impl.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying

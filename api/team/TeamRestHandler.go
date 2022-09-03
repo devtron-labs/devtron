@@ -20,17 +20,17 @@ package team
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env/v6"
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -49,14 +49,14 @@ type TeamRestHandler interface {
 }
 
 type TeamRestHandlerImpl struct {
-	logger               *zap.SugaredLogger
-	teamService          team.TeamService
-	userService          user.UserService
-	validator            *validator.Validate
-	enforcer             casbin.Enforcer
-	userAuthService      user.UserAuthService
-	deleteService        delete2.DeleteService
-	ignoreAuthCheckValue bool
+	logger          *zap.SugaredLogger
+	teamService     team.TeamService
+	userService     user.UserService
+	validator       *validator.Validate
+	enforcer        casbin.Enforcer
+	userAuthService user.UserAuthService
+	deleteService   delete2.DeleteService
+	cfg             *bean.Config
 }
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
@@ -66,18 +66,23 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	validator *validator.Validate, userAuthService user.UserAuthService,
 	deleteService delete2.DeleteService,
 ) *TeamRestHandlerImpl {
-	ignoreAuthCheck := os.Getenv(util.IgnoreAutocompleteAuthCheck)
-	ignoreAuthCheckValue, _ := strconv.ParseBool(ignoreAuthCheck)
-	logger.Infow("team rest handler initialized", "ignoreAuthCheckValue", ignoreAuthCheckValue)
+	cfg := &bean.Config{}
+	err := env.Parse(cfg)
+	if err != nil {
+		logger.Errorw("error occurred while parsing config ", "err", err)
+		cfg.IgnoreAuthCheck = false
+	}
+
+	logger.Infow("team rest handler initialized", "ignoreAuthCheckValue", cfg.IgnoreAuthCheck)
 	return &TeamRestHandlerImpl{
-		logger:               logger,
-		teamService:          teamService,
-		userService:          userService,
-		validator:            validator,
-		enforcer:             enforcer,
-		userAuthService:      userAuthService,
-		deleteService:        deleteService,
-		ignoreAuthCheckValue: ignoreAuthCheckValue,
+		logger:          logger,
+		teamService:     teamService,
+		userService:     userService,
+		validator:       validator,
+		enforcer:        enforcer,
+		userAuthService: userAuthService,
+		deleteService:   deleteService,
+		cfg:             cfg,
 	}
 }
 
@@ -255,7 +260,7 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	var grantedTeams = teams
 	start = time.Now()
-	if !impl.ignoreAuthCheckValue {
+	if !impl.cfg.IgnoreAuthCheck {
 		grantedTeams = make([]team.TeamRequest, 0)
 		emailId, _ := impl.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
