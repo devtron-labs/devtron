@@ -27,21 +27,24 @@ type PipelineConfigRouter interface {
 	initPipelineConfigRouter(configRouter *mux.Router)
 }
 type PipelineConfigRouterImpl struct {
-	restHandler                app.PipelineConfigRestHandler
-	appWorkflowRestHandler     restHandler.AppWorkflowRestHandler
-	webhookDataRestHandler     restHandler.WebhookDataRestHandler
-	pipelineHistoryRestHandler restHandler.PipelineHistoryRestHandler
+	restHandler                       app.PipelineConfigRestHandler
+	appWorkflowRestHandler            restHandler.AppWorkflowRestHandler
+	webhookDataRestHandler            restHandler.WebhookDataRestHandler
+	pipelineHistoryRestHandler        restHandler.PipelineHistoryRestHandler
+	pipelineStatusTimelineRestHandler restHandler.PipelineStatusTimelineRestHandler
 }
 
 func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler,
 	appWorkflowRestHandler restHandler.AppWorkflowRestHandler,
 	webhookDataRestHandler restHandler.WebhookDataRestHandler,
-	pipelineHistoryRestHandler restHandler.PipelineHistoryRestHandler) *PipelineConfigRouterImpl {
+	pipelineHistoryRestHandler restHandler.PipelineHistoryRestHandler,
+	pipelineStatusTimelineRestHandler restHandler.PipelineStatusTimelineRestHandler) *PipelineConfigRouterImpl {
 	return &PipelineConfigRouterImpl{
-		restHandler:                restHandler,
-		appWorkflowRestHandler:     appWorkflowRestHandler,
-		webhookDataRestHandler:     webhookDataRestHandler,
-		pipelineHistoryRestHandler: pipelineHistoryRestHandler,
+		restHandler:                       restHandler,
+		appWorkflowRestHandler:            appWorkflowRestHandler,
+		webhookDataRestHandler:            webhookDataRestHandler,
+		pipelineHistoryRestHandler:        pipelineHistoryRestHandler,
+		pipelineStatusTimelineRestHandler: pipelineStatusTimelineRestHandler,
 	}
 
 }
@@ -162,4 +165,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 		Methods("GET")
 
 	configRouter.Path("/commit-info/{ciPipelineMaterialId}/{gitHash}").HandlerFunc(router.restHandler.GetCommitMetadataForPipelineMaterial).Methods("GET")
+
+	configRouter.Path("/deployment-status/timeline/{appId}/{envId}").HandlerFunc(router.pipelineStatusTimelineRestHandler.FetchTimelines).Methods("GET")
+
 }

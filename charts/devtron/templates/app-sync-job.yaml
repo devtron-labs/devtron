@@ -1,4 +1,4 @@
-{{- if $.Capabilities.APIVersions.Has "batch/v1" -}}
+{{- if .Capabilities.APIVersions.Has "batch/v1/CronJob" }}
 apiVersion: batch/v1
 {{- else -}}
 apiVersion: batch/v1beta1
@@ -16,7 +16,7 @@ spec:
             command: ['sh', '-c', 'while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-devtron -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done']
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:1227622d-132-3775
+            image: quay.io/devtron/chart-sync:57e17953-373-10147
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd
@@ -30,7 +30,7 @@ spec:
           restartPolicy: OnFailure
       backoffLimit: 4
 ---
-{{- if $.Capabilities.APIVersions.Has "batch/v1" -}}
+{{- if .Capabilities.APIVersions.Has "batch/v1/Job" }}
 apiVersion: batch/v1
 {{- else -}}
 apiVersion: batch/v1beta1
@@ -48,7 +48,7 @@ spec:
         spec:
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:1227622d-132-3775
+            image: quay.io/devtron/chart-sync:57e17953-373-10147
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd

@@ -1,7 +1,9 @@
 # Let's deploy a sample App
 
 Hurray! 
-Your Devtron stack is completely setup. Let's get started by deploying a simple application on it. 
+Your Devtron stack is completely setup. Let's get started by deploying a simple application on it.
+
+{% embed url="https://www.youtube.com/watch?v=9u-pKiWV-tM&t=2s" caption="Deploy a Kubernetes Node.js micro-service using Devtron" %}
 
 ## Find out the steps here 
 
