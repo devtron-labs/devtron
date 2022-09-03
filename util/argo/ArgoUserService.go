@@ -39,6 +39,7 @@ const (
 
 type ArgoUserService interface {
 	GetLatestDevtronArgoCdUserToken() (string, error)
+	UpdateArgoCdUserDetail()
 }
 type ArgoUserServiceImpl struct {
 	logger              *zap.SugaredLogger
@@ -63,7 +64,7 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 		gitOpsRepository:    gitOpsRepository,
 	}
 	if !runTimeConfig.LocalDevMode {
-		go argoUserServiceImpl.updateArgoCdUserDetail()
+		go argoUserServiceImpl.UpdateArgoCdUserDetail()
 	}
 	return argoUserServiceImpl, nil
 }
@@ -81,8 +82,22 @@ func GetDevtronSecretName() (*DevtronSecretConfig, error) {
 	return secretConfig, err
 }
 
-func (impl *ArgoUserServiceImpl) updateArgoCdUserDetail() {
-	
+func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() {
+
+	isGitOpsConfigured := false
+	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
+		return
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		isGitOpsConfigured = true
+	}
+	if !isGitOpsConfigured {
+		//TODO FIX - CHECK INTEGRATION AVAILABLE OR NOT
+		return
+	}
+
 	cluster, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {
 		impl.logger.Errorw("error in getting default cluster", "err", err)
