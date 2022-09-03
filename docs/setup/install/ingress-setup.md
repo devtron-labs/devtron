@@ -1,4 +1,4 @@
-# Ingress setup for devtron installation
+# Ingress Setup
 
 After Devtron is installed, Devtron is accessible through service `devtron-service`.
 If you want to access devtron through ingress, edit devtron-service and change the loadbalancer to ClusterIP. You can do this using `kubectl patch` command like :
@@ -18,6 +18,7 @@ metadata:
     app: devtron
     release: devtron
   name: devtron-ingress
+  namespace: devtroncd
 spec:
   ingressClassName: nginx
   rules:
@@ -56,6 +57,7 @@ metadata:
     app: devtron
     release: devtron
   name: devtron-ingress
+  namespace: devtroncd
 spec:
   rules:
   - http:
@@ -68,12 +70,6 @@ spec:
           serviceName: devtron-service
           servicePort: 80
         path: /dashboard
-      - backend:
-          service:
-            name: devtron-service
-            port:
-              number: 80
-        path: /grafana
         pathType: ImplementationSpecific  
 ```        
 
@@ -87,6 +83,7 @@ metadata:
     app: devtron
     release: devtron
   name: devtron-ingress
+  namespace: devtroncd
 spec:
   ingressClassName: nginx
   rules:
@@ -105,7 +102,7 @@ spec:
             name: devtron-service
             port:
               number: 80
-       Host: devtron.example.com
+       host: devtron.example.com
         path: /dashboard
         pathType: ImplementationSpecific
       - backend:
@@ -115,6 +112,47 @@ spec:
               number: 80
         path: /grafana
         pathType: ImplementationSpecific  
+```
 
-```        
+## Enable HTTPS For Devtron
+
+Once ingress setup for devtron is done and you want to run Devtron over `https`, you need to add different annotations for different ingress controllers and load balancers.
+
+### 1. Nginx Ingress Controller
+
+In case of `nginx ingress controller`, add following annotations under `service.annotations` under nginx ingress controller to run devtron over `https`.
+
+```bash
+  annotations:
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "443"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "<acm-arn-here>"
+```
+
+### 2. Application Load Balancer (ALB)
+
+In case of AWS application load balancer, add following annotations under `ingress.annotations` to run devtron over `https`.
+
+```bash
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/certificate-arn: "<acm-arn-here>"
+```
+
+### Azure Application Gateway
+
+In case of AWS application load balancer, the following annotations need to be added under `ingress.annotations` to run devtron over `https`.
+
+```bash
+ annotations:
+  kubernetes.io/ingress.class: "azure/application-gateway"
+  appgw.ingress.kubernetes.io/backend-protocol: "http"
+  appgw.ingress.kubernetes.io/ssl-redirect: "true"
+  appgw.ingress.kubernetes.io/appgw-ssl-certificate: "<name-of-appgw-installed-certificate>"
+```
+> Note: Make sure to not use port 80 with HTTPS and port 443 with HTTP on the Pods.
+
+
 
