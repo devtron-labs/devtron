@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/util"
@@ -36,12 +37,12 @@ type ModuleCronServiceImpl struct {
 	logger           *zap.SugaredLogger
 	cron             *cron.Cron
 	moduleEnvConfig  *ModuleEnvConfig
-	moduleRepository ModuleRepository
+	moduleRepository moduleRepo.ModuleRepository
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	helmAppService   client.HelmAppService
 }
 
-func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *ModuleEnvConfig, moduleRepository ModuleRepository,
+func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *ModuleEnvConfig, moduleRepository moduleRepo.ModuleRepository,
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService) (*ModuleCronServiceImpl, error) {
 
 	moduleCronServiceImpl := &ModuleCronServiceImpl{
@@ -113,7 +114,7 @@ func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
 
 }
 
-func (impl *ModuleCronServiceImpl) updateModuleStatus(module Module, status ModuleStatus) {
+func (impl *ModuleCronServiceImpl) updateModuleStatus(module moduleRepo.Module, status ModuleStatus) {
 	impl.logger.Debugw("updating module status", "name", module.Name, "status", status)
 	module.Status = status
 	module.UpdatedOn = time.Now()

@@ -15,7 +15,7 @@
  *
  */
 
-package module
+package moduleRepo
 
 import (
 	"github.com/go-pg/pg"
@@ -37,6 +37,7 @@ type ModuleRepository interface {
 	Update(module *Module) error
 	FindAll() ([]Module, error)
 	ModuleExists() (bool, error)
+	GetInstalledModuleNames() ([]string, error)
 }
 
 type ModuleRepositoryImpl struct {
@@ -62,6 +63,14 @@ func (impl ModuleRepositoryImpl) Update(module *Module) error {
 	return impl.dbConnection.Update(module)
 }
 
+func (impl ModuleRepositoryImpl) FindAllByStatus(status string) ([]Module, error) {
+	var modules []Module
+	err := impl.dbConnection.Model(&modules).
+		Where("status = ?", status).
+		Select()
+	return modules, err
+}
+
 func (impl ModuleRepositoryImpl) FindAll() ([]Module, error) {
 	var modules []Module
 	err := impl.dbConnection.Model(&modules).
@@ -74,4 +83,17 @@ func (impl ModuleRepositoryImpl) ModuleExists() (bool, error) {
 	exists, err := impl.dbConnection.Model(module).
 		Exists()
 	return exists, err
+}
+
+func (impl ModuleRepositoryImpl) GetInstalledModuleNames() ([]string, error) {
+	modules, err := impl.FindAllByStatus("installed")
+	var moduleNames []string
+	if err != nil && err != pg.ErrNoRows {
+		return moduleNames, err
+	}
+
+	for _, module := range modules {
+		moduleNames = append(moduleNames, module.Name)
+	}
+	return moduleNames, nil
 }
