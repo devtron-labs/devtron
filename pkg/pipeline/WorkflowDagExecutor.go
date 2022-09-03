@@ -618,7 +618,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		CloudProvider:             impl.cdConfig.CloudProvider,
 	}
 	if deployStageTriggeredByUser != nil {
-		cdStageWorkflowRequest.DeploymentTriggeredAt = deployStageWfr.StartedOn
+		cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
 		cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUser.EmailId
 	}
 	switch cdStageWorkflowRequest.CloudProvider {
