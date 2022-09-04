@@ -47,12 +47,7 @@ spec:
       app: devtron
       release: devtron
   replicas: 1
-  {{- if $.Release.IsUpgrade }}
-  minReadySeconds: 700
-  progressDeadlineSeconds: 800
-  {{- else }}
   minReadySeconds: 60
-  {{- end }}
   template:
     metadata:
       labels:
@@ -65,12 +60,10 @@ spec:
       containers:
         - name: devtron
           {{- if $.Values.installer.modules }}
-          {{ range $.Values.installer.modules }}
-          {{- if and (eq . "cicd") ($.Release.IsUpgrade) }}
+          {{- if and (has "cicd" $.Values.installer.modules) ($.Release.IsUpgrade) }}
           image: {{ $.Values.components.devtron.cicdImage }}
           {{- else }}
           image: {{ $.Values.components.devtron.image }}
-          {{- end }}
           {{- end }}
           {{- else }}
           image: {{ $.Values.components.devtron.image }}
