@@ -1,4 +1,5 @@
 {{- with .Values.components.argocdDexServer }}
+{{- $argocdEnabled := index $.Values "argo-cd" }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -8,6 +9,10 @@ metadata:
     app.kubernetes.io/part-of: argocd
   annotations:
     "helm.sh/resource-policy": keep
+    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "6"
+    {{- end }}
   name: argocd-dex-server
 spec:
   ports:
@@ -35,17 +40,16 @@ metadata:
     app.kubernetes.io/part-of: argocd
   annotations:
     "helm.sh/resource-policy": keep
+    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "5"
+    {{- end }}
   name: argocd-dex-server
 spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: argocd-dex-server
-  {{- if $.Release.IsUpgrade }}
-  minReadySeconds: 700
-  progressDeadlineSeconds: 800
-  {{- else }}
   minReadySeconds: 60
-  {{- end }}
   template:
     metadata:
       labels:
@@ -62,11 +66,7 @@ spec:
             weight: 5
       containers:
       - command:
-        {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
-        - /shared/argocd-dex
-        {{- else }}
         - /shared/authenticator
-        {{- end }}
         - rundex
         image: {{ .image }}
         imagePullPolicy: {{ .imagePullPolicy }}
@@ -82,18 +82,9 @@ spec:
       - command:
         - cp
         - -n
-        {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
-        - /usr/local/bin/argocd
-        - /shared/argocd-dex
-        {{- else }}
         - /authenticator
         - /shared
-        {{- end }}
-        {{- if and $.Values.installer.modules $.Release.IsUpgrade }}
-        image: {{ .initContainer.cicdAuthenticator }}
-        {{- else }}
         image: {{ .initContainer.authenticator }}
-        {{- end }}
         imagePullPolicy: IfNotPresent
         name: copyutil
         volumeMounts:
@@ -113,6 +104,10 @@ metadata:
     app.kubernetes.io/part-of: argocd
   annotations:
     "helm.sh/resource-policy": keep
+    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "2"
+    {{- end }}
   name: argocd-dex-server
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -124,6 +119,10 @@ metadata:
     app.kubernetes.io/part-of: argocd
   annotations:
     "helm.sh/resource-policy": keep
+    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "3"
+    {{- end }}
   name: argocd-dex-server
 rules:
 - apiGroups:
@@ -148,6 +147,10 @@ metadata:
     app.kubernetes.io/part-of: argocd
   annotations:
     "helm.sh/resource-policy": keep
+    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
+    "helm.sh/hook": pre-install
+    "helm.sh/hook-weight": "4"
+    {{- end }}
   name: argocd-dex-server
 roleRef:
   apiGroup: rbac.authorization.k8s.io
