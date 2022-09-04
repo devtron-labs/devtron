@@ -18,24 +18,36 @@
 package restHandler
 
 import (
+	"encoding/json"
+	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"go.uber.org/zap"
 	"net/http"
 )
 
 type TelemetryRestHandler interface {
 	GetTelemetryMetaInfo(w http.ResponseWriter, r *http.Request)
+	SendTelemetryData(w http.ResponseWriter, r *http.Request)
 }
 
 type TelemetryRestHandlerImpl struct {
 	logger               *zap.SugaredLogger
 	telemetryEventClient telemetry.TelemetryEventClient
+	enforcer             casbin.Enforcer
+	userService          user.UserService
+}
+
+type TelemetryGenericEvent struct {
+	eventType    string
+	eventPayload map[string]interface{}
 }
 
 func NewTelemetryRestHandlerImpl(logger *zap.SugaredLogger,
-	telemetryEventClient telemetry.TelemetryEventClient) *TelemetryRestHandlerImpl {
-	handler := &TelemetryRestHandlerImpl{logger: logger, telemetryEventClient: telemetryEventClient}
+	telemetryEventClient telemetry.TelemetryEventClient, enforcer casbin.Enforcer, userService user.UserService) *TelemetryRestHandlerImpl {
+	handler := &TelemetryRestHandlerImpl{logger: logger, telemetryEventClient: telemetryEventClient, enforcer: enforcer, userService: userService}
 	return handler
 }
 
@@ -47,4 +59,37 @@ func (handler TelemetryRestHandlerImpl) GetTelemetryMetaInfo(w http.ResponseWrit
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var payload map[string]interface{}
+	err = decoder.Decode(&payload)
+	if err != nil {
+		handler.logger.Errorw("request err, SendTelemetryData", "err", err, "payload", payload)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	eventType := payload["eventType"]
+	eventTypeString := eventType.(string)
+	err = handler.telemetryEventClient.SendGenericTelemetryEvent(eventTypeString, payload)
+
+	if err != nil {
+		handler.logger.Errorw("service err, SendTelemetryData", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, "success", http.StatusOK)
+
 }

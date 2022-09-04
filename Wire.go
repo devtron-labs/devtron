@@ -729,6 +729,14 @@ func InitializeApp() (*App, error) {
 		app.NewPipelineStatusTimelineServiceImpl,
 		wire.Bind(new(app.PipelineStatusTimelineService), new(*app.PipelineStatusTimelineServiceImpl)),
 
+		router.NewUserAttributesRouterImpl,
+		wire.Bind(new(router.UserAttributesRouter), new(*router.UserAttributesRouterImpl)),
+		restHandler.NewUserAttributesRestHandlerImpl,
+		wire.Bind(new(restHandler.UserAttributesRestHandler), new(*restHandler.UserAttributesRestHandlerImpl)),
+		attributes.NewUserAttributesServiceImpl,
+		wire.Bind(new(attributes.UserAttributesService), new(*attributes.UserAttributesServiceImpl)),
+		repository.NewUserAttributesRepositoryImpl,
+		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
 		pipelineConfig.NewPipelineStatusTimelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineStatusTimelineRepository), new(*pipelineConfig.PipelineStatusTimelineRepositoryImpl)),
 	)

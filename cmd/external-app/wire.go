@@ -16,6 +16,8 @@ import (
 	"github.com/devtron-labs/devtron/api/externalLink"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/module"
+	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
@@ -107,6 +109,11 @@ func InitializeApp() (*App, error) {
 
 		wire.Value(chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")),
 
+		router.NewTelemetryRouterImpl,
+		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
+		restHandler.NewTelemetryRestHandlerImpl,
+		wire.Bind(new(restHandler.TelemetryRestHandler), new(*restHandler.TelemetryRestHandlerImpl)),
+
 		//needed for sending events
 		dashboardEvent.NewDashboardTelemetryRestHandlerImpl,
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRestHandler), new(*dashboardEvent.DashboardTelemetryRestHandlerImpl)),
@@ -120,6 +127,15 @@ func InitializeApp() (*App, error) {
 		//binding argoUserService to helm via dummy implementation(HelmUserServiceImpl)
 		argo.NewHelmUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.HelmUserServiceImpl)),
+
+		router.NewUserAttributesRouterImpl,
+		wire.Bind(new(router.UserAttributesRouter), new(*router.UserAttributesRouterImpl)),
+		restHandler.NewUserAttributesRestHandlerImpl,
+		wire.Bind(new(restHandler.UserAttributesRestHandler), new(*restHandler.UserAttributesRestHandlerImpl)),
+		attributes.NewUserAttributesServiceImpl,
+		wire.Bind(new(attributes.UserAttributesService), new(*attributes.UserAttributesServiceImpl)),
+		repository.NewUserAttributesRepositoryImpl,
+		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
 	)
 	return &App{}, nil
 }
