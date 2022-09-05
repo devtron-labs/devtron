@@ -139,7 +139,7 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 			})
 	} else if ciLogRequest.CloudProvider == BLOB_STORAGE_MINIO {
 		sess, _ := session.NewSession(&aws.Config{
-			Region:           aws.String("us-west-2"),
+			Region:           aws.String(ciLogRequest.Region),
 			Endpoint:         aws.String(ciLogRequest.MinioEndpoint),
 			DisableSSL:       aws.Bool(true),
 			S3ForcePathStyle: aws.Bool(true),
