@@ -164,6 +164,14 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedHistoryComponentDetail).
 		Methods("GET")
 
+	configRouter.Path("/history/deployed-configuration/all/latest/{appId}/{pipelineId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.GetAllDeployedConfigurationHistoryForLatestTrigger).
+		Methods("GET")
+
+	configRouter.Path("/history/deployed-configuration/all/{appId}/{pipelineId}/{wfrId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.GetAllDeployedConfigurationHistoryForSpecificTrigger).
+		Methods("GET")
+
 	configRouter.Path("/commit-info/{ciPipelineMaterialId}/{gitHash}").HandlerFunc(router.restHandler.GetCommitMetadataForPipelineMaterial).Methods("GET")
 
 	configRouter.Path("/deployment-status/timeline/{appId}/{envId}").HandlerFunc(router.pipelineStatusTimelineRestHandler.FetchTimelines).Methods("GET")

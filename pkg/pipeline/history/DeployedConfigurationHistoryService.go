@@ -3,6 +3,8 @@ package history
 import (
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/api/bean"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
@@ -12,6 +14,8 @@ type DeployedConfigurationHistoryService interface {
 	GetDeployedConfigurationByWfrId(pipelineId, wfrId int) ([]*DeploymentConfigurationDto, error)
 	GetDeployedHistoryComponentList(pipelineId, baseConfigId int, historyComponent, historyComponentName string) ([]*DeployedHistoryComponentMetadataDto, error)
 	GetDeployedHistoryComponentDetail(pipelineId, id int, historyComponent, historyComponentName string, userHasAdminAccess bool) (*HistoryDetailDto, error)
+	GetAllLatestDeployedConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool) (*AllDeploymentConfigurationHistoryDetail, error)
+	GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfrId int, userHasAdminAccess bool) (*AllDeploymentConfigurationHistoryDetail, error)
 }
 
 type DeployedConfigurationHistoryServiceImpl struct {
@@ -20,17 +24,20 @@ type DeployedConfigurationHistoryServiceImpl struct {
 	deploymentTemplateHistoryService DeploymentTemplateHistoryService
 	strategyHistoryService           PipelineStrategyHistoryService
 	configMapHistoryService          ConfigMapHistoryService
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
 }
 
 func NewDeployedConfigurationHistoryServiceImpl(logger *zap.SugaredLogger,
 	userService user.UserService, deploymentTemplateHistoryService DeploymentTemplateHistoryService,
-	strategyHistoryService PipelineStrategyHistoryService, configMapHistoryService ConfigMapHistoryService) *DeployedConfigurationHistoryServiceImpl {
+	strategyHistoryService PipelineStrategyHistoryService, configMapHistoryService ConfigMapHistoryService,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository) *DeployedConfigurationHistoryServiceImpl {
 	return &DeployedConfigurationHistoryServiceImpl{
 		logger:                           logger,
 		userService:                      userService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
 		strategyHistoryService:           strategyHistoryService,
 		configMapHistoryService:          configMapHistoryService,
+		cdWorkflowRepository:             cdWorkflowRepository,
 	}
 }
 
@@ -136,4 +143,47 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedHistoryComponent
 		return nil, err
 	}
 	return history, nil
+}
+
+func (impl *DeployedConfigurationHistoryServiceImpl) GetAllLatestDeployedConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool) (*AllDeploymentConfigurationHistoryDetail, error) {
+	//getting latest wfr from pipelineId
+	wfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	if err != nil {
+		impl.logger.Errorw("error in getting latest deploy stage wfr by pipelineId", "err", err, "pipelineId", pipelineId)
+		return nil, err
+	}
+	return impl.GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfr.Id, userHasAdminAccess)
+}
+func (impl *DeployedConfigurationHistoryServiceImpl) GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfrId int, userHasAdminAccess bool) (*AllDeploymentConfigurationHistoryDetail, error) {
+	//getting history of deployment template for latest deployment
+	deploymentTemplateHistory, err := impl.deploymentTemplateHistoryService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId)
+	if err != nil {
+		impl.logger.Errorw("error in getting deployment template history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
+		return nil, err
+	}
+	//getting history of config map for latest deployment
+	configMapHistory, err := impl.configMapHistoryService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(pipelineId, wfrId, repository.CONFIGMAP_TYPE, userHasAdminAccess)
+	if err != nil {
+		impl.logger.Errorw("error in getting config map history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
+		return nil, err
+	}
+	//getting history of secret for latest deployment
+	secretHistory, err := impl.configMapHistoryService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(pipelineId, wfrId, repository.SECRET_TYPE, userHasAdminAccess)
+	if err != nil {
+		impl.logger.Errorw("error in getting secret history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
+		return nil, err
+	}
+	//getting history of pipeline strategy for latest deployment
+	strategyHistory, err := impl.strategyHistoryService.GetLatestDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId)
+	if err != nil {
+		impl.logger.Errorw("error in getting strategy history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
+		return nil, err
+	}
+	allDeploymentConfigurationHistoryDetail := &AllDeploymentConfigurationHistoryDetail{
+		DeploymentTemplateConfig: deploymentTemplateHistory,
+		ConfigMapConfig:          configMapHistory,
+		SecretConfig:             secretHistory,
+		StrategyConfig:           strategyHistory,
+	}
+	return allDeploymentConfigurationHistoryDetail, nil
 }
