@@ -1,5 +1,7 @@
 # Install Devtron with CICD integration
 
+Are you installing Devtron on Minikube, K3s, Kind? See Instructions [here](install-devtron-local.md)
+
 ## Before you begin
 
 Install [Helm](https://helm.sh/docs/intro/install/).

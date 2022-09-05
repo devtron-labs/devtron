@@ -1,5 +1,5 @@
-# Install Devtron on Local Machine
-You can install and try Devtron with CICD integration on a highend Laptop or a PC, but the laptop/PC may start to respond slow, so it is recommended to uninstall Devtron from your laptop before shutting it down.
+# Install Devtron on Minikube, K3s, Kind 
+You can install and try Devtron with CICD integration on a high-end Laptop or a PC, but the laptop/PC may start to respond slowly, so it is recommended to uninstall Devtron from your laptop before shutting it down.
 
 #### System Configurations for Devtron Installation
 1. 2 CPUs+ cores
