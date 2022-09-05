@@ -69,15 +69,43 @@ There are five Data types that you can use to save your secret.
 * **Kubernetes External Secret**: The secret data of your application is fetched by Devtron externally. Then the Kubernetes External Secret is converted to Kubernetes Secret.
 * **AWS Secret Manager**: The secret data of your application is fetched from AWS Secret Manager and then converted to Kubernetes Secret from AWS Secret. 
 * **AWS System Manager**: The secret data for your application is fetched from AWS System Secret Manager and all the secrets stored in AWS System Manager are converted to Kubernetes Secret.
-* **Hashi Corp Vault**: The secret data for your application is fetched from Hashi Corp Vault and the secrets stored in Hashi Corp Vault are converted to Kubernetes Secret.
+* **HashiCorp Vault**: The secret data for your application is fetched from HashiCorp Vault and the secrets stored in HashiCorp Vault are converted to Kubernetes Secret.
 
 *Note: The conversion of secrets from various data types to Kubernetes Secrets is done within Devtron and irrespective of the data type, after conversion, the Pods access `secrets` normally.*
 
 ## External Secrets
 
-In some cases, it may be that you already have secrets for your application on some other sources and you want to use that on devtron. External secrets are fetched by devtron externally and then converted to kubernetes secrets. 
+In some cases, it may be that you already have secrets for your application on some other sources and you want to use that on devtron. External secrets are fetched by devtron externally and then converted to kubernetes secrets.
 
-### Kubernetes External Secret
+### External Secret Operator (ESO)
+
+External Secrets Operator is a Kubernetes operator that integrates external secret management systems like AWS Secrets Manager, HashiCorp Vault, Google Secrets Manager, Azure Key Vault and many more. The operator reads information from external APIs and automatically injects the values into a Kubernetes Secret.
+
+#### AWS Secret Manager
+
+Before adding any external secrets on devtron, `External Secret Operator` must be installed on the target cluster.  `External Secret Operator` allows you to use external secret management systems (e.g., AWS Secrets Manager, Hashicorp Vault, Azure Secrets Manager,  Google Secrets Manager etc.) to securely inject secrets in Kubernetes.
+
+Installing `External Secrets Operator` using chart :
+
+Add Helm repository
+
+```bash
+helm repo add external-secrets https://charts.external-secrets.io
+```
+
+To install the chart with the release name `external-secrets`:
+
+```bash
+$ helm install external-secrets external-secrets/external-secrets
+```
+
+To install the chart with AWS IAM Roles for Service Accounts:
+
+```bash
+$ helm install my-release external-secrets/external-secrets --set securityContext.fsGroup=65534 --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"='arn:aws:iam::111111111111:role/ROLENAME'
+```
+
+### Kubernetes External Secret (Depricated)
 
 The secret that is already created and stored in the environment and being used by devtron externally is referred here as `Kubernetes External Secret`. For this option, devtron will not create any secret by itself but they can be used within the pods. Before adding secret from kubernetes external secret, please make sure that secret with the same name is present in the environment. To add secret from kubernetes external secret, follow the steps mentioned below:
 
