@@ -127,7 +127,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	}
 
 	privileged := true
-	archiveLogs := true
+	archiveLogs := workflowRequest.BlobStorageConfigured
 
 	limitCpu := impl.cdConfig.LimitCpu
 	limitMem := impl.cdConfig.LimitMem

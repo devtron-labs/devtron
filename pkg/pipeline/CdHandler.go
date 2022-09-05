@@ -498,7 +498,9 @@ func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineC
 
 	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, token, host, runStageInEnv)
 	if logStream == nil || err != nil {
-		if string(v1alpha1.NodeSucceeded) == cdWorkflow.Status || string(v1alpha1.NodeError) == cdWorkflow.Status || string(v1alpha1.NodeFailed) == cdWorkflow.Status || cdWorkflow.Status == WorkflowCancel {
+		if !cdWorkflow.BlobStorageEnabled {
+			return nil, nil, errors.New("logs were not stored as storage module was not configured")
+		} else if string(v1alpha1.NodeSucceeded) == cdWorkflow.Status || string(v1alpha1.NodeError) == cdWorkflow.Status || string(v1alpha1.NodeFailed) == cdWorkflow.Status || cdWorkflow.Status == WorkflowCancel {
 			impl.Logger.Debugw("pod is not live ", "err", err)
 			return impl.getLogsFromRepository(pipelineId, cdWorkflow)
 		}
@@ -625,6 +627,10 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 	if err != nil {
 		impl.Logger.Errorw("unable to fetch ciWorkflow", "err", err)
 		return nil, err
+	}
+
+	if !wfr.BlobStorageEnabled {
+		return nil, errors.New("logs were not stored as storage module was not configured")
 	}
 
 	cdConfig, err := impl.cdWorkflowRepository.FindConfigByPipelineId(pipelineId)

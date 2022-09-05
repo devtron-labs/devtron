@@ -495,7 +495,9 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 	}
 	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, "", "", false)
 	if logStream == nil || err != nil {
-		if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == WorkflowCancel {
+		if !ciWorkflow.BlobStorageEnabled {
+			return nil, nil, errors.New("logs were not stored as storage module was not configured")
+		} else if string(v1alpha1.NodeSucceeded) == ciWorkflow.Status || string(v1alpha1.NodeError) == ciWorkflow.Status || string(v1alpha1.NodeFailed) == ciWorkflow.Status || ciWorkflow.Status == WorkflowCancel {
 			impl.Logger.Errorw("err", "err", err)
 			return impl.getLogsFromRepository(pipelineId, ciWorkflow)
 		}
@@ -558,6 +560,10 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 	if err != nil {
 		impl.Logger.Errorw("unable to fetch ciWorkflow", "err", err)
 		return nil, err
+	}
+
+	if !ciWorkflow.BlobStorageEnabled {
+		return nil, errors.New("logs were not stored as storage module was not configured")
 	}
 
 	if ciWorkflow.CiPipelineId != pipelineId {
