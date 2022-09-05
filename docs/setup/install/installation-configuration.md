@@ -4,7 +4,7 @@
 
 **Configure Secrets**
 
-For `helm` installation this section referes to _**secrets.env**_ section of `values.yaml`. For `kubectl` based installation it refers to `kind: secret` in _**install/devtron-operator-configs.yaml**_.
+For `helm` installation this section referes to _**secrets**_ section of `values.yaml`. For `kubectl` based installation it refers to `kind: secret` in _**install/devtron-operator-configs.yaml**_.
 
 Configure the following properties:
 
@@ -27,6 +27,18 @@ Configure the following properties:
 | **EXTERNAL\_SECRET\_AMAZON\_REGION** | AWS region for the secret manager to pick \(required\) |  |
 | **PROMETHEUS\_URL** | URL of Prometheus where all cluster data is stored; if this is wrong, you will not be able to see application metrics like CPU, RAM, HTTP status code, latency, and throughput \(required\) |  |
 
+**Configure Overrides**
+
+For `helm` installation this section refers to _**customOverrides**_ section of `values.yaml`. In this section you can override values of devtron-cm which you want to keep persistent. For example:
+
+You can configure the following properties:
+
+| Parameter | Description | Default |
+| :--- | :--- | :--- |
+| **CI\_NODE\_LABEL\_SELECTOR** | Labels for a particular nodegroup which you want to use for running CIs | |
+| **CI\_NODE\_TAINTS\_KEY** | Key for toleration if nodegroup chosen for CIs have some taints | |
+| **CI\_NODE\_TAINTS\_VALUE** | Value for toleration if nodegroup chosen for CIs have some taints |  |
+
 ## Storage for Logs and Cache
 
 ### AWS SPECIFIC	
@@ -45,8 +57,6 @@ While installing Devtron and using the AWS-S3 bucket for storing the logs and ca
 ### AZURE SPECIFIC
 
 While installing Devtron using Azure Blob Storage for storing logs and caches, the below parameters will be used in the ConfigMap.
-
-> NOTE: For using the storage containers it is mandatory to enable versioning on the storage account. [Refer this guide](https://docs.microsoft.com/en-us/azure/storage/blobs/versioning-enable?tabs=portal#enable-blob-versioning) to enable the same.
 
 | Parameter | Description | Default |
 | :--- | :--- | :--- |

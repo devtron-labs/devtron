@@ -30,7 +30,7 @@ import (
 )
 
 type DeploymentFailureHandler interface {
-	Handle(jobEvent *repository.JobEvent, event client.Event) error
+	WriteCDFailureEvent(pipelineId, appId, envId int)
 }
 
 type DeploymentFailureHandlerImpl struct {
@@ -50,27 +50,8 @@ func NewDeploymentFailureHandlerImpl(logger *zap.SugaredLogger, appListingServic
 	return deploymentFailureHandlerImpl
 }
 
-func (impl *DeploymentFailureHandlerImpl) Handle(jobEvent *repository.JobEvent, event client.Event) error {
-	deploymentStatuses, err := impl.appListingService.GetLastDeploymentStatuses()
-	if err != nil {
-		impl.logger.Errorw("err", err)
-		return err
-	}
-	for _, v := range deploymentStatuses {
-		if impl.isDeploymentFailed(v) {
-			if jobEvent.Id != 0 && jobEvent.UpdatedOn.Sub(v.UpdatedOn) > 5*time.Minute {
-				impl.logger.Debug("processed by previous job: ", v.AppName)
-				continue
-			}
-			impl.logger.Debug("trigger deployment failed notification")
-			impl.WriteCDFailureEvent(v, event)
-		}
-	}
-	return nil
-}
-
-func (impl *DeploymentFailureHandlerImpl) WriteCDFailureEvent(ds repository.DeploymentStatus, eventdata client.Event) {
-	event := impl.eventFactory.Build(util.Fail, &eventdata.PipelineId, ds.AppId, &ds.EnvId, util.CD)
+func (impl *DeploymentFailureHandlerImpl) WriteCDFailureEvent(pipelineId, appId, envId int) {
+	event := impl.eventFactory.Build(util.Fail, &pipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDFailureEvent", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, 0, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteEvent(event)

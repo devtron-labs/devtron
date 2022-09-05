@@ -559,10 +559,23 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 
 	var stageYaml string
+	var deployStageWfr pipelineConfig.CdWorkflowRunner
+	deployStageTriggeredByUser := &bean.UserInfo{}
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 		stageYaml = cdPipeline.PreStageConfig
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 		stageYaml = cdPipeline.PostStageConfig
+		//getting deployment pipeline latest wfr by pipelineId
+		deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(cdPipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil {
+			impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", cdPipeline.Id)
+			return nil, err
+		}
+		deployStageTriggeredByUser, err = impl.user.GetById(deployStageWfr.TriggeredBy)
+		if err != nil {
+			impl.logger.Errorw("error in getting userDetails by id", "err", err, "userId", deployStageWfr.TriggeredBy)
+			return nil, err
+		}
 	} else {
 		return nil, fmt.Errorf("unsupported workflow triggerd")
 	}
@@ -603,6 +616,10 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		OrchestratorToken:         impl.cdConfig.OrchestratorToken,
 		ExtraEnvironmentVariables: extraEnvVariables,
 		CloudProvider:             impl.cdConfig.CloudProvider,
+	}
+	if deployStageTriggeredByUser != nil {
+		cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
+		cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUser.EmailId
 	}
 	switch cdStageWorkflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
@@ -829,7 +846,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		timeline := &pipelineConfig.PipelineStatusTimeline{
 			CdWorkflowRunnerId: runner.Id,
 			Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-			StatusDetail:       "Deployment failed - Vulnerability policy violated for image.",
+			StatusDetail:       "Deployment failed: Vulnerability policy violated.",
 			StatusTime:         time.Now(),
 			AuditLog: sql.AuditLog{
 				CreatedBy: 1,
@@ -867,7 +884,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: currentRunner.Id,
 				Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-				StatusDetail:       fmt.Sprintf("Deployment failed - %v", err),
+				StatusDetail:       fmt.Sprintf("Deployment failed: %v", err),
 				StatusTime:         time.Now(),
 				AuditLog: sql.AuditLog{
 					CreatedBy: 1,
@@ -1119,7 +1136,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: runner.Id,
 				Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-				StatusDetail:       "Deployment failed - Vulnerability policy violated for image.",
+				StatusDetail:       "Deployment failed: Vulnerability policy violated.",
 				StatusTime:         time.Now(),
 				AuditLog: sql.AuditLog{
 					CreatedBy: 1,
@@ -1367,6 +1384,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 }
 
 func (impl *WorkflowDagExecutorImpl) buildACDContext() (acdContext context.Context, err error) {
+	//this part only accessible for acd apps hibernation, if acd configured it will fetch latest acdToken, else it will return error
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)

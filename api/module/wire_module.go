@@ -2,14 +2,15 @@ package module
 
 import (
 	"github.com/devtron-labs/devtron/pkg/module"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/google/wire"
 )
 
 var ModuleWireSet = wire.NewSet(
 	module.NewModuleActionAuditLogRepositoryImpl,
 	wire.Bind(new(module.ModuleActionAuditLogRepository), new(*module.ModuleActionAuditLogRepositoryImpl)),
-	module.NewModuleRepositoryImpl,
-	wire.Bind(new(module.ModuleRepository), new(*module.ModuleRepositoryImpl)),
+	moduleRepo.NewModuleRepositoryImpl,
+	wire.Bind(new(moduleRepo.ModuleRepository), new(*moduleRepo.ModuleRepositoryImpl)),
 	module.ParseModuleEnvConfig,
 	module.NewModuleServiceImpl,
 	wire.Bind(new(module.ModuleService), new(*module.ModuleServiceImpl)),

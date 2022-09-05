@@ -74,7 +74,6 @@ type MuxRouter struct {
 	workflowUpdateHandler              pubsub.WorkflowStatusUpdateHandler
 	appUpdateHandler                   pubsub.ApplicationStatusUpdateHandler
 	ciEventHandler                     pubsub.CiEventHandler
-	cronBasedEventReceiver             pubsub.CronBasedEventReceiver
 	ChartRefRouter                     ChartRefRouter
 	ConfigMapRouter                    ConfigMapRouter
 	AppStoreRouter                     appStore.AppStoreRouter
@@ -89,6 +88,7 @@ type MuxRouter struct {
 	gitOpsConfigRouter                 GitOpsConfigRouter
 	dashboardRouter                    dashboard.DashboardRouter
 	attributesRouter                   AttributesRouter
+	userAttributesRouter               UserAttributesRouter
 	commonRouter                       CommonRouter
 	grafanaRouter                      GrafanaRouter
 	ssoLoginRouter                     sso.SsoLoginRouter
@@ -109,7 +109,7 @@ type MuxRouter struct {
 	moduleRouter                       module.ModuleRouter
 	serverRouter                       server.ServerRouter
 	apiTokenRouter                     apiToken.ApiTokenRouter
-	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler
+	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
 	k8sCapacityRouter                  k8s.K8sCapacityRouter
 	webhookHelmRouter                  webhookHelm.WebhookHelmRouter
 }
@@ -126,18 +126,18 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	gitWebhookHandler pubsub.GitWebhookHandler,
 	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
 	appUpdateHandler pubsub.ApplicationStatusUpdateHandler,
-	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClient, UserRouter user.UserRouter, cronBasedEventReceiver pubsub.CronBasedEventReceiver,
+	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClient, UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
-	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter,
+	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter, userAttributesRouter UserAttributesRouter,
 	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppLabelRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
 	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
-	helmApplicationStatusUpdateHandler cron.HelmApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter, webhookHelmRouter webhookHelm.WebhookHelmRouter) *MuxRouter {
+	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter, webhookHelmRouter webhookHelm.WebhookHelmRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -163,7 +163,6 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		ciEventHandler:                     ciEventHandler,
 		pubsubClient:                       pubsubClient,
 		UserRouter:                         UserRouter,
-		cronBasedEventReceiver:             cronBasedEventReceiver,
 		ChartRefRouter:                     ChartRefRouter,
 		ConfigMapRouter:                    ConfigMapRouter,
 		AppStoreRouter:                     AppStoreRouter,
@@ -177,6 +176,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		policyRouter:                       policyRouter,
 		gitOpsConfigRouter:                 gitOpsConfigRouter,
 		attributesRouter:                   attributesRouter,
+		userAttributesRouter:               userAttributesRouter,
 		dashboardRouter:                    dashboardRouter,
 		commonRouter:                       commonRouter,
 		grafanaRouter:                      grafanaRouter,
@@ -324,6 +324,9 @@ func (r MuxRouter) Init() {
 	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
 	r.attributesRouter.initAttributesRouter(attributeRouter)
 
+	userAttributeRouter := r.Router.PathPrefix("/orchestrator/attributes/user").Subrouter()
+	r.userAttributesRouter.InitUserAttributesRouter(userAttributeRouter)
+
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
 
@@ -341,7 +344,7 @@ func (r MuxRouter) Init() {
 	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
 
 	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
-	r.telemetryRouter.initTelemetryRouter(telemetryRouter)
+	r.telemetryRouter.InitTelemetryRouter(telemetryRouter)
 
 	bulkUpdateRouter := r.Router.PathPrefix("/orchestrator/batch").Subrouter()
 	r.bulkUpdateRouter.initBulkUpdateRouter(bulkUpdateRouter)

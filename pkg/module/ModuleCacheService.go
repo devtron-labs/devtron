@@ -20,9 +20,11 @@ package module
 import (
 	"context"
 	"github.com/devtron-labs/devtron/internal/util"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
+	"github.com/devtron-labs/devtron/pkg/team"
 	util2 "github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -47,11 +49,12 @@ type ModuleCacheServiceImpl struct {
 	moduleEnvConfig  *ModuleEnvConfig
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	serverDataStore  *serverDataStore.ServerDataStore
-	moduleRepository ModuleRepository
+	moduleRepository moduleRepo.ModuleRepository
+	teamService      team.TeamService
 }
 
 func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil, moduleEnvConfig *ModuleEnvConfig, serverEnvConfig *serverEnvConfig.ServerEnvConfig,
-	serverDataStore *serverDataStore.ServerDataStore, moduleRepository ModuleRepository) *ModuleCacheServiceImpl {
+	serverDataStore *serverDataStore.ServerDataStore, moduleRepository moduleRepo.ModuleRepository, teamService team.TeamService) *ModuleCacheServiceImpl {
 	impl := &ModuleCacheServiceImpl{
 		logger:           logger,
 		K8sUtil:          K8sUtil,
@@ -59,17 +62,36 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 		serverEnvConfig:  serverEnvConfig,
 		serverDataStore:  serverDataStore,
 		moduleRepository: moduleRepository,
+		teamService:      teamService,
+	}
+
+	// DB migration - if server mode is not base stack and data in modules table is empty, then insert entries in DB
+	if !util2.IsBaseStack() {
+		exists, err := impl.moduleRepository.ModuleExists()
+		if err != nil {
+			log.Fatalln("Error while checking if any module exists in database.", "error", err)
+		}
+		if !exists {
+			// insert cicd module entry
+			impl.updateModuleToInstalled(ModuleNameCicd)
+
+			// if old installation (i.e. project was created more than 1 hour ago then insert rest entries)
+			teamId := 1
+			team, err := teamService.FetchOne(teamId)
+			if err != nil {
+				log.Fatalln("Error while getting team.", "teamId", teamId, "err", err)
+			}
+
+			if time.Now().After(team.CreatedOn.Add(1 * time.Hour)) {
+				for _, supportedModuleName := range SupportedModuleNamesListExcludingCicd {
+					impl.updateModuleToInstalled(supportedModuleName)
+				}
+			}
+		}
 	}
 
 	// if devtron user type is OSS_HELM then only installer object and modules installation is useful
 	if serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeOssHelm {
-		// for hyperion mode, installer crd won't come in picture
-		// for full mode, need to update modules to installed in db in found as installing
-		if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_FULL {
-			// handle cicd module status
-			impl.updateModuleStatusToInstalled()
-		}
-
 		// listen in installer object to save status in-memory
 		// build informer to listen on installer object
 		go impl.buildInformerToListenOnInstallerObject()
@@ -78,23 +100,16 @@ func NewModuleCacheServiceImpl(logger *zap.SugaredLogger, K8sUtil *util.K8sUtil,
 	return impl
 }
 
-func (impl *ModuleCacheServiceImpl) updateModuleStatusToInstalled() {
-	impl.logger.Debug("updating module status to installed")
-	modules, err := impl.moduleRepository.FindAll()
-	if err != nil {
-		log.Fatalln("not able to get all the module from DB.", "error", err)
+func (impl *ModuleCacheServiceImpl) updateModuleToInstalled(moduleName string) {
+	module := &moduleRepo.Module{
+		Name:      moduleName,
+		Version:   impl.serverDataStore.CurrentVersion,
+		Status:    ModuleStatusInstalled,
+		UpdatedOn: time.Now(),
 	}
-
-	for _, module := range modules {
-		if module.Status != ModuleStatusInstalling {
-			continue
-		}
-		module.Status = ModuleStatusInstalled
-		module.UpdatedOn = time.Now()
-		err = impl.moduleRepository.Update(&module)
-		if err != nil {
-			log.Fatalln("error in updating module status to installed", "name", module.Name, "err", err)
-		}
+	err := impl.moduleRepository.Save(module)
+	if err != nil {
+		log.Fatalln("Error while saving module.", "moduleName", moduleName, "error", err)
 	}
 }
 

@@ -78,6 +78,7 @@ type AppHealthStatusCode = string
 const (
 	AppHealthStatusProgressing AppHealthStatusCode = "Progressing"
 	AppHealthStatusDegraded    AppHealthStatusCode = "Degraded"
+	AppHealthStatusHealthy     AppHealthStatusCode = "Healthy"
 )
 
 type DevtronInstallationType = string
