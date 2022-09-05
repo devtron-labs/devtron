@@ -16,7 +16,7 @@
  */
 
 /*
-	@description: app listing view
+@description: app listing view
 */
 package repository
 
@@ -47,9 +47,11 @@ type AppListingRepository interface {
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
 
 	SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error
+	SaveNewDeploymentsWithTxn(deploymentStatuses []DeploymentStatus, tx *pg.Tx) error
 	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
 	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
 	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
+	FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(deployedBeforeMinutes int) ([]DeploymentStatus, error)
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
 }
@@ -77,7 +79,8 @@ func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB,
 	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder}
 }
 
-/**
+/*
+*
 It will return the list of filtered apps with details related to each env
 */
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
@@ -152,7 +155,7 @@ func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter hel
 	return appEnvArr, nil
 }
 
-//It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
+// It will return the deployment detail of any cd pipeline which is latest triggered for Environment of any App
 func (impl AppListingRepositoryImpl) DeploymentDetailsByAppIdAndEnvId(appId int, envId int) (bean.DeploymentDetailContainer, error) {
 	impl.Logger.Debugf("reached at AppListingRepository:")
 	var deploymentDetail bean.DeploymentDetailContainer
@@ -455,6 +458,11 @@ func (impl AppListingRepositoryImpl) SaveNewDeployment(deploymentStatus *Deploym
 	return err
 }
 
+func (impl AppListingRepositoryImpl) SaveNewDeploymentsWithTxn(deploymentStatuses []DeploymentStatus, tx *pg.Tx) error {
+	err := tx.Insert(&deploymentStatuses)
+	return err
+}
+
 func (impl AppListingRepositoryImpl) FindLastDeployedStatus(appName string) (DeploymentStatus, error) {
 	var deployment DeploymentStatus
 	err := impl.dbConnection.Model(&deployment).
@@ -492,6 +500,21 @@ func (impl AppListingRepositoryImpl) FindLastDeployedStatusesForAllApps() ([]Dep
 	if err != nil {
 		impl.Logger.Error("err", err)
 		return []DeploymentStatus{}, err
+	}
+	return deploymentStatuses, nil
+}
+
+// below query will fetch latest status of all apps along with the filter
+// Status == application.Progressing && time.Since(UpdatedOn) > time.Duration(timeForDegradation)*time.Minute
+
+func (impl AppListingRepositoryImpl) FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(deployedBeforeMinutes int) ([]DeploymentStatus, error) {
+	var deploymentStatuses []DeploymentStatus
+	terminalStatuses := fmt.Sprint("'Healthy', 'Degraded', 'Failed'")
+	query := fmt.Sprintf("select * from deployment_status where status not in (%s) and updated_on < NOW() - INTERVAL '%d minutes' and id in (select DISTINCT ON (ds.app_name) max(ds.id) as id  from deployment_status ds inner join pipeline p on p.app_id=ds.app_id where p.deleted=false and p.deployment_app_type='argo_cd' group by ds.app_name, status,ds.app_id, env_id, ds.created_on, ds.updated_on order by ds.app_name,id desc) order by id desc;", terminalStatuses, deployedBeforeMinutes)
+	_, err := impl.dbConnection.Query(&deploymentStatuses, query)
+	if err != nil {
+		impl.Logger.Error("err", err)
+		return nil, err
 	}
 	return deploymentStatuses, nil
 }

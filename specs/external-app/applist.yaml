@@ -735,6 +735,9 @@ components:
         readme:
           type: string
           description: readme of the chart
+        valuesSchemaJson:
+          type: string
+          description: content of the values.schema.json file of chart
     DesiredManifestRequest:
       type: object
       properties:

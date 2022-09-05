@@ -276,6 +276,7 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 			GitMaterialId:  dockerfileGitMaterial,
 			DockerfilePath: refCiConf.DockerBuildConfig.DockerfilePath,
 			Args:           refCiConf.DockerBuildConfig.Args,
+			TargetPlatform: refCiConf.DockerBuildConfig.TargetPlatform,
 		},
 		DockerRegistryUrl: refCiConf.DockerRegistry,
 		CiTemplateName:    refCiConf.CiTemplateName,
@@ -676,6 +677,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					Source: &bean.SourceTypeConfig{
 						Type:  refCiMaterial.Source.Type,
 						Value: refCiMaterial.Source.Value,
+						Regex: refCiMaterial.Source.Regex,
 					},
 				}
 				ciMaterilas = append(ciMaterilas, ciMaterial)

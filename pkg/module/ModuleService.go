@@ -21,11 +21,15 @@ import (
 	"context"
 	"errors"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
 	"github.com/devtron-labs/devtron/pkg/server"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
+	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
+	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 	"time"
 )
@@ -38,9 +42,10 @@ type ModuleService interface {
 type ModuleServiceImpl struct {
 	logger                         *zap.SugaredLogger
 	serverEnvConfig                *serverEnvConfig.ServerEnvConfig
-	moduleRepository               ModuleRepository
+	moduleRepository               moduleRepo.ModuleRepository
 	moduleActionAuditLogRepository ModuleActionAuditLogRepository
 	helmAppService                 client.HelmAppService
+	serverDataStore                *serverDataStore.ServerDataStore
 	// no need to inject serverCacheService, moduleCacheService and cronService, but not generating in wire_gen (not triggering cache work in constructor) if not injecting. hence injecting
 	// serverCacheService should be injected first as it changes serverEnvConfig in its constructor, which is used by moduleCacheService and moduleCronService
 	serverCacheService server.ServerCacheService
@@ -48,14 +53,15 @@ type ModuleServiceImpl struct {
 	moduleCronService  ModuleCronService
 }
 
-func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleRepository ModuleRepository,
-	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService, serverCacheService server.ServerCacheService, moduleCacheService ModuleCacheService, moduleCronService ModuleCronService) *ModuleServiceImpl {
+func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleRepository moduleRepo.ModuleRepository,
+	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService, serverDataStore *serverDataStore.ServerDataStore, serverCacheService server.ServerCacheService, moduleCacheService ModuleCacheService, moduleCronService ModuleCronService) *ModuleServiceImpl {
 	return &ModuleServiceImpl{
 		logger:                         logger,
 		serverEnvConfig:                serverEnvConfig,
 		moduleRepository:               moduleRepository,
 		moduleActionAuditLogRepository: moduleActionAuditLogRepository,
 		helmAppService:                 helmAppService,
+		serverDataStore:                serverDataStore,
 		serverCacheService:             serverCacheService,
 		moduleCacheService:             moduleCacheService,
 		moduleCronService:              moduleCronService,
@@ -73,8 +79,29 @@ func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error)
 	module, err := impl.moduleRepository.FindOne(name)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			// if entry is not found in database, then treat it as "notInstalled"
 			moduleInfoDto.Status = ModuleStatusNotInstalled
+			// if entry is not found in database, then check if it was installed at run time otherwise treat it as "notInstalled"
+			devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
+			releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), devtronHelmAppIdentifier)
+			if err != nil {
+				impl.logger.Errorw("Error in getting values yaml for devtron operator helm release", "moduleName", name, "err", err)
+			} else {
+				isEnabled := gjson.Get(releaseInfo.MergedValues, moduleUtil.BuildModuleEnableKey(name)).Bool()
+				if isEnabled {
+					module := &moduleRepo.Module{
+						Name:      name,
+						Version:   impl.serverDataStore.CurrentVersion,
+						Status:    ModuleStatusInstalled,
+						UpdatedOn: time.Now(),
+					}
+					err = impl.moduleRepository.Save(module)
+					if err == nil {
+						moduleInfoDto.Status = ModuleStatusInstalled
+					} else {
+						impl.logger.Errorw("Error in saving module with installed status", "moduleName", name, "err", err)
+					}
+				}
+			}
 			return moduleInfoDto, nil
 		}
 		// otherwise some error case
@@ -121,7 +148,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 			// in case of entry not found, update variable
 			moduleFound = false
 			// initialise module to save in DB
-			module = &Module{
+			module = &moduleRepo.Module{
 				Name: moduleName,
 			}
 		} else {
@@ -163,6 +190,17 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	extraValues := make(map[string]interface{})
 	extraValues["installer.release"] = moduleActionRequest.Version
 	extraValues["installer.modules"] = []interface{}{moduleName}
+	alreadyInstalledModuleNames, err := impl.moduleRepository.GetInstalledModuleNames()
+	if err != nil {
+		impl.logger.Errorw("error in getting modules with installed status ", "err", err)
+		return nil, err
+	}
+	extraValues[moduleUtil.BuildModuleEnableKey(moduleName)] = true
+	for _, alreadyInstalledModuleName := range alreadyInstalledModuleNames {
+		if alreadyInstalledModuleName != moduleName {
+			extraValues[moduleUtil.BuildModuleEnableKey(alreadyInstalledModuleName)] = true
+		}
+	}
 	extraValuesYamlUrl := util2.BuildDevtronBomUrl(impl.serverEnvConfig.DevtronBomUrl, moduleActionRequest.Version)
 
 	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)

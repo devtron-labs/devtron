@@ -46,6 +46,7 @@ type ClusterBean struct {
 	AgentInstallationStage  int                        `json:"agentInstallationStage,notnull"` // -1=external, 0=not triggered, 1=progressing, 2=success, 3=fails
 	K8sVersion              string                     `json:"k8sVersion"`
 	HasConfigOrUrlChanged   bool                       `json:"-"`
+	ErrorInConnecting       string                     `json:"-"`
 }
 
 type PrometheusAuth struct {
@@ -183,7 +184,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 
 	//on successful creation of new cluster, update informer cache for namespace group by cluster
 	//here sync for ea mode only
-	if util2.GetDevtronVersion().ServerMode != "FULL" {
+	if util2.IsBaseStack() {
 		impl.SyncNsInformer(bean)
 	}
 	return bean, err
@@ -240,6 +241,8 @@ func (impl *ClusterServiceImpl) FindAll() ([]*ClusterBean, error) {
 			ServerUrl:              m.ServerUrl,
 			Active:                 m.Active,
 			K8sVersion:             m.K8sVersion,
+			ErrorInConnecting:      m.ErrorInConnecting,
+			Config:                 m.Config,
 		})
 	}
 	return beans, nil
@@ -261,6 +264,7 @@ func (impl *ClusterServiceImpl) FindAllActive() ([]ClusterBean, error) {
 			AgentInstallationStage: m.AgentInstallationStage,
 			Config:                 m.Config,
 			K8sVersion:             m.K8sVersion,
+			ErrorInConnecting:      m.ErrorInConnecting,
 		})
 	}
 	return beans, nil
@@ -386,7 +390,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	bean.Id = model.Id
 
 	//here sync for ea mode only
-	if bean.HasConfigOrUrlChanged && util2.GetDevtronVersion().ServerMode != "FULL" {
+	if bean.HasConfigOrUrlChanged && util2.IsBaseStack() {
 		impl.SyncNsInformer(bean)
 	}
 	return bean, err

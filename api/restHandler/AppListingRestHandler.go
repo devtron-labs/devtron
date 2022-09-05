@@ -21,18 +21,20 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -71,6 +73,7 @@ type AppListingRestHandlerImpl struct {
 	helmAppClient          client.HelmAppClient
 	clusterService         cluster.ClusterService
 	helmAppService         client.HelmAppService
+	argoUserService        argo.ArgoUserService
 }
 
 type AppStatus struct {
@@ -88,7 +91,8 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	pipeline pipeline.PipelineBuilder,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
-	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService) *AppListingRestHandlerImpl {
+	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
+	argoUserService argo.ArgoUserService) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:            application,
 		appListingService:      appListingService,
@@ -102,6 +106,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		helmAppClient:          helmAppClient,
 		clusterService:         clusterService,
 		helmAppService:         helmAppService,
+		argoUserService:        argoUserService,
 	}
 	return appListingHandler
 }
@@ -181,18 +186,29 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 				uniqueTeams[envContainer.TeamId] = envContainer.TeamName
 			}
 		}
+
+		objectArray := make([]string, len(uniqueTeams))
+		for _, teamName := range uniqueTeams {
+			object := strings.ToLower(teamName)
+			objectArray = append(objectArray, object)
+		}
+
+		resultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray)
 		for teamId, teamName := range uniqueTeams {
 			object := strings.ToLower(teamName)
-			if ok := handler.enforcer.EnforceByEmail(userEmailId, casbin.ResourceTeam, casbin.ActionGet, object); ok {
+			if ok := resultMap[object]; ok {
 				authorizedTeams[teamId] = true
 			}
 		}
+
 		filteredAppEnvContainers := make([]*bean.AppEnvironmentContainer, 0)
 		for _, envContainer := range envContainers {
 			if _, ok := authorizedTeams[envContainer.TeamId]; ok {
 				filteredAppEnvContainers = append(filteredAppEnvContainers, envContainer)
 			}
 		}
+
+		objectArray = make([]string, len(filteredAppEnvContainers))
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
 			if fetchAppListingRequest.DeploymentGroupId > 0 {
 				if filteredAppEnvContainer.EnvironmentId != 0 && filteredAppEnvContainer.EnvironmentId != dg.EnvironmentId {
@@ -201,10 +217,23 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			}
 			object := fmt.Sprintf("%s/%s", filteredAppEnvContainer.TeamName, filteredAppEnvContainer.AppName)
 			object = strings.ToLower(object)
-			if ok := handler.enforcer.EnforceByEmail(userEmailId, casbin.ResourceApplications, casbin.ActionGet, object); ok {
+			objectArray = append(objectArray, object)
+		}
+
+		resultMap = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
+			if fetchAppListingRequest.DeploymentGroupId > 0 {
+				if filteredAppEnvContainer.EnvironmentId != 0 && filteredAppEnvContainer.EnvironmentId != dg.EnvironmentId {
+					continue
+				}
+			}
+			object := fmt.Sprintf("%s/%s", filteredAppEnvContainer.TeamName, filteredAppEnvContainer.AppName)
+			object = strings.ToLower(object)
+			if ok := resultMap[object]; ok {
 				appEnvContainers = append(appEnvContainers, filteredAppEnvContainer)
 			}
 		}
+
 	}
 	t2 = time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3")
@@ -325,7 +354,13 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(ctx, "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 
 	response := make(chan AppStatus)
@@ -354,7 +389,7 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 					healthStatus := resp.Application.Status.Health.Status
 					status := AppStatus{
 						name:       pipelineName,
-						status:     healthStatus,
+						status:     string(healthStatus),
 						message:    resp.Application.Status.Health.Message,
 						err:        nil,
 						conditions: resp.Application.Status.Conditions,
@@ -403,7 +438,7 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 		if triggerView[i].Status == "" {
 			triggerView[i].Status = "Unknown"
 		}
-		if triggerView[i].Status == v1alpha1.HealthStatusDegraded {
+		if triggerView[i].Status == string(health.HealthStatusDegraded) {
 			triggerView[i].Status = "Not Deployed"
 		}
 	}
@@ -528,7 +563,7 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 }
 
 func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, token string, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
-	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsAcdApp(appDetail.DeploymentAppType) {
 		//RBAC enforcer Ends
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
 		query := &application2.ResourcesQuery{
@@ -544,8 +579,14 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		ctx = context.WithValue(ctx, "token", token)
 		defer cancel()
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return appDetail
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
 		start := time.Now()
 		resp, err := handler.application.ResourceTree(ctx, query)
 		elapsed := time.Since(start)
@@ -559,7 +600,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 			return appDetail
 		}
-		if resp.Status == v1alpha1.HealthStatusHealthy {
+		if resp.Status == string(health.HealthStatusHealthy) {
 			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
 			if err != nil {
 				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
@@ -569,7 +610,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		handler.logger.Debugw("FetchAppDetails, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
 
-		if resp.Status == v1alpha1.HealthStatusDegraded {
+		if resp.Status == string(health.HealthStatusDegraded) {
 			count, err := handler.appListingService.GetReleaseCount(appId, envId)
 			if err != nil {
 				handler.logger.Errorw("service err, FetchAppDetails, release count", "err", err, "app", appId, "env", envId)
@@ -579,7 +620,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
 		handler.logger.Debugw("application environment status", "appId", appId, "envId", envId, "resp", resp)
-	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && appDetail.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsHelmApp(appDetail.DeploymentAppType) {
 		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching cluster detail", "err", err)

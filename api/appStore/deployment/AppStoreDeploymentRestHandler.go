@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
@@ -61,12 +62,13 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	validator                  *validator.Validate
 	helmAppService             client.HelmAppService
 	helmAppRestHandler         client.HelmAppRestHandler
+	argoUserService            argo.ArgoUserService
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService service.AppStoreDeploymentService,
 	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-) *AppStoreDeploymentRestHandlerImpl {
+	argoUserService argo.ArgoUserService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                     Logger,
 		userAuthService:            userAuthService,
@@ -77,6 +79,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		validator:                  validator,
 		helmAppService:             helmAppService,
 		appStoreDeploymentServiceC: appStoreDeploymentServiceC,
+		argoUserService:            argoUserService,
 	}
 }
 
@@ -105,7 +108,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 
 	//rbac block starts from here
 	var rbacObject string
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+	if util2.IsBaseStack() {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(request.ClusterId, request.Namespace, request.AppName)
 	} else {
 		rbacObject = handler.enforcerUtil.GetHelmObjectByProjectIdAndEnvId(request.TeamId, request.EnvironmentId)
@@ -139,7 +142,18 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
+		ctx = context.WithValue(r.Context(), "token", token)
+	} else {
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
+	}
+
 	defer cancel()
 	res, err := handler.appStoreDeploymentService.InstallApp(&request, ctx)
 	if err != nil {
@@ -181,7 +195,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w 
 
 		//rbac block starts from here
 		var rbacObject string
-		if app.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+		if util2.IsHelmApp(app.AppOfferingMode) {
 			rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(app.ClusterId, app.Namespace, app.AppName)
 		} else {
 			rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(app.AppName, app.EnvironmentId)
@@ -198,6 +212,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w 
 }
 
 func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.ResponseWriter, r *http.Request) {
+
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -233,7 +248,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 
 	//rbac block starts from here
 	var rbacObject string
-	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+	if util2.IsHelmApp(installedApp.AppOfferingMode) {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 	} else {
 		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
@@ -264,7 +279,17 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
+		ctx = context.WithValue(r.Context(), "token", token)
+	} else {
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
+	}
 	res, err := handler.appStoreDeploymentService.DeleteInstalledApp(ctx, &request)
 	if err != nil {
 		handler.Logger.Errorw("service err, DeleteInstalledApp", "err", err, "installAppId", installAppId)
@@ -337,17 +362,17 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		return
 	}
 	token := r.Header.Get("token")
-	handler.Logger.Infow("request payload, UpdateInstalledApp", "payload", request)
+	handler.Logger.Debugw("request payload, UpdateInstalledApp", "payload", request)
 	installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(request.InstalledAppId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateInstalledApp", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	
+
 	//rbac block starts from here
 	var rbacObject string
-	if installedApp.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+	if util2.IsHelmApp(installedApp.AppOfferingMode) {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 	} else {
 		rbacObject = handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
@@ -357,7 +382,6 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		return
 	}
 	//rbac block ends here
-
 
 	request.UserId = userId
 	ctx, cancel := context.WithCancel(r.Context())
@@ -370,7 +394,17 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
+		ctx = context.WithValue(r.Context(), "token", token)
+	} else {
+		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
+	}
 	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(ctx, &request)
 	if err != nil {
 		if strings.Contains(err.Error(), "application spec is invalid") {
@@ -407,7 +441,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.R
 
 	//rbac block starts from here
 	var rbacObject string
-	if dto.AppOfferingMode == util2.SERVER_MODE_HYPERION {
+	if util2.IsHelmApp(dto.AppOfferingMode) {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(dto.ClusterId, dto.Namespace, dto.AppName)
 	} else {
 		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(dto.AppName, dto.EnvironmentId)

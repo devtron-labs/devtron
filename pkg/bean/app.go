@@ -33,6 +33,7 @@ const (
 type SourceTypeConfig struct {
 	Type  pipelineConfig.SourceType `json:"type,omitempty" validate:"oneof=SOURCE_TYPE_BRANCH_FIXED SOURCE_TYPE_BRANCH_REGEX SOURCE_TYPE_TAG_ANY WEBHOOK"`
 	Value string                    `json:"value,omitempty" `
+	Regex string                    `json:"regex"`
 }
 
 type CreateAppDTO struct {
@@ -77,6 +78,7 @@ type CiMaterial struct {
 	ScmVersion      string            `json:"scmVersion,omitempty"`
 	Id              int               `json:"id,omitempty"`
 	GitMaterialName string            `json:"gitMaterialName"`
+	IsRegex         bool              `json:"isRegex"`
 }
 
 type CiPipeline struct {
@@ -102,6 +104,7 @@ type CiPipeline struct {
 	AppWorkflowId            int                    `json:"appWorkflowId,omitempty"`
 	PreBuildStage            *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
 	PostBuildStage           *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
+	TargetPlatform           string                 `json:"targetPlatform,omitempty"`
 }
 
 type CiPipelineMin struct {
@@ -130,7 +133,7 @@ type ExternalCiConfig struct {
 	AccessKey  string `json:"accessKey"`
 }
 
-//-------------------
+// -------------------
 type PatchAction int
 type PipelineType string
 
@@ -168,13 +171,20 @@ func (a PatchAction) String() string {
 
 }
 
-//----------------
+// ----------------
 type CiPatchRequest struct {
 	CiPipeline    *CiPipeline `json:"ciPipeline"`
 	AppId         int         `json:"appId,omitempty"`
 	Action        PatchAction `json:"action"`
 	AppWorkflowId int         `json:"appWorkflowId,omitempty"`
 	UserId        int32       `json:"-"`
+}
+
+type CiRegexPatchRequest struct {
+	CiPipelineMaterial []*CiPipelineMaterial `json:"ciPipelineMaterial,omitempty"`
+	Id                 int                   `json:"id,omitempty" `
+	AppId              int                   `json:"appId,omitempty"`
+	UserId             int32                 `json:"-"`
 }
 
 type GitCiTriggerRequest struct {
@@ -259,6 +269,7 @@ type DockerBuildConfig struct {
 	GitMaterialId  int               `json:"gitMaterialId,omitempty" validate:"required"`
 	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
 	Args           map[string]string `json:"args,omitempty"`
+	TargetPlatform string            `json:"targetPlatform"`
 	//Name Tag DockerfilePath RepoUrl
 }
 
@@ -309,7 +320,7 @@ contains reference to chart and values.yaml changes for next deploy
 type HelmConfig struct {
 }
 
-//used for automated unit and integration test
+// used for automated unit and integration test
 type Test struct {
 	Name    string
 	Command string
@@ -331,7 +342,7 @@ type EnvironmentGroup struct {
 	Environments []Environment
 }
 
-//set of unique attributes which corresponds to a cluster
+// set of unique attributes which corresponds to a cluster
 // different environment of gocd and k8s cluster.
 type Environment struct {
 	Values string
@@ -404,7 +415,7 @@ type MaterialOperations interface {
 	SaveMaterialMetaData(metadata *MaterialMetadata) error
 }
 
-//--------- cd related struct ---------
+// --------- cd related struct ---------
 type CDMaterialMetadata struct {
 	Url    string `json:"url,omitempty"`
 	Branch string `json:"branch,omitempty"`
@@ -565,4 +576,8 @@ type AppMetaInfoDto struct {
 	Active      bool      `json:"active,notnull"`
 	Labels      []*Label  `json:"labels"`
 	UserId      int32     `json:"-"`
+}
+
+type AppLabelsJsonForDeployment struct {
+	Labels map[string]string `json:"appLabels"`
 }

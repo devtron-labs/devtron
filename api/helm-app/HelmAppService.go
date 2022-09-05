@@ -38,6 +38,7 @@ type HelmAppService interface {
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	DecodeAppId(appId string) (*AppIdentifier, error)
+	EncodeAppId(appIdentifier *AppIdentifier) string
 	GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error)
 	GetValuesYaml(ctx context.Context, app *AppIdentifier) (*ReleaseInfo, error)
 	GetDesiredManifest(ctx context.Context, app *AppIdentifier, resource *openapi.ResourceIdentifier) (*openapi.DesiredManifestResponse, error)
@@ -674,6 +675,10 @@ func (impl *HelmAppServiceImpl) DecodeAppId(appId string) (*AppIdentifier, error
 		Namespace:   component[1],
 		ReleaseName: component[2],
 	}, nil
+}
+
+func (impl *HelmAppServiceImpl) EncodeAppId(appIdentifier *AppIdentifier) string {
+	return fmt.Sprintf("%d|%s|%s", appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 }
 
 func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList, token string, helmAuth func(token string, object string) bool, helmCdPipelines []*pipelineConfig.Pipeline) openapi.AppList {

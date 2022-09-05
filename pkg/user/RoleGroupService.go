@@ -34,8 +34,8 @@ import (
 
 type RoleGroupService interface {
 	CreateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
-	UpdateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error)
-
+	UpdateRoleGroup(request *bean.RoleGroup, token string, managerAuth func(token string, object string) bool) (*bean.RoleGroup, error)
+	FetchDetailedRoleGroups() ([]*bean.RoleGroup, error)
 	FetchRoleGroupsById(id int32) (*bean.RoleGroup, error)
 	FetchRoleGroups() ([]*bean.RoleGroup, error)
 	FetchRoleGroupsByName(name string) ([]*bean.RoleGroup, error)
@@ -207,7 +207,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 	return request, nil
 }
 
-func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean.RoleGroup, error) {
+func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token string, managerAuth func(token string, object string) bool) (*bean.RoleGroup, error) {
 	dbConnection := impl.roleGroupRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -246,7 +246,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 
 	// DELETE PROCESS STARTS
 	var eliminatedPolicies []casbin2.Policy
-	items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx)
+	items, err := impl.userCommonService.RemoveRolesAndReturnEliminatedPoliciesForGroups(request, existingRoles, eliminatedRoles, tx, token, managerAuth)
 	if err != nil {
 		return nil, err
 	}
@@ -260,6 +260,15 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup) (*bean
 	//Adding New Policies
 	var policies []casbin2.Policy
 	for _, roleFilter := range request.RoleFilters {
+		if len(roleFilter.Team) > 0 {
+			// check auth only for apps permission, skip for chart group
+			rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+			isValidAuth := managerAuth(token, rbacObject)
+			if !isValidAuth {
+				continue
+			}
+		}
+
 		if roleFilter.EntityName == "" {
 			roleFilter.EntityName = "NONE"
 		}
@@ -371,6 +380,17 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 		return nil, err
 	}
 
+	roleFilters := impl.getRoleGroupMetadata(roleGroup)
+	bean := &bean.RoleGroup{
+		Id:          roleGroup.Id,
+		Name:        roleGroup.Name,
+		Description: roleGroup.Description,
+		RoleFilters: roleFilters,
+	}
+	return bean, nil
+}
+
+func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository2.RoleGroup) []bean.RoleFilter {
 	roles, err := impl.userAuthRepository.GetRolesByGroupId(roleGroup.Id)
 	if err != nil {
 		impl.logger.Errorw("No Roles Found for user", "roleGroupId", roleGroup.Id)
@@ -412,13 +432,31 @@ func (impl RoleGroupServiceImpl) FetchRoleGroupsById(id int32) (*bean.RoleGroup,
 	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
-	bean := &bean.RoleGroup{
-		Id:          roleGroup.Id,
-		Name:        roleGroup.Name,
-		Description: roleGroup.Description,
-		RoleFilters: roleFilters,
+	return roleFilters
+}
+
+func (impl RoleGroupServiceImpl) FetchDetailedRoleGroups() ([]*bean.RoleGroup, error) {
+	roleGroups, err := impl.roleGroupRepository.GetAllRoleGroup()
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
 	}
-	return bean, nil
+	var list []*bean.RoleGroup
+	for _, roleGroup := range roleGroups {
+		roleFilters := impl.getRoleGroupMetadata(roleGroup)
+		roleGrp := &bean.RoleGroup{
+			Id:          roleGroup.Id,
+			Name:        roleGroup.Name,
+			Description: roleGroup.Description,
+			RoleFilters: roleFilters,
+		}
+		list = append(list, roleGrp)
+	}
+
+	if len(list) == 0 {
+		list = make([]*bean.RoleGroup, 0)
+	}
+	return list, nil
 }
 
 func (impl RoleGroupServiceImpl) FetchRoleGroups() ([]*bean.RoleGroup, error) {

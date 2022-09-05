@@ -1,0 +1,1 @@
+ALTER TABLE app_store_version_values ADD COLUMN description TEXT;

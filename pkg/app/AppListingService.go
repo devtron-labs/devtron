@@ -21,15 +21,16 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/util/argo"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/pkg/apiclient/application"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -79,6 +80,7 @@ type AppListingService interface {
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	GetLastDeploymentStatusesByAppNames(appNames []string) ([]repository.DeploymentStatus, error)
 	GetLastDeploymentStatuses() (map[string]repository.DeploymentStatus, error)
+	GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs(timeForDegradation int) ([]repository.DeploymentStatus, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
@@ -140,6 +142,7 @@ type AppListingServiceImpl struct {
 	envLevelMetricsRepository  repository.EnvLevelAppMetricsRepository
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
 	environmentRepository      repository2.EnvironmentRepository
+	argoUserService            argo.ArgoUserService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -148,7 +151,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
-) *AppListingServiceImpl {
+	argoUserService argo.ArgoUserService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                     Logger,
 		appListingRepository:       appListingRepository,
@@ -162,6 +165,7 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		cdWorkflowRepository:       cdWorkflowRepository,
 		pipelineOverrideRepository: pipelineOverrideRepository,
 		environmentRepository:      environmentRepository,
+		argoUserService:            argoUserService,
 	}
 	return serviceImpl
 }
@@ -437,7 +441,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			}
 			if cdStageRunner != nil {
 				status := cdStageRunner.Status
-				if status == v1alpha1.HealthStatusHealthy {
+				if status == string(health.HealthStatusHealthy) {
 					stopType := releaseMap[pipeline.Id]
 					if stopType {
 						status = application2.HIBERNATING
@@ -502,6 +506,15 @@ func (impl AppListingServiceImpl) GetLastDeploymentStatuses() (map[string]reposi
 	return existingAppEnvStatusMapping, nil
 }
 
+func (impl AppListingServiceImpl) GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs(timeForDegradation int) ([]repository.DeploymentStatus, error) {
+	deploymentStatuses, err := impl.appListingRepository.FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(timeForDegradation)
+	if err != nil {
+		impl.Logger.Errorw("error in getting latest deployed status", "err", err)
+		return nil, err
+	}
+	return deploymentStatuses, nil
+}
+
 func (impl AppListingServiceImpl) getAppACDStatus(env bean.AppEnvironmentContainer, w http.ResponseWriter, r *http.Request, token string) (string, error) {
 	if len(env.AppName) > 0 && len(env.EnvironmentName) > 0 {
 		acdAppName := env.AppName + "-" + env.EnvironmentName
@@ -518,8 +531,13 @@ func (impl AppListingServiceImpl) getAppACDStatus(env bean.AppEnvironmentContain
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		ctx = context.WithValue(ctx, "token", token)
 		defer cancel()
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.Logger.Errorw("error in getting acd token", "err", err)
+			return "", err
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
 		impl.Logger.Debugf("Getting status for app %s in env %s", env.AppId, env.EnvironmentId)
 		start := time.Now()
 		resp, err := impl.application.ResourceTree(ctx, query)
@@ -611,8 +629,8 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 	return appDetailContainer, nil
 }
 
-//Return only a integer value pod count, aggregated of all the pod inside a app
-//(includes all the pods running different cd pipeline for same app)
+// Return only a integer value pod count, aggregated of all the pod inside a app
+// (includes all the pods running different cd pipeline for same app)
 func (impl AppListingServiceImpl) PodCountByAppLabel(appLabel string, namespace string, env string, proEndpoint string) int {
 	if appLabel == "" || namespace == "" || proEndpoint == "" || env == "" {
 		impl.Logger.Warnw("not a complete data found for prometheus call", "missing", "AppName or namespace or prometheus url or env")
@@ -669,7 +687,7 @@ func (impl AppListingServiceImpl) PodCountByAppLabel(appLabel string, namespace 
 	return podCount
 }
 
-//Returns map of running pod names
+// Returns map of running pod names
 func (impl AppListingServiceImpl) PodListByAppLabel(appLabel string, namespace string, env string, proEndpoint string) map[string]string {
 	response := make(map[string]interface{})
 	podList := make(map[string]string)
@@ -968,7 +986,7 @@ func (impl AppListingServiceImpl) MemoryRequestGroupByPod(namespace string, env 
 	return memoryRequestMetric
 }
 
-//Deprecated: Currently not in use
+// Deprecated: Currently not in use
 func (impl AppListingServiceImpl) CpuUsageGroupByContainer(podName string, namespace string, env string, proEndpoint string) map[string]string {
 	impl.Logger.Debug("executing cpuUsageGroupByPod:")
 	prometheusAPI, err := prometheus.ContextByEnv(env, proEndpoint)
@@ -1026,7 +1044,7 @@ func (impl AppListingServiceImpl) CpuUsageGroupByContainer(podName string, names
 	return cpuUsageMetric
 }
 
-//Deprecated: Currently not in use
+// Deprecated: Currently not in use
 func (impl AppListingServiceImpl) CpuRequestGroupByContainer(podName string, namespace string, env string, proEndpoint string) map[string]string {
 	impl.Logger.Debug("executing cpuUsageGroupByPod:")
 	prometheusAPI, err := prometheus.ContextByEnv(env, proEndpoint)
@@ -1083,7 +1101,7 @@ func (impl AppListingServiceImpl) CpuRequestGroupByContainer(podName string, nam
 	return cpuRequestMetric
 }
 
-//Deprecated: Currently not in use
+// Deprecated: Currently not in use
 func (impl AppListingServiceImpl) MemoryUsageGroupByContainer(podName string, namespace string, env string, proEndpoint string) map[string]string {
 	impl.Logger.Debug("executing memoryUsageGroupByPod")
 	prometheusAPI, err := prometheus.ContextByEnv(env, proEndpoint)
@@ -1138,7 +1156,7 @@ func (impl AppListingServiceImpl) MemoryUsageGroupByContainer(podName string, na
 	return memoryUsageMetric
 }
 
-//Deprecated: Currently not in use
+// Deprecated: Currently not in use
 func (impl AppListingServiceImpl) MemoryRequestGroupByContainer(podName string, namespace string, env string, proEndpoint string) map[string]string {
 	impl.Logger.Debug("executing memoryRequestGroupByPod")
 	prometheusAPI, err := prometheus.ContextByEnv(env, proEndpoint)
@@ -1193,7 +1211,7 @@ func (impl AppListingServiceImpl) MemoryRequestGroupByContainer(podName string, 
 	return memoryRequestMetric
 }
 
-//Deprecated: Currently not in use (intent to fetch graph data from prometheus)
+// Deprecated: Currently not in use (intent to fetch graph data from prometheus)
 func (impl AppListingServiceImpl) CpuUsageGroupByPodGraph(podName string, namespace string, env string, proEndpoint string, r v1.Range) map[string][]interface{} {
 	impl.Logger.Debug("executing CpuUsageGroupByPodGraph:")
 	prometheusAPI, err := prometheus.ContextByEnv(env, proEndpoint)
@@ -1254,7 +1272,7 @@ func (impl AppListingServiceImpl) CpuUsageGroupByPodGraph(podName string, namesp
 	return cpuUsageMetric
 }
 
-//Deprecated: Currently not in use (intent to fetch graph data from prometheus)
+// Deprecated: Currently not in use (intent to fetch graph data from prometheus)
 func (impl AppListingServiceImpl) MemoryUsageGroupByPodGraph(podName string, namespace string, env string, proEndpoint string, r v1.Range) map[string][]interface{} {
 	impl.Logger.Debug("executing MemoryUsageGroupByPodGraph")
 	prometheusAPI, err := prometheus.ContextByEnv(env, proEndpoint)
@@ -1314,7 +1332,7 @@ func (impl AppListingServiceImpl) MemoryUsageGroupByPodGraph(podName string, nam
 	return memoryUsageMetric
 }
 
-//Deprecated: Currently not in use (intent to fetch graph data from prometheus)
+// Deprecated: Currently not in use (intent to fetch graph data from prometheus)
 func (impl AppListingServiceImpl) GraphAPI(appId int, envId int) error {
 	impl.Logger.Debug("reached at GraphAPI:")
 	/*

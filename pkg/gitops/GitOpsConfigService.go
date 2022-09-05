@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"math/rand"
 	"net/http"
 	"net/url"
@@ -95,12 +96,13 @@ type GitOpsConfigServiceImpl struct {
 	versionService       argocdServer.VersionService
 	gitFactory           *util.GitFactory
 	chartTemplateService util.ChartTemplateService
+	argoUserService      argo.ArgoUserService
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService, argoUserService argo.ArgoUserService) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		randSource:           rand.NewSource(time.Now().UnixNano()),
 		logger:               Logger,
@@ -112,6 +114,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 		versionService:       versionService,
 		gitFactory:           gitFactory,
 		chartTemplateService: chartTemplateService,
+		argoUserService:      argoUserService,
 	}
 }
 
@@ -123,6 +126,8 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
 			return detailedErrorGitOpsConfigResponse, err
 		}
+		//create argo-cd user, if not created, here argo-cd integration has to be installed
+		impl.argoUserService.UpdateArgoCdUserDetail()
 	}
 	return detailedErrorGitOpsConfigResponse, nil
 }

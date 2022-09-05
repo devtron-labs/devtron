@@ -50,6 +50,7 @@ type AppStoreVersionValues struct {
 	ValuesYaml                   string   `sql:"values_yaml"`
 	AppStoreApplicationVersionId int      `sql:"app_store_application_version_id"`
 	ReferenceType                string   `sql:"reference_type"`
+	Description                  string   `sql:"description"`
 	Deleted                      bool     `sql:"deleted,notnull"`
 	sql.AuditLog
 	AppStoreApplicationVersion *appStoreDiscoverRepository.AppStoreApplicationVersion
@@ -119,7 +120,7 @@ func (impl AppStoreVersionValuesRepositoryImpl) FindValuesByAppStoreIdAndReferen
 	var appStoreVersionValues []*AppStoreVersionValues
 	err := impl.dbConnection.
 		Model(&appStoreVersionValues).
-		Column("app_store_version_values.id", "app_store_version_values.name", "AppStoreApplicationVersion.version").
+		Column("app_store_version_values.id", "app_store_version_values.name", "app_store_version_values.description", "app_store_version_values.updated_on", "app_store_version_values.updated_by", "AppStoreApplicationVersion.version").
 		Join("inner join app_store_application_version apv on apv.id = app_store_version_values.app_store_application_version_id").
 		Where("apv.app_store_id = ?", appStoreId).Where("app_store_version_values.reference_type = ?", referenceType).
 		Where("app_store_version_values.deleted =?", false).

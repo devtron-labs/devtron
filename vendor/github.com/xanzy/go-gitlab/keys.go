@@ -1,5 +1,5 @@
 //
-// Copyright 2018, Patrick Webster
+// Copyright 2021, Patrick Webster
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package gitlab
 
 import (
 	"fmt"
-	"net/url"
+	"net/http"
 	"time"
 )
 
@@ -48,14 +48,10 @@ type Key struct {
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ee/api/keys.html#get-ssh-key-with-user-by-id-of-an-ssh-key
-func (s *KeysService) GetKeyWithUser(kid interface{}, options ...OptionFunc) (*Key, *Response, error) {
-	key, err := parseID(kid)
-	if err != nil {
-		return nil, nil, err
-	}
-	u := fmt.Sprintf("keys/%s", url.QueryEscape(key))
+func (s *KeysService) GetKeyWithUser(key int, options ...RequestOptionFunc) (*Key, *Response, error) {
+	u := fmt.Sprintf("keys/%d", key)
 
-	req, err := s.client.NewRequest("GET", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
 	if err != nil {
 		return nil, nil, err
 	}

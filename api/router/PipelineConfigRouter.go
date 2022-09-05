@@ -27,21 +27,24 @@ type PipelineConfigRouter interface {
 	initPipelineConfigRouter(configRouter *mux.Router)
 }
 type PipelineConfigRouterImpl struct {
-	restHandler                app.PipelineConfigRestHandler
-	appWorkflowRestHandler     restHandler.AppWorkflowRestHandler
-	webhookDataRestHandler     restHandler.WebhookDataRestHandler
-	pipelineHistoryRestHandler restHandler.PipelineHistoryRestHandler
+	restHandler                       app.PipelineConfigRestHandler
+	appWorkflowRestHandler            restHandler.AppWorkflowRestHandler
+	webhookDataRestHandler            restHandler.WebhookDataRestHandler
+	pipelineHistoryRestHandler        restHandler.PipelineHistoryRestHandler
+	pipelineStatusTimelineRestHandler restHandler.PipelineStatusTimelineRestHandler
 }
 
 func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler,
 	appWorkflowRestHandler restHandler.AppWorkflowRestHandler,
 	webhookDataRestHandler restHandler.WebhookDataRestHandler,
-	pipelineHistoryRestHandler restHandler.PipelineHistoryRestHandler) *PipelineConfigRouterImpl {
+	pipelineHistoryRestHandler restHandler.PipelineHistoryRestHandler,
+	pipelineStatusTimelineRestHandler restHandler.PipelineStatusTimelineRestHandler) *PipelineConfigRouterImpl {
 	return &PipelineConfigRouterImpl{
-		restHandler:                restHandler,
-		appWorkflowRestHandler:     appWorkflowRestHandler,
-		webhookDataRestHandler:     webhookDataRestHandler,
-		pipelineHistoryRestHandler: pipelineHistoryRestHandler,
+		restHandler:                       restHandler,
+		appWorkflowRestHandler:            appWorkflowRestHandler,
+		webhookDataRestHandler:            webhookDataRestHandler,
+		pipelineHistoryRestHandler:        pipelineHistoryRestHandler,
+		pipelineStatusTimelineRestHandler: pipelineStatusTimelineRestHandler,
 	}
 
 }
@@ -77,6 +80,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/ci-pipeline/{appId}").HandlerFunc(router.restHandler.GetCiPipeline).Methods("GET")
 	configRouter.Path("/ci-pipeline/template/patch").HandlerFunc(router.restHandler.UpdateCiTemplate).Methods("POST")
 	configRouter.Path("/ci-pipeline/patch").HandlerFunc(router.restHandler.PatchCiPipelines).Methods("POST")
+	configRouter.Path("/ci-pipeline/patch/regex").HandlerFunc(router.restHandler.UpdateBranchCiPipelinesWithRegex).Methods("POST")
 
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material").HandlerFunc(router.restHandler.GetArtifactsByCDPipeline).Methods("GET")
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactForRollback).Methods("GET")
@@ -159,4 +163,9 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/history/deployed-component/detail/{appId}/{pipelineId}/{id}").
 		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedHistoryComponentDetail).
 		Methods("GET")
+
+	configRouter.Path("/commit-info/{ciPipelineMaterialId}/{gitHash}").HandlerFunc(router.restHandler.GetCommitMetadataForPipelineMaterial).Methods("GET")
+
+	configRouter.Path("/deployment-status/timeline/{appId}/{envId}").HandlerFunc(router.pipelineStatusTimelineRestHandler.FetchTimelines).Methods("GET")
+
 }

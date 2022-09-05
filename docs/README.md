@@ -8,7 +8,7 @@ Devtron deeply integrates with products across the lifecycle of microservices,i.
  
 > To quickly get started, refer to the [Devtron Installation Guide ⎈](setup/install/README.md) ⎈
  
-![Devtron Dashboard preview](.gitbook/assets/preview%20%281%29%20%282%29.gif)
+{% embed url="https://www.youtube.com/watch?v=AG8HfTceHxw" caption="Introducing Devtron" %}
  
 ## Why Devtron?
  

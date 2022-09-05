@@ -1,5 +1,5 @@
 //
-// Copyright 2017, Sander van Harmelen
+// Copyright 2021, Sander van Harmelen
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -18,7 +18,7 @@ package gitlab
 
 import (
 	"fmt"
-	"net/url"
+	"net/http"
 	"time"
 )
 
@@ -30,30 +30,70 @@ type DeployKeysService struct {
 	client *Client
 }
 
-// DeployKey represents a GitLab deploy key.
-type DeployKey struct {
+// InstanceDeployKey represents a GitLab deploy key with the associated
+// projects it has write access to.
+type InstanceDeployKey struct {
+	ID                      int                 `json:"id"`
+	Title                   string              `json:"title"`
+	CreatedAt               *time.Time          `json:"created_at"`
+	Key                     string              `json:"key"`
+	Fingerprint             string              `json:"fingerprint"`
+	ProjectsWithWriteAccess []*DeployKeyProject `json:"projects_with_write_access"`
+}
+
+func (k InstanceDeployKey) String() string {
+	return Stringify(k)
+}
+
+// DeployKeyProject refers to a project an InstanceDeployKey has write access to.
+type DeployKeyProject struct {
+	ID                int        `json:"id"`
+	Description       string     `json:"description"`
+	Name              string     `json:"name"`
+	NameWithNamespace string     `json:"name_with_namespace"`
+	Path              string     `json:"path"`
+	PathWithNamespace string     `json:"path_with_namespace"`
+	CreatedAt         *time.Time `json:"created_at"`
+}
+
+func (k DeployKeyProject) String() string {
+	return Stringify(k)
+}
+
+// ProjectDeployKey represents a GitLab project deploy key.
+type ProjectDeployKey struct {
 	ID        int        `json:"id"`
 	Title     string     `json:"title"`
 	Key       string     `json:"key"`
-	CanPush   *bool      `json:"can_push"`
 	CreatedAt *time.Time `json:"created_at"`
+	CanPush   bool       `json:"can_push"`
 }
 
-func (k DeployKey) String() string {
+func (k ProjectDeployKey) String() string {
 	return Stringify(k)
+}
+
+// ListProjectDeployKeysOptions represents the available ListAllDeployKeys()
+// options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ce/api/deploy_keys.html#list-all-deploy-keys
+type ListInstanceDeployKeysOptions struct {
+	ListOptions
+	Public *bool `url:"public,omitempty" json:"public,omitempty"`
 }
 
 // ListAllDeployKeys gets a list of all deploy keys
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/deploy_keys.html#list-all-deploy-keys
-func (s *DeployKeysService) ListAllDeployKeys(options ...OptionFunc) ([]*DeployKey, *Response, error) {
-	req, err := s.client.NewRequest("GET", "deploy_keys", nil, options)
+func (s *DeployKeysService) ListAllDeployKeys(opt *ListInstanceDeployKeysOptions, options ...RequestOptionFunc) ([]*InstanceDeployKey, *Response, error) {
+	req, err := s.client.NewRequest(http.MethodGet, "deploy_keys", opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var ks []*DeployKey
+	var ks []*InstanceDeployKey
 	resp, err := s.client.Do(req, &ks)
 	if err != nil {
 		return nil, resp, err
@@ -73,19 +113,19 @@ type ListProjectDeployKeysOptions ListOptions
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/deploy_keys.html#list-project-deploy-keys
-func (s *DeployKeysService) ListProjectDeployKeys(pid interface{}, opt *ListProjectDeployKeysOptions, options ...OptionFunc) ([]*DeployKey, *Response, error) {
+func (s *DeployKeysService) ListProjectDeployKeys(pid interface{}, opt *ListProjectDeployKeysOptions, options ...RequestOptionFunc) ([]*ProjectDeployKey, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/deploy_keys", url.QueryEscape(project))
+	u := fmt.Sprintf("projects/%s/deploy_keys", PathEscape(project))
 
-	req, err := s.client.NewRequest("GET", u, opt, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	var ks []*DeployKey
+	var ks []*ProjectDeployKey
 	resp, err := s.client.Do(req, &ks)
 	if err != nil {
 		return nil, resp, err
@@ -98,19 +138,19 @@ func (s *DeployKeysService) ListProjectDeployKeys(pid interface{}, opt *ListProj
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/deploy_keys.html#single-deploy-key
-func (s *DeployKeysService) GetDeployKey(pid interface{}, deployKey int, options ...OptionFunc) (*DeployKey, *Response, error) {
+func (s *DeployKeysService) GetDeployKey(pid interface{}, deployKey int, options ...RequestOptionFunc) (*ProjectDeployKey, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/deploy_keys/%d", url.QueryEscape(project), deployKey)
+	u := fmt.Sprintf("projects/%s/deploy_keys/%d", PathEscape(project), deployKey)
 
-	req, err := s.client.NewRequest("GET", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodGet, u, nil, options)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	k := new(DeployKey)
+	k := new(ProjectDeployKey)
 	resp, err := s.client.Do(req, k)
 	if err != nil {
 		return nil, resp, err
@@ -135,19 +175,19 @@ type AddDeployKeyOptions struct {
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/deploy_keys.html#add-deploy-key
-func (s *DeployKeysService) AddDeployKey(pid interface{}, opt *AddDeployKeyOptions, options ...OptionFunc) (*DeployKey, *Response, error) {
+func (s *DeployKeysService) AddDeployKey(pid interface{}, opt *AddDeployKeyOptions, options ...RequestOptionFunc) (*ProjectDeployKey, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/deploy_keys", url.QueryEscape(project))
+	u := fmt.Sprintf("projects/%s/deploy_keys", PathEscape(project))
 
-	req, err := s.client.NewRequest("POST", u, opt, options)
+	req, err := s.client.NewRequest(http.MethodPost, u, opt, options)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	k := new(DeployKey)
+	k := new(ProjectDeployKey)
 	resp, err := s.client.Do(req, k)
 	if err != nil {
 		return nil, resp, err
@@ -160,14 +200,14 @@ func (s *DeployKeysService) AddDeployKey(pid interface{}, opt *AddDeployKeyOptio
 //
 // GitLab API docs:
 // https://docs.gitlab.com/ce/api/deploy_keys.html#delete-deploy-key
-func (s *DeployKeysService) DeleteDeployKey(pid interface{}, deployKey int, options ...OptionFunc) (*Response, error) {
+func (s *DeployKeysService) DeleteDeployKey(pid interface{}, deployKey int, options ...RequestOptionFunc) (*Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, err
 	}
-	u := fmt.Sprintf("projects/%s/deploy_keys/%d", url.QueryEscape(project), deployKey)
+	u := fmt.Sprintf("projects/%s/deploy_keys/%d", PathEscape(project), deployKey)
 
-	req, err := s.client.NewRequest("DELETE", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodDelete, u, nil, options)
 	if err != nil {
 		return nil, err
 	}
@@ -178,20 +218,54 @@ func (s *DeployKeysService) DeleteDeployKey(pid interface{}, deployKey int, opti
 // EnableDeployKey enables a deploy key.
 //
 // GitLab API docs:
-// https://docs.gitlab.com/ce/api/deploy_keys.html#enable-deploy-key
-func (s *DeployKeysService) EnableDeployKey(pid interface{}, deployKey int, options ...OptionFunc) (*DeployKey, *Response, error) {
+// https://docs.gitlab.com/ce/api/deploy_keys.html#enable-a-deploy-key
+func (s *DeployKeysService) EnableDeployKey(pid interface{}, deployKey int, options ...RequestOptionFunc) (*ProjectDeployKey, *Response, error) {
 	project, err := parseID(pid)
 	if err != nil {
 		return nil, nil, err
 	}
-	u := fmt.Sprintf("projects/%s/deploy_keys/%d/enable", url.QueryEscape(project), deployKey)
+	u := fmt.Sprintf("projects/%s/deploy_keys/%d/enable", PathEscape(project), deployKey)
 
-	req, err := s.client.NewRequest("POST", u, nil, options)
+	req, err := s.client.NewRequest(http.MethodPost, u, nil, options)
 	if err != nil {
 		return nil, nil, err
 	}
 
-	k := new(DeployKey)
+	k := new(ProjectDeployKey)
+	resp, err := s.client.Do(req, k)
+	if err != nil {
+		return nil, resp, err
+	}
+
+	return k, resp, err
+}
+
+// UpdateDeployKeyOptions represents the available UpdateDeployKey() options.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ce/api/deploy_keys.html#update-deploy-key
+type UpdateDeployKeyOptions struct {
+	Title   *string `url:"title,omitempty" json:"title,omitempty"`
+	CanPush *bool   `url:"can_push,omitempty" json:"can_push,omitempty"`
+}
+
+// UpdateDeployKey updates a deploy key for a project.
+//
+// GitLab API docs:
+// https://docs.gitlab.com/ce/api/deploy_keys.html#update-deploy-key
+func (s *DeployKeysService) UpdateDeployKey(pid interface{}, deployKey int, opt *UpdateDeployKeyOptions, options ...RequestOptionFunc) (*ProjectDeployKey, *Response, error) {
+	project, err := parseID(pid)
+	if err != nil {
+		return nil, nil, err
+	}
+	u := fmt.Sprintf("projects/%s/deploy_keys/%d", PathEscape(project), deployKey)
+
+	req, err := s.client.NewRequest(http.MethodPut, u, opt, options)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	k := new(ProjectDeployKey)
 	resp, err := s.client.Do(req, k)
 	if err != nil {
 		return nil, resp, err

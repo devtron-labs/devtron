@@ -19,6 +19,19 @@ data:
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-custom-cm
+  labels:
+    release: devtron
+  annotations:
+    "helm.sh/resource-policy": keep
+{{- if .customOverrides }}
+data:
+{{ toYaml .customOverrides | indent 2}}
+{{- end }}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -79,6 +92,8 @@ spec:
               name: "devtron-cm"
           - secretRef:
               name: "devtron-secret"
+          - configMapRef:
+              name: "devtron-custom-cm"
   revisionHistoryLimit: 3
 ---
 {{- if .serviceMonitor.enabled }}

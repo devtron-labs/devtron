@@ -36,7 +36,7 @@ import (
 	"strings"
 	"time"
 
-	application2 "github.com/argoproj/argo-cd/pkg/apiclient/application"
+	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/caarlos0/env"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -104,6 +104,7 @@ type PipelineBuilder interface {
 	GetMaterialsForAppId(appId int) []*bean.GitMaterial
 	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
+	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
 }
 
 type PipelineBuilderImpl struct {
@@ -145,6 +146,7 @@ type PipelineBuilderImpl struct {
 	chartService                     chart.ChartService
 	helmAppService                   client.HelmAppService
 	deploymentGroupRepository        repository.DeploymentGroupRepository
+	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -180,7 +182,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	pipelineStageService PipelineStageService, chartRefRepository chartRepoRepository.ChartRefRepository,
 	chartTemplateService util.ChartTemplateService, chartService chart.ChartService,
 	helmAppService client.HelmAppService,
-	deploymentGroupRepository repository.DeploymentGroupRepository) *PipelineBuilderImpl {
+	deploymentGroupRepository repository.DeploymentGroupRepository,
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -220,6 +223,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		chartService:                     chartService,
 		helmAppService:                   helmAppService,
 		deploymentGroupRepository:        deploymentGroupRepository,
+		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
 	}
 }
 
@@ -398,7 +402,7 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		DockerRepository:  template.DockerRepository,
 		DockerRegistry:    template.DockerRegistry.Id,
 		DockerRegistryUrl: regHost,
-		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId},
+		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId, TargetPlatform: template.TargetPlatform},
 		Version:           template.Version,
 		CiTemplateName:    template.TemplateName,
 		Materials:         materials,
@@ -494,6 +498,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
 		}
+
 		for _, material := range pipeline.CiPipelineMaterials {
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
@@ -504,10 +509,12 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
 				ScmName:         material.ScmName,
 				ScmVersion:      material.ScmVersion,
-				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
+				IsRegex:         material.Regex != "",
+				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
+
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
 			return nil, err
@@ -618,6 +625,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		DockerfilePath:    originalCiConf.DockerBuildConfig.DockerfilePath,
 		GitMaterialId:     originalCiConf.DockerBuildConfig.GitMaterialId,
 		Args:              string(argByte),
+		TargetPlatform:    originalCiConf.DockerBuildConfig.TargetPlatform,
 		BeforeDockerBuild: string(beforeByte),
 		AfterDockerBuild:  string(afterByte),
 		Version:           originalCiConf.Version,
@@ -697,6 +705,7 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 		GitMaterialId:     createRequest.DockerBuildConfig.GitMaterialId,
 		DockerfilePath:    createRequest.DockerBuildConfig.DockerfilePath,
 		Args:              string(argByte),
+		TargetPlatform:    createRequest.DockerBuildConfig.TargetPlatform,
 		Active:            true,
 		TemplateName:      createRequest.CiTemplateName,
 		Version:           createRequest.Version,
@@ -876,6 +885,56 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 
 }
 
+func (impl PipelineBuilderImpl) PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error) {
+	var materials []*pipelineConfig.CiPipelineMaterial
+	for _, material := range request.CiPipelineMaterial {
+		materialDbObject, err := impl.ciPipelineMaterialRepository.GetById(material.Id)
+		if err != nil {
+			impl.logger.Errorw("err in fetching material, ", "err", err)
+			return err
+		}
+		if materialDbObject.Regex != "" {
+			if !impl.dbPipelineOrchestrator.CheckStringMatchRegex(materialDbObject.Regex, material.Value) {
+				impl.logger.Errorw("not matching given regex, ", "err", err)
+				return errors.New("not matching given regex")
+			}
+		}
+		pipelineMaterial := &pipelineConfig.CiPipelineMaterial{
+			Id:            material.Id,
+			Value:         material.Value,
+			Type:          pipelineConfig.SourceType(material.Type),
+			Active:        true,
+			GitMaterialId: materialDbObject.GitMaterialId,
+			Regex:         materialDbObject.Regex,
+			AuditLog:      sql.AuditLog{UpdatedBy: request.UserId, UpdatedOn: time.Now()},
+		}
+		materials = append(materials, pipelineMaterial)
+	}
+	dbConnection := impl.pipelineRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+	if err != nil {
+		return err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
+
+	err = impl.dbPipelineOrchestrator.AddPipelineMaterialInGitSensor(materials)
+	if err != nil {
+		impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", materials, "err", err)
+		return err
+	}
+	return nil
+}
 func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error) {
 
 	//wf validation
@@ -1191,9 +1250,12 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		if util.IsAcdApp(pipeline.DeploymentAppType) {
+			//todo: provide option for cascading to user
+			cascadeDelete := true
 			req := &application2.ApplicationDeleteRequest{
-				Name: &deploymentAppName,
+				Name:    &deploymentAppName,
+				Cascade: &cascadeDelete,
 			}
 			if _, err := impl.application.Delete(ctx, req); err != nil {
 				impl.logger.Errorw("err in deleting pipeline on argocd", "id", pipeline, "err", err)
@@ -1217,7 +1279,7 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 				}
 			}
 			impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", deploymentAppName)
-		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		} else if util.IsHelmApp(pipeline.DeploymentAppType) {
 			appIdentifier := &client.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
 				ReleaseName: deploymentAppName,
@@ -1623,6 +1685,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			PostStageConfigMapSecretNames: dbPipeline.PostStageConfigMapSecretNames,
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
+			DeploymentAppType:             dbPipeline.DeploymentAppType,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -2298,10 +2361,12 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 			GitMaterialName: material.GitMaterial.Name[strings.Index(material.GitMaterial.Name, "-")+1:],
 			ScmName:         material.ScmName,
 			ScmVersion:      material.ScmVersion,
-			Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value},
+			IsRegex:         material.Regex != "",
+			Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 		}
 		ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 	}
+
 	linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
