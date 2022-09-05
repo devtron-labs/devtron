@@ -95,6 +95,7 @@ type WorkflowRequest struct {
 	InvalidateCache            bool                     `json:"invalidateCache"`
 	ScanEnabled                bool                     `json:"scanEnabled"`
 	CloudProvider              string                   `json:"cloudProvider"`
+	BlobStorageConfigured      bool                     `json:"blobStorageConfigured"`
 	AzureBlobConfig            *AzureBlobConfig         `json:"azureBlobConfig"`
 	MinioEndpoint              string                   `json:"minioEndpoint"`
 	DefaultAddressPoolBaseCidr string                   `json:"defaultAddressPoolBaseCidr"`

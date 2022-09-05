@@ -349,7 +349,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
 		Namespace:          impl.cdConfig.DefaultNamespace,
-		BlobStorageEnabled: true, //TODO need to check from integration manager
+		BlobStorageEnabled: true, //TODO KB need to check from integration manager
 		CdWorkflowId:       cdWf.Id,
 	}
 	var env *repository2.Environment
@@ -410,14 +410,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	triggeredAt := time.Now()
 
 	runner := &pipelineConfig.CdWorkflowRunner{
-		Name:         pipeline.Name,
-		WorkflowType: bean.CD_WORKFLOW_TYPE_POST,
-		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-		Status:       WorkflowStarting,
-		TriggeredBy:  triggeredBy,
-		StartedOn:    triggeredAt,
-		Namespace:    impl.cdConfig.DefaultNamespace,
-		CdWorkflowId: cdWf.Id,
+		Name:               pipeline.Name,
+		WorkflowType:       bean.CD_WORKFLOW_TYPE_POST,
+		ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+		Status:             WorkflowStarting,
+		TriggeredBy:        triggeredBy,
+		StartedOn:          triggeredAt,
+		Namespace:          impl.cdConfig.DefaultNamespace,
+		BlobStorageEnabled: true, //TODO KB need to check from integration manager
+		CdWorkflowId:       cdWf.Id,
 	}
 	var env *repository2.Environment
 	var err error
@@ -622,6 +623,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
 		cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUser.EmailId
 	}
+	cdStageWorkflowRequest.BlobStorageConfigured = runner.BlobStorageEnabled
 	switch cdStageWorkflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used

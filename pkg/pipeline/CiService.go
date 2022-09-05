@@ -410,6 +410,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CiCacheFileName:            pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
 		CiProjectDetails:           ciProjectDetails,
 		Namespace:                  ciWorkflowConfig.Namespace,
+		BlobStorageConfigured:      savedWf.BlobStorageEnabled,
 		CiImage:                    ciWorkflowConfig.CiImage,
 		ActiveDeadlineSeconds:      ciWorkflowConfig.CiTimeout,
 		WorkflowId:                 savedWf.Id,
