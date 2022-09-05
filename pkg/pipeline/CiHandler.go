@@ -542,6 +542,7 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 		ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
 		ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
 		ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
+		ciLogRequest.Region = impl.ciConfig.MinioRegion
 	}
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	if err != nil {
@@ -644,6 +645,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 		ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
 		ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
 		ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
+		ciLogRequest.Region = impl.ciConfig.MinioRegion
 	}
 	logsFile, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	logs, err := ioutil.ReadFile(logsFile.Name())
