@@ -122,21 +122,22 @@ const WORKFLOW_EXECUTOR_TYPE_AWF = "AWF"
 const WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
 
 type CdWorkflowRunner struct {
-	tableName    struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
-	Id           int                  `sql:"id,pk"`
-	Name         string               `sql:"name"`
-	WorkflowType bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
-	ExecutorType WorkflowExecutorType `sql:"executor_type"` //awf, system
-	Status       string               `sql:"status"`
-	PodStatus    string               `sql:"pod_status"`
-	Message      string               `sql:"message"`
-	StartedOn    time.Time            `sql:"started_on"`
-	FinishedOn   time.Time            `sql:"finished_on"`
-	Namespace    string               `sql:"namespace"`
-	LogLocation  string               `sql:"log_file_path"`
-	TriggeredBy  int32                `sql:"triggered_by"`
-	CdWorkflowId int                  `sql:"cd_workflow_id"`
-	CdWorkflow   *CdWorkflow
+	tableName          struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
+	Id                 int                  `sql:"id,pk"`
+	Name               string               `sql:"name"`
+	WorkflowType       bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
+	ExecutorType       WorkflowExecutorType `sql:"executor_type"` //awf, system
+	Status             string               `sql:"status"`
+	PodStatus          string               `sql:"pod_status"`
+	Message            string               `sql:"message"`
+	StartedOn          time.Time            `sql:"started_on"`
+	FinishedOn         time.Time            `sql:"finished_on"`
+	Namespace          string               `sql:"namespace"`
+	BlobStorageEnabled bool                 `sql:"blob_storage_enabled"`
+	LogLocation        string               `sql:"log_file_path"`
+	TriggeredBy        int32                `sql:"triggered_by"`
+	CdWorkflowId       int                  `sql:"cd_workflow_id"`
+	CdWorkflow         *CdWorkflow
 }
 
 type CdWorkflowWithArtifact struct {

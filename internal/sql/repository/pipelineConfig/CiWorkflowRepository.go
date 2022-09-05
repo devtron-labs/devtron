@@ -56,6 +56,7 @@ type CiWorkflow struct {
 	FinishedOn         time.Time         `sql:"finished_on"`
 	CiPipelineId       int               `sql:"ci_pipeline_id"`
 	Namespace          string            `sql:"namespace"`
+	BlobStorageEnabled bool              `sql:"blob_storage_enabled"`
 	LogLocation        string            `sql:"log_file_path"`
 	GitTriggers        map[int]GitCommit `sql:"git_triggers"`
 	TriggeredBy        int32             `sql:"triggered_by"`

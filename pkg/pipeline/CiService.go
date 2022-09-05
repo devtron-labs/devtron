@@ -224,15 +224,16 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	}
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
-		Name:         pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
-		Status:       WorkflowStarting,
-		Message:      "",
-		StartedOn:    time.Now(),
-		CiPipelineId: pipeline.Id,
-		Namespace:    wfConfig.Namespace,
-		GitTriggers:  gitTriggers,
-		LogLocation:  "",
-		TriggeredBy:  userId,
+		Name:               pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
+		Status:             WorkflowStarting,
+		Message:            "",
+		StartedOn:          time.Now(),
+		CiPipelineId:       pipeline.Id,
+		Namespace:          wfConfig.Namespace,
+		BlobStorageEnabled: true, //TODO check from integration module service
+		GitTriggers:        gitTriggers,
+		LogLocation:        "",
+		TriggeredBy:        userId,
 	}
 	err := impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
 	if err != nil {

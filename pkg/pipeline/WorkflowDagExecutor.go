@@ -342,14 +342,15 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		}
 	}
 	runner := &pipelineConfig.CdWorkflowRunner{
-		Name:         pipeline.Name,
-		WorkflowType: bean.CD_WORKFLOW_TYPE_PRE,
-		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-		Status:       WorkflowStarting, //starting
-		TriggeredBy:  triggeredBy,
-		StartedOn:    triggeredAt,
-		Namespace:    impl.cdConfig.DefaultNamespace,
-		CdWorkflowId: cdWf.Id,
+		Name:               pipeline.Name,
+		WorkflowType:       bean.CD_WORKFLOW_TYPE_PRE,
+		ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
+		Status:             WorkflowStarting, //starting
+		TriggeredBy:        triggeredBy,
+		StartedOn:          triggeredAt,
+		Namespace:          impl.cdConfig.DefaultNamespace,
+		BlobStorageEnabled: true, //TODO need to check from integration manager
+		CdWorkflowId:       cdWf.Id,
 	}
 	var env *repository2.Environment
 	var err error

@@ -128,23 +128,24 @@ type CiPipelineMaterialResponse struct {
 }
 
 type WorkflowResponse struct {
-	Id               int                              `json:"id"`
-	Name             string                           `json:"name"`
-	Status           string                           `json:"status"`
-	PodStatus        string                           `json:"podStatus"`
-	Message          string                           `json:"message"`
-	StartedOn        time.Time                        `json:"startedOn"`
-	FinishedOn       time.Time                        `json:"finishedOn"`
-	CiPipelineId     int                              `json:"ciPipelineId"`
-	Namespace        string                           `json:"namespace"`
-	LogLocation      string                           `json:"logLocation"`
-	GitTriggers      map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
-	CiMaterials      []CiPipelineMaterialResponse     `json:"ciMaterials"`
-	TriggeredBy      int32                            `json:"triggeredBy"`
-	Artifact         string                           `json:"artifact"`
-	TriggeredByEmail string                           `json:"triggeredByEmail"`
-	Stage            string                           `json:"stage"`
-	ArtifactId       int                              `json:"artifactId"`
+	Id                 int                              `json:"id"`
+	Name               string                           `json:"name"`
+	Status             string                           `json:"status"`
+	PodStatus          string                           `json:"podStatus"`
+	Message            string                           `json:"message"`
+	StartedOn          time.Time                        `json:"startedOn"`
+	FinishedOn         time.Time                        `json:"finishedOn"`
+	CiPipelineId       int                              `json:"ciPipelineId"`
+	Namespace          string                           `json:"namespace"`
+	LogLocation        string                           `json:"logLocation"`
+	BlobStorageEnabled bool                             `json:"blobStorageEnabled"`
+	GitTriggers        map[int]pipelineConfig.GitCommit `json:"gitTriggers"`
+	CiMaterials        []CiPipelineMaterialResponse     `json:"ciMaterials"`
+	TriggeredBy        int32                            `json:"triggeredBy"`
+	Artifact           string                           `json:"artifact"`
+	TriggeredByEmail   string                           `json:"triggeredByEmail"`
+	Stage              string                           `json:"stage"`
+	ArtifactId         int                              `json:"artifactId"`
 }
 
 type GitTriggerInfoResponse struct {
@@ -455,21 +456,22 @@ func (impl *CiHandlerImpl) FetchWorkflowDetails(appId int, pipelineId int, build
 		ciMaterialsArr = append(ciMaterialsArr, res)
 	}
 	workflowResponse := WorkflowResponse{
-		Id:               workflow.Id,
-		Name:             workflow.Name,
-		Status:           workflow.Status,
-		PodStatus:        workflow.PodStatus,
-		Message:          workflow.Message,
-		StartedOn:        workflow.StartedOn,
-		FinishedOn:       workflow.FinishedOn,
-		CiPipelineId:     workflow.CiPipelineId,
-		Namespace:        workflow.Namespace,
-		LogLocation:      workflow.LogLocation,
-		GitTriggers:      workflow.GitTriggers,
-		CiMaterials:      ciMaterialsArr,
-		TriggeredBy:      workflow.TriggeredBy,
-		TriggeredByEmail: triggeredByUser.EmailId,
-		Artifact:         ciArtifact.Image,
+		Id:                 workflow.Id,
+		Name:               workflow.Name,
+		Status:             workflow.Status,
+		PodStatus:          workflow.PodStatus,
+		Message:            workflow.Message,
+		StartedOn:          workflow.StartedOn,
+		FinishedOn:         workflow.FinishedOn,
+		CiPipelineId:       workflow.CiPipelineId,
+		Namespace:          workflow.Namespace,
+		LogLocation:        workflow.LogLocation,
+		BlobStorageEnabled: workflow.BlobStorageEnabled, //TODO default value if value not found in db
+		GitTriggers:        workflow.GitTriggers,
+		CiMaterials:        ciMaterialsArr,
+		TriggeredBy:        workflow.TriggeredBy,
+		TriggeredByEmail:   triggeredByUser.EmailId,
+		Artifact:           ciArtifact.Image,
 	}
 	return workflowResponse, nil
 }
