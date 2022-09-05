@@ -134,7 +134,7 @@ components:
     HistoryConfigurationDetailDto:
       type: object
       properties:
-        DEPLOYMENT_TEMPLATE:
+        deploymentTemplate:
           type: object
           properties:
             config:
@@ -153,7 +153,7 @@ components:
                   type: string
                 templateVersion:
                   type: string
-        CONFIGMAP:
+        configMap:
           type: object
           properties:
             childList:
@@ -187,7 +187,7 @@ components:
                         type: string
                       filePermission:
                         type: string
-        SECRET:
+        secret:
           type: object
           properties:
             childList:
@@ -221,7 +221,7 @@ components:
                         type: string
                       filePermission:
                         type: string
-        PIPELINE_STRATEGY:
+        pipelineStrategy:
           type: object
           properties:
             config:

@@ -22,9 +22,9 @@ type ComponentLevelHistoryDetailDto struct {
 
 type AllDeploymentConfigurationHistoryDetail struct {
 	DeploymentTemplateConfig *HistoryDetailDto                 `json:"deploymentTemplate"`
-	ConfigMapConfig          []*ComponentLevelHistoryDetailDto `json:"configMapConfig"`
-	SecretConfig             []*ComponentLevelHistoryDetailDto `json:"secretConfig"`
-	StrategyConfig           *HistoryDetailDto                 `json:"strategyConfig"`
+	ConfigMapConfig          []*ComponentLevelHistoryDetailDto `json:"configMap"`
+	SecretConfig             []*ComponentLevelHistoryDetailDto `json:"secret"`
+	StrategyConfig           *HistoryDetailDto                 `json:"pipelineStrategy"`
 }
 
 type DeploymentConfigurationDto struct {
