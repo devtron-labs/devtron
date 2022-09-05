@@ -122,6 +122,10 @@ Once ingress setup for devtron is done and you want to run Devtron over `https`,
 
 In case of `nginx ingress controller`, add following annotations under `service.annotations` under nginx ingress controller to run devtron over `https`.
 
+(i) Amazon Web Services (AWS)
+
+If you are using AWS cloud, add the following annotations under `service.annotations` under nginx ingress controller.
+
 ```bash
   annotations:
     service.beta.kubernetes.io/aws-load-balancer-backend-protocol: "http"
@@ -129,6 +133,21 @@ In case of `nginx ingress controller`, add following annotations under `service.
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     service.beta.kubernetes.io/aws-load-balancer-ssl-cert: "<acm-arn-here>"
 ```
+
+(ii) Digital Ocean
+
+If you are using Digital Ocean cloud, add the following annotations under `service.annotations` under nginx ingress controller.
+
+```bash
+annotations:
+  service.beta.kubernetes.io/do-loadbalancer-protocol: "http"
+  service.beta.kubernetes.io/do-loadbalancer-tls-ports: "443"
+  service.beta.kubernetes.io/do-loadbalancer-certificate-id: "<your-certificate-id>"
+  service.beta.kubernetes.io/do-loadbalancer-redirect-http-to-https: "true"
+```
+
+
+
 
 ### 2. Application Load Balancer (ALB)
 
