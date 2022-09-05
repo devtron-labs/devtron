@@ -153,8 +153,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
-		router.NewHelmRouter,
-		wire.Bind(new(router.HelmRouter), new(*router.HelmRouterImpl)),
+		router.NewPipelineTriggerRouter,
+		wire.Bind(new(router.PipelineTriggerRouter), new(*router.PipelineTriggerRouterImpl)),
 
 		//---- pprof start ----
 		restHandler.NewPProfRestHandler,
