@@ -62,10 +62,7 @@ func NewApp(router *router.MuxRouter,
 	sessionManager2 *authMiddleware.SessionManager,
 ) *App {
 	//check argo connection
-	err := versionService.CheckVersion()
-	if err != nil {
-		log.Panic(err)
-	}
+	//todo - check argo-cd version on acd integration installation
 	app := &App{
 		MuxRouter:       router,
 		Logger:          Logger,

@@ -145,7 +145,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 	//rbac block starts from here
 	var rbacObject string
 	token := r.Header.Get("token")
-	if appOfferingMode == util2.SERVER_MODE_HYPERION {
+	if util2.IsHelmApp(appOfferingMode) {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedAppDto.ClusterId, installedAppDto.Namespace, installedAppDto.AppName)
 	} else {
 		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)
@@ -191,7 +191,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 	//rbac block starts from here
 	var rbacObject string
 	token := r.Header.Get("token")
-	if appOfferingMode == util2.SERVER_MODE_HYPERION {
+	if util2.IsHelmApp(appOfferingMode) {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedAppDto.ClusterId, installedAppDto.Namespace, installedAppDto.AppName)
 	} else {
 		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)
@@ -209,7 +209,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	if appOfferingMode == util2.SERVER_MODE_HYPERION {
+	if util2.IsHelmApp(appOfferingMode) {
 		canUpdate := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
 		if !canUpdate && res != nil && res.Manifest != nil {
 			modifiedManifest, err := k8sObjectsUtil.HideValuesIfSecretForWholeYamlInput(*res.Manifest)
@@ -249,7 +249,7 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	//rbac block starts from here
 	var rbacObject string
 	token := r.Header.Get("token")
-	if appOfferingMode == util2.SERVER_MODE_HYPERION {
+	if util2.IsHelmApp(appOfferingMode) {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedAppDto.ClusterId, installedAppDto.Namespace, installedAppDto.AppName)
 	} else {
 		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)

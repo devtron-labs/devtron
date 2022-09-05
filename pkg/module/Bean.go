@@ -37,7 +37,7 @@ type ActionResponse struct {
 }
 
 type ModuleEnvConfig struct {
-	ModuleTimeoutStatusHandlingCronDurationInMin int `env:"MODULE_TIMEOUT_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"5"` // default 5 mins
+	ModuleStatusHandlingCronDurationInMin int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"5"` // default 5 mins
 }
 
 func ParseModuleEnvConfig() (*ModuleEnvConfig, error) {
@@ -52,6 +52,7 @@ func ParseModuleEnvConfig() (*ModuleEnvConfig, error) {
 }
 
 type ModuleStatus = string
+type ModuleName = string
 
 const (
 	ModuleStatusNotInstalled  ModuleStatus = "notInstalled"
@@ -60,3 +61,10 @@ const (
 	ModuleStatusInstallFailed ModuleStatus = "installFailed"
 	ModuleStatusTimeout       ModuleStatus = "timeout"
 )
+
+const (
+	ModuleNameCicd   ModuleName = "cicd"
+	ModuleNameArgoCd ModuleName = "argo-cd"
+)
+
+var SupportedModuleNamesListExcludingCicd = []string{ModuleNameArgoCd}

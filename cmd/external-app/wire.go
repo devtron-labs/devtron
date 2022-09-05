@@ -109,6 +109,11 @@ func InitializeApp() (*App, error) {
 
 		wire.Value(chartRepoRepository.RefChartDir("scripts/devtron-reference-helm-charts")),
 
+		router.NewTelemetryRouterImpl,
+		wire.Bind(new(router.TelemetryRouter), new(*router.TelemetryRouterImpl)),
+		restHandler.NewTelemetryRestHandlerImpl,
+		wire.Bind(new(restHandler.TelemetryRestHandler), new(*restHandler.TelemetryRestHandlerImpl)),
+
 		//needed for sending events
 		dashboardEvent.NewDashboardTelemetryRestHandlerImpl,
 		wire.Bind(new(dashboardEvent.DashboardTelemetryRestHandler), new(*dashboardEvent.DashboardTelemetryRestHandlerImpl)),

@@ -184,7 +184,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 
 	//on successful creation of new cluster, update informer cache for namespace group by cluster
 	//here sync for ea mode only
-	if util2.GetDevtronVersion().ServerMode != "FULL" {
+	if util2.IsBaseStack() {
 		impl.SyncNsInformer(bean)
 	}
 	return bean, err
@@ -390,7 +390,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	bean.Id = model.Id
 
 	//here sync for ea mode only
-	if bean.HasConfigOrUrlChanged && util2.GetDevtronVersion().ServerMode != "FULL" {
+	if bean.HasConfigOrUrlChanged && util2.IsBaseStack() {
 		impl.SyncNsInformer(bean)
 	}
 	return bean, err

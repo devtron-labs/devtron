@@ -52,6 +52,7 @@ type MuxRouter struct {
 	k8sCapacityRouter        k8s.K8sCapacityRouter
 	webhookHelmRouter        webhookHelm.WebhookHelmRouter
 	userAttributesRouter     router.UserAttributesRouter
+	telemetryRouter          router.TelemetryRouter
 }
 
 func NewMuxRouter(
@@ -77,6 +78,7 @@ func NewMuxRouter(
 	k8sCapacityRouter k8s.K8sCapacityRouter,
 	webhookHelmRouter webhookHelm.WebhookHelmRouter,
 	userAttributesRouter router.UserAttributesRouter,
+	telemetryRouter router.TelemetryRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -103,6 +105,7 @@ func NewMuxRouter(
 		k8sCapacityRouter:        k8sCapacityRouter,
 		webhookHelmRouter:        webhookHelmRouter,
 		userAttributesRouter:     userAttributesRouter,
+		telemetryRouter:          telemetryRouter,
 	}
 	return r
 }
@@ -213,4 +216,7 @@ func (r *MuxRouter) Init() {
 
 	userAttributeRouter := r.Router.PathPrefix("/orchestrator/attributes/user").Subrouter()
 	r.userAttributesRouter.InitUserAttributesRouter(userAttributeRouter)
+
+	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
+	r.telemetryRouter.InitTelemetryRouter(telemetryRouter)
 }

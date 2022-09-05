@@ -1384,6 +1384,7 @@ func (impl *WorkflowDagExecutorImpl) subscribeHibernateBulkAction() error {
 }
 
 func (impl *WorkflowDagExecutorImpl) buildACDContext() (acdContext context.Context, err error) {
+	//this part only accessible for acd apps hibernation, if acd configured it will fetch latest acdToken, else it will return error
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)

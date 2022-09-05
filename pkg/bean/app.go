@@ -578,6 +578,6 @@ type AppMetaInfoDto struct {
 	UserId      int32     `json:"-"`
 }
 
-type AppLabelsJsonForGitops struct {
-	Labels []*Label `json:"appLabels"`
+type AppLabelsJsonForDeployment struct {
+	Labels map[string]string `json:"appLabels"`
 }
