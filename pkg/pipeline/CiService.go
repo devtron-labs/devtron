@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -529,6 +530,10 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 	if dockerImageTag != "" {
 		dockerImageTag = dockerImageTag + "-" + strconv.Itoa(id) + "-" + strconv.Itoa(wfId)
 	}
+
+	// replace / with underscore, as docker image tag doesn't support slash. it gives error
+	dockerImageTag = strings.ReplaceAll(dockerImageTag, "/", "_")
+
 	return dockerImageTag
 }
 
