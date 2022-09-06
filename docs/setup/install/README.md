@@ -26,6 +26,8 @@ The minimum requirements for Devtron and Devtron with CI/CD integration in produ
 | **Devtron** | 2 | 3 GB |
 
 > Refer to the [Override Configurations](./override-default-devtron-installation-configs.md) section for more information.
+
+>**Note:** It is not recommended to use brustable instances for devtron installation. It may have performance issues.
  
 ## Before you begin
  
