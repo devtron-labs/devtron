@@ -112,6 +112,7 @@ type AppServiceImpl struct {
 	argoUserService                  argo.ArgoUserService
 	cdPipelineStatusTimelineRepo     pipelineConfig.PipelineStatusTimelineRepository
 	appLabelService                  AppLabelService
+	deploymentEventHandler           DeploymentEventHandler
 }
 
 type AppService interface {
@@ -157,7 +158,8 @@ func NewAppService(
 	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	appLabelService AppLabelService) *AppServiceImpl {
+	appLabelService AppLabelService,
+	deploymentEventHandler DeploymentEventHandler) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -201,6 +203,7 @@ func NewAppService(
 		argoUserService:                  argoUserService,
 		cdPipelineStatusTimelineRepo:     cdPipelineStatusTimelineRepo,
 		appLabelService:                  appLabelService,
+		deploymentEventHandler:           deploymentEventHandler,
 	}
 	return appServiceImpl
 }
@@ -364,7 +367,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 				if string(application.Healthy) == newDeploymentStatus.Status {
 					isHealthy = true
 					impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "newDeploymentStatus", newDeploymentStatus)
-					go impl.WriteCDSuccessEvent(newDeploymentStatus.AppId, newDeploymentStatus.EnvId, pipelineOverride)
+					go impl.deploymentEventHandler.WriteCDSuccessEvent(pipelineOverride.PipelineId, newDeploymentStatus.AppId, newDeploymentStatus.EnvId)
 				}
 			} else {
 				impl.logger.Debug("event received for older triggered revision: " + gitHash)
@@ -506,16 +509,6 @@ func (impl *AppServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(cdWork
 		latestTimeline = timeline
 	}
 	return latestTimeline, nil
-}
-
-func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
-	event := impl.eventFactory.Build(util.Success, &override.PipelineId, appId, &envId, util.CD)
-	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
-	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
-	_, evtErr := impl.eventClient.WriteEvent(event)
-	if evtErr != nil {
-		impl.logger.Errorw("error in writing event", "event", event, "err", evtErr)
-	}
 }
 
 func (impl *AppServiceImpl) BuildCDSuccessPayload(appName string, environmentName string) *client.Payload {
