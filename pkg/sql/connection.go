@@ -20,6 +20,7 @@ package sql
 import (
 	"go.uber.org/zap"
 	"reflect"
+	"strconv"
 	"time"
 
 	"github.com/caarlos0/env"
@@ -27,13 +28,14 @@ import (
 )
 
 type Config struct {
-	Addr            string `env:"PG_ADDR" envDefault:"127.0.0.1"`
-	Port            string `env:"PG_PORT" envDefault:"5432"`
-	User            string `env:"PG_USER" envDefault:""`
-	Password        string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
-	Database        string `env:"PG_DATABASE" envDefault:"orchestrator"`
-	ApplicationName string `env:"APP" envDefault:"orchestrator"`
-	LogQuery        bool   `env:"PG_LOG_QUERY" envDefault:"true"`
+	Addr             string `env:"PG_ADDR" envDefault:"127.0.0.1"`
+	Port             string `env:"PG_PORT" envDefault:"5432"`
+	User             string `env:"PG_USER" envDefault:""`
+	Password         string `env:"PG_PASSWORD" envDefault:"" secretData:"-"`
+	Database         string `env:"PG_DATABASE" envDefault:"orchestrator"`
+	ApplicationName  string `env:"APP" envDefault:"orchestrator"`
+	LogQuery         bool   `env:"PG_LOG_QUERY" envDefault:"true"`
+	LogPrintDuration string `env:"LOG_PRINT_DURATION"  envDefault:"5"` //in seconds
 }
 
 func GetConfig() (*Config, error) {
@@ -68,9 +70,15 @@ func NewDbConnection(cfg *Config, logger *zap.SugaredLogger) (*pg.DB, error) {
 			if err != nil {
 				panic(err)
 			}
-			logger.Debugw("query time",
-				"duration", time.Since(event.StartTime),
-				"query", query)
+			logPrintDuration, err := strconv.Atoi(cfg.LogPrintDuration)
+			if err != nil {
+				panic(err)
+			}
+			if time.Since(event.StartTime) > (time.Second * time.Duration(logPrintDuration)) {
+				logger.Debugw("query time",
+					"duration", time.Since(event.StartTime),
+					"query", query)
+			}
 		})
 	}
 	return dbConnection, err
