@@ -92,6 +92,9 @@ type WorkflowRequest struct {
 	BeforeDockerBuildScripts   []*bean.CiScript         `json:"beforeDockerBuildScripts"`
 	AfterDockerBuildScripts    []*bean.CiScript         `json:"afterDockerBuildScripts"`
 	CiArtifactLocation         string                   `json:"ciArtifactLocation"`
+	CiArtifactBucket           string                   `json:"ciArtifactBucket"`
+	CiArtifactFileName         string                   `json:"ciArtifactFileName"`
+	CiArtifactRegion           string                   `json:"ciArtifactRegion"`
 	InvalidateCache            bool                     `json:"invalidateCache"`
 	ScanEnabled                bool                     `json:"scanEnabled"`
 	CloudProvider              string                   `json:"cloudProvider"`

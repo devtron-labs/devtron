@@ -68,6 +68,9 @@ type CdWorkflowRequest struct {
 	TriggeredBy                int32              `json:"triggeredBy"`
 	StageYaml                  string             `json:"stageYaml"`
 	ArtifactLocation           string             `json:"artifactLocation"`
+	ArtifactBucket             string             `json:"ciArtifactBucket"`
+	ArtifactFileName           string             `json:"ciArtifactFileName"`
+	ArtifactRegion             string             `json:"ciArtifactRegion"`
 	CiProjectDetails           []CiProjectDetails `json:"ciProjectDetails"`
 	CiArtifactDTO              CiArtifactDTO      `json:"ciArtifactDTO"`
 	Namespace                  string             `json:"namespace"`
