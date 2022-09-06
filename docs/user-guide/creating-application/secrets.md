@@ -90,7 +90,7 @@ Installing `External Secrets Operator` using charts store:
 1. Go to charts store.
 2. Search chart with name `external-secrets`.
 ![External secrets chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/external-secret.png)
-3. If you don't find any chart with this name i.e `external-secrets`, add chart reposity using repository url  ` https://charts.external-secrets.io`. Please follow this ![documentation](https://docs.devtron.ai/getting-started/global-configurations/chart-repo#add-chart-repository) for adding chart repository.
+3. If you don't find any chart with this name i.e `external-secrets`, add chart reposity using repository url  ` https://charts.external-secrets.io`. Please follow this [documentation](https://docs.devtron.ai/getting-started/global-configurations/chart-repo#add-chart-repository) for adding chart repository.
 4. Deploy the chart.
 
 ### Kubernetes External Secret (Depricated)
