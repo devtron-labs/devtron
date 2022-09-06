@@ -30,7 +30,7 @@ helm repo add devtron https://helm.devtron.ai
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
---set components.devtron.service.type=NodePort --set configs.installation
+--set components.devtron.service.type=NodePort 
 
 ```
 {% endtab %}
