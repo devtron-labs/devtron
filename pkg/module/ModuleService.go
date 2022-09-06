@@ -20,6 +20,7 @@ package module
 import (
 	"context"
 	"errors"
+	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
@@ -79,39 +80,76 @@ func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error)
 	module, err := impl.moduleRepository.FindOne(name)
 	if err != nil {
 		if err == pg.ErrNoRows {
-			moduleInfoDto.Status = ModuleStatusNotInstalled
-			// if entry is not found in database, then check if it was installed at run time otherwise treat it as "notInstalled"
-			devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
-			releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), devtronHelmAppIdentifier)
+			status, err := impl.handleModuleNotFoundStatus(name)
 			if err != nil {
-				impl.logger.Errorw("Error in getting values yaml for devtron operator helm release", "moduleName", name, "err", err)
-			} else {
-				isEnabled := gjson.Get(releaseInfo.MergedValues, moduleUtil.BuildModuleEnableKey(name)).Bool()
-				if isEnabled {
-					module := &moduleRepo.Module{
-						Name:      name,
-						Version:   impl.serverDataStore.CurrentVersion,
-						Status:    ModuleStatusInstalled,
-						UpdatedOn: time.Now(),
-					}
-					err = impl.moduleRepository.Save(module)
-					if err == nil {
-						moduleInfoDto.Status = ModuleStatusInstalled
-					} else {
-						impl.logger.Errorw("Error in saving module with installed status", "moduleName", name, "err", err)
-					}
-				}
+				impl.logger.Errorw("error in handling module not found status ", "name", name, "err", err)
 			}
-			return moduleInfoDto, nil
+			moduleInfoDto.Status = status
+			return moduleInfoDto, err
 		}
 		// otherwise some error case
-		impl.logger.Errorw("error in getting module from DB ", "err", err)
+		impl.logger.Errorw("error in getting module from DB ", "name", name, "err", err)
 		return nil, err
 	}
 
 	// otherwise send DB status
 	moduleInfoDto.Status = module.Status
 	return moduleInfoDto, nil
+}
+
+func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (ModuleStatus, error) {
+	// if entry is not found in database, then check if that module is legacy or not
+	// if enterprise user -> if legacy -> then mark as installed in db and return as installed, if not legacy -> return as not installed
+	// if non-enterprise user->  fetch helm release enable Key. if true -> then mark as installed in db and return as installed. if false ->
+	//// (continuation of above line) if legacy -> check if cicd is installed with <= 0.5.3 from DB and moduleName != argo-cd -> then mark as installed in db and return as installed. otherwise return as not installed
+
+	// central-api call
+	moduleMetaData, err := util2.ReadFromUrlWithRetry(impl.buildModuleMetaDataUrl(moduleName))
+	if err != nil {
+		impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
+		return ModuleStatusNotInstalled, err
+	}
+	isLegacyModule := gjson.Get(string(moduleMetaData), "result.isIncludedInLegacyFullPackage").Bool()
+
+	// for enterprise user
+	if impl.serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeEnterprise {
+		if isLegacyModule {
+			return impl.saveModuleAsInstalled(moduleName)
+		}
+		return ModuleStatusNotInstalled, nil
+	}
+
+	// for non-enterprise user
+	devtronHelmAppIdentifier := impl.helmAppService.GetDevtronHelmAppIdentifier()
+	releaseInfo, err := impl.helmAppService.GetValuesYaml(context.Background(), devtronHelmAppIdentifier)
+	if err != nil {
+		impl.logger.Errorw("Error in getting values yaml for devtron operator helm release", "moduleName", moduleName, "err", err)
+		return ModuleStatusNotInstalled, err
+	}
+	isEnabled := gjson.Get(releaseInfo.MergedValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
+	if isEnabled {
+		return impl.saveModuleAsInstalled(moduleName)
+	}
+
+	// if module not enabled in helm for non enterprise-user
+	if isLegacyModule && moduleName != ModuleNameCicd && moduleName != ModuleNameArgoCd {
+		cicdModule, err := impl.moduleRepository.FindOne(ModuleNameCicd)
+		if err != nil {
+			if err == pg.ErrNoRows {
+				return ModuleStatusNotInstalled, nil
+			} else {
+				impl.logger.Errorw("Error in getting cicd module from DB", "err", err)
+				return ModuleStatusNotInstalled, err
+			}
+		}
+		cicdVersion := cicdModule.Version
+		if cicdVersion <= LegacyModuleSupportAssumptionCicdModuleVersion {
+			return impl.saveModuleAsInstalled(moduleName)
+		}
+	}
+
+	return ModuleStatusNotInstalled, nil
+
 }
 
 func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string, moduleActionRequest *ModuleActionRequestDto) (*ActionResponse, error) {
@@ -220,4 +258,23 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	return &ActionResponse{
 		Success: true,
 	}, nil
+}
+
+func (impl ModuleServiceImpl) buildModuleMetaDataUrl(moduleName string) string {
+	return fmt.Sprintf(impl.serverEnvConfig.ModuleMetaDataApiUrl, moduleName)
+}
+
+func (impl ModuleServiceImpl) saveModuleAsInstalled(moduleName string) (ModuleStatus, error) {
+	module := &moduleRepo.Module{
+		Name:      moduleName,
+		Version:   impl.serverDataStore.CurrentVersion,
+		Status:    ModuleStatusInstalled,
+		UpdatedOn: time.Now(),
+	}
+	err := impl.moduleRepository.Save(module)
+	if err != nil {
+		impl.logger.Errorw("error in saving module with installed status ", "moduleName", moduleName, "err", err)
+		return ModuleStatusNotInstalled, err
+	}
+	return ModuleStatusInstalled, nil
 }
