@@ -85,25 +85,13 @@ External Secrets Operator is a Kubernetes operator that integrates external secr
 
 Before adding any external secrets on devtron, `External Secret Operator` must be installed on the target cluster.  `External Secret Operator` allows you to use external secret management systems (e.g., AWS Secrets Manager, Hashicorp Vault, Azure Secrets Manager,  Google Secrets Manager etc.) to securely inject secrets in Kubernetes.
 
-Installing `External Secrets Operator` using chart :
+Installing `External Secrets Operator` using charts store:
 
-Add Helm repository
-
-```bash
-helm repo add external-secrets https://charts.external-secrets.io
-```
-
-To install the chart with the release name `external-secrets`:
-
-```bash
-$ helm install external-secrets external-secrets/external-secrets
-```
-
-To install the chart with AWS IAM Roles for Service Accounts:
-
-```bash
-$ helm install my-release external-secrets/external-secrets --set securityContext.fsGroup=65534 --set serviceAccount.annotations."eks\.amazonaws\.com/role-arn"='arn:aws:iam::111111111111:role/ROLENAME'
-```
+1. Go to charts store.
+2. Search chart with name `external-secrets`.
+![External secrets chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/external-secret.png)
+3. If you don't find any chart with this name i.e `external-secrets`, add chart reposity using repository url  ` https://charts.external-secrets.io`. Please follow this ![documentation](https://docs.devtron.ai/getting-started/global-configurations/chart-repo#add-chart-repository) for adding chart repository.
+4. Deploy the chart.
 
 ### Kubernetes External Secret (Depricated)
 
