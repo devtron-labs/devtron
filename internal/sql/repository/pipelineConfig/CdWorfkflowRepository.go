@@ -59,6 +59,8 @@ type CdWorkflowRepository interface {
 	FetchAllCdStagesLatestEntity(pipelineIds []int) ([]*CdWorkflowStatus, error)
 	FetchAllCdStagesLatestEntityStatus(wfrIds []int) ([]*CdWorkflowRunner, error)
 	ExistsByStatus(status string) (bool, error)
+
+	FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error)
 }
 
 type CdWorkflowRepositoryImpl struct {
@@ -497,4 +499,21 @@ func (impl *CdWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error
 		Where("status =?", status).
 		Exists()
 	return exists, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId int, runnerType bean.WorkflowType, offset, limit int) ([]CdWorkflowRunner, error) {
+	var wfrList []CdWorkflowRunner
+	err := impl.dbConnection.
+		Model(&wfrList).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+		Where("cd_workflow.pipeline_id = ?", pipelineId).
+		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Order("cd_workflow_runner.id DESC").
+		Limit(limit).Offset(offset).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting Wfrs and ci artifacts by pipelineId", "err", err, "pipelineId", pipelineId)
+		return nil, err
+	}
+	return wfrList, err
 }

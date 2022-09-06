@@ -83,7 +83,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/ci-pipeline/patch/regex").HandlerFunc(router.restHandler.UpdateBranchCiPipelinesWithRegex).Methods("POST")
 
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material").HandlerFunc(router.restHandler.GetArtifactsByCDPipeline).Methods("GET")
-	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactForRollback).Methods("GET")
+	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactsForRollback).Methods("GET")
 
 	configRouter.Path("/migrate/db").HandlerFunc(router.restHandler.CreateMigrationConfig).Methods("POST")
 	configRouter.Path("/migrate/db/update").HandlerFunc(router.restHandler.UpdateMigrationConfig).Methods("POST")
