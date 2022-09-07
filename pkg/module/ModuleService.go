@@ -145,7 +145,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 			}
 		}
 		cicdVersion := cicdModule.Version
-		if cicdVersion <= LegacyModuleSupportAssumptionCicdModuleVersion || (len(baseMinVersionSupported) > 0 && cicdVersion <= baseMinVersionSupported) {
+		if cicdVersion <= LegacyModuleSupportAssumptionCicdModuleVersion || (len(baseMinVersionSupported) > 0 && cicdVersion < baseMinVersionSupported) {
 			return impl.saveModuleAsInstalled(moduleName)
 		}
 	}
