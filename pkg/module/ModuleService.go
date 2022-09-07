@@ -145,6 +145,8 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 			}
 		}
 		cicdVersion := cicdModule.Version
+		// if cicd was installed on or before our integration release (v0.5.3) then assume all futuristic legacy module as installed
+		// if cice was installed after integration release (v0.5.3) and any module/integration comes after that then mark that module installed only if cicd was installed before that module introduction
 		if cicdVersion <= LegacyModuleSupportAssumptionCicdModuleVersion || (len(baseMinVersionSupported) > 0 && cicdVersion < baseMinVersionSupported) {
 			return impl.saveModuleAsInstalled(moduleName)
 		}
