@@ -67,10 +67,13 @@ type CiConfig struct {
 	MinioRegion                string   `env:"MINIO_REGION" envDefault:"us-west-2"`
 	DefaultAddressPoolBaseCidr string   `env:"CI_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
 	DefaultAddressPoolSize     int      `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
-
-	AzureAccountKey string `env:"AZURE_ACCOUNT_KEY"`
-	ClusterConfig   *rest.Config
-	NodeLabel       map[string]string
+	BlobStorageEnabled         bool     `env:"BLOB_STORAGE_ENABLED" envDefault:"true"` //TODO set false from inception for new customers
+	BlobStorageS3AccessKey     string   `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
+	BlobStorageS3SecretKey     string   `env:"BLOB_STORAGE_S3_SECRET_KEY"`
+	BlobStorageS3Endpoint      string   `env:"BLOB_STORAGE_S3_ENDPOINT"`
+	AzureAccountKey            string   `env:"AZURE_ACCOUNT_KEY"`
+	ClusterConfig              *rest.Config
+	NodeLabel                  map[string]string
 }
 
 const ExternalCiWebhookPath = "orchestrator/webhook/ext-ci"

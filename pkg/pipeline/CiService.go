@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -231,7 +232,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 		StartedOn:          time.Now(),
 		CiPipelineId:       pipeline.Id,
 		Namespace:          wfConfig.Namespace,
-		BlobStorageEnabled: true, //TODO check from integration module service
+		BlobStorageEnabled: impl.ciConfig.BlobStorageEnabled,
 		GitTriggers:        gitTriggers,
 		LogLocation:        "",
 		TriggeredBy:        userId,
@@ -431,10 +432,20 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	switch workflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
+	case BLOB_STORAGE_MINIO:
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
 		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
 		workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildArtifactLocation(ciWorkflowConfig, savedWf)
+		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
+			AccessKey:            impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:              impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl:          impl.ciConfig.BlobStorageS3Endpoint,
+			CiCacheBucketName:    ciWorkflowConfig.CiCacheBucket,
+			CiCacheRegion:        ciWorkflowConfig.CiCacheRegion,
+			CiArtifactBucketName: workflowRequest.CiArtifactBucket,
+			CiArtifactRegion:     ciWorkflowConfig.CiCacheRegion,
+		}
 	case BLOB_STORAGE_AZURE:
 		workflowRequest.AzureBlobConfig = &AzureBlobConfig{
 			Enabled:              impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
@@ -445,12 +456,21 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 		workflowRequest.CiArtifactLocation = impl.buildArtifactLocationAzure(ciWorkflowConfig, savedWf)
 		workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
-	case BLOB_STORAGE_MINIO:
-		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
-		workflowRequest.CiCacheRegion = impl.ciConfig.MinioRegion
-		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
-		workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildArtifactLocation(ciWorkflowConfig, savedWf)
-		workflowRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+	//case BLOB_STORAGE_MINIO:
+	//	//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
+	//	workflowRequest.CiCacheRegion = impl.ciConfig.MinioRegion
+	//	workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
+	//	workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildArtifactLocation(ciWorkflowConfig, savedWf)
+	//	workflowRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+	//	workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
+	//		AccessKey:            impl.ciConfig.BlobStorageS3AccessKey,
+	//		Passkey:              impl.ciConfig.BlobStorageS3SecretKey,
+	//		EndpointUrl:          impl.ciConfig.MinioEndpoint,
+	//		CiCacheBucketName:    ciWorkflowConfig.CiCacheBucket,
+	//		CiCacheRegion:        ciWorkflowConfig.CiCacheRegion,
+	//		CiArtifactBucketName: ciWorkflowConfig.CiCacheBucket,
+	//		CiArtifactRegion:     ciWorkflowConfig.CiCacheRegion,
+	//	}
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
 	}
