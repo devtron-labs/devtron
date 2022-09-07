@@ -8,7 +8,7 @@ import (
 )
 
 type PipelineStatusTimelineService interface {
-	FetchTimelines(appId, envId, wfrId int) (*PipelineTimelineDetailDto, error)
+	FetchTimelines(appId, envId, wfrId, logPrintDuration int) (*PipelineTimelineDetailDto, error)
 }
 
 type PipelineStatusTimelineServiceImpl struct {
@@ -46,7 +46,8 @@ type PipelineStatusTimelineDto struct {
 	StatusTime                   time.Time                     `json:"statusTime"`
 }
 
-func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrId int) (*PipelineTimelineDetailDto, error) {
+func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrId, logPrintDuration int) (*PipelineTimelineDetailDto, error) {
+	logTimeStart := time.Now()
 	var triggeredBy int32
 	var deploymentStartedOn time.Time
 	var deploymentFinishedOn time.Time
@@ -56,6 +57,10 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		if err != nil {
 			impl.logger.Errorw("error in getting wfr by appId and envId", "err", err, "appId", appId, "envId", envId)
 			return nil, err
+		}
+		if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+			impl.logger.Errorw("pipelineStatusTimelineService processing time high, FetchTimelines.FindLatestWfrByAppIdAndEnvironmentId", "timeDuration", time.Since(logTimeStart))
+			logTimeStart = time.Now()
 		}
 		wfrId = wfr.Id
 		deploymentStartedOn = wfr.StartedOn
@@ -68,6 +73,10 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 			impl.logger.Errorw("error in getting wfr by appId and envId", "err", err, "appId", appId, "envId", envId)
 			return nil, err
 		}
+		if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+			impl.logger.Errorw("pipelineStatusTimelineService processing time high, FetchTimelines.FindWorkflowRunnerById", "timeDuration", time.Since(logTimeStart))
+			logTimeStart = time.Now()
+		}
 		deploymentStartedOn = wfr.StartedOn
 		deploymentFinishedOn = wfr.FinishedOn
 		triggeredBy = wfr.TriggeredBy
@@ -78,10 +87,18 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		impl.logger.Errorw("error in getting user detail by id", "err", err, "userId", triggeredBy)
 		return nil, err
 	}
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		impl.logger.Errorw("pipelineStatusTimelineService processing time high, FetchTimelines.GetById", "timeDuration", time.Since(logTimeStart))
+		logTimeStart = time.Now()
+	}
 	timelines, err := impl.pipelineStatusTimelineRepository.FetchTimelinesByWfrId(wfrId)
 	if err != nil {
 		impl.logger.Errorw("error in getting timelines by wfrId", "err", err, "wfrId", wfrId)
 		return nil, err
+	}
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		impl.logger.Errorw("pipelineStatusTimelineService processing time high, FetchTimelines.FetchTimelinesByWfrId", "timeDuration", time.Since(logTimeStart))
+		logTimeStart = time.Now()
 	}
 	var timelineDtos []*PipelineStatusTimelineDto
 	for _, timeline := range timelines {
@@ -93,6 +110,10 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 			StatusDetail:       timeline.StatusDetail,
 		}
 		timelineDtos = append(timelineDtos, timelineDto)
+	}
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		impl.logger.Errorw("pipelineStatusTimelineService processing time high, FetchTimelines.timelinesLOOP", "timeDuration", time.Since(logTimeStart))
+		logTimeStart = time.Now()
 	}
 	timelineDetail := &PipelineTimelineDetailDto{
 		TriggeredBy:          triggeredByUser.EmailId,

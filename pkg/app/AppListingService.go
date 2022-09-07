@@ -51,7 +51,7 @@ type AppListingService interface {
 	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
 
-	FetchAppDetails(appId int, envId int) (bean.AppDetailContainer, error)
+	FetchAppDetails(appId int, envId, logPrintDuration int) (bean.AppDetailContainer, error)
 
 	PodCountByAppLabel(appLabel string, namespace string, env string, proEndpoint string) int
 	PodListByAppLabel(appLabel string, namespace string, env string, proEndpoint string) map[string]string
@@ -563,11 +563,16 @@ func (impl AppListingServiceImpl) adaptStatusForView(status string) string {
 	return status
 }
 
-func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.AppDetailContainer, error) {
+func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId, logPrintDuration int) (bean.AppDetailContainer, error) {
+	logTimeStart := time.Now()
 	appDetailContainer, err := impl.appListingRepository.FetchAppDetail(appId, envId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app detail", "error", err)
 		return bean.AppDetailContainer{}, err
+	}
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		impl.Logger.Errorw("appListingService processing time high, FetchAppDetails.FetchAppDetail", "timeDuration", time.Since(logTimeStart))
+		logTimeStart = time.Now()
 	}
 
 	var appMetrics bool
@@ -580,7 +585,10 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 		appMetrics = appLevelMetrics.AppMetrics
 		infraMetrics = appLevelMetrics.InfraMetrics
 	}
-
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		impl.Logger.Errorw("appListingService processing time high, FetchAppDetails.FindByAppId", "timeDuration", time.Since(logTimeStart))
+		logTimeStart = time.Now()
+	}
 	i := 0
 	for _, env := range appDetailContainer.Environments {
 		var envLevelMetrics *bool
@@ -605,11 +613,18 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 		appDetailContainer.Environments[i].InfraMetrics = envLevelInfraMetrics
 		i++
 	}
-
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		impl.Logger.Errorw("appListingService processing time high, FetchAppDetails.appDetailContainerLOOP", "timeDuration", time.Since(logTimeStart))
+		logTimeStart = time.Now()
+	}
 	linkoutsModel, err := impl.linkoutsRepository.FetchLinkoutsByAppIdAndEnvId(appId, envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching linkouts", "error", err)
 		return bean.AppDetailContainer{}, err
+	}
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		impl.Logger.Errorw("appListingService processing time high, FetchAppDetails.FetchLinkoutsByAppIdAndEnvId", "timeDuration", time.Since(logTimeStart))
+		logTimeStart = time.Now()
 	}
 	var linkouts []bean.LinkOuts
 	for _, linkout := range linkoutsModel {
@@ -618,11 +633,18 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 
 	appDetailContainer.LinkOuts = linkouts
 	appDetailContainer.AppId = appId
-
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		impl.Logger.Errorw("appListingService processing time high, FetchAppDetails.LinkoutLOOP", "timeDuration", time.Since(logTimeStart))
+		logTimeStart = time.Now()
+	}
 	envModel, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
 		impl.Logger.Errorw("error in fetching environment", "error", err)
 		return bean.AppDetailContainer{}, err
+	}
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		impl.Logger.Errorw("appListingService processing time high, FetchAppDetails.FindById", "timeDuration", time.Since(logTimeStart))
+		logTimeStart = time.Now()
 	}
 	appDetailContainer.K8sVersion = envModel.Cluster.K8sVersion
 	appDetailContainer.ClusterId = envModel.ClusterId

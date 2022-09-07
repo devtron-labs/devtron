@@ -286,6 +286,8 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, r *http.Request) {
+	logTimeStart := time.Now()
+	logPrintDuration := 5
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
 	appId, err := strconv.Atoi(vars["app-id"])
@@ -299,11 +301,16 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appDetail, err := handler.appListingService.FetchAppDetails(appId, envId)
+
+	appDetail, err := handler.appListingService.FetchAppDetails(appId, envId, logPrintDuration)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
+	}
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		handler.logger.Errorw("app detail api restHandler processing time high, FetchAppDetails.FetchAppDetails", "timeDuration", time.Since(logTimeStart))
+		logTimeStart = time.Now()
 	}
 
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
@@ -311,7 +318,15 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	appDetail = handler.fetchResourceTree(w, r, token, appId, envId, appDetail)
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		handler.logger.Errorw("app detail api restHandler processing time high, FetchAppDetails.Enforcer", "timeDuration", time.Since(logTimeStart))
+		logTimeStart = time.Now()
+	}
+	appDetail = handler.fetchResourceTree(w, r, token, appId, envId, logPrintDuration, appDetail)
+
+	if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+		handler.logger.Errorw("app detail api restHandler processing time high, FetchAppDetails.fetchResourceTree", "timeDuration", time.Since(logTimeStart))
+	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
@@ -562,7 +577,8 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	http.Redirect(w, r, link, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, token string, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
+func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, token string, appId int, envId, logPrintDuration int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
+	logTimeStart := time.Now()
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsAcdApp(appDetail.DeploymentAppType) {
 		//RBAC enforcer Ends
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
@@ -600,12 +616,20 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 			return appDetail
 		}
+		if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+			handler.logger.Errorw("app detail api restHandler processing time high, fetchResourceTree.ResourceTree", "timeDuration", time.Since(logTimeStart))
+			logTimeStart = time.Now()
+		}
 		if resp.Status == string(health.HealthStatusHealthy) {
 			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
 			if err != nil {
 				handler.logger.Errorw("service err, FetchAppDetails", "err", err, "app", appId, "env", envId)
 			} else if status {
 				resp.Status = application.HIBERNATING
+			}
+			if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+				handler.logger.Errorw("app detail api restHandler processing time high, fetchResourceTree.ISLastReleaseStopType", "timeDuration", time.Since(logTimeStart))
+				logTimeStart = time.Now()
 			}
 		}
 		handler.logger.Debugw("FetchAppDetails, time elapsed in fetching application for environment ", "elapsed", elapsed, "appId", appId, "envId", envId)
@@ -617,13 +641,25 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			} else if count == 0 {
 				resp.Status = app.NotDeployed
 			}
+			if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+				handler.logger.Errorw("app detail api restHandler processing time high, fetchResourceTree.GetReleaseCount", "timeDuration", time.Since(logTimeStart))
+				logTimeStart = time.Now()
+			}
 		}
 		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
+		if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+			handler.logger.Errorw("app detail api restHandler processing time high, fetchResourceTree.interfaceToMapAdapter", "timeDuration", time.Since(logTimeStart))
+			logTimeStart = time.Now()
+		}
 		handler.logger.Debugw("application environment status", "appId", appId, "envId", envId, "resp", resp)
 	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsHelmApp(appDetail.DeploymentAppType) {
 		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
 		if err != nil {
 			handler.logger.Errorw("error in fetching cluster detail", "err", err)
+		}
+		if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+			handler.logger.Errorw("app detail api restHandler processing time high, fetchResourceTree.GetClusterConf", "timeDuration", time.Since(logTimeStart))
+			logTimeStart = time.Now()
 		}
 		req := &client.AppDetailRequest{
 			ClusterConfig: config,
@@ -634,11 +670,19 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		if err != nil {
 			handler.logger.Errorw("error in fetching app detail", "err", err)
 		}
+		if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+			handler.logger.Errorw("app detail api restHandler processing time high, fetchResourceTree.GetAppDetail", "timeDuration", time.Since(logTimeStart))
+			logTimeStart = time.Now()
+		}
 		if detail != nil {
 			resourceTree := util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
 			resourceTree["status"] = detail.ReleaseStatus.Status
 			appDetail.ResourceTree = resourceTree
 			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
+			if time.Since(logTimeStart) > (time.Second * time.Duration(logPrintDuration)) {
+				handler.logger.Errorw("app detail api restHandler processing time high, fetchResourceTree.InterfaceToMapAdapter", "timeDuration", time.Since(logTimeStart))
+				logTimeStart = time.Now()
+			}
 		} else {
 			appDetail.ResourceTree = map[string]interface{}{}
 		}
