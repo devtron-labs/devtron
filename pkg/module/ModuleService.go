@@ -237,10 +237,16 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		impl.logger.Errorw("error in getting modules with installed status ", "err", err)
 		return nil, err
 	}
-	extraValues[moduleUtil.BuildModuleEnableKey(moduleName)] = true
+	moduleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(moduleName)
+	for _, moduleEnableKey := range moduleEnableKeys {
+		extraValues[moduleEnableKey] = true
+	}
 	for _, alreadyInstalledModuleName := range alreadyInstalledModuleNames {
 		if alreadyInstalledModuleName != moduleName {
-			extraValues[moduleUtil.BuildModuleEnableKey(alreadyInstalledModuleName)] = true
+			alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(alreadyInstalledModuleName)
+			for _, alreadyInstalledModuleEnableKey := range alreadyInstalledModuleEnableKeys {
+				extraValues[alreadyInstalledModuleEnableKey] = true
+			}
 		}
 	}
 	extraValuesYamlUrl := util2.BuildDevtronBomUrl(impl.serverEnvConfig.DevtronBomUrl, moduleActionRequest.Version)
