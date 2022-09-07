@@ -25,6 +25,7 @@ type ConfigMapHistoryService interface {
 	GetDeployedHistoryList(pipelineId, baseConfigId int, configType repository.ConfigType, componentName string) ([]*DeployedHistoryComponentMetadataDto, error)
 
 	GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(pipelineId, wfrId int, configType repository.ConfigType, userHasAdminAccess bool) ([]*ComponentLevelHistoryDetailDto, error)
+	ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error)
 }
 
 type ConfigMapHistoryServiceImpl struct {
@@ -513,64 +514,76 @@ func (impl ConfigMapHistoryServiceImpl) GetDeployedHistoryDetailForCMCSByPipelin
 	}
 	var componentLevelHistoryData []*ComponentLevelHistoryDetailDto
 	for _, config := range configData {
-		historyDto := &HistoryDetailDto{
-			Type:           config.Type,
-			External:       &config.External,
-			MountPath:      config.MountPath,
-			SubPath:        &config.SubPath,
-			FilePermission: config.FilePermission,
-			CodeEditorValue: &HistoryDetailConfig{
-				DisplayName: "Data",
-				Value:       string(config.Data),
-			},
-		}
-		if configType == repository.SECRET_TYPE {
-			if config.Data != nil {
-				if !userHasAdminAccess {
-					//removing keys and sending
-					resultMap := make(map[string]string)
-					resultMapFinal := make(map[string]string)
-					err = json.Unmarshal(config.Data, &resultMap)
-					if err != nil {
-						impl.logger.Warnw("unmarshal failed", "error", err)
-					}
-					for key, _ := range resultMap {
-						//hard-coding values to show them as hidden to user
-						resultMapFinal[key] = "*****"
-					}
-					resultByte, err := json.Marshal(resultMapFinal)
-					if err != nil {
-						impl.logger.Errorw("error while marshaling request", "err", err)
-						return nil, err
-					}
-					historyDto.CodeEditorValue.Value = string(resultByte)
-				}
-			}
-			historyDto.ExternalSecretType = config.ExternalSecretType
-			historyDto.RoleARN = config.RoleARN
-			if config.External {
-				var externalSecretData []byte
-				if strings.HasPrefix(config.ExternalSecretType, "ESO") {
-					externalSecretData, err = json.Marshal(config.ESOSecretData)
-					if err != nil {
-						impl.logger.Errorw("error in marshaling external secret data", "err", err)
-					}
-				} else {
-					externalSecretData, err = json.Marshal(config.ExternalSecret)
-					if err != nil {
-						impl.logger.Errorw("error in marshaling external secret data", "err", err)
-					}
-				}
-				if len(externalSecretData) > 0 {
-					historyDto.CodeEditorValue.Value = string(externalSecretData)
-				}
-			}
-		}
-		componentLevelData := &ComponentLevelHistoryDetailDto{
-			ComponentName: config.Name,
-			HistoryConfig: historyDto,
+		componentLevelData, err := impl.ConvertConfigDataToComponentLevelDto(config, configType, userHasAdminAccess)
+		if err != nil {
+			impl.logger.Errorw("error in converting data to componentLevelData", "err", err)
 		}
 		componentLevelHistoryData = append(componentLevelHistoryData, componentLevelData)
 	}
 	return componentLevelHistoryData, nil
+}
+
+func (impl ConfigMapHistoryServiceImpl) ConvertConfigDataToComponentLevelDto(config *ConfigData, configType repository.ConfigType, userHasAdminAccess bool) (*ComponentLevelHistoryDetailDto, error) {
+	historyDto := &HistoryDetailDto{
+		Type:           config.Type,
+		External:       &config.External,
+		MountPath:      config.MountPath,
+		SubPath:        &config.SubPath,
+		FilePermission: config.FilePermission,
+		CodeEditorValue: &HistoryDetailConfig{
+			DisplayName: "Data",
+			Value:       string(config.Data),
+		},
+	}
+	var err error
+	if configType == repository.SECRET_TYPE {
+		if config.Data != nil {
+			if !userHasAdminAccess {
+				//removing keys and sending
+				resultMap := make(map[string]string)
+				resultMapFinal := make(map[string]string)
+				err = json.Unmarshal(config.Data, &resultMap)
+				if err != nil {
+					impl.logger.Warnw("unmarshal failed", "error", err)
+					return nil, err
+				}
+				for key, _ := range resultMap {
+					//hard-coding values to show them as hidden to user
+					resultMapFinal[key] = "*****"
+				}
+				resultByte, err := json.Marshal(resultMapFinal)
+				if err != nil {
+					impl.logger.Errorw("error while marshaling request", "err", err)
+					return nil, err
+				}
+				historyDto.CodeEditorValue.Value = string(resultByte)
+			}
+		}
+		historyDto.ExternalSecretType = config.ExternalSecretType
+		historyDto.RoleARN = config.RoleARN
+		if config.External {
+			var externalSecretData []byte
+			if strings.HasPrefix(config.ExternalSecretType, "ESO") {
+				externalSecretData, err = json.Marshal(config.ESOSecretData)
+				if err != nil {
+					impl.logger.Errorw("error in marshaling external secret data", "err", err)
+					return nil, err
+				}
+			} else {
+				externalSecretData, err = json.Marshal(config.ExternalSecret)
+				if err != nil {
+					impl.logger.Errorw("error in marshaling external secret data", "err", err)
+					return nil, err
+				}
+			}
+			if len(externalSecretData) > 0 {
+				historyDto.CodeEditorValue.Value = string(externalSecretData)
+			}
+		}
+	}
+	componentLevelData := &ComponentLevelHistoryDetailDto{
+		ComponentName: config.Name,
+		HistoryConfig: historyDto,
+	}
+	return componentLevelData, nil
 }

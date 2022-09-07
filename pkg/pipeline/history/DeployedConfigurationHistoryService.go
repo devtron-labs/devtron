@@ -14,8 +14,8 @@ type DeployedConfigurationHistoryService interface {
 	GetDeployedConfigurationByWfrId(pipelineId, wfrId int) ([]*DeploymentConfigurationDto, error)
 	GetDeployedHistoryComponentList(pipelineId, baseConfigId int, historyComponent, historyComponentName string) ([]*DeployedHistoryComponentMetadataDto, error)
 	GetDeployedHistoryComponentDetail(pipelineId, id int, historyComponent, historyComponentName string, userHasAdminAccess bool) (*HistoryDetailDto, error)
-	GetAllLatestDeployedConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool) (*AllDeploymentConfigurationHistoryDetail, error)
-	GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfrId int, userHasAdminAccess bool) (*AllDeploymentConfigurationHistoryDetail, error)
+	GetAllLatestDeployedConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool) (*AllDeploymentConfigurationDetail, error)
+	GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfrId int, userHasAdminAccess bool) (*AllDeploymentConfigurationDetail, error)
 }
 
 type DeployedConfigurationHistoryServiceImpl struct {
@@ -145,7 +145,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetDeployedHistoryComponent
 	return history, nil
 }
 
-func (impl *DeployedConfigurationHistoryServiceImpl) GetAllLatestDeployedConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool) (*AllDeploymentConfigurationHistoryDetail, error) {
+func (impl *DeployedConfigurationHistoryServiceImpl) GetAllLatestDeployedConfigurationByPipelineId(pipelineId int, userHasAdminAccess bool) (*AllDeploymentConfigurationDetail, error) {
 	//getting latest wfr from pipelineId
 	wfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
@@ -154,7 +154,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetAllLatestDeployedConfigu
 	}
 	return impl.GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfr.Id, userHasAdminAccess)
 }
-func (impl *DeployedConfigurationHistoryServiceImpl) GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfrId int, userHasAdminAccess bool) (*AllDeploymentConfigurationHistoryDetail, error) {
+func (impl *DeployedConfigurationHistoryServiceImpl) GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfrId int, userHasAdminAccess bool) (*AllDeploymentConfigurationDetail, error) {
 	//getting history of deployment template for latest deployment
 	deploymentTemplateHistory, err := impl.deploymentTemplateHistoryService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId)
 	if err != nil {
@@ -179,7 +179,7 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetAllDeployedConfiguration
 		impl.logger.Errorw("error in getting strategy history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
-	allDeploymentConfigurationHistoryDetail := &AllDeploymentConfigurationHistoryDetail{
+	allDeploymentConfigurationHistoryDetail := &AllDeploymentConfigurationDetail{
 		DeploymentTemplateConfig: deploymentTemplateHistory,
 		ConfigMapConfig:          configMapHistory,
 		SecretConfig:             secretHistory,

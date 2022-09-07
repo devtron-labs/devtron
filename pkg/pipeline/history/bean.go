@@ -20,7 +20,7 @@ type ComponentLevelHistoryDetailDto struct {
 	HistoryConfig *HistoryDetailDto `json:"config"`
 }
 
-type AllDeploymentConfigurationHistoryDetail struct {
+type AllDeploymentConfigurationDetail struct {
 	DeploymentTemplateConfig *HistoryDetailDto                 `json:"deploymentTemplate"`
 	ConfigMapConfig          []*ComponentLevelHistoryDetailDto `json:"configMap"`
 	SecretConfig             []*ComponentLevelHistoryDetailDto `json:"secret"`

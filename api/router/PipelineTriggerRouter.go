@@ -65,6 +65,8 @@ func (router PipelineTriggerRouterImpl) initPipelineTriggerRouter(pipelineTrigge
 		Handler(sse2.SubscribeHandler(sse.Broker, PollTopic, fetchReleaseData)).
 		Methods("GET").
 		Queries("name", "{name}")
+
+	pipelineTriggerRouter.Path("/deployment-configuration/all/latest/{appId}/{pipelineId}").HandlerFunc(router.restHandler.OverrideConfig).Methods("POST")
 }
 
 func fetchReleaseData(r *http.Request, receive <-chan int, send chan<- int) {

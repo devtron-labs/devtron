@@ -3,7 +3,6 @@ package restHandler
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	history2 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -31,7 +30,6 @@ type PipelineHistoryRestHandlerImpl struct {
 	configMapHistoryService             history2.ConfigMapHistoryService
 	prePostCiScriptHistoryService       history2.PrePostCiScriptHistoryService
 	prePostCdScriptHistoryService       history2.PrePostCdScriptHistoryService
-	pipelineBuilder                     pipeline.PipelineBuilder
 	enforcerUtil                        rbac.EnforcerUtil
 	deployedConfigurationHistoryService history2.DeployedConfigurationHistoryService
 }
@@ -42,7 +40,6 @@ func NewPipelineHistoryRestHandlerImpl(logger *zap.SugaredLogger, userAuthServic
 	configMapHistoryService history2.ConfigMapHistoryService,
 	prePostCiScriptHistoryService history2.PrePostCiScriptHistoryService,
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,
-	pipelineBuilder pipeline.PipelineBuilder,
 	enforcerUtil rbac.EnforcerUtil,
 	deployedConfigurationHistoryService history2.DeployedConfigurationHistoryService) *PipelineHistoryRestHandlerImpl {
 	return &PipelineHistoryRestHandlerImpl{
@@ -54,7 +51,6 @@ func NewPipelineHistoryRestHandlerImpl(logger *zap.SugaredLogger, userAuthServic
 		configMapHistoryService:             configMapHistoryService,
 		prePostCdScriptHistoryService:       prePostCdScriptHistoryService,
 		prePostCiScriptHistoryService:       prePostCiScriptHistoryService,
-		pipelineBuilder:                     pipelineBuilder,
 		enforcerUtil:                        enforcerUtil,
 		deployedConfigurationHistoryService: deployedConfigurationHistoryService,
 	}
@@ -89,12 +85,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedConfigurationsForWor
 
 	//RBAC START
 	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -153,12 +144,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentList
 
 	//RBAC START
 	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -215,12 +201,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDeta
 
 	//RBAC START
 	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -260,12 +241,7 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 
 	//RBAC START
 	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
@@ -312,12 +288,7 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 
 	//RBAC START
 	token := r.Header.Get("token")
-	app, err := handler.pipelineBuilder.GetApp(appId)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
