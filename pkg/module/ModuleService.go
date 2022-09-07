@@ -109,7 +109,9 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 		impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
 		return ModuleStatusNotInstalled, err
 	}
-	isLegacyModule := gjson.Get(string(moduleMetaData), "result.isIncludedInLegacyFullPackage").Bool()
+	moduleMetaDataStr := string(moduleMetaData)
+	isLegacyModule := gjson.Get(moduleMetaDataStr, "result.isIncludedInLegacyFullPackage").Bool()
+	baseMinVersionSupported := gjson.Get(moduleMetaDataStr, "result.baseMinVersionSupported").String()
 
 	// for enterprise user
 	if impl.serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeEnterprise {
@@ -143,7 +145,9 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 			}
 		}
 		cicdVersion := cicdModule.Version
-		if cicdVersion <= LegacyModuleSupportAssumptionCicdModuleVersion {
+		// if cicd was installed on or before our integration release (v0.5.3) then assume all futuristic legacy module as installed
+		// if cicd was installed after integration release (v0.5.3) and any module/integration comes after that then mark that module installed only if cicd was installed before that module introduction
+		if cicdVersion <= LegacyModuleSupportAssumptionCicdModuleVersion || (len(baseMinVersionSupported) > 0 && cicdVersion < baseMinVersionSupported) {
 			return impl.saveModuleAsInstalled(moduleName)
 		}
 	}
