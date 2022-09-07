@@ -15,7 +15,7 @@ Before we get started and install Devtron, we need to set up the cluster in our 
  * Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
 
 
-## Installing Devtron on your machine
+## Install Devtron on your machine
 1. Add Devtron repository
 2. Install Devtron 
 3. Port-forward the devtron-service to access dashboard
