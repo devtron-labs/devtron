@@ -359,22 +359,23 @@ func (impl *CiHandlerImpl) GetBuildHistory(pipelineId int, offset int, size int)
 	var ciWorkLowResponses []WorkflowResponse
 	for _, w := range workFlows {
 		wfResponse := WorkflowResponse{
-			Id:               w.Id,
-			Name:             w.Name,
-			Status:           w.Status,
-			PodStatus:        w.PodStatus,
-			Message:          w.Message,
-			StartedOn:        w.StartedOn,
-			FinishedOn:       w.FinishedOn,
-			CiPipelineId:     w.CiPipelineId,
-			Namespace:        w.Namespace,
-			LogLocation:      w.LogFilePath,
-			GitTriggers:      w.GitTriggers,
-			CiMaterials:      ciPipelineMaterialResponses,
-			Artifact:         w.Image,
-			TriggeredBy:      w.TriggeredBy,
-			TriggeredByEmail: w.EmailId,
-			ArtifactId:       w.CiArtifactId,
+			Id:                 w.Id,
+			Name:               w.Name,
+			Status:             w.Status,
+			PodStatus:          w.PodStatus,
+			Message:            w.Message,
+			StartedOn:          w.StartedOn,
+			FinishedOn:         w.FinishedOn,
+			CiPipelineId:       w.CiPipelineId,
+			Namespace:          w.Namespace,
+			LogLocation:        w.LogFilePath,
+			GitTriggers:        w.GitTriggers,
+			CiMaterials:        ciPipelineMaterialResponses,
+			Artifact:           w.Image,
+			TriggeredBy:        w.TriggeredBy,
+			TriggeredByEmail:   w.EmailId,
+			ArtifactId:         w.CiArtifactId,
+			BlobStorageEnabled: w.BlobStorageEnabled,
 		}
 		ciWorkLowResponses = append(ciWorkLowResponses, wfResponse)
 	}
@@ -969,6 +970,7 @@ func (impl *CiHandlerImpl) FetchCiStatusForTriggerView(appId int) ([]*pipelineCo
 		if workflow.Id > 0 {
 			ciWorkflowStatus.CiPipelineName = workflow.CiPipeline.Name
 			ciWorkflowStatus.CiStatus = workflow.Status
+			ciWorkflowStatus.StorageConfigured = workflow.BlobStorageEnabled
 		} else {
 			ciWorkflowStatus.CiStatus = "Not Triggered"
 		}

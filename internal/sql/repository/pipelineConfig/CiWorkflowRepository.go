@@ -81,6 +81,7 @@ type WorkflowWithArtifact struct {
 	Image              string            `json:"image"`
 	CiArtifactLocation string            `json:"ci_artifact_location"`
 	CiArtifactId       int               `json:"ci_artifact_d"`
+	BlobStorageEnabled bool              `json:"blob_storage_enabled"`
 }
 
 type GitCommit struct {
