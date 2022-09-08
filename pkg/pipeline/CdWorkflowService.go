@@ -20,6 +20,7 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"strconv"
@@ -60,47 +61,48 @@ type CdWorkflowServiceImpl struct {
 }
 
 type CdWorkflowRequest struct {
-	AppId                      int                `json:"appId"`
-	EnvironmentId              int                `json:"envId"`
-	WorkflowId                 int                `json:"workflowId"`
-	WorkflowRunnerId           int                `json:"workflowRunnerId"`
-	CdPipelineId               int                `json:"cdPipelineId"`
-	TriggeredBy                int32              `json:"triggeredBy"`
-	StageYaml                  string             `json:"stageYaml"`
-	ArtifactLocation           string             `json:"artifactLocation"`
-	ArtifactBucket             string             `json:"ciArtifactBucket"`
-	ArtifactFileName           string             `json:"ciArtifactFileName"`
-	ArtifactRegion             string             `json:"ciArtifactRegion"`
-	CiProjectDetails           []CiProjectDetails `json:"ciProjectDetails"`
-	CiArtifactDTO              CiArtifactDTO      `json:"ciArtifactDTO"`
-	Namespace                  string             `json:"namespace"`
-	WorkflowNamePrefix         string             `json:"workflowNamePrefix"`
-	CdImage                    string             `json:"cdImage"`
-	ActiveDeadlineSeconds      int64              `json:"activeDeadlineSeconds"`
-	StageType                  string             `json:"stageType"`
-	DockerUsername             string             `json:"dockerUsername"`
-	DockerPassword             string             `json:"dockerPassword"`
-	AwsRegion                  string             `json:"awsRegion"`
-	SecretKey                  string             `json:"secretKey"`
-	AccessKey                  string             `json:"accessKey"`
-	DockerConnection           string             `json:"dockerConnection"`
-	DockerCert                 string             `json:"dockerCert"`
-	CdCacheLocation            string             `json:"cdCacheLocation"`
-	CdCacheRegion              string             `json:"cdCacheRegion"`
-	DockerRegistryType         string             `json:"dockerRegistryType"`
-	DockerRegistryURL          string             `json:"dockerRegistryURL"`
-	OrchestratorHost           string             `json:"orchestratorHost"`
-	OrchestratorToken          string             `json:"orchestratorToken"`
-	IsExtRun                   bool               `json:"isExtRun"`
-	ExtraEnvironmentVariables  map[string]string  `json:"extraEnvironmentVariables"`
-	BlobStorageConfigured      bool               `json:"blobStorageConfigured"`
-	CloudProvider              string             `json:"cloudProvider"`
-	AzureBlobConfig            *AzureBlobConfig   `json:"azureBlobConfig"`
-	MinioEndpoint              string             `json:"minioEndpoint"`
-	DefaultAddressPoolBaseCidr string             `json:"defaultAddressPoolBaseCidr"`
-	DefaultAddressPoolSize     int                `json:"defaultAddressPoolSize"`
-	DeploymentTriggeredBy      string             `json:"deploymentTriggeredBy,omitempty"`
-	DeploymentTriggerTime      time.Time          `json:"deploymentTriggerTime,omitempty"`
+	AppId                      int                               `json:"appId"`
+	EnvironmentId              int                               `json:"envId"`
+	WorkflowId                 int                               `json:"workflowId"`
+	WorkflowRunnerId           int                               `json:"workflowRunnerId"`
+	CdPipelineId               int                               `json:"cdPipelineId"`
+	TriggeredBy                int32                             `json:"triggeredBy"`
+	StageYaml                  string                            `json:"stageYaml"`
+	ArtifactLocation           string                            `json:"artifactLocation"`
+	ArtifactBucket             string                            `json:"ciArtifactBucket"`
+	ArtifactFileName           string                            `json:"ciArtifactFileName"`
+	ArtifactRegion             string                            `json:"ciArtifactRegion"`
+	CiProjectDetails           []CiProjectDetails                `json:"ciProjectDetails"`
+	CiArtifactDTO              CiArtifactDTO                     `json:"ciArtifactDTO"`
+	Namespace                  string                            `json:"namespace"`
+	WorkflowNamePrefix         string                            `json:"workflowNamePrefix"`
+	CdImage                    string                            `json:"cdImage"`
+	ActiveDeadlineSeconds      int64                             `json:"activeDeadlineSeconds"`
+	StageType                  string                            `json:"stageType"`
+	DockerUsername             string                            `json:"dockerUsername"`
+	DockerPassword             string                            `json:"dockerPassword"`
+	AwsRegion                  string                            `json:"awsRegion"`
+	SecretKey                  string                            `json:"secretKey"`
+	AccessKey                  string                            `json:"accessKey"`
+	DockerConnection           string                            `json:"dockerConnection"`
+	DockerCert                 string                            `json:"dockerCert"`
+	CdCacheLocation            string                            `json:"cdCacheLocation"`
+	CdCacheRegion              string                            `json:"cdCacheRegion"`
+	DockerRegistryType         string                            `json:"dockerRegistryType"`
+	DockerRegistryURL          string                            `json:"dockerRegistryURL"`
+	OrchestratorHost           string                            `json:"orchestratorHost"`
+	OrchestratorToken          string                            `json:"orchestratorToken"`
+	IsExtRun                   bool                              `json:"isExtRun"`
+	ExtraEnvironmentVariables  map[string]string                 `json:"extraEnvironmentVariables"`
+	BlobStorageConfigured      bool                              `json:"blobStorageConfigured"`
+	BlobStorageS3Config        *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
+	CloudProvider              string                            `json:"cloudProvider"`
+	AzureBlobConfig            *AzureBlobConfig                  `json:"azureBlobConfig"`
+	MinioEndpoint              string                            `json:"minioEndpoint"`
+	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
+	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
+	DeploymentTriggeredBy      string                            `json:"deploymentTriggeredBy,omitempty"`
+	DeploymentTriggerTime      time.Time                         `json:"deploymentTriggerTime,omitempty"`
 }
 
 const PRE = "PRE"

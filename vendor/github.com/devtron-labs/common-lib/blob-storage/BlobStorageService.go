@@ -47,9 +47,15 @@ func (impl *BlobStorageServiceImpl) PutWithCommand(request *BlobStorageRequest) 
 			cachePush = exec.Command("aws", "s3", "cp", request.SourceKey, "s3://"+s3BaseConfig.BucketName+"/"+request.DestinationKey)
 		}
 		err = utils.RunCommand(cachePush)
-	//case BLOB_STORAGE_MINIO:
-	//	cachePush := exec.Command("aws", "--endpoint-url", request.Endpoint, "s3", "cp", request.SourceKey, "s3://"+request.BucketName+"/"+request.DestinationKey)
-	//	err = utils.RunCommand(cachePush)
+	case BLOB_STORAGE_MINIO:
+		s3BaseConfig := request.AwsS3BaseConfig
+		var cachePush *exec.Cmd
+		if s3BaseConfig.EndpointUrl != "" {
+			cachePush = exec.Command("aws", "--endpoint-url", s3BaseConfig.EndpointUrl, "s3", "cp", request.SourceKey, "s3://"+s3BaseConfig.BucketName+"/"+request.DestinationKey)
+		} else {
+			cachePush = exec.Command("aws", "s3", "cp", request.SourceKey, "s3://"+s3BaseConfig.BucketName+"/"+request.DestinationKey)
+		}
+		err = utils.RunCommand(cachePush)
 	case BLOB_STORAGE_AZURE:
 		b := AzureBlob{}
 		err = b.UploadBlob(context.Background(), request.DestinationKey, request.AzureBlobConfig, request.SourceKey, request.AzureBlobConfig.BlobContainerCiCache)
@@ -87,14 +93,21 @@ func (impl *BlobStorageServiceImpl) Get(request *BlobStorageRequest) (bool, int6
 		}
 		sess := session.Must(session.NewSession(awsCfg))
 		downloadSuccess, numBytes, err = DownLoadFromS3(file, request, sess)
-	//case BLOB_STORAGE_MINIO:
-	//	sess := session.Must(session.NewSession(&aws.Config{
-	//		Region:           aws.String(request.Region),
-	//		Endpoint:         aws.String(request.Endpoint),
-	//		DisableSSL:       aws.Bool(true),
-	//		S3ForcePathStyle: aws.Bool(true),
-	//	}))
-	//	downloadSuccess, numBytes, err = DownLoadFromS3(file, request, sess)
+	case BLOB_STORAGE_MINIO:
+		s3BaseConfig := request.AwsS3BaseConfig
+		awsCfg := &aws.Config{
+			Region: aws.String(s3BaseConfig.Region),
+		}
+		if s3BaseConfig.AccessKey != "" {
+			awsCfg.Credentials = credentials.NewStaticCredentials(s3BaseConfig.AccessKey, s3BaseConfig.Passkey, "")
+		}
+		if s3BaseConfig.EndpointUrl != "" { // to handle s3 compatible storage
+			awsCfg.Endpoint = aws.String(s3BaseConfig.EndpointUrl)
+			awsCfg.DisableSSL = aws.Bool(true)
+			awsCfg.S3ForcePathStyle = aws.Bool(true)
+		}
+		sess := session.Must(session.NewSession(awsCfg))
+		downloadSuccess, numBytes, err = DownLoadFromS3(file, request, sess)
 	case BLOB_STORAGE_AZURE:
 		b := AzureBlob{}
 		downloadSuccess, err = b.DownloadBlob(context.Background(), request.SourceKey, request.AzureBlobConfig, file)

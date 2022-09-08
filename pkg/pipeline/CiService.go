@@ -432,6 +432,19 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 
 	switch workflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
+		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
+		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
+		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
+		workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildArtifactLocation(ciWorkflowConfig, savedWf)
+		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
+			AccessKey:            impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:              impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl:          impl.ciConfig.BlobStorageS3Endpoint,
+			CiCacheBucketName:    ciWorkflowConfig.CiCacheBucket,
+			CiCacheRegion:        ciWorkflowConfig.CiCacheRegion,
+			CiArtifactBucketName: workflowRequest.CiArtifactBucket,
+			CiArtifactRegion:     ciWorkflowConfig.CiCacheRegion,
+		}
 	case BLOB_STORAGE_MINIO:
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
 		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion

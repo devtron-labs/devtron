@@ -53,6 +53,10 @@ type CdConfig struct {
 	ClusterConfig              *rest.Config
 	NodeLabel                  map[string]string
 	CloudProvider              string `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
+	BlobStorageEnabled         bool   `env:"BLOB_STORAGE_ENABLED" envDefault:"true"` //TODO set false from inception for new customers
+	BlobStorageS3AccessKey     string `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
+	BlobStorageS3SecretKey     string `env:"BLOB_STORAGE_S3_SECRET_KEY"`
+	BlobStorageS3Endpoint      string `env:"BLOB_STORAGE_S3_ENDPOINT"`
 	AzureAccountName           string `env:"AZURE_ACCOUNT_NAME"`
 	AzureBlobContainerCiLog    string `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
 	AzureBlobContainerCiCache  string `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`

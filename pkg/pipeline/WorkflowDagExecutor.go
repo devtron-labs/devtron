@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/util/argo"
 	"strconv"
 	"strings"
@@ -631,6 +632,15 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
 		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
 		cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.ArtifactBucket, cdStageWorkflowRequest.ArtifactFileName = impl.buildArtifactLocation(cdWorkflowConfig, cdWf, runner)
+		cdStageWorkflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
+			AccessKey:            impl.cdConfig.BlobStorageS3AccessKey,
+			Passkey:              impl.cdConfig.BlobStorageS3SecretKey,
+			EndpointUrl:          impl.cdConfig.BlobStorageS3Endpoint,
+			CiCacheBucketName:    cdWorkflowConfig.CdCacheBucket,
+			CiCacheRegion:        cdWorkflowConfig.CdCacheRegion,
+			CiArtifactBucketName: cdStageWorkflowRequest.ArtifactBucket,
+			CiArtifactRegion:     cdWorkflowConfig.CdCacheRegion,
+		}
 	case BLOB_STORAGE_AZURE:
 		cdStageWorkflowRequest.AzureBlobConfig = &AzureBlobConfig{
 			Enabled:              true,
@@ -643,9 +653,18 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.ArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
 	case BLOB_STORAGE_MINIO:
 		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
+		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
 		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
 		cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.ArtifactBucket, cdStageWorkflowRequest.ArtifactFileName = impl.buildArtifactLocation(cdWorkflowConfig, cdWf, runner)
-		cdStageWorkflowRequest.MinioEndpoint = impl.cdConfig.MinioEndpoint
+		cdStageWorkflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
+			AccessKey:            impl.cdConfig.BlobStorageS3AccessKey,
+			Passkey:              impl.cdConfig.BlobStorageS3SecretKey,
+			EndpointUrl:          impl.cdConfig.BlobStorageS3Endpoint,
+			CiCacheBucketName:    cdWorkflowConfig.CdCacheBucket,
+			CiCacheRegion:        cdWorkflowConfig.CdCacheRegion,
+			CiArtifactBucketName: cdStageWorkflowRequest.ArtifactBucket,
+			CiArtifactRegion:     cdWorkflowConfig.CdCacheRegion,
+		}
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", cdStageWorkflowRequest.CloudProvider)
 	}
