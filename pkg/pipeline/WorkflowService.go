@@ -209,7 +209,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 
 	privileged := true
-	archiveLogs := true
+	archiveLogs := workflowRequest.BlobStorageConfigured
 
 	limitCpu := impl.ciConfig.LimitCpu
 	limitMem := impl.ciConfig.LimitMem
