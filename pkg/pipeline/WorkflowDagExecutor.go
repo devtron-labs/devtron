@@ -625,6 +625,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
 		cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUser.EmailId
 	}
+	if cdWorkflowConfig.CdCacheRegion == "" {
+		cdWorkflowConfig.CdCacheRegion = impl.cdConfig.DefaultCdLogsBucketRegion
+	}
 	cdStageWorkflowRequest.BlobStorageConfigured = runner.BlobStorageEnabled
 	switch cdStageWorkflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
