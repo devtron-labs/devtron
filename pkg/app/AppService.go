@@ -694,6 +694,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	}
 	envOverride := &chartConfig.EnvConfigOverride{}
 	var appMetrics *bool
+	var strategy *chartConfig.PipelineStrategy
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LATEST_TRIGGER {
 		//in case of deployment with the latest trigger, getting latest wfr and updating deployment with config type
 		//because latest trigger is also a specific trigger
@@ -721,6 +722,13 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		envOverride.IsOverride = true
 		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
 		appMetrics = &deploymentTemplateHistory.IsAppMetricsEnabled
+		strategyHistory, err := impl.strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+		if err != nil {
+			impl.logger.Errorw("error in getting deployed strategy history by pipleinId and wfrId", "err", err, "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+			return 0, err
+		}
+		strategy.Strategy = strategyHistory.Strategy
+		strategy.Config = strategyHistory.Config
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
 		if err != nil {
@@ -788,6 +796,38 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		if envLevelMetrics.Id != 0 && envLevelMetrics.AppMetrics != nil {
 			appMetrics = envLevelMetrics.AppMetrics
 		}
+		//fetch pipeline config from strategy table, if pipeline is automatic fetch always default, else depends on request
+
+		//forceTrigger true if CD triggered Auto, triggered occurred from CI
+		if overrideRequest.ForceTrigger {
+			strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
+		} else {
+			var deploymentTemplate pipelineConfig.DeploymentTemplate
+			if overrideRequest.DeploymentTemplate == "ROLLING" {
+				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_ROLLING
+			} else if overrideRequest.DeploymentTemplate == "BLUE-GREEN" {
+				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_BLUE_GREEN
+			} else if overrideRequest.DeploymentTemplate == "CANARY" {
+				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY
+			} else if overrideRequest.DeploymentTemplate == "RECREATE" {
+				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE
+			}
+
+			if len(deploymentTemplate) > 0 {
+				strategy, err = impl.pipelineConfigRepository.FindByStrategyAndPipelineId(deploymentTemplate, overrideRequest.PipelineId)
+			} else {
+				strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
+			}
+		}
+		if err != nil && errors2.IsNotFound(err) == false {
+			impl.logger.Errorf("invalid state", "err", err, "req", strategy)
+			return 0, err
+		}
+	}
+	err = impl.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, envOverride.Chart.ImageDescriptorTemplate, triggeredAt, deployedBy)
+	if err != nil {
+		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
+		return 0, err
 	}
 
 	// auto-healing :  data corruption fix - if ChartLocation in chart is not correct, need correction
@@ -904,46 +944,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		impl.logger.Errorw("error in fetching db migration config", "req", overrideRequest, "err", err)
 		return 0, err
 	}
-	var strategy *chartConfig.PipelineStrategy
-
-	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
-		//fetch pipeline config from strategy table, if pipeline is automatic fetch always default, else depends on request
-
-		//forceTrigger true if CD triggered Auto, triggered occurred from CI
-		if overrideRequest.ForceTrigger {
-			strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
-		} else {
-			var deploymentTemplate pipelineConfig.DeploymentTemplate
-			if overrideRequest.DeploymentTemplate == "ROLLING" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_ROLLING
-			} else if overrideRequest.DeploymentTemplate == "BLUE-GREEN" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_BLUE_GREEN
-			} else if overrideRequest.DeploymentTemplate == "CANARY" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY
-			} else if overrideRequest.DeploymentTemplate == "RECREATE" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE
-			}
-
-			if len(deploymentTemplate) > 0 {
-				strategy, err = impl.pipelineConfigRepository.FindByStrategyAndPipelineId(deploymentTemplate, overrideRequest.PipelineId)
-			} else {
-				strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
-			}
-		}
-		if err != nil && errors2.IsNotFound(err) == false {
-			impl.logger.Errorf("invalid state", "err", err, "req", strategy)
-			return 0, err
-		}
-	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LATEST_TRIGGER {
-		strategyHistory, err := impl.strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-		if err != nil {
-			impl.logger.Errorw("error in getting deployed strategy history by pipleinId and wfrId", "err", err, "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
-			return 0, err
-		}
-		strategy.Strategy = strategyHistory.Strategy
-		strategy.Config = strategyHistory.Config
-	}
-
 	if !userUploaded {
 		valid, err := impl.validateVersionForStrategy(envOverride, strategy)
 		if err != nil || !valid {
@@ -951,7 +951,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			return 0, err
 		}
 	}
-
 	chartVersion := envOverride.Chart.ChartVersion
 	configMapJson, err := impl.getConfigMapAndSecretJsonV2(overrideRequest.AppId, envOverride.TargetEnvironment, overrideRequest.PipelineId, chartVersion, overrideRequest.DeploymentWithConfig, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 	if err != nil {
@@ -1599,11 +1598,6 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	}
 	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
 	if err != nil {
-		return 0, 0, "", err
-	}
-	err = impl.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, overrideJson, triggeredAt, deployedBy)
-	if err != nil {
-		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
 		return 0, 0, "", err
 	}
 	mergedValues = string(merged)
