@@ -133,7 +133,7 @@ type CdWorkflowRunner struct {
 	StartedOn          time.Time            `sql:"started_on"`
 	FinishedOn         time.Time            `sql:"finished_on"`
 	Namespace          string               `sql:"namespace"`
-	BlobStorageEnabled bool                 `sql:"blob_storage_enabled"`
+	BlobStorageEnabled bool                 `sql:"blob_storage_enabled,notnull"`
 	LogLocation        string               `sql:"log_file_path"`
 	TriggeredBy        int32                `sql:"triggered_by"`
 	CdWorkflowId       int                  `sql:"cd_workflow_id"`
