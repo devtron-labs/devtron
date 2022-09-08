@@ -19,7 +19,6 @@ package restHandler
 
 import (
 	"encoding/json"
-	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -75,11 +74,11 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
+	//token := r.Header.Get("token")
+	//if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+	//	return
+	//}
 
 	eventType := payload["eventType"]
 	eventTypeString := eventType.(string)

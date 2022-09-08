@@ -68,3 +68,4 @@ const (
 )
 
 var SupportedModuleNamesListExcludingCicd = []string{ModuleNameArgoCd}
+var LegacyModuleSupportAssumptionCicdModuleVersion = "v0.5.3"

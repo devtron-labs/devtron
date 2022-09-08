@@ -64,6 +64,7 @@ type CiConfig struct {
 	MinioEndpoint              string   `env:"MINIO_ENDPOINT"`
 	MinioAccessKey             string   `env:"MINIO_ACCESS_KEY"`
 	MinioSecretKey             string   `env:"MINIO_SECRET_KEY"`
+	MinioRegion                string   `env:"MINIO_REGION" envDefault:"us-west-2"`
 	DefaultAddressPoolBaseCidr string   `env:"CI_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
 	DefaultAddressPoolSize     int      `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
 

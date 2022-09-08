@@ -143,7 +143,10 @@ func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionReque
 		return nil, err
 	}
 	for _, alreadyInstalledModuleName := range alreadyInstalledModuleNames {
-		extraValues[moduleUtil.BuildModuleEnableKey(alreadyInstalledModuleName)] = true
+		alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(alreadyInstalledModuleName)
+		for _, alreadyInstalledModuleEnableKey := range alreadyInstalledModuleEnableKeys {
+			extraValues[alreadyInstalledModuleEnableKey] = true
+		}
 	}
 	extraValuesYamlUrl := util2.BuildDevtronBomUrl(impl.serverEnvConfig.DevtronBomUrl, serverActionRequest.Version)
 	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)
