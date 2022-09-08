@@ -160,7 +160,7 @@ type CdWorkflowWithArtifact struct {
 	CiArtifactId       int       `json:"ci_artifact_id,omitempty"`
 	WorkflowType       string    `json:"workflow_type,omitempty"`
 	ExecutorType       string    `json:"executor_type,omitempty"`
-	BlobStorageEnabled bool      `sql:"blob_storage_enabled"`
+	BlobStorageEnabled bool      `json:"blobStorageEnabled"`
 }
 
 type TriggerWorkflowStatus struct {
