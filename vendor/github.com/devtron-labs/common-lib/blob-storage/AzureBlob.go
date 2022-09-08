@@ -18,11 +18,12 @@ type AzureBlob struct {
 }
 
 type AzureBlobConfig struct {
-	Enabled              bool   `json:"enabled"`
-	AccountName          string `json:"accountName"`
-	BlobContainerCiLog   string `json:"blobContainerCiLog"`
-	BlobContainerCiCache string `json:"blobContainerCiCache"`
-	AccountKey           string `json:"accountKey"`
+	Enabled               bool   `json:"enabled"`
+	AccountName           string `json:"accountName"`
+	BlobContainerCiLog    string `json:"blobContainerCiLog"`
+	BlobContainerCiCache  string `json:"blobContainerCiCache"`
+	BlobContainerArtifact string `json:"blobStorageArtifact"`
+	AccountKey            string `json:"accountKey"`
 }
 
 func (impl *AzureBlob) getSharedCredentials(accountName, accountKey string) (*azblob.SharedKeyCredential, error) {

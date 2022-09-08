@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
@@ -38,11 +39,17 @@ func (impl *BlobStorageServiceImpl) PutWithCommand(request *BlobStorageRequest) 
 	var err error
 	switch request.StorageType {
 	case BLOB_STORAGE_S3:
-		cachePush := exec.Command("aws", "s3", "cp", request.SourceKey, "s3://"+request.BucketName+"/"+request.DestinationKey)
+		s3BaseConfig := request.AwsS3BaseConfig
+		var cachePush *exec.Cmd
+		if s3BaseConfig.EndpointUrl != "" {
+			cachePush = exec.Command("aws", "--endpoint-url", s3BaseConfig.EndpointUrl, "s3", "cp", request.SourceKey, "s3://"+s3BaseConfig.BucketName+"/"+request.DestinationKey)
+		} else {
+			cachePush = exec.Command("aws", "s3", "cp", request.SourceKey, "s3://"+s3BaseConfig.BucketName+"/"+request.DestinationKey)
+		}
 		err = utils.RunCommand(cachePush)
-	case BLOB_STORAGE_MINIO:
-		cachePush := exec.Command("aws", "--endpoint-url", request.Endpoint, "s3", "cp", request.SourceKey, "s3://"+request.BucketName+"/"+request.DestinationKey)
-		err = utils.RunCommand(cachePush)
+	//case BLOB_STORAGE_MINIO:
+	//	cachePush := exec.Command("aws", "--endpoint-url", request.Endpoint, "s3", "cp", request.SourceKey, "s3://"+request.BucketName+"/"+request.DestinationKey)
+	//	err = utils.RunCommand(cachePush)
 	case BLOB_STORAGE_AZURE:
 		b := AzureBlob{}
 		err = b.UploadBlob(context.Background(), request.DestinationKey, request.AzureBlobConfig, request.SourceKey, request.AzureBlobConfig.BlobContainerCiCache)
@@ -59,25 +66,35 @@ func (impl *BlobStorageServiceImpl) Get(request *BlobStorageRequest) (bool, int6
 
 	downloadSuccess := false
 	numBytes := int64(0)
-	file, err := os.Create("/" + request.FileDownloadLocation)
+	file, err := os.Create("/" + request.DestinationKey)
 	defer file.Close()
 	if err != nil {
 		log.Fatal(err)
 	}
 	switch request.StorageType {
 	case BLOB_STORAGE_S3:
-		sess := session.Must(session.NewSession(&aws.Config{
-			Region: aws.String(request.Region),
-		}))
+		s3BaseConfig := request.AwsS3BaseConfig
+		awsCfg := &aws.Config{
+			Region: aws.String(s3BaseConfig.Region),
+		}
+		if s3BaseConfig.AccessKey != "" {
+			awsCfg.Credentials = credentials.NewStaticCredentials(s3BaseConfig.AccessKey, s3BaseConfig.Passkey, "")
+		}
+		if s3BaseConfig.EndpointUrl != "" { // to handle s3 compatible storage
+			awsCfg.Endpoint = aws.String(s3BaseConfig.EndpointUrl)
+			awsCfg.DisableSSL = aws.Bool(true)
+			awsCfg.S3ForcePathStyle = aws.Bool(true)
+		}
+		sess := session.Must(session.NewSession(awsCfg))
 		downloadSuccess, numBytes, err = DownLoadFromS3(file, request, sess)
-	case BLOB_STORAGE_MINIO:
-		sess := session.Must(session.NewSession(&aws.Config{
-			Region:           aws.String(request.Region),
-			Endpoint:         aws.String(request.Endpoint),
-			DisableSSL:       aws.Bool(true),
-			S3ForcePathStyle: aws.Bool(true),
-		}))
-		downloadSuccess, numBytes, err = DownLoadFromS3(file, request, sess)
+	//case BLOB_STORAGE_MINIO:
+	//	sess := session.Must(session.NewSession(&aws.Config{
+	//		Region:           aws.String(request.Region),
+	//		Endpoint:         aws.String(request.Endpoint),
+	//		DisableSSL:       aws.Bool(true),
+	//		S3ForcePathStyle: aws.Bool(true),
+	//	}))
+	//	downloadSuccess, numBytes, err = DownLoadFromS3(file, request, sess)
 	case BLOB_STORAGE_AZURE:
 		b := AzureBlob{}
 		downloadSuccess, err = b.DownloadBlob(context.Background(), request.SourceKey, request.AzureBlobConfig, file)
@@ -90,8 +107,9 @@ func (impl *BlobStorageServiceImpl) Get(request *BlobStorageRequest) (bool, int6
 
 func DownLoadFromS3(file *os.File, request *BlobStorageRequest, sess *session.Session) (success bool, bytesSize int64, err error) {
 	svc := s3.New(sess)
+	s3BaseConfig := request.AwsS3BaseConfig
 	input := &s3.ListObjectVersionsInput{
-		Bucket: aws.String(request.BucketName),
+		Bucket: aws.String(s3BaseConfig.BucketName),
 		Prefix: aws.String(request.SourceKey),
 	}
 	result, err := svc.ListObjectVersions(input)
@@ -121,7 +139,7 @@ func DownLoadFromS3(file *os.File, request *BlobStorageRequest, sess *session.Se
 	downloader := s3manager.NewDownloader(sess)
 	numBytes, err := downloader.Download(file,
 		&s3.GetObjectInput{
-			Bucket:    aws.String(request.BucketName),
+			Bucket:    aws.String(s3BaseConfig.BucketName),
 			Key:       aws.String(request.SourceKey),
 			VersionId: version,
 		})
