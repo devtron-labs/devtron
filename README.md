@@ -184,7 +184,7 @@ Devtron is trusted by Enterprises and Communities all across the globe:
  
 ## :question: FAQs & Troubleshooting
  
-- Devtron - [see here](https://docs.devtron.ai/devtron/faqs-and-troubleshooting/devtron-troubleshoot)
+- Devtron - [see here](https://docs.devtron.ai/resources/devtron-troubleshoot)
  
 ## :page_facing_up: Compatibility
  

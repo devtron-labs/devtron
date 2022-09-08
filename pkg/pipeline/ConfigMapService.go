@@ -887,6 +887,8 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 				item.DefaultExternalSecret = item.ExternalSecret
 			}
 			item.DefaultESOSecretData = item.ESOSecretData
+			item.ESOSecretData.EsoData = nil
+			item.ESOSecretData.SecretStore = nil
 			item.DefaultMountPath = item.MountPath
 			item.Data = nil
 			item.ExternalSecret = nil
