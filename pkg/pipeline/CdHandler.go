@@ -388,6 +388,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
 		savedWorkflow.LogLocation = wfStatusRs.LogLocation
+		savedWorkflow.BlobStorageEnabled = impl.ciConfig.BlobStorageEnabled
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(savedWorkflow)
 		if err != nil {
@@ -414,7 +415,7 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 			podStatus = string(v.Phase)
 			message = v.Message
 			if v.Outputs != nil && len(v.Outputs.Artifacts) > 0 && v.Outputs.Artifacts[0].S3 != nil {
-				logLocation = v.Outputs.Artifacts[0].S3.Key
+				logLocation = v.Outputs.Artifacts[0].S3.Key //TODO need to handle cases for AAzure and GCP also
 			}
 			break
 		}

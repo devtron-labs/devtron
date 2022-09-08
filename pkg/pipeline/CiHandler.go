@@ -719,8 +719,9 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.Message = message
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
-		savedWorkflow.LogLocation = "/ci-pipeline/" + strconv.Itoa(savedWorkflow.CiPipelineId) + "/workflow/" + strconv.Itoa(savedWorkflow.Id) + "/logs"
+		savedWorkflow.LogLocation = "/ci-pipeline/" + strconv.Itoa(savedWorkflow.CiPipelineId) + "/workflow/" + strconv.Itoa(savedWorkflow.Id) + "/logs" //TODO need to fetch from workflow object
 		savedWorkflow.CiArtifactLocation = ciArtifactLocation
+		savedWorkflow.BlobStorageEnabled = impl.ciConfig.BlobStorageEnabled
 
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
 		err = impl.ciWorkflowRepository.UpdateWorkFlow(savedWorkflow)
