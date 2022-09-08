@@ -7,6 +7,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
@@ -157,25 +158,25 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetAllLatestDeployedConfigu
 func (impl *DeployedConfigurationHistoryServiceImpl) GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfrId int, userHasAdminAccess bool) (*AllDeploymentConfigurationDetail, error) {
 	//getting history of deployment template for latest deployment
 	deploymentTemplateHistory, err := impl.deploymentTemplateHistoryService.GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting deployment template history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
 	//getting history of config map for latest deployment
 	configMapHistory, err := impl.configMapHistoryService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(pipelineId, wfrId, repository.CONFIGMAP_TYPE, userHasAdminAccess)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting config map history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
 	//getting history of secret for latest deployment
 	secretHistory, err := impl.configMapHistoryService.GetDeployedHistoryDetailForCMCSByPipelineIdAndWfrId(pipelineId, wfrId, repository.SECRET_TYPE, userHasAdminAccess)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting secret history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
 	//getting history of pipeline strategy for latest deployment
 	strategyHistory, err := impl.strategyHistoryService.GetLatestDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting strategy history by pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}

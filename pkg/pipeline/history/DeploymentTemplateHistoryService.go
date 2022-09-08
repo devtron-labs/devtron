@@ -307,7 +307,7 @@ func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdA
 
 	//checking if history exists for pipelineId and wfrId
 	history, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error in checking if history exists for pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
 		return nil, err
 	}
