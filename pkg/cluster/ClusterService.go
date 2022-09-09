@@ -127,7 +127,7 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 }
 
 func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-
+	impl.logger.Infow("Inside Save", "name", bean.ClusterName)
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)
@@ -137,6 +137,7 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 		impl.logger.Errorw("error on fetching cluster, duplicate", "name", bean.ClusterName)
 		return nil, fmt.Errorf("cluster already exists")
 	}
+	impl.logger.Infow("After Save", "name", bean.ClusterName)
 
 	model := &repository.Cluster{
 		ClusterName:        bean.ClusterName,

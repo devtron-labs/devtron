@@ -287,10 +287,13 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 }
 
 func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	impl.logger.Info("Inside Save extended")
 	clusterBean, err := impl.ClusterServiceImpl.Save(ctx, bean, userId)
 	if err != nil {
 		return nil, err
 	}
+
+	impl.logger.Info("After Save extended")
 
 	//create it into argo cd as well
 	configMap := bean.Config
