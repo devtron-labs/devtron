@@ -56,7 +56,7 @@ type GitOpsConfigService interface {
 	ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (DetailedErrorGitOpsConfigResponse, error)
 	ValidateAndUpdateGitOpsConfig(config *bean2.GitOpsConfigDto) (DetailedErrorGitOpsConfigResponse, error)
 	GitOpsValidateDryRun(config *bean2.GitOpsConfigDto) DetailedErrorGitOpsConfigResponse
-	CreateGitOpsConfig(config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error)
+	CreateGitOpsConfig(ctx context.Context, config *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error)
 	UpdateGitOpsConfig(config *bean2.GitOpsConfigDto) error
 	GetGitOpsConfigById(id int) (*bean2.GitOpsConfigDto, error)
 	GetAllGitOpsConfig() ([]*bean2.GitOpsConfigDto, error)
@@ -128,8 +128,9 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		//create argo-cd user, if not created, here argo-cd integration has to be installed
-		impl.argoUserService.UpdateArgoCdUserDetail()
-		_, err := impl.CreateGitOpsConfig(config)
+		token := impl.argoUserService.UpdateArgoCdUserDetail()
+		ctx := context.WithValue(context.Background(), "token", token)
+		_, err := impl.CreateGitOpsConfig(ctx, config)
 		if err != nil {
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
 			return detailedErrorGitOpsConfigResponse, err
@@ -158,7 +159,7 @@ func (impl *GitOpsConfigServiceImpl) buildGithubOrgUrl(host, orgId string) (orgU
 	return hostUrl.String(), nil
 }
 
-func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error) {
+func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, request *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -320,11 +321,6 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 			impl.logger.Errorw("Error while fetching all the clusters", "err", err)
 			return nil, err
 		}
-		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			impl.logger.Errorw("Error while getting acd token", "err", err)
-			return nil, err
-		}
 		for _, cluster := range clusters {
 			cl := &v1alpha1.Cluster{
 				Name:   cluster.ClusterName,
@@ -336,7 +332,6 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 					},
 				},
 			}
-			ctx := context.WithValue(context.Background(), "token", acdToken)
 			_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 			if err != nil {
 				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", cluster.ClusterName, "err", err)

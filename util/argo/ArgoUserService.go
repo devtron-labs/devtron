@@ -39,7 +39,7 @@ const (
 
 type ArgoUserService interface {
 	GetLatestDevtronArgoCdUserToken() (string, error)
-	UpdateArgoCdUserDetail()
+	UpdateArgoCdUserDetail() string
 }
 type ArgoUserServiceImpl struct {
 	logger              *zap.SugaredLogger
@@ -82,7 +82,8 @@ func GetDevtronSecretName() (*DevtronSecretConfig, error) {
 	return secretConfig, err
 }
 
-func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() {
+func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() string {
+	token := ""
 	cluster, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {
 		impl.logger.Errorw("error in getting default cluster", "err", err)
@@ -119,11 +120,12 @@ func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() {
 		}
 	}
 	if !isTokenAvailable {
-		_, err = impl.createNewArgoCdTokenForDevtron(userNameStr, PasswordStr, 1, k8sClient)
+		token, err = impl.createNewArgoCdTokenForDevtron(userNameStr, PasswordStr, 1, k8sClient)
 		if err != nil {
 			impl.logger.Errorw("error in creating new argo cd token for devtron", "err", err)
 		}
 	}
+	return token
 }
 
 func (impl *ArgoUserServiceImpl) createNewArgoCdUserForDevtron(k8sClient *v1.CoreV1Client) (string, string, error) {
