@@ -40,17 +40,15 @@ func (impl *BlobStorageServiceImpl) PutWithCommand(request *BlobStorageRequest) 
 	switch request.StorageType {
 	case BLOB_STORAGE_S3:
 		s3BaseConfig := request.AwsS3BaseConfig
-		cmdName := "aws"
-		if s3BaseConfig.AccessKey != "" {
-			cmdName = "AWS_ACCESS_KEY_ID=" + s3BaseConfig.AccessKey + " " + "AWS_SECRET_ACCESS_KEY=" + s3BaseConfig.Passkey + " " + cmdName
-		}
-
 		cmdArgs := []string{""}
 		if s3BaseConfig.EndpointUrl != "" {
 			cmdArgs = append(cmdArgs, "--endpoint-url", s3BaseConfig.EndpointUrl)
 		}
-		cmdArgs = append(cmdArgs, "s3", "cp", request.SourceKey, "s3://"+s3BaseConfig.BucketName+"/"+request.DestinationKey, "--region", s3BaseConfig.Region)
-		command := exec.Command(cmdName, cmdArgs...)
+		cmdArgs = append(cmdArgs, "s3", "cp", request.SourceKey, "s3://"+s3BaseConfig.BucketName+"/"+request.DestinationKey)
+		if s3BaseConfig.Region != "" {
+			cmdArgs = append(cmdArgs, "--region", s3BaseConfig.Region)
+		}
+		command := exec.Command("aws", cmdArgs...)
 		err = utils.RunCommand(command)
 	case BLOB_STORAGE_AZURE:
 		b := AzureBlob{}

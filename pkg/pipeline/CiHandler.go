@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -534,11 +535,18 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 		LogsBucket:    ciConfig.LogsBucket,
 		LogsFilePath:  impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log",
 		CloudProvider: impl.ciConfig.CloudProvider,
-		AzureBlobConfig: &AzureBlobConfig{
+		AzureBlobConfig: &blob_storage.AzureBlobConfig{
 			Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
 			AccountName:        impl.ciConfig.AzureAccountName,
 			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
 			AccountKey:         impl.ciConfig.AzureAccountKey,
+		},
+		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
+			AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
+			BucketName:  ciConfig.LogsBucket,
+			Region:      ciConfig.CiCacheRegion,
 		},
 	}
 	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
@@ -641,7 +649,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 		LogsBucket:    ciConfig.LogsBucket,
 		LogsFilePath:  ciWorkflow.LogLocation,
 		CloudProvider: impl.ciConfig.CloudProvider,
-		AzureBlobConfig: &AzureBlobConfig{
+		AzureBlobConfig: &blob_storage.AzureBlobConfig{
 			Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
 			AccountName:        impl.ciConfig.AzureAccountName,
 			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,

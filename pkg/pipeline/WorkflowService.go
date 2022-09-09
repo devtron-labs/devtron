@@ -101,7 +101,7 @@ type WorkflowRequest struct {
 	CloudProvider              string                            `json:"cloudProvider"`
 	BlobStorageConfigured      bool                              `json:"blobStorageConfigured"`
 	BlobStorageS3Config        *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
-	AzureBlobConfig            *AzureBlobConfig                  `json:"azureBlobConfig"`
+	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
 	MinioEndpoint              string                            `json:"minioEndpoint"`
 	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
@@ -116,14 +116,6 @@ const BLOB_STORAGE_AZURE = "AZURE"
 const BLOB_STORAGE_S3 = "S3"
 const BLOB_STORAGE_GCP = "GCP"
 const BLOB_STORAGE_MINIO = "MINIO"
-
-type AzureBlobConfig struct {
-	Enabled              bool   `json:"enabled"`
-	AccountName          string `json:"accountName"`
-	BlobContainerCiLog   string `json:"blobContainerCiLog"`
-	BlobContainerCiCache string `json:"blobContainerCiCache"`
-	AccountKey           string `json:"accountKey"`
-}
 
 type ContainerResources struct {
 	MinCpu        string `json:"minCpu"`

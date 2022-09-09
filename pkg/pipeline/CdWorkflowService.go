@@ -97,7 +97,7 @@ type CdWorkflowRequest struct {
 	BlobStorageConfigured      bool                              `json:"blobStorageConfigured"`
 	BlobStorageS3Config        *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
 	CloudProvider              string                            `json:"cloudProvider"`
-	AzureBlobConfig            *AzureBlobConfig                  `json:"azureBlobConfig"`
+	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
 	MinioEndpoint              string                            `json:"minioEndpoint"`
 	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`

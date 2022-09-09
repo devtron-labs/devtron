@@ -29,6 +29,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
 	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -537,7 +538,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		LogsBucket:    cdConfig.LogsBucket,
 		LogsFilePath:  cdWorkflow.LogLocation, // impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
 		CloudProvider: impl.ciConfig.CloudProvider,
-		AzureBlobConfig: &AzureBlobConfig{
+		AzureBlobConfig: &blob_storage.AzureBlobConfig{
 			Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
 			AccountName:        impl.ciConfig.AzureAccountName,
 			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,

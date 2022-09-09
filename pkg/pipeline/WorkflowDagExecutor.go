@@ -645,7 +645,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			CiArtifactRegion:     cdWorkflowConfig.CdCacheRegion,
 		}
 	case BLOB_STORAGE_AZURE:
-		cdStageWorkflowRequest.AzureBlobConfig = &AzureBlobConfig{
+		cdStageWorkflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
 			Enabled:              true,
 			AccountName:          impl.cdConfig.AzureAccountName,
 			BlobContainerCiCache: impl.cdConfig.AzureBlobContainerCiCache,
