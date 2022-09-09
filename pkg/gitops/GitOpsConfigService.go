@@ -320,6 +320,11 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 			impl.logger.Errorw("Error while fetching all the clusters", "err", err)
 			return nil, err
 		}
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("Error while getting acd token", "err", err)
+			return nil, err
+		}
 		for _, cluster := range clusters {
 			cl := &v1alpha1.Cluster{
 				Name:   cluster.ClusterName,
@@ -331,7 +336,8 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 					},
 				},
 			}
-			_, err = impl.clusterServiceCD.Create(context.Background(), &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
+			ctx := context.WithValue(context.Background(), "token", acdToken)
+			_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
 			if err != nil {
 				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", cluster.ClusterName, "err", err)
 				return nil, err
