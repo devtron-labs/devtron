@@ -548,12 +548,12 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 			Region:      cdConfig.CdCacheRegion,
 		},
 	}
-	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
-		cdLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
-		cdLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
-		cdLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
-		cdLogRequest.Region = impl.ciConfig.MinioRegion
-	}
+	//if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
+	//	cdLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+	//	cdLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
+	//	cdLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
+	//	cdLogRequest.Region = impl.ciConfig.MinioRegion
+	//}
 	impl.Logger.Infow("s3 log req ", "req", cdLogRequest)
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(cdLogRequest)
 	if err != nil {

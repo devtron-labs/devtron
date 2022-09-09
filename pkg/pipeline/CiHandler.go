@@ -545,12 +545,12 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 			Region:      ciConfig.CiCacheRegion,
 		},
 	}
-	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
-		ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
-		ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
-		ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
-		ciLogRequest.Region = impl.ciConfig.MinioRegion
-	}
+	//if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
+	//	ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+	//	ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
+	//	ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
+	//	ciLogRequest.Region = impl.ciConfig.MinioRegion
+	//}
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
@@ -679,13 +679,20 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
 			AccountKey:         impl.ciConfig.AzureAccountKey,
 		},
+		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
+			AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
+			BucketName:  ciConfig.LogsBucket,
+			Region:      ciConfig.CiCacheRegion,
+		},
 	}
-	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
-		ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
-		ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
-		ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
-		ciLogRequest.Region = impl.ciConfig.MinioRegion
-	}
+	//if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
+	//	ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+	//	ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
+	//	ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
+	//	ciLogRequest.Region = impl.ciConfig.MinioRegion
+	//}
 	logsFile, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	logs, err := ioutil.ReadFile(logsFile.Name())
 	if err != nil {

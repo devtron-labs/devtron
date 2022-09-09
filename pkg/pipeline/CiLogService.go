@@ -111,8 +111,8 @@ func getStorageTypeFromProvider(provider string) blob_storage.BlobStorageType {
 	switch provider {
 	case BLOB_STORAGE_S3:
 		return blob_storage.BLOB_STORAGE_S3
-	case BLOB_STORAGE_MINIO:
-		return blob_storage.BLOB_STORAGE_MINIO
+	//case BLOB_STORAGE_MINIO:
+	//	return blob_storage.BLOB_STORAGE_MINIO
 	case BLOB_STORAGE_AZURE:
 		return blob_storage.BLOB_STORAGE_AZURE
 	default:

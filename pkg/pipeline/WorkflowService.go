@@ -115,7 +115,8 @@ type WorkflowRequest struct {
 const BLOB_STORAGE_AZURE = "AZURE"
 const BLOB_STORAGE_S3 = "S3"
 const BLOB_STORAGE_GCP = "GCP"
-const BLOB_STORAGE_MINIO = "MINIO"
+
+//const BLOB_STORAGE_MINIO = "MINIO"
 
 type ContainerResources struct {
 	MinCpu        string `json:"minCpu"`
@@ -177,7 +178,7 @@ const cdStage = "CD"
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error) {
 	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
-	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO || (impl.ciConfig.CloudProvider == BLOB_STORAGE_S3 && impl.ciConfig.BlobStorageS3AccessKey != "") {
+	if impl.ciConfig.CloudProvider == BLOB_STORAGE_S3 && impl.ciConfig.BlobStorageS3AccessKey != "" {
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.BlobStorageS3SecretKey}}
 		containerEnvVariables = append(containerEnvVariables, miniCred...)
 	}

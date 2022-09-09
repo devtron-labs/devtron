@@ -654,20 +654,20 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocationAzure(cdWorkflowConfig, cdWf)
 		cdStageWorkflowRequest.ArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
-	case BLOB_STORAGE_MINIO:
-		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
-		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
-		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
-		cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.ArtifactBucket, cdStageWorkflowRequest.ArtifactFileName = impl.buildArtifactLocation(cdWorkflowConfig, cdWf, runner)
-		cdStageWorkflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
-			AccessKey:            impl.cdConfig.BlobStorageS3AccessKey,
-			Passkey:              impl.cdConfig.BlobStorageS3SecretKey,
-			EndpointUrl:          impl.cdConfig.BlobStorageS3Endpoint,
-			CiCacheBucketName:    cdWorkflowConfig.CdCacheBucket,
-			CiCacheRegion:        cdWorkflowConfig.CdCacheRegion,
-			CiArtifactBucketName: cdStageWorkflowRequest.ArtifactBucket,
-			CiArtifactRegion:     cdWorkflowConfig.CdCacheRegion,
-		}
+	//case BLOB_STORAGE_MINIO:
+	//	//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
+	//	cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
+	//	cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
+	//	cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.ArtifactBucket, cdStageWorkflowRequest.ArtifactFileName = impl.buildArtifactLocation(cdWorkflowConfig, cdWf, runner)
+	//	cdStageWorkflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
+	//		AccessKey:            impl.cdConfig.BlobStorageS3AccessKey,
+	//		Passkey:              impl.cdConfig.BlobStorageS3SecretKey,
+	//		EndpointUrl:          impl.cdConfig.BlobStorageS3Endpoint,
+	//		CiCacheBucketName:    cdWorkflowConfig.CdCacheBucket,
+	//		CiCacheRegion:        cdWorkflowConfig.CdCacheRegion,
+	//		CiArtifactBucketName: cdStageWorkflowRequest.ArtifactBucket,
+	//		CiArtifactRegion:     cdWorkflowConfig.CdCacheRegion,
+	//	}
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", cdStageWorkflowRequest.CloudProvider)
 	}
