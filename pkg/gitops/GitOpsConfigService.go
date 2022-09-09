@@ -127,13 +127,13 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (DetailedErrorGitOpsConfigResponse, error) {
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
+		//create argo-cd user, if not created, here argo-cd integration has to be installed
+		impl.argoUserService.UpdateArgoCdUserDetail()
 		_, err := impl.CreateGitOpsConfig(config)
 		if err != nil {
 			impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", config)
 			return detailedErrorGitOpsConfigResponse, err
 		}
-		//create argo-cd user, if not created, here argo-cd integration has to be installed
-		impl.argoUserService.UpdateArgoCdUserDetail()
 	}
 	return detailedErrorGitOpsConfigResponse, nil
 }
