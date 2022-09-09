@@ -18,8 +18,12 @@
 package gitops
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -97,12 +101,13 @@ type GitOpsConfigServiceImpl struct {
 	gitFactory           *util.GitFactory
 	chartTemplateService util.ChartTemplateService
 	argoUserService      argo.ArgoUserService
+	clusterServiceCD     cluster2.ServiceClient
 }
 
 func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.CiHandler,
 	gitOpsRepository repository.GitOpsConfigRepository, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig,
 	clusterService cluster.ClusterService, envService cluster.EnvironmentService, versionService argocdServer.VersionService,
-	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService, argoUserService argo.ArgoUserService) *GitOpsConfigServiceImpl {
+	gitFactory *util.GitFactory, chartTemplateService util.ChartTemplateService, argoUserService argo.ArgoUserService, clusterServiceCD cluster2.ServiceClient) *GitOpsConfigServiceImpl {
 	return &GitOpsConfigServiceImpl{
 		randSource:           rand.NewSource(time.Now().UnixNano()),
 		logger:               Logger,
@@ -115,6 +120,7 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 		gitFactory:           gitFactory,
 		chartTemplateService: chartTemplateService,
 		argoUserService:      argoUserService,
+		clusterServiceCD:     clusterServiceCD,
 	}
 }
 
@@ -151,6 +157,7 @@ func (impl *GitOpsConfigServiceImpl) buildGithubOrgUrl(host, orgId string) (orgU
 	hostUrl.Path = path.Join(hostUrl.Path, orgId)
 	return hostUrl.String(), nil
 }
+
 func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsConfigDto) (*bean2.GitOpsConfigDto, error) {
 	impl.logger.Debugw("gitops create request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
@@ -302,10 +309,42 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 		return nil, fmt.Errorf("resouce version not matched with config map attempted 3 times")
 	}
 
+	// if git-ops config is created/saved successfully (just before transaction commit) and this was first git-ops config, then upsert clusters in acd
+	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
+	if err != nil {
+		return nil, err
+	}
+	if !isGitOpsConfigured {
+		clusters, err := impl.clusterService.FindAllActive()
+		if err != nil {
+			impl.logger.Errorw("Error while fetching all the clusters", "err", err)
+			return nil, err
+		}
+		for _, cluster := range clusters {
+			cl := &v1alpha1.Cluster{
+				Name:   cluster.ClusterName,
+				Server: cluster.ServerUrl,
+				Config: v1alpha1.ClusterConfig{
+					BearerToken: cluster.Config["bearer_token"],
+					TLSClientConfig: v1alpha1.TLSClientConfig{
+						Insecure: true,
+					},
+				},
+			}
+			_, err = impl.clusterServiceCD.Create(context.Background(), &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
+			if err != nil {
+				impl.logger.Errorw("Error while upserting cluster in acd", "clusterName", cluster.ClusterName, "err", err)
+				return nil, err
+			}
+		}
+	}
+
+	// now commit transaction
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
 	}
+
 	err = impl.gitFactory.Reload()
 	if err != nil {
 		return nil, err
@@ -313,6 +352,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(request *bean2.GitOpsCon
 	request.Id = model.Id
 	return request, nil
 }
+
 func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsConfigDto) error {
 	impl.logger.Debugw("gitops config update request", "req", request)
 	dbConnection := impl.gitOpsRepository.GetConnection()
