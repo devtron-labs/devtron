@@ -35,6 +35,8 @@ const (
 	DEVTRON_ARGOCD_USERNAME_KEY      = "DEVTRON_ACD_USER_NAME"
 	DEVTRON_ARGOCD_USER_PASSWORD_KEY = "DEVTRON_ACD_USER_PASSWORD"
 	DEVTRON_ARGOCD_TOKEN_KEY         = "DEVTRON_ACD_TOKEN"
+	DEVTRON_CM                       = "devtron-cm"
+	DEVTRON_SECRET                   = "devtron-secret"
 )
 
 type ArgoUserService interface {

@@ -114,6 +114,22 @@ type ClientApp struct {
 	RedirectUrlSanitiser RedirectUrlSanitiser
 }
 
+func (a *ClientApp) UpdateConfig(c *ClientApp) {
+	a.provider = c.provider
+	a.settings = c.settings
+	a.client = c.client
+	a.issuerURL = c.issuerURL
+	a.redirectURI = c.redirectURI
+	a.clientID = c.clientID
+	a.clientSecret = c.clientSecret
+	a.baseHRef = c.baseHRef
+	a.client = c.client
+	a.secureCookie = c.secureCookie
+	a.cache = c.cache
+	a.userVerifier = c.userVerifier
+	a.RedirectUrlSanitiser = c.RedirectUrlSanitiser
+}
+
 type RedirectUrlSanitiser func(url string) string
 type UserVerifier func(email string) bool
 
