@@ -25,10 +25,6 @@ import (
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -544,6 +540,13 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
 			AccountKey:         impl.ciConfig.AzureAccountKey,
 		},
+		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
+			AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
+			BucketName:  cdConfig.LogsBucket,
+			Region:      cdConfig.CdCacheRegion,
+		},
 	}
 	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
 		cdLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
@@ -649,27 +652,57 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 	}
 
 	item := strconv.Itoa(wfr.Id)
-	file, err := os.Create(item)
+	azureBlobConfig := &blob_storage.AzureBlobConfig{
+		Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
+		AccountName:        impl.ciConfig.AzureAccountName,
+		BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
+		AccountKey:         impl.ciConfig.AzureAccountKey,
+	}
+
+	awsS3BaseConfig := &blob_storage.AwsS3BaseConfig{
+		AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
+		Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
+		EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
+		BucketName:  cdConfig.LogsBucket,
+		Region:      cdConfig.CdCacheRegion,
+	}
+	key := fmt.Sprintf("%s/"+impl.cdConfig.CdArtifactLocationFormat, impl.cdConfig.DefaultArtifactKeyPrefix, wfr.CdWorkflow.Id, wfr.Id)
+	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
+	request := &blob_storage.BlobStorageRequest{
+		StorageType:     getStorageTypeFromProvider(impl.ciConfig.CloudProvider),
+		SourceKey:       key,
+		DestinationKey:  item,
+		AzureBlobConfig: azureBlobConfig,
+		AwsS3BaseConfig: awsS3BaseConfig,
+	}
+	_, numBytes, err := blobStorageService.Get(request)
 	if err != nil {
-		impl.Logger.Errorw("unable to open file", "err", err)
+		impl.Logger.Errorw("error occurred while downloading file", "request", request)
+		return nil, errors.New("failed to download resource")
+	}
+
+	file, err := os.Open(item)
+	if err != nil {
+		impl.Logger.Errorw("unable to open file", "file", item, "err", err)
 		return nil, errors.New("unable to open file")
 	}
 
-	sess, _ := session.NewSession(&aws.Config{
-		Region: aws.String(cdConfig.CdCacheRegion),
-		//Credentials: credentials.NewStaticCredentials(ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId, ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey, ""),
-	})
-
-	downloader := s3manager.NewDownloader(sess)
-	numBytes, err := downloader.Download(file,
-		&s3.GetObjectInput{
-			Bucket: aws.String(cdConfig.LogsBucket),
-			Key:    aws.String(fmt.Sprintf("%s/"+impl.cdConfig.CdArtifactLocationFormat, impl.cdConfig.DefaultArtifactKeyPrefix, wfr.CdWorkflow.Id, wfr.Id)),
-		})
-	if err != nil {
-		impl.Logger.Errorw("unable to download file from s3", "err", err)
-		return nil, err
-	}
+	//sess, _ := session.NewSession(&aws.Config{
+	//	Region: aws.String(cdConfig.CdCacheRegion),
+	//	//Credentials: credentials.NewStaticCredentials(ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId, ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey, ""),
+	//})
+	//
+	//downloader := s3manager.NewDownloader(sess)
+	//
+	//numBytes, err := downloader.Download(file,
+	//	&s3.GetObjectInput{
+	//		Bucket: aws.String(cdConfig.LogsBucket),
+	//		Key:    aws.String(key),
+	//	})
+	//if err != nil {
+	//	impl.Logger.Errorw("unable to download file from s3", "err", err)
+	//	return nil, err
+	//}
 	impl.Logger.Infow("Downloaded ", "name", file.Name(), "bytes", numBytes)
 	return file, nil
 }

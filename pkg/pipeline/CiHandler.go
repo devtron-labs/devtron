@@ -31,10 +31,6 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -591,33 +587,61 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 	}
 
 	item := strconv.Itoa(ciWorkflow.Id)
-	file, err := os.Create(item)
-	if err != nil {
-		impl.Logger.Errorw("unable to open file", "err", err)
-		return nil, errors.New("unable to open file")
-	}
-
 	if ciConfig.CiCacheRegion == "" {
 		ciConfig.CiCacheRegion = impl.ciConfig.DefaultCacheBucketRegion
 	}
-
-	sess, _ := session.NewSession(&aws.Config{
-		Region: aws.String(ciConfig.CiCacheRegion),
-		//Credentials: credentials.NewStaticCredentials(ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId, ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey, ""),
-	})
+	azureBlobConfig := &blob_storage.AzureBlobConfig{
+		Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
+		AccountName:        impl.ciConfig.AzureAccountName,
+		BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
+		AccountKey:         impl.ciConfig.AzureAccountKey,
+	}
+	awsS3BaseConfig := &blob_storage.AwsS3BaseConfig{
+		AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
+		Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
+		EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
+		BucketName:  ciConfig.LogsBucket,
+		Region:      ciConfig.CiCacheRegion,
+	}
 
 	key := fmt.Sprintf("%s/"+impl.ciConfig.CiArtifactLocationFormat, impl.ciConfig.DefaultArtifactKeyPrefix, ciWorkflow.Id, ciWorkflow.Id)
-	downloader := s3manager.NewDownloader(sess)
-	numBytes, err := downloader.Download(file,
-		&s3.GetObjectInput{
-			Bucket: aws.String(ciConfig.LogsBucket),
-			Key:    aws.String(key),
-		})
-	impl.Logger.Infow("specified key", "key", key)
-	if err != nil {
-		impl.Logger.Errorw("unable to download file from s3", "err", err)
-		return nil, err
+
+	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
+	request := &blob_storage.BlobStorageRequest{
+		StorageType:     getStorageTypeFromProvider(impl.ciConfig.CloudProvider),
+		SourceKey:       key,
+		DestinationKey:  item,
+		AzureBlobConfig: azureBlobConfig,
+		AwsS3BaseConfig: awsS3BaseConfig,
 	}
+	_, numBytes, err := blobStorageService.Get(request)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while downloading file", "request", request)
+		return nil, errors.New("failed to download resource")
+	}
+
+	file, err := os.Open(item)
+	if err != nil {
+		impl.Logger.Errorw("unable to open file", "file", item, "err", err)
+		return nil, errors.New("unable to open file")
+	}
+
+	//sess, _ := session.NewSession(&aws.Config{
+	//	Region: aws.String(ciConfig.CiCacheRegion),
+	//	//Credentials: credentials.NewStaticCredentials(ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId, ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey, ""),
+	//})
+	//
+	//downloader := s3manager.NewDownloader(sess)
+	//numBytes, err := downloader.Download(file,
+	//	&s3.GetObjectInput{
+	//		Bucket: aws.String(ciConfig.LogsBucket),
+	//		Key:    aws.String(key),
+	//	})
+	//impl.Logger.Infow("specified key", "key", key)
+	//if err != nil {
+	//	impl.Logger.Errorw("unable to download file from s3", "err", err)
+	//	return nil, err
+	//}
 	impl.Logger.Infow("Downloaded ", "filename", file.Name(), "bytes", numBytes)
 	return file, nil
 }

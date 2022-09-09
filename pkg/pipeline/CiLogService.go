@@ -19,7 +19,6 @@ package pipeline
 
 import (
 	"context"
-	"errors"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"go.uber.org/zap"
 	"io"
@@ -133,14 +132,10 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 		AwsS3BaseConfig: ciLogRequest.AwsS3BaseConfig,
 	}
 
-	success, _, err := blobStorageService.Get(request)
+	_, _, err := blobStorageService.Get(request)
 	if err != nil {
-		impl.logger.Errorw("err", "err", err)
+		impl.logger.Errorw("err occurred while downloading logs file", "request", request, "err", err)
 		return nil, nil, err
-	}
-	if !success {
-		impl.logger.Errorw("err", "err", err)
-		return nil, nil, errors.New("requested file not found")
 	}
 
 	file, err := os.Open(tempFile)
