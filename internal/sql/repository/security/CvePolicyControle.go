@@ -91,10 +91,10 @@ func (d PolicyLevel) String() string {
 func (policy *CvePolicy) PolicyLevel() PolicyLevel {
 	if policy.ClusterId != 0 {
 		return Cluster
-	} else if policy.EnvironmentId != 0 {
-		return Environment
 	} else if policy.AppId != 0 {
 		return Application
+	} else if policy.EnvironmentId != 0 {
+		return Environment
 	} else {
 		return Global
 	}
