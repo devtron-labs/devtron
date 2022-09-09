@@ -1,14 +1,15 @@
 # Application Metrics
 
-Application metrics can be enabled to see your application's metrics.
+To get application metrics, [show application metrics](../creating-application/deployment-template.md#3.-show-application-metrics) option should be enabled from deployment template.
 
 ## Standard Metrics
 
-Devtron provides certain metrics (CPU and Memory utilization) for each application by default i.e. you do not need to enable “Application metrics”. However, prometheus needs to be present in the cluster and the endpoint of the same should be updated in Global Configurations --> Clusters & Environments section. 
+Devtron provides certain metrics (CPU and Memory utilization) for each application by default i.e. you do not need to enable the application metrics. However, prometheus needs to be present in the cluster and the endpoint of the same should be updated in Global Configurations --> [Clusters & Environments](../global-configurations/cluster-and-environments.md) section. 
 
 ## Advanced Metrics
 
-There are certain advanced metrics (like Latency, Throughput, 4xx, 5xx, 2xx) which are only available when "Application metrics" is enabled from the Deployment Template. When you enable these advanced metrics, devtron attaches a envoy sidecar container to your main container which runs as a transparent proxy and passes each request through it to measure the advanced metrics. 
+There are certain advanced metrics (like Latency, Throughput, 4xx, 5xx, 2xx) which are only available when "Application metrics" is enabled from the deployment template. 
+When you enable these advanced metrics, devtron attaches a envoy sidecar container to your main container which runs as a transparent proxy and passes each request through it to measure the advanced metrics. 
 
 **Note: Since, all the requests are passed through envoy, any misconfiguration in envoy configs can bring your application down, so please test the configurations in a non-production environment extensively.**
 
