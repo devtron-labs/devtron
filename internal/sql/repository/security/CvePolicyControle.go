@@ -154,6 +154,7 @@ func (impl *CvePolicyRepositoryImpl) GetEnvPolicies(clusterId int, environmentId
 			return q, nil
 		}).
 		Where("deleted = false").
+		Where("app_id is null").
 		Select()
 	return policies, err
 }
