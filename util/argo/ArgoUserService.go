@@ -114,9 +114,10 @@ func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() string {
 		PasswordStr = password
 	}
 	isTokenAvailable := false
-	for key, _ := range secretData {
+	for key, val := range secretData {
 		if strings.HasPrefix(key, DEVTRON_ARGOCD_TOKEN_KEY) {
 			isTokenAvailable = true
+			token = string(val)
 		}
 	}
 	if !isTokenAvailable {
