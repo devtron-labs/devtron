@@ -96,7 +96,7 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Errorw("request payload, Save", "payload", bean)
+	impl.logger.Infow("request payload, Save", "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, Save", "err", err, "payload", bean)
