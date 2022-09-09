@@ -21,5 +21,5 @@ func (impl *HelmUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 }
 
 func (impl *HelmUserServiceImpl) UpdateArgoCdUserDetail() string {
-
+	return ""
 }
