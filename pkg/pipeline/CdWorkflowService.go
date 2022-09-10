@@ -368,6 +368,9 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		Steps: steps,
 	})
 
+	blobStorageS3Config := workflowRequest.BlobStorageS3Config
+	isS3Compatible := blobStorageS3Config.EndpointUrl != ""
+
 	templates = append(templates, v1alpha1.Template{
 		Name: "cd",
 		Container: &v12.Container{
@@ -393,6 +396,27 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		},
 		ArchiveLocation: &v1alpha1.ArtifactLocation{
 			ArchiveLogs: &archiveLogs,
+			S3: &v1alpha1.S3Artifact{
+				Key: "devtron/" + workflowRequest.WorkflowNamePrefix,
+				S3Bucket: v1alpha1.S3Bucket{
+					Endpoint: blobStorageS3Config.EndpointUrl,
+					AccessKeySecret: &v12.SecretKeySelector{
+						Key: "accessKey",
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: "workflow-minio-cred",
+						},
+					},
+					SecretKeySecret: &v12.SecretKeySelector{
+						Key: "secretKey",
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: "workflow-minio-cred",
+						},
+					},
+					Bucket:   blobStorageS3Config.CiLogBucketName,
+					Region:   blobStorageS3Config.CiLogRegion,
+					Insecure: &isS3Compatible,
+				},
+			},
 		},
 	})
 
@@ -472,6 +496,10 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				TTLStrategy: &v1alpha1.TTLStrategy{
 					SecondsAfterCompletion: &ttl,
 				},
+				//ArtifactRepositoryRef: &v1alpha1.ArtifactRepositoryRef{
+				//	ConfigMap: "my-artifact-repository",
+				//	Key:       "default-v1-s3-artifact-repository",
+				//},
 				Templates: templates,
 				Volumes:   volumes,
 			},
