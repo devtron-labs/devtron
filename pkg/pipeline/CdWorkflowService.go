@@ -420,8 +420,6 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		},
 	})
 
-	templates = append(templates, v1alpha1.Template{})
-
 	var cdTemplate v1alpha1.Template
 	for _, cm := range configMaps.Maps {
 		for _, t := range templates {
