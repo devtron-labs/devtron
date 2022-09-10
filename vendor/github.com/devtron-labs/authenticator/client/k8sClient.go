@@ -93,22 +93,6 @@ func (impl *K8sClient) GetRestClient() (*kubernetes.Clientset, error) {
 	return kubernetes.NewForConfig(impl.config)
 }
 
-func (impl *K8sClient) GetDevtronConfig() (secret *v1.Secret, cm *v1.ConfigMap, err error) {
-	clientSet, err := kubernetes.NewForConfig(impl.config)
-	if err != nil {
-		return nil, nil, err
-	}
-	secret, err = clientSet.CoreV1().Secrets(DevtronDefaultNamespaceName).Get(context.Background(), DevtronSecretName, v12.GetOptions{})
-	if err != nil {
-		return nil, nil, err
-	}
-	cm, err = clientSet.CoreV1().ConfigMaps(DevtronDefaultNamespaceName).Get(context.Background(), DevtronConfigMapName, v12.GetOptions{})
-	if err != nil {
-		return nil, nil, err
-	}
-	return secret, cm, nil
-}
-
 func (impl *K8sClient) GetArgocdConfig() (secret *v1.Secret, cm *v1.ConfigMap, err error) {
 	clientSet, err := kubernetes.NewForConfig(impl.config)
 	if err != nil {
@@ -119,6 +103,22 @@ func (impl *K8sClient) GetArgocdConfig() (secret *v1.Secret, cm *v1.ConfigMap, e
 		return nil, nil, err
 	}
 	cm, err = clientSet.CoreV1().ConfigMaps(DevtronDefaultNamespaceName).Get(context.Background(), ArgocdConfigMapName, v12.GetOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+	return secret, cm, nil
+}
+
+func (impl *K8sClient) GetDevtronConfig() (secret *v1.Secret, cm *v1.ConfigMap, err error) {
+	clientSet, err := kubernetes.NewForConfig(impl.config)
+	if err != nil {
+		return nil, nil, err
+	}
+	secret, err = clientSet.CoreV1().Secrets(DevtronDefaultNamespaceName).Get(context.Background(), DevtronSecretName, v12.GetOptions{})
+	if err != nil {
+		return nil, nil, err
+	}
+	cm, err = clientSet.CoreV1().ConfigMaps(DevtronDefaultNamespaceName).Get(context.Background(), DevtronConfigMapName, v12.GetOptions{})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -145,7 +145,7 @@ const (
 
 	ArgocdConfigMapName        = "argocd-cm"
 	ArgocdSecretName           = "argocd-secret"
-	ADMIN_USER_PASSWORD        = "ADMIN_USER_PASSWORD"
+	ADMIN_PASSWORD             = "ADMIN_PASSWORD"
 	SettingAdminAcdPasswordKey = "ACD_PASSWORD"
 )
 

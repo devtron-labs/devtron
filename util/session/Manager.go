@@ -30,8 +30,6 @@ func CDSettingsManager(settings *settings.SettingsManager) (*settings.ArgoCDSett
 	at, err := settings.GetSettings()
 	if err != nil {
 		return nil, err
-		//skiping this error , as it will be set auto when acd configured
-		//fmt.Printf("skiping this error, error on getting acd setting, err=%s", err.Error())
 	}
 	return at, nil
 }
