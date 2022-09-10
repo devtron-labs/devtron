@@ -83,13 +83,13 @@ type EnvironmentServiceImpl struct {
 	K8sUtil               *util.K8sUtil
 	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
-	userAuthService         user.UserAuthService
+	userAuthService user.UserAuthService
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
-//  propertiesConfigService pipeline.PropertiesConfigService,
+	//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
@@ -98,7 +98,7 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		K8sUtil:               K8sUtil,
 		k8sInformerFactory:    k8sInformerFactory,
 		//propertiesConfigService: propertiesConfigService,
-		userAuthService:         userAuthService,
+		userAuthService: userAuthService,
 	}
 }
 
@@ -393,6 +393,7 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*EnvironmentBean, er
 			Namespace:             model.Namespace,
 			Default:               model.Default,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			ClusterId:             model.ClusterId,
 		})
 	}
 	return beans, nil
