@@ -643,6 +643,8 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			CiCacheRegion:        cdWorkflowConfig.CdCacheRegion,
 			CiArtifactBucketName: cdStageWorkflowRequest.ArtifactBucket,
 			CiArtifactRegion:     cdWorkflowConfig.CdCacheRegion,
+			CiLogBucketName:      impl.cdConfig.DefaultBuildLogsBucket,
+			CiLogRegion:          impl.cdConfig.DefaultCdLogsBucketRegion,
 		}
 	case BLOB_STORAGE_AZURE:
 		cdStageWorkflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
