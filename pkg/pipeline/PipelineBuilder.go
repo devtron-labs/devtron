@@ -1838,8 +1838,20 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 		return ciArtifacts, artifactMap, err
 	}
 	var acceptedStatus string
+	userEmails := make(map[int32]string)
 	if stageType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
 		acceptedStatus = application.Healthy
+		var ids []int32
+		for _, item := range parentWfrList {
+			ids = append(ids, item.TriggeredBy)
+		}
+		users, err := impl.userService.GetByIds(ids)
+		if err != nil {
+			impl.logger.Errorw("unable to get user details by ids", "err", err, "ids", ids)
+		}
+		for _, item := range users {
+			userEmails[item.Id] = item.EmailId
+		}
 	} else {
 		acceptedStatus = application.SUCCEEDED
 	}
@@ -1864,6 +1876,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 					Latest:                        latest,
 					Scanned:                       wfr.CdWorkflow.CiArtifact.Scanned,
 					ScanEnabled:                   wfr.CdWorkflow.CiArtifact.ScanEnabled,
+					DeployedBy:                    userEmails[wfr.TriggeredBy],
 				}
 				if !parent {
 					ciArtifact.Deployed = true
