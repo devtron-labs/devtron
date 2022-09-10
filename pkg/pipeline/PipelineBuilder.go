@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
 	"net/url"
@@ -147,6 +148,7 @@ type PipelineBuilderImpl struct {
 	helmAppService                   client.HelmAppService
 	deploymentGroupRepository        repository.DeploymentGroupRepository
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
+	userService                      user.UserService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -183,7 +185,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService, chartService chart.ChartService,
 	helmAppService client.HelmAppService,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineBuilderImpl {
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	userService user.UserService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -224,6 +227,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		helmAppService:                   helmAppService,
 		deploymentGroupRepository:        deploymentGroupRepository,
 		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
+		userService:                      userService,
 	}
 }
 
@@ -1922,6 +1926,18 @@ func (impl PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, l
 		impl.logger.Errorw("error in getting artifacts for rollback by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
 		return deployedCiArtifactsResponse, err
 	}
+	var ids []int32
+	for _, item := range cdWfrs {
+		ids = append(ids, item.TriggeredBy)
+	}
+	userEmails := make(map[int32]string)
+	users, err := impl.userService.GetByIds(ids)
+	if err != nil {
+		impl.logger.Errorw("unable to fetch users by ids", "err", err, "ids", ids)
+	}
+	for _, item := range users {
+		userEmails[item.Id] = item.EmailId
+	}
 	for _, cdWfr := range cdWfrs {
 		ciArtifact := &repository.CiArtifact{}
 		if cdWfr.CdWorkflow != nil && cdWfr.CdWorkflow.CiArtifact != nil {
@@ -1935,12 +1951,14 @@ func (impl PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, l
 			mInfo = []byte("[]")
 			impl.logger.Errorw("error in parsing ciArtifact material info", "err", err, "ciArtifact", ciArtifact)
 		}
+		userEmail := userEmails[cdWfr.TriggeredBy]
 		deployedCiArtifacts = append(deployedCiArtifacts, bean.CiArtifactBean{
 			Id:           ciArtifact.Id,
 			Image:        ciArtifact.Image,
 			MaterialInfo: mInfo,
 			DeployedTime: formatDate(cdWfr.StartedOn, bean.LayoutRFC3339),
 			WfrId:        cdWfr.Id,
+			DeployedBy:   userEmail,
 		})
 	}
 

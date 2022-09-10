@@ -541,6 +541,7 @@ type CiArtifactBean struct {
 	ScanEnabled                   bool            `json:"scanEnabled,notnull"`
 	Scanned                       bool            `json:"scanned,notnull"`
 	WfrId                         int             `json:"wfrId"`
+	DeployedBy                    string          `json:"deployedBy"`
 }
 
 type CiArtifactResponse struct {
