@@ -225,6 +225,10 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				TTLStrategy: &v1alpha1.TTLStrategy{
 					SecondsAfterCompletion: &ttl,
 				},
+				ArtifactRepositoryRef: &v1alpha1.ArtifactRepositoryRef{
+					ConfigMap: "my-artifact-repository",
+					Key:       "default-v1-s3-artifact-repository",
+				},
 				Templates: []v1alpha1.Template{
 					{
 						Name: "ci",
