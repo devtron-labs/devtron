@@ -142,10 +142,11 @@ const (
 	InitialPasswordLength       = 16
 	DevtronSecretName           = "devtron-secret"
 	DevtronConfigMapName        = "devtron-cm"
-	AdminPlainBase64DPassword   = "admin.base64password"
-	ArgocdConfigMapName         = "argocd-cm"
-	ArgocdSecretName            = "argocd-secret"
-	SettingAdminAcdPasswordKey  = "ACD_PASSWORD"
+
+	ArgocdConfigMapName        = "argocd-cm"
+	ArgocdSecretName           = "argocd-secret"
+	ADMIN_USER_PASSWORD        = "ADMIN_USER_PASSWORD"
+	SettingAdminAcdPasswordKey = "ACD_PASSWORD"
 )
 
 func (impl *K8sClient) GetServerSettings() (*DexConfig, error) {
