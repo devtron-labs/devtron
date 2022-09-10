@@ -470,6 +470,10 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				TTLStrategy: &v1alpha1.TTLStrategy{
 					SecondsAfterCompletion: &ttl,
 				},
+				ArtifactRepositoryRef: &v1alpha1.ArtifactRepositoryRef{
+					ConfigMap: "my-artifact-repository",
+					Key:       "default-v1-s3-artifact-repository",
+				},
 				Templates: templates,
 				Volumes:   volumes,
 			},
