@@ -21,7 +21,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/gorilla/mux"
 	"net/http"
+	"strconv"
 
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -45,33 +47,35 @@ type PipelineTriggerRestHandler interface {
 }
 
 type PipelineTriggerRestHandlerImpl struct {
-	appService             app.AppService
-	userAuthService        user.UserService
-	validator              *validator.Validate
-	enforcer               casbin.Enforcer
-	teamService            team.TeamService
-	logger                 *zap.SugaredLogger
-	workflowDagExecutor    pipeline.WorkflowDagExecutor
-	enforcerUtil           rbac.EnforcerUtil
-	deploymentGroupService deploymentGroup.DeploymentGroupService
-	argoUserService        argo.ArgoUserService
+	appService              app.AppService
+	userAuthService         user.UserService
+	validator               *validator.Validate
+	enforcer                casbin.Enforcer
+	teamService             team.TeamService
+	logger                  *zap.SugaredLogger
+	workflowDagExecutor     pipeline.WorkflowDagExecutor
+	enforcerUtil            rbac.EnforcerUtil
+	deploymentGroupService  deploymentGroup.DeploymentGroupService
+	argoUserService         argo.ArgoUserService
+	deploymentConfigService pipeline.DeploymentConfigService
 }
 
 func NewPipelineRestHandler(appService app.AppService, userAuthService user.UserService, validator *validator.Validate,
 	enforcer casbin.Enforcer, teamService team.TeamService, logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, deploymentGroupService deploymentGroup.DeploymentGroupService,
-	argoUserService argo.ArgoUserService) *PipelineTriggerRestHandlerImpl {
+	argoUserService argo.ArgoUserService, deploymentConfigService pipeline.DeploymentConfigService) *PipelineTriggerRestHandlerImpl {
 	pipelineHandler := &PipelineTriggerRestHandlerImpl{
-		appService:             appService,
-		userAuthService:        userAuthService,
-		validator:              validator,
-		enforcer:               enforcer,
-		teamService:            teamService,
-		logger:                 logger,
-		workflowDagExecutor:    workflowDagExecutor,
-		enforcerUtil:           enforcerUtil,
-		deploymentGroupService: deploymentGroupService,
-		argoUserService:        argoUserService,
+		appService:              appService,
+		userAuthService:         userAuthService,
+		validator:               validator,
+		enforcer:                enforcer,
+		teamService:             teamService,
+		logger:                  logger,
+		workflowDagExecutor:     workflowDagExecutor,
+		enforcerUtil:            enforcerUtil,
+		deploymentGroupService:  deploymentGroupService,
+		argoUserService:         argoUserService,
+		deploymentConfigService: deploymentConfigService,
 	}
 	return pipelineHandler
 }
@@ -269,4 +273,44 @@ func (handler PipelineTriggerRestHandlerImpl) ReleaseStatusUpdate(w http.Respons
 		handler.logger.Errorw("marshal err, ReleaseStatusUpdate", "err", err, "payload", m)
 	}
 	common.WriteJsonResp(w, err, resJson, http.StatusOK)
+}
+
+func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguration(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	handler.logger.Infow("request payload, GetAllLatestDeploymentConfiguration")
+
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificTrigger", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	pipelineId, err := strconv.Atoi(vars["pipelineId"])
+	if err != nil {
+		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificTrigger", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//RBAC START
+	token := r.Header.Get("token")
+	resourceName := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC END
+	//checking if user has admin access
+	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
+	allDeploymentconfig, err := handler.deploymentConfigService.GetLatestDeploymentConfigurationByPipelineId(pipelineId, userHasAdminAccess)
+	if err != nil {
+		handler.logger.Errorw("error in getting latest deployment config, GetAllDeployedConfigurationHistoryForSpecificTrigger", "err", err, "pipelineId", pipelineId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, allDeploymentconfig, http.StatusOK)
 }

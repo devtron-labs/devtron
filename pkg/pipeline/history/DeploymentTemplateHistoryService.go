@@ -22,6 +22,9 @@ type DeploymentTemplateHistoryService interface {
 	GetHistoryForDeployedTemplateById(id, pipelineId int) (*HistoryDetailDto, error)
 	CheckIfHistoryExistsForPipelineIdAndWfrId(pipelineId, wfrId int) (historyId int, exists bool, err error)
 	GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error)
+
+	// used for rollback
+	GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*HistoryDetailDto, error)
 }
 
 type DeploymentTemplateHistoryServiceImpl struct {
@@ -297,6 +300,27 @@ func (impl DeploymentTemplateHistoryServiceImpl) CheckIfHistoryExistsForPipeline
 		return 0, false, nil
 	}
 	return history.Id, true, nil
+}
+
+func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryByPipelineIdAndWfrId(pipelineId, wfrId int) (*HistoryDetailDto, error) {
+	impl.logger.Debugw("received request, GetDeployedHistoryByPipelineIdAndWfrId", "pipelineId", pipelineId, "wfrId", wfrId)
+
+	//checking if history exists for pipelineId and wfrId
+	history, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrId)
+	if err != nil {
+		impl.logger.Errorw("error in checking if history exists for pipelineId and wfrId", "err", err, "pipelineId", pipelineId, "wfrId", wfrId)
+		return nil, err
+	}
+	historyDto := &HistoryDetailDto{
+		TemplateName:        history.TemplateName,
+		TemplateVersion:     history.TemplateVersion,
+		IsAppMetricsEnabled: &history.IsAppMetricsEnabled,
+		CodeEditorValue: &HistoryDetailConfig{
+			DisplayName: "values.yaml",
+			Value:       history.Template,
+		},
+	}
+	return historyDto, nil
 }
 
 func (impl DeploymentTemplateHistoryServiceImpl) GetDeployedHistoryList(pipelineId, baseConfigId int) ([]*DeployedHistoryComponentMetadataDto, error) {

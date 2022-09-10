@@ -54,7 +54,6 @@ type CiArtifactRepository interface {
 	Get(id int) (artifact *CiArtifact, err error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
 	GetArtifactsByCDPipeline(cdPipelineId, limit int) ([]CiArtifact, error)
-	FetchArtifactForRollback(cdPipelineId int) ([]CiArtifact, error)
 
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
@@ -109,7 +108,7 @@ func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
 	return artifact, err
 }
 
-//this method takes CD Pipeline id and Returns List of Artifacts Latest By last deployed
+// this method takes CD Pipeline id and Returns List of Artifacts Latest By last deployed
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int) ([]CiArtifact, error) {
 	var artifactsA []CiArtifact
 	var artifactsAB []CiArtifact
@@ -353,46 +352,6 @@ type CiMaterialInfo struct {
 	Material      Material       `json:"material"`
 	Changed       bool           `json:"changed"`
 	Modifications []Modification `json:"modifications"`
-}
-
-func (impl CiArtifactRepositoryImpl) FetchArtifactForRollback(cdPipelineId int) ([]CiArtifact, error) {
-	var artifactResults []CiArtifact
-	var artifacts []CiArtifact
-	query := "SELECT cia.id, cia.data_source, cia.image, pco.created_on as created_on" +
-		" FROM pipeline_config_override pco" +
-		" INNER JOIN ci_artifact cia on cia.id = pco.ci_artifact_id" +
-		" WHERE pco.pipeline_id=? and cia.id < (SELECT MAX(cia.id) FROM ci_artifact cia INNER JOIN pipeline_config_override pco on cia.id = pco.ci_artifact_id where pco.pipeline_id=?)" +
-		" ORDER BY pco.created_on desc;"
-	_, err := impl.dbConnection.Query(&artifacts, query, cdPipelineId, cdPipelineId)
-	if err != nil {
-		return artifacts, err
-	}
-
-	// fetching material info separately because it gives error with fetching other (check its json) - FIXME
-	type Object struct {
-		Id           int    `json:"id"`
-		MaterialInfo string `json:"material_info"`
-	}
-
-	var artifactsTemp []Object
-	queryTemp := "SELECT cia.id, cia.material_info FROM pipeline_config_override pco" +
-		" INNER JOIN ci_artifact cia on cia.id = pco.ci_artifact_id" +
-		" WHERE pco.pipeline_id=?"
-	_, err = impl.dbConnection.Query(&artifactsTemp, queryTemp, cdPipelineId)
-	if err != nil {
-		return nil, err
-	}
-
-	mapData := make(map[int]string)
-	for _, a := range artifactsTemp {
-		mapData[a.Id] = a.MaterialInfo
-	}
-	for _, a := range artifacts {
-		a.MaterialInfo = mapData[a.Id]
-		artifactResults = append(artifactResults, a)
-	}
-
-	return artifactResults, nil
 }
 
 func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error) {
