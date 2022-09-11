@@ -521,6 +521,10 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 	if ciConfig.CiCacheRegion == "" {
 		ciConfig.CiCacheRegion = impl.ciConfig.DefaultCacheBucketRegion
 	}
+	logsFilePath := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log"
+	if strings.Contains(ciWorkflow.LogLocation, "main.log") {
+		logsFilePath = ciWorkflow.LogLocation
+	}
 	ciLogRequest := CiLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,
 		WorkflowId:    ciWorkflow.Id,
@@ -529,7 +533,7 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 		SecretKet:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
 		Region:        ciConfig.CiCacheRegion,
 		LogsBucket:    ciConfig.LogsBucket,
-		LogsFilePath:  impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log",
+		LogsFilePath:  logsFilePath,
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
 			Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
@@ -545,12 +549,6 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 			Region:      ciConfig.CiCacheRegion,
 		},
 	}
-	//if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
-	//	ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
-	//	ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
-	//	ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
-	//	ciLogRequest.Region = impl.ciConfig.MinioRegion
-	//}
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
