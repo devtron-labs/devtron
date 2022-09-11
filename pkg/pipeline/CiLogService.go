@@ -51,7 +51,7 @@ type CiLogRequest struct {
 	Namespace       string
 	CloudProvider   string
 	AwsS3BaseConfig *blob_storage.AwsS3BaseConfig
-	AzureBlobConfig *blob_storage.AzureBlobConfig
+	AzureBlobConfig *blob_storage.AzureBlobBaseConfig
 	MinioEndpoint   string
 }
 

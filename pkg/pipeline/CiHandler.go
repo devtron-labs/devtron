@@ -531,11 +531,11 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 		LogsBucket:    ciConfig.LogsBucket,
 		LogsFilePath:  impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log",
 		CloudProvider: impl.ciConfig.CloudProvider,
-		AzureBlobConfig: &blob_storage.AzureBlobConfig{
-			Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
-			AccountName:        impl.ciConfig.AzureAccountName,
-			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
-			AccountKey:         impl.ciConfig.AzureAccountKey,
+		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
+			Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
+			AccountName:       impl.ciConfig.AzureAccountName,
+			BlobContainerName: impl.ciConfig.AzureBlobContainerCiLog,
+			AccountKey:        impl.ciConfig.AzureAccountKey,
 		},
 		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
 			AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
@@ -590,11 +590,11 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 	if ciConfig.CiCacheRegion == "" {
 		ciConfig.CiCacheRegion = impl.ciConfig.DefaultCacheBucketRegion
 	}
-	azureBlobConfig := &blob_storage.AzureBlobConfig{
-		Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
-		AccountName:        impl.ciConfig.AzureAccountName,
-		BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
-		AccountKey:         impl.ciConfig.AzureAccountKey,
+	azureBlobConfig := &blob_storage.AzureBlobBaseConfig{
+		Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
+		AccountName:       impl.ciConfig.AzureAccountName,
+		BlobContainerName: impl.ciConfig.AzureBlobContainerCiLog,
+		AccountKey:        impl.ciConfig.AzureAccountKey,
 	}
 	awsS3BaseConfig := &blob_storage.AwsS3BaseConfig{
 		AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
@@ -673,11 +673,11 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 		LogsBucket:    ciConfig.LogsBucket,
 		LogsFilePath:  ciWorkflow.LogLocation,
 		CloudProvider: impl.ciConfig.CloudProvider,
-		AzureBlobConfig: &blob_storage.AzureBlobConfig{
-			Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
-			AccountName:        impl.ciConfig.AzureAccountName,
-			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
-			AccountKey:         impl.ciConfig.AzureAccountKey,
+		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
+			Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
+			AccountName:       impl.ciConfig.AzureAccountName,
+			BlobContainerName: impl.ciConfig.AzureBlobContainerCiLog,
+			AccountKey:        impl.ciConfig.AzureAccountKey,
 		},
 		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
 			AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,

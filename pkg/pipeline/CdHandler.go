@@ -534,11 +534,11 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 		LogsBucket:    cdConfig.LogsBucket,
 		LogsFilePath:  cdWorkflow.LogLocation, // impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
 		CloudProvider: impl.ciConfig.CloudProvider,
-		AzureBlobConfig: &blob_storage.AzureBlobConfig{
-			Enabled:            impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
-			AccountName:        impl.ciConfig.AzureAccountName,
-			BlobContainerCiLog: impl.ciConfig.AzureBlobContainerCiLog,
-			AccountKey:         impl.ciConfig.AzureAccountKey,
+		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
+			Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
+			AccountName:       impl.ciConfig.AzureAccountName,
+			BlobContainerName: impl.ciConfig.AzureBlobContainerCiLog,
+			AccountKey:        impl.ciConfig.AzureAccountKey,
 		},
 		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
 			AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
@@ -666,13 +666,22 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		BucketName:  cdConfig.LogsBucket,
 		Region:      cdConfig.CdCacheRegion,
 	}
+	var azureBlobBaseConfig *blob_storage.AzureBlobBaseConfig
+	if azureBlobConfig != nil {
+		azureBlobBaseConfig = &blob_storage.AzureBlobBaseConfig{
+			AccountKey:        azureBlobConfig.AccountKey,
+			AccountName:       azureBlobConfig.AccountName,
+			Enabled:           azureBlobConfig.Enabled,
+			BlobContainerName: azureBlobConfig.BlobContainerCiLog,
+		}
+	}
 	key := fmt.Sprintf("%s/"+impl.cdConfig.CdArtifactLocationFormat, impl.cdConfig.DefaultArtifactKeyPrefix, wfr.CdWorkflow.Id, wfr.Id)
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:     getStorageTypeFromProvider(impl.ciConfig.CloudProvider),
 		SourceKey:       key,
 		DestinationKey:  item,
-		AzureBlobConfig: azureBlobConfig,
+		AzureBlobConfig: azureBlobBaseConfig,
 		AwsS3BaseConfig: awsS3BaseConfig,
 	}
 	_, numBytes, err := blobStorageService.Get(request)

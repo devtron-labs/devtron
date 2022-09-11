@@ -447,11 +447,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 	case BLOB_STORAGE_AZURE:
 		workflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
-			Enabled:              impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
-			AccountName:          impl.ciConfig.AzureAccountName,
-			BlobContainerCiCache: impl.ciConfig.AzureBlobContainerCiCache,
-			AccountKey:           impl.ciConfig.AzureAccountKey,
-			BlobContainerCiLog:   impl.ciConfig.AzureBlobContainerCiLog,
+			Enabled:               impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
+			AccountName:           impl.ciConfig.AzureAccountName,
+			BlobContainerCiCache:  impl.ciConfig.AzureBlobContainerCiCache,
+			AccountKey:            impl.ciConfig.AzureAccountKey,
+			BlobContainerCiLog:    impl.ciConfig.AzureBlobContainerCiLog,
+			BlobContainerArtifact: impl.ciConfig.AzureBlobContainerCiLog,
 		}
 		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
 			EndpointUrl:     impl.ciConfig.AzureGatewayUrl,

@@ -17,15 +17,6 @@ import (
 type AzureBlob struct {
 }
 
-type AzureBlobConfig struct {
-	Enabled               bool   `json:"enabled"`
-	AccountName           string `json:"accountName"`
-	BlobContainerCiLog    string `json:"blobContainerCiLog"`
-	BlobContainerCiCache  string `json:"blobContainerCiCache"`
-	BlobContainerArtifact string `json:"blobStorageArtifact"`
-	AccountKey            string `json:"accountKey"`
-}
-
 func (impl *AzureBlob) getSharedCredentials(accountName, accountKey string) (*azblob.SharedKeyCredential, error) {
 	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
 	if err != nil {
@@ -53,7 +44,7 @@ func (impl *AzureBlob) getTokenCredentials() (azblob.TokenCredential, error) {
 	return credential, err
 }
 
-func (impl *AzureBlob) buildContainerUrl(config *AzureBlobConfig, container string) (*azblob.ContainerURL, error) {
+func (impl *AzureBlob) buildContainerUrl(config *AzureBlobBaseConfig, container string) (*azblob.ContainerURL, error) {
 	var credential azblob.Credential
 	var err error
 	if len(config.AccountKey) > 0 {
@@ -79,8 +70,8 @@ func (impl *AzureBlob) buildContainerUrl(config *AzureBlobConfig, container stri
 	return &containerURL, nil
 }
 
-func (impl *AzureBlob) DownloadBlob(context context.Context, blobName string, config *AzureBlobConfig, file *os.File) (success bool, err error) {
-	containerURL, err := impl.buildContainerUrl(config, config.BlobContainerCiCache)
+func (impl *AzureBlob) DownloadBlob(context context.Context, blobName string, config *AzureBlobBaseConfig, file *os.File) (success bool, err error) {
+	containerURL, err := impl.buildContainerUrl(config, config.BlobContainerName) // BlobContainerCiCache
 	if err != nil {
 		return false, err
 	}
@@ -106,7 +97,7 @@ func (impl *AzureBlob) DownloadBlob(context context.Context, blobName string, co
 	return true, err
 }
 
-func (impl *AzureBlob) UploadBlob(context context.Context, blobName string, config *AzureBlobConfig, inputFileName string, container string) error {
+func (impl *AzureBlob) UploadBlob(context context.Context, blobName string, config *AzureBlobBaseConfig, inputFileName string, container string) error {
 	containerURL, err := impl.buildContainerUrl(config, container)
 	if err != nil {
 		return err

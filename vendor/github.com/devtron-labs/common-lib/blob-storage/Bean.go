@@ -5,7 +5,7 @@ type BlobStorageRequest struct {
 	SourceKey       string
 	DestinationKey  string
 	AwsS3BaseConfig *AwsS3BaseConfig
-	AzureBlobConfig *AzureBlobConfig
+	AzureBlobConfig *AzureBlobBaseConfig
 }
 
 type BlobStorageS3Config struct {
@@ -26,6 +26,22 @@ type AwsS3BaseConfig struct {
 	EndpointUrl string `json:"endpointUrl"`
 	BucketName  string `json:"bucketName"`
 	Region      string `json:"region"`
+}
+
+type AzureBlobConfig struct {
+	Enabled               bool   `json:"enabled"`
+	AccountName           string `json:"accountName"`
+	BlobContainerCiLog    string `json:"blobContainerCiLog"`
+	BlobContainerCiCache  string `json:"blobContainerCiCache"`
+	BlobContainerArtifact string `json:"blobStorageArtifact"`
+	AccountKey            string `json:"accountKey"`
+}
+
+type AzureBlobBaseConfig struct {
+	Enabled           bool   `json:"enabled"`
+	AccountName       string `json:"accountName"`
+	AccountKey        string `json:"accountKey"`
+	BlobContainerName string `json:"blobContainerName"`
 }
 
 type BlobStorageType string

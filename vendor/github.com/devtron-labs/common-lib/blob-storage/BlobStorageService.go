@@ -52,7 +52,7 @@ func (impl *BlobStorageServiceImpl) PutWithCommand(request *BlobStorageRequest) 
 		err = utils.RunCommand(command)
 	case BLOB_STORAGE_AZURE:
 		b := AzureBlob{}
-		err = b.UploadBlob(context.Background(), request.DestinationKey, request.AzureBlobConfig, request.SourceKey, request.AzureBlobConfig.BlobContainerCiCache)
+		err = b.UploadBlob(context.Background(), request.DestinationKey, request.AzureBlobConfig, request.SourceKey, request.AzureBlobConfig.BlobContainerName)
 	default:
 		return fmt.Errorf("cloudprovider %s not supported", request.StorageType)
 	}

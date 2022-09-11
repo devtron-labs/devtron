@@ -648,11 +648,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 	case BLOB_STORAGE_AZURE:
 		cdStageWorkflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
-			Enabled:              true,
-			AccountName:          impl.cdConfig.AzureAccountName,
-			BlobContainerCiCache: impl.cdConfig.AzureBlobContainerCiCache,
-			AccountKey:           impl.cdConfig.AzureAccountKey,
-			BlobContainerCiLog:   impl.cdConfig.AzureBlobContainerCiLog,
+			Enabled:               true,
+			AccountName:           impl.cdConfig.AzureAccountName,
+			BlobContainerCiCache:  impl.cdConfig.AzureBlobContainerCiCache,
+			AccountKey:            impl.cdConfig.AzureAccountKey,
+			BlobContainerCiLog:    impl.cdConfig.AzureBlobContainerCiLog,
+			BlobContainerArtifact: impl.cdConfig.AzureBlobContainerCiLog,
 		}
 		cdStageWorkflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
 			EndpointUrl:     impl.cdConfig.AzureGatewayUrl,
