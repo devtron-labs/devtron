@@ -262,7 +262,7 @@ func (impl *CiServiceImpl) buildArtifactLocation(ciWorkflowConfig *pipelineConfi
 	if ciArtifactLocationFormat == "" {
 		ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
 	}
-	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.ciConfig.DefaultArtifactKeyPrefix+"/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWf.Id, savedWf.Id)
+	ArtifactLocation := fmt.Sprintf("s3://%s/%s/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, impl.ciConfig.DefaultArtifactKeyPrefix, savedWf.Id, savedWf.Id)
 	artifactFileName := fmt.Sprintf(impl.ciConfig.DefaultArtifactKeyPrefix+"/"+ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
 	return ArtifactLocation, ciWorkflowConfig.LogsBucket, artifactFileName
 }
@@ -272,7 +272,7 @@ func (impl *CiServiceImpl) buildArtifactLocationAzure(ciWorkflowConfig *pipeline
 	if ciArtifactLocationFormat == "" {
 		ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
 	}
-	ArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
+	ArtifactLocation := fmt.Sprintf("%s/"+ciArtifactLocationFormat, impl.ciConfig.DefaultArtifactKeyPrefix, savedWf.Id, savedWf.Id)
 	return ArtifactLocation
 }
 

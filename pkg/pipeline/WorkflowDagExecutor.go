@@ -675,7 +675,7 @@ func (impl *WorkflowDagExecutorImpl) buildArtifactLocationAzure(cdWorkflowConfig
 	if cdArtifactLocationFormat == "" {
 		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
 	}
-	ArtifactLocation := fmt.Sprintf(cdArtifactLocationFormat, savedWf.Id, savedWf.Id)
+	ArtifactLocation := fmt.Sprintf("%s/"+cdArtifactLocationFormat, impl.cdConfig.DefaultArtifactKeyPrefix, savedWf.Id, savedWf.Id)
 	return ArtifactLocation
 }
 

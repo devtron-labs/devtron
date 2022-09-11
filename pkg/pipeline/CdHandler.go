@@ -686,7 +686,7 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 	}
 	_, numBytes, err := blobStorageService.Get(request)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while downloading file", "request", request)
+		impl.Logger.Errorw("error occurred while downloading file", "request", request, "error", err)
 		return nil, errors.New("failed to download resource")
 	}
 
