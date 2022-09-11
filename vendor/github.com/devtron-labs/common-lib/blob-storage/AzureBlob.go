@@ -86,7 +86,7 @@ func (impl *AzureBlob) DownloadBlob(context context.Context, blobName string, co
 	}
 	var latestVersion string
 	for _, s := range res.Segment.BlobItems {
-		if *s.IsCurrentVersion {
+		if s.IsCurrentVersion != nil && *s.IsCurrentVersion {
 			latestVersion = *s.VersionID
 			break
 		}
@@ -103,7 +103,7 @@ func (impl *AzureBlob) UploadBlob(context context.Context, blobName string, conf
 		return err
 	}
 	blobURL := containerURL.NewBlockBlobURL(blobName)
-	log.Println("upload blob url ", blobURL, "file", inputFileName)
+	log.Println("going to upload blob url: ", blobURL, "file:", inputFileName)
 
 	file, err := os.Open(inputFileName)
 	if err != nil {
@@ -111,6 +111,9 @@ func (impl *AzureBlob) UploadBlob(context context.Context, blobName string, conf
 	}
 	defer file.Close()
 	_, err = azblob.UploadFileToBlockBlob(context, file, blobURL, azblob.UploadToBlockBlobOptions{})
+	if err == nil {
+		log.Println("blob uploaded successfully")
+	}
 	return err
 }
 
