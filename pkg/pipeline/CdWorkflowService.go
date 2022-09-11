@@ -371,10 +371,13 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 
 	blobStorageS3Config := workflowRequest.BlobStorageS3Config
 	s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
-	isS3Compatible := s3CompatibleEndpointUrl != ""
-	if strings.Contains(s3CompatibleEndpointUrl, "https://") || strings.Contains(s3CompatibleEndpointUrl, "http://") {
-		// this is reqd as argo workflow don't need http in its endpoint
+	var isInsecure bool
+	// this is reqd as argo workflow don't need http in its endpoint
+	if strings.Index(s3CompatibleEndpointUrl, "https://") == 0 {
 		s3CompatibleEndpointUrl = strings.Replace(s3CompatibleEndpointUrl, "https://", "", 1)
+	}
+	if strings.Index(s3CompatibleEndpointUrl, "http://") == 0 {
+		isInsecure = true
 		s3CompatibleEndpointUrl = strings.Replace(s3CompatibleEndpointUrl, "http://", "", 1)
 	}
 
@@ -421,7 +424,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 					},
 					Bucket:   blobStorageS3Config.CiLogBucketName,
 					Region:   blobStorageS3Config.CiLogRegion,
-					Insecure: &isS3Compatible,
+					Insecure: &isInsecure,
 				},
 			},
 		},

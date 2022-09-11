@@ -444,6 +444,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			CiCacheRegion:        ciWorkflowConfig.CiCacheRegion,
 			CiArtifactBucketName: workflowRequest.CiArtifactBucket,
 			CiArtifactRegion:     ciWorkflowConfig.CiCacheRegion,
+			CiLogBucketName:      impl.ciConfig.DefaultBuildLogsBucket,
+			CiLogRegion:          impl.ciConfig.DefaultCacheBucketRegion,
 		}
 	case BLOB_STORAGE_AZURE:
 		workflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
