@@ -260,7 +260,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 						ArchiveLocation: &v1alpha1.ArtifactLocation{
 							ArchiveLogs: &archiveLogs,
 							S3: &v1alpha1.S3Artifact{
-								Key: "devtron/" + workflowRequest.WorkflowNamePrefix,
+								Key: impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix,
 								S3Bucket: v1alpha1.S3Bucket{
 									Endpoint: blobStorageS3Config.EndpointUrl,
 									AccessKeySecret: &v12.SecretKeySelector{

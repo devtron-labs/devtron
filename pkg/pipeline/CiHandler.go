@@ -706,22 +706,27 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	return resp, err
 }
 
-func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, string, string, string) {
+func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, string, string, string, string) {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := ""
 	message := ""
+	logLocation := ""
 	for k, v := range workflowStatus.Nodes {
+		impl.Logger.Infow("extractWorkflowStatus", "workflowName", k, "v", v)
 		workflowName = k
 		podStatus = string(v.Phase)
 		message = v.Message
+		if v.Outputs != nil && len(v.Outputs.Artifacts) > 0 && v.Outputs.Artifacts[0].S3 != nil {
+			logLocation = v.Outputs.Artifacts[0].S3.Key //TODO need to handle cases for AAzure and GCP also
+		}
 		break
 	}
-	return workflowName, status, podStatus, message
+	return workflowName, status, podStatus, message, logLocation
 }
 
 func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
-	workflowName, status, podStatus, message := impl.extractWorkfowStatus(workflowStatus)
+	workflowName, status, podStatus, message, logLocation := impl.extractWorkfowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "podStatus", podStatus, "message", message)
 		return 0, errors.New("invalid wf name")
@@ -758,7 +763,8 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.Message = message
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
-		savedWorkflow.LogLocation = "/ci-pipeline/" + strconv.Itoa(savedWorkflow.CiPipelineId) + "/workflow/" + strconv.Itoa(savedWorkflow.Id) + "/logs" //TODO need to fetch from workflow object
+		//savedWorkflow.LogLocation = "/ci-pipeline/" + strconv.Itoa(savedWorkflow.CiPipelineId) + "/workflow/" + strconv.Itoa(savedWorkflow.Id) + "/logs" //TODO need to fetch from workflow object
+		savedWorkflow.LogLocation = logLocation
 		savedWorkflow.CiArtifactLocation = ciArtifactLocation
 
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
