@@ -350,7 +350,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
 		Namespace:          impl.cdConfig.DefaultNamespace,
-		BlobStorageEnabled: true, //TODO KB need to check from integration manager
+		BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
 		CdWorkflowId:       cdWf.Id,
 	}
 	var env *repository2.Environment
@@ -418,7 +418,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
 		Namespace:          impl.cdConfig.DefaultNamespace,
-		BlobStorageEnabled: true, //TODO KB need to check from integration manager
+		BlobStorageEnabled: impl.cdConfig.BlobStorageEnabled,
 		CdWorkflowId:       cdWf.Id,
 	}
 	var env *repository2.Environment
