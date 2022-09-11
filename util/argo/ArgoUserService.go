@@ -39,8 +39,10 @@ const (
 
 type ArgoUserService interface {
 	GetLatestDevtronArgoCdUserToken() (string, error)
-	UpdateArgoCdUserDetail() string
+	ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string
+	GetOrUpdateArgoCdUserDetail() string
 }
+
 type ArgoUserServiceImpl struct {
 	logger              *zap.SugaredLogger
 	clusterService      cluster.ClusterService
@@ -64,7 +66,7 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 		gitOpsRepository:    gitOpsRepository,
 	}
 	if !runTimeConfig.LocalDevMode {
-		go argoUserServiceImpl.UpdateArgoCdUserDetail()
+		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail()
 	}
 	return argoUserServiceImpl, nil
 }
@@ -82,7 +84,15 @@ func GetDevtronSecretName() (*DevtronSecretConfig, error) {
 	return secretConfig, err
 }
 
-func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() string {
+func (impl *ArgoUserServiceImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string {
+	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
+	if err != nil || !isGitOpsConfigured {
+		return ""
+	}
+	return impl.GetOrUpdateArgoCdUserDetail()
+}
+
+func (impl *ArgoUserServiceImpl) GetOrUpdateArgoCdUserDetail() string {
 	token := ""
 	cluster, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {

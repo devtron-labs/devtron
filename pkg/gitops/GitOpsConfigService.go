@@ -128,7 +128,7 @@ func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		//create argo-cd user, if not created, here argo-cd integration has to be installed
-		token := impl.argoUserService.UpdateArgoCdUserDetail()
+		token := impl.argoUserService.GetOrUpdateArgoCdUserDetail()
 		ctx := context.WithValue(context.Background(), "token", token)
 		_, err := impl.CreateGitOpsConfig(ctx, config)
 		if err != nil {
