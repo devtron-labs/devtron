@@ -84,8 +84,8 @@ type ExternalSecret struct {
 }
 
 type ESOSecretData struct {
-	SecretStore json.RawMessage `json:"secretStore"`
-	EsoData     []ESOData       `json:"esoData"`
+	SecretStore json.RawMessage `json:"secretStore,omitempty"`
+	EsoData     []ESOData       `json:"esoData,omitempty"`
 }
 
 type ESOData struct {
@@ -887,6 +887,8 @@ func (impl ConfigMapServiceImpl) CSEnvironmentFetch(appId int, envId int) (*Conf
 				item.DefaultExternalSecret = item.ExternalSecret
 			}
 			item.DefaultESOSecretData = item.ESOSecretData
+			item.ESOSecretData.EsoData = nil
+			item.ESOSecretData.SecretStore = nil
 			item.DefaultMountPath = item.MountPath
 			item.Data = nil
 			item.ExternalSecret = nil

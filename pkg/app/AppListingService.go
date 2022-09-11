@@ -23,8 +23,10 @@ import (
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/util/argo"
+	errors2 "github.com/juju/errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -143,6 +145,8 @@ type AppListingServiceImpl struct {
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
 	environmentRepository      repository2.EnvironmentRepository
 	argoUserService            argo.ArgoUserService
+	envOverrideRepository      chartConfig.EnvConfigOverrideRepository
+	chartRepository            chartRepoRepository.ChartRepository
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -151,7 +155,8 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	linkoutsRepository repository.LinkoutsRepository, appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
-	argoUserService argo.ArgoUserService) *AppListingServiceImpl {
+	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
+	chartRepository chartRepoRepository.ChartRepository) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
 		Logger:                     Logger,
 		appListingRepository:       appListingRepository,
@@ -166,6 +171,8 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 		pipelineOverrideRepository: pipelineOverrideRepository,
 		environmentRepository:      environmentRepository,
 		argoUserService:            argoUserService,
+		envOverrideRepository:      envOverrideRepository,
+		chartRepository:            chartRepository,
 	}
 	return serviceImpl
 }
@@ -1396,8 +1403,22 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(appId int) ([]*bean.Envi
 		appLevelAppMetrics = appLevelMetrics.AppMetrics
 		appLevelInfraMetrics = appLevelMetrics.InfraMetrics
 	}
-
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching latest chart", "err", err)
+		return envs, err
+	}
 	for _, env := range envs {
+		envOverride, err := impl.envOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, env.EnvironmentId)
+		if err != nil && !errors2.IsNotFound(err) {
+			impl.Logger.Errorw("error in fetching latest chart by appId and envId", "err", err, "appId", appId, "envId", env.EnvironmentId)
+			return envs, err
+		}
+		if envOverride != nil && envOverride.Chart != nil {
+			env.ChartRefId = envOverride.Chart.ChartRefId
+		} else {
+			env.ChartRefId = chart.ChartRefId
+		}
 		if env.AppMetrics == nil {
 			env.AppMetrics = &appLevelAppMetrics
 		}
