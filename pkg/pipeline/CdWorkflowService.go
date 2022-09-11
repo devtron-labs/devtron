@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -369,7 +370,13 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	})
 
 	blobStorageS3Config := workflowRequest.BlobStorageS3Config
-	isS3Compatible := blobStorageS3Config.EndpointUrl != ""
+	s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
+	isS3Compatible := s3CompatibleEndpointUrl != ""
+	if strings.Contains(s3CompatibleEndpointUrl, "https://") || strings.Contains(s3CompatibleEndpointUrl, "http://") {
+		// this is reqd as argo workflow don't need http in its endpoint
+		s3CompatibleEndpointUrl = strings.Replace(s3CompatibleEndpointUrl, "https://", "", 1)
+		s3CompatibleEndpointUrl = strings.Replace(s3CompatibleEndpointUrl, "http://", "", 1)
+	}
 
 	templates = append(templates, v1alpha1.Template{
 		Name: "cd",
@@ -399,7 +406,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			S3: &v1alpha1.S3Artifact{
 				Key: impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix,
 				S3Bucket: v1alpha1.S3Bucket{
-					Endpoint: blobStorageS3Config.EndpointUrl,
+					Endpoint: s3CompatibleEndpointUrl,
 					AccessKeySecret: &v12.SecretKeySelector{
 						Key: "accessKey",
 						LocalObjectReference: v12.LocalObjectReference{
