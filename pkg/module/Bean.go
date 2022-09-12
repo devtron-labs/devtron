@@ -63,8 +63,9 @@ const (
 )
 
 const (
-	ModuleNameCicd   ModuleName = "cicd"
-	ModuleNameArgoCd ModuleName = "argo-cd"
+	ModuleNameCicd         ModuleName = "cicd"
+	ModuleNameArgoCd       ModuleName = "argo-cd"
+	ModuleNameNotification ModuleName = "notification"
 )
 
 var SupportedModuleNamesListExcludingCicd = []string{ModuleNameArgoCd}

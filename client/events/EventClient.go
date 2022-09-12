@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/module"
 	"net/http"
 	"time"
 
@@ -53,7 +54,7 @@ func GetEventClientConfig() (*EventClientConfig, error) {
 }
 
 type EventClient interface {
-	WriteEvent(event Event) (bool, error)
+	WriteNotificationEvent(event Event) (bool, error)
 	WriteNatsEvent(channel string, payload interface{}) error
 	SendTestSuite(reqBody []byte) (bool, error)
 }
@@ -122,14 +123,15 @@ type EventRESTClientImpl struct {
 	ciPipelineRepository pipelineConfig.CiPipelineRepository
 	pipelineRepository   pipelineConfig.PipelineRepository
 	attributesRepository repository.AttributesRepository
+	moduleService        module.ModuleService
 }
 
 func NewEventRESTClientImpl(logger *zap.SugaredLogger, client *http.Client, config *EventClientConfig, pubsubClient *pubsub.PubSubClient,
 	ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository,
-	attributesRepository repository.AttributesRepository) *EventRESTClientImpl {
+	attributesRepository repository.AttributesRepository, moduleService module.ModuleService) *EventRESTClientImpl {
 	return &EventRESTClientImpl{logger: logger, client: client, config: config, pubsubClient: pubsubClient,
 		ciPipelineRepository: ciPipelineRepository, pipelineRepository: pipelineRepository,
-		attributesRepository: attributesRepository}
+		attributesRepository: attributesRepository, moduleService: moduleService}
 }
 
 func (impl *EventRESTClientImpl) buildFinalPayload(event Event, cdPipeline *pipelineConfig.Pipeline, ciPipeline *pipelineConfig.CiPipeline) *Payload {
@@ -159,10 +161,20 @@ func (impl *EventRESTClientImpl) buildFinalPayload(event Event, cdPipeline *pipe
 	return payload
 }
 
-func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
+func (impl *EventRESTClientImpl) WriteNotificationEvent(event Event) (bool, error) {
+	// if notification integration is not installed then do not send the notification
+	moduleInfo, err := impl.moduleService.GetModuleInfo(module.ModuleNameNotification)
+	if err != nil {
+		impl.logger.Errorw("error while getting notification module status", "err", err)
+		return false, err
+	}
+	if moduleInfo.Status != module.ModuleStatusInstalled {
+		impl.logger.Warnw("Notification module is not installed, hence skipping sending notification", "currentModuleStatus", moduleInfo.Status)
+		return false, nil
+	}
+
 	var cdPipeline *pipelineConfig.Pipeline
 	var ciPipeline *pipelineConfig.CiPipeline
-	var err error
 	if event.PipelineId > 0 {
 		if event.PipelineType == string(util.CD) {
 			cdPipeline, err = impl.pipelineRepository.FindById(event.PipelineId)
@@ -206,12 +218,12 @@ func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
 		event.BaseUrl = attribute.Value
 	}
 	if event.CdWorkflowType == "" {
-		_, err = impl.SendEvent(event)
+		_, err = impl.sendEvent(event)
 	} else if event.CdWorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 		if event.EventTypeId == int(util.Success) {
 			impl.logger.Debug("skip - will send from deployment or post stage")
 		} else {
-			_, err = impl.SendEvent(event)
+			_, err = impl.sendEvent(event)
 		}
 	} else if event.CdWorkflowType == bean.CD_WORKFLOW_TYPE_DEPLOY {
 		if isPreStageExist && event.EventTypeId == int(util.Trigger) {
@@ -219,19 +231,20 @@ func (impl *EventRESTClientImpl) WriteEvent(event Event) (bool, error) {
 		} else if isPostStageExist && event.EventTypeId == int(util.Success) {
 			impl.logger.Debug("skip - will send from post stage")
 		} else {
-			_, err = impl.SendEvent(event)
+			_, err = impl.sendEvent(event)
 		}
 	} else if event.CdWorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 		if event.EventTypeId == int(util.Trigger) {
 			impl.logger.Debug("skip - already sent from pre or deployment stage")
 		} else {
-			_, err = impl.SendEvent(event)
+			_, err = impl.sendEvent(event)
 		}
 	}
 	return true, err
 }
 
-func (impl *EventRESTClientImpl) SendEvent(event Event) (bool, error) {
+// do not call this method if notification module is not installed
+func (impl *EventRESTClientImpl) sendEvent(event Event) (bool, error) {
 	impl.logger.Debugw("event before send", "event", event)
 	body, err := json.Marshal(event)
 	if err != nil {
