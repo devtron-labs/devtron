@@ -581,3 +581,9 @@ type AppMetaInfoDto struct {
 type AppLabelsJsonForDeployment struct {
 	Labels map[string]string `json:"appLabels"`
 }
+
+type ProjectChangeRequest struct {
+	AppId  []int `json:"appId"`
+	TeamId int   `json:"teamId"`
+	UserId int32 `json:"-"`
+}

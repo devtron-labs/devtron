@@ -36,6 +36,8 @@ type AppLabelService interface {
 	FindAll() ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error)
 	GetLabelsByAppIdForDeployment(appId int) ([]byte, error)
+	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
+	ProjectChangeRequest(request *bean.ProjectChangeRequest) (*bean.ProjectChangeRequest, error)
 }
 type AppLabelServiceImpl struct {
 	logger             *zap.SugaredLogger
@@ -52,6 +54,69 @@ func NewAppLabelServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository
 		appRepository:      appRepository,
 		userRepository:     userRepository,
 	}
+}
+
+func (impl AppLabelServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+	dbConnection := impl.appRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	app, err := impl.appRepository.FindById(request.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app", "error", err)
+		return nil, err
+	}
+	app.TeamId = request.TeamId
+	app.UpdatedOn = time.Now()
+	app.UpdatedBy = request.UserId
+	err = impl.appRepository.Update(app)
+	if err != nil {
+		impl.logger.Errorw("error in updating app", "error", err)
+		return nil, err
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in commit repo", "error", err)
+		return nil, err
+	}
+	return nil, nil
+}
+
+func (impl AppLabelServiceImpl) ProjectChangeRequest(request *bean.ProjectChangeRequest) (*bean.ProjectChangeRequest, error) {
+	dbConnection := impl.appRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	apps, err := impl.appRepository.FindAppsByTeamId(request.TeamId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching app", "error", err)
+		return nil, err
+	}
+	for _, app := range apps {
+		app.TeamId = request.TeamId
+		app.UpdatedOn = time.Now()
+		app.UpdatedBy = request.UserId
+		err = impl.appRepository.Update(app)
+		if err != nil {
+			impl.logger.Errorw("error in updating app", "error", err)
+			return nil, err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in commit repo", "error", err)
+		return nil, err
+	}
+	return nil, nil
 }
 
 func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error) {
