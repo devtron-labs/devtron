@@ -213,6 +213,7 @@ func NewAppService(
 		configMapHistoryRepository:          configMapHistoryRepository,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
+		deploymentEventHandler:              deploymentEventHandler,
 	}
 	return appServiceImpl
 }
