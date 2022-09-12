@@ -32,6 +32,7 @@ type GitOpsConfigRepository interface {
 	GetGitOpsConfigActive() (*GitOpsConfig, error)
 	GetConnection() *pg.DB
 	GetEmailIdFromActiveGitOpsConfig() (string, error)
+	IsGitOpsConfigured() (bool, error)
 }
 
 type GitOpsConfigRepositoryImpl struct {
@@ -107,4 +108,16 @@ func (impl *GitOpsConfigRepositoryImpl) GetEmailIdFromActiveGitOpsConfig() (stri
 	err := impl.dbConnection.Model((*GitOpsConfig)(nil)).Column("email_id").
 		Where("active = ?", true).Select(&emailId)
 	return emailId, err
+}
+
+func (impl *GitOpsConfigRepositoryImpl) IsGitOpsConfigured() (bool, error) {
+	gitOpsConfig, err := impl.GetGitOpsConfigActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("Error while getting git-ops config from DB to check if git-ops configured or not", "err", err)
+		return false, err
+	}
+	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
+		return true, nil
+	}
+	return false, nil
 }

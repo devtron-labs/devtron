@@ -20,6 +20,10 @@ func (impl *HelmUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 	return "", errors.New("method GetLatestDevtronArgoCdUserToken not implemented")
 }
 
-func (impl *HelmUserServiceImpl) UpdateArgoCdUserDetail() {
+func (impl *HelmUserServiceImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string {
+	return ""
+}
 
+func (impl *HelmUserServiceImpl) GetOrUpdateArgoCdUserDetail() string {
+	return ""
 }
