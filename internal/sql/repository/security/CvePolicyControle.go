@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
+	"time"
 )
 
 type CvePolicy struct {
@@ -91,10 +92,10 @@ func (d PolicyLevel) String() string {
 func (policy *CvePolicy) PolicyLevel() PolicyLevel {
 	if policy.ClusterId != 0 {
 		return Cluster
-	} else if policy.EnvironmentId != 0 {
-		return Environment
 	} else if policy.AppId != 0 {
 		return Application
+	} else if policy.EnvironmentId != 0 {
+		return Environment
 	} else {
 		return Global
 	}
@@ -154,6 +155,7 @@ func (impl *CvePolicyRepositoryImpl) GetEnvPolicies(clusterId int, environmentId
 			return q, nil
 		}).
 		Where("deleted = false").
+		Where("app_id is null").
 		Select()
 	return policies, err
 }
@@ -175,7 +177,36 @@ func (impl *CvePolicyRepositoryImpl) GetAppEnvPolicies(clusterId int, environmen
 }
 
 func (impl *CvePolicyRepositoryImpl) SavePolicy(policy *CvePolicy) (*CvePolicy, error) {
-	err := impl.dbConnection.Insert(policy)
+	var policies []*CvePolicy
+	err := impl.dbConnection.Model(&policies).
+		Column("cve_policy.*").
+		Relation("CveStore").
+		Where("deleted = false").
+		Where("app_id = ?", policy.AppId).
+		Where("env_id = ?", policy.EnvironmentId).
+		Where("cve_policy.severity = ?", policy.Severity).
+		Select()
+	if err != nil && err == pg.ErrNoRows {
+		err = impl.dbConnection.Insert(policy)
+		return policy, err
+	} else if err == nil {
+		maxId := 0
+		var cvePolicyToUpdate *CvePolicy
+		for _, cvePolicy := range policies {
+			if cvePolicy.Id > maxId {
+				maxId = cvePolicy.Id
+				cvePolicyToUpdate = cvePolicy
+			}
+		}
+		if maxId != 0 {
+			cvePolicyToUpdate.UpdatedOn = time.Now()
+			cvePolicyToUpdate.UpdatedBy = policy.UpdatedBy
+			cvePolicyToUpdate.Action = policy.Action
+			policy, err = impl.UpdatePolicy(cvePolicyToUpdate)
+		} else {
+			err = impl.dbConnection.Insert(policy)
+		}
+	}
 	return policy, err
 }
 func (impl *CvePolicyRepositoryImpl) UpdatePolicy(policy *CvePolicy) (*CvePolicy, error) {
