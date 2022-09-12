@@ -19,6 +19,7 @@ package session
 
 import (
 	"context"
+	"fmt"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"k8s.io/client-go/kubernetes"
@@ -29,7 +30,10 @@ import (
 func CDSettingsManager(settings *settings.SettingsManager) (*settings.ArgoCDSettings, error) {
 	at, err := settings.GetSettings()
 	if err != nil {
-		return nil, err
+		//return nil, err
+		//skip this error for no git-ops , as it will be set auto when acd configured for acd case
+		fmt.Printf("skiping this error, error on getting acd setting, err=%s", err.Error())
+
 	}
 	return at, nil
 }

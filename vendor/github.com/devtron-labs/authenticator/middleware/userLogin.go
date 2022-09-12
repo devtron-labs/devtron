@@ -23,7 +23,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/authenticator/client"
-
 	passwordutil "github.com/devtron-labs/authenticator/password"
 	"github.com/google/uuid"
 	log "github.com/sirupsen/logrus"
@@ -46,7 +45,7 @@ func NewUserLogin(sessionManager *SessionManager, k8sClient *client.K8sClient) *
 		k8sClient:      k8sClient,
 	}
 }
-func (impl LoginService) Create(ctxt context.Context, username string, password string) (string, error) {
+func (impl *LoginService) Create(ctxt context.Context, username string, password string) (string, error) {
 	if username == "" || password == "" {
 		return "", status.Errorf(codes.Unauthenticated, "no credentials supplied")
 	}
@@ -67,7 +66,7 @@ func (impl LoginService) Create(ctxt context.Context, username string, password 
 }
 
 // VerifyUsernamePassword verifies if a username/password combo is correct
-func (impl LoginService) verifyUsernamePassword(username string, password string) error {
+func (impl *LoginService) verifyUsernamePassword(username string, password string) error {
 	if password == "" {
 		return status.Errorf(codes.Unauthenticated, blankPasswordError)
 	}
@@ -151,22 +150,22 @@ func (a *Account) HasCapability(capability AccountCapability) bool {
 	return false
 }
 
-func (impl LoginService) GetAccount(name string) (*Account, error) {
+func (impl *LoginService) GetAccount(name string) (*Account, error) {
 	if name != "admin" {
 		return nil, fmt.Errorf("no account supported: %s", name)
 	}
-	secret, cm, err := impl.k8sClient.GetArgoConfig()
+	secret, cm, err := impl.k8sClient.GetDevtronConfig()
 	if err != nil {
 		return nil, err
 	}
-	account, err := parseAdminAccount(secret, cm)
+	account, err := impl.parseAdminAccount(secret, cm)
 	if err != nil {
 		return nil, err
 	}
 	return account, nil
 }
 
-func parseAdminAccount(secret *v1.Secret, cm *v1.ConfigMap) (*Account, error) {
+func (impl *LoginService) parseAdminAccount(secret *v1.Secret, cm *v1.ConfigMap) (*Account, error) {
 	adminAccount := &Account{Enabled: true, Capabilities: []AccountCapability{AccountCapabilityLogin}}
 	if adminPasswordHash, ok := secret.Data[client.SettingAdminPasswordHashKey]; ok {
 		adminAccount.PasswordHash = string(adminPasswordHash)
