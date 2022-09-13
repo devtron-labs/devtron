@@ -66,7 +66,7 @@ func (router PipelineTriggerRouterImpl) initPipelineTriggerRouter(pipelineTrigge
 		Methods("GET").
 		Queries("name", "{name}")
 
-	pipelineTriggerRouter.Path("/deployment-configuration/all/latest/{appId}/{pipelineId}").HandlerFunc(router.restHandler.OverrideConfig).Methods("POST")
+	pipelineTriggerRouter.Path("/deployment-configuration/all/latest/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetAllLatestDeploymentConfiguration).Methods("POST")
 }
 
 func fetchReleaseData(r *http.Request, receive <-chan int, send chan<- int) {

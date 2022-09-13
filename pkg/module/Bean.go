@@ -63,9 +63,9 @@ const (
 )
 
 const (
-	ModuleNameCicd   ModuleName = "cicd"
-	ModuleNameArgoCd ModuleName = "argo-cd"
+	ModuleNameCicd          ModuleName = "cicd"
+	ModuleNameArgoCd        ModuleName = "argo-cd"
+	ModuleNameSecurityClair ModuleName = "security.clair"
 )
 
-var SupportedModuleNamesListExcludingCicd = []string{ModuleNameArgoCd}
-var LegacyModuleSupportAssumptionCicdModuleVersion = "v0.5.3"
+var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair}

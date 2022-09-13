@@ -44,6 +44,7 @@ type PipelineTriggerRestHandler interface {
 	ReleaseStatusUpdate(w http.ResponseWriter, r *http.Request)
 	StartStopApp(w http.ResponseWriter, r *http.Request)
 	StartStopDeploymentGroup(w http.ResponseWriter, r *http.Request)
+	GetAllLatestDeploymentConfiguration(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineTriggerRestHandlerImpl struct {

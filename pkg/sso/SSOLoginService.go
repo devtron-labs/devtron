@@ -20,9 +20,9 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -187,7 +187,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 	retryCount := 0
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
-		cm, err := impl.K8sUtil.GetConfigMap(client.ArgocdNamespaceName, client.ArgoCDConfigMapName, k8sClient)
+		secret, err := impl.K8sUtil.GetSecret(argo.DEVTRONCD_NAMESPACE, argo.DEVTRON_SECRET, k8sClient)
 		if err != nil {
 			impl.logger.Errorw("exception in fetching configmap", "error", err)
 			return flag, err
@@ -197,14 +197,14 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 			impl.logger.Errorw("exception in update configmap sso config", "error", err)
 			return flag, err
 		}
-		data := cm.Data
-		if cm.Data == nil {
-			data = make(map[string]string)
+		data := secret.Data
+		if secret.Data == nil {
+			data = make(map[string][]byte)
 		}
-		data["dex.config"] = updatedData["dex.config"]
-		data["url"] = request.Url
-		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMap(client.ArgocdNamespaceName, cm, k8sClient)
+		data["dex.config"] = []byte(updatedData["dex.config"])
+		data["url"] = []byte(request.Url)
+		secret.Data = data
+		_, err = impl.K8sUtil.UpdateSecret(argo.DEVTRONCD_NAMESPACE, secret, k8sClient)
 		if err != nil {
 			impl.logger.Warnw("config map update failed for sso config", "err", err)
 			continue
