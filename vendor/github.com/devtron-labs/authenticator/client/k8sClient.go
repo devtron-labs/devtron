@@ -109,24 +109,20 @@ func (impl *K8sClient) GetArgocdConfig() (secret *v1.Secret, cm *v1.ConfigMap, e
 	return secret, cm, nil
 }
 
-func (impl *K8sClient) GetDevtronConfig() (secret *v1.Secret, cm *v1.ConfigMap, err error) {
+func (impl *K8sClient) GetDevtronConfig() (secret *v1.Secret, err error) {
 	dexConfig, err := DexConfigConfigFromEnv()
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	clientSet, err := kubernetes.NewForConfig(impl.config)
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
 	secret, err = clientSet.CoreV1().Secrets(DevtronDefaultNamespaceName).Get(context.Background(), dexConfig.DevtronSecretName, v12.GetOptions{})
 	if err != nil {
-		return nil, nil, err
+		return nil, err
 	}
-	cm, err = clientSet.CoreV1().ConfigMaps(DevtronDefaultNamespaceName).Get(context.Background(), DevtronConfigMapName, v12.GetOptions{})
-	if err != nil {
-		return nil, nil, err
-	}
-	return secret, cm, nil
+	return secret, nil
 }
 
 // argocd specific conf
@@ -155,15 +151,12 @@ const (
 
 func (impl *K8sClient) GetServerSettings() (*DexConfig, error) {
 	cfg := &DexConfig{}
-	secret, cm, err := impl.GetDevtronConfig()
+	secret, err := impl.GetDevtronConfig()
 	if err != nil {
 		return nil, err
 	}
 	if secret.Data == nil {
 		secret.Data = make(map[string][]byte)
-	}
-	if cm.Data == nil {
-		cm.Data = make(map[string]string)
 	}
 	if settingServerSignatur, ok := secret.Data[SettingServerSignatureKey]; ok {
 		cfg.ServerSecret = string(settingServerSignatur)
