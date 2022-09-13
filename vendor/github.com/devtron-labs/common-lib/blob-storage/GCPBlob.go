@@ -15,12 +15,17 @@ type GCPBlob struct {
 
 func (impl *GCPBlob) UploadBlob(request *BlobStorageRequest) error {
 	ctx := context.Background()
+	config := request.GcpBlobBaseConfig
+	storageClient, err := impl.createGcpClient(ctx, config)
+	if err != nil {
+		return err
+	}
 	file, err := os.Open(request.SourceKey)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
-	err, gcpObject := getGcpObject(request, ctx)
+	gcpObject := impl.getGcpObject(storageClient, config, request.DestinationKey)
 	if err != nil {
 		return err
 	}
@@ -32,36 +37,35 @@ func (impl *GCPBlob) UploadBlob(request *BlobStorageRequest) error {
 	return err
 }
 
-func getGcpObject(request *BlobStorageRequest, ctx context.Context) (error, *storage.ObjectHandle) {
-	config := request.GcpBlobBaseConfig
-	storageClient, err := createGcpClient(ctx, request)
-	if err != nil {
-		return err, nil
-	}
-	gcpObject := storageClient.Bucket(config.BucketName).Object(request.DestinationKey)
-	return err, gcpObject
-}
-
-func createGcpClient(ctx context.Context, request *BlobStorageRequest) (*storage.Client, error) {
-	config := request.GcpBlobBaseConfig
-	fmt.Println("going to create gcp client")
-	storageClient, err := storage.NewClient(ctx, option.WithCredentialsJSON([]byte(config.CredentialFileJsonData)))
-	if err != nil {
-		return nil, err
-	}
-	return storageClient, err
-}
-
 func (impl *GCPBlob) DownloadBlob(request *BlobStorageRequest, file *os.File) (bool, int64, error) {
 	ctx := context.Background()
 	config := request.GcpBlobBaseConfig
-	storageClient, err := createGcpClient(ctx, request)
+	storageClient, err := impl.createGcpClient(ctx, config)
 	if err != nil {
 		return false, 0, err
 	}
+	latestGeneration, err := impl.getLatestVersion(storageClient, request, ctx, config)
+	if err != nil {
+		return false, 0, err
+	}
+	gcpObject := impl.getGcpObject(storageClient, config, request.SourceKey)
+	if err != nil {
+		return false, 0, err
+	}
+	objectReader, err := gcpObject.If(storage.Conditions{GenerationMatch: latestGeneration}).NewReader(ctx)
+	if err != nil {
+		return false, 0, err
+	}
+	defer objectReader.Close()
+	writtenBytes, err := io.Copy(file, objectReader)
+	return err == nil, writtenBytes, err
+}
+
+func (impl *GCPBlob) getLatestVersion(storageClient *storage.Client, request *BlobStorageRequest, ctx context.Context, config *GcpBlobBaseConfig) (int64, error) {
+	fileName := request.SourceKey
 	objects := storageClient.Bucket(config.BucketName).Objects(ctx, &storage.Query{
 		Versions: true,
-		Prefix:   request.DestinationKey,
+		Prefix:   fileName,
 	})
 	var latestGeneration int64 = 0
 	var latestTimestampInMillis int64 = 0
@@ -69,6 +73,10 @@ func (impl *GCPBlob) DownloadBlob(request *BlobStorageRequest, file *os.File) (b
 		objectAttrs, err := objects.Next()
 		if err == iterator.Done {
 			break
+		}
+		objectName := objectAttrs.Name
+		if objectName != fileName {
+			continue
 		}
 		updatedTime := objectAttrs.Updated
 		generation := objectAttrs.Generation
@@ -81,17 +89,27 @@ func (impl *GCPBlob) DownloadBlob(request *BlobStorageRequest, file *os.File) (b
 			latestTimestampInMillis = fileTimestampInMillis
 			latestGeneration = generation
 		}
+	}
+	return latestGeneration, nil
+}
+
+func (impl *GCPBlob) getGcpObject(storageClient *storage.Client, config *GcpBlobBaseConfig, fileKey string) *storage.ObjectHandle {
+	gcpObject := storageClient.Bucket(config.BucketName).Object(fileKey)
+	return gcpObject
+}
+
+func (impl *GCPBlob) createGcpClient(ctx context.Context, config *GcpBlobBaseConfig) (*storage.Client, error) {
+	fmt.Println("going to create gcp client for bucket", config.BucketName)
+	var storageClient *storage.Client
+	var err error
+	if config.CredentialFileJsonData != "" {
+
+	} else {
 
 	}
-	err, gcpObject := getGcpObject(request, ctx)
+	storageClient, err = storage.NewClient(ctx, option.WithCredentialsJSON([]byte(config.CredentialFileJsonData)))
 	if err != nil {
-		return false, 0, err
+		return nil, err
 	}
-	objectReader, err := gcpObject.If(storage.Conditions{GenerationMatch: latestGeneration}).NewReader(ctx)
-	if err != nil {
-		return false, 0, err
-	}
-	defer objectReader.Close()
-	writtenBytes, err := io.Copy(file, objectReader)
-	return err != nil, writtenBytes, err
+	return storageClient, err
 }
