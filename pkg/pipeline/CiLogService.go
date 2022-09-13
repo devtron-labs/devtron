@@ -125,11 +125,11 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 	tempFile := ciLogRequest.WorkflowName + ".log"
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	request := &blob_storage.BlobStorageRequest{
-		StorageType:     getStorageTypeFromProvider(ciLogRequest.CloudProvider),
-		SourceKey:       ciLogRequest.LogsFilePath,
-		DestinationKey:  tempFile,
-		AzureBlobConfig: ciLogRequest.AzureBlobConfig,
-		AwsS3BaseConfig: ciLogRequest.AwsS3BaseConfig,
+		StorageType:         getStorageTypeFromProvider(ciLogRequest.CloudProvider),
+		SourceKey:           ciLogRequest.LogsFilePath,
+		DestinationKey:      tempFile,
+		AzureBlobBaseConfig: ciLogRequest.AzureBlobConfig,
+		AwsS3BaseConfig:     ciLogRequest.AwsS3BaseConfig,
 	}
 
 	_, _, err := blobStorageService.Get(request)
