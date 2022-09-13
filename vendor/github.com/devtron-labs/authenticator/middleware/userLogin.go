@@ -154,7 +154,11 @@ func (impl *LoginService) GetAccount(name string) (*Account, error) {
 	if name != "admin" {
 		return nil, fmt.Errorf("no account supported: %s", name)
 	}
-	secret, cm, err := impl.k8sClient.GetDevtronConfig()
+	_, cm, err := impl.k8sClient.GetArgocdConfig()
+	if err != nil {
+		return nil, err
+	}
+	secret, err := impl.k8sClient.GetDevtronConfig()
 	if err != nil {
 		return nil, err
 	}
