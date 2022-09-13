@@ -31,40 +31,24 @@ helm list --namespace devtroncd
 
 ### 3. Set release name in the variable
 ```bash
-export RELEASE_NAME=devtron
+RELEASE_NAME=devtron
 ```
 
-### 4. Run the shell script
-
-We have moved argocd to integrations section in devtron. If you have existing argocd setup in your devtron installation, run the commands given below so that your existing argocd can be considered as integration by devtron to receive future upgrades in argo-cd version if any.
-
-```bash
-wget https://raw.githubusercontent.com/devtron-labs/utilities/main/scripts/shell/argocd-integration.sh
-```
-
-```bash
-chmod +x argocd-integration.sh
-```
-
-```bash
-./argocd-integration.sh
-```
-
-### 5. Fetch the latest Devtron helm chart
+### 4. Fetch the latest Devtron helm chart
 
 ```bash
 helm repo update
 ```
 
 
-### 6. Upgrade Devtron 
+### 5. Upgrade Devtron 
 
 **`5.1` Upgrade Devtron to latest version**
 
 ```bash
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 -f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/devtron-bom.yaml \
---set installer.modules={cicd} --set argo-cd.enabled=true --reuse-values
+--set installer.modules={cicd} --reuse-values
 ```
 OR
 
@@ -77,5 +61,5 @@ DEVTRON_TARGET_VERSION=v0.5.x
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 -f https://raw.githubusercontent.com/devtron-labs/devtron/$DEVTRON_TARGET_VERSION/charts/devtron/devtron-bom.yaml \
---set installer.modules={cicd} --set argo-cd.enabled=true --reuse-values
+--set installer.modules={cicd} --reuse-values
 ```
