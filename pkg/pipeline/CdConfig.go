@@ -57,14 +57,12 @@ type CdConfig struct {
 	BlobStorageS3AccessKey         string `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
 	BlobStorageS3SecretKey         string `env:"BLOB_STORAGE_S3_SECRET_KEY"`
 	BlobStorageS3Endpoint          string `env:"BLOB_STORAGE_S3_ENDPOINT"`
+	BlobStorageGcpCredentialJson   string `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
 	AzureAccountName               string `env:"AZURE_ACCOUNT_NAME"`
 	AzureGatewayUrl                string `env:"AZURE_GATEWAY_URL" envDefault:"devtron-minio.devtroncd:9000"`
 	AzureGatewayConnectionInsecure bool   `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
 	AzureBlobContainerCiLog        string `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
 	AzureBlobContainerCiCache      string `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
-	MinioEndpoint                  string `env:"MINIO_ENDPOINT"`
-	MinioAccessKey                 string `env:"MINIO_ACCESS_KEY"`
-	MinioSecretKey                 string `env:"MINIO_SECRET_KEY"`
 	AzureAccountKey                string `env:"AZURE_ACCOUNT_KEY"`
 	DefaultAddressPoolBaseCidr     string `env:"CD_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
 	DefaultAddressPoolSize         int    `env:"CD_DEFAULT_ADDRESS_POOL_SIZE"`

@@ -73,6 +73,7 @@ type CiConfig struct {
 	BlobStorageS3AccessKey         string   `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
 	BlobStorageS3SecretKey         string   `env:"BLOB_STORAGE_S3_SECRET_KEY"`
 	BlobStorageS3Endpoint          string   `env:"BLOB_STORAGE_S3_ENDPOINT"`
+	BlobStorageGcpCredentialJson   string   `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
 	AzureAccountKey                string   `env:"AZURE_ACCOUNT_KEY"`
 	ClusterConfig                  *rest.Config
 	NodeLabel                      map[string]string

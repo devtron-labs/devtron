@@ -466,7 +466,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 	return nil
 }
-func (impl *WorkflowDagExecutorImpl) buildArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) (string, string, string) {
+func (impl *WorkflowDagExecutorImpl) buildArtifactLocationForS3(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, cdWf *pipelineConfig.CdWorkflow, runner *pipelineConfig.CdWorkflowRunner) (string, string, string) {
 	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
 	if cdArtifactLocationFormat == "" {
 		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat
@@ -634,7 +634,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
 		cdStageWorkflowRequest.CdCacheRegion = cdWorkflowConfig.CdCacheRegion
 		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
-		cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.ArtifactBucket, cdStageWorkflowRequest.ArtifactFileName = impl.buildArtifactLocation(cdWorkflowConfig, cdWf, runner)
+		cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.ArtifactBucket, cdStageWorkflowRequest.ArtifactFileName = impl.buildArtifactLocationForS3(cdWorkflowConfig, cdWf, runner)
 		cdStageWorkflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
 			AccessKey:            impl.cdConfig.BlobStorageS3AccessKey,
 			Passkey:              impl.cdConfig.BlobStorageS3SecretKey,
@@ -646,6 +646,14 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			CiLogBucketName:      impl.cdConfig.DefaultBuildLogsBucket,
 			CiLogRegion:          impl.cdConfig.DefaultCdLogsBucketRegion,
 		}
+	case BLOB_STORAGE_GCP:
+		cdStageWorkflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{
+			CredentialFileJsonData: impl.cdConfig.BlobStorageGcpCredentialJson,
+			ArtifactBucketName:     impl.cdConfig.DefaultBuildLogsBucket,
+			LogBucketName:          impl.cdConfig.DefaultBuildLogsBucket,
+		}
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildDefaultArtifactLocation(cdWorkflowConfig, cdWf)
+		cdStageWorkflowRequest.ArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
 	case BLOB_STORAGE_AZURE:
 		cdStageWorkflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
 			Enabled:               true,
@@ -660,7 +668,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			CiLogBucketName: impl.cdConfig.AzureBlobContainerCiLog,
 			CiLogRegion:     impl.cdConfig.DefaultCdLogsBucketRegion,
 		}
-		cdStageWorkflowRequest.ArtifactLocation = impl.buildArtifactLocationAzure(cdWorkflowConfig, cdWf)
+		cdStageWorkflowRequest.ArtifactLocation = impl.buildDefaultArtifactLocation(cdWorkflowConfig, cdWf)
 		cdStageWorkflowRequest.ArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
 	default:
 		return nil, fmt.Errorf("cloudprovider %s not supported", cdStageWorkflowRequest.CloudProvider)
@@ -670,7 +678,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	return cdStageWorkflowRequest, nil
 }
 
-func (impl *WorkflowDagExecutorImpl) buildArtifactLocationAzure(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, savedWf *pipelineConfig.CdWorkflow) string {
+func (impl *WorkflowDagExecutorImpl) buildDefaultArtifactLocation(cdWorkflowConfig *pipelineConfig.CdWorkflowConfig, savedWf *pipelineConfig.CdWorkflow) string {
 	cdArtifactLocationFormat := cdWorkflowConfig.CdArtifactLocationFormat
 	if cdArtifactLocationFormat == "" {
 		cdArtifactLocationFormat = impl.cdConfig.CdArtifactLocationFormat

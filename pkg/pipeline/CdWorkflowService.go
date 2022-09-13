@@ -23,8 +23,8 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"net/url"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -99,7 +99,7 @@ type CdWorkflowRequest struct {
 	BlobStorageS3Config        *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
 	CloudProvider              string                            `json:"cloudProvider"`
 	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
-	MinioEndpoint              string                            `json:"minioEndpoint"`
+	GcpBlobConfig              *blob_storage.GcpBlobConfig       `json:"gcpBlobConfig"`
 	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
 	DeploymentTriggeredBy      string                            `json:"deploymentTriggeredBy,omitempty"`
@@ -369,18 +369,6 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		Steps: steps,
 	})
 
-	blobStorageS3Config := workflowRequest.BlobStorageS3Config
-	s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
-	var isInsecure bool
-	// this is reqd as argo workflow don't need http in its endpoint
-	if strings.Index(s3CompatibleEndpointUrl, "https://") == 0 {
-		s3CompatibleEndpointUrl = strings.Replace(s3CompatibleEndpointUrl, "https://", "", 1)
-	}
-	if strings.Index(s3CompatibleEndpointUrl, "http://") == 0 {
-		isInsecure = true
-		s3CompatibleEndpointUrl = strings.Replace(s3CompatibleEndpointUrl, "http://", "", 1)
-	}
-
 	templates = append(templates, v1alpha1.Template{
 		Name: "cd",
 		Container: &v12.Container{
@@ -404,31 +392,69 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		ActiveDeadlineSeconds: &intstr.IntOrString{
 			IntVal: int32(workflowRequest.ActiveDeadlineSeconds),
 		},
-		ArchiveLocation: &v1alpha1.ArtifactLocation{
-			ArchiveLogs: &archiveLogs,
-			S3: &v1alpha1.S3Artifact{
-				Key: impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix,
-				S3Bucket: v1alpha1.S3Bucket{
-					Endpoint: s3CompatibleEndpointUrl,
-					AccessKeySecret: &v12.SecretKeySelector{
-						Key: "accessKey",
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: "workflow-minio-cred",
+	})
+
+	blobStorageS3Config := workflowRequest.BlobStorageS3Config
+	gcpBlobConfig := workflowRequest.GcpBlobConfig
+	cloudStorageKey := impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+	if blobStorageS3Config != nil {
+		s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
+		parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
+		var isInsecure bool
+		if err != nil {
+			impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
+		} else {
+			isInsecure = parsedUrl.Scheme == "http" // this is reqd as argo workflow don't need http in its endpoint
+			s3CompatibleEndpointUrl = parsedUrl.Host
+		}
+
+		templates = append(templates, v1alpha1.Template{
+			Name: "cd-with-logging",
+			ArchiveLocation: &v1alpha1.ArtifactLocation{
+				ArchiveLogs: &archiveLogs,
+				S3: &v1alpha1.S3Artifact{
+					Key: cloudStorageKey,
+					S3Bucket: v1alpha1.S3Bucket{
+						Endpoint: s3CompatibleEndpointUrl,
+						AccessKeySecret: &v12.SecretKeySelector{
+							Key: "accessKey",
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: "workflow-minio-cred",
+							},
 						},
-					},
-					SecretKeySecret: &v12.SecretKeySelector{
-						Key: "secretKey",
-						LocalObjectReference: v12.LocalObjectReference{
-							Name: "workflow-minio-cred",
+						SecretKeySecret: &v12.SecretKeySelector{
+							Key: "secretKey",
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: "workflow-minio-cred",
+							},
 						},
+						Bucket:   blobStorageS3Config.CiLogBucketName,
+						Region:   blobStorageS3Config.CiLogRegion,
+						Insecure: &isInsecure,
 					},
-					Bucket:   blobStorageS3Config.CiLogBucketName,
-					Region:   blobStorageS3Config.CiLogRegion,
-					Insecure: &isInsecure,
 				},
 			},
-		},
-	})
+		})
+	} else if gcpBlobConfig != nil {
+		templates = append(templates, v1alpha1.Template{
+			Name: "cd-with-logging",
+			ArchiveLocation: &v1alpha1.ArtifactLocation{
+				ArchiveLogs: &archiveLogs,
+				GCS: &v1alpha1.GCSArtifact{
+					Key: cloudStorageKey,
+					GCSBucket: v1alpha1.GCSBucket{
+						Bucket: gcpBlobConfig.LogBucketName,
+						ServiceAccountKeySecret: &v12.SecretKeySelector{
+							Key: "secretKey",
+							LocalObjectReference: v12.LocalObjectReference{
+								Name: "workflow-minio-cred",
+							},
+						},
+					},
+				},
+			},
+		})
+	}
 
 	var cdTemplate v1alpha1.Template
 	for _, cm := range configMaps.Maps {

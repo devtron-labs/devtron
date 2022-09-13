@@ -606,11 +606,11 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	request := &blob_storage.BlobStorageRequest{
-		StorageType:     getStorageTypeFromProvider(impl.ciConfig.CloudProvider),
-		SourceKey:       key,
-		DestinationKey:  item,
-		AzureBlobConfig: azureBlobConfig,
-		AwsS3BaseConfig: awsS3BaseConfig,
+		StorageType:         getStorageTypeFromProvider(impl.ciConfig.CloudProvider),
+		SourceKey:           key,
+		DestinationKey:      item,
+		AzureBlobBaseConfig: azureBlobConfig,
+		AwsS3BaseConfig:     awsS3BaseConfig,
 	}
 	_, numBytes, err := blobStorageService.Get(request)
 	if err != nil {
@@ -715,8 +715,12 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 		workflowName = k
 		podStatus = string(v.Phase)
 		message = v.Message
-		if v.Outputs != nil && len(v.Outputs.Artifacts) > 0 && v.Outputs.Artifacts[0].S3 != nil {
-			logLocation = v.Outputs.Artifacts[0].S3.Key //TODO need to handle cases for AAzure and GCP also
+		if v.Outputs != nil && len(v.Outputs.Artifacts) > 0 {
+			if v.Outputs.Artifacts[0].S3 != nil {
+				logLocation = v.Outputs.Artifacts[0].S3.Key
+			} else if v.Outputs.Artifacts[0].GCS != nil {
+				logLocation = v.Outputs.Artifacts[0].GCS.Key
+			}
 		}
 		break
 	}

@@ -22,7 +22,7 @@ import (
 	"encoding/json"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"k8s.io/apimachinery/pkg/util/intstr"
-	"strings"
+	"net/url"
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -103,6 +103,7 @@ type WorkflowRequest struct {
 	BlobStorageConfigured      bool                              `json:"blobStorageConfigured"`
 	BlobStorageS3Config        *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
 	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
+	GcpBlobConfig              *blob_storage.GcpBlobConfig       `json:"gcpBlobConfig"`
 	MinioEndpoint              string                            `json:"minioEndpoint"`
 	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
@@ -212,16 +213,55 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	reqMem := impl.ciConfig.ReqMem
 	ttl := int32(600)
 
+	gcpBlobConfig := workflowRequest.GcpBlobConfig
 	blobStorageS3Config := workflowRequest.BlobStorageS3Config
-	s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
-	var isInsecure bool
-	// this is reqd as argo workflow don't need http in its endpoint
-	if strings.Index(s3CompatibleEndpointUrl, "https://") == 0 {
-		s3CompatibleEndpointUrl = strings.Replace(s3CompatibleEndpointUrl, "https://", "", 1)
-	}
-	if strings.Index(s3CompatibleEndpointUrl, "http://") == 0 {
-		isInsecure = true
-		s3CompatibleEndpointUrl = strings.Replace(s3CompatibleEndpointUrl, "http://", "", 1)
+	cloudStorageKey := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+	var s3Artifact *v1alpha1.S3Artifact
+	var gcsArtifact *v1alpha1.GCSArtifact
+	if blobStorageS3Config != nil {
+		s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
+		parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
+		var isInsecure bool
+		if err != nil {
+			impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
+		} else {
+			isInsecure = parsedUrl.Scheme == "http" // this is reqd as argo workflow don't need http in its endpoint
+			s3CompatibleEndpointUrl = parsedUrl.Host
+		}
+		s3Artifact = &v1alpha1.S3Artifact{
+			Key: cloudStorageKey,
+			S3Bucket: v1alpha1.S3Bucket{
+				Endpoint: s3CompatibleEndpointUrl,
+				AccessKeySecret: &v12.SecretKeySelector{
+					Key: "accessKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				},
+				SecretKeySecret: &v12.SecretKeySelector{
+					Key: "secretKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				},
+				Bucket:   blobStorageS3Config.CiLogBucketName,
+				Region:   blobStorageS3Config.CiLogRegion,
+				Insecure: &isInsecure,
+			},
+		}
+	} else if gcpBlobConfig != nil {
+		gcsArtifact = &v1alpha1.GCSArtifact{
+			Key: cloudStorageKey,
+			GCSBucket: v1alpha1.GCSBucket{
+				Bucket: gcpBlobConfig.LogBucketName,
+				ServiceAccountKeySecret: &v12.SecretKeySelector{
+					Key: "secretKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				},
+			},
+		}
 	}
 
 	var (
@@ -269,27 +309,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 						},
 						ArchiveLocation: &v1alpha1.ArtifactLocation{
 							ArchiveLogs: &archiveLogs,
-							S3: &v1alpha1.S3Artifact{
-								Key: impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix,
-								S3Bucket: v1alpha1.S3Bucket{
-									Endpoint: s3CompatibleEndpointUrl,
-									AccessKeySecret: &v12.SecretKeySelector{
-										Key: "accessKey",
-										LocalObjectReference: v12.LocalObjectReference{
-											Name: "workflow-minio-cred",
-										},
-									},
-									SecretKeySecret: &v12.SecretKeySelector{
-										Key: "secretKey",
-										LocalObjectReference: v12.LocalObjectReference{
-											Name: "workflow-minio-cred",
-										},
-									},
-									Bucket:   blobStorageS3Config.CiLogBucketName,
-									Region:   blobStorageS3Config.CiLogRegion,
-									Insecure: &isInsecure,
-								},
-							},
+							S3:          s3Artifact,
+							GCS:         gcsArtifact,
 						},
 					},
 				},

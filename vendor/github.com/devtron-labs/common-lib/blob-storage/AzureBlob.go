@@ -13,7 +13,6 @@ import (
 	"time"
 )
 
-//--------------------
 type AzureBlob struct {
 }
 

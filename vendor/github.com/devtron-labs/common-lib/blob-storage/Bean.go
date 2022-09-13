@@ -1,11 +1,12 @@
 package blob_storage
 
 type BlobStorageRequest struct {
-	StorageType     BlobStorageType
-	SourceKey       string
-	DestinationKey  string
-	AwsS3BaseConfig *AwsS3BaseConfig
-	AzureBlobConfig *AzureBlobBaseConfig
+	StorageType         BlobStorageType
+	SourceKey           string
+	DestinationKey      string
+	AwsS3BaseConfig     *AwsS3BaseConfig
+	AzureBlobBaseConfig *AzureBlobBaseConfig
+	GcpBlobBaseConfig   *GcpBlobBaseConfig
 }
 
 type BlobStorageS3Config struct {
@@ -42,6 +43,18 @@ type AzureBlobBaseConfig struct {
 	AccountName       string `json:"accountName"`
 	AccountKey        string `json:"accountKey"`
 	BlobContainerName string `json:"blobContainerName"`
+}
+
+type GcpBlobConfig struct {
+	CredentialFileJsonData string `json:"credentialFileData"`
+	CacheBucketName        string `json:"ciCacheBucketName"`
+	LogBucketName          string `json:"logBucketName"`
+	ArtifactBucketName     string `json:"artifactBucketName"`
+}
+
+type GcpBlobBaseConfig struct {
+	BucketName             string `json:"bucketName"`
+	CredentialFileJsonData string `json:"credentialFileData"`
 }
 
 type BlobStorageType string
