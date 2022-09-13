@@ -20,6 +20,7 @@ package pipeline
 import (
 	"flag"
 	"fmt"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -52,20 +53,21 @@ type CdConfig struct {
 	OrchestratorToken              string   `env:"ORCH_TOKEN" envDefault:""`
 	ClusterConfig                  *rest.Config
 	NodeLabel                      map[string]string
-	CloudProvider                  string `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
-	BlobStorageEnabled             bool   `env:"BLOB_STORAGE_ENABLED" envDefault:"true"` //TODO set false from inception for new customers
-	BlobStorageS3AccessKey         string `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
-	BlobStorageS3SecretKey         string `env:"BLOB_STORAGE_S3_SECRET_KEY"`
-	BlobStorageS3Endpoint          string `env:"BLOB_STORAGE_S3_ENDPOINT"`
-	BlobStorageGcpCredentialJson   string `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
-	AzureAccountName               string `env:"AZURE_ACCOUNT_NAME"`
-	AzureGatewayUrl                string `env:"AZURE_GATEWAY_URL" envDefault:"devtron-minio.devtroncd:9000"`
-	AzureGatewayConnectionInsecure bool   `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
-	AzureBlobContainerCiLog        string `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
-	AzureBlobContainerCiCache      string `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
-	AzureAccountKey                string `env:"AZURE_ACCOUNT_KEY"`
-	DefaultAddressPoolBaseCidr     string `env:"CD_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
-	DefaultAddressPoolSize         int    `env:"CD_DEFAULT_ADDRESS_POOL_SIZE"`
+	CloudProvider                  blob_storage.BlobStorageType `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
+	BlobStorageEnabled             bool                         `env:"BLOB_STORAGE_ENABLED" envDefault:"true"` //TODO set false from inception for new customers
+	BlobStorageS3AccessKey         string                       `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
+	BlobStorageS3SecretKey         string                       `env:"BLOB_STORAGE_S3_SECRET_KEY"`
+	BlobStorageS3Endpoint          string                       `env:"BLOB_STORAGE_S3_ENDPOINT"`
+	BlobStorageGcpCredentialJson   string                       `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
+	AzureAccountName               string                       `env:"AZURE_ACCOUNT_NAME"`
+	AzureGatewayUrl                string                       `env:"AZURE_GATEWAY_URL" envDefault:"devtron-minio.devtroncd:9000"`
+	AzureGatewayConnectionInsecure bool                         `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
+	AzureBlobContainerCiLog        string                       `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
+	AzureBlobContainerCiCache      string                       `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
+	AzureAccountKey                string                       `env:"AZURE_ACCOUNT_KEY"`
+	BuildLogTTLValue               int                          `json:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
+	DefaultAddressPoolBaseCidr     string                       `env:"CD_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
+	DefaultAddressPoolSize         int                          `env:"CD_DEFAULT_ADDRESS_POOL_SIZE"`
 }
 
 func GetCdConfig() (*CdConfig, error) {

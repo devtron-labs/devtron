@@ -99,12 +99,11 @@ type WorkflowRequest struct {
 	CiArtifactRegion           string                            `json:"ciArtifactRegion"`
 	InvalidateCache            bool                              `json:"invalidateCache"`
 	ScanEnabled                bool                              `json:"scanEnabled"`
-	CloudProvider              string                            `json:"cloudProvider"`
+	CloudProvider              blob_storage.BlobStorageType      `json:"cloudProvider"`
 	BlobStorageConfigured      bool                              `json:"blobStorageConfigured"`
 	BlobStorageS3Config        *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
 	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
 	GcpBlobConfig              *blob_storage.GcpBlobConfig       `json:"gcpBlobConfig"`
-	MinioEndpoint              string                            `json:"minioEndpoint"`
 	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
 	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
 	PreCiSteps                 []*bean2.StepObject               `json:"preCiSteps"`
@@ -211,7 +210,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 
 	reqCpu := impl.ciConfig.ReqCpu
 	reqMem := impl.ciConfig.ReqMem
-	ttl := int32(600)
+	ttl := int32(impl.ciConfig.BuildLogTTLValue)
 
 	gcpBlobConfig := workflowRequest.GcpBlobConfig
 	blobStorageS3Config := workflowRequest.BlobStorageS3Config

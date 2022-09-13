@@ -487,7 +487,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 	if string(v1alpha1.NodePending) == ciWorkflow.PodStatus {
 		return bufio.NewReader(strings.NewReader("")), nil, nil
 	}
-	ciLogRequest := CiLogRequest{
+	ciLogRequest := BuildLogRequest{
 		WorkflowName: ciWorkflow.Name,
 		Namespace:    ciWorkflow.Namespace,
 	}
@@ -525,14 +525,10 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 	if strings.Contains(ciWorkflow.LogLocation, "main.log") {
 		logsFilePath = ciWorkflow.LogLocation
 	}
-	ciLogRequest := CiLogRequest{
+	ciLogRequest := BuildLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,
 		WorkflowId:    ciWorkflow.Id,
 		WorkflowName:  ciWorkflow.Name,
-		AccessKey:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
-		SecretKet:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
-		Region:        ciConfig.CiCacheRegion,
-		LogsBucket:    ciConfig.LogsBucket,
 		LogsFilePath:  logsFilePath,
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
@@ -547,6 +543,10 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 			EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
 			BucketName:  ciConfig.LogsBucket,
 			Region:      ciConfig.CiCacheRegion,
+		},
+		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
+			BucketName:             ciConfig.LogsBucket,
+			CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
 		},
 	}
 	oldLogsStream, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
@@ -601,16 +601,21 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		BucketName:  ciConfig.LogsBucket,
 		Region:      ciConfig.CiCacheRegion,
 	}
+	gcpBlobBaseConfig := &blob_storage.GcpBlobBaseConfig{
+		BucketName:             ciConfig.LogsBucket,
+		CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
+	}
 
 	key := fmt.Sprintf("%s/"+impl.ciConfig.CiArtifactLocationFormat, impl.ciConfig.DefaultArtifactKeyPrefix, ciWorkflow.Id, ciWorkflow.Id)
 
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	request := &blob_storage.BlobStorageRequest{
-		StorageType:         getStorageTypeFromProvider(impl.ciConfig.CloudProvider),
+		StorageType:         impl.ciConfig.CloudProvider,
 		SourceKey:           key,
 		DestinationKey:      item,
 		AzureBlobBaseConfig: azureBlobConfig,
 		AwsS3BaseConfig:     awsS3BaseConfig,
+		GcpBlobBaseConfig:   gcpBlobBaseConfig,
 	}
 	_, numBytes, err := blobStorageService.Get(request)
 	if err != nil {
@@ -624,22 +629,6 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		return nil, errors.New("unable to open file")
 	}
 
-	//sess, _ := session.NewSession(&aws.Config{
-	//	Region: aws.String(ciConfig.CiCacheRegion),
-	//	//Credentials: credentials.NewStaticCredentials(ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId, ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey, ""),
-	//})
-	//
-	//downloader := s3manager.NewDownloader(sess)
-	//numBytes, err := downloader.Download(file,
-	//	&s3.GetObjectInput{
-	//		Bucket: aws.String(ciConfig.LogsBucket),
-	//		Key:    aws.String(key),
-	//	})
-	//impl.Logger.Infow("specified key", "key", key)
-	//if err != nil {
-	//	impl.Logger.Errorw("unable to download file from s3", "err", err)
-	//	return nil, err
-	//}
 	impl.Logger.Infow("Downloaded ", "filename", file.Name(), "bytes", numBytes)
 	return file, nil
 }
@@ -661,14 +650,10 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	if ciConfig.LogsBucket == "" {
 		ciConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
 	}
-	ciLogRequest := CiLogRequest{
+	ciLogRequest := BuildLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,
 		WorkflowId:    ciWorkflow.Id,
 		WorkflowName:  ciWorkflow.Name,
-		AccessKey:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
-		SecretKet:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
-		Region:        ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSRegion,
-		LogsBucket:    ciConfig.LogsBucket,
 		LogsFilePath:  ciWorkflow.LogLocation,
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
@@ -684,13 +669,11 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 			BucketName:  ciConfig.LogsBucket,
 			Region:      ciConfig.CiCacheRegion,
 		},
+		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
+			BucketName:             ciConfig.LogsBucket,
+			CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
+		},
 	}
-	//if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
-	//	ciLogRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
-	//	ciLogRequest.AccessKey = impl.ciConfig.MinioAccessKey
-	//	ciLogRequest.SecretKet = impl.ciConfig.MinioSecretKey
-	//	ciLogRequest.Region = impl.ciConfig.MinioRegion
-	//}
 	logsFile, cleanUp, err := impl.ciLogService.FetchLogs(ciLogRequest)
 	logs, err := ioutil.ReadFile(logsFile.Name())
 	if err != nil {
