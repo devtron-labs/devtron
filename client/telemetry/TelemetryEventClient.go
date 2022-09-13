@@ -46,6 +46,7 @@ type TelemetryEventClient interface {
 	SendTelemetryDashboardAccessEvent() error
 	SendTelemetryDashboardLoggedInEvent() error
 	SendGenericTelemetryEvent(eventType string, prop map[string]interface{}) error
+	SendSigtermSummaryEventEA()
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
@@ -122,6 +123,7 @@ const (
 	InstallationApplicationError TelemetryEventType = "InstallationApplicationError"
 	DashboardAccessed            TelemetryEventType = "DashboardAccessed"
 	DashboardLoggedIn            TelemetryEventType = "DashboardLoggedIn"
+	Sigterm                      TelemetryEventType = "Sigterm"
 )
 
 func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool) {
@@ -165,10 +167,20 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	return clusters, users, k8sServerVersion, hostURL, ssoSetup
 }
 
+func (impl *TelemetryEventClientImpl) SendSigtermSummaryEventEA() {
+	var eventType = Sigterm
+	impl.ArgumentedSummaryEventForTelemetryEA(eventType)
+}
+
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
+	var eventType = Summary
+	impl.ArgumentedSummaryEventForTelemetryEA(eventType)
+}
+
+func (impl *TelemetryEventClientImpl) ArgumentedSummaryEventForTelemetryEA(eventType TelemetryEventType) {
 	ucid, err := impl.getUCID()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary for"+string(eventType)+"event", "err", err)
 		return
 	}
 
@@ -179,7 +191,7 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 
 	clusters, users, k8sServerVersion, hostURL, ssoSetup := impl.SummaryDetailsForTelemetry()
 
-	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
+	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: eventType, DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 	payload.HostURL = hostURL
@@ -189,19 +201,19 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
+		impl.logger.Errorw("SummaryEventForTelemetry in", string(eventType)+"event", "payload marshal error", "error", err)
 		return
 	}
 	prop := make(map[string]interface{})
 	err = json.Unmarshal(reqBody, &prop)
 	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, payload unmarshal error", "error", err)
+		impl.logger.Errorw("SummaryEventForTelemetry in", string(eventType)+"event", "payload unmarshal error", "error", err)
 		return
 	}
 
-	err = impl.EnqueuePostHog(ucid, Summary, prop)
+	err = impl.EnqueuePostHog(ucid, eventType, prop)
 	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
+		impl.logger.Errorw("SummaryEventForTelemetry in", string(eventType)+"event", "failed to push event", "ucid", ucid, "error", err)
 	}
 }
 

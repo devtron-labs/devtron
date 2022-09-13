@@ -60,5 +60,5 @@ func (app *App) Start() {
 }
 
 func (app *App) Stop() {
-
+	app.telemetry.SendSigtermSummaryEventEA()
 }

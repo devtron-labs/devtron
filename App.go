@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
@@ -50,6 +51,7 @@ type App struct {
 	// used for local dev only
 	serveTls        bool
 	sessionManager2 *authMiddleware.SessionManager
+	telemetry       *telemetry.TelemetryEventClientImplExtended
 }
 
 func NewApp(router *router.MuxRouter,
@@ -60,6 +62,7 @@ func NewApp(router *router.MuxRouter,
 	db *pg.DB,
 	pubsubClient *pubsub.PubSubClient,
 	sessionManager2 *authMiddleware.SessionManager,
+	telemetry *telemetry.TelemetryEventClientImplExtended,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
@@ -72,6 +75,7 @@ func NewApp(router *router.MuxRouter,
 		pubsubClient:    pubsubClient,
 		serveTls:        false,
 		sessionManager2: sessionManager2,
+		telemetry:       telemetry,
 	}
 	return app
 }
@@ -110,6 +114,7 @@ func (app *App) Start() {
 }
 
 func (app *App) Stop() {
+	app.telemetry.SendSigtermSummaryEvent()
 	app.Logger.Infow("orchestrator shutdown initiating")
 	timeoutContext, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	app.Logger.Infow("closing router")
