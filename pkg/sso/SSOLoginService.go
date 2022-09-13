@@ -38,20 +38,22 @@ type SSOLoginService interface {
 }
 
 type SSOLoginServiceImpl struct {
-	logger             *zap.SugaredLogger
-	ssoLoginRepository SSOLoginRepository
-	K8sUtil            *util.K8sUtil
+	logger              *zap.SugaredLogger
+	ssoLoginRepository  SSOLoginRepository
+	K8sUtil             *util.K8sUtil
+	devtronSecretConfig *argo.DevtronSecretConfig
 }
 
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *util.K8sUtil,
+	K8sUtil *util.K8sUtil, devtronSecretConfig *argo.DevtronSecretConfig,
 ) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
-		logger:             logger,
-		ssoLoginRepository: ssoLoginRepository,
-		K8sUtil:            K8sUtil,
+		logger:              logger,
+		ssoLoginRepository:  ssoLoginRepository,
+		K8sUtil:             K8sUtil,
+		devtronSecretConfig: devtronSecretConfig,
 	}
 	return serviceImpl
 }
@@ -187,7 +189,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 	retryCount := 0
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
-		secret, err := impl.K8sUtil.GetSecret(argo.DEVTRONCD_NAMESPACE, argo.DEVTRON_SECRET, k8sClient)
+		secret, err := impl.K8sUtil.GetSecret(argo.DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 		if err != nil {
 			impl.logger.Errorw("exception in fetching configmap", "error", err)
 			return flag, err
