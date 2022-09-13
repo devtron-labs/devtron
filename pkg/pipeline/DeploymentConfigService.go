@@ -99,12 +99,12 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 		isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
 	}
 	envOverride, err := impl.envConfigOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
-	if err != nil && err != errors.NotFoundf(err.Error()) {
+	if err != nil && !errors.IsNotFound(err) {
 		impl.logger.Errorw("error in getting envConfigOverride by appId and envId", "err", err, "appId", pipeline.App, "envId", pipeline.EnvironmentId)
 		return nil, err
 	}
 	var deploymentTemplateConfig *history.HistoryDetailDto
-	if err != errors.NotFoundf(err.Error()) || !envOverride.IsOverride {
+	if !errors.IsNotFound(err) || !envOverride.IsOverride {
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
 		if err != nil {
 			impl.logger.Errorw("error in getting chart by appId", "err", err, "appId", pipeline.AppId)
