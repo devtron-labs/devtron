@@ -19,6 +19,10 @@ dependencies:
   version: "4.9.4"
   repository: https://argoproj.github.io/argo-helm
   condition: argo-cd.enabled
+- name: security
+  version: "0.x.x"
+  repository: https://helm.devtron.ai
+  condition: security.enabled
 maintainers:
 - email: prakarsh@devtron.ai
   name: Prakarsh
