@@ -88,6 +88,7 @@ type DexConfig struct {
 	UserSessionDurationSeconds int       `env:"USER_SESSION_DURATION_SECONDS" envDefault:"86400"`
 	AdminPasswordMtime         time.Time `json:"ADMIN_PASSWORD_MTIME"`
 	DexConfigRaw               string
+	DevtronSecretName          string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
 }
 
 func (c *DexConfig) getDexProxyUrl() (string, error) {
@@ -125,9 +126,8 @@ func (c *DexConfig) DexOAuth2ClientSecret() string {
 	return base64.URLEncoding.EncodeToString(sha)[:40]
 }
 
-
 func BuildDexConfig(k8sClient *K8sClient) (*DexConfig, error) {
-	dexConfig, err := dexConfigConfigFromEnv()
+	dexConfig, err := DexConfigConfigFromEnv()
 	if err != nil {
 		return nil, err
 	}
@@ -156,7 +156,7 @@ func generateDexClientSecret(serverSecret string) (string, error) {
 	return s, nil
 }
 
-func dexConfigConfigFromEnv() (*DexConfig, error) {
+func DexConfigConfigFromEnv() (*DexConfig, error) {
 	cfg := &DexConfig{}
 	err := env.Parse(cfg)
 	return cfg, err

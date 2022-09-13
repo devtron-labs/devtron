@@ -717,7 +717,7 @@ func InitializeApp() (*App, error) {
 
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
-		argo.GetDevtronSecretName,
+		util2.GetDevtronSecretName,
 		//	AuthWireSet,
 		cron.GetAppStatusConfig,
 		cron.NewCdApplicationStatusUpdateHandlerImpl,

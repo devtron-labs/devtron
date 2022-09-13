@@ -110,11 +110,15 @@ func (impl *K8sClient) GetArgocdConfig() (secret *v1.Secret, cm *v1.ConfigMap, e
 }
 
 func (impl *K8sClient) GetDevtronConfig() (secret *v1.Secret, cm *v1.ConfigMap, err error) {
+	dexConfig, err := DexConfigConfigFromEnv()
+	if err != nil {
+		return nil, nil, err
+	}
 	clientSet, err := kubernetes.NewForConfig(impl.config)
 	if err != nil {
 		return nil, nil, err
 	}
-	secret, err = clientSet.CoreV1().Secrets(DevtronDefaultNamespaceName).Get(context.Background(), DevtronSecretName, v12.GetOptions{})
+	secret, err = clientSet.CoreV1().Secrets(DevtronDefaultNamespaceName).Get(context.Background(), dexConfig.DevtronSecretName, v12.GetOptions{})
 	if err != nil {
 		return nil, nil, err
 	}

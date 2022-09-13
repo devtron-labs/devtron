@@ -134,21 +134,25 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	}
 
 	// if module not enabled in helm for non enterprise-user
-	if isLegacyModule && moduleName != ModuleNameCicd && moduleName != ModuleNameArgoCd {
-		cicdModule, err := impl.moduleRepository.FindOne(ModuleNameCicd)
-		if err != nil {
-			if err == pg.ErrNoRows {
-				return ModuleStatusNotInstalled, nil
-			} else {
-				impl.logger.Errorw("Error in getting cicd module from DB", "err", err)
-				return ModuleStatusNotInstalled, err
+	if isLegacyModule && moduleName != ModuleNameCicd {
+		for _, firstReleaseModuleName := range SupportedModuleNamesListFirstReleaseExcludingCicd {
+			if moduleName != firstReleaseModuleName {
+				cicdModule, err := impl.moduleRepository.FindOne(ModuleNameCicd)
+				if err != nil {
+					if err == pg.ErrNoRows {
+						return ModuleStatusNotInstalled, nil
+					} else {
+						impl.logger.Errorw("Error in getting cicd module from DB", "err", err)
+						return ModuleStatusNotInstalled, err
+					}
+				}
+				cicdVersion := cicdModule.Version
+				// if cicd was installed and any module/integration comes after that then mark that module installed only if cicd was installed before that module introduction
+				if len(baseMinVersionSupported) > 0 && cicdVersion < baseMinVersionSupported {
+					return impl.saveModuleAsInstalled(moduleName)
+				}
+				break
 			}
-		}
-		cicdVersion := cicdModule.Version
-		// if cicd was installed on or before our integration release (v0.5.3) then assume all futuristic legacy module as installed
-		// if cicd was installed after integration release (v0.5.3) and any module/integration comes after that then mark that module installed only if cicd was installed before that module introduction
-		if cicdVersion <= LegacyModuleSupportAssumptionCicdModuleVersion || (len(baseMinVersionSupported) > 0 && cicdVersion < baseMinVersionSupported) {
-			return impl.saveModuleAsInstalled(moduleName)
 		}
 	}
 

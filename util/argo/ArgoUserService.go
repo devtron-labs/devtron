@@ -2,17 +2,16 @@ package argo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/caarlos0/env"
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -49,7 +48,7 @@ type ArgoUserServiceImpl struct {
 	logger              *zap.SugaredLogger
 	clusterService      cluster.ClusterService
 	acdSettings         *settings.ArgoCDSettings
-	devtronSecretConfig *DevtronSecretConfig
+	devtronSecretConfig *util2.DevtronSecretConfig
 	runTimeConfig       *client.RuntimeConfig
 	gitOpsRepository    repository.GitOpsConfigRepository
 }
@@ -57,7 +56,7 @@ type ArgoUserServiceImpl struct {
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	acdSettings *settings.ArgoCDSettings,
-	devtronSecretConfig *DevtronSecretConfig,
+	devtronSecretConfig *util2.DevtronSecretConfig,
 	runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:              Logger,
@@ -71,19 +70,6 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail()
 	}
 	return argoUserServiceImpl, nil
-}
-
-type DevtronSecretConfig struct {
-	DevtronSecretName string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
-}
-
-func GetDevtronSecretName() (*DevtronSecretConfig, error) {
-	secretConfig := &DevtronSecretConfig{}
-	err := env.Parse(secretConfig)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("could not get devtron secret name from environment : %v", err))
-	}
-	return secretConfig, err
 }
 
 func (impl *ArgoUserServiceImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string {
