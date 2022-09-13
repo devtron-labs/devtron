@@ -161,7 +161,7 @@ argo-cd:
   # argocd-dex-server
   dex:
     enabled: false
-
+  
   redis:
     affinity:
       podAntiAffinity:
@@ -178,7 +178,7 @@ argo-cd:
                 app.kubernetes.io/part-of: argocd
             topologyKey: kubernetes.io/hostname
           weight: 5
-
+    
   server:
     configEnabled: false
     affinity:
@@ -246,3 +246,9 @@ argo-cd:
     enabled: false
   notifications:
     enabled: false
+
+security:
+  enabled: false
+  clair:
+    enabled: false
+    fullnameOverride: clair
