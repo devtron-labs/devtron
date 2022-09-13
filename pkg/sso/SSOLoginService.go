@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
@@ -41,14 +42,13 @@ type SSOLoginServiceImpl struct {
 	logger              *zap.SugaredLogger
 	ssoLoginRepository  SSOLoginRepository
 	K8sUtil             *util.K8sUtil
-	devtronSecretConfig *argo.DevtronSecretConfig
+	devtronSecretConfig *util2.DevtronSecretConfig
 }
 
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *util.K8sUtil, devtronSecretConfig *argo.DevtronSecretConfig,
-) *SSOLoginServiceImpl {
+	K8sUtil *util.K8sUtil, devtronSecretConfig *util2.DevtronSecretConfig) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		logger:              logger,
 		ssoLoginRepository:  ssoLoginRepository,
