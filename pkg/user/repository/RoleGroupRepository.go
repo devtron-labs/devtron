@@ -211,7 +211,7 @@ func (impl RoleGroupRepositoryImpl) GetRolesByGroupNames(groupNames []string) ([
 	_, err := impl.dbConnection.Query(&roleModels, query, pg.In(groupNames))
 
 	if err != nil {
-		impl.Logger.Error("error in getting roles by group names", "err", err, "groupNames", groupNames)
+		impl.Logger.Errorw("error in getting roles by group names", "err", err, "groupNames", groupNames)
 		return roleModels, err
 	}
 	return roleModels, nil
