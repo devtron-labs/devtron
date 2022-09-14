@@ -63,10 +63,12 @@ const (
 )
 
 const (
-	ModuleNameCicd          ModuleName = "cicd"
-	ModuleNameArgoCd        ModuleName = "argo-cd"
-	ModuleNameSecurityClair ModuleName = "security.clair"
-	ModuleNameNotification  ModuleName = "notifier"
+	ModuleNameCicd              ModuleName = "cicd"
+	ModuleNameArgoCd            ModuleName = "argo-cd"
+	ModuleNameSecurityClair     ModuleName = "security.clair"
+	ModuleNameNotification      ModuleName = "notifier"
+	ModuleNameExternalSecret    ModuleName = "eso"
+	ModuleNameMonitoringGrafana ModuleName = "monitoring.grafana"
 )
 
-var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair}
+var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair, ModuleNameNotification, ModuleNameExternalSecret, ModuleNameMonitoringGrafana}
