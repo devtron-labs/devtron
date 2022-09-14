@@ -284,18 +284,35 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
 		isAuthorised = true
 	}
-	//getting all projects
-	teams, err := handler.teamRepository.FindAllActive()
-	if err != nil {
-		handler.logger.Errorw("error in getting all active teams", "err", err)
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-		return
-	}
-	for _, team := range teams {
-		//checking if user has manager access to atleast one team, if yes then the user is authorised
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, strings.ToLower(team.Name)); ok {
-			isAuthorised = true
-			break
+	if !isAuthorised {
+		user, err := handler.userService.GetById(userId)
+		if err != nil {
+			handler.logger.Errorw("error in getting user by id", "err", err)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return
+		}
+		groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+		if err != nil {
+			handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return
+		}
+		var roleFilters []bean.RoleFilter
+		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
+			roleFilters = append(roleFilters, user.RoleFilters...)
+		}
+		if len(groupRoleFilters) > 0 {
+			roleFilters = append(roleFilters, groupRoleFilters...)
+		}
+		if len(roleFilters) > 0 {
+			for _, filter := range user.RoleFilters {
+				if len(filter.Team) > 0 {
+					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); ok {
+						isAuthorised = true
+						break
+					}
+				}
+			}
 		}
 	}
 	if !isAuthorised {
