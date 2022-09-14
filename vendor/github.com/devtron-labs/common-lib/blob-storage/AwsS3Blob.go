@@ -43,7 +43,7 @@ func (impl *AwsS3Blob) DownloadBlob(request *BlobStorageRequest, downloadSuccess
 
 	if s3BaseConfig.EndpointUrl != "" { // to handle s3 compatible storage
 		awsCfg.Endpoint = aws.String(s3BaseConfig.EndpointUrl)
-		awsCfg.DisableSSL = aws.Bool(true)
+		awsCfg.DisableSSL = aws.Bool(s3BaseConfig.IsInSecure)
 		awsCfg.S3ForcePathStyle = aws.Bool(true)
 	}
 	sess := session.Must(session.NewSession(awsCfg))

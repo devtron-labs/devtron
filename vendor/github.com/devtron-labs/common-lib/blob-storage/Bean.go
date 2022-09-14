@@ -13,6 +13,7 @@ type BlobStorageS3Config struct {
 	AccessKey            string `json:"accessKey"`
 	Passkey              string `json:"passkey"`
 	EndpointUrl          string `json:"endpointUrl"`
+	IsInSecure           bool   `json:"isInSecure"`
 	CiLogBucketName      string `json:"ciLogBucketName"`
 	CiLogRegion          string `json:"ciLogRegion"`
 	CiCacheBucketName    string `json:"ciCacheBucketName"`
@@ -25,6 +26,7 @@ type AwsS3BaseConfig struct {
 	AccessKey   string `json:"accessKey"`
 	Passkey     string `json:"passkey"`
 	EndpointUrl string `json:"endpointUrl"`
+	IsInSecure  bool   `json:"isInSecure"`
 	BucketName  string `json:"bucketName"`
 	Region      string `json:"region"`
 }

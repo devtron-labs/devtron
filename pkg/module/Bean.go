@@ -32,7 +32,7 @@ type ModuleConfigDto struct {
 }
 
 type BlobStorageConfig struct {
-	Enabled bool `env:"BLOB_STORAGE_ENABLED" envDefault:"true"`
+	Enabled bool `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
 }
 
 type ModuleActionRequestDto struct {

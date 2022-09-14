@@ -54,10 +54,11 @@ type CdConfig struct {
 	ClusterConfig                  *rest.Config
 	NodeLabel                      map[string]string
 	CloudProvider                  blob_storage.BlobStorageType `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
-	BlobStorageEnabled             bool                         `env:"BLOB_STORAGE_ENABLED" envDefault:"true"` //TODO set false from inception for new customers
+	BlobStorageEnabled             bool                         `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
 	BlobStorageS3AccessKey         string                       `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
 	BlobStorageS3SecretKey         string                       `env:"BLOB_STORAGE_S3_SECRET_KEY"`
 	BlobStorageS3Endpoint          string                       `env:"BLOB_STORAGE_S3_ENDPOINT"`
+	BlobStorageS3EndpointInsecure  bool                         `env:"BLOB_STORAGE_S3_ENDPOINT_INSECURE" envDefault:"false"`
 	BlobStorageGcpCredentialJson   string                       `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
 	AzureAccountName               string                       `env:"AZURE_ACCOUNT_NAME"`
 	AzureGatewayUrl                string                       `env:"AZURE_GATEWAY_URL" envDefault:"devtron-minio.devtroncd:9000"`

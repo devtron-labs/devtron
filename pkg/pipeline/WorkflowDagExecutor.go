@@ -639,6 +639,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			AccessKey:            impl.cdConfig.BlobStorageS3AccessKey,
 			Passkey:              impl.cdConfig.BlobStorageS3SecretKey,
 			EndpointUrl:          impl.cdConfig.BlobStorageS3Endpoint,
+			IsInSecure:           impl.cdConfig.BlobStorageS3EndpointInsecure,
 			CiCacheBucketName:    cdWorkflowConfig.CdCacheBucket,
 			CiCacheRegion:        cdWorkflowConfig.CdCacheRegion,
 			CiArtifactBucketName: cdStageWorkflowRequest.ArtifactBucket,
@@ -665,6 +666,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		}
 		cdStageWorkflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
 			EndpointUrl:     impl.cdConfig.AzureGatewayUrl,
+			IsInSecure:      impl.cdConfig.AzureGatewayConnectionInsecure,
 			CiLogBucketName: impl.cdConfig.AzureBlobContainerCiLog,
 			CiLogRegion:     impl.cdConfig.DefaultCdLogsBucketRegion,
 		}

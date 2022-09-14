@@ -441,6 +441,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			AccessKey:            impl.ciConfig.BlobStorageS3AccessKey,
 			Passkey:              impl.ciConfig.BlobStorageS3SecretKey,
 			EndpointUrl:          impl.ciConfig.BlobStorageS3Endpoint,
+			IsInSecure:           impl.ciConfig.BlobStorageS3EndpointInsecure,
 			CiCacheBucketName:    ciWorkflowConfig.CiCacheBucket,
 			CiCacheRegion:        ciWorkflowConfig.CiCacheRegion,
 			CiArtifactBucketName: workflowRequest.CiArtifactBucket,
@@ -468,6 +469,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		}
 		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
 			EndpointUrl:     impl.ciConfig.AzureGatewayUrl,
+			IsInSecure:      impl.ciConfig.AzureGatewayConnectionInsecure,
 			CiLogBucketName: impl.ciConfig.AzureBlobContainerCiLog,
 			CiLogRegion:     impl.ciConfig.DefaultCacheBucketRegion,
 		}

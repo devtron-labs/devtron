@@ -64,16 +64,13 @@ type CiConfig struct {
 	AzureGatewayConnectionInsecure bool                         `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
 	AzureBlobContainerCiLog        string                       `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
 	AzureBlobContainerCiCache      string                       `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
-	MinioEndpoint                  string                       `env:"MINIO_ENDPOINT"`
-	MinioAccessKey                 string                       `env:"MINIO_ACCESS_KEY"`
-	MinioSecretKey                 string                       `env:"MINIO_SECRET_KEY"`
-	MinioRegion                    string                       `env:"MINIO_REGION" envDefault:"us-west-2"`
 	DefaultAddressPoolBaseCidr     string                       `env:"CI_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
 	DefaultAddressPoolSize         int                          `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
-	BlobStorageEnabled             bool                         `env:"BLOB_STORAGE_ENABLED" envDefault:"true"` //TODO set false from inception for new customers
+	BlobStorageEnabled             bool                         `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
 	BlobStorageS3AccessKey         string                       `env:"BLOB_STORAGE_S3_ACCESS_KEY"`
 	BlobStorageS3SecretKey         string                       `env:"BLOB_STORAGE_S3_SECRET_KEY"`
 	BlobStorageS3Endpoint          string                       `env:"BLOB_STORAGE_S3_ENDPOINT"`
+	BlobStorageS3EndpointInsecure  bool                         `env:"BLOB_STORAGE_S3_ENDPOINT_INSECURE" envDefault:"false"`
 	BlobStorageGcpCredentialJson   string                       `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
 	BuildLogTTLValue               int                          `json:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
 	AzureAccountKey                string                       `env:"AZURE_ACCOUNT_KEY"`
