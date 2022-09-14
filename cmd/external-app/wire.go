@@ -136,6 +136,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(attributes.UserAttributesService), new(*attributes.UserAttributesServiceImpl)),
 		repository.NewUserAttributesRepositoryImpl,
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
+
+		util3.GetDevtronSecretName,
 	)
 	return &App{}, nil
 }
