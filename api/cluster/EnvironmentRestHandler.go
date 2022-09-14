@@ -86,7 +86,7 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 }
 
 func (impl EnvironmentRestHandlerImpl) validateNamespace(namespace string) bool {
-	hostnameRegexString := `^$|^[a-z]+[a-z0-9\-\?]*[a-z0-9]+$`
+	hostnameRegexString := `^$|^[a-z0-9\-\?\_]*[a-z0-9]+$`
 	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
 	return hostnameRegexRFC952.MatchString(namespace)
 }
