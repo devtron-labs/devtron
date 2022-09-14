@@ -694,7 +694,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	}
 	envOverride := &chartConfig.EnvConfigOverride{}
 	var appMetrics *bool
-	var strategy *chartConfig.PipelineStrategy
+	strategy := &chartConfig.PipelineStrategy{}
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LATEST_TRIGGER {
 		//in case of deployment with the latest trigger, getting latest wfr and updating deployment with config type
 		//because latest trigger is also a specific trigger
