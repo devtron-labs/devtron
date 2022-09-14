@@ -207,7 +207,7 @@ func (impl RoleGroupRepositoryImpl) GetRolesByGroupNames(groupNames []string) ([
 	query := "SELECT r.* from roles r" +
 		" INNER JOIN role_group_role_mapping rgm on rgm.role_id=r.id" +
 		" INNER JOIN role_group rg on rg.id=rgm.role_group_id" +
-		" WHERE rg.name in ?;"
+		" WHERE rg.name in (?);"
 	_, err := impl.dbConnection.Query(&roleModels, query, pg.In(groupNames))
 
 	if err != nil {
