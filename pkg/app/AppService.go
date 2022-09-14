@@ -111,7 +111,7 @@ type AppServiceImpl struct {
 	chartService                     chart.ChartService
 	argoUserService                  argo.ArgoUserService
 	cdPipelineStatusTimelineRepo     pipelineConfig.PipelineStatusTimelineRepository
-	appLabelService                  AppLabelService
+	appLabelService                  AppCrudOperationService
 }
 
 type AppService interface {
@@ -157,7 +157,7 @@ func NewAppService(
 	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	appLabelService AppLabelService) *AppServiceImpl {
+	appLabelService AppCrudOperationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,

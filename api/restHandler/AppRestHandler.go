@@ -41,19 +41,19 @@ type AppRestHandlerHandler interface {
 
 type AppRestHandlerImpl struct {
 	logger          *zap.SugaredLogger
-	appLabelService app.AppLabelService
+	appService      app.AppCrudOperationService
 	userAuthService user.UserService
 	validator       *validator.Validate
 	enforcerUtil    rbac.EnforcerUtil
 	enforcer        casbin.Enforcer
 }
 
-func NewAppRestHandlerImpl(logger *zap.SugaredLogger, appLabelService app.AppLabelService,
+func NewAppRestHandlerImpl(logger *zap.SugaredLogger, appService app.AppCrudOperationService,
 	userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
 	enforcer casbin.Enforcer) *AppRestHandlerImpl {
 	handler := &AppRestHandlerImpl{
 		logger:          logger,
-		appLabelService: appLabelService,
+		appService:      appService,
 		userAuthService: userAuthService,
 		validator:       validator,
 		enforcerUtil:    enforcerUtil,
@@ -70,7 +70,7 @@ func (handler AppRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *http.Re
 	}
 	token := r.Header.Get("token")
 	results := make([]*bean.AppLabelDto, 0)
-	labels, err := handler.appLabelService.FindAll()
+	labels, err := handler.appService.FindAll()
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllLabels", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -109,7 +109,7 @@ func (handler AppRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.
 	}
 	//rback implementation ends here
 
-	res, err := handler.appLabelService.GetAppMetaInfo(appId)
+	res, err := handler.appService.GetAppMetaInfo(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -151,7 +151,7 @@ func (handler AppRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Reque
 	}
 	//rbac implementation ends here
 
-	res, err := handler.appLabelService.UpdateApp(&request)
+	res, err := handler.appService.UpdateApp(&request)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateApp", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -195,7 +195,7 @@ func (handler AppRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter, r 
 	}
 	//rbac implementation ends here
 
-	res, err := handler.appLabelService.UpdateProjectForApps(&request)
+	res, err := handler.appService.UpdateProjectForApps(&request)
 	if err != nil {
 		handler.logger.Errorw("service err, ProjectChange", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

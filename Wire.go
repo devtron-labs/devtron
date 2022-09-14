@@ -649,8 +649,8 @@ func InitializeApp() (*App, error) {
 		restHandler.NewAppRestHandlerImpl,
 		wire.Bind(new(restHandler.AppRestHandlerHandler), new(*restHandler.AppRestHandlerImpl)),
 
-		app.NewAppLabelServiceImpl,
-		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
+		app.NewAppCrudOperationServiceImpl,
+		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 

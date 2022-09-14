@@ -86,27 +86,27 @@ type MuxRouter struct {
 	imageScanRouter                    ImageScanRouter
 	policyRouter                       PolicyRouter
 	gitOpsConfigRouter                 GitOpsConfigRouter
-	dashboardRouter          dashboard.DashboardRouter
-	attributesRouter         AttributesRouter
-	userAttributesRouter     UserAttributesRouter
-	commonRouter             CommonRouter
-	grafanaRouter            GrafanaRouter
-	ssoLoginRouter           sso.SsoLoginRouter
-	telemetryRouter          TelemetryRouter
-	telemetryWatcher         telemetry.TelemetryEventClient
-	bulkUpdateRouter         BulkUpdateRouter
-	WebhookListenerRouter    WebhookListenerRouter
-	appLabelsRouter          AppRouter
-	coreAppRouter            CoreAppRouter
-	helmAppRouter            client.HelmAppRouter
-	k8sApplicationRouter     k8s.K8sApplicationRouter
-	pProfRouter              PProfRouter
-	deploymentConfigRouter   deployment.DeploymentConfigRouter
-	dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter
-	commonDeploymentRouter   appStoreDeployment.CommonDeploymentRouter
-	globalPluginRouter       GlobalPluginRouter
-	externalLinkRouter       externalLink.ExternalLinkRouter
-	moduleRouter             module.ModuleRouter
+	dashboardRouter                    dashboard.DashboardRouter
+	attributesRouter                   AttributesRouter
+	userAttributesRouter               UserAttributesRouter
+	commonRouter                       CommonRouter
+	grafanaRouter                      GrafanaRouter
+	ssoLoginRouter                     sso.SsoLoginRouter
+	telemetryRouter                    TelemetryRouter
+	telemetryWatcher                   telemetry.TelemetryEventClient
+	bulkUpdateRouter                   BulkUpdateRouter
+	WebhookListenerRouter              WebhookListenerRouter
+	appRouter                          AppRouter
+	coreAppRouter                      CoreAppRouter
+	helmAppRouter                      client.HelmAppRouter
+	k8sApplicationRouter               k8s.K8sApplicationRouter
+	pProfRouter                        PProfRouter
+	deploymentConfigRouter             deployment.DeploymentConfigRouter
+	dashboardTelemetryRouter           dashboardEvent.DashboardTelemetryRouter
+	commonDeploymentRouter             appStoreDeployment.CommonDeploymentRouter
+	globalPluginRouter                 GlobalPluginRouter
+	externalLinkRouter                 externalLink.ExternalLinkRouter
+	moduleRouter                       module.ModuleRouter
 	serverRouter                       server.ServerRouter
 	apiTokenRouter                     apiToken.ApiTokenRouter
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
@@ -131,7 +131,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
 	policyRouter PolicyRouter, gitOpsConfigRouter GitOpsConfigRouter, dashboardRouter dashboard.DashboardRouter, attributesRouter AttributesRouter, userAttributesRouter UserAttributesRouter,
-	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appLabelsRouter AppRouter,
+	commonRouter CommonRouter, grafanaRouter GrafanaRouter, ssoLoginRouter sso.SsoLoginRouter, telemetryRouter TelemetryRouter, telemetryWatcher telemetry.TelemetryEventClient, bulkUpdateRouter BulkUpdateRouter, webhookListenerRouter WebhookListenerRouter, appRouter AppRouter,
 	coreAppRouter CoreAppRouter, helmAppRouter client.HelmAppRouter, k8sApplicationRouter k8s.K8sApplicationRouter,
 	pProfRouter PProfRouter, deploymentConfigRouter deployment.DeploymentConfigRouter, dashboardTelemetryRouter dashboardEvent.DashboardTelemetryRouter,
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
@@ -185,7 +185,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConf
 		telemetryWatcher:                   telemetryWatcher,
 		bulkUpdateRouter:                   bulkUpdateRouter,
 		WebhookListenerRouter:              webhookListenerRouter,
-		appLabelsRouter:                    appLabelsRouter,
+		appRouter:                          appRouter,
 		coreAppRouter:                      coreAppRouter,
 		helmAppRouter:                      helmAppRouter,
 		k8sApplicationRouter:               k8sApplicationRouter,
@@ -247,7 +247,7 @@ func (r MuxRouter) Init() {
 	r.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)
 	r.AppListingRouter.initAppListingRouter(pipelineConfigRouter)
 	r.HelmRouter.initHelmRouter(pipelineConfigRouter)
-	r.appLabelsRouter.initAppRouter(pipelineConfigRouter)
+	r.appRouter.initAppRouter(pipelineConfigRouter)
 
 	migrateRouter := r.Router.PathPrefix("/orchestrator/migrate").Subrouter()
 	r.MigrateDbRouter.InitMigrateDbRouter(migrateRouter)

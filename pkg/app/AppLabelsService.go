@@ -29,7 +29,7 @@ import (
 	"time"
 )
 
-type AppLabelService interface {
+type AppCrudOperationService interface {
 	Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error)
 	FindById(id int) (*bean.AppLabelDto, error)
 	FindAll() ([]*bean.AppLabelDto, error)
@@ -38,16 +38,16 @@ type AppLabelService interface {
 	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
 }
-type AppLabelServiceImpl struct {
+type AppCrudOperationServiceImpl struct {
 	logger             *zap.SugaredLogger
 	appLabelRepository pipelineConfig.AppLabelRepository
 	appRepository      app.AppRepository
 	userRepository     repository.UserRepository
 }
 
-func NewAppLabelServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository) *AppLabelServiceImpl {
-	return &AppLabelServiceImpl{
+func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
+	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository) *AppCrudOperationServiceImpl {
+	return &AppCrudOperationServiceImpl{
 		appLabelRepository: appLabelRepository,
 		logger:             logger,
 		appRepository:      appRepository,
@@ -55,7 +55,7 @@ func NewAppLabelServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository
 	}
 }
 
-func (impl AppLabelServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -93,7 +93,7 @@ func (impl AppLabelServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.Cre
 	return nil, nil
 }
 
-func (impl AppLabelServiceImpl) UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error) {
+func (impl AppCrudOperationServiceImpl) UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error) {
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -124,7 +124,7 @@ func (impl AppLabelServiceImpl) UpdateProjectForApps(request *bean.UpdateProject
 	return nil, nil
 }
 
-func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error) {
+func (impl AppCrudOperationServiceImpl) Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error) {
 	_, err := impl.appLabelRepository.FindByAppIdAndKeyAndValue(request.AppId, request.Key, request.Value)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app label", "error", err)
@@ -151,7 +151,7 @@ func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto, tx *pg.Tx) (*b
 	return request, nil
 }
 
-func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.CreateAppDTO, tx *pg.Tx) (*bean.CreateAppDTO, error) {
+func (impl AppCrudOperationServiceImpl) UpdateLabelsInApp(request *bean.CreateAppDTO, tx *pg.Tx) (*bean.CreateAppDTO, error) {
 	appLabels, err := impl.appLabelRepository.FindAllByAppId(request.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app label", "error", err)
@@ -198,7 +198,7 @@ func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.CreateAppDTO, tx
 	return request, nil
 }
 
-func (impl AppLabelServiceImpl) FindById(id int) (*bean.AppLabelDto, error) {
+func (impl AppCrudOperationServiceImpl) FindById(id int) (*bean.AppLabelDto, error) {
 	model, err := impl.appLabelRepository.FindById(id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app labels", "error", err)
@@ -215,7 +215,7 @@ func (impl AppLabelServiceImpl) FindById(id int) (*bean.AppLabelDto, error) {
 	return label, nil
 }
 
-func (impl AppLabelServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
+func (impl AppCrudOperationServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 	results := make([]*bean.AppLabelDto, 0)
 	models, err := impl.appLabelRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
@@ -236,7 +236,7 @@ func (impl AppLabelServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 	return results, nil
 }
 
-func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error) {
+func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error) {
 	app, err := impl.appRepository.FindAppAndProjectByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching GetAppMetaInfo", "error", err)
@@ -285,7 +285,7 @@ func (impl AppLabelServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto,
 	}
 	return info, nil
 }
-func (impl AppLabelServiceImpl) GetLabelsByAppIdForDeployment(appId int) ([]byte, error) {
+func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int) ([]byte, error) {
 	appLabelJson := &bean.AppLabelsJsonForDeployment{}
 	labels, err := impl.appLabelRepository.FindAllByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {

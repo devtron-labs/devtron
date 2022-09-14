@@ -72,7 +72,7 @@ type CoreAppRestHandlerImpl struct {
 	validator               *validator.Validate
 	enforcerUtil            rbac.EnforcerUtil
 	enforcer                casbin.Enforcer
-	appLabelService         app.AppLabelService
+	appLabelService         app.AppCrudOperationService
 	pipelineBuilder         pipeline.PipelineBuilder
 	gitRegistryService      pipeline.GitRegistryConfig
 	chartService            chart.ChartService
@@ -92,7 +92,7 @@ type CoreAppRestHandlerImpl struct {
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
-	enforcer casbin.Enforcer, appLabelService app.AppLabelService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
+	enforcer casbin.Enforcer, appLabelService app.AppCrudOperationService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
 	chartService chart.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
