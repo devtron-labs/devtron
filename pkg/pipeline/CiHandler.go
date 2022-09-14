@@ -521,7 +521,7 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 	if ciConfig.CiCacheRegion == "" {
 		ciConfig.CiCacheRegion = impl.ciConfig.DefaultCacheBucketRegion
 	}
-	logsFilePath := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log"
+	logsFilePath := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + ciWorkflow.Name + "/main.log" // this is for backward compatibilty
 	if strings.Contains(ciWorkflow.LogLocation, "main.log") {
 		logsFilePath = ciWorkflow.LogLocation
 	}
