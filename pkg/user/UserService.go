@@ -53,6 +53,7 @@ type UserService interface {
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 	UserExists(emailId string) bool
 	UpdateTriggerPolicyForTerminalAccess() (err error)
+	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
 }
 
 type UserServiceImpl struct {
@@ -1118,7 +1119,7 @@ func (impl UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 	return true, nil
 }
 
-//Deprecated
+// Deprecated
 func (impl UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isSuperAdmin := false
@@ -1190,4 +1191,51 @@ func (impl UserServiceImpl) checkGroupAuth(groupName string, token string, manag
 		}
 	}
 	return hasAccessToGroup
+}
+
+func (impl UserServiceImpl) GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error) {
+	roles, err := impl.roleGroupRepository.GetRolesByGroupNames(groupNames)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting roles by group names", "err", err)
+		return nil, err
+	}
+	var roleFilters []bean.RoleFilter
+	roleFilterMap := make(map[string]*bean.RoleFilter)
+	for _, role := range roles {
+		key := ""
+		if len(role.Team) > 0 {
+			key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
+		} else if len(role.Entity) > 0 {
+			key = fmt.Sprintf("%s_%s_%s", role.Entity, role.Action)
+		}
+		if _, ok := roleFilterMap[key]; ok {
+			envArr := strings.Split(roleFilterMap[key].Environment, ",")
+			if containsArr(envArr, AllEnvironment) {
+				roleFilterMap[key].Environment = AllEnvironment
+			} else if !containsArr(envArr, role.Environment) {
+				roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
+			}
+			entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
+			if !containsArr(entityArr, role.EntityName) {
+				roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
+			}
+		} else {
+			roleFilterMap[key] = &bean.RoleFilter{
+				Entity:      role.Entity,
+				Team:        role.Team,
+				Environment: role.Environment,
+				EntityName:  role.EntityName,
+				Action:      role.Action,
+				AccessType:  role.AccessType,
+			}
+
+		}
+	}
+	for _, v := range roleFilterMap {
+		if v.Action == "super-admin" {
+			continue
+		}
+		roleFilters = append(roleFilters, *v)
+	}
+	return roleFilters, nil
 }
