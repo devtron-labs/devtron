@@ -121,7 +121,9 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 		impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
 		return ModuleStatusNotInstalled, err
 	}
-	isLegacyModule := gjson.Get(string(moduleMetaData), "result.isIncludedInLegacyFullPackage").Bool()
+	moduleMetaDataStr := string(moduleMetaData)
+	isLegacyModule := gjson.Get(moduleMetaDataStr, "result.isIncludedInLegacyFullPackage").Bool()
+	baseMinVersionSupported := gjson.Get(moduleMetaDataStr, "result.baseMinVersionSupported").String()
 
 	// for enterprise user
 	if impl.serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeEnterprise {
@@ -144,19 +146,25 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	}
 
 	// if module not enabled in helm for non enterprise-user
-	if isLegacyModule && moduleName != ModuleNameCicd && moduleName != ModuleNameArgoCd {
-		cicdModule, err := impl.moduleRepository.FindOne(ModuleNameCicd)
-		if err != nil {
-			if err == pg.ErrNoRows {
-				return ModuleStatusNotInstalled, nil
-			} else {
-				impl.logger.Errorw("Error in getting cicd module from DB", "err", err)
-				return ModuleStatusNotInstalled, err
+	if isLegacyModule && moduleName != ModuleNameCicd {
+		for _, firstReleaseModuleName := range SupportedModuleNamesListFirstReleaseExcludingCicd {
+			if moduleName != firstReleaseModuleName {
+				cicdModule, err := impl.moduleRepository.FindOne(ModuleNameCicd)
+				if err != nil {
+					if err == pg.ErrNoRows {
+						return ModuleStatusNotInstalled, nil
+					} else {
+						impl.logger.Errorw("Error in getting cicd module from DB", "err", err)
+						return ModuleStatusNotInstalled, err
+					}
+				}
+				cicdVersion := cicdModule.Version
+				// if cicd was installed and any module/integration comes after that then mark that module installed only if cicd was installed before that module introduction
+				if len(baseMinVersionSupported) > 0 && cicdVersion < baseMinVersionSupported {
+					return impl.saveModuleAsInstalled(moduleName)
+				}
+				break
 			}
-		}
-		cicdVersion := cicdModule.Version
-		if cicdVersion <= LegacyModuleSupportAssumptionCicdModuleVersion {
-			return impl.saveModuleAsInstalled(moduleName)
 		}
 	}
 
@@ -245,10 +253,16 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 		impl.logger.Errorw("error in getting modules with installed status ", "err", err)
 		return nil, err
 	}
-	extraValues[moduleUtil.BuildModuleEnableKey(moduleName)] = true
+	moduleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(moduleName)
+	for _, moduleEnableKey := range moduleEnableKeys {
+		extraValues[moduleEnableKey] = true
+	}
 	for _, alreadyInstalledModuleName := range alreadyInstalledModuleNames {
 		if alreadyInstalledModuleName != moduleName {
-			extraValues[moduleUtil.BuildModuleEnableKey(alreadyInstalledModuleName)] = true
+			alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(alreadyInstalledModuleName)
+			for _, alreadyInstalledModuleEnableKey := range alreadyInstalledModuleEnableKeys {
+				extraValues[alreadyInstalledModuleEnableKey] = true
+			}
 		}
 	}
 	extraValuesYamlUrl := util2.BuildDevtronBomUrl(impl.serverEnvConfig.DevtronBomUrl, moduleActionRequest.Version)

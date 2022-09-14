@@ -14,7 +14,7 @@ require (
 	github.com/casbin/xorm-adapter v1.0.1-0.20190716004226-a317737a1007
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
-	github.com/devtron-labs/authenticator v0.4.31-0.20220713060637-8fe220e198c5
+	github.com/devtron-labs/authenticator v0.4.31-0.20220913121257-aecda79359cc
 	github.com/devtron-labs/common-lib v0.0.0-20220914072638-3809a50e4b03
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32

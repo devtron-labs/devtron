@@ -2,17 +2,16 @@ package argo
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/caarlos0/env"
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"golang.org/x/crypto/bcrypt"
@@ -35,17 +34,21 @@ const (
 	DEVTRON_ARGOCD_USERNAME_KEY      = "DEVTRON_ACD_USER_NAME"
 	DEVTRON_ARGOCD_USER_PASSWORD_KEY = "DEVTRON_ACD_USER_PASSWORD"
 	DEVTRON_ARGOCD_TOKEN_KEY         = "DEVTRON_ACD_TOKEN"
+	DEVTRON_CM                       = "devtron-cm"
+	DEVTRON_SECRET                   = "devtron-secret"
 )
 
 type ArgoUserService interface {
 	GetLatestDevtronArgoCdUserToken() (string, error)
-	UpdateArgoCdUserDetail()
+	ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string
+	GetOrUpdateArgoCdUserDetail() string
 }
+
 type ArgoUserServiceImpl struct {
 	logger              *zap.SugaredLogger
 	clusterService      cluster.ClusterService
 	acdSettings         *settings.ArgoCDSettings
-	devtronSecretConfig *DevtronSecretConfig
+	devtronSecretConfig *util2.DevtronSecretConfig
 	runTimeConfig       *client.RuntimeConfig
 	gitOpsRepository    repository.GitOpsConfigRepository
 }
@@ -53,7 +56,7 @@ type ArgoUserServiceImpl struct {
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	acdSettings *settings.ArgoCDSettings,
-	devtronSecretConfig *DevtronSecretConfig,
+	devtronSecretConfig *util2.DevtronSecretConfig,
 	runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:              Logger,
@@ -64,40 +67,21 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 		gitOpsRepository:    gitOpsRepository,
 	}
 	if !runTimeConfig.LocalDevMode {
-		go argoUserServiceImpl.UpdateArgoCdUserDetail()
+		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail()
 	}
 	return argoUserServiceImpl, nil
 }
 
-type DevtronSecretConfig struct {
-	DevtronSecretName string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
+func (impl *ArgoUserServiceImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() string {
+	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
+	if err != nil || !isGitOpsConfigured {
+		return ""
+	}
+	return impl.GetOrUpdateArgoCdUserDetail()
 }
 
-func GetDevtronSecretName() (*DevtronSecretConfig, error) {
-	secretConfig := &DevtronSecretConfig{}
-	err := env.Parse(secretConfig)
-	if err != nil {
-		return nil, errors.New(fmt.Sprintf("could not get devtron secret name from environment : %v", err))
-	}
-	return secretConfig, err
-}
-
-func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() {
-
-	isGitOpsConfigured := false
-	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
-		return
-	}
-	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
-		isGitOpsConfigured = true
-	}
-	if !isGitOpsConfigured {
-		//TODO FIX - CHECK INTEGRATION AVAILABLE OR NOT
-		return
-	}
-
+func (impl *ArgoUserServiceImpl) GetOrUpdateArgoCdUserDetail() string {
+	token := ""
 	cluster, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 	if err != nil {
 		impl.logger.Errorw("error in getting default cluster", "err", err)
@@ -128,17 +112,19 @@ func (impl *ArgoUserServiceImpl) UpdateArgoCdUserDetail() {
 		PasswordStr = password
 	}
 	isTokenAvailable := false
-	for key, _ := range secretData {
+	for key, val := range secretData {
 		if strings.HasPrefix(key, DEVTRON_ARGOCD_TOKEN_KEY) {
 			isTokenAvailable = true
+			token = string(val)
 		}
 	}
 	if !isTokenAvailable {
-		_, err = impl.createNewArgoCdTokenForDevtron(userNameStr, PasswordStr, 1, k8sClient)
+		token, err = impl.createNewArgoCdTokenForDevtron(userNameStr, PasswordStr, 1, k8sClient)
 		if err != nil {
 			impl.logger.Errorw("error in creating new argo cd token for devtron", "err", err)
 		}
 	}
+	return token
 }
 
 func (impl *ArgoUserServiceImpl) createNewArgoCdUserForDevtron(k8sClient *v1.CoreV1Client) (string, string, error) {

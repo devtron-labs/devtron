@@ -1,6 +1,6 @@
 name: "📚 Documentation"
 description: "Report an issue related to documentation"
-title: "📚 Documentation: "
+title: "Doc: "
 labels: [documentation]
 body:
   - type: markdown

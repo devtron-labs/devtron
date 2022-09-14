@@ -389,7 +389,10 @@ helmRepo = `- name: fluent
   url:  https://kubernetes-sigs.github.io/metrics-server
 - name: autoscaler
   type: helm
-  url:  https://kubernetes.github.io/autoscaler`;
+  url:  https://kubernetes.github.io/autoscaler
+- name: external-secrets
+  type: helm
+  url:  https://charts.external-secrets.io`;
 
 
 kubeYamlEdit(argocd, `data.repositories`, helmRepo, `/ConfigMap//argocd-cm` );
