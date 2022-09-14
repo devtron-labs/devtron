@@ -33,11 +33,10 @@ import (
 )
 
 type AppLabelRestHandler interface {
-	UpdateLabelsInApp(w http.ResponseWriter, r *http.Request)
 	GetAllLabels(w http.ResponseWriter, r *http.Request)
 	GetAppMetaInfo(w http.ResponseWriter, r *http.Request)
 	UpdateApp(w http.ResponseWriter, r *http.Request)
-	ProjectChange(w http.ResponseWriter, r *http.Request)
+	UpdateProjectForApps(w http.ResponseWriter, r *http.Request)
 }
 
 type AppLabelRestHandlerImpl struct {
@@ -119,45 +118,6 @@ func (handler AppLabelRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler AppLabelRestHandlerImpl) UpdateLabelsInApp(w http.ResponseWriter, r *http.Request) {
-	userId, err := handler.userAuthService.GetLoggedInUser(r)
-	if userId == 0 || err != nil {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-		return
-	}
-	decoder := json.NewDecoder(r.Body)
-	var request bean.AppLabelsDto
-	err = decoder.Decode(&request)
-	request.UserId = userId
-	if err != nil {
-		handler.logger.Errorw("request err, UpdateLabelsInApp", "err", err, "request", request)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	handler.logger.Infow("request payload, UpdateLabelsInApp", "request", request)
-	err = handler.validator.Struct(request)
-	if err != nil {
-		handler.logger.Errorw("validation err, UpdateLabelsInApp", "err", err, "request", request)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	//rback implementation starts here
-	token := r.Header.Get("token")
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.AppId)
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
-		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-		return
-	}
-	//rback implementation ends here
-	res, err := handler.appLabelService.UpdateLabelsInApp(&request)
-	if err != nil {
-		handler.logger.Errorw("service err, UpdateLabelsInApp", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, nil, res, http.StatusOK)
-}
-
 func (handler AppLabelRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -200,14 +160,14 @@ func (handler AppLabelRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler AppLabelRestHandlerImpl) ProjectChange(w http.ResponseWriter, r *http.Request) {
+func (handler AppLabelRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request bean.ProjectChangeRequest
+	var request bean.UpdateProjectBulkAppsRequest
 	err = decoder.Decode(&request)
 	request.UserId = userId
 	if err != nil {
@@ -235,7 +195,7 @@ func (handler AppLabelRestHandlerImpl) ProjectChange(w http.ResponseWriter, r *h
 	}
 	//rbac implementation ends here
 
-	res, err := handler.appLabelService.ProjectChangeRequest(&request)
+	res, err := handler.appLabelService.UpdateProjectForApps(&request)
 	if err != nil {
 		handler.logger.Errorw("service err, ProjectChange", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

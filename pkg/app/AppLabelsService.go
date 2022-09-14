@@ -31,13 +31,12 @@ import (
 
 type AppLabelService interface {
 	Create(request *bean.AppLabelDto, tx *pg.Tx) (*bean.AppLabelDto, error)
-	UpdateLabelsInApp(request *bean.AppLabelsDto) (*bean.AppLabelsDto, error)
 	FindById(id int) (*bean.AppLabelDto, error)
 	FindAll() ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error)
 	GetLabelsByAppIdForDeployment(appId int) ([]byte, error)
 	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
-	ProjectChangeRequest(request *bean.ProjectChangeRequest) (*bean.ProjectChangeRequest, error)
+	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
 }
 type AppLabelServiceImpl struct {
 	logger             *zap.SugaredLogger
@@ -79,15 +78,22 @@ func (impl AppLabelServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.Cre
 		return nil, err
 	}
 
-	err = tx.Commit()
+	_, err = impl.UpdateLabelsInApp(request, tx)
 	if err != nil {
-		impl.logger.Errorw("error in commit repo", "error", err)
+		impl.logger.Errorw("error in updating app labels", "error", err)
 		return nil, err
 	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in commit db transaction", "error", err)
+		return nil, err
+	}
+
 	return nil, nil
 }
 
-func (impl AppLabelServiceImpl) ProjectChangeRequest(request *bean.ProjectChangeRequest) (*bean.ProjectChangeRequest, error) {
+func (impl AppLabelServiceImpl) UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error) {
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -97,7 +103,7 @@ func (impl AppLabelServiceImpl) ProjectChangeRequest(request *bean.ProjectChange
 	defer tx.Rollback()
 	apps, err := impl.appRepository.FindAppsByTeamId(request.TeamId)
 	if err != nil {
-		impl.logger.Errorw("error in fetching app", "error", err)
+		impl.logger.Errorw("error in fetching apps", "error", err)
 		return nil, err
 	}
 	for _, app := range apps {
@@ -110,10 +116,9 @@ func (impl AppLabelServiceImpl) ProjectChangeRequest(request *bean.ProjectChange
 			return nil, err
 		}
 	}
-
 	err = tx.Commit()
 	if err != nil {
-		impl.logger.Errorw("error in commit repo", "error", err)
+		impl.logger.Errorw("error in commit db transaction", "error", err)
 		return nil, err
 	}
 	return nil, nil
@@ -146,16 +151,8 @@ func (impl AppLabelServiceImpl) Create(request *bean.AppLabelDto, tx *pg.Tx) (*b
 	return request, nil
 }
 
-func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.AppLabelsDto) (*bean.AppLabelsDto, error) {
-	dbConnection := impl.appRepository.GetConnection()
-	tx, err := dbConnection.Begin()
-	if err != nil {
-		return nil, err
-	}
-	// Rollback tx on error.
-	defer tx.Rollback()
-
-	appLabels, err := impl.appLabelRepository.FindAllByAppId(request.AppId)
+func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.CreateAppDTO, tx *pg.Tx) (*bean.CreateAppDTO, error) {
+	appLabels, err := impl.appLabelRepository.FindAllByAppId(request.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching app label", "error", err)
 		return nil, err
@@ -168,14 +165,14 @@ func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.AppLabelsDto) (*
 		}
 	}
 
-	for _, label := range request.Labels {
+	for _, label := range request.AppLabels {
 		uniqueLabelRequest := fmt.Sprintf("%s:%s", label.Key, label.Value)
 		if _, ok := appLabelMap[uniqueLabelRequest]; !ok {
 			// create new
 			model := &pipelineConfig.AppLabel{
 				Key:   label.Key,
 				Value: label.Value,
-				AppId: request.AppId,
+				AppId: request.Id,
 			}
 			model.CreatedBy = request.UserId
 			model.UpdatedBy = request.UserId
@@ -197,11 +194,6 @@ func (impl AppLabelServiceImpl) UpdateLabelsInApp(request *bean.AppLabelsDto) (*
 			impl.logger.Errorw("error in delete app label", "error", err)
 			return nil, err
 		}
-	}
-	err = tx.Commit()
-	if err != nil {
-		impl.logger.Errorw("error in commit repo", "error", err)
-		return nil, err
 	}
 	return request, nil
 }

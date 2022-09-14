@@ -582,7 +582,7 @@ type AppLabelsJsonForDeployment struct {
 	Labels map[string]string `json:"appLabels"`
 }
 
-type ProjectChangeRequest struct {
+type UpdateProjectBulkAppsRequest struct {
 	AppId  []int `json:"appId"`
 	TeamId int   `json:"teamId"`
 	UserId int32 `json:"-"`

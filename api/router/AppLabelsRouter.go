@@ -45,10 +45,8 @@ func (router AppLabelRouterImpl) initLabelRouter(appLabelsRouter *mux.Router) {
 		HandlerFunc(router.handler.GetAllLabels).Methods("GET")
 	appLabelsRouter.Path("/meta/info/{appId}").
 		HandlerFunc(router.handler.GetAppMetaInfo).Methods("GET")
-	appLabelsRouter.Path("/labels").
-		HandlerFunc(router.handler.UpdateLabelsInApp).Methods("POST")
-	appLabelsRouter.Path("/edit/project").
+	appLabelsRouter.Path("/edit").
 		HandlerFunc(router.handler.UpdateApp).Methods("POST")
 	appLabelsRouter.Path("/edit/projects").
-		HandlerFunc(router.handler.ProjectChange).Methods("POST")
+		HandlerFunc(router.handler.UpdateProjectForApps).Methods("POST")
 }
