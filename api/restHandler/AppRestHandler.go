@@ -137,11 +137,21 @@ func (handler AppRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Reque
 
 	//rbac implementation starts here
 	token := r.Header.Get("token")
+
+	// check for existing project/app permission
 	object := handler.enforcerUtil.GetAppRBACNameByAppId(request.Id)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
+
+	// check for request project/app permission
+	object = handler.enforcerUtil.GetAppRBACNameByTeamIdAndAppId(request.TeamId, request.Id)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
 	objects := handler.enforcerUtil.GetEnvRBACArrayByAppId(request.Id)
 	for _, object := range objects {
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {

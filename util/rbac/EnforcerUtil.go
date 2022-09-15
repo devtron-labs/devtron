@@ -46,6 +46,7 @@ type EnforcerUtil interface {
 	GetHelmObjectByAppNameAndEnvId(appName string, envId int) string
 	GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) string
 	GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int, envId int) string
+	GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string
 }
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
@@ -334,4 +335,16 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
 	}*/
 	return fmt.Sprintf("%s/%s/%s", strings.ToLower(team.Name), environmentIdentifier, "*")
+}
+
+func (impl EnforcerUtilImpl) GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string {
+	application, err := impl.appRepo.FindById(appId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", "")
+	}
+	team, err := impl.teamRepository.FindOne(teamId)
+	if err != nil {
+		return fmt.Sprintf("%s/%s", "", "")
+	}
+	return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(application.AppName))
 }
