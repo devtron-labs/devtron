@@ -60,7 +60,7 @@ type CiConfig struct {
 	ImageScannerEndpoint           string                       `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
 	CloudProvider                  blob_storage.BlobStorageType `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
 	AzureAccountName               string                       `env:"AZURE_ACCOUNT_NAME"`
-	AzureGatewayUrl                string                       `env:"AZURE_GATEWAY_URL" envDefault:"devtron-minio.devtroncd:9000"`
+	AzureGatewayUrl                string                       `env:"AZURE_GATEWAY_URL" envDefault:"http://devtron-minio.devtroncd:9000"`
 	AzureGatewayConnectionInsecure bool                         `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
 	AzureBlobContainerCiLog        string                       `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
 	AzureBlobContainerCiCache      string                       `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
