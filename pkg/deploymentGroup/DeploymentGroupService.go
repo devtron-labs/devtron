@@ -78,7 +78,7 @@ type DeploymentGroupService interface {
 	FindById(id int) (*DeploymentGroupDTO, error)
 	TriggerReleaseForDeploymentGroup(triggerRequest *DeploymentGroupTriggerRequest) (interface{}, error)
 	UpdateDeploymentGroup(deploymentGroupRequest *DeploymentGroupRequest) (*DeploymentGroupRequest, error)
-	GetArtifactsByCiPipeline(ciPipelineId int) (bean.CiArtifactResponse, error)
+	GetArtifactsByCiPipeline(ciPipelineId int, dg *DeploymentGroupDTO) (bean.CiArtifactResponse, error)
 	GetDeploymentGroupById(deploymentGroupId int) (*DeploymentGroupRequest, error)
 }
 
@@ -579,9 +579,19 @@ func (impl *DeploymentGroupServiceImpl) UpdateDeploymentGroup(deploymentGroupReq
 	return deploymentGroupRequest, nil
 }
 
-func (impl *DeploymentGroupServiceImpl) GetArtifactsByCiPipeline(ciPipelineId int) (bean.CiArtifactResponse, error) {
+func (impl *DeploymentGroupServiceImpl) GetArtifactsByCiPipeline(ciPipelineId int, dg *DeploymentGroupDTO) (bean.CiArtifactResponse, error) {
 	var ciArtifacts []bean.CiArtifactBean
 	var ciArtifactsResponse bean.CiArtifactResponse
+	ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
+	if err != nil {
+		return ciArtifactsResponse, err
+	}
+
+	environment, err := impl.environmentRepository.FindById(dg.EnvironmentId)
+	if err != nil {
+		return ciArtifactsResponse, err
+	}
+
 	artifacts, err := impl.ciArtifactRepository.GetArtifactsByCiPipelineId(ciPipelineId)
 	if err != nil {
 		return ciArtifactsResponse, err
@@ -593,13 +603,25 @@ func (impl *DeploymentGroupServiceImpl) GetArtifactsByCiPipeline(ciPipelineId in
 			mInfo = []byte("[]")
 			impl.logger.Errorw("error on parse material", "err", err)
 		}
+		isVulnerable := false
+		if len(artifact.ImageDigest) > 0 {
+			isVulnerable, err = impl.workflowDagExecutor.VulnerableCheck(artifact.ImageDigest, environment.ClusterId, environment.Id, ciPipeline.AppId)
+			if err != nil {
+				impl.logger.Errorw("err on checking vulnerability", "err", err)
+				return ciArtifactsResponse, err
+			}
+		}
 
 		ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
 			Id:           artifact.Id,
 			Image:        artifact.Image,
 			MaterialInfo: mInfo,
 			Latest:       artifact.Latest,
+			ScanEnabled:  artifact.ScanEnabled,
+			Scanned:      artifact.Scanned,
+			IsVulnerable: isVulnerable,
 		})
+
 	}
 
 	if ciArtifacts == nil {

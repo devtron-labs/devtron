@@ -380,7 +380,7 @@ func (impl *DeploymentGroupRestHandlerImpl) GetArtifactsByCiPipeline(w http.Resp
 	}
 	//RBAC enforcer Ends
 
-	ciArtifactResponse, err := impl.deploymentGroupService.GetArtifactsByCiPipeline(dg.CiPipelineId)
+	ciArtifactResponse, err := impl.deploymentGroupService.GetArtifactsByCiPipeline(dg.CiPipelineId, dg)
 	if err != nil {
 		impl.logger.Errorw("service err, GetArtifactsByCiPipeline", "err", err, "deploymentGroupId", deploymentGroupId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -67,6 +67,7 @@ type WorkflowDagExecutor interface {
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
+	VulnerableCheck(imageDigest string, clusterId int, envId int, appId int) (bool, error)
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -1097,22 +1098,10 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}
 		isVulnerable := false
 		if len(artifact.ImageDigest) > 0 {
-			var cveStores []*security.CveStore
-			imageScanResult, err := impl.scanResultRepository.FindByImageDigest(artifact.ImageDigest)
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error fetching image digest", "digest", artifact.ImageDigest, "err", err)
-				return 0, err
-			}
-			for _, item := range imageScanResult {
-				cveStores = append(cveStores, &item.CveStore)
-			}
-			blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, cdPipeline.Environment.ClusterId, cdPipeline.EnvironmentId, cdPipeline.AppId, false)
+			isVulnerable, err = impl.VulnerableCheck(artifact.ImageDigest, cdPipeline.Environment.ClusterId, cdPipeline.EnvironmentId, cdPipeline.AppId)
 			if err != nil {
-				impl.logger.Errorw("error while fetching env", "err", err)
+				impl.logger.Errorw("err on checking vulnerability", "err", err)
 				return 0, err
-			}
-			if len(blockCveList) > 0 {
-				isVulnerable = true
 			}
 		}
 		if isVulnerable == true {
@@ -1191,6 +1180,27 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 		}
 	}
 	return releaseId, err
+}
+
+func (impl *WorkflowDagExecutorImpl) VulnerableCheck(imageDigest string, clusterId int, envId int, appId int) (bool, error) {
+	var cveStores []*security.CveStore
+	imageScanResult, err := impl.scanResultRepository.FindByImageDigest(imageDigest)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error fetching image digest", "digest", imageDigest, "err", err)
+		return false, err
+	}
+	for _, item := range imageScanResult {
+		cveStores = append(cveStores, &item.CveStore)
+	}
+	blockCveList, err := impl.cvePolicyRepository.GetBlockedCVEList(cveStores, clusterId, envId, appId, false)
+	if err != nil {
+		impl.logger.Errorw("error while fetching env", "err", err)
+		return false, err
+	}
+	if len(blockCveList) > 0 {
+		return true, nil
+	}
+	return false, nil
 }
 
 type BulkTriggerRequest struct {
