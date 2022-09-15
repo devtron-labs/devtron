@@ -206,7 +206,7 @@ func (impl *TelemetryEventClientImpl) ArgumentedSummaryEventForTelemetryEA(event
 	}
 	prop := make(map[string]interface{})
 	err = json.Unmarshal(reqBody, &prop)
-	if err != nil {
+	if eventType != Sigterm && err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry in", string(eventType)+"event", "payload unmarshal error", "error", err)
 		return
 	}

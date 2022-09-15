@@ -95,16 +95,6 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 }
 
 func (handler TelemetryRestHandlerImpl) SigtermEventHandler(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-	var payload map[string]interface{}
-	err := decoder.Decode(&payload)
-	err = handler.telemetryEventClient.SendGenericTelemetryEvent("Sigterm", payload)
-
-	if err != nil {
-		handler.logger.Errorw("service err, sigtermEventHandler", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+	handler.telemetryEventClient.SendSigtermSummaryEventEA()
 	common.WriteJsonResp(w, nil, "success", http.StatusOK)
-
 }
