@@ -21,8 +21,8 @@ import (
 	"encoding/json"
 	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/devtron/api/bean"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"net/http"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -85,12 +85,6 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 	}
 }
 
-func (impl EnvironmentRestHandlerImpl) validateNamespace(namespace string) bool {
-	hostnameRegexString := `^$|^[a-z0-9\-\?\_]*[a-z0-9]+$`
-	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
-	return hostnameRegexRFC952.MatchString(namespace)
-}
-
 func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := impl.userService.GetLoggedInUser(r)
@@ -113,7 +107,7 @@ func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Req
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if !impl.validateNamespace(bean.Namespace) {
+	if !util2.ValidateNameSpace(bean.Namespace) {
 		impl.logger.Errorw("validation err, Create", "err", err, "namespace", bean.Namespace)
 		common.WriteJsonResp(w, errors.New("invalid ns"), nil, http.StatusBadRequest)
 		return

@@ -30,10 +30,10 @@ func ValidateName(fl validator.FieldLevel) bool {
 	return hostnameRegexRFC952.MatchString(fl.Field().String())
 }
 
-func ValidateNameSpace(fl validator.FieldLevel) bool {
+func ValidateNameSpace(fl string) bool {
 	hostnameRegexString := `^[a-z0-9\-\?\_]*[a-z0-9]+$`
 	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
-	return hostnameRegexRFC952.MatchString(fl.Field().String())
+	return hostnameRegexRFC952.MatchString(fl)
 }
 
 func ValidateCheckoutPath(fl validator.FieldLevel) bool {
@@ -68,6 +68,10 @@ func validateNonEmptyUrl(fl validator.FieldLevel) bool {
 	return IsValidUrl(value)
 }
 
+func validateNameSpaceValue(fl validator.FieldLevel) bool {
+	return ValidateNameSpace(fl.Field().String())
+}
+
 func IntValidator() (*validator.Validate, error) {
 	v := validator.New()
 	err := v.RegisterValidation("name-component", ValidateName)
@@ -86,7 +90,7 @@ func IntValidator() (*validator.Validate, error) {
 	if err != nil {
 		return v, err
 	}
-	err = v.RegisterValidation("name-space-component", ValidateNameSpace)
+	err = v.RegisterValidation("name-space-component", validateNameSpaceValue)
 	if err != nil {
 		return v, err
 	}
