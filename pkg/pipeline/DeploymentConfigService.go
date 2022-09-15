@@ -9,7 +9,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/go-pg/pg"
-	"github.com/juju/errors"
 	"go.uber.org/zap"
 )
 
@@ -98,14 +97,26 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 	} else {
 		isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
 	}
-	envOverride, err := impl.envConfigOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
-	if err != nil && !errors.IsNotFound(err) {
-		impl.logger.Errorw("error in getting envConfigOverride by appId and envId", "err", err, "appId", pipeline.App, "envId", pipeline.EnvironmentId)
+	envOverride, err := impl.envConfigOverrideRepository.ActiveEnvConfigOverride(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("not able to get envConfigOverride", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
 		return nil, err
 	}
 	impl.logger.Infow("received override chart", "envConfigOverride", envOverride)
 	deploymentTemplateConfig := &history.HistoryDetailDto{}
-	if !errors.IsNotFound(err) || (envOverride != nil && !envOverride.IsOverride) {
+	if envOverride != nil && envOverride.Id > 0 && envOverride.IsOverride {
+		if envOverride.Chart != nil {
+			deploymentTemplateConfig = &history.HistoryDetailDto{
+				TemplateName:        envOverride.Chart.ChartName,
+				TemplateVersion:     envOverride.Chart.ChartVersion,
+				IsAppMetricsEnabled: &isAppMetricsEnabled,
+				CodeEditorValue: &history.HistoryDetailConfig{
+					DisplayName: "values.yaml",
+					Value:       envOverride.EnvOverrideValues,
+				},
+			}
+		}
+	} else {
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
 		if err != nil {
 			impl.logger.Errorw("error in getting chart by appId", "err", err, "appId", pipeline.AppId)
@@ -119,18 +130,6 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 				DisplayName: "values.yaml",
 				Value:       chart.GlobalOverride,
 			},
-		}
-	} else {
-		if envOverride.Chart != nil {
-			deploymentTemplateConfig = &history.HistoryDetailDto{
-				TemplateName:        envOverride.Chart.ChartName,
-				TemplateVersion:     envOverride.Chart.ChartVersion,
-				IsAppMetricsEnabled: &isAppMetricsEnabled,
-				CodeEditorValue: &history.HistoryDetailConfig{
-					DisplayName: "values.yaml",
-					Value:       envOverride.EnvOverrideValues,
-				},
-			}
 		}
 	}
 	return deploymentTemplateConfig, nil
