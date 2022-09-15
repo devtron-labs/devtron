@@ -103,7 +103,8 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 		impl.logger.Errorw("error in getting envConfigOverride by appId and envId", "err", err, "appId", pipeline.App, "envId", pipeline.EnvironmentId)
 		return nil, err
 	}
-	var deploymentTemplateConfig *history.HistoryDetailDto
+	impl.logger.Infow("received override chart", "envConfigOverride", envOverride)
+	deploymentTemplateConfig := &history.HistoryDetailDto{}
 	if !errors.IsNotFound(err) || (envOverride != nil && !envOverride.IsOverride) {
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
 		if err != nil {
@@ -120,14 +121,16 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 			},
 		}
 	} else {
-		deploymentTemplateConfig = &history.HistoryDetailDto{
-			TemplateName:        envOverride.Chart.ChartName,
-			TemplateVersion:     envOverride.Chart.ChartVersion,
-			IsAppMetricsEnabled: &isAppMetricsEnabled,
-			CodeEditorValue: &history.HistoryDetailConfig{
-				DisplayName: "values.yaml",
-				Value:       envOverride.EnvOverrideValues,
-			},
+		if envOverride.Chart != nil {
+			deploymentTemplateConfig = &history.HistoryDetailDto{
+				TemplateName:        envOverride.Chart.ChartName,
+				TemplateVersion:     envOverride.Chart.ChartVersion,
+				IsAppMetricsEnabled: &isAppMetricsEnabled,
+				CodeEditorValue: &history.HistoryDetailConfig{
+					DisplayName: "values.yaml",
+					Value:       envOverride.EnvOverrideValues,
+				},
+			}
 		}
 	}
 	return deploymentTemplateConfig, nil
