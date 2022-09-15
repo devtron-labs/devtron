@@ -133,7 +133,8 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	}
 
 	privileged := true
-	archiveLogs := workflowRequest.BlobStorageConfigured
+	storageConfigured := workflowRequest.BlobStorageConfigured
+	archiveLogs := storageConfigured
 
 	limitCpu := impl.cdConfig.LimitCpu
 	limitMem := impl.cdConfig.LimitMem
@@ -374,7 +375,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	blobStorageS3Config := workflowRequest.BlobStorageS3Config
 	gcpBlobConfig := workflowRequest.GcpBlobConfig
 	cloudStorageKey := impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
-	if blobStorageS3Config != nil {
+	if storageConfigured && blobStorageS3Config != nil {
 		s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
 		parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
 		isInsecure := blobStorageS3Config.IsInSecure
@@ -404,7 +405,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				Insecure: &isInsecure,
 			},
 		}
-	} else if gcpBlobConfig != nil {
+	} else if storageConfigured && gcpBlobConfig != nil {
 		gcsArtifact = &v1alpha1.GCSArtifact{
 			Key: cloudStorageKey,
 			GCSBucket: v1alpha1.GCSBucket{

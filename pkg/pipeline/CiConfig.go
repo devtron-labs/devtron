@@ -113,9 +113,9 @@ func GetCiConfig() (*CiConfig, error) {
 		cfg.NodeLabel[kv[0]] = kv[1]
 	}
 	//validation for supported cloudproviders
-	if cfg.CloudProvider != BLOB_STORAGE_S3 && cfg.CloudProvider != BLOB_STORAGE_AZURE &&
+	if cfg.BlobStorageEnabled && cfg.CloudProvider != BLOB_STORAGE_S3 && cfg.CloudProvider != BLOB_STORAGE_AZURE &&
 		cfg.CloudProvider != BLOB_STORAGE_GCP && cfg.CloudProvider != BLOB_STORAGE_MINIO {
-		return nil, fmt.Errorf("unsupported cloudprovider: %s", cfg.CloudProvider)
+		return nil, fmt.Errorf("unsupported blob storage provider: %s", cfg.CloudProvider)
 	}
 	return cfg, err
 }
