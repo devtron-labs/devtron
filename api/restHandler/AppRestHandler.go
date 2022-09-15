@@ -154,7 +154,7 @@ func (handler AppRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Reque
 
 	objects := handler.enforcerUtil.GetEnvRBACArrayByAppId(request.Id)
 	for _, object := range objects {
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
@@ -197,7 +197,7 @@ func (handler AppRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter, r 
 		}
 		objects := handler.enforcerUtil.GetEnvRBACArrayByAppId(appId)
 		for _, object := range objects {
-			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
 				common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 				return
 			}
