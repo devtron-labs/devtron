@@ -27,6 +27,14 @@ type ModuleInfoDto struct {
 	Status string `json:"status,notnull" validate:"oneof=notInstalled installed installing installFailed timeout"`
 }
 
+type ModuleConfigDto struct {
+	Enabled bool `json:"enabled"`
+}
+
+type BlobStorageConfig struct {
+	Enabled bool `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
+}
+
 type ModuleActionRequestDto struct {
 	Action  string `json:"action,notnull" validate:"oneof=install"`
 	Version string `json:"version,notnull"`
@@ -53,6 +61,8 @@ func ParseModuleEnvConfig() (*ModuleEnvConfig, error) {
 
 type ModuleStatus = string
 type ModuleName = string
+
+const BlobStorage = "blob-storage"
 
 const (
 	ModuleStatusNotInstalled  ModuleStatus = "notInstalled"
