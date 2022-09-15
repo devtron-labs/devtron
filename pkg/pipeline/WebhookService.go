@@ -240,7 +240,7 @@ func (impl *WebhookServiceImpl) WriteCISuccessEvent(request *CiArtifactWebhookRe
 	}
 	event.UserId = int(request.UserId)
 	event = impl.eventFactory.BuildExtraCIData(event, nil, artifact.Image)
-	_, evtErr := impl.eventClient.WriteEvent(event)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("error in writing event", "err", evtErr)
 	}
