@@ -104,7 +104,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 		return nil, err
 	}
 	var deploymentTemplateConfig *history.HistoryDetailDto
-	if !errors.IsNotFound(err) || !envOverride.IsOverride {
+	if !errors.IsNotFound(err) || (envOverride != nil && !envOverride.IsOverride) {
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
 		if err != nil {
 			impl.logger.Errorw("error in getting chart by appId", "err", err, "appId", pipeline.AppId)
