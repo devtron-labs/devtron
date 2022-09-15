@@ -19,13 +19,13 @@ package cluster
 
 import (
 	"encoding/json"
-	"github.com/caarlos0/env/v6"
-	"github.com/devtron-labs/devtron/api/bean"
-	util2 "github.com/devtron-labs/devtron/internal/util"
 	"net/http"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/devtron-labs/devtron/api/bean"
 
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
@@ -105,11 +105,6 @@ func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		impl.logger.Errorw("validation err, Create", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	if !util2.ValidateNameSpace(bean.Namespace) {
-		impl.logger.Errorw("validation err, Create", "err", err, "namespace", bean.Namespace)
-		common.WriteJsonResp(w, errors.New("invalid ns"), nil, http.StatusBadRequest)
 		return
 	}
 
