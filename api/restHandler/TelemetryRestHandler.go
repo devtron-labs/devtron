@@ -30,6 +30,7 @@ import (
 type TelemetryRestHandler interface {
 	GetTelemetryMetaInfo(w http.ResponseWriter, r *http.Request)
 	SendTelemetryData(w http.ResponseWriter, r *http.Request)
+	SigtermEventHandler(w http.ResponseWriter, r *http.Request)
 }
 
 type TelemetryRestHandlerImpl struct {
@@ -86,6 +87,21 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 
 	if err != nil {
 		handler.logger.Errorw("service err, SendTelemetryData", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, "success", http.StatusOK)
+
+}
+
+func (handler TelemetryRestHandlerImpl) SigtermEventHandler(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var payload map[string]interface{}
+	err := decoder.Decode(&payload)
+	err = handler.telemetryEventClient.SendGenericTelemetryEvent("Sigterm", payload)
+
+	if err != nil {
+		handler.logger.Errorw("service err, sigtermEventHandler", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
