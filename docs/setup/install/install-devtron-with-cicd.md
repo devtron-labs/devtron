@@ -19,11 +19,26 @@ helm repo add devtron https://helm.devtron.ai
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set minio.enabled=true
+```
+If you are trying devtron on your machine :
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
 --set installer.modules={cicd}
 
 ```
+> NOTE: build logs and cache will not be stored in this case 
+
 
 {% endtab %}
+
+
+{% tab title=}
 
 {% tab title="Install with AWS S3 Buckets" %}
 This installation will use AWS s3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
@@ -39,6 +54,38 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 --set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
 ```
+
+Install using access-key and secret-key for aws S3 authentication:
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set configs.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set configs.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
+```
+{% endtab %}
+
+
+
+{% tab title="Install with default configurations" %}
+This installation will use Minio for storing build logs and cache.
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd}
+
+```
+
 {% endtab %}
 
 {% tab title="Install with Azure Blob Storage" %}
@@ -56,6 +103,24 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 --set configs.AZURE_BLOB_CONTAINER_CI_LOG=ci-log-container \
 --set configs.AZURE_BLOB_CONTAINER_CI_CACHE=ci-cache-container
 ```
+{% endtab %}
+
+{% tab title="Install with Google Cloud Storage"}
+This installation will use Google Cloud Storage for storing build logs and cache.
+Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER: GCP \
+--set secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON: {\"type\": \"service_account\",\"project_id\": \"<your-project-id>\",\"private_key_id\": \"<your-private-key-id>\",\"private_key\": \"<your-private-key>\",\"client_email\": \"<your-client-email>\",\"client_id\": \"<your-client-id>\",\"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\"token_uri\": \"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\"client_x509_cert_url\": \"<your-client-cert-url>\"} \
+--set configs.DEFAULT_CACHE_BUCKET: cache-bucket
+--set configs.DEFAULT_BUILD_LOGS_BUCKET: log-bucket
+
+```
+
 {% endtab %}
 {% endtabs %}
 
