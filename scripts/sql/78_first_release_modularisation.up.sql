@@ -4,9 +4,9 @@ FROM module
 WHERE name = 'cicd' and status = 'installed' and not exists (SELECT 1 FROM module where name = 'notifier');
 
 INSERT INTO module(name, version, status, updated_on)
-SELECT 'eso', version, status, now()
+SELECT 'external-secrets', version, status, now()
 FROM module
-WHERE name = 'cicd' and status = 'installed' and not exists (SELECT 1 FROM module where name = 'eso');
+WHERE name = 'cicd' and status = 'installed' and not exists (SELECT 1 FROM module where name = 'external-secrets');
 
 INSERT INTO module(name, version, status, updated_on)
 SELECT 'monitoring.grafana', version, status, now()

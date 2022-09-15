@@ -67,7 +67,7 @@ const (
 	ModuleNameArgoCd            ModuleName = "argo-cd"
 	ModuleNameSecurityClair     ModuleName = "security.clair"
 	ModuleNameNotification      ModuleName = "notifier"
-	ModuleNameExternalSecret    ModuleName = "eso"
+	ModuleNameExternalSecret    ModuleName = "external-secrets"
 	ModuleNameMonitoringGrafana ModuleName = "monitoring.grafana"
 )
 
