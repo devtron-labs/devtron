@@ -405,9 +405,12 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 					},
 				},
 				Bucket:   blobStorageS3Config.CiLogBucketName,
-				Region:   blobStorageS3Config.CiLogRegion,
 				Insecure: &isInsecure,
 			},
+		}
+		if blobStorageS3Config.CiLogRegion != "" {
+			//TODO checking for Azure
+			s3Artifact.Region = blobStorageS3Config.CiLogRegion
 		}
 	} else if storageConfigured && gcpBlobConfig != nil {
 		gcsArtifact = &v1alpha1.GCSArtifact{
