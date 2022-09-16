@@ -31,7 +31,7 @@ func ValidateName(fl validator.FieldLevel) bool {
 }
 
 func ValidateNameSpace(fl validator.FieldLevel) bool {
-	hostnameRegexString := `^[a-z0-9\-\?\_]*[a-z0-9]+$`
+	hostnameRegexString := `^[a-z0-9]+([a-z0-9\-\?\_]*[a-z0-9])?$`
 	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
 	return hostnameRegexRFC952.MatchString(fl.Field().String())
 }
