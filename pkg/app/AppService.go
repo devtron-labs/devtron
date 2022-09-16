@@ -712,10 +712,21 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			impl.logger.Errorw("error in getting deployed deployment template history by pipelineId and wfrId", "err", err, "pipelineId", &overrideRequest, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 			return 0, err
 		}
-		//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
-		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartVersion(pipeline.AppId, pipeline.EnvironmentId, deploymentTemplateHistory.TemplateVersion)
+		templateName := deploymentTemplateHistory.TemplateName
+		templateVersion := deploymentTemplateHistory.TemplateVersion
+		if templateName == "Rollout Deployment" {
+			templateName = ""
+		}
+		//getting chart_ref by id
+		chartRef, err := impl.chartRefRepository.FindByVersionAndName(templateName, templateVersion)
 		if err != nil {
-			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "chartVersion", deploymentTemplateHistory.TemplateVersion)
+			impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", templateVersion, "name", templateName)
+			return 0, err
+		}
+		//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
+		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(pipeline.AppId, pipeline.EnvironmentId, chartRef.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "chartRefId", chartRef.Id)
 			return 0, err
 		}
 		//updating historical data in envConfigOverride and appMetrics flag
