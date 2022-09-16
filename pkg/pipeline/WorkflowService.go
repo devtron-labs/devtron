@@ -202,7 +202,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 
 	privileged := true
-	archiveLogs := workflowRequest.BlobStorageConfigured
+	blobStorageConfigured := workflowRequest.BlobStorageConfigured
+	archiveLogs := blobStorageConfigured
 
 	limitCpu := impl.ciConfig.LimitCpu
 	limitMem := impl.ciConfig.LimitMem
@@ -216,15 +217,20 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	cloudStorageKey := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
 	var s3Artifact *v1alpha1.S3Artifact
 	var gcsArtifact *v1alpha1.GCSArtifact
-	if blobStorageS3Config != nil {
+	if blobStorageConfigured && blobStorageS3Config != nil {
 		s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
-		parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
-		isInsecure := blobStorageS3Config.IsInSecure
-		if err != nil {
-			impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
+		if s3CompatibleEndpointUrl == "" {
+			s3CompatibleEndpointUrl = "s3.amazonaws.com"
 		} else {
-			s3CompatibleEndpointUrl = parsedUrl.Host
+			parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
+			} else {
+				s3CompatibleEndpointUrl = parsedUrl.Host
+			}
 		}
+		isInsecure := blobStorageS3Config.IsInSecure
+
 		s3Artifact = &v1alpha1.S3Artifact{
 			Key: cloudStorageKey,
 			S3Bucket: v1alpha1.S3Bucket{
@@ -246,7 +252,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				Insecure: &isInsecure,
 			},
 		}
-	} else if gcpBlobConfig != nil {
+	} else if blobStorageConfigured && gcpBlobConfig != nil {
 		gcsArtifact = &v1alpha1.GCSArtifact{
 			Key: cloudStorageKey,
 			GCSBucket: v1alpha1.GCSBucket{

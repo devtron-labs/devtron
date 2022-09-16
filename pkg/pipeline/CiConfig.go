@@ -42,6 +42,7 @@ type CiConfig struct {
 	DefaultTimeout                 int64                        `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
 	Mode                           string                       `env:"MODE" envDefault:"DEV"`
 	DefaultBuildLogsBucket         string                       `env:"DEFAULT_BUILD_LOGS_BUCKET" envDefault:"devtron-pro-ci-logs"`
+	DefaultCdLogsBucketRegion      string                       `env:"DEFAULT_CD_LOGS_BUCKET_REGION" envDefault:"us-east-2"`
 	LimitCpu                       string                       `env:"LIMIT_CI_CPU" envDefault:"0.5"`
 	LimitMem                       string                       `env:"LIMIT_CI_MEM" envDefault:"3G"`
 	ReqCpu                         string                       `env:"REQ_CI_CPU" envDefault:"0.5"`
@@ -60,7 +61,7 @@ type CiConfig struct {
 	ImageScannerEndpoint           string                       `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
 	CloudProvider                  blob_storage.BlobStorageType `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
 	AzureAccountName               string                       `env:"AZURE_ACCOUNT_NAME"`
-	AzureGatewayUrl                string                       `env:"AZURE_GATEWAY_URL" envDefault:"devtron-minio.devtroncd:9000"`
+	AzureGatewayUrl                string                       `env:"AZURE_GATEWAY_URL" envDefault:"http://devtron-minio.devtroncd:9000"`
 	AzureGatewayConnectionInsecure bool                         `env:"AZURE_GATEWAY_CONNECTION_INSECURE" envDefault:"true"`
 	AzureBlobContainerCiLog        string                       `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
 	AzureBlobContainerCiCache      string                       `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
@@ -113,9 +114,9 @@ func GetCiConfig() (*CiConfig, error) {
 		cfg.NodeLabel[kv[0]] = kv[1]
 	}
 	//validation for supported cloudproviders
-	if cfg.CloudProvider != BLOB_STORAGE_S3 && cfg.CloudProvider != BLOB_STORAGE_AZURE &&
+	if cfg.BlobStorageEnabled && cfg.CloudProvider != BLOB_STORAGE_S3 && cfg.CloudProvider != BLOB_STORAGE_AZURE &&
 		cfg.CloudProvider != BLOB_STORAGE_GCP && cfg.CloudProvider != BLOB_STORAGE_MINIO {
-		return nil, fmt.Errorf("unsupported cloudprovider: %s", cfg.CloudProvider)
+		return nil, fmt.Errorf("unsupported blob storage provider: %s", cfg.CloudProvider)
 	}
 	return cfg, err
 }

@@ -544,6 +544,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 			AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
 			Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
 			EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
+			IsInSecure:  impl.ciConfig.BlobStorageS3EndpointInsecure,
 			BucketName:  cdConfig.LogsBucket,
 			Region:      cdConfig.CdCacheRegion,
 		},
@@ -654,6 +655,7 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 		AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
 		Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
 		EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
+		IsInSecure:  impl.ciConfig.BlobStorageS3EndpointInsecure,
 		BucketName:  cdConfig.LogsBucket,
 		Region:      cdConfig.CdCacheRegion,
 	}
