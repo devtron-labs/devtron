@@ -387,6 +387,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				s3CompatibleEndpointUrl = parsedUrl.Host
 			}
 		}
+		isInsecure := blobStorageS3Config.IsInSecure
 		s3Artifact = &v1alpha1.S3Artifact{
 			Key: cloudStorageKey,
 			S3Bucket: v1alpha1.S3Bucket{
