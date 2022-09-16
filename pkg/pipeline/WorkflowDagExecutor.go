@@ -668,7 +668,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			EndpointUrl:     impl.cdConfig.AzureGatewayUrl,
 			IsInSecure:      impl.cdConfig.AzureGatewayConnectionInsecure,
 			CiLogBucketName: impl.cdConfig.AzureBlobContainerCiLog,
-			CiLogRegion:     impl.cdConfig.DefaultCdLogsBucketRegion,
+			CiLogRegion:     "",
 		}
 		cdStageWorkflowRequest.ArtifactLocation = impl.buildDefaultArtifactLocation(cdWorkflowConfig, cdWf)
 		cdStageWorkflowRequest.ArtifactFileName = cdStageWorkflowRequest.ArtifactLocation
