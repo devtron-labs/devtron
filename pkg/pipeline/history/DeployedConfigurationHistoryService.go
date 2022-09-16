@@ -153,7 +153,13 @@ func (impl *DeployedConfigurationHistoryServiceImpl) GetAllLatestDeployedConfigu
 		impl.logger.Errorw("error in getting latest deploy stage wfr by pipelineId", "err", err, "pipelineId", pipelineId)
 		return nil, err
 	}
-	return impl.GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfr.Id, userHasAdminAccess)
+	deployedConfig, err := impl.GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfr.Id, userHasAdminAccess)
+	if err != nil {
+		impl.logger.Errorw("error in getting GetAllDeployedConfigurationByPipelineIdAndWfrId", "err", err, "pipelineID", pipelineId, "wfrId", wfr.Id)
+		return nil, err
+	}
+	deployedConfig.WfrId = wfr.Id
+	return deployedConfig, nil
 }
 func (impl *DeployedConfigurationHistoryServiceImpl) GetAllDeployedConfigurationByPipelineIdAndWfrId(pipelineId, wfrId int, userHasAdminAccess bool) (*AllDeploymentConfigurationDetail, error) {
 	//getting history of deployment template for latest deployment

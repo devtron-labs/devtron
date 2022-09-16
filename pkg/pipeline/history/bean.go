@@ -25,6 +25,7 @@ type AllDeploymentConfigurationDetail struct {
 	ConfigMapConfig          []*ComponentLevelHistoryDetailDto `json:"configMap"`
 	SecretConfig             []*ComponentLevelHistoryDetailDto `json:"secret"`
 	StrategyConfig           *HistoryDetailDto                 `json:"pipelineStrategy"`
+	WfrId                    int                               `json:"wfrId"`
 }
 
 type DeploymentConfigurationDto struct {

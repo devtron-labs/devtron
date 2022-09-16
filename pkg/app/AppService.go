@@ -695,17 +695,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	envOverride := &chartConfig.EnvConfigOverride{}
 	var appMetrics *bool
 	strategy := &chartConfig.PipelineStrategy{}
-	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LATEST_TRIGGER {
-		//in case of deployment with the latest trigger, getting latest wfr and updating deployment with config type
-		//because latest trigger is also a specific trigger
-		wfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(overrideRequest.PipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
-		if err != nil {
-			impl.logger.Errorw("error in getting latest deploy stage wfr by pipelineId", "err", err, "pipelineId", overrideRequest.PipelineId)
-			return 0, err
-		}
-		overrideRequest.DeploymentWithConfig = bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER
-		overrideRequest.WfrIdForDeploymentWithSpecificTrigger = wfr.Id
-	}
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 		deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 		if err != nil {
