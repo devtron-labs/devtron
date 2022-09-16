@@ -476,7 +476,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
 		workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
 	default:
-		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
+		if impl.ciConfig.BlobStorageEnabled {
+			return nil, fmt.Errorf("blob storage %s not supported", workflowRequest.CloudProvider)
+		}
 	}
 	return workflowRequest, nil
 }
