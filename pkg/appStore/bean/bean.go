@@ -19,11 +19,12 @@ package appStoreBean
 
 import (
 	"encoding/json"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"time"
+
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 )
 
-//v1
+// v1
 type InstallAppVersionHistoryDto struct {
 	InstalledAppInfo *InstalledAppDto `json:"installedAppInfo"`
 	IAVHistory       []*IAVHistory    `json:"deploymentHistory"`
@@ -85,8 +86,8 @@ type InstallAppVersionDTO struct {
 	AppStoreName              string                     `json:"appStoreName"`
 	Deprecated                bool                       `json:"deprecated"`
 	ForceDelete               bool                       `json:"-"`
-	ClusterId                 int                        `json:"clusterId"` // needed for hyperion mode
-	Namespace                 string                     `json:"namespace"` // needed for hyperion mode
+	ClusterId                 int                        `json:"clusterId"`                                 // needed for hyperion mode
+	Namespace                 string                     `json:"namespace" validate:"name-space-component"` // needed for hyperion mode
 	AppOfferingMode           string                     `json:"appOfferingMode"`
 	GitOpsRepoName            string                     `json:"gitOpsRepoName"`
 	GitOpsPath                string                     `json:"gitOpsPath"`
@@ -110,7 +111,7 @@ type InstallAppVersionChartRepoDTO struct {
 	Password string `json:"-"`
 }
 
-/// bean for v2
+// / bean for v2
 type ChartGroupInstallRequest struct {
 	ProjectId                     int                              `json:"projectId"  validate:"required,number"`
 	ChartGroupInstallChartRequest []*ChartGroupInstallChartRequest `json:"charts" validate:"dive,required"`
@@ -131,7 +132,7 @@ type ChartGroupInstallChartRequest struct {
 type ChartGroupInstallAppRes struct {
 }
 
-///
+// /
 type RefChartProxyDir string
 
 var CHART_PROXY_TEMPLATE = "reference-chart-proxy"
@@ -154,8 +155,8 @@ type InstalledAppsResponse struct {
 	EnvironmentId                int       `json:"environmentId"`
 	Deprecated                   bool      `json:"deprecated"`
 	AppOfferingMode              string    `json:"appOfferingMode" validate:"oneof=EA_ONLY FULL"`
-	ClusterId                    int       `json:"clusterId"` // needed for hyperion app
-	Namespace                    string    `json:"namespace"` // needed for hyperion app
+	ClusterId                    int       `json:"clusterId"`                                 // needed for hyperion app
+	Namespace                    string    `json:"namespace" validate:"name-space-component"` // needed for hyperion app
 }
 
 type AppNames struct {
