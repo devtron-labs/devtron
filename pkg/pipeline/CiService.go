@@ -445,9 +445,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			CiCacheBucketName:    ciWorkflowConfig.CiCacheBucket,
 			CiCacheRegion:        ciWorkflowConfig.CiCacheRegion,
 			CiArtifactBucketName: workflowRequest.CiArtifactBucket,
-			CiArtifactRegion:     ciWorkflowConfig.CiCacheRegion,
+			CiArtifactRegion:     impl.ciConfig.DefaultCdLogsBucketRegion,
 			CiLogBucketName:      impl.ciConfig.DefaultBuildLogsBucket,
-			CiLogRegion:          impl.ciConfig.DefaultCacheBucketRegion,
+			CiLogRegion:          impl.ciConfig.DefaultCdLogsBucketRegion,
 		}
 	case BLOB_STORAGE_GCP:
 		workflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{

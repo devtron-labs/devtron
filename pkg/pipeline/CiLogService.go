@@ -114,6 +114,7 @@ func (impl *CiLogServiceImpl) FetchLogs(logRequest BuildLogRequest) (*os.File, f
 		DestinationKey:      tempFile,
 		AzureBlobBaseConfig: logRequest.AzureBlobConfig,
 		AwsS3BaseConfig:     logRequest.AwsS3BaseConfig,
+		GcpBlobBaseConfig:   logRequest.GcpBlobBaseConfig,
 	}
 
 	_, _, err := blobStorageService.Get(request)

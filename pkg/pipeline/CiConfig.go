@@ -42,6 +42,7 @@ type CiConfig struct {
 	DefaultTimeout                 int64                        `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
 	Mode                           string                       `env:"MODE" envDefault:"DEV"`
 	DefaultBuildLogsBucket         string                       `env:"DEFAULT_BUILD_LOGS_BUCKET" envDefault:"devtron-pro-ci-logs"`
+	DefaultCdLogsBucketRegion      string                       `env:"DEFAULT_CD_LOGS_BUCKET_REGION" envDefault:"us-east-2"`
 	LimitCpu                       string                       `env:"LIMIT_CI_CPU" envDefault:"0.5"`
 	LimitMem                       string                       `env:"LIMIT_CI_MEM" envDefault:"3G"`
 	ReqCpu                         string                       `env:"REQ_CI_CPU" envDefault:"0.5"`
