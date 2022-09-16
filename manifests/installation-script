@@ -194,7 +194,6 @@ hasMinio = kubectl get sts devtron-minio -n devtroncd;
 minioAccesskey = "";
 minioSecretkey  = "";
 minioEndpoint = "http://devtron-minio.devtroncd:9000";
-minioUrlInsecure = "true"
 
 if cloudProvider=="AZURE" {
   azureAccountNameEncoded = base64EncoderPrefix + `echo "` + azureAccountName + `" | tr -d ':\n' ` + base64EncoderSuffix;
@@ -204,12 +203,12 @@ if cloudProvider=="AZURE" {
   minio = kubectl apply -n devtroncd minio;
   log("executed minio setup");
 } else if cloudProvider=="MINIO" && !hasMinio {
-  #log("no minio");
-  #minioAccesskey = shellScript passwordGen;
-  #minioSecretkey = shellScript passwordGen;
-  #kubeYamlEdit(minioStorage, "data.accesskey", minioAccesskey, `/Secret//devtron-minio`);
-  #kubeYamlEdit(minioStorage, "data.secretkey", minioSecretkey, `/Secret//devtron-minio`);
-  #  minioStorage = kubectl apply -n devtroncd minioStorage ;
+  log("no minio");
+  minioAccesskey = shellScript passwordGen;
+  minioSecretkey = shellScript passwordGen;
+  kubeYamlEdit(minioStorage, "data.accesskey", minioAccesskey, `/Secret//devtron-minio`);
+  kubeYamlEdit(minioStorage, "data.secretkey", minioSecretkey, `/Secret//devtron-minio`);
+    minioStorage = kubectl apply -n devtroncd minioStorage ;
 
 } else if cloudProvider=="MINIO" && hasMinio {
  log("has minio");
@@ -217,18 +216,14 @@ if cloudProvider=="AZURE" {
  minioAccesskey = jsonSelect(minioSecret, "data.accesskey");
  minioSecretkey = jsonSelect(minioSecret, "data.secretkey");
  log(minioSecret);
- kubeYamlEdit(devtron, "data.BLOB_STORAGE_S3_ACCESS_KEY", minioAccesskey, `/Secret//devtron-secret`);
- kubeYamlEdit(devtron, "data.BLOB_STORAGE_S3_SECRET_KEY", minioSecretkey, `/Secret//devtron-secret`);
- kubeYamlEdit(devtron, "data.BLOB_STORAGE_S3_ENDPOINT", minioEndpoint, `/ConfigMap//devtron-cm`);
- kubeYamlEdit(devtron, "data.BLOB_STORAGE_S3_ENDPOINT_INSECURE", minioUrlInsecure, `/ConfigMap//devtron-cm`);
  log("====================");
 }
 
-#if cloudProvider=="MINIO"{
-#  kubeYamlEdit(devtron, "data.MINIO_ACCESS_KEY", minioAccesskey, `/Secret//devtron-secret`);
-#  kubeYamlEdit(devtron, "data.MINIO_SECRET_KEY", minioSecretkey, `/Secret//devtron-secret`);
-#  kubeYamlEdit(devtron, "data.MINIO_ENDPOINT", minioEndpoint, `/ConfigMap//devtron-cm`);
-#}
+if cloudProvider=="MINIO"{
+  kubeYamlEdit(devtron, "data.MINIO_ACCESS_KEY", minioAccesskey, `/Secret//devtron-secret`);
+  kubeYamlEdit(devtron, "data.MINIO_SECRET_KEY", minioSecretkey, `/Secret//devtron-secret`);
+  kubeYamlEdit(devtron, "data.MINIO_ENDPOINT", minioEndpoint, `/ConfigMap//devtron-cm`);
+}
 
 # minio end
 
@@ -591,12 +586,7 @@ kubeYamlEdit(devtron, "data.GRAFANA_URL", grafanaUrl, `/ConfigMap//devtron-cm`);
 if !cloudProvider {
   cloudProvider="S3";
 }
-
-if cloudProvider == "MINIO" {
-  kubeYamlEdit(devtron, "data.BLOB_STORAGE_PROVIDER", "S3", `/ConfigMap//devtron-cm`);
-} else {
-  kubeYamlEdit(devtron, "data.BLOB_STORAGE_PROVIDER", cloudProvider, `/ConfigMap//devtron-cm`);
-}
+kubeYamlEdit(devtron, "data.BLOB_STORAGE_PROVIDER", cloudProvider, `/ConfigMap//devtron-cm`);
 
 if cloudProvider=="AZURE" {
   kubeYamlEdit(devtron, "data.AZURE_ACCOUNT_NAME", azureAccountName, `/ConfigMap//devtron-cm`);
@@ -745,9 +735,50 @@ workflowSecret = kubectl apply workflowSecret;
 
 workflowConfig = `parallelism: 50
 artifactRepository:
-  archiveLogs: true`;
+  archiveLogs: true
+  s3:`;
+
+if cloudProvider=="S3" {
+    workflowConfig = workflowConfig +`
+    endpoint: s3.amazonaws.com
+    bucket: `;
+workflowConfig = workflowConfig + defaultBuildLogsBucket;
+workflowConfig = workflowConfig + `
+    region: `;
+workflowConfig = workflowConfig + defaultCacheBucketRegion;
+} else if cloudProvider=="AZURE"{
+
+workflowConfig = workflowConfig +`
+    bucket: `;
+workflowConfig = workflowConfig + azureBlobContainerCiLog;
+workflowConfig = workflowConfig +`
+    insecure: true                  #omit for S3/GCS. Needed when minio runs without TLS
+    accessKeySecret:                #omit if accessing via AWS IAM
+      name: workflow-minio-cred
+      key: accessKey
+    secretKeySecret:                #omit if accessing via AWS IAM
+      name: workflow-minio-cred
+      key: secretKey
+    endpoint: devtron-minio.devtroncd:9000`;
+}else if cloudProvider=="MINIO"{
+
+workflowConfig = workflowConfig +`
+    bucket: `;
+workflowConfig = workflowConfig + defaultBuildLogsBucket;
+workflowConfig = workflowConfig +`
+    insecure: true                  #omit for S3/GCS. Needed when minio runs without TLS
+    accessKeySecret:                #omit if accessing via AWS IAM
+      name: workflow-minio-cred
+      key: accessKey
+    secretKeySecret:                #omit if accessing via AWS IAM
+      name: workflow-minio-cred
+      key: secretKey
+    endpoint: devtron-minio.devtroncd:9000`;
+}
+
 
 workflowConfig = workflowConfig + `
+    keyFormat: devtron/{{workflow.name}}
 containerRuntimeExecutor: pns
 executor:
   imagePullPolicy: Always`;
