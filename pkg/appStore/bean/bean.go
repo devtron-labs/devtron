@@ -86,8 +86,8 @@ type InstallAppVersionDTO struct {
 	AppStoreName              string                     `json:"appStoreName"`
 	Deprecated                bool                       `json:"deprecated"`
 	ForceDelete               bool                       `json:"-"`
-	ClusterId                 int                        `json:"clusterId"`                                 // needed for hyperion mode
-	Namespace                 string                     `json:"namespace" validate:"name-space-component"` // needed for hyperion mode
+	ClusterId                 int                        `json:"clusterId"` // needed for hyperion mode
+	Namespace                 string                     `json:"namespace"` // needed for hyperion mode
 	AppOfferingMode           string                     `json:"appOfferingMode"`
 	GitOpsRepoName            string                     `json:"gitOpsRepoName"`
 	GitOpsPath                string                     `json:"gitOpsPath"`
@@ -155,8 +155,8 @@ type InstalledAppsResponse struct {
 	EnvironmentId                int       `json:"environmentId"`
 	Deprecated                   bool      `json:"deprecated"`
 	AppOfferingMode              string    `json:"appOfferingMode" validate:"oneof=EA_ONLY FULL"`
-	ClusterId                    int       `json:"clusterId"`                                 // needed for hyperion app
-	Namespace                    string    `json:"namespace" validate:"name-space-component"` // needed for hyperion app
+	ClusterId                    int       `json:"clusterId"` // needed for hyperion app
+	Namespace                    string    `json:"namespace"` // needed for hyperion app
 }
 
 type AppNames struct {
