@@ -740,6 +740,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		}
 		strategy.Strategy = strategyHistory.Strategy
 		strategy.Config = strategyHistory.Config
+		strategy.PipelineId = pipeline.Id
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
 		if err != nil {
