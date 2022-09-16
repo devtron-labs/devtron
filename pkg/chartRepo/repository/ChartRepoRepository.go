@@ -373,10 +373,18 @@ func (impl ChartRefRepositoryImpl) FindById(id int) (*ChartRef, error) {
 }
 func (impl ChartRefRepositoryImpl) FindByVersionAndName(name, version string) (*ChartRef, error) {
 	repo := &ChartRef{}
-	err := impl.dbConnection.Model(repo).
-		Where("name = ?", name).
-		Where("version= ?", version).
-		Where("active = ?", true).Select()
+	var err error
+	if len(name) > 0 {
+		err = impl.dbConnection.Model(repo).
+			Where("name = ?", name).
+			Where("version= ?", version).
+			Where("active = ?", true).Select()
+	} else {
+		err = impl.dbConnection.Model(repo).
+			Where("name is NULL", name).
+			Where("version= ?", version).
+			Where("active = ?", true).Select()
+	}
 	return repo, err
 }
 
