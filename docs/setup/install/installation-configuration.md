@@ -67,7 +67,7 @@ While installing Devtron using Azure Blob Storage for storing logs and caches, t
 To convert string to base64 use the following command:
 
 ```bash
-echo -n "string" | base64 -d
+echo -n "string" | base64
 ```
 
 > **Note**:
