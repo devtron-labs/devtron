@@ -12,17 +12,8 @@ Install [Helm](https://helm.sh/docs/intro/install/).
 
 {% tabs %}
 {% tab title="Install with default configurations" %}
-This installation will use Minio for storing build logs and cache.
 
-```bash
-helm repo add devtron https://helm.devtron.ai
-
-helm install devtron devtron/devtron-operator \
---create-namespace --namespace devtroncd \
---set installer.modules={cicd} \
---set minio.enabled=true
-```
-If you are trying devtron on your machine :
+This installation will not use any buckets to store build logs and cache.
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -32,13 +23,35 @@ helm install devtron devtron/devtron-operator \
 --set installer.modules={cicd}
 
 ```
-> NOTE: build logs and cache will not be stored in this case 
 
+You can update Devtron to use Minio to store build logs and cache.
+
+```bash
+helm repo update
+
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set minio.enabled=true
+
+```
 
 {% endtab %}
 
+{% tab title="Install with Minio%}
 
-{% tab title=}
+This installation will use Minio bucket for storing logs and cache. Refer to the `Minio specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set minio.enabled=true
+```
+
+{% endtab %}
 
 {% tab title="Install with AWS S3 Buckets" %}
 This installation will use AWS s3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
