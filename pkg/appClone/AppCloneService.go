@@ -45,6 +45,7 @@ type AppCloneServiceImpl struct {
 	appWorkflowService      appWorkflow.AppWorkflowService
 	appListingService       app.AppListingService
 	propertiesConfigService pipeline.PropertiesConfigService
+	pipelineStageService    pipeline.PipelineStageService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -55,7 +56,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-
+	pipelineStageService pipeline.PipelineStageService,
 ) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                  logger,
@@ -66,6 +67,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		appWorkflowService:      appWorkflowService,
 		appListingService:       appListingService,
 		propertiesConfigService: propertiesConfigService,
+		pipelineStageService:    pipelineStageService,
 	}
 
 }
@@ -705,6 +707,13 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 				}
 				afterDockerBuildScripts = append(afterDockerBuildScripts, ciScript)
 			}
+
+			//getting pre stage and post stage details
+			preStageDetail, postStageDetail, err := impl.pipelineStageService.GetCiPipelineStageData(refCiPipeline.Id)
+			if err != nil {
+				impl.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", refCiPipeline.Id)
+				return nil, err
+			}
 			ciPatchReq := &bean.CiPatchRequest{
 				CiPipeline: &bean.CiPipeline{
 					IsManual:                 refCiPipeline.IsManual,
@@ -722,12 +731,15 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					BeforeDockerBuildScripts: beforeDockerBuildScripts,
 					AfterDockerBuildScripts:  afterDockerBuildScripts,
 					ParentCiPipeline:         refCiPipeline.ParentCiPipeline,
+					PreBuildStage:            preStageDetail,
+					PostBuildStage:           postStageDetail,
 				},
 				AppId:         req.appId,
 				Action:        bean.CREATE,
 				AppWorkflowId: req.wfId,
 				UserId:        req.userId,
 			}
+
 			return impl.pipelineBuilder.PatchCiPipeline(ciPatchReq)
 		}
 	}
