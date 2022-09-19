@@ -95,6 +95,6 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 }
 
 func (handler TelemetryRestHandlerImpl) SigtermEventHandler(w http.ResponseWriter, r *http.Request) {
-	handler.telemetryEventClient.SendSigtermSummaryEventEA()
+	handler.telemetryEventClient.SendSigtermSummaryEvent()
 	common.WriteJsonResp(w, nil, "success", http.StatusOK)
 }

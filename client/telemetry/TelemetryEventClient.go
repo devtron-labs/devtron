@@ -46,7 +46,7 @@ type TelemetryEventClient interface {
 	SendTelemetryDashboardAccessEvent() error
 	SendTelemetryDashboardLoggedInEvent() error
 	SendGenericTelemetryEvent(eventType string, prop map[string]interface{}) error
-	SendSigtermSummaryEventEA()
+	SendSigtermSummaryEvent()
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
@@ -167,7 +167,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	return clusters, users, k8sServerVersion, hostURL, ssoSetup
 }
 
-func (impl *TelemetryEventClientImpl) SendSigtermSummaryEventEA() {
+func (impl *TelemetryEventClientImpl) SendSigtermSummaryEvent() {
 	var eventType = Sigterm
 	impl.ArgumentedSummaryEventForTelemetryEA(eventType)
 }
