@@ -176,12 +176,12 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 		configMapEnvLevel = configEnvLevel.ConfigMapData
 		secretEnvLevel = configEnvLevel.SecretData
 	}
-	mergedConfigMap, err := impl.MergeCMCSConfig(configMapAppLevel, configMapEnvLevel, repository2.CONFIGMAP_TYPE)
+	mergedConfigMap, err := impl.GetMergedCMCSConfigMap(configMapAppLevel, configMapEnvLevel, repository2.CONFIGMAP_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
 		return nil, nil, err
 	}
-	mergedSecret, err := impl.MergeCMCSConfig(secretAppLevel, secretEnvLevel, repository2.SECRET_TYPE)
+	mergedSecret, err := impl.GetMergedCMCSConfigMap(secretAppLevel, secretEnvLevel, repository2.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
 		return nil, nil, err
@@ -209,7 +209,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 	return cmConfigsDto, secretConfigsDto, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) MergeCMCSConfig(appLevelConfig, envLevelConfig string, configType repository2.ConfigType) (map[string]*history.ConfigData, error) {
+func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository2.ConfigType) (map[string]*history.ConfigData, error) {
 	envLevelMap := make(map[string]*history.ConfigData, 0)
 	finalMap := make(map[string]*history.ConfigData, 0)
 	if configType == repository2.CONFIGMAP_TYPE {

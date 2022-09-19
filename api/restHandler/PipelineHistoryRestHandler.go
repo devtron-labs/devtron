@@ -17,8 +17,8 @@ type PipelineHistoryRestHandler interface {
 	FetchDeployedConfigurationsForWorkflow(w http.ResponseWriter, r *http.Request)
 	FetchDeployedHistoryComponentList(w http.ResponseWriter, r *http.Request)
 	FetchDeployedHistoryComponentDetail(w http.ResponseWriter, r *http.Request)
-	GetAllDeployedConfigurationHistoryForLatestTrigger(w http.ResponseWriter, r *http.Request)
-	GetAllDeployedConfigurationHistoryForSpecificTrigger(w http.ResponseWriter, r *http.Request)
+	GetAllDeployedConfigurationHistoryForLatestWfrIdForPipeline(w http.ResponseWriter, r *http.Request)
+	GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline(w http.ResponseWriter, r *http.Request)
 }
 
 type PipelineHistoryRestHandlerImpl struct {
@@ -218,7 +218,7 @@ func (handler *PipelineHistoryRestHandlerImpl) FetchDeployedHistoryComponentDeta
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistoryForLatestTrigger(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistoryForLatestWfrIdForPipeline(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -249,16 +249,16 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 	//RBAC END
 	//checking if user has admin access
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
-	res, err := handler.deployedConfigurationHistoryService.GetAllLatestDeployedConfigurationByPipelineId(pipelineId, userHasAdminAccess)
+	res, err := handler.deployedConfigurationHistoryService.GetAllDeployedConfigurationByPipelineIdAndLatestWfrId(pipelineId, userHasAdminAccess)
 	if err != nil {
-		handler.logger.Errorw("service err, GetAllLatestDeployedConfigurationByPipelineId", "err", err, "pipelineId", pipelineId)
+		handler.logger.Errorw("service err, GetAllDeployedConfigurationByPipelineIdAndLatestWfrId", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistoryForSpecificTrigger(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline(w http.ResponseWriter, r *http.Request) {
 	// trigger is mapped by wfr (help for method name)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -268,23 +268,23 @@ func (handler *PipelineHistoryRestHandlerImpl) GetAllDeployedConfigurationHistor
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificTrigger", "err", err, "appId", appId)
+		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
-		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificTrigger", "err", err, "pipelineId", pipelineId)
+		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	wfrId, err := strconv.Atoi(vars["wfrId"])
 	if err != nil {
-		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificTrigger", "err", err, "wfrId", wfrId)
+		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "err", err, "wfrId", wfrId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.logger.Debugw("request payload, GetAllDeployedConfigurationHistoryForSpecificTrigger", "pipelineId", pipelineId)
+	handler.logger.Debugw("request payload, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "pipelineId", pipelineId)
 
 	//RBAC START
 	token := r.Header.Get("token")
