@@ -27,24 +27,13 @@ helm install devtron devtron/devtron-operator \
 
 {% tab title="MinIO storage" %}
 
-This installation will use MinIO for storing logs and cache. Refer to the `MinIO specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
+This installation will use MinIO for storing logs and cache.
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
 helm upgrade --install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
---set installer.modules={cicd} \
---set minio.enabled=true
-```
-
-You can upgrade Devtron to use MinIO to store build logs and cache using following commands :
-
-```bash
-helm repo update
-
-helm upgrade devtron devtron/devtron-operator \
---namespace devtroncd \
 --set installer.modules={cicd} \
 --set minio.enabled=true
 ```
