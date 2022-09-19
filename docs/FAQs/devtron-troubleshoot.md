@@ -311,8 +311,8 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
 --set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
---set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
---set configs.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
 --set configs.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
 ```
 

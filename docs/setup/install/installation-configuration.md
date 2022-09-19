@@ -53,9 +53,15 @@ While installing Devtron and using the AWS-S3 bucket for storing the logs and ca
 | **DEFAULT\_BUILD\_LOGS\_BUCKET** | AWS bucket to store build logs, it should be created beforehand \(required\) |  |
 | **DEFAULT\_CACHE\_BUCKET\_REGION** | AWS region of S3 bucket to store cache \(required\) |  |
 | **DEFAULT\_CD\_LOGS\_BUCKET\_REGION** | AWS region of S3 bucket to store CD logs \(required\) |  |
-| **BLOB_STORAGE_S3_ACCESS_KEY** | AWS access key to access S3 bucket. Required if installing using AWS credentials. | |
-| **BLOB_STORAGE_S3_SECRET_KEY** | AWS secret key to access S3 bucket. Required if installing using AWS credentials. |
 | **BLOB_STORAGE_S3_ENDPOINT** | S3 compatible bucket endpoint. | |
+
+
+The below parameters are to be used in the Secrets :
+
+| Parameter | Description | Default |
+| :--- | :--- | :--- |
+| **BLOB_STORAGE_S3_ACCESS_KEY** | AWS access key to access S3 bucket. Required if installing using AWS credentials. | |
+| **BLOB_STORAGE_S3_SECRET_KEY** | AWS secret key to access S3 bucket. Required if installing using AWS credentials. | |
 
 ### AZURE SPECIFIC
 
