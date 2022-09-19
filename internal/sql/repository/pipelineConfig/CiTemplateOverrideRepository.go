@@ -19,7 +19,7 @@ type CiTemplateOverride struct {
 }
 
 type CiTemplateOverrideRepository interface {
-	FindByCiPipelineIds(ciPipelineIds []int) ([]*CiTemplateOverride, error)
+	FindByAppId(appId int) ([]*CiTemplateOverride, error)
 }
 
 type CiTemplateOverrideRepositoryImpl struct {
@@ -35,14 +35,17 @@ func NewCiTemplateOverrideRepositoryImpl(dbConnection *pg.DB,
 	}
 }
 
-func (repo *CiTemplateOverrideRepositoryImpl) FindByCiPipelineIds(ciPipelineIds []int) ([]*CiTemplateOverride, error) {
+func (repo *CiTemplateOverrideRepositoryImpl) FindByAppId(appId int) ([]*CiTemplateOverride, error) {
 	var ciTemplateOverrides []*CiTemplateOverride
 	err := repo.dbConnection.Model(ciTemplateOverrides).
-		Where("ci_pipeline_id in (?)", pg.In(ciPipelineIds)).
-		Where("active = ?", true).
+		Join("INNER JOIN ci_pipeline cp on cp.id=ci_template_override.ci_pipeline_id").
+		Where("app_id = ?", appId).
+		Where("is_docker_config_override = ?", true).
+		Where("ci_template_override.active = ?", true).
+		Where("cp.deleted = ?", false).
 		Select()
 	if err != nil {
-		repo.logger.Errorw("error in getting ciTemplateOverride by ciPipelineIds", "err", err, "ciPipelineIds", ciPipelineIds)
+		repo.logger.Errorw("error in getting ciTemplateOverride by appId", "err", err, "appId", appId)
 		return nil, err
 	}
 	return ciTemplateOverrides, nil
