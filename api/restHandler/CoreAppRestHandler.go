@@ -1567,6 +1567,8 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			DockerArgs:               ciPipelineData.DockerBuildArgs,
 			ScanEnabled:              ciPipelineData.VulnerabilityScanEnabled,
 			CiMaterial:               ciMaterialsRequest,
+			PreBuildStage:            ciPipelineData.PreBuildStage,
+			PostBuildStage:           ciPipelineData.PostBuildStage,
 		},
 	}
 
