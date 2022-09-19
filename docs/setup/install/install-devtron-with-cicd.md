@@ -41,7 +41,7 @@ helm upgrade --install devtron devtron/devtron-operator \
 {% endtab %}
 
 {% tab title="AWS S3 Bucket" %}
-This installation will use AWS s3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
+This installation will use AWS s3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#aws-specific) page.
 
 *  Install using S3 IAM policy.
 
@@ -96,7 +96,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 
 {% tab title="Azure Blob Storage" %}
 This installation will use Azure Blob Storage for storing build logs and cache.
-Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
+Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#azure-specific) page.
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -114,7 +114,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 
 {% tab title="Google Cloud Storage" %}
 This installation will use Google Cloud Storage for storing build logs and cache.
-Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
+Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#google-cloud-storage-specific) page.
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
