@@ -122,20 +122,6 @@ helm upgrade devtron devtron/devtron-operator --create-namespace --namespace dev
 
 {% endtab %}
 
-{% tab title="Install with default configurations" %}
-This installation will use Minio for storing build logs and cache.
-
-```bash
-helm repo add devtron https://helm.devtron.ai
-
-helm install devtron devtron/devtron-operator \
---create-namespace --namespace devtroncd \
---set installer.modules={cicd}
-
-```
-
-{% endtab %}
-
 {% tab title="Azure Blob Storage" %}
 This installation will use Azure Blob Storage for storing build logs and cache.
 Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
@@ -167,7 +153,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 ```
 {% endtab %}
 
-{% tab title="Google Cloud Storage"}
+{% tab title="Google Cloud Storage" %}
 This installation will use Google Cloud Storage for storing build logs and cache.
 Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
 
@@ -182,7 +168,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 --set configs.DEFAULT_BUILD_LOGS_BUCKET: log-bucket
 ```
 
-You can pgrade Devtron using google cloud storage using following commands:
+You can upgrade Devtron using google cloud storage using following commands:
 
 ```bash
 helm repo update
