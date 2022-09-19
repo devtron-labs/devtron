@@ -147,6 +147,7 @@ type PipelineBuilderImpl struct {
 	helmAppService                   client.HelmAppService
 	deploymentGroupRepository        repository.DeploymentGroupRepository
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
+	ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -183,7 +184,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService, chartService chart.ChartService,
 	helmAppService client.HelmAppService,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineBuilderImpl {
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -224,6 +226,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		helmAppService:                   helmAppService,
 		deploymentGroupRepository:        deploymentGroupRepository,
 		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
+		ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
 	}
 }
 
@@ -433,7 +436,20 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
 		}
 	}
+	var ciPipelineIdsWithOverriddenDockerConfig []int
+	for _, pipeline := range pipelines {
+		if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
+			ciPipelineIdsWithOverriddenDockerConfig = append(ciPipelineIdsWithOverriddenDockerConfig, pipeline.Id)
+		}
+	}
 
+	if len(ciPipelineIdsWithOverriddenDockerConfig) > 0 {
+		templateOverrides, err := impl.ciTemplateOverrideRepository.FindByCiPipelineIds(ciPipelineIdsWithOverriddenDockerConfig)
+		if err != nil {
+			impl.logger.Errorw("error in getting ciTemplateOverrides by ciPipelineIds", "err", err, "ciPipelineIds", ciPipelineIdsWithOverriddenDockerConfig)
+			return nil, err
+		}
+	}
 	var ciPipelineResp []*bean.CiPipeline
 	for _, pipeline := range pipelines {
 
