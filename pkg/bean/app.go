@@ -583,7 +583,7 @@ type AppLabelsJsonForDeployment struct {
 }
 
 type UpdateProjectBulkAppsRequest struct {
-	AppId  []int `json:"appId"`
+	AppIds []int `json:"appIds"`
 	TeamId int   `json:"teamId"`
 	UserId int32 `json:"-"`
 }

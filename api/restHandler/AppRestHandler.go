@@ -189,7 +189,7 @@ func (handler AppRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter, r 
 
 	//rbac implementation ends here
 	token := r.Header.Get("token")
-	for _, appId := range request.AppId {
+	for _, appId := range request.AppIds {
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
