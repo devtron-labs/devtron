@@ -1,6 +1,7 @@
 package pipelineConfig
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -16,10 +17,13 @@ type CiTemplateOverride struct {
 	GitMaterialId    int      `sql:"git_material_id"`
 	Active           bool     `sql:"active,notnull"`
 	sql.AuditLog
+	GitMaterial    *GitMaterial
+	DockerRegistry *repository.DockerArtifactStore
 }
 
 type CiTemplateOverrideRepository interface {
 	FindByAppId(appId int) ([]*CiTemplateOverride, error)
+	FindByCiPipelineId(ciPipelineId int) (*CiTemplateOverride, error)
 }
 
 type CiTemplateOverrideRepositoryImpl struct {
@@ -49,4 +53,17 @@ func (repo *CiTemplateOverrideRepositoryImpl) FindByAppId(appId int) ([]*CiTempl
 		return nil, err
 	}
 	return ciTemplateOverrides, nil
+}
+
+func (repo *CiTemplateOverrideRepositoryImpl) FindByCiPipelineId(ciPipelineId int) (*CiTemplateOverride, error) {
+	var ciTemplateOverride CiTemplateOverride
+	err := repo.dbConnection.Model(&ciTemplateOverride).
+		Where("ci_pipeline_id = ?", ciPipelineId).
+		Where("active = ?", true).
+		Select()
+	if err != nil {
+		repo.logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "err", err, "ciPipelineId", ciPipelineId)
+		return nil, err
+	}
+	return &ciTemplateOverride, nil
 }
