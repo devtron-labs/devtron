@@ -276,7 +276,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set components.postgres.persistence.volumeSize=20Gi
 ```
 
-#### Upgrade Devtron using different storage
+#### 21. Upgrade Devtron using different storage
 
 
 Upgrade with:
@@ -328,8 +328,8 @@ helm install devtron devtron/devtron-operator --namespace devtroncd \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
 --set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
---set configs.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
---set configs.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
 --set configs.BLOB_STORAGE_S3_ENDPOINT=<endpoint>
 ```
 
@@ -341,7 +341,7 @@ Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](./i
 
 ```bash
 helm repo update
-helm install devtron devtron/devtron-operator --namespace devtroncd \
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
 --set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
@@ -359,7 +359,7 @@ Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cac
 ```bash
 helm repo upgrade
 
-helm install devtron devtron/devtron-operator --namespace devtroncd \
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
 --set configs.BLOB_STORAGE_PROVIDER: GCP \
 --set secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON: {\"type\": \"service_account\",\"project_id\": \"<your-project-id>\",\"private_key_id\": \"<your-private-key-id>\",\"private_key\": \"<your-private-key>\",\"client_email\": \"<your-client-email>\",\"client_id\": \"<your-client-id>\",\"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\"token_uri\": \"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\"client_x509_cert_url\": \"<your-client-cert-url>\"} \
