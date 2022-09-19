@@ -283,7 +283,7 @@ Upgrade with:
 {% tabs %}
 
 {% tab title="AWS S3 Bucket" %}
-This upgrade will use AWS S3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#aws-specific) page.
+This upgrade will use AWS S3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](../setup/installation-configuration.md#aws-specific) page.
 
 *  Upgrade using S3 IAM policy.
 
@@ -337,7 +337,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 
 {% tab title="Azure Blob Storage" %}
 This upgrade will use Azure Blob Storage for storing build logs and cache.
-Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#azure-specific) page.
+Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](../setup/installation-configuration.md#azure-specific) page.
 
 ```bash
 helm repo update
@@ -354,7 +354,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 
 {% tab title="Google Cloud Storage" %}
 This upgrade will use Google Cloud Storage for storing build logs and cache.
-Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#google-cloud-storage-specific) page.
+Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](../setup/installation-configuration.md#google-cloud-storage-specific) page.
 
 ```bash
 helm repo update
