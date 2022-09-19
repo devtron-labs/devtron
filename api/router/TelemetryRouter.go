@@ -45,6 +45,6 @@ func (router TelemetryRouterImpl) InitTelemetryRouter(telemetryRouter *mux.Route
 	telemetryRouter.Path("/event").
 		HandlerFunc(router.handler.SendTelemetryData).Methods("POST")
 	telemetryRouter.Path("/sigtermEvent").
-		HandlerFunc(router.handler.SigtermEventHandler).Methods("GET")
+		HandlerFunc(router.handler.SigtermEventHandler).Methods("POST")
 
 }
