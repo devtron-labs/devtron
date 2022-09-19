@@ -67,7 +67,7 @@ The below parameters are to be used in the Secrets :
 
 While installing Devtron using Azure Blob Storage for storing logs and caches, the below parameters will be used in the ConfigMap.
 
-| Parameter | Description | Default |
+| Parameter | Description |
 | :--- | :--- | :--- |
 | **AZURE\_ACCOUNT\_NAME** | Account name for AZURE Blob Storage |  |
 | **AZURE\_BLOB\_CONTAINER\_CI\_LOG** | AZURE Blob storage container for storing ci-logs after running the CI pipeline |  |
