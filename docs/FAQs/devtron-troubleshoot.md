@@ -305,7 +305,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 ```bash
 helm repo update
 
-helm install devtron devtron/devtron-operator --namespace devtroncd \
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
@@ -321,7 +321,7 @@ helm install devtron devtron/devtron-operator --namespace devtroncd \
 ```bash
 helm repo update
 
-helm install devtron devtron/devtron-operator --namespace devtroncd \
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
