@@ -41,7 +41,7 @@ helm upgrade --install devtron devtron/devtron-operator \
 {% endtab %}
 
 {% tab title="AWS S3 Bucket" %}
-This installation will use AWS s3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#aws-specific) page.
+This installation will use AWS S3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#aws-specific) page.
 
 *  Install using S3 IAM policy.
 
