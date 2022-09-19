@@ -290,8 +290,23 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 			return
 		}
+		var roleFilters []bean.RoleFilter
+		if len(user.Groups) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+			if err != nil {
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+				return
+			}
+			if len(groupRoleFilters) > 0 {
+				roleFilters = append(roleFilters, groupRoleFilters...)
+			}
+		}
 		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
-			for _, filter := range user.RoleFilters {
+			roleFilters = append(roleFilters, user.RoleFilters...)
+		}
+		if len(roleFilters) > 0 {
+			for _, filter := range roleFilters {
 				if len(filter.Team) > 0 {
 					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); ok {
 						isAuthorised = true
