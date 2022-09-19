@@ -43,7 +43,7 @@ helm upgrade --install devtron devtron/devtron-operator \
 {% tab title="AWS S3 Bucket" %}
 This installation will use AWS s3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
 
-1. Install using S3 IAM policy.
+*  Install using S3 IAM policy.
 
 >NOTE: Pleasee ensure that S3 permission policy to the IAM role attached to the nodes of the cluster if you are using the below command.
 
@@ -59,7 +59,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
 ```
 
-2. Install using access-key and secret-key for aws S3 authentication:
+*  Install using access-key and secret-key for aws S3 authentication:
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -75,7 +75,7 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 --set configs.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
 ```
 
-3. Install using S3 compatible storages: 
+*  Install using S3 compatible storages: 
 
 ```bash
 helm repo add devtron https://helm.devtron.ai

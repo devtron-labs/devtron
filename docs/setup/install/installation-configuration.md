@@ -53,6 +53,9 @@ While installing Devtron and using the AWS-S3 bucket for storing the logs and ca
 | **DEFAULT\_BUILD\_LOGS\_BUCKET** | AWS bucket to store build logs, it should be created beforehand \(required\) |  |
 | **DEFAULT\_CACHE\_BUCKET\_REGION** | AWS region of S3 bucket to store cache \(required\) |  |
 | **DEFAULT\_CD\_LOGS\_BUCKET\_REGION** | AWS region of S3 bucket to store CD logs \(required\) |  |
+| **BLOB_STORAGE_S3_ACCESS_KEY** | AWS access key to access S3 bucket. Required if installing using AWS credentials. | |
+| **BLOB_STORAGE_S3_SECRET_KEY** | AWS secret key to access S3 bucket. Required if installing using AWS credentials. |
+| **BLOB_STORAGE_S3_ENDPOINT** | S3 compatible bucket endpoint. | |
 
 ### AZURE SPECIFIC
 
@@ -62,7 +65,18 @@ While installing Devtron using Azure Blob Storage for storing logs and caches, t
 | :--- | :--- | :--- |
 | **AZURE\_ACCOUNT\_NAME** | Account name for AZURE Blob Storage |  |
 | **AZURE\_BLOB\_CONTAINER\_CI\_LOG** | AZURE Blob storage container for storing ci-logs after running the CI pipeline |  |
-| **AZURE\_BLOB\_CONTAINER\_CI\_CACHE** | AZURE Blob storage container for storing ci cache after running the CI pipeline |  |
+| **AZURE\_BLOB\_CONTAINER\_CI\_CACHE** | AZURE Blob storage container for storing ci-cache after running the CI pipeline |  |
+
+### GOOGLE CLOUD STORAGE SPECIFIC
+
+While installing Devtron using Google Cloud Storage for storing logs and caches, the below parameters will be used in the ConfigMap.
+
+| Parameter | Description | Default |
+| :--- | :--- | :--- |
+| **BLOB_STORAGE_GCP_CREDENTIALS_JSON** | Base-64 encoded GCP credentials json for accessing Google Cloud Storage | |
+| **DEFAULT_CACHE_BUCKET** | Google Cloud Storage bucket for storing ci-logs after running the CI pipeline | |
+| **DEFAULT_LOGS_BUCKET** | Google Cloud Storage bucket for storing ci-cache after running the CI pipeline | |
+
 
 To convert string to base64 use the following command:
 
