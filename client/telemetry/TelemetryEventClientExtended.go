@@ -129,16 +129,11 @@ type TelemetryEventDto struct {
 	DevtronMode                          string             `json:"devtronMode,omitempty"`
 }
 
-func (impl *TelemetryEventClientImplExtended) SendSigtermSummaryEvent() {
-	impl.ArgumentedSummaryEventForTelemetry(Sigterm)
-}
-
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
-	var eventType = Summary
-	impl.ArgumentedSummaryEventForTelemetry(eventType)
+	impl.SendSummaryEvent("Summary")
 }
 
-func (impl *TelemetryEventClientImplExtended) ArgumentedSummaryEventForTelemetry(eventType TelemetryEventType) {
+func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string) {
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
@@ -151,7 +146,7 @@ func (impl *TelemetryEventClientImplExtended) ArgumentedSummaryEventForTelemetry
 	}
 
 	clusters, users, k8sServerVersion, hostURL, ssoSetup := impl.SummaryDetailsForTelemetry()
-	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: eventType, DevtronVersion: "v1"}
+	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
 	environments, err := impl.environmentService.GetAllActive()
@@ -273,7 +268,7 @@ func (impl *TelemetryEventClientImplExtended) ArgumentedSummaryEventForTelemetry
 		return
 	}
 
-	err = impl.EnqueuePostHog(ucid, eventType, prop)
+	err = impl.EnqueuePostHog(ucid, TelemetryEventType(eventType), prop)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
 	}

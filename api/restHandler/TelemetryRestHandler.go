@@ -19,18 +19,20 @@ package restHandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"go.uber.org/zap"
+	"io"
 	"net/http"
 )
 
 type TelemetryRestHandler interface {
 	GetTelemetryMetaInfo(w http.ResponseWriter, r *http.Request)
 	SendTelemetryData(w http.ResponseWriter, r *http.Request)
-	SigtermEventHandler(w http.ResponseWriter, r *http.Request)
+	SendSummaryEvent(w http.ResponseWriter, r *http.Request)
 }
 
 type TelemetryRestHandlerImpl struct {
@@ -94,7 +96,26 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 
 }
 
-func (handler TelemetryRestHandlerImpl) SigtermEventHandler(w http.ResponseWriter, r *http.Request) {
-	handler.telemetryEventClient.SendSigtermSummaryEvent()
+func (handler TelemetryRestHandlerImpl) SendSummaryEvent(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var payload map[string]interface{}
+	err := decoder.Decode(&payload)
+	if err != nil && err != io.EOF {
+		handler.logger.Errorw("request err, SendsummaryEvent", "err", err, "payload", payload)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	var eventType string
+	if err == io.EOF {
+		eventType = "Summary"
+	} else {
+		eventType = payload["eventType"].(string)
+		if eventType == "" {
+			eventType = "Summary"
+		}
+	}
+	fmt.Println(eventType)
+	handler.telemetryEventClient.SendSummaryEvent(eventType)
 	common.WriteJsonResp(w, nil, "success", http.StatusOK)
 }
