@@ -276,7 +276,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set components.postgres.persistence.volumeSize=20Gi
 ```
 
-#### 21. Upgrade Devtron using different storage
+#### 21. Upgrade Blob Storage
 
 
 Upgrade with:
