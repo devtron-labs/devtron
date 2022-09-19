@@ -126,15 +126,6 @@ func NewGitOpsConfigServiceImpl(Logger *zap.SugaredLogger, ciHandler pipeline.Ci
 
 func (impl *GitOpsConfigServiceImpl) ValidateAndCreateGitOpsConfig(config *bean2.GitOpsConfigDto) (DetailedErrorGitOpsConfigResponse, error) {
 	detailedErrorGitOpsConfigResponse := impl.GitOpsValidateDryRun(config)
-	//hostUrl := config.Host
-	//isGitHubUrl, err := regexp.MatchString("https://github.com/*", hostUrl)
-	//if err != nil {
-	//	impl.logger.Errorw("service err", "err", err, "payload", config)
-	//}
-	//if !isGitHubUrl {
-	//	impl.logger.Errorw("not a github url", "err", err, "payload", config)
-	//}
-
 	if len(detailedErrorGitOpsConfigResponse.StageErrorMap) == 0 {
 		//create argo-cd user, if not created, here argo-cd integration has to be installed
 		token := impl.argoUserService.GetOrUpdateArgoCdUserDetail()
