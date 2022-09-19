@@ -143,7 +143,8 @@ func (impl *DeploymentConfigServiceImpl) GetLatestPipelineStrategyConfig(pipelin
 		return nil, err
 	}
 	pipelineStrategyConfig := &history.HistoryDetailDto{
-		Strategy: string(pipelineStrategy.Strategy),
+		Strategy:            string(pipelineStrategy.Strategy),
+		PipelineTriggerType: pipeline.TriggerType,
 		CodeEditorValue: &history.HistoryDetailConfig{
 			DisplayName: "Strategy configuration",
 			Value:       pipelineStrategy.Config,
