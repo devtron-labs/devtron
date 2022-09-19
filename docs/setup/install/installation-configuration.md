@@ -59,9 +59,9 @@ While installing Devtron and using the AWS-S3 bucket for storing the logs and ca
 The below parameters are to be used in the Secrets :
 
 | Parameter | Description | Default |
-| :--- | :--- | :--- |
-| **BLOB_STORAGE_S3_ACCESS_KEY** | AWS access key to access S3 bucket. Required if installing using AWS credentials. | |
-| **BLOB_STORAGE_S3_SECRET_KEY** | AWS secret key to access S3 bucket. Required if installing using AWS credentials. | |
+| :--- | :--- |
+| **BLOB_STORAGE_S3_ACCESS_KEY** | AWS access key to access S3 bucket. Required if installing using AWS credentials. |
+| **BLOB_STORAGE_S3_SECRET_KEY** | AWS secret key to access S3 bucket. Required if installing using AWS credentials. |
 
 ### AZURE SPECIFIC
 
