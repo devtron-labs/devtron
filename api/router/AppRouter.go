@@ -23,28 +23,30 @@ import (
 	"go.uber.org/zap"
 )
 
-type AppLabelRouter interface {
-	initLabelRouter(router *mux.Router)
+type AppRouter interface {
+	initAppRouter(router *mux.Router)
 }
 
-type AppLabelRouterImpl struct {
+type AppRouterImpl struct {
 	logger  *zap.SugaredLogger
-	handler restHandler.AppLabelRestHandler
+	handler restHandler.AppRestHandlerHandler
 }
 
-func NewAppLabelRouterImpl(logger *zap.SugaredLogger, handler restHandler.AppLabelRestHandler) *AppLabelRouterImpl {
-	router := &AppLabelRouterImpl{
+func NewAppRouterImpl(logger *zap.SugaredLogger, handler restHandler.AppRestHandlerHandler) *AppRouterImpl {
+	router := &AppRouterImpl{
 		logger:  logger,
 		handler: handler,
 	}
 	return router
 }
 
-func (router AppLabelRouterImpl) initLabelRouter(appLabelsRouter *mux.Router) {
-	appLabelsRouter.Path("/labels/list").
+func (router AppRouterImpl) initAppRouter(appRouter *mux.Router) {
+	appRouter.Path("/labels/list").
 		HandlerFunc(router.handler.GetAllLabels).Methods("GET")
-	appLabelsRouter.Path("/meta/info/{appId}").
+	appRouter.Path("/meta/info/{appId}").
 		HandlerFunc(router.handler.GetAppMetaInfo).Methods("GET")
-	appLabelsRouter.Path("/labels").
-		HandlerFunc(router.handler.UpdateLabelsInApp).Methods("POST")
+	appRouter.Path("/edit").
+		HandlerFunc(router.handler.UpdateApp).Methods("POST")
+	appRouter.Path("/edit/projects").
+		HandlerFunc(router.handler.UpdateProjectForApps).Methods("POST")
 }
