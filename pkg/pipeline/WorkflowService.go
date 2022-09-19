@@ -231,25 +231,31 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		}
 		isInsecure := blobStorageS3Config.IsInSecure
 
+		var accessKeySelector *v12.SecretKeySelector
+		var secretKeySelector *v12.SecretKeySelector
+		if blobStorageS3Config.AccessKey != "" {
+			accessKeySelector = &v12.SecretKeySelector{
+				Key: "accessKey",
+				LocalObjectReference: v12.LocalObjectReference{
+					Name: "workflow-minio-cred",
+				},
+			}
+			secretKeySelector = &v12.SecretKeySelector{
+				Key: "secretKey",
+				LocalObjectReference: v12.LocalObjectReference{
+					Name: "workflow-minio-cred",
+				},
+			}
+		}
 		s3Artifact = &v1alpha1.S3Artifact{
 			Key: cloudStorageKey,
 			S3Bucket: v1alpha1.S3Bucket{
-				Endpoint: s3CompatibleEndpointUrl,
-				AccessKeySecret: &v12.SecretKeySelector{
-					Key: "accessKey",
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: "workflow-minio-cred",
-					},
-				},
-				SecretKeySecret: &v12.SecretKeySelector{
-					Key: "secretKey",
-					LocalObjectReference: v12.LocalObjectReference{
-						Name: "workflow-minio-cred",
-					},
-				},
-				Bucket:   blobStorageS3Config.CiLogBucketName,
-				Region:   blobStorageS3Config.CiLogRegion,
-				Insecure: &isInsecure,
+				Endpoint:        s3CompatibleEndpointUrl,
+				AccessKeySecret: accessKeySelector,
+				SecretKeySecret: secretKeySelector,
+				Bucket:          blobStorageS3Config.CiLogBucketName,
+				Region:          blobStorageS3Config.CiLogRegion,
+				Insecure:        &isInsecure,
 			},
 		}
 	} else if blobStorageConfigured && gcpBlobConfig != nil {
