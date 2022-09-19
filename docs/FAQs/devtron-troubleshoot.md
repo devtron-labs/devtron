@@ -357,7 +357,7 @@ This upgrade will use Google Cloud Storage for storing build logs and cache.
 Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#google-cloud-storage-specific) page.
 
 ```bash
-helm repo upgrade
+helm repo update
 
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} \
