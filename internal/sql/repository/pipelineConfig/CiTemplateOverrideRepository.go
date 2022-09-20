@@ -22,6 +22,8 @@ type CiTemplateOverride struct {
 }
 
 type CiTemplateOverrideRepository interface {
+	Save(templateOverrideConfig *CiTemplateOverride) (*CiTemplateOverride, error)
+	Update(templateOverrideConfig *CiTemplateOverride) (*CiTemplateOverride, error)
 	FindByAppId(appId int) ([]*CiTemplateOverride, error)
 	FindByCiPipelineId(ciPipelineId int) (*CiTemplateOverride, error)
 }
@@ -37,6 +39,24 @@ func NewCiTemplateOverrideRepositoryImpl(dbConnection *pg.DB,
 		dbConnection: dbConnection,
 		logger:       logger,
 	}
+}
+
+func (repo *CiTemplateOverrideRepositoryImpl) Save(templateOverrideConfig *CiTemplateOverride) (*CiTemplateOverride, error) {
+	err := repo.dbConnection.Insert(templateOverrideConfig)
+	if err != nil {
+		repo.logger.Errorw("error in saving templateOverrideConfig", "err", err)
+		return nil, err
+	}
+	return templateOverrideConfig, nil
+}
+
+func (repo *CiTemplateOverrideRepositoryImpl) Update(templateOverrideConfig *CiTemplateOverride) (*CiTemplateOverride, error) {
+	err := repo.dbConnection.Update(templateOverrideConfig)
+	if err != nil {
+		repo.logger.Errorw("error in updating templateOverrideConfig", "err", err)
+		return nil, err
+	}
+	return templateOverrideConfig, nil
 }
 
 func (repo *CiTemplateOverrideRepositoryImpl) FindByAppId(appId int) ([]*CiTemplateOverride, error) {
@@ -56,8 +76,8 @@ func (repo *CiTemplateOverrideRepositoryImpl) FindByAppId(appId int) ([]*CiTempl
 }
 
 func (repo *CiTemplateOverrideRepositoryImpl) FindByCiPipelineId(ciPipelineId int) (*CiTemplateOverride, error) {
-	var ciTemplateOverride CiTemplateOverride
-	err := repo.dbConnection.Model(&ciTemplateOverride).
+	ciTemplateOverride := &CiTemplateOverride{}
+	err := repo.dbConnection.Model(ciTemplateOverride).
 		Where("ci_pipeline_id = ?", ciPipelineId).
 		Where("active = ?", true).
 		Select()
@@ -65,5 +85,5 @@ func (repo *CiTemplateOverrideRepositoryImpl) FindByCiPipelineId(ciPipelineId in
 		repo.logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "err", err, "ciPipelineId", ciPipelineId)
 		return nil, err
 	}
-	return &ciTemplateOverride, nil
+	return ciTemplateOverride, nil
 }
