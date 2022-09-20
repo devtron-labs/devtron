@@ -7,7 +7,7 @@ CREATE TABLE "public"."ci_template_override"
     "ci_pipeline_id"              integer,
     "docker_registry_id"          text,
     "docker_repository"           text,
-    "DockerfilePath"              text,
+    "dockerfile_path"              text,
     "git_material_id"             integer,
     "active"                      boolean,
     "created_on"                  timestamptz,

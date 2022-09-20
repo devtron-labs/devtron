@@ -133,7 +133,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/app-wf/{app-id}/{app-wf-id}").
 		HandlerFunc(router.appWorkflowRestHandler.DeleteAppWorkflow).Methods("DELETE")
 
-	configRouter.Path("/app/wf/all/component-names/{appId}").
+	configRouter.Path("/wf/all/component-names/{appId}").
 		HandlerFunc(router.appWorkflowRestHandler.FindAllWorkflows).Methods("GET")
 
 	configRouter.Path("/cd-pipeline/workflow/history/{appId}/{environmentId}/{pipelineId}").HandlerFunc(router.restHandler.ListDeploymentHistory).Methods("GET")
