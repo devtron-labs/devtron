@@ -113,7 +113,7 @@ github.com/antonmedv/expr/optimizer
 github.com/antonmedv/expr/parser
 github.com/antonmedv/expr/parser/lexer
 github.com/antonmedv/expr/vm
-# github.com/argoproj/argo-cd/v2 v2.4.0
+# github.com/argoproj/argo-cd/v2 v2.4.1
 ## explicit; go 1.18
 github.com/argoproj/argo-cd/v2/common
 github.com/argoproj/argo-cd/v2/pkg/apiclient/account
