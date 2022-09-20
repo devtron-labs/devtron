@@ -178,7 +178,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	impl.logger.Infow("sending summary event", "eventType", eventType)
 	ucid, err := impl.getUCID()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event ", "err", err)
+		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return err
 	}
 
@@ -205,13 +205,13 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	prop := make(map[string]interface{})
 	err = json.Unmarshal(reqBody, &prop)
 	if err != nil {
-		impl.logger.Errorw("payload unmarshal error in SendSummaryEvent", "event", eventType, "error", err)
+		impl.logger.Errorw("SummaryEventForTelemetry, payload unmarshal error", "error", err)
 		return err
 	}
 
 	err = impl.EnqueuePostHog(ucid, TelemetryEventType(eventType), prop)
 	if err != nil {
-		impl.logger.Errorw("failed to push event error in SendSummaryEvent", "eventType", eventType, "ucid", ucid, "error", err)
+		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
 	}
 	return nil
 }
