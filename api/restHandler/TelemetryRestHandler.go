@@ -96,7 +96,7 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 }
 
 func (handler TelemetryRestHandlerImpl) SendSummaryEvent(w http.ResponseWriter, r *http.Request) {
-	handler.logger.Infow("Handling SendSummaryEvent request")
+	handler.logger.Info("Handling SendSummaryEvent request")
 	decoder := json.NewDecoder(r.Body)
 	var payload map[string]interface{}
 	err := decoder.Decode(&payload)
