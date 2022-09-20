@@ -37,14 +37,15 @@ type AppCloneService interface {
 	CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error)
 }
 type AppCloneServiceImpl struct {
-	logger                  *zap.SugaredLogger
-	pipelineBuilder         pipeline.PipelineBuilder
-	materialRepository      pipelineConfig.MaterialRepository
-	chartService            chart.ChartService
-	configMapService        pipeline.ConfigMapService
-	appWorkflowService      appWorkflow.AppWorkflowService
-	appListingService       app.AppListingService
-	propertiesConfigService pipeline.PropertiesConfigService
+	logger                       *zap.SugaredLogger
+	pipelineBuilder              pipeline.PipelineBuilder
+	materialRepository           pipelineConfig.MaterialRepository
+	chartService                 chart.ChartService
+	configMapService             pipeline.ConfigMapService
+	appWorkflowService           appWorkflow.AppWorkflowService
+	appListingService            app.AppListingService
+	propertiesConfigService      pipeline.PropertiesConfigService
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -722,11 +723,28 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					BeforeDockerBuildScripts: beforeDockerBuildScripts,
 					AfterDockerBuildScripts:  afterDockerBuildScripts,
 					ParentCiPipeline:         refCiPipeline.ParentCiPipeline,
+					IsDockerConfigOverridden: refCiPipeline.IsDockerConfigOverridden,
 				},
 				AppId:         req.appId,
 				Action:        bean.CREATE,
 				AppWorkflowId: req.wfId,
 				UserId:        req.userId,
+			}
+			if !refCiPipeline.IsExternal && refCiPipeline.IsDockerConfigOverridden {
+				//get template override
+				templateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(refCiPipeline.Id)
+				if err != nil {
+					impl.logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "err", err, "ciPipelineId", refCiPipeline.Id)
+					return nil, err
+				}
+				ciPatchReq.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+					DockerRegistry:   templateOverride.DockerRegistryId,
+					DockerRepository: templateOverride.DockerRepository,
+					DockerBuildConfig: &bean.DockerBuildConfig{
+						DockerfilePath: templateOverride.DockerfilePath,
+						GitMaterialId:  templateOverride.GitMaterialId,
+					},
+				}
 			}
 			return impl.pipelineBuilder.PatchCiPipeline(ciPatchReq)
 		}
