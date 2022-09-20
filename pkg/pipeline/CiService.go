@@ -30,6 +30,7 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/devtron-labs/common-lib/blob-storage"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -183,7 +184,7 @@ func (impl *CiServiceImpl) WriteCITriggerEvent(trigger Trigger, pipeline *pipeli
 	event.UserId = int(trigger.TriggeredBy)
 	event.CiWorkflowRunnerId = workflowRequest.WorkflowId
 	event = impl.eventFactory.BuildExtraCIData(event, material, workflowRequest.CiImage)
-	_, evtErr := impl.eventClient.WriteEvent(event)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.Logger.Errorw("error in writing event", "err", evtErr)
 	}
@@ -225,15 +226,16 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	}
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
-		Name:         pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
-		Status:       WorkflowStarting,
-		Message:      "",
-		StartedOn:    time.Now(),
-		CiPipelineId: pipeline.Id,
-		Namespace:    wfConfig.Namespace,
-		GitTriggers:  gitTriggers,
-		LogLocation:  "",
-		TriggeredBy:  userId,
+		Name:               pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
+		Status:             WorkflowStarting,
+		Message:            "",
+		StartedOn:          time.Now(),
+		CiPipelineId:       pipeline.Id,
+		Namespace:          wfConfig.Namespace,
+		BlobStorageEnabled: impl.ciConfig.BlobStorageEnabled,
+		GitTriggers:        gitTriggers,
+		LogLocation:        "",
+		TriggeredBy:        userId,
 	}
 	err := impl.ciWorkflowRepository.SaveWorkFlow(ciWorkflow)
 	if err != nil {
@@ -252,24 +254,22 @@ func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest) (
 	}
 	return createdWorkFlow, nil
 }
-func (impl *CiServiceImpl) buildArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string {
-	if ciWorkflowConfig.LogsBucket == "" {
-		ciWorkflowConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
-	}
+func (impl *CiServiceImpl) buildS3ArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) (string, string, string) {
 	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
 	if ciArtifactLocationFormat == "" {
 		ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
 	}
-	ArtifactLocation := fmt.Sprintf("s3://%s/"+impl.ciConfig.DefaultArtifactKeyPrefix+"/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, savedWf.Id, savedWf.Id)
-	return ArtifactLocation
+	ArtifactLocation := fmt.Sprintf("s3://%s/%s/"+ciArtifactLocationFormat, ciWorkflowConfig.LogsBucket, impl.ciConfig.DefaultArtifactKeyPrefix, savedWf.Id, savedWf.Id)
+	artifactFileName := fmt.Sprintf(impl.ciConfig.DefaultArtifactKeyPrefix+"/"+ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
+	return ArtifactLocation, ciWorkflowConfig.LogsBucket, artifactFileName
 }
 
-func (impl *CiServiceImpl) buildArtifactLocationAzure(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string {
+func (impl *CiServiceImpl) buildDefaultArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) string {
 	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
 	if ciArtifactLocationFormat == "" {
 		ciArtifactLocationFormat = impl.ciConfig.CiArtifactLocationFormat
 	}
-	ArtifactLocation := fmt.Sprintf(ciArtifactLocationFormat, savedWf.Id, savedWf.Id)
+	ArtifactLocation := fmt.Sprintf("%s/"+ciArtifactLocationFormat, impl.ciConfig.DefaultArtifactKeyPrefix, savedWf.Id, savedWf.Id)
 	return ArtifactLocation
 }
 
@@ -409,6 +409,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		CiCacheFileName:            pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
 		CiProjectDetails:           ciProjectDetails,
 		Namespace:                  ciWorkflowConfig.Namespace,
+		BlobStorageConfigured:      savedWf.BlobStorageEnabled,
 		CiImage:                    ciWorkflowConfig.CiImage,
 		ActiveDeadlineSeconds:      ciWorkflowConfig.CiTimeout,
 		WorkflowId:                 savedWf.Id,
@@ -426,29 +427,58 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		TriggerByAuthor:            user.EmailId,
 	}
 
+	if ciWorkflowConfig.LogsBucket == "" {
+		ciWorkflowConfig.LogsBucket = impl.ciConfig.DefaultBuildLogsBucket
+	}
+
 	switch workflowRequest.CloudProvider {
 	case BLOB_STORAGE_S3:
 		//No AccessKey is used for uploading artifacts, instead IAM based auth is used
 		workflowRequest.CiCacheRegion = ciWorkflowConfig.CiCacheRegion
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
-		workflowRequest.CiArtifactLocation = impl.buildArtifactLocation(ciWorkflowConfig, savedWf)
-	case BLOB_STORAGE_AZURE:
-		workflowRequest.AzureBlobConfig = &AzureBlobConfig{
-			Enabled:              impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
-			AccountName:          impl.ciConfig.AzureAccountName,
-			BlobContainerCiCache: impl.ciConfig.AzureBlobContainerCiCache,
-			AccountKey:           impl.ciConfig.AzureAccountKey,
-			BlobContainerCiLog:   impl.ciConfig.AzureBlobContainerCiLog,
+		workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildS3ArtifactLocation(ciWorkflowConfig, savedWf)
+		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
+			AccessKey:            impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:              impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl:          impl.ciConfig.BlobStorageS3Endpoint,
+			IsInSecure:           impl.ciConfig.BlobStorageS3EndpointInsecure,
+			CiCacheBucketName:    ciWorkflowConfig.CiCacheBucket,
+			CiCacheRegion:        ciWorkflowConfig.CiCacheRegion,
+			CiArtifactBucketName: workflowRequest.CiArtifactBucket,
+			CiArtifactRegion:     impl.ciConfig.DefaultCdLogsBucketRegion,
+			CiLogBucketName:      impl.ciConfig.DefaultBuildLogsBucket,
+			CiLogRegion:          impl.ciConfig.DefaultCdLogsBucketRegion,
 		}
-		workflowRequest.CiArtifactLocation = impl.buildArtifactLocationAzure(ciWorkflowConfig, savedWf)
-	case BLOB_STORAGE_MINIO:
-		//For MINIO type blob storage, AccessKey & SecretAccessKey are injected through EnvVar
-		workflowRequest.CiCacheRegion = impl.ciConfig.MinioRegion
-		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
-		workflowRequest.CiArtifactLocation = impl.buildArtifactLocation(ciWorkflowConfig, savedWf)
-		workflowRequest.MinioEndpoint = impl.ciConfig.MinioEndpoint
+	case BLOB_STORAGE_GCP:
+		workflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{
+			CredentialFileJsonData: impl.ciConfig.BlobStorageGcpCredentialJson,
+			CacheBucketName:        ciWorkflowConfig.CiCacheBucket,
+			LogBucketName:          ciWorkflowConfig.LogsBucket,
+			ArtifactBucketName:     ciWorkflowConfig.LogsBucket,
+		}
+		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
+		workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
+	case BLOB_STORAGE_AZURE:
+		workflowRequest.AzureBlobConfig = &blob_storage.AzureBlobConfig{
+			Enabled:               impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,
+			AccountName:           impl.ciConfig.AzureAccountName,
+			BlobContainerCiCache:  impl.ciConfig.AzureBlobContainerCiCache,
+			AccountKey:            impl.ciConfig.AzureAccountKey,
+			BlobContainerCiLog:    impl.ciConfig.AzureBlobContainerCiLog,
+			BlobContainerArtifact: impl.ciConfig.AzureBlobContainerCiLog,
+		}
+		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
+			EndpointUrl:     impl.ciConfig.AzureGatewayUrl,
+			IsInSecure:      impl.ciConfig.AzureGatewayConnectionInsecure,
+			CiLogBucketName: impl.ciConfig.AzureBlobContainerCiLog,
+			CiLogRegion:     impl.ciConfig.DefaultCacheBucketRegion,
+		}
+		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
+		workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
 	default:
-		return nil, fmt.Errorf("cloudprovider %s not supported", workflowRequest.CloudProvider)
+		if impl.ciConfig.BlobStorageEnabled {
+			return nil, fmt.Errorf("blob storage %s not supported", workflowRequest.CloudProvider)
+		}
 	}
 	return workflowRequest, nil
 }
