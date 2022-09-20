@@ -110,7 +110,8 @@ func (handler TelemetryRestHandlerImpl) SendSummaryEvent(w http.ResponseWriter, 
 	if err == io.EOF {
 		eventType = telemetry.Summary
 	} else {
-		eventType = payload["eventType"].(telemetry.TelemetryEventType)
+		event := payload["eventType"].(string)
+		eventType = telemetry.TelemetryEventType(event)
 		if eventType == "" {
 			eventType = telemetry.Summary
 		}

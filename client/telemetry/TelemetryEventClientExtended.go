@@ -275,6 +275,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	err = impl.EnqueuePostHog(ucid, TelemetryEventType(eventType), prop)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
+		return err
 	}
 	return nil
 }
