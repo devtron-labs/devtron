@@ -644,13 +644,13 @@ func InitializeApp() (*App, error) {
 		restHandler.NewWebhookDataRestHandlerImpl,
 		wire.Bind(new(restHandler.WebhookDataRestHandler), new(*restHandler.WebhookDataRestHandlerImpl)),
 
-		router.NewAppLabelRouterImpl,
-		wire.Bind(new(router.AppLabelRouter), new(*router.AppLabelRouterImpl)),
-		restHandler.NewAppLabelRestHandlerImpl,
-		wire.Bind(new(restHandler.AppLabelRestHandler), new(*restHandler.AppLabelRestHandlerImpl)),
+		router.NewAppRouterImpl,
+		wire.Bind(new(router.AppRouter), new(*router.AppRouterImpl)),
+		restHandler.NewAppRestHandlerImpl,
+		wire.Bind(new(restHandler.AppRestHandlerHandler), new(*restHandler.AppRestHandlerImpl)),
 
-		app.NewAppLabelServiceImpl,
-		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
+		app.NewAppCrudOperationServiceImpl,
+		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 

@@ -112,7 +112,7 @@ type AppServiceImpl struct {
 	chartService                        chart.ChartService
 	argoUserService                     argo.ArgoUserService
 	cdPipelineStatusTimelineRepo        pipelineConfig.PipelineStatusTimelineRepository
-	appLabelService                     AppLabelService
+	appCrudOperationService          AppCrudOperationService
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
@@ -161,7 +161,7 @@ func NewAppService(
 	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	appLabelService AppLabelService,
+	appCrudOperationService          AppCrudOperationService,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository) *AppServiceImpl {
@@ -207,7 +207,7 @@ func NewAppService(
 		helmAppClient:                       helmAppClient,
 		argoUserService:                     argoUserService,
 		cdPipelineStatusTimelineRepo:        cdPipelineStatusTimelineRepo,
-		appLabelService:                     appLabelService,
+		appCrudOperationService:                     appCrudOperationService,
 		configMapHistoryRepository:          configMapHistoryRepository,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
@@ -959,7 +959,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		configMapJson = nil
 	}
 
-	appLabelJsonByte, err := impl.appLabelService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
+	appLabelJsonByte, err := impl.appCrudOperationService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 		appLabelJsonByte = nil
