@@ -19,7 +19,6 @@ package restHandler
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -46,6 +45,10 @@ type TelemetryGenericEvent struct {
 	eventType    string
 	eventPayload map[string]interface{}
 }
+
+const (
+	summary string = "Summary"
+)
 
 func NewTelemetryRestHandlerImpl(logger *zap.SugaredLogger,
 	telemetryEventClient telemetry.TelemetryEventClient, enforcer casbin.Enforcer, userService user.UserService) *TelemetryRestHandlerImpl {
@@ -101,21 +104,26 @@ func (handler TelemetryRestHandlerImpl) SendSummaryEvent(w http.ResponseWriter, 
 	var payload map[string]interface{}
 	err := decoder.Decode(&payload)
 	if err != nil && err != io.EOF {
-		handler.logger.Errorw("request err, SendsummaryEvent", "err", err, "payload", payload)
+		handler.logger.Errorw("request err, SendSummaryEvent", "err", err, "payload", payload)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	var eventType string
 	if err == io.EOF {
-		eventType = "Summary"
+		eventType = summary
 	} else {
 		eventType = payload["eventType"].(string)
 		if eventType == "" {
-			eventType = "Summary"
+			eventType = summary
 		}
 	}
-	fmt.Println(eventType)
-	handler.telemetryEventClient.SendSummaryEvent(eventType)
+
+	err = handler.telemetryEventClient.SendSummaryEvent(eventType)
+	if err != nil {
+		handler.logger.Errorw("error occurred in SendSummaryEvent handler in TelemetryRestHandler", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	common.WriteJsonResp(w, nil, "success", http.StatusOK)
 }

@@ -130,19 +130,22 @@ type TelemetryEventDto struct {
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
-	impl.SendSummaryEvent("Summary")
+	err := impl.SendSummaryEvent(string(Summary))
+	if err != nil {
+		impl.logger.Errorw("error occurred in SummaryEventForTelemetry", "err", err)
+	}
 }
 
-func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string) {
+func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string) error {
 	ucid, err := impl.getUCID()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
+		return err
 	}
 
 	if IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
-		return
+		return err
 	}
 
 	clusters, users, k8sServerVersion, hostURL, ssoSetup := impl.SummaryDetailsForTelemetry()
@@ -151,57 +154,57 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 
 	environments, err := impl.environmentService.GetAllActive()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
+		return err
 	}
 
 	prodApps, err := impl.appListingRepository.FindAppCount(true)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
+		return err
 	}
 
 	nonProdApps, err := impl.appListingRepository.FindAppCount(false)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
+		return err
 	}
 
 	ciPipeline, err := impl.ciPipelineRepository.FindAllPipelineInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
+		return err
 	}
 
 	cdPipeline, err := impl.pipelineRepository.FindAllPipelineInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
+		return err
 	}
 
 	gitAccounts, err := impl.gitProviderRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
+		return err
 	}
 
 	gitOps, err := impl.gitOpsConfigRepository.GetAllGitOpsConfig()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
+		return err
 	}
 
 	containerRegistry, err := impl.dockerArtifactStoreRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
+		return err
 	}
 
 	//appSetup := false
 	apps, err := impl.appRepository.FindAll()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
+		return err
 	}
 
 	var appIds []int
@@ -213,24 +216,24 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	if len(appIds) < AppsCount {
 		payload.AppsWithGitRepoConfigured, err = impl.materialRepository.FindNumberOfAppsWithGitRepo(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
 		}
 		payload.AppsWithDockerConfigured, err = impl.ciTemplateRepository.FindNumberOfAppsWithDockerConfigured(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
 		}
 		payload.AppsWithDeploymentTemplateConfigured, err = impl.chartRepository.FindNumberOfAppsWithDeploymentTemplate(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
 		}
 		payload.AppsWithCiPipelineConfigured, err = impl.ciPipelineRepository.FindNumberOfAppsWithCiPipeline(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
 		}
 
 		payload.AppsWithCdPipelineConfigured, err = impl.pipelineRepository.FindNumberOfAppsWithCdPipeline(appIds)
 		if err != nil {
-			impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
+			impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
 		}
 	}
 
@@ -258,18 +261,19 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.DevtronMode = devtronVersion.ServerMode
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
-		return
+		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "eventType", eventType, "error", err)
+		return err
 	}
 	prop := make(map[string]interface{})
 	err = json.Unmarshal(reqBody, &prop)
 	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, payload unmarshal error", "error", err)
-		return
+		impl.logger.Errorw("SummaryEventForTelemetry, payload unmarshal error", "eventType", eventType, "error", err)
+		return err
 	}
 
 	err = impl.EnqueuePostHog(ucid, TelemetryEventType(eventType), prop)
 	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
+		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "eventType", eventType, "ucid", ucid, "error", err)
 	}
+	return nil
 }

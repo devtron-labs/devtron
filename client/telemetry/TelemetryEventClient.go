@@ -46,7 +46,7 @@ type TelemetryEventClient interface {
 	SendTelemetryDashboardAccessEvent() error
 	SendTelemetryDashboardLoggedInEvent() error
 	SendGenericTelemetryEvent(eventType string, prop map[string]interface{}) error
-	SendSummaryEvent(eventType string)
+	SendSummaryEvent(eventType string) error
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
@@ -123,7 +123,6 @@ const (
 	InstallationApplicationError TelemetryEventType = "InstallationApplicationError"
 	DashboardAccessed            TelemetryEventType = "DashboardAccessed"
 	DashboardLoggedIn            TelemetryEventType = "DashboardLoggedIn"
-	Sigterm                      TelemetryEventType = "Sigterm"
 )
 
 func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool) {
@@ -168,19 +167,22 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 }
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
-	impl.SendSummaryEvent("Summary")
+	err := impl.SendSummaryEvent(string(Summary))
+	if err != nil {
+		impl.logger.Errorw("error occurred in SummaryEventForTelemetryEA", "err", err)
+	}
 }
 
-func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) {
+func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	ucid, err := impl.getUCID()
 	if err != nil {
-		impl.logger.Errorw("exception caught inside telemetry summary for"+eventType+"event", "err", err)
-		return
+		impl.logger.Errorw("exception caught inside SendSummaryEvent ", "eventType", eventType, "err", err)
+		return err
 	}
 
 	if IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
-		return
+		return err
 	}
 
 	clusters, users, k8sServerVersion, hostURL, ssoSetup := impl.SummaryDetailsForTelemetry()
@@ -195,20 +197,21 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) {
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry in", eventType+"event", "payload marshal error", "error", err)
-		return
+		impl.logger.Errorw("payload marshal error in SendSummaryEvent", "eventType", eventType, "error", err)
+		return err
 	}
 	prop := make(map[string]interface{})
 	err = json.Unmarshal(reqBody, &prop)
 	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry in", eventType+"event", "payload unmarshal error", "error", err)
-		return
+		impl.logger.Errorw("payload unmarshal error in SendSummaryEvent", "event", eventType, "error", err)
+		return err
 	}
 
 	err = impl.EnqueuePostHog(ucid, TelemetryEventType(eventType), prop)
 	if err != nil {
-		impl.logger.Errorw("SummaryEventForTelemetry in", eventType+"event", "failed to push event", "ucid", ucid, "error", err)
+		impl.logger.Errorw("failed to push event error in SendSummaryEvent", "eventType", eventType, "ucid", ucid, "error", err)
 	}
+	return nil
 }
 
 func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType TelemetryEventType, prop map[string]interface{}) error {
