@@ -472,6 +472,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			IsInSecure:      impl.ciConfig.AzureGatewayConnectionInsecure,
 			CiLogBucketName: impl.ciConfig.AzureBlobContainerCiLog,
 			CiLogRegion:     impl.ciConfig.DefaultCacheBucketRegion,
+			AccessKey:       impl.ciConfig.AzureAccountName,
 		}
 		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
 		workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
