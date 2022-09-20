@@ -199,7 +199,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
-		impl.logger.Errorw("payload marshal error in SendSummaryEvent", "eventType", eventType, "error", err)
+		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
 		return err
 	}
 	prop := make(map[string]interface{})
