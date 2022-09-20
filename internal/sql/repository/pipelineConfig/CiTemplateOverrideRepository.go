@@ -61,7 +61,7 @@ func (repo *CiTemplateOverrideRepositoryImpl) Update(templateOverrideConfig *CiT
 
 func (repo *CiTemplateOverrideRepositoryImpl) FindByAppId(appId int) ([]*CiTemplateOverride, error) {
 	var ciTemplateOverrides []*CiTemplateOverride
-	err := repo.dbConnection.Model(ciTemplateOverrides).
+	err := repo.dbConnection.Model(&ciTemplateOverrides).
 		Join("INNER JOIN ci_pipeline cp on cp.id=ci_template_override.ci_pipeline_id").
 		Where("app_id = ?", appId).
 		Where("is_docker_config_override = ?", true).
