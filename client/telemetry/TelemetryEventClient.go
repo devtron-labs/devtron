@@ -123,6 +123,7 @@ const (
 	InstallationApplicationError TelemetryEventType = "InstallationApplicationError"
 	DashboardAccessed            TelemetryEventType = "DashboardAccessed"
 	DashboardLoggedIn            TelemetryEventType = "DashboardLoggedIn"
+	SIG_TERM                     TelemetryEventType = "SIG_TERM"
 )
 
 func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool) {
@@ -174,6 +175,7 @@ func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
 }
 
 func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
+	impl.logger.Infow("sending summary event", "eventType", eventType)
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside SendSummaryEvent ", "eventType", eventType, "err", err)

@@ -46,10 +46,6 @@ type TelemetryGenericEvent struct {
 	eventPayload map[string]interface{}
 }
 
-const (
-	summary string = "Summary"
-)
-
 func NewTelemetryRestHandlerImpl(logger *zap.SugaredLogger,
 	telemetryEventClient telemetry.TelemetryEventClient, enforcer casbin.Enforcer, userService user.UserService) *TelemetryRestHandlerImpl {
 	handler := &TelemetryRestHandlerImpl{logger: logger, telemetryEventClient: telemetryEventClient, enforcer: enforcer, userService: userService}
@@ -100,6 +96,7 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 }
 
 func (handler TelemetryRestHandlerImpl) SendSummaryEvent(w http.ResponseWriter, r *http.Request) {
+	handler.logger.Infow("Handling SendSummaryEvent request")
 	decoder := json.NewDecoder(r.Body)
 	var payload map[string]interface{}
 	err := decoder.Decode(&payload)
@@ -109,17 +106,17 @@ func (handler TelemetryRestHandlerImpl) SendSummaryEvent(w http.ResponseWriter, 
 		return
 	}
 
-	var eventType string
+	var eventType telemetry.TelemetryEventType
 	if err == io.EOF {
-		eventType = summary
+		eventType = telemetry.Summary
 	} else {
-		eventType = payload["eventType"].(string)
+		eventType = payload["eventType"].(telemetry.TelemetryEventType)
 		if eventType == "" {
-			eventType = summary
+			eventType = telemetry.Summary
 		}
 	}
 
-	err = handler.telemetryEventClient.SendSummaryEvent(eventType)
+	err = handler.telemetryEventClient.SendSummaryEvent(string(eventType))
 	if err != nil {
 		handler.logger.Errorw("error occurred in SendSummaryEvent handler in TelemetryRestHandler", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

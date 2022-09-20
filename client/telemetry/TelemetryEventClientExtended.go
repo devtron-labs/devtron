@@ -137,6 +137,7 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 }
 
 func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string) error {
+	impl.logger.Infow("sending summary event", "eventType", eventType)
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "eventType", eventType, "err", err)
