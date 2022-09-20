@@ -245,7 +245,7 @@ Run `kubectl get secret -n devtroncd` and then edit the `argocd-secret`, remove 
 
 Run `kubectl delete po your-argocd-server-pod -n devtroncd`, it will create a new pod after deletion and reset your admin password. Re-run the command for admin credentials again to get the new password.
 
-#### 19. After installing Devtron using helm, getting the admin password does not work.(if using windows)
+#### 19. After installing Devtron using Helm, getting the admin password does not work.(if using windows)
 
 `Debug`
 
@@ -276,16 +276,32 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set components.postgres.persistence.volumeSize=20Gi
 ```
 
-#### 21. Upgrade Blob Storage
+#### 21. Configure Blob Storage
 
 
-Upgrade with:
+You can configure blob storage with one of the following:
 {% tabs %}
 
-{% tab title="AWS S3 Bucket" %}
-This upgrade will use AWS S3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#aws-specific) page.
 
-*  Upgrade using S3 IAM policy.
+{% tab title="MinIO storage" %}
+
+This configuration will use MinIO for storing logs and cache.
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set minio.enabled=true
+```
+
+{% endtab %}
+
+{% tab title="AWS S3 Bucket" %}
+This configuration will use AWS S3 bucket for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#aws-specific) page.
+
+*  **Configure using S3 IAM policy:**
 
 >NOTE: Pleasee ensure that S3 permission policy to the IAM role attached to the nodes of the cluster if you are using the below command.
 
@@ -300,7 +316,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
 ```
 
-*  Upgrade using access-key and secret-key for aws S3 authentication:
+*  **Configure using access-key and secret-key for aws S3 authentication:**
 
 ```bash
 helm repo update
@@ -316,7 +332,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
 ```
 
-*  Upgrade using S3 compatible storages: 
+*  **Configure using S3 compatible storages:**
 
 ```bash
 helm repo update
@@ -336,7 +352,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 {% endtab %}
 
 {% tab title="Azure Blob Storage" %}
-This upgrade will use Azure Blob Storage for storing build logs and cache.
+This configuration will use Azure Blob Storage for storing build logs and cache.
 Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#azure-specific) page.
 
 ```bash
@@ -353,7 +369,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 {% endtab %}
 
 {% tab title="Google Cloud Storage" %}
-This upgrade will use Google Cloud Storage for storing build logs and cache.
+This configuration will use Google Cloud Storage for storing build logs and cache.
 Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#google-cloud-storage-specific) page.
 
 ```bash

@@ -32,7 +32,7 @@ This installation will use MinIO for storing logs and cache.
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
-helm upgrade --install devtron devtron/devtron-operator \
+helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd} \
 --set minio.enabled=true
