@@ -67,8 +67,7 @@ const (
 	ModuleNameArgoCd            ModuleName = "argo-cd"
 	ModuleNameSecurityClair     ModuleName = "security.clair"
 	ModuleNameNotification      ModuleName = "notifier"
-	ModuleNameExternalSecret    ModuleName = "external-secrets"
 	ModuleNameMonitoringGrafana ModuleName = "monitoring.grafana"
 )
 
-var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair, ModuleNameNotification, ModuleNameExternalSecret, ModuleNameMonitoringGrafana}
+var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair, ModuleNameNotification, ModuleNameMonitoringGrafana}
