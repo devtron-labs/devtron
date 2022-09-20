@@ -111,7 +111,7 @@ type AppServiceImpl struct {
 	chartService                     chart.ChartService
 	argoUserService                  argo.ArgoUserService
 	cdPipelineStatusTimelineRepo     pipelineConfig.PipelineStatusTimelineRepository
-	appLabelService                  AppLabelService
+	appCrudOperationService          AppCrudOperationService
 }
 
 type AppService interface {
@@ -157,7 +157,7 @@ func NewAppService(
 	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	appLabelService AppLabelService) *AppServiceImpl {
+	appCrudOperationService AppCrudOperationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -200,7 +200,7 @@ func NewAppService(
 		helmAppClient:                    helmAppClient,
 		argoUserService:                  argoUserService,
 		cdPipelineStatusTimelineRepo:     cdPipelineStatusTimelineRepo,
-		appLabelService:                  appLabelService,
+		appCrudOperationService:          appCrudOperationService,
 	}
 	return appServiceImpl
 }
@@ -890,7 +890,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		configMapJson = nil
 	}
 
-	appLabelJsonByte, err := impl.appLabelService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
+	appLabelJsonByte, err := impl.appCrudOperationService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 		appLabelJsonByte = nil

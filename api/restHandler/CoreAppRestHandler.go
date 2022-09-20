@@ -72,7 +72,7 @@ type CoreAppRestHandlerImpl struct {
 	validator               *validator.Validate
 	enforcerUtil            rbac.EnforcerUtil
 	enforcer                casbin.Enforcer
-	appLabelService         app.AppLabelService
+	appCrudOperationService app.AppCrudOperationService
 	pipelineBuilder         pipeline.PipelineBuilder
 	gitRegistryService      pipeline.GitRegistryConfig
 	chartService            chart.ChartService
@@ -92,7 +92,7 @@ type CoreAppRestHandlerImpl struct {
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
-	enforcer casbin.Enforcer, appLabelService app.AppLabelService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
+	enforcer casbin.Enforcer, appCrudOperationService app.AppCrudOperationService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
 	chartService chart.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
@@ -105,7 +105,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		validator:               validator,
 		enforcerUtil:            enforcerUtil,
 		enforcer:                enforcer,
-		appLabelService:         appLabelService,
+		appCrudOperationService: appCrudOperationService,
 		pipelineBuilder:         pipelineBuilder,
 		gitRegistryService:      gitRegistryService,
 		chartService:            chartService,
@@ -414,7 +414,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 func (handler CoreAppRestHandlerImpl) buildAppMetadata(appId int) (*appBean.AppMetadata, error, int) {
 	handler.logger.Debugw("Getting app detail - meta data", "appId", appId)
 
-	appMetaInfo, err := handler.appLabelService.GetAppMetaInfo(appId)
+	appMetaInfo, err := handler.appCrudOperationService.GetAppMetaInfo(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppAllDetail", "err", err, "appId", appId)
 		return nil, err, http.StatusInternalServerError

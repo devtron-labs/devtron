@@ -72,42 +72,6 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-
-  /orchestrator/app/labels:
-    post:
-      description: edit labels to the apps, add or remove from this api.
-      requestBody:
-        description: json as request body
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/AppLabels'
-      responses:
-        '200':
-          description: app labels edit response
-          content:
-            application/json:
-              schema:
-                properties:
-                  code:
-                    type: integer
-                    description: status code
-                  status:
-                    type: string
-                    description: status
-                  result:
-                    type: array
-                    description: string
-                    $ref: '#/components/schemas/AppLabels'
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-
-
 # components mentioned below
 components:
   schemas:
