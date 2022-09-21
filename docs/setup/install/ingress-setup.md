@@ -146,9 +146,6 @@ annotations:
   service.beta.kubernetes.io/do-loadbalancer-redirect-http-to-https: "true"
 ```
 
-
-
-
 ### 2. Application Load Balancer (ALB)
 
 In case of AWS application load balancer, add following annotations under `ingress.annotations` to run devtron over `https`.
