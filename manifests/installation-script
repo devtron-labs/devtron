@@ -5,7 +5,6 @@ operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
 operatorConfigMap = kubectl get cm -n devtroncd devtron-operator-cm;
 postgresqlPassword = jsonSelect(operatorSecret, "data.POSTGRESQL_PASSWORD");
 webHookToken = jsonSelect(operatorSecret, "data.WEBHOOK_TOKEN");
-grafanaPassword = jsonSelect(operatorSecret, "data.GRAFANA_PASSWORD");
 azureAccountKey = jsonSelect(operatorSecret, "data.AZURE_ACCOUNT_KEY");
 postgresSecret = kubectl get secret -n devtroncd postgresql-postgresql;
 enableLegacyApi = jsonSelect(operatorConfigMap, "data.ENABLE_LEGACY_API");
@@ -19,7 +18,6 @@ defaultCDLogsBucketRegion = jsonSelect(operatorConfigMap, "data.DEFAULT_CD_LOGS_
 defaultCacheBucket = jsonSelect(operatorConfigMap, "data.DEFAULT_CACHE_BUCKET");
 defaultCacheBucketRegion = jsonSelect(operatorConfigMap, "data.DEFAULT_CACHE_BUCKET_REGION");
 defaultBuildLogsBucket = jsonSelect(operatorConfigMap, "data.DEFAULT_BUILD_LOGS_BUCKET");
-externalSecretAmazonRegion = jsonSelect(operatorConfigMap, "data.EXTERNAL_SECRET_AMAZON_REGION");
 prometheusUrl = jsonSelect(operatorConfigMap, "data.PROMETHEUS_URL");
 setupDevtronIngress = jsonSelect(operatorConfigMap, "data.ENABLE_INGRESS");
 devtronIngressAnnotations = jsonSelect(operatorConfigMap, "data.INGRESS_ANNOTATIONS");
@@ -81,21 +79,15 @@ kubewatch_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubewatch.yaml";
 lens_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/lens.yaml";
 migrator_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/migrator.yaml";
 natsServer_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/nats-server.yaml";
-notifier_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/notifier.yaml";
 devtron_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron.yaml";
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress.yaml";
 if enableLegacyApi=="true" {
 devtronIngress_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-ingress-legacy.yaml";
 }
 log(devtronIngress_raw);
-workflow_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/workflow.yaml";
 serviceAccount_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/serviceaccount.yaml";
 namespace_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/namespace.yaml";
-externalSecret_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/external-secret.yaml";
-grafana_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/grafana.yaml";
 rollout_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/rollout.yaml";
-minio_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/minio.yaml";
-minioStorage_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/minio-storage.yaml";
 
 ######Downloading the manifests
 argocdResource = download(argocdResource_raw);
@@ -108,17 +100,11 @@ kubewatch = download(kubewatch_raw);
 lens = download(lens_raw);
 migrator = download(migrator_raw);
 natsServer = download(natsServer_raw);
-notifier = download(notifier_raw);
 devtron = download(devtron_raw);
 devtronIngress = download(devtronIngress_raw);
-workflow = download(workflow_raw);
 serviceAccount = download(serviceAccount_raw);
 namespace = download(namespace_raw);
-externalSecret = download(externalSecret_raw);
-grafana = download(grafana_raw);
 rollout = download(rollout_raw);
-minio = download(minio_raw);
-minioStorage = download(minioStorage_raw);
 
 ######Downloading the manifests
 
@@ -131,17 +117,11 @@ kubewatchOverride = kubectl get cm -n devtroncd kubewatch-override-cm;
 lensOverride = kubectl get cm -n devtroncd lens-override-cm;
 migratorOverride = kubectl get cm -n devtroncd migrator-override-cm;
 natsServerOverride = kubectl get cm -n devtroncd nats-server-override-cm;
-notifierOverride = kubectl get cm -n devtroncd notifier-override-cm;
 devtronOverride = kubectl get cm -n devtroncd devtron-override-cm;
 devtronIngressOverride = kubectl get cm -n devtroncd devtron-ingress-override-cm;
-workflowOverride = kubectl get cm -n devtroncd workflow-override-cm;
 serviceAccountOverride = kubectl get cm -n devtroncd devtron-service-account-override-cm;
 namespaceOverride = kubectl get cm -n devtroncd namespace-override-cm;
-externalSecretOverride = kubectl get cm -n devtroncd external-secret-override-cm;
-grafanaOverride = kubectl get cm -n devtroncd grafana-override-cm;
 rolloutOverride = kubectl get cm -n devtroncd rollout-override-cm;
-minioOverride = kubectl get cm -n devtroncd minio-override-cm;
-minioStorageOverride = kubectl get cm -n devtroncd minio-storage-override-cm;
 
 dashboardOverride = jsonSelect(dashboardOverride, "data.override");
 gitSensorOverride = jsonSelect(gitSensorOverride, "data.override");
@@ -151,183 +131,48 @@ kubewatchOverride = jsonSelect(kubewatchOverride, "data.override");
 lensOverride = jsonSelect(lensOverride, "data.override");
 migratorOverride = jsonSelect(migratorOverride, "data.override");
 natsServerOverride = jsonSelect(natsServerOverride, "data.override");
-notifierOverride = jsonSelect(notifierOverride, "data.override");
 devtronOverride = jsonSelect(devtronOverride, "data.override");
 devtronIngressOverride = jsonSelect(devtronIngressOverride, "data.override");
-workflowOverride = jsonSelect(workflowOverride, "data.override");
 serviceAccountOverride = jsonSelect(serviceAccountOverride, "data.override");
 namespaceOverride = jsonSelect(namespaceOverride, "data.override");
-grafanaOverride = jsonSelect(grafanaOverride, "data.override");
 rolloutOverride = jsonSelect(rolloutOverride, "data.override");
-minioOverride = jsonSelect(minioOverride, "data.override");
-minioStorageOverride = jsonSelect(minioStorageOverride, "data.override");
 
 #minio start
 hasMinio = kubectl get sts devtron-minio -n devtroncd;
 minioAccesskey = "";
 minioSecretkey  = "";
 minioEndpoint = "http://devtron-minio.devtroncd:9000";
+minioUrlInsecure = "true";
 
-if cloudProvider=="AZURE" {
-  azureAccountNameEncoded = base64EncoderPrefix + `echo "` + azureAccountName + `" | tr -d ':\n' ` + base64EncoderSuffix;
-  azureAccountNameEncoded = shellScript azureAccountNameEncoded;
-  kubeYamlEdit(minio, "data.accesskey", azureAccountNameEncoded, `/Secret//devtron-minio`);
-  kubeYamlEdit(minio, "data.secretkey", azureAccountKey, `/Secret//devtron-minio`);
-  minio = kubectl apply -n devtroncd minio;
-  log("executed minio setup");
-} else if cloudProvider=="MINIO" && !hasMinio {
-  log("no minio");
-  minioAccesskey = shellScript passwordGen;
-  minioSecretkey = shellScript passwordGen;
-  kubeYamlEdit(minioStorage, "data.accesskey", minioAccesskey, `/Secret//devtron-minio`);
-  kubeYamlEdit(minioStorage, "data.secretkey", minioSecretkey, `/Secret//devtron-minio`);
-    minioStorage = kubectl apply -n devtroncd minioStorage ;
-
-} else if cloudProvider=="MINIO" && hasMinio {
+if cloudProvider=="MINIO" && hasMinio {
+ log("Cloud Provider is: " + cloudProvider);
  log("has minio");
  minioSecret = kubectl get secret devtron-minio -n devtroncd;
  minioAccesskey = jsonSelect(minioSecret, "data.accesskey");
  minioSecretkey = jsonSelect(minioSecret, "data.secretkey");
  log(minioSecret);
+ kubeYamlEdit(devtron, "data.BLOB_STORAGE_S3_ACCESS_KEY", minioAccesskey, `/Secret//devtron-secret`);
+ kubeYamlEdit(devtron, "data.BLOB_STORAGE_S3_SECRET_KEY", minioSecretkey, `/Secret//devtron-secret`);
+ kubeYamlEdit(devtron, "data.BLOB_STORAGE_S3_ENDPOINT", minioEndpoint, `/ConfigMap//devtron-cm`);
+ kubeYamlEdit(devtron, "data.BLOB_STORAGE_S3_ENDPOINT_INSECURE", minioUrlInsecure, `/ConfigMap//devtron-cm`);
  log("====================");
 }
 
-if cloudProvider=="MINIO"{
-  kubeYamlEdit(devtron, "data.MINIO_ACCESS_KEY", minioAccesskey, `/Secret//devtron-secret`);
-  kubeYamlEdit(devtron, "data.MINIO_SECRET_KEY", minioSecretkey, `/Secret//devtron-secret`);
-  kubeYamlEdit(devtron, "data.MINIO_ENDPOINT", minioEndpoint, `/ConfigMap//devtron-cm`);
+if cloudProvider=="MINIO" {
+  kubeYamlEdit(devtron, "data.BLOB_STORAGE_ENABLED", "true", `/ConfigMap//devtron-cm`);
+} else if cloudProvider=="S3" {
+  kubeYamlEdit(devtron, "data.BLOB_STORAGE_ENABLED", "true", `/ConfigMap//devtron-cm`);
+} else if cloudProvider=="AZURE" {
+  kubeYamlEdit(devtron, "data.BLOB_STORAGE_ENABLED", "true", `/ConfigMap//devtron-cm`);
+} else if cloudProvider=="GCP" {
+  kubeYamlEdit(devtron, "data.BLOB_STORAGE_ENABLED", "true", `/ConfigMap//devtron-cm`);
 }
-
 # minio end
-
-#grafana
-grafanaSecret = kubectl get -n devtroncd secret devtron-grafana-cred-secret;
-hasgrafana = kubectl get -n devtroncd deployment devtron-grafana;
-grafanaPassword = jsonSelect(grafanaSecret, "data.admin-password");
-if !grafanaPassword {
-    log ("not found");
-	grafanaPassword = shellScript passwordGen;
-}
-grafanaPasswordPlain = base64DecoderPrefix + `echo "` + grafanaPassword + `" | tr -d ':\n' ` + base64DecoderSuffix;
-grafanaPasswordPlain = shellScript grafanaPasswordPlain;
-kubeYamlEdit(grafana, "data.admin-password", grafanaPassword, `/Secret//devtron-grafana-cred-secret`);
-grafanaUrl = "http://%s:%s@devtron-grafana.devtroncd/grafana";
-grafanaUrlWithPwd = "http://admin:"+ grafanaPasswordPlain + "@devtron-grafana.devtroncd/grafana";
-
-grafanaIni = `[analytics]
-check_for_updates = true
-[auth.anonymous]
-enabled = true
-org_name = devtron-metrics-view
-org_role = Viewer
-[grafana_net]
-url = https://grafana.net
-[log]
-mode = console
-[paths]
-data = /var/lib/grafana/data
-logs = /var/log/grafana
-plugins = /var/lib/grafana/plugins
-provisioning = /etc/grafana/provisioning
-[security]
-allow_embedding = true
-[server]
-root_url = /grafana
-serve_from_sub_path = true
-[users]
-allow_org_create = true
- `;
-kubeYamlEdit(grafana, `data.grafana\.ini`, grafanaIni, `/ConfigMap/devtroncd/devtron-grafana`);
-kubeYamlDelete(grafana, filter=`networking.k8s.io/Ingress/devtroncd/devtron-grafana`);
-grafana = kubectl apply -n devtroncd grafana -u grafanaOverride;
-log("setup grafana");
-
-if !hasgrafana {
-	createOrgScript = shebang + `
-	sleep 50
-	sleep 50
-	ORG_ID=$( curl -d '{"name":"devtron-metrics-view"}' -H "Content-Type: application/json" -X POST '` + grafanaUrlWithPwd + `/api/orgs' )
-	echo $ORG_ID
-	`;
-	createOrg = shellScript createOrgScript;
-	log("created org " + createOrg);
-
-	orgId = jsonSelect(createOrg, "orgId");
-	if !orgId {
-		orgId = "2";
-	}
-
-	activeOrgScript = shebang + `
-	curl -X POST '` + grafanaUrlWithPwd + `/api/user/using/` + orgId +`'`;
-	activeOrg = shellScript activeOrgScript;
-	log("activated org");
-
-	setPreferenceScript = shebang + `
-	curl -X PUT -H "Content-Type: application/json" -d '{"homeDashboardId":0,"theme":"light","timezone":"browser"}' '`+ grafanaUrlWithPwd + `/api/org/preferences'`;
-	setPreference = shellScript setPreferenceScript;
-	log("set preference");
-
-	prometheusDatasourceScript = shebang + `
-	curl '` + grafanaUrlWithPwd + `/api/datasources' \
-	-H 'content-type: application/json' \
-	-H 'x-grafana-org-id: ` + orgId + `' \
-	--data-raw '{"name":"Prometheus-devtron-demo","type":"prometheus","access":"proxy","isDefault":true}'
-	`;
-	prometheusDatasource = shellScript prometheusDatasourceScript;
-	log("data source setup step 1");
-
-	datasourceId = jsonSelect(prometheusDatasource, "datasource.id");
-	log("datasource id " + datasourceId);
-
-	prometheusDatasourceScriptUpdate = shebang + `
-	curl '` + grafanaUrlWithPwd + `/api/datasources/` + datasourceId + `' -X PUT \
-	-H 'content-type: application/json' \
-	-H 'x-grafana-org-id: ` + orgId + `' \
-	--data-raw '{"id":` + datasourceId +` ,
-	"orgId":` + orgId + `,
-	"name":"Prometheus-devtron-demo","type":"prometheus","access":"proxy",
-	"url":"` + prometheusUrl + `",
-	"basicAuth":true,"jsonData":{},"version":1}'
-	`;
-	prometheusDatasourceUpdate = shellScript prometheusDatasourceScriptUpdate;
-	log("data source setup step 2");
-
-	grafanaDashboardProvider = `
-apiVersion: 1
-providers:
-- disableDeletion: true
-  editable: false
-  folder: ""
-  name: devtron-provider
-  options:
-    path: /var/lib/grafana/dashboards/devtron-provider
-  orgId: `+ orgId + `
-  type: file
- `;
-
-	grafanaCm = kubectl get -n devtroncd cm devtron-grafana;
-	jsonEdit(grafanaCm, `data.dashboardproviders\.yaml`, grafanaDashboardProvider);
-	grafanaCm = kubectl apply -n devtroncd grafanaCm;
-	log("setup up grafana cm with provider yaml");
-
-	allDevtroncdPo = kubectl get po -n devtroncd;
-	grafanaPodnamePattern = `items.#(metadata.name%"devtron-grafana*").metadata.name`;
-	grafanaPodname = jsonSelect(allDevtroncdPo, grafanaPodnamePattern);
-	grafanaPoddelete = kubectl delete -n devtroncd po grafanaPodname;
-	log("deleted grafana pod to reload configmap");
-}
 
 namespaces = kubectl apply namespace;
 log("created namespaces");
 sa = kubectl apply serviceAccount;
 log("created service account");
-
-#externalSecret
-externalSecretAmazonRegion = base64EncoderPrefix + `echo "` + externalSecretAmazonRegion + `" | tr -d ':\n' ` + base64EncoderSuffix;
-externalSecretAmazonRegion = shellScript externalSecretAmazonRegion;
-kubeYamlEdit(externalSecret, "data.AWS_REGION", externalSecretAmazonRegion, `/Secret//devtron-kubernetes-external-secret`);
-externalSecret = kubectl apply -n devtroncd externalSecret -u externalSecretOverride;
-log("created external secret");
 
 #postgresql
 kubeYamlEdit(postgresql, "data.postgresql-password", postgresqlPassword, `/Secret//postgresql-postgresql`);
@@ -343,10 +188,6 @@ log("executed rollout setup command");
 
 #git-sensor
 kubeYamlEdit(gitSensor, "data.PG_PASSWORD", postgresqlPassword, `/Secret//git-sensor-secret`);
-
-#notifier
-kubeYamlEdit(notifier, "data.DB_PWD", postgresqlPassword, `/Secret//notifier-secret`);
-#kubeYamlEdit(notifier, "data.BASE_URL", baseURLScheme + "://" + baseURL, `/ConfigMap//notifier-cm`);
 
 #lens
 kubeYamlEdit(lens, "data.PG_PASSWORD", postgresqlPassword, `/Secret//lens-secret`);
@@ -399,9 +240,6 @@ dexCStoreKey = shellScript passwordGen;
 externalCIAPISecret = shellScript passwordGen;
 
 kubeYamlEdit(devtron, "data.PG_PASSWORD", postgresqlPassword, `/Secret//devtron-secret`);
-if cloudProvider=="AZURE" {
- kubeYamlEdit(devtron, "data.AZURE_ACCOUNT_KEY", azureAccountKey, `/Secret//devtron-secret`);
-}
 
 if hasDevtron {
     devtronSecret = kubectl get secret -n devtroncd devtron-secret;
@@ -439,33 +277,22 @@ kubeYamlEdit(devtron, "data.ORCH_TOKEN", orchToken, `/Secret//devtron-secret`);
 kubeYamlEdit(devtron, "data.DEX_SECRET", dexSecret, `/Secret//devtron-secret`);
 kubeYamlEdit(devtron, "data.DEX_JWTKEY", dexJwtKey, `/Secret//devtron-secret`);
 kubeYamlEdit(devtron, "data.DEX_CSTOREKEY", dexCStoreKey, `/Secret//devtron-secret`);
-kubeYamlEdit(devtron, "data.GRAFANA_PASSWORD", grafanaPassword, `/Secret//devtron-secret`);
 
-
-#kubeYamlEdit(devtron, "data.EXTERNAL_CI_WEB_HOOK_URL", baseURLScheme + "://" + baseURL+"/orchestrator/webhook/ext-ci", `/ConfigMap//devtron-cm`);
 kubeYamlEdit(devtron, "data.DEFAULT_CD_LOGS_BUCKET_REGION", defaultCDLogsBucketRegion, `/ConfigMap//devtron-cm`);
 kubeYamlEdit(devtron, "data.DEFAULT_CACHE_BUCKET", defaultCacheBucket, `/ConfigMap//devtron-cm`);
 kubeYamlEdit(devtron, "data.DEFAULT_CACHE_BUCKET_REGION", defaultCacheBucketRegion, `/ConfigMap//devtron-cm`);
 kubeYamlEdit(devtron, "data.DEFAULT_BUILD_LOGS_BUCKET", defaultBuildLogsBucket, `/ConfigMap//devtron-cm`);
-kubeYamlEdit(devtron, "data.GRAFANA_URL", grafanaUrl, `/ConfigMap//devtron-cm`);
 
 # set default cloud provider
 if !cloudProvider {
   cloudProvider="S3";
 }
-kubeYamlEdit(devtron, "data.BLOB_STORAGE_PROVIDER", cloudProvider, `/ConfigMap//devtron-cm`);
 
-if cloudProvider=="AZURE" {
-  kubeYamlEdit(devtron, "data.AZURE_ACCOUNT_NAME", azureAccountName, `/ConfigMap//devtron-cm`);
-  kubeYamlEdit(devtron, "data.AZURE_BLOB_CONTAINER_CI_LOG", azureBlobContainerCiLog, `/ConfigMap//devtron-cm`);
-  kubeYamlEdit(devtron, "data.AZURE_BLOB_CONTAINER_CI_CACHE", azureBlobContainerCiCache, `/ConfigMap//devtron-cm`);
+if cloudProvider == "MINIO" {
+  kubeYamlEdit(devtron, "data.BLOB_STORAGE_PROVIDER", "S3", `/ConfigMap//devtron-cm`);
+} else {
+  kubeYamlEdit(devtron, "data.BLOB_STORAGE_PROVIDER", cloudProvider, `/ConfigMap//devtron-cm`);
 }
-
-
-externaSecretRegion = `env:
-  AWS_REGION: ` + externalSecretAmazonRegion;
-
-kubeYamlEdit(devtron, `data.dt-k8s-external-secrets\.yaml`, externaSecretRegion, `/ConfigMap//devtron-cluster-components`);
 
 if helmInstallation {
   kubeYamlDelete(devtron, filter=`/Service//devtron-service`);
@@ -514,8 +341,6 @@ if !helmInstallation {
 }
 gitSensor = kubectl apply -n devtroncd gitSensor -u gitSensorOverride;
 log("executed git sensor setup");
-##imageScanner = kubectl apply -n devtroncd imageScanner -u imageScannerOverride;
-log("executed image scanner setup");
 if !helmInstallation {
   kubelink = kubectl apply -n devtroncd kubelink -u kubelinkOverride;
   log("executed kubelink setup");
@@ -524,133 +349,6 @@ kubewatch = kubectl apply -n devtroncd kubewatch -u kubewatchOverride;
 log("executed kubewatch setup");
 lens = kubectl apply -n devtroncd lens -u lensOverride;
 log("executed lens setup");
-notifier = kubectl apply -n devtroncd notifier -u notifierOverride;
-log("executed notifier setup");
-
-if cloudProvider=="AZURE" {
-# ---------------- workflow secret start
-workflowSecret = `
-apiVersion: v1
-data:
-  accessKey: `;
-workflowSecret = workflowSecret + azureAccountNameEncoded;
-workflowSecret = workflowSecret + `
-  secretKey: `;
-workflowSecret = workflowSecret + azureAccountKey;
-workflowSecret = workflowSecret + `
-kind: Secret
-metadata:
-  name: workflow-minio-cred
-  namespace: devtron-ci
-type: Opaque
----
-apiVersion: v1
-data:
-  accessKey: `;
-workflowSecret = workflowSecret + azureAccountNameEncoded;
-workflowSecret = workflowSecret + `
-  secretKey: `;
-workflowSecret = workflowSecret + azureAccountKey;
-workflowSecret = workflowSecret + `
-kind: Secret
-metadata:
-  name: workflow-minio-cred
-  namespace: devtron-cd
-type: Opaque
-`;
-#----------------- workflow secret end
-
-workflowSecret = kubectl apply workflowSecret;
-}
-
-if cloudProvider=="MINIO" {
-# ---------------- workflow secret start
-workflowSecret = `
-apiVersion: v1
-data:
-  accessKey: `;
-workflowSecret = workflowSecret + minioAccesskey;
-workflowSecret = workflowSecret + `
-  secretKey: `;
-workflowSecret = workflowSecret + minioSecretkey;
-workflowSecret = workflowSecret + `
-kind: Secret
-metadata:
-  name: workflow-minio-cred
-  namespace: devtron-ci
-type: Opaque
----
-apiVersion: v1
-data:
-  accessKey: `;
-workflowSecret = workflowSecret + minioAccesskey;
-workflowSecret = workflowSecret + `
-  secretKey: `;
-workflowSecret = workflowSecret + minioSecretkey;
-workflowSecret = workflowSecret + `
-kind: Secret
-metadata:
-  name: workflow-minio-cred
-  namespace: devtron-cd
-type: Opaque
-`;
-#----------------- workflow secret end
-
-workflowSecret = kubectl apply workflowSecret;
-}
-
-workflowConfig = `parallelism: 50
-artifactRepository:
-  archiveLogs: true
-  s3:`;
-
-if cloudProvider=="S3" {
-    workflowConfig = workflowConfig +`
-    endpoint: s3.amazonaws.com
-    bucket: `;
-workflowConfig = workflowConfig + defaultBuildLogsBucket;
-workflowConfig = workflowConfig + `
-    region: `;
-workflowConfig = workflowConfig + defaultCacheBucketRegion;
-} else if cloudProvider=="AZURE"{
-
-workflowConfig = workflowConfig +`
-    bucket: `;
-workflowConfig = workflowConfig + azureBlobContainerCiLog;
-workflowConfig = workflowConfig +`
-    insecure: true                  #omit for S3/GCS. Needed when minio runs without TLS
-    accessKeySecret:                #omit if accessing via AWS IAM
-      name: workflow-minio-cred
-      key: accessKey
-    secretKeySecret:                #omit if accessing via AWS IAM
-      name: workflow-minio-cred
-      key: secretKey
-    endpoint: devtron-minio.devtroncd:9000`;
-}else if cloudProvider=="MINIO"{
-
-workflowConfig = workflowConfig +`
-    bucket: `;
-workflowConfig = workflowConfig + defaultBuildLogsBucket;
-workflowConfig = workflowConfig +`
-    insecure: true                  #omit for S3/GCS. Needed when minio runs without TLS
-    accessKeySecret:                #omit if accessing via AWS IAM
-      name: workflow-minio-cred
-      key: accessKey
-    secretKeySecret:                #omit if accessing via AWS IAM
-      name: workflow-minio-cred
-      key: secretKey
-    endpoint: devtron-minio.devtroncd:9000`;
-}
-
-
-workflowConfig = workflowConfig + `
-    keyFormat: devtron/{{workflow.name}}
-containerRuntimeExecutor: pns
-executor:
-  imagePullPolicy: Always`;
-kubeYamlEdit(workflow, "data.config", workflowConfig, `/ConfigMap//workflow-controller-configmap`);
-workflow = kubectl apply -n argo workflow -u workflowOverride;
-log("executed workflow setup");
 
 ## Applying Labels Job
 appLabels = kubectl apply -n devtroncd appSyncLabels -u appSyncLabelsOverride;
