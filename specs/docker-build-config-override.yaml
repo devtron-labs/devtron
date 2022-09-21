@@ -83,7 +83,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AppDetail"
+              $ref: "#/components/schemas/CiPatchRequest"
       responses:
         "200":
           description: Successfully return a message stating the operation is successful.
@@ -193,7 +193,7 @@ components:
       type: object
       properties:
         gitMaterialId:
-          type: int
+          type: integer
         dockerfileRelativePath:
           type: string
         targetPlatform:
