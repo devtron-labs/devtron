@@ -42,7 +42,7 @@ type CiPipeline struct {
 	IsExternal               bool   `sql:"external,notnull"`
 	ParentCiPipeline         int    `sql:"parent_ci_pipeline"`
 	ScanEnabled              bool   `sql:"scan_enabled,notnull"`
-	IsDockerConfigOverridden bool   `sql:"is_docker_config_overridden"`
+	IsDockerConfigOverridden bool   `sql:"is_docker_config_overridden, notnull"`
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
