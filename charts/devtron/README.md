@@ -51,6 +51,14 @@ $ kubectl apply -n devtroncd -f charts/template/devtron-installer.yaml
 
 devtron dashboard in now available at the `BASE_URL/dashboard`, where `BASE_URL` is same as provided in `values.yaml` in case of installation via helm chart OR provided in `charts/template/configmap-secret.yaml` in case of installation via kubectl.
 
+#### Check your current devtron version
+
+If you want to check the current version of Devtron you are using, please use the following command.
+
+```
+kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.data}' | grep "^LTAG=" | cut -d"=" -f2-
+```
+
 #### For Devtron version v0.6.0 and higher
 
 Use username:`admin` and for password run command mentioned below.
