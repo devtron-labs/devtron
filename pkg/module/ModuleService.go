@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
@@ -37,6 +38,7 @@ import (
 
 type ModuleService interface {
 	GetModuleInfo(name string) (*ModuleInfoDto, error)
+	GetModuleConfig(name string) (*ModuleConfigDto, error)
 	HandleModuleAction(userId int32, moduleName string, moduleActionRequest *ModuleActionRequestDto) (*ActionResponse, error)
 }
 
@@ -95,6 +97,16 @@ func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error)
 	// otherwise send DB status
 	moduleInfoDto.Status = module.Status
 	return moduleInfoDto, nil
+}
+
+func (impl ModuleServiceImpl) GetModuleConfig(name string) (*ModuleConfigDto, error) {
+	moduleConfig := &ModuleConfigDto{}
+	if name == BlobStorage {
+		blobStorageConfig := &BlobStorageConfig{}
+		env.Parse(blobStorageConfig)
+		moduleConfig.Enabled = blobStorageConfig.Enabled
+	}
+	return moduleConfig, nil
 }
 
 func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (ModuleStatus, error) {

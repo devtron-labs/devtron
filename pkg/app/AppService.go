@@ -512,7 +512,7 @@ func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *
 	event := impl.eventFactory.Build(util.Success, &override.PipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
-	_, evtErr := impl.eventClient.WriteEvent(event)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("error in writing event", "event", event, "err", evtErr)
 	}
@@ -1281,7 +1281,7 @@ func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOver
 	event := impl.eventFactory.Build(util.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util.CD)
 	impl.logger.Debugw("event WriteCDTriggerEvent", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, pipelineOverrideId, bean.CD_WORKFLOW_TYPE_DEPLOY)
-	_, evtErr := impl.eventClient.WriteEvent(event)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
 	}
