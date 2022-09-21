@@ -1,5 +1,4 @@
 {{- with .Values.components.dashboard }}
-{{- $argocdEnabled := index $.Values "argo-cd" }}
 apiVersion: v1
 kind: Secret
 metadata:
@@ -8,10 +7,6 @@ metadata:
     release: devtron
   annotations:
     "helm.sh/resource-policy": keep
-    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "7"
-    {{- end }}
 type: Opaque
 ---
 apiVersion: v1
@@ -22,10 +17,6 @@ metadata:
     release: devtron
   annotations:
     "helm.sh/resource-policy": keep
-    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "8"
-    {{- end }}
 data:
 {{- if .config }}
   GA_ENABLED: {{ .config.analytics | default "false" | quote }}
@@ -44,10 +35,6 @@ metadata:
     release: devtron
   annotations:
     "helm.sh/resource-policy": keep
-    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "9"
-    {{- end }}
 spec:
   type: ClusterIP
   ports:
@@ -67,10 +54,6 @@ metadata:
     release: devtron
   annotations:
     "helm.sh/resource-policy": keep
-    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "10"
-    {{- end }}
 spec:
   selector:
     matchLabels:
