@@ -2372,6 +2372,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		BeforeDockerBuildScripts: beforeDockerBuildScripts,
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
+		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 	}
 	for _, material := range pipeline.CiPipelineMaterials {
 		ciMaterial := &bean.CiMaterial{
