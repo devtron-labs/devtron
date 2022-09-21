@@ -170,7 +170,7 @@ In case of AWS application load balancer, the following annotations need to be a
 ```
 For an Ingress resource to be observed by AGIC (Application Gateway Ingress Controller) must be annotated with kubernetes.io/ingress.class: azure/application-gateway. Only then AGIC will work with the Ingress resource in question.
 
-> Note: Make sure to not use port 80 with HTTPS and port 443 with HTTP on the Pods.
+> Note: Make sure NOT to use port 80 with HTTPS and port 443 with HTTP on the Pods.
 
 
 
