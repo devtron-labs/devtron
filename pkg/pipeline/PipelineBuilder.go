@@ -2374,6 +2374,21 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		ScanEnabled:              pipeline.ScanEnabled,
 		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 	}
+	if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
+		templateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(ciPipeline.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting ciTemplateOverrides by ciPipelineId", "err", err, "ciPipelineId", ciPipeline.IsDockerConfigOverridden)
+			return nil, err
+		}
+		ciPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+			DockerRegistry:   templateOverride.DockerRegistryId,
+			DockerRepository: templateOverride.DockerRepository,
+			DockerBuildConfig: &bean.DockerBuildConfig{
+				GitMaterialId:  templateOverride.GitMaterialId,
+				DockerfilePath: templateOverride.DockerfilePath,
+			},
+		}
+	}
 	for _, material := range pipeline.CiPipelineMaterials {
 		ciMaterial := &bean.CiMaterial{
 			Id:              material.Id,
