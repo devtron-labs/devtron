@@ -39,6 +39,13 @@ data:
 {{- if and (eq $.Values.configs.BLOB_STORAGE_PROVIDER "S3") (not $.Values.configs.BLOB_STORAGE_S3_ENDPOINT) }}
   BLOB_STORAGE_S3_ENDPOINT: ""
 {{- end }}
+{{- if $.Values.monitoring }}
+{{- if $.Values.monitoring.grafana }}
+{{- if $.Values.monitoring.grafana.enabled }}
+  GRAFANA_URL: "http://%s:%s@devtron-grafana.devtroncd/grafana"
+{{- end }}
+{{- end }}
+{{- end }}
 {{- end }}
 {{- end }}
 {{- end }}
