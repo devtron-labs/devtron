@@ -19,29 +19,18 @@ package pipeline
 
 import (
 	"context"
-	"fmt"
-	"github.com/Azure/azure-storage-blob-go/azblob"
-	"github.com/Azure/go-autorest/autorest/adal"
-	"github.com/Azure/go-autorest/autorest/azure"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/credentials"
-	"github.com/aws/aws-sdk-go/aws/session"
-	s32 "github.com/aws/aws-sdk-go/service/s3"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"go.uber.org/zap"
 	"io"
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	"net/url"
 	"os"
-	"strconv"
-	"time"
 )
 
 type CiLogService interface {
-	FetchRunningWorkflowLogs(ciLogRequest CiLogRequest, token string, host string, isExt bool) (io.ReadCloser, func() error, error)
-	FetchLogs(ciLogRequest CiLogRequest) (*os.File, func() error, error)
+	FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, token string, host string, isExt bool) (io.ReadCloser, func() error, error)
+	FetchLogs(ciLogRequest BuildLogRequest) (*os.File, func() error, error)
 }
 
 type CiLogServiceImpl struct {
@@ -50,19 +39,17 @@ type CiLogServiceImpl struct {
 	kubeClient kubernetes.Interface
 }
 
-type CiLogRequest struct {
-	PipelineId      int
-	WorkflowId      int
-	WorkflowName    string
-	AccessKey       string
-	SecretKet       string
-	Region          string
-	LogsBucket      string
-	LogsFilePath    string
-	Namespace       string
-	CloudProvider   string
-	AzureBlobConfig *AzureBlobConfig
-	MinioEndpoint   string
+type BuildLogRequest struct {
+	PipelineId        int
+	WorkflowId        int
+	WorkflowName      string
+	LogsFilePath      string
+	Namespace         string
+	CloudProvider     blob_storage.BlobStorageType
+	AwsS3BaseConfig   *blob_storage.AwsS3BaseConfig
+	AzureBlobConfig   *blob_storage.AzureBlobBaseConfig
+	GcpBlobBaseConfig *blob_storage.GcpBlobBaseConfig
+	MinioEndpoint     string
 }
 
 func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfig *CiConfig) *CiLogServiceImpl {
@@ -78,7 +65,7 @@ func NewCiLogServiceImpl(logger *zap.SugaredLogger, ciService CiService, ciConfi
 	}
 }
 
-func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest CiLogRequest, token string, host string, isExt bool) (io.ReadCloser, func() error, error) {
+func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequest, token string, host string, isExt bool) (io.ReadCloser, func() error, error) {
 	podLogOpts := &v12.PodLogOptions{
 		Container: "main",
 		Follow:    true,
@@ -117,54 +104,30 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest CiLogRequest
 	return podLogs, cleanUpFunc, nil
 }
 
-func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, func() error, error) {
-	tempFile := ciLogRequest.WorkflowName + ".log"
-	file, err := os.Create(tempFile)
+func (impl *CiLogServiceImpl) FetchLogs(logRequest BuildLogRequest) (*os.File, func() error, error) {
+
+	tempFile := logRequest.WorkflowName + ".log"
+	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
+	request := &blob_storage.BlobStorageRequest{
+		StorageType:         logRequest.CloudProvider,
+		SourceKey:           logRequest.LogsFilePath,
+		DestinationKey:      tempFile,
+		AzureBlobBaseConfig: logRequest.AzureBlobConfig,
+		AwsS3BaseConfig:     logRequest.AwsS3BaseConfig,
+		GcpBlobBaseConfig:   logRequest.GcpBlobBaseConfig,
+	}
+
+	_, _, err := blobStorageService.Get(request)
+	if err != nil {
+		impl.logger.Errorw("err occurred while downloading logs file", "request", request, "err", err)
+		return nil, nil, err
+	}
+
+	file, err := os.Open(tempFile)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
 		return nil, nil, err
 	}
-
-	if ciLogRequest.CloudProvider == BLOB_STORAGE_S3 {
-		sess, _ := session.NewSession(&aws.Config{
-			Region: aws.String(ciLogRequest.Region),
-			//Credentials: credentials.NewStaticCredentials(ciLogRequest.AccessKey, ciLogRequest.SecretKet, ""),
-		})
-
-		downloader := s3manager.NewDownloader(sess)
-		_, err = downloader.Download(file,
-			&s32.GetObjectInput{
-				Bucket: aws.String(ciLogRequest.LogsBucket),
-				Key:    aws.String(ciLogRequest.LogsFilePath),
-			})
-	} else if ciLogRequest.CloudProvider == BLOB_STORAGE_MINIO {
-		sess, _ := session.NewSession(&aws.Config{
-			Region:           aws.String(ciLogRequest.Region),
-			Endpoint:         aws.String(ciLogRequest.MinioEndpoint),
-			DisableSSL:       aws.Bool(true),
-			S3ForcePathStyle: aws.Bool(true),
-			Credentials:      credentials.NewStaticCredentials(ciLogRequest.AccessKey, ciLogRequest.SecretKet, ""),
-		})
-
-		downloader := s3manager.NewDownloader(sess)
-		_, err = downloader.Download(file,
-			&s32.GetObjectInput{
-				Bucket: aws.String(ciLogRequest.LogsBucket),
-				Key:    aws.String(ciLogRequest.LogsFilePath),
-			})
-	} else if ciLogRequest.CloudProvider == BLOB_STORAGE_AZURE {
-		blobClient := AzureBlob{logger: impl.logger}
-		err = blobClient.DownloadBlob(context.Background(), ciLogRequest.LogsFilePath, ciLogRequest.AzureBlobConfig, file)
-		if err != nil {
-			impl.logger.Errorw("azure download error", "err", err)
-			return nil, nil, err
-		}
-	} else {
-		return nil, nil, fmt.Errorf("unsupported cloud %s", ciLogRequest.CloudProvider)
-	}
-	//----s3 download start
-
-	// --- s3 download end
 
 	cleanUpFunc := func() error {
 		impl.logger.Info("cleaning up log files")
@@ -187,102 +150,4 @@ func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, fu
 		return nil, nil, err
 	}
 	return file, cleanUpFunc, nil
-}
-
-type AzureBlob struct {
-	logger *zap.SugaredLogger
-}
-
-func (impl *AzureBlob) getSharedCredentials(accountName, accountKey string) (*azblob.SharedKeyCredential, error) {
-	credential, err := azblob.NewSharedKeyCredential(accountName, accountKey)
-	if err != nil {
-		impl.logger.Errorw("Invalid credentials with error: ", "err", err)
-		return nil, err
-	}
-	return credential, err
-}
-
-func (impl *AzureBlob) getTokenCredentials() (azblob.TokenCredential, error) {
-	msiEndpoint, err := adal.GetMSIEndpoint()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get the managed service identity endpoint: %v", err)
-	}
-
-	token, err := adal.NewServicePrincipalTokenFromMSI(msiEndpoint, azure.PublicCloud.ResourceIdentifiers.Storage)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create the managed service identity token: %v", err)
-	}
-	err = token.Refresh()
-	if err != nil {
-		return nil, fmt.Errorf("failure refreshing token from MSI endpoint %w", err)
-	}
-
-	credential := azblob.NewTokenCredential(token.Token().AccessToken, impl.defaultTokenRefreshFunction(token))
-	return credential, err
-}
-
-func (impl *AzureBlob) buildContainerUrl(config *AzureBlobConfig) (*azblob.ContainerURL, error) {
-	var credential azblob.Credential
-	var err error
-	if len(config.AccountKey) > 0 {
-		credential, err = impl.getSharedCredentials(config.AccountName, config.AccountKey)
-		if err != nil {
-			return nil, fmt.Errorf("failed in getting credentials: %v", err)
-		}
-	} else {
-		credential, err = impl.getTokenCredentials()
-		if err != nil {
-			return nil, fmt.Errorf("failed in getting credentials: %v", err)
-		}
-	}
-	p := azblob.NewPipeline(credential, azblob.PipelineOptions{})
-
-	// From the Azure portal, get your storage account blob service URL endpoint.
-	URL, _ := url.Parse(
-		fmt.Sprintf("https://%s.blob.core.windows.net/%s", config.AccountName, config.BlobContainerCiLog))
-
-	// Create a ContainerURL object that wraps the container URL and a request
-	// pipeline to make requests.
-	containerURL := azblob.NewContainerURL(*URL, p)
-	return &containerURL, nil
-}
-
-func (impl *AzureBlob) DownloadBlob(context context.Context, blobName string, config *AzureBlobConfig, file *os.File) error {
-	containerURL, err := impl.buildContainerUrl(config)
-	if err != nil {
-		return err
-	}
-	blobURL := containerURL.NewBlobURL(blobName)
-	err = azblob.DownloadBlobToFile(context, blobURL, 0, azblob.CountToEnd, file, azblob.DownloadFromBlobOptions{})
-	return err
-}
-
-func (impl *AzureBlob) UploadBlob(context context.Context, blobName string, config *AzureBlobConfig, cacheFileName string) error {
-	containerURL, err := impl.buildContainerUrl(config)
-	if err != nil {
-		return err
-	}
-	blobURL := containerURL.NewBlockBlobURL(blobName)
-	file, err := os.Open(cacheFileName)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-	_, err = azblob.UploadFileToBlockBlob(context, file, blobURL, azblob.UploadToBlockBlobOptions{})
-	return err
-}
-
-func (impl *AzureBlob) defaultTokenRefreshFunction(spToken *adal.ServicePrincipalToken) func(credential azblob.TokenCredential) time.Duration {
-	return func(credential azblob.TokenCredential) time.Duration {
-		err := spToken.Refresh()
-		if err != nil {
-			return 0
-		}
-		expiresIn, err := strconv.ParseInt(string(spToken.Token().ExpiresIn), 10, 64)
-		if err != nil {
-			return 0
-		}
-		credential.SetToken(spToken.Token().AccessToken)
-		return time.Duration(expiresIn-300) * time.Second
-	}
 }

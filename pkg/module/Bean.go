@@ -27,6 +27,14 @@ type ModuleInfoDto struct {
 	Status string `json:"status,notnull" validate:"oneof=notInstalled installed installing installFailed timeout"`
 }
 
+type ModuleConfigDto struct {
+	Enabled bool `json:"enabled"`
+}
+
+type BlobStorageConfig struct {
+	Enabled bool `env:"BLOB_STORAGE_ENABLED" envDefault:"false"`
+}
+
 type ModuleActionRequestDto struct {
 	Action  string `json:"action,notnull" validate:"oneof=install"`
 	Version string `json:"version,notnull"`
@@ -37,7 +45,7 @@ type ActionResponse struct {
 }
 
 type ModuleEnvConfig struct {
-	ModuleStatusHandlingCronDurationInMin int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"5"` // default 5 mins
+	ModuleStatusHandlingCronDurationInMin int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"3"` // default 3 mins
 }
 
 func ParseModuleEnvConfig() (*ModuleEnvConfig, error) {
@@ -54,6 +62,8 @@ func ParseModuleEnvConfig() (*ModuleEnvConfig, error) {
 type ModuleStatus = string
 type ModuleName = string
 
+const BlobStorage = "blob-storage"
+
 const (
 	ModuleStatusNotInstalled  ModuleStatus = "notInstalled"
 	ModuleStatusInstalled     ModuleStatus = "installed"
@@ -63,9 +73,11 @@ const (
 )
 
 const (
-	ModuleNameCicd          ModuleName = "cicd"
-	ModuleNameArgoCd        ModuleName = "argo-cd"
-	ModuleNameSecurityClair ModuleName = "security.clair"
+	ModuleNameCicd              ModuleName = "cicd"
+	ModuleNameArgoCd            ModuleName = "argo-cd"
+	ModuleNameSecurityClair     ModuleName = "security.clair"
+	ModuleNameNotification      ModuleName = "notifier"
+	ModuleNameMonitoringGrafana ModuleName = "monitoring.grafana"
 )
 
-var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair}
+var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair, ModuleNameNotification, ModuleNameMonitoringGrafana}
