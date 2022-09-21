@@ -112,7 +112,7 @@ type CiPipeline struct {
 type DockerConfigOverride struct {
 	DockerRegistry    string             `json:"dockerRegistry,omitempty"`
 	DockerRepository  string             `json:"dockerRepository,omitempty"`
-	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty" validate:"required,dive"`
+	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
 }
 
 type CiPipelineMin struct {
