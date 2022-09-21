@@ -160,6 +160,14 @@ spec:
         - name: devtron
           image: "quay.io/devtron/devtron:e9175e98-4-10210"
           imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - ' curl -X POST -H "Content-Type: application/json" -d ''{"eventType":
+                  "SIG_TERM"}'' localhost:8080/orchestrator/telemetry/summary'
           ports:
             - name: devtron
               containerPort: 8080
