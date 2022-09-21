@@ -64,7 +64,7 @@ func (repo *CiTemplateOverrideRepositoryImpl) FindByAppId(appId int) ([]*CiTempl
 	err := repo.dbConnection.Model(&ciTemplateOverrides).
 		Join("INNER JOIN ci_pipeline cp on cp.id=ci_template_override.ci_pipeline_id").
 		Where("app_id = ?", appId).
-		Where("is_docker_config_override = ?", true).
+		Where("is_docker_config_overridden = ?", true).
 		Where("ci_template_override.active = ?", true).
 		Where("cp.deleted = ?", false).
 		Select()
