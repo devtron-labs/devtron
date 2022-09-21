@@ -303,7 +303,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			GitMaterialId:    createRequest.DockerConfigOverride.DockerBuildConfig.GitMaterialId,
 			Active:           true,
 		}
-		if savedTemplateOverride.Id > 0 {
+		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
 			templateOverrideReq.Id = savedTemplateOverride.Id
 			_, err = impl.ciTemplateOverrideRepository.Update(templateOverrideReq)
 			if err != nil {
