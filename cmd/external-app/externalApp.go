@@ -66,7 +66,7 @@ func (app *App) Stop() {
 	app.Logger.Info("orchestrator shutdown initiating")
 	posthogCl := app.posthogClient.Client
 	if posthogCl != nil {
-		app.Logger.Infow("flushing messages of posthog")
+		app.Logger.Info("flushing messages of posthog")
 		posthogCl.Close()
 	}
 }
