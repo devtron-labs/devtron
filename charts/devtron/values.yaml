@@ -19,7 +19,7 @@ secrets: {}
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
 #  AZURE_ACCOUNT_KEY: "xxxxxxxxxx"
 configs:
-  BLOB_STORAGE_PROVIDER: "MINIO"   #AZURE|S3|MINIO
+  BLOB_STORAGE_PROVIDER: ""   #AZURE|S3|MINIO|GCP
   ENABLE_LEGACY_API: "false"  # Set to true if you are installing Devtron on a kubernetes version < k8s 1.19
 # Amazon AWS S3 bucket and region for storing Build-cache for faster build process. Mandatory if BLOB_STORAGE_PROVIDER is AWS.
   #DEFAULT_CACHE_BUCKET: "change-me"   #Do not include s3://
@@ -77,7 +77,7 @@ components:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
+      authenticator: "quay.io/devtron/authenticator:aecda793-381-10540"
 
   kubelink:
     image: "quay.io/devtron/kubelink:7f5e1584-318-10138"
@@ -252,3 +252,44 @@ security:
   clair:
     enabled: false
     fullnameOverride: clair
+
+notifier:
+  enabled: false
+  imagePullPolicy: IfNotPresent
+  image: "quay.io/devtron/notifier:0ba0e243-372-10146"
+  configs:
+    CD_ENVIRONMENT: PROD
+    DB: orchestrator
+    DB_HOST: postgresql-postgresql.devtroncd
+    DB_PORT: "5432"
+    DB_USER: postgres
+  secrets: {}
+  dbconfig:
+    secretName: postgresql-postgresql
+    keyName: postgresql-password
+  resources: {}
+
+minio:
+  enabled: false
+  replicaCount: 1
+  image: "quay.io/devtron/minio:RELEASE.2021-02-14T04-01-33Z"
+  imagePullPolicy: IfNotPresent
+  mbImage: "quay.io/devtron/minio-mc:RELEASE.2021-02-14T04-28-06Z"
+  mbImagePullPolicy: IfNotPresent
+
+workflowController:
+  image: "quay.io/argoproj/workflow-controller:v3.0.7"
+  executorImage: "quay.io/argoproj/argoexec:v3.0.7"
+
+monitoring:
+  grafana:
+    enabled: false
+    image: "quay.io/devtron/grafana:7.3.1"
+    imagePullPolicy: IfNotPresent
+    resources: {}
+    grafanaDashboards:
+      image: "quay.io/kiwigrid/k8s-sidecar:1.1.0"
+      imagePullPolicy: IfNotPresent
+      resources: {}
+    persistence:
+      storage: "2Gi"
