@@ -18,6 +18,30 @@ data:
   PG_DATABASE: orchestrator
   DEX_HOST: http://argocd-dex-server.devtroncd
   DEX_PORT: "5556"
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
+{{- if $.Values.configs }}
+{{- if or ($.Values.minio.enabled) ($.Values.configs.BLOB_STORAGE_PROVIDER) }}
+  BLOB_STORAGE_ENABLED: "true"
+{{- end }}
+{{ toYaml $.Values.configs | indent 2 }}
+{{- if and ($.Values.minio.enabled) (not $.Values.configs.BLOB_STORAGE_PROVIDER) }}
+  BLOB_STORAGE_PROVIDER: "S3"
+  BLOB_STORAGE_S3_ENDPOINT: "http://devtron-minio.devtroncd:9000"
+  BLOB_STORAGE_S3_ENDPOINT_INSECURE: "true"
+  DEFAULT_BUILD_LOGS_BUCKET: "devtron-ci-log"
+  DEFAULT_CACHE_BUCKET: "devtron-ci-cache"
+{{- end }}
+{{- if or ($.Values.minio.enabled) (eq $.Values.configs.BLOB_STORAGE_PROVIDER "AZURE") }}
+  DEFAULT_CACHE_BUCKET_REGION: "us-west-2"
+  DEFAULT_CD_LOGS_BUCKET_REGION: "us-west-2"
+{{- end }}
+{{- if and (eq $.Values.configs.BLOB_STORAGE_PROVIDER "S3") (not $.Values.configs.BLOB_STORAGE_S3_ENDPOINT) }}
+  BLOB_STORAGE_S3_ENDPOINT: ""
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -87,6 +111,8 @@ spec:
               name: "devtron-secret"
           - configMapRef:
               name: "devtron-custom-cm"
+          - secretRef:
+              name: "devtron-custom-secret"
   revisionHistoryLimit: 3
 ---
 {{- if .serviceMonitor.enabled }}
