@@ -105,6 +105,7 @@ components:
         DB_NAME: "casbin"
         GIT_HASH: "e9175e9845c9ca8f6260ea58ce7ad22118244eac"
 
+# values for argocd integration
 argo-cd:
   enabled: false
   fullnameOverride: "argocd"
@@ -161,7 +162,7 @@ argo-cd:
   # argocd-dex-server
   dex:
     enabled: false
-  
+  # argocd-redis
   redis:
     affinity:
       podAntiAffinity:
@@ -178,7 +179,7 @@ argo-cd:
                 app.kubernetes.io/part-of: argocd
             topologyKey: kubernetes.io/hostname
           weight: 5
-    
+  # argocd-server
   server:
     configEnabled: false
     affinity:
@@ -203,8 +204,10 @@ argo-cd:
         - all
       readOnlyRootFilesystem: true
       runAsNonRoot: true
+    # argocd-rbac-cm
     rbacConfig:
       policy.default: role:admin
+  # argocd-repo-server
   repoServer:
     affinity:
       podAntiAffinity:
@@ -246,13 +249,14 @@ argo-cd:
     enabled: false
   notifications:
     enabled: false
-
+# Values for security integration
 security:
   enabled: false
+  # Values for clair
   clair:
     enabled: false
     fullnameOverride: clair
-
+# Values for notifier integration
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
@@ -268,7 +272,7 @@ notifier:
     secretName: postgresql-postgresql
     keyName: postgresql-password
   resources: {}
-
+# Set enable to true if you want to use minio for storing cache and logs
 minio:
   enabled: false
   replicaCount: 1
@@ -276,11 +280,11 @@ minio:
   imagePullPolicy: IfNotPresent
   mbImage: "quay.io/devtron/minio-mc:RELEASE.2021-02-14T04-28-06Z"
   mbImagePullPolicy: IfNotPresent
-
+# Change below values for workflow controller
 workflowController:
   image: "quay.io/argoproj/workflow-controller:v3.0.7"
   executorImage: "quay.io/argoproj/argoexec:v3.0.7"
-
+# Values for grafana integration
 monitoring:
   grafana:
     enabled: false
