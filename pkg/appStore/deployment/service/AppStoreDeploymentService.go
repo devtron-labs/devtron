@@ -879,8 +879,21 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 				return nil, err
 			}
 		}
-		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 
+		newGitOpsRepoName := ""
+		if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
+			newGitOpsRepoName = installedApp.App.AppName
+		} else {
+			newGitOpsRepoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, installedApp.App.AppName)
+		}
+
+		//checking weather git repo is with app name or not
+		if newGitOpsRepoName != gitOpsRepoName {
+			installAppVersionRequest.GitOpsRepoName = newGitOpsRepoName
+		} else {
+			installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
+		}
+		installedApp.GitOpsRepoName = installAppVersionRequest.GitOpsRepoName
 		argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 		installAppVersionRequest.ACDAppName = argocdAppName
 	}
