@@ -93,6 +93,7 @@ type InstallAppVersionDTO struct {
 	GitHash                   string                     `json:"gitHash"`
 	EnvironmentName           string                     `json:"-"`
 	InstallAppVersionChartDTO *InstallAppVersionChartDTO `json:"-"`
+	DeploymentAppType         string                     `json:"-"`
 }
 
 type InstallAppVersionChartDTO struct {
@@ -187,13 +188,17 @@ const REFERENCE_TYPE_DEPLOYED string = "DEPLOYED"
 const REFERENCE_TYPE_EXISTING string = "EXISTING"
 
 type AppStoreVersionValuesDTO struct {
-	Id                int    `json:"id,omitempty"`
-	AppStoreVersionId int    `json:"appStoreVersionId,omitempty,notnull"`
-	Name              string `json:"name,omitempty"`
-	Values            string `json:"values,omitempty"` //yaml format user value
-	ChartVersion      string `json:"chartVersion,omitempty"`
-	EnvironmentName   string `json:"environmentName,omitempty"`
-	UserId            int32  `json:"-"`
+	Id                 int       `json:"id,omitempty"`
+	AppStoreVersionId  int       `json:"appStoreVersionId,omitempty,notnull"`
+	Name               string    `json:"name,omitempty"`
+	Values             string    `json:"values,omitempty"` //yaml format user value
+	ChartVersion       string    `json:"chartVersion,omitempty"`
+	EnvironmentName    string    `json:"environmentName,omitempty"`
+	Description        string    `json:"description,omitempty"`
+	UpdatedByUserEmail string    `json:"updatedBy,omitempty"`
+	UpdatedByUserId    int32     `json:"-"`
+	UpdatedOn          time.Time `json:"updatedOn"`
+	UserId             int32     `json:"-"`
 }
 
 type AppStoreVersionValuesCategoryWiseDTO struct {
@@ -250,6 +255,8 @@ type AppStoreApplicationVersionResponse struct {
 	CreatedOn               time.Time `json:"createdOn"`
 	RawValues               string    `json:"rawValues"`
 	Readme                  string    `json:"readme"`
+	ValuesSchemaJson        string    `json:"valuesSchemaJson"`
+	Notes                   string    `json:"notes"`
 	UpdatedOn               time.Time `json:"updatedOn"`
 	IsChartRepoActive       bool      `json:"isChartRepoActive"`
 }
@@ -259,9 +266,11 @@ type AppStoreVersionsResponse struct {
 	Id      int    `json:"id"`
 }
 
-type ReadmeRes struct {
+type ChartInfoRes struct {
 	AppStoreApplicationVersionId int    `json:"appStoreApplicationVersionId"`
 	Readme                       string `json:"readme"`
+	ValuesSchemaJson             string `json:"valuesSchemaJson"`
+	Notes                        string `json:"notes"`
 }
 
 type AppStoreWithVersion struct {
@@ -277,6 +286,7 @@ type AppStoreWithVersion struct {
 	UpdatedOn                    time.Time `json:"updated_on"`
 	Version                      string    `json:"version"`
 	Deprecated                   bool      `json:"deprecated"`
+	Description                  string    `json:"description"`
 }
 
 type AppStoreFilter struct {
@@ -316,8 +326,11 @@ const (
 	GIT_SUCCESS
 	ACD_ERROR
 	ACD_SUCCESS
+	HELM_ERROR
+	HELM_SUCCESS
 )
 
 func (a AppstoreDeploymentStatus) String() string {
-	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "DEQUE_ERROR", "TRIGGER_ERROR", "DEPLOY_SUCCESS", "DEPLOY_INIT", "GIT_ERROR", "GIT_SUCCESS", "ACD_ERROR", "ACD_SUCCESS"}[a]
+	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "DEQUE_ERROR", "TRIGGER_ERROR", "DEPLOY_SUCCESS", "DEPLOY_INIT", "GIT_ERROR", "GIT_SUCCESS", "ACD_ERROR", "ACD_SUCCESS", "HELM_ERROR",
+		"HELM_SUCCESS"}[a]
 }

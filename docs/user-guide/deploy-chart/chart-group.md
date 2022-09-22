@@ -1,4 +1,4 @@
-# Chart Operations 
+# Chart Group
 
 ## Introduction
 

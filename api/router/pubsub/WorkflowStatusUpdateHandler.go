@@ -20,7 +20,7 @@ package pubsub
 import (
 	"encoding/json"
 
-	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
@@ -85,7 +85,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error while unmarshalling wf status update", "err", err, "msg", string(msg.Data))
 			return
 		}
-		
+
 		_, err = impl.ciHandler.UpdateWorkflow(wfStatus)
 		if err != nil {
 			impl.logger.Errorw("error on update workflow status", "err", err, "msg", string(msg.Data))
@@ -136,7 +136,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
 				impl.logger.Debugw("event pre stage", "event", event)
 				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, bean.CD_WORKFLOW_TYPE_PRE)
-				_, evtErr := impl.eventClient.WriteEvent(event)
+				_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 				if evtErr != nil {
 					impl.logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
 				}
@@ -145,7 +145,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
 				impl.logger.Debugw("event post stage", "event", event)
 				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, bean.CD_WORKFLOW_TYPE_POST)
-				_, evtErr := impl.eventClient.WriteEvent(event)
+				_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 				if evtErr != nil {
 					impl.logger.Errorw("CD stage post fail or success event not sent", "error", evtErr)
 				}

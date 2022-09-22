@@ -23,6 +23,12 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
+		return
+	}
+
 	v := r.URL.Query()
 	teamId := v.Get("teamId")
 	appName := v.Get("appName")
@@ -55,6 +61,10 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	// RBAC
 	objects := handler.enforcerUtil.GetRbacObjectsForAllApps()
 	for _, app := range apps {
+		if isActionUserSuperAdmin {
+			accessedApps = append(accessedApps, app)
+			continue
+		}
 		object := objects[app.Id]
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
 			accessedApps = append(accessedApps, app)

@@ -21,12 +21,13 @@ import (
 	"strings"
 
 	"github.com/emicklei/go-restful"
-	"github.com/go-openapi/spec"
+
+	"k8s.io/kube-openapi/pkg/validation/spec"
 )
 
 const (
 	// TODO: Make this configurable.
-	ExtensionPrefix = "x-kubernetes-"
+	ExtensionPrefix   = "x-kubernetes-"
 	ExtensionV2Schema = ExtensionPrefix + "v2-schema"
 )
 
@@ -55,6 +56,11 @@ type OpenAPIV3DefinitionGetter interface {
 
 type PathHandler interface {
 	Handle(path string, handler http.Handler)
+}
+
+type PathHandlerByGroupVersion interface {
+	Handle(path string, handler http.Handler)
+	HandlePrefix(path string, handler http.Handler)
 }
 
 // Config is set of configuration for openAPI spec generation.
@@ -87,7 +93,13 @@ type Config struct {
 	GetDefinitions GetOpenAPIDefinitions
 
 	// GetOperationIDAndTags returns operation id and tags for a restful route. It is an optional function to customize operation IDs.
+	//
+	// Deprecated: GetOperationIDAndTagsFromRoute should be used instead. This cannot be specified if using the new Route
+	// interface set of funcs.
 	GetOperationIDAndTags func(r *restful.Route) (string, []string, error)
+
+	// GetOperationIDAndTagsFromRoute returns operation id and tags for a Route. It is an optional function to customize operation IDs.
+	GetOperationIDAndTagsFromRoute func(r Route) (string, []string, error)
 
 	// GetDefinitionName returns a friendly name for a definition base on the serving path. parameter `name` is the full name of the definition.
 	// It is an optional function to customize model names.
@@ -105,28 +117,34 @@ type Config struct {
 	DefaultSecurity []map[string][]string
 }
 
-var schemaTypeFormatMap = map[string][]string{
-	"uint":        {"integer", "int32"},
-	"uint8":       {"integer", "byte"},
-	"uint16":      {"integer", "int32"},
-	"uint32":      {"integer", "int64"},
-	"uint64":      {"integer", "int64"},
-	"int":         {"integer", "int32"},
-	"int8":        {"integer", "byte"},
-	"int16":       {"integer", "int32"},
-	"int32":       {"integer", "int32"},
-	"int64":       {"integer", "int64"},
-	"byte":        {"integer", "byte"},
-	"float64":     {"number", "double"},
-	"float32":     {"number", "float"},
-	"bool":        {"boolean", ""},
-	"time.Time":   {"string", "date-time"},
-	"string":      {"string", ""},
-	"integer":     {"integer", ""},
-	"number":      {"number", ""},
-	"boolean":     {"boolean", ""},
-	"[]byte":      {"string", "byte"}, // base64 encoded characters
-	"interface{}": {"object", ""},
+type typeInfo struct {
+	name   string
+	format string
+	zero   interface{}
+}
+
+var schemaTypeFormatMap = map[string]typeInfo{
+	"uint":        {"integer", "int32", 0.},
+	"uint8":       {"integer", "byte", 0.},
+	"uint16":      {"integer", "int32", 0.},
+	"uint32":      {"integer", "int64", 0.},
+	"uint64":      {"integer", "int64", 0.},
+	"int":         {"integer", "int32", 0.},
+	"int8":        {"integer", "byte", 0.},
+	"int16":       {"integer", "int32", 0.},
+	"int32":       {"integer", "int32", 0.},
+	"int64":       {"integer", "int64", 0.},
+	"byte":        {"integer", "byte", 0},
+	"float64":     {"number", "double", 0.},
+	"float32":     {"number", "float", 0.},
+	"bool":        {"boolean", "", false},
+	"time.Time":   {"string", "date-time", ""},
+	"string":      {"string", "", ""},
+	"integer":     {"integer", "", 0.},
+	"number":      {"number", "", 0.},
+	"boolean":     {"boolean", "", false},
+	"[]byte":      {"string", "byte", ""}, // base64 encoded characters
+	"interface{}": {"object", "", interface{}(nil)},
 }
 
 // This function is a reference for converting go (or any custom type) to a simple open API type,format pair. There are
@@ -168,12 +186,22 @@ var schemaTypeFormatMap = map[string][]string{
 //           }
 // }
 //
-func GetOpenAPITypeFormat(typeName string) (string, string) {
+func OpenAPITypeFormat(typeName string) (string, string) {
 	mapped, ok := schemaTypeFormatMap[typeName]
 	if !ok {
 		return "", ""
 	}
-	return mapped[0], mapped[1]
+	return mapped.name, mapped.format
+}
+
+// Returns the zero-value for the given type along with true if the type
+// could be found.
+func OpenAPIZeroValue(typeName string) (interface{}, bool) {
+	mapped, ok := schemaTypeFormatMap[typeName]
+	if !ok {
+		return nil, false
+	}
+	return mapped.zero, true
 }
 
 func EscapeJsonPointer(p string) string {

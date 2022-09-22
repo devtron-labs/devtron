@@ -39,13 +39,13 @@ type UserAuthRouterImpl struct {
 	clientApp       *oidc.ClientApp
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userService user.UserService, dexConfig *client.DexConfig) (*UserAuthRouterImpl, error) {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, selfRegistrationRolesService user.SelfRegistrationRolesService, dexConfig *client.DexConfig) (*UserAuthRouterImpl, error) {
 	router := &UserAuthRouterImpl{
 		userAuthHandler: userAuthHandler,
 		logger:          logger,
 	}
 	logger.Infow("auth starting with dex conf", "conf", dexConfig)
-	oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, userService.UserExists, router.RedirectUrlSanitiser)
+	oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, selfRegistrationRolesService.CheckAndCreateUserIfConfigured, router.RedirectUrlSanitiser)
 	if err != nil {
 		return nil, err
 	}

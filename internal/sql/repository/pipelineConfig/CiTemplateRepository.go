@@ -33,7 +33,8 @@ type CiTemplate struct {
 	DockerRegistryId  string   `sql:"docker_registry_id"` //foreign key of registry
 	DockerRepository  string   `sql:"docker_repository"`
 	DockerfilePath    string   `sql:"dockerfile_path"`
-	Args              string   `sql:"args"`                //json string format of map[string]string
+	Args              string   `sql:"args"` //json string format of map[string]string
+	TargetPlatform    string   `sql:"target_platform,notnull"`
 	BeforeDockerBuild string   `sql:"before_docker_build"` //json string  format of []*Task
 	AfterDockerBuild  string   `sql:"after_docker_build"`  //json string  format of []*Task
 	TemplateName      string   `sql:"template_name"`

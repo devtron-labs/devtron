@@ -43,6 +43,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
@@ -71,7 +72,7 @@ type CoreAppRestHandlerImpl struct {
 	validator               *validator.Validate
 	enforcerUtil            rbac.EnforcerUtil
 	enforcer                casbin.Enforcer
-	appLabelService         app.AppLabelService
+	appCrudOperationService app.AppCrudOperationService
 	pipelineBuilder         pipeline.PipelineBuilder
 	gitRegistryService      pipeline.GitRegistryConfig
 	chartService            chart.ChartService
@@ -87,22 +88,24 @@ type CoreAppRestHandlerImpl struct {
 	envConfigRepo           chartConfig.EnvConfigOverrideRepository
 	chartRepo               chartRepoRepository.ChartRepository
 	teamService             team.TeamService
+	argoUserService         argo.ArgoUserService
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
-	enforcer casbin.Enforcer, appLabelService app.AppLabelService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
+	enforcer casbin.Enforcer, appCrudOperationService app.AppCrudOperationService, pipelineBuilder pipeline.PipelineBuilder, gitRegistryService pipeline.GitRegistryConfig,
 	chartService chart.ChartService, configMapService pipeline.ConfigMapService, appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService, appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
-	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService) *CoreAppRestHandlerImpl {
+	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
+	argoUserService argo.ArgoUserService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
 		validator:               validator,
 		enforcerUtil:            enforcerUtil,
 		enforcer:                enforcer,
-		appLabelService:         appLabelService,
+		appCrudOperationService: appCrudOperationService,
 		pipelineBuilder:         pipelineBuilder,
 		gitRegistryService:      gitRegistryService,
 		chartService:            chartService,
@@ -118,6 +121,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		envConfigRepo:           envConfigRepo,
 		chartRepo:               chartRepo,
 		teamService:             teamService,
+		argoUserService:         argoUserService,
 	}
 	return handler
 }
@@ -237,9 +241,14 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
 	token := r.Header.Get("token")
-	ctx := context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
 	var createAppRequest appBean.AppDetail
 	err = decoder.Decode(&createAppRequest)
 	if err != nil {
@@ -405,7 +414,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 func (handler CoreAppRestHandlerImpl) buildAppMetadata(appId int) (*appBean.AppMetadata, error, int) {
 	handler.logger.Debugw("Getting app detail - meta data", "appId", appId)
 
-	appMetaInfo, err := handler.appLabelService.GetAppMetaInfo(appId)
+	appMetaInfo, err := handler.appCrudOperationService.GetAppMetaInfo(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppAllDetail", "err", err, "appId", appId)
 		return nil, err, http.StatusInternalServerError
@@ -488,6 +497,7 @@ func (handler CoreAppRestHandlerImpl) buildDockerConfig(appId int) (*appBean.Doc
 		BuildConfig: &appBean.DockerBuildConfig{
 			Args:                   ciConfig.DockerBuildConfig.Args,
 			DockerfileRelativePath: ciConfig.DockerBuildConfig.DockerfilePath,
+			TargetPlatform:         ciConfig.DockerBuildConfig.TargetPlatform,
 			GitCheckoutPath:        gitMaterial.CheckoutPath,
 		},
 	}
@@ -673,6 +683,7 @@ func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline 
 		}
 		ciPipelineMaterialsConfig = append(ciPipelineMaterialsConfig, ciPipelineMaterialConfig)
 	}
+
 	ciPipelineResp.CiPipelineMaterialsConfig = ciPipelineMaterialsConfig
 
 	//build docker pre-build script
@@ -1247,6 +1258,7 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 		GitMaterialId:  gitMaterial.Id,
 		DockerfilePath: dockerConfig.BuildConfig.DockerfileRelativePath,
 		Args:           dockerBuildArgs,
+		TargetPlatform: dockerConfig.BuildConfig.TargetPlatform,
 	}
 	createDockerConfigRequest.DockerBuildConfig = dockerBuildConfigRequest
 

@@ -27,6 +27,8 @@ type K8sApplicationService interface {
 	GetPodLogs(request *ResourceRequestBean) (io.ReadCloser, error)
 	ValidateResourceRequest(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error)
 	GetResourceInfo() (*ResourceInfo, error)
+	GetRestConfigByClusterId(clusterId int) (*rest.Config, error)
+	GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger           *zap.SugaredLogger
@@ -65,7 +67,7 @@ type ResourceInfo struct {
 
 func (impl *K8sApplicationServiceImpl) GetResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
@@ -98,7 +100,7 @@ func (impl *K8sApplicationServiceImpl) CreateResource(request *ResourceRequestBe
 	}
 
 	//getting rest config by clusterId
-	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
@@ -113,7 +115,7 @@ func (impl *K8sApplicationServiceImpl) CreateResource(request *ResourceRequestBe
 
 func (impl *K8sApplicationServiceImpl) UpdateResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
@@ -128,7 +130,7 @@ func (impl *K8sApplicationServiceImpl) UpdateResource(request *ResourceRequestBe
 
 func (impl *K8sApplicationServiceImpl) DeleteResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
@@ -143,7 +145,7 @@ func (impl *K8sApplicationServiceImpl) DeleteResource(request *ResourceRequestBe
 
 func (impl *K8sApplicationServiceImpl) ListEvents(request *ResourceRequestBean) (*application.EventsResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
@@ -158,7 +160,7 @@ func (impl *K8sApplicationServiceImpl) ListEvents(request *ResourceRequestBean) 
 
 func (impl *K8sApplicationServiceImpl) GetPodLogs(request *ResourceRequestBean) (io.ReadCloser, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.getRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
@@ -171,7 +173,7 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(request *ResourceRequestBean) 
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) getRestConfigByClusterId(clusterId int) (*rest.Config, error) {
+func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(clusterId int) (*rest.Config, error) {
 	cluster, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
@@ -180,6 +182,23 @@ func (impl *K8sApplicationServiceImpl) getRestConfigByClusterId(clusterId int) (
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
 	var restConfig *rest.Config
+	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
+		restConfig, err = rest.InClusterConfig()
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
+			return nil, err
+		}
+	} else {
+		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
+	}
+	return restConfig, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error) {
+	configMap := cluster.Config
+	bearerToken := configMap["bearer_token"]
+	var restConfig *rest.Config
+	var err error
 	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
 		restConfig, err = rest.InClusterConfig()
 		if err != nil {

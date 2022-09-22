@@ -54,7 +54,7 @@ data:
   CD_NODE_TAINTS_VALUE: "ci"
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:c8b37740-138-9449"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:117f2af8-138-10137"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
@@ -87,6 +87,12 @@ data:
   GRAFANA_NAMESPACE: "devtroncd"
   HELM_CLIENT_URL: kubelink-service.devtroncd:50051
   GITOPS_REPO_PREFIX: "devtron"
+  ENFORCER_CACHE: "true"
+  ENFORCER_CACHE_EXPIRATION_IN_SEC: "345600"
+  ENFORCER_MAX_BATCH_SIZE: "1"
+  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:57e17953-373-10147"
+  DEVTRON_SECRET_NAME: "devtron-secret"
+  
 
 ---
 apiVersion: v1
@@ -152,8 +158,16 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:a99c738b-326-9459"
+          image: "quay.io/devtron/devtron:e9175e98-4-10210"
           imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - ' curl -X POST -H "Content-Type: application/json" -d ''{"eventType":
+                  "SIG_TERM"}'' localhost:8080/orchestrator/telemetry/summary'
           ports:
             - name: devtron
               containerPort: 8080
@@ -174,6 +188,8 @@ spec:
               name: devtron-cm
           - secretRef:
               name: devtron-secret
+          - configMapRef:
+              name: devtron-custom-cm
           volumeMounts:
             - mountPath: /cluster/component
               name: devtron-cluster-components-vol

@@ -23,6 +23,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/util/argo"
 	"io"
 	"net/http"
 	"strconv"
@@ -86,31 +87,33 @@ type PipelineConfigRestHandler interface {
 }
 
 type PipelineConfigRestHandlerImpl struct {
-	pipelineBuilder         pipeline.PipelineBuilder
-	ciPipelineRepository    pipelineConfig.CiPipelineRepository
-	ciHandler               pipeline.CiHandler
-	Logger                  *zap.SugaredLogger
-	chartService            chart.ChartService
-	propertiesConfigService pipeline.PropertiesConfigService
-	dbMigrationService      pipeline.DbMigrationService
-	application             application.ServiceClient
-	userAuthService         user.UserService
-	validator               *validator.Validate
-	teamService             team.TeamService
-	enforcer                casbin.Enforcer
-	gitSensorClient         gitSensor.GitSensorClient
-	pipelineRepository      pipelineConfig.PipelineRepository
-	appWorkflowService      appWorkflow.AppWorkflowService
-	enforcerUtil            rbac.EnforcerUtil
-	envService              request.EnvironmentService
-	gitRegistryConfig       pipeline.GitRegistryConfig
-	dockerRegistryConfig    pipeline.DockerRegistryConfig
-	cdHandler               pipeline.CdHandler
-	appCloneService         appClone.AppCloneService
-	materialRepository      pipelineConfig.MaterialRepository
-	policyService           security2.PolicyService
-	scanResultRepository    security.ImageScanResultRepository
-	gitProviderRepo         repository.GitProviderRepository
+	pipelineBuilder              pipeline.PipelineBuilder
+	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository
+	ciHandler                    pipeline.CiHandler
+	Logger                       *zap.SugaredLogger
+	chartService                 chart.ChartService
+	propertiesConfigService      pipeline.PropertiesConfigService
+	dbMigrationService           pipeline.DbMigrationService
+	application                  application.ServiceClient
+	userAuthService              user.UserService
+	validator                    *validator.Validate
+	teamService                  team.TeamService
+	enforcer                     casbin.Enforcer
+	gitSensorClient              gitSensor.GitSensorClient
+	pipelineRepository           pipelineConfig.PipelineRepository
+	appWorkflowService           appWorkflow.AppWorkflowService
+	enforcerUtil                 rbac.EnforcerUtil
+	envService                   request.EnvironmentService
+	gitRegistryConfig            pipeline.GitRegistryConfig
+	dockerRegistryConfig         pipeline.DockerRegistryConfig
+	cdHandler                    pipeline.CdHandler
+	appCloneService              appClone.AppCloneService
+	materialRepository           pipelineConfig.MaterialRepository
+	policyService                security2.PolicyService
+	scanResultRepository         security.ImageScanResultRepository
+	gitProviderRepo              repository.GitProviderRepository
+	argoUserService              argo.ArgoUserService
 }
 
 func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger *zap.SugaredLogger,
@@ -131,33 +134,36 @@ func NewPipelineRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, Logger
 	appCloneService appClone.AppCloneService,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	materialRepository pipelineConfig.MaterialRepository, policyService security2.PolicyService,
-	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository) *PipelineConfigRestHandlerImpl {
+	scanResultRepository security.ImageScanResultRepository, gitProviderRepo repository.GitProviderRepository,
+	argoUserService argo.ArgoUserService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineConfigRestHandlerImpl {
 	return &PipelineConfigRestHandlerImpl{
-		pipelineBuilder:         pipelineBuilder,
-		Logger:                  Logger,
-		chartService:            chartService,
-		propertiesConfigService: propertiesConfigService,
-		dbMigrationService:      dbMigrationService,
-		application:             application,
-		userAuthService:         userAuthService,
-		validator:               validator,
-		teamService:             teamService,
-		enforcer:                enforcer,
-		ciHandler:               ciHandler,
-		gitSensorClient:         gitSensorClient,
-		ciPipelineRepository:    ciPipelineRepository,
-		pipelineRepository:      pipelineRepository,
-		enforcerUtil:            enforcerUtil,
-		envService:              envService,
-		gitRegistryConfig:       gitRegistryConfig,
-		dockerRegistryConfig:    dockerRegistryConfig,
-		cdHandler:               cdHandler,
-		appCloneService:         appCloneService,
-		appWorkflowService:      appWorkflowService,
-		materialRepository:      materialRepository,
-		policyService:           policyService,
-		scanResultRepository:    scanResultRepository,
-		gitProviderRepo:         gitProviderRepo,
+		pipelineBuilder:              pipelineBuilder,
+		Logger:                       Logger,
+		chartService:                 chartService,
+		propertiesConfigService:      propertiesConfigService,
+		dbMigrationService:           dbMigrationService,
+		application:                  application,
+		userAuthService:              userAuthService,
+		validator:                    validator,
+		teamService:                  teamService,
+		enforcer:                     enforcer,
+		ciHandler:                    ciHandler,
+		gitSensorClient:              gitSensorClient,
+		ciPipelineRepository:         ciPipelineRepository,
+		pipelineRepository:           pipelineRepository,
+		enforcerUtil:                 enforcerUtil,
+		envService:                   envService,
+		gitRegistryConfig:            gitRegistryConfig,
+		dockerRegistryConfig:         dockerRegistryConfig,
+		cdHandler:                    cdHandler,
+		appCloneService:              appCloneService,
+		appWorkflowService:           appWorkflowService,
+		materialRepository:           materialRepository,
+		policyService:                policyService,
+		scanResultRepository:         scanResultRepository,
+		gitProviderRepo:              gitProviderRepo,
+		argoUserService:              argoUserService,
+		ciPipelineMaterialRepository: ciPipelineMaterialRepository,
 	}
 }
 
@@ -260,7 +266,14 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 				}
 			}(ctx.Done(), cn.CloseNotify())
 		}
-		ctx = context.WithValue(r.Context(), "token", token)
+		var acdToken string
+		acdToken, err = handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			handler.Logger.Errorw("error in getting acd token", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		ctx = context.WithValue(r.Context(), "token", acdToken)
 		createResp, err = handler.appCloneService.CloneApp(&createRequest, ctx)
 	}
 	if err != nil {
@@ -473,6 +486,12 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.Response
 		return
 	}
 
+	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
+		return
+	}
+
 	appType := v.Get("appType")
 	handler.Logger.Infow("request payload, GetAppListByTeamIds", "payload", params)
 	var teamIds []int
@@ -497,6 +516,10 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.Response
 	for _, project := range projectWiseApps {
 		var accessedApps []*pipeline.AppBean
 		for _, app := range project.AppList {
+			if isActionUserSuperAdmin {
+				accessedApps = append(accessedApps, app)
+				continue
+			}
 			object := fmt.Sprintf("%s/%s", project.ProjectName, app.Name)
 			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
 				accessedApps = append(accessedApps, app)

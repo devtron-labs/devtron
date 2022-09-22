@@ -21,6 +21,7 @@
 package main
 
 import (
+	"github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
@@ -43,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
 	"github.com/devtron-labs/devtron/api/user"
+	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
@@ -82,8 +84,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
-	"github.com/devtron-labs/devtron/pkg/dex"
-	"github.com/devtron-labs/devtron/pkg/event"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
@@ -99,6 +99,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/session"
@@ -127,6 +128,7 @@ func InitializeApp() (*App, error) {
 		server.ServerWireSet,
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
+		webhookHelm.WebhookHelmWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -145,13 +147,10 @@ func InitializeApp() (*App, error) {
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
 		session.SettingsManager,
 		session.CDSettingsManager,
-		session.SessionManager,
 		//auth.GetConfig,
 
-		dex.GetConfig,
 		argocdServer.GetConfig,
-		session2.NewSessionServiceClient,
-		wire.Bind(new(session2.ServiceClient), new(*session2.ServiceClientImpl)),
+		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
 		router.NewHelmRouter,
@@ -403,9 +402,6 @@ func InitializeApp() (*App, error) {
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 
-		repository.NewEventRepositoryImpl,
-		wire.Bind(new(repository.EventRepository), new(*repository.EventRepositoryImpl)),
-
 		app.NewDeploymentFailureHandlerImpl,
 		wire.Bind(new(app.DeploymentFailureHandler), new(*app.DeploymentFailureHandlerImpl)),
 		chartConfig.NewPipelineConfigRepository,
@@ -434,14 +430,14 @@ func InitializeApp() (*App, error) {
 		repository.NewSESNotificationRepositoryImpl,
 		wire.Bind(new(repository.SESNotificationRepository), new(*repository.SESNotificationRepositoryImpl)),
 
+		notifier.NewSMTPNotificationServiceImpl,
+		wire.Bind(new(notifier.SMTPNotificationService), new(*notifier.SMTPNotificationServiceImpl)),
+
+		repository.NewSMTPNotificationRepositoryImpl,
+		wire.Bind(new(repository.SMTPNotificationRepository), new(*repository.SMTPNotificationRepositoryImpl)),
+
 		notifier.NewNotificationConfigBuilderImpl,
 		wire.Bind(new(notifier.NotificationConfigBuilder), new(*notifier.NotificationConfigBuilderImpl)),
-
-		pubsub.NewCronBasedEventReceiverImpl,
-		wire.Bind(new(pubsub.CronBasedEventReceiver), new(*pubsub.CronBasedEventReceiverImpl)),
-
-		event.NewEventServiceImpl,
-		wire.Bind(new(event.EventService), new(*event.EventServiceImpl)),
 
 		appStoreRestHandler.NewInstalledAppRestHandlerImpl,
 		wire.Bind(new(appStoreRestHandler.InstalledAppRestHandler), new(*appStoreRestHandler.InstalledAppRestHandlerImpl)),
@@ -648,13 +644,13 @@ func InitializeApp() (*App, error) {
 		restHandler.NewWebhookDataRestHandlerImpl,
 		wire.Bind(new(restHandler.WebhookDataRestHandler), new(*restHandler.WebhookDataRestHandlerImpl)),
 
-		router.NewAppLabelRouterImpl,
-		wire.Bind(new(router.AppLabelRouter), new(*router.AppLabelRouterImpl)),
-		restHandler.NewAppLabelRestHandlerImpl,
-		wire.Bind(new(restHandler.AppLabelRestHandler), new(*restHandler.AppLabelRestHandlerImpl)),
+		router.NewAppRouterImpl,
+		wire.Bind(new(router.AppRouter), new(*router.AppRouterImpl)),
+		restHandler.NewAppRestHandlerImpl,
+		wire.Bind(new(restHandler.AppRestHandlerHandler), new(*restHandler.AppRestHandlerImpl)),
 
-		app.NewAppLabelServiceImpl,
-		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
+		app.NewAppCrudOperationServiceImpl,
+		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 
@@ -719,9 +715,30 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.PipelineStageService), new(*pipeline.PipelineStageServiceImpl)),
 		//plugin ends
 
+		argo.NewArgoUserServiceImpl,
+		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
+		util2.GetDevtronSecretName,
 		//	AuthWireSet,
-		cron.NewHelmApplicationStatusUpdateHandlerImpl,
-		wire.Bind(new(cron.HelmApplicationStatusUpdateHandler), new(*cron.HelmApplicationStatusUpdateHandlerImpl)),
+		cron.GetAppStatusConfig,
+		cron.NewCdApplicationStatusUpdateHandlerImpl,
+		wire.Bind(new(cron.CdApplicationStatusUpdateHandler), new(*cron.CdApplicationStatusUpdateHandlerImpl)),
+
+		restHandler.NewPipelineStatusTimelineRestHandlerImpl,
+		wire.Bind(new(restHandler.PipelineStatusTimelineRestHandler), new(*restHandler.PipelineStatusTimelineRestHandlerImpl)),
+
+		app.NewPipelineStatusTimelineServiceImpl,
+		wire.Bind(new(app.PipelineStatusTimelineService), new(*app.PipelineStatusTimelineServiceImpl)),
+
+		router.NewUserAttributesRouterImpl,
+		wire.Bind(new(router.UserAttributesRouter), new(*router.UserAttributesRouterImpl)),
+		restHandler.NewUserAttributesRestHandlerImpl,
+		wire.Bind(new(restHandler.UserAttributesRestHandler), new(*restHandler.UserAttributesRestHandlerImpl)),
+		attributes.NewUserAttributesServiceImpl,
+		wire.Bind(new(attributes.UserAttributesService), new(*attributes.UserAttributesServiceImpl)),
+		repository.NewUserAttributesRepositoryImpl,
+		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
+		pipelineConfig.NewPipelineStatusTimelineRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusTimelineRepository), new(*pipelineConfig.PipelineStatusTimelineRepositoryImpl)),
 	)
 	return &App{}, nil
 }

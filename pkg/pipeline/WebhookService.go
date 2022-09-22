@@ -22,7 +22,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
-	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -240,7 +240,7 @@ func (impl *WebhookServiceImpl) WriteCISuccessEvent(request *CiArtifactWebhookRe
 	}
 	event.UserId = int(request.UserId)
 	event = impl.eventFactory.BuildExtraCIData(event, nil, artifact.Image)
-	_, evtErr := impl.eventClient.WriteEvent(event)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("error in writing event", "err", evtErr)
 	}

@@ -19,7 +19,7 @@ package bean
 
 import (
 	"encoding/json"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 )
 
 type AppContainer struct {
@@ -123,6 +123,7 @@ type Environment struct {
 	AppMetrics      *bool  `json:"appMetrics"`
 	InfraMetrics    *bool  `json:"infraMetrics"`
 	Prod            bool   `json:"prod"`
+	ChartRefId      int    `json:"chartRefId"`
 }
 
 type InstanceDetail struct {

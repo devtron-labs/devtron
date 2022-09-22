@@ -123,7 +123,13 @@ func (handler PipelineConfigRestHandlerImpl) ConfigureDeploymentTemplateForApp(w
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx = context.WithValue(r.Context(), "token", acdToken)
 	createResp, err := handler.chartService.Create(templateRequest, ctx)
 	if err != nil {
 		handler.Logger.Errorw("service err, ConfigureDeploymentTemplateForApp", "err", err, "payload", templateRequest)
@@ -182,8 +188,13 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 		}
 	}
 	//RBAC
-
-	ctx := context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
 	createResp, err := handler.pipelineBuilder.CreateCdPipelines(&cdPipeline, ctx)
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateCdPipeline", "err", err, "payload", cdPipeline)
@@ -252,8 +263,13 @@ func (handler PipelineConfigRestHandlerImpl) PatchCdPipeline(w http.ResponseWrit
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-
-	ctx := context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
 	createResp, err := handler.pipelineBuilder.PatchCdPipelines(&cdPipeline, ctx)
 	if err != nil {
 		handler.Logger.Errorw("service err, PatchCdPipeline", "err", err, "payload", cdPipeline)
@@ -324,12 +340,23 @@ func (handler PipelineConfigRestHandlerImpl) EnvConfigOverrideCreate(w http.Resp
 					}
 				}(ctx.Done(), cn.CloseNotify())
 			}
-			ctx = context.WithValue(r.Context(), "token", token)
+			acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+			if err != nil {
+				handler.Logger.Errorw("error in getting acd token", "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+				return
+			}
+			ctx = context.WithValue(r.Context(), "token", acdToken)
+			appMetrics := false
+			if envConfigProperties.AppMetrics != nil {
+				appMetrics = *envConfigProperties.AppMetrics
+			}
 			templateRequest := chart.TemplateRequest{
-				AppId:          appId,
-				ChartRefId:     envConfigProperties.ChartRefId,
-				ValuesOverride: []byte("{}"),
-				UserId:         userId,
+				AppId:               appId,
+				ChartRefId:          envConfigProperties.ChartRefId,
+				ValuesOverride:      []byte("{}"),
+				UserId:              userId,
+				IsAppMetricsEnabled: appMetrics,
 			}
 
 			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
@@ -685,7 +712,9 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 
 	var digests []string
 	for _, item := range ciArtifactResponse.CiArtifacts {
-		digests = append(digests, item.ImageDigest)
+		if len(item.ImageDigest) > 0 {
+			digests = append(digests, item.ImageDigest)
+		}
 	}
 
 	//FIXME: next 3 loops are same combine them
@@ -701,20 +730,36 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactsByCDPipeline(w http.Res
 		if err != nil {
 			handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
 		}
-		for _, digest := range digests {
-			if len(digest) > 0 {
-				var cveStores []*security.CveStore
-				imageScanResult, err := handler.scanResultRepository.FindByImageDigest(digest)
-				if err != nil && err != pg.ErrNoRows {
-					handler.Logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", cdPipelineId, "stage", stage)
-					continue //skip for other artifact to complete
-				}
-				for _, item := range imageScanResult {
-					cveStores = append(cveStores, &item.CveStore)
-				}
-				vulnerableMap[digest] = handler.policyService.HasBlockedCVE(cveStores, cvePolicy, severityPolicy)
+
+		// get image scan results from DB for given digests
+		imageScanResults, err := handler.scanResultRepository.FindByImageDigests(digests)
+		// ignore error
+		if err != nil && err != pg.ErrNoRows {
+			handler.Logger.Errorw("service err, FindByImageDigests", "err", err, "cdPipelineId", cdPipelineId, "stage", stage, "digests", digests)
+		}
+
+		// build digest vs scan-results
+		digestVsScanResults := make(map[string][]*security.ImageScanExecutionResult)
+		for _, imageScanResult := range imageScanResults {
+			imageHash := imageScanResult.ImageScanExecutionHistory.ImageHash
+			if val, ok := digestVsScanResults[imageHash]; !ok {
+				var scanResults []*security.ImageScanExecutionResult
+				scanResults = append(scanResults, imageScanResult)
+				digestVsScanResults[imageHash] = scanResults
+			} else {
+				digestVsScanResults[imageHash] = append(val, imageScanResult)
 			}
 		}
+
+		// for each digest, check vulnerability
+		for digest, scanResults := range digestVsScanResults {
+			var cveStores []*security.CveStore
+			for _, item := range scanResults {
+				cveStores = append(cveStores, &item.CveStore)
+			}
+			vulnerableMap[digest] = handler.policyService.HasBlockedCVE(cveStores, cvePolicy, severityPolicy)
+		}
+
 		var ciArtifactsFinal []bean.CiArtifactBean
 		for _, item := range ciArtifactResponse.CiArtifacts {
 			if item.ScanEnabled { // skip setting for artifacts which have marked scan disabled, but here deal with same digest
@@ -1073,17 +1118,6 @@ func (handler PipelineConfigRestHandlerImpl) AppMetricsEnableDisable(w http.Resp
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	ctx = context.WithValue(r.Context(), "token", token)
 	createResp, err := handler.chartService.AppMetricsEnableDisable(appMetricEnableDisableRequest)
 	if err != nil {
 		handler.Logger.Errorw("service err, AppMetricsEnableDisable", "err", err, "appId", appId, "payload", appMetricEnableDisableRequest)
@@ -1725,7 +1759,13 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	ctx = context.WithValue(r.Context(), "token", token)
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx = context.WithValue(r.Context(), "token", acdToken)
 
 	var appIds []int
 	if chartUpgradeRequest.All || len(chartUpgradeRequest.AppIds) == 0 {

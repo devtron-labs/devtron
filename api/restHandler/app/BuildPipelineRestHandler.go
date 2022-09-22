@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -36,6 +36,8 @@ type DevtronAppBuildRestHandler interface {
 	FetchWorkflowDetails(w http.ResponseWriter, r *http.Request)
 	// CancelWorkflow CancelBuild
 	CancelWorkflow(w http.ResponseWriter, r *http.Request)
+
+	UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildMaterialRestHandler interface {
@@ -46,6 +48,7 @@ type DevtronAppBuildMaterialRestHandler interface {
 	FetchMaterialInfo(w http.ResponseWriter, r *http.Request)
 	FetchChanges(w http.ResponseWriter, r *http.Request)
 	DeleteMaterial(w http.ResponseWriter, r *http.Request)
+	GetCommitMetadataForPipelineMaterial(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppBuildHistoryRestHandler interface {
@@ -111,7 +114,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateCiTemplate(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, update ci template", "UpdateCiTemplate", configRequest)
+	handler.Logger.Infow("request payload, update ci template", "UpdateCiTemplate", configRequest, "userId", userId)
 	err = handler.validator.Struct(configRequest)
 	if err != nil {
 		handler.Logger.Errorw("validation err, UpdateCiTemplate", "err", err, "UpdateCiTemplate", configRequest)
@@ -136,6 +139,62 @@ func (handler PipelineConfigRestHandlerImpl) UpdateCiTemplate(w http.ResponseWri
 		return
 	}
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var patchRequest bean.CiRegexPatchRequest
+	err = decoder.Decode(&patchRequest)
+	patchRequest.UserId = userId
+	if err != nil {
+		handler.Logger.Errorw("request err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	handler.Logger.Debugw("update request ", "req", patchRequest)
+	token := r.Header.Get("token")
+	app, err := handler.pipelineBuilder.GetApp(patchRequest.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+
+	var materialList []*bean.CiPipelineMaterial
+	for _, material := range patchRequest.CiPipelineMaterial {
+		if handler.ciPipelineMaterialRepository.CheckRegexExistsForMaterial(material.Id) {
+			materialList = append(materialList, material)
+		}
+	}
+	if len(materialList) == 0 {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	patchRequest.CiPipelineMaterial = materialList
+
+	err = handler.pipelineBuilder.PatchRegexCiPipeline(&patchRequest)
+	if err != nil {
+		handler.Logger.Errorw("service err, PatchCiPipelines", "err", err, "PatchCiPipelines", patchRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(patchRequest.Id)
+	if err != nil {
+		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", patchRequest.Id)
+		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, resp, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) PatchCiPipelines(w http.ResponseWriter, r *http.Request) {
@@ -1021,6 +1080,52 @@ func (handler PipelineConfigRestHandlerImpl) FetchChanges(w http.ResponseWriter,
 		return
 	}
 	common.WriteJsonResp(w, err, changes.Commits, http.StatusCreated)
+}
+
+func (handler PipelineConfigRestHandlerImpl) GetCommitMetadataForPipelineMaterial(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	ciPipelineMaterialId, err := strconv.Atoi(vars["ciPipelineMaterialId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	gitHash := vars["gitHash"]
+	handler.Logger.Infow("request payload, GetCommitMetadataForPipelineMaterial", "ciPipelineMaterialId", ciPipelineMaterialId, "gitHash", gitHash)
+
+	// get ci-pipeline-material
+	ciPipelineMaterial, err := handler.ciPipelineMaterialRepository.GetById(ciPipelineMaterialId)
+	if err != nil {
+		handler.Logger.Errorw("error while fetching ciPipelineMaterial", "err", err, "ciPipelineMaterialId", ciPipelineMaterialId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	//RBAC
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC
+
+	commitMetadataRequest := &gitSensor.CommitMetadataRequest{
+		PipelineMaterialId: ciPipelineMaterialId,
+		GitHash:            gitHash,
+	}
+	commit, err := handler.gitSensorClient.GetCommitMetadataForPipelineMaterial(commitMetadataRequest)
+	if err != nil {
+		handler.Logger.Errorw("error while fetching commit metadata for pipeline material", "commitMetadataRequest", commitMetadataRequest, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, commit, http.StatusOK)
 }
 
 func (handler PipelineConfigRestHandlerImpl) FetchWorkflowDetails(w http.ResponseWriter, r *http.Request) {

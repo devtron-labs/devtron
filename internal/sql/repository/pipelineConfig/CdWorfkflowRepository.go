@@ -34,13 +34,18 @@ type CdWorkflowRepository interface {
 	FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, size int) ([]CdWorkflowRunner, error)
 	FindArtifactByPipelineIdAndRunnerType(pipelineId int, runnerType bean.WorkflowType, limit int) ([]CdWorkflowRunner, error)
 
-	SaveWorkFlowRunner(wfr *CdWorkflowRunner) error
+	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
+	UpdateWorkFlowRunnersWithTxn(wfrs []CdWorkflowRunner, tx *pg.Tx) error
 	UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
+	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error)
+	FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
+
+	GetConnection() *pg.DB
 
 	FindLastPreOrPostTriggeredByPipelineId(pipelineId int) (CdWorkflowRunner, error)
 	FindLastPreOrPostTriggeredByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error)
@@ -117,43 +122,45 @@ const WORKFLOW_EXECUTOR_TYPE_AWF = "AWF"
 const WORKFLOW_EXECUTOR_TYPE_SYSTEM = "SYSTEM"
 
 type CdWorkflowRunner struct {
-	tableName    struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
-	Id           int                  `sql:"id,pk"`
-	Name         string               `sql:"name"`
-	WorkflowType bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
-	ExecutorType WorkflowExecutorType `sql:"executor_type"` //awf, system
-	Status       string               `sql:"status"`
-	PodStatus    string               `sql:"pod_status"`
-	Message      string               `sql:"message"`
-	StartedOn    time.Time            `sql:"started_on"`
-	FinishedOn   time.Time            `sql:"finished_on"`
-	Namespace    string               `sql:"namespace"`
-	LogLocation  string               `sql:"log_file_path"`
-	TriggeredBy  int32                `sql:"triggered_by"`
-	CdWorkflowId int                  `sql:"cd_workflow_id"`
-	CdWorkflow   *CdWorkflow
+	tableName          struct{}             `sql:"cd_workflow_runner" pg:",discard_unknown_columns"`
+	Id                 int                  `sql:"id,pk"`
+	Name               string               `sql:"name"`
+	WorkflowType       bean.WorkflowType    `sql:"workflow_type"` //pre,post,deploy
+	ExecutorType       WorkflowExecutorType `sql:"executor_type"` //awf, system
+	Status             string               `sql:"status"`
+	PodStatus          string               `sql:"pod_status"`
+	Message            string               `sql:"message"`
+	StartedOn          time.Time            `sql:"started_on"`
+	FinishedOn         time.Time            `sql:"finished_on"`
+	Namespace          string               `sql:"namespace"`
+	BlobStorageEnabled bool                 `sql:"blob_storage_enabled,notnull"`
+	LogLocation        string               `sql:"log_file_path"`
+	TriggeredBy        int32                `sql:"triggered_by"`
+	CdWorkflowId       int                  `sql:"cd_workflow_id"`
+	CdWorkflow         *CdWorkflow
 }
 
 type CdWorkflowWithArtifact struct {
-	Id           int       `json:"id"`
-	CdWorkflowId int       `json:"cd_workflow_id"`
-	Name         string    `json:"name"`
-	Status       string    `json:"status"`
-	PodStatus    string    `json:"pod_status"`
-	Message      string    `json:"message"`
-	StartedOn    time.Time `json:"started_on"`
-	FinishedOn   time.Time `json:"finished_on"`
-	PipelineId   int       `json:"pipeline_id"`
-	Namespace    string    `json:"namespace"`
-	LogFilePath  string    `json:"log_file_path"`
-	TriggeredBy  int32     `json:"triggered_by"`
-	EmailId      string    `json:"email_id"`
-	Image        string    `json:"image"`
-	MaterialInfo string    `json:"material_info,omitempty"`
-	DataSource   string    `json:"data_source,omitempty"`
-	CiArtifactId int       `json:"ci_artifact_id,omitempty"`
-	WorkflowType string    `json:"workflow_type,omitempty"`
-	ExecutorType string    `json:"executor_type,omitempty"`
+	Id                 int       `json:"id"`
+	CdWorkflowId       int       `json:"cd_workflow_id"`
+	Name               string    `json:"name"`
+	Status             string    `json:"status"`
+	PodStatus          string    `json:"pod_status"`
+	Message            string    `json:"message"`
+	StartedOn          time.Time `json:"started_on"`
+	FinishedOn         time.Time `json:"finished_on"`
+	PipelineId         int       `json:"pipeline_id"`
+	Namespace          string    `json:"namespace"`
+	LogFilePath        string    `json:"log_file_path"`
+	TriggeredBy        int32     `json:"triggered_by"`
+	EmailId            string    `json:"email_id"`
+	Image              string    `json:"image"`
+	MaterialInfo       string    `json:"material_info,omitempty"`
+	DataSource         string    `json:"data_source,omitempty"`
+	CiArtifactId       int       `json:"ci_artifact_id,omitempty"`
+	WorkflowType       string    `json:"workflow_type,omitempty"`
+	ExecutorType       string    `json:"executor_type,omitempty"`
+	BlobStorageEnabled bool      `json:"blobStorageEnabled"`
 }
 
 type TriggerWorkflowStatus struct {
@@ -173,9 +180,10 @@ type CdWorkflowStatus struct {
 }
 
 type CiWorkflowStatus struct {
-	CiPipelineId   int    `json:"ciPipelineId"`
-	CiPipelineName string `json:"ciPipelineName,omitempty"`
-	CiStatus       string `json:"ciStatus"`
+	CiPipelineId      int    `json:"ciPipelineId"`
+	CiPipelineName    string `json:"ciPipelineName,omitempty"`
+	CiStatus          string `json:"ciStatus"`
+	StorageConfigured bool   `json:"storageConfigured"`
 }
 
 func NewCdWorkflowRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *CdWorkflowRepositoryImpl {
@@ -266,6 +274,31 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByEnvironmentId(appId in
 	return wfrList, err
 }
 
+func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
+	var wfr CdWorkflowRunner
+	err := impl.dbConnection.
+		Model(&wfr).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+		Where("p.environment_id = ?", environmentId).
+		Where("p.app_id = ?", appId).
+		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Order("cd_workflow_runner.id DESC").
+		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
+		Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
+		Join("inner join pipeline p on p.id = wf.pipeline_id").
+		Order("cd_workflow_runner.id DESC").Limit(1).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting cdWfr by appId, envId and runner type", "appId", appId, "envId", environmentId, "runnerType", runnerType)
+		return wfr, err
+	}
+	return wfr, err
+}
+
+func (impl *CdWorkflowRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
+}
+
 func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByPipelineId(pipelineId int, offset int, limit int) ([]CdWorkflowRunner, error) {
 	var wfrList []CdWorkflowRunner
 	err := impl.dbConnection.
@@ -324,6 +357,26 @@ func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByPipelineId(pip
 	return wfr, err
 }
 
+func (impl *CdWorkflowRepositoryImpl) FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error) {
+	wfr := CdWorkflowRunner{}
+	err := impl.dbConnection.
+		Model(&wfr).
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+		Where("p.environment_id = ?", environmentId).
+		Where("p.app_id = ?", appId).
+		Where("cd_workflow_runner.workflow_type = ?", bean.CD_WORKFLOW_TYPE_DEPLOY).
+		Order("cd_workflow_runner.id DESC").
+		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
+		Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
+		Join("inner join pipeline p on p.id = wf.pipeline_id").
+		Limit(1).
+		Select()
+	if err != nil {
+		return wfr, err
+	}
+	return wfr, err
+}
+
 func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error) {
 	wfr := CdWorkflowRunner{}
 	err := impl.dbConnection.
@@ -344,15 +397,21 @@ func (impl *CdWorkflowRepositoryImpl) FindLastPreOrPostTriggeredByEnvironmentId(
 	return wfr, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunner(wfr *CdWorkflowRunner) error {
+func (impl *CdWorkflowRepositoryImpl) SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error) {
 	err := impl.dbConnection.Insert(wfr)
-	return err
+	return wfr, err
 }
 
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error {
 	err := impl.dbConnection.Update(wfr)
 	return err
 }
+
+func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnersWithTxn(wfrs []CdWorkflowRunner, tx *pg.Tx) error {
+	_, err := tx.Model(&wfrs).Update()
+	return err
+}
+
 func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error {
 	_, err := impl.dbConnection.Model(&wfr).Update()
 	return err

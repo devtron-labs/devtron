@@ -28,7 +28,7 @@ type AppStoreService interface {
 	FindAllApps(filter *appStoreBean.AppStoreFilter) ([]appStoreBean.AppStoreWithVersion, error)
 	FindChartDetailsById(id int) (appStoreBean.AppStoreApplicationVersionResponse, error)
 	FindChartVersionsByAppStoreId(appStoreId int) ([]appStoreBean.AppStoreVersionsResponse, error)
-	GetReadMeByAppStoreApplicationVersionId(id int) (*appStoreBean.ReadmeRes, error)
+	GetChartInfoByAppStoreApplicationVersionId(id int) (*appStoreBean.ChartInfoRes, error)
 	SearchAppStoreChartByName(chartName string) ([]*appStoreBean.ChartRepoSearch, error)
 }
 
@@ -81,6 +81,8 @@ func (impl *AppStoreServiceImpl) FindChartDetailsById(id int) (appStoreBean.AppS
 		UpdatedOn:               chartDetails.UpdatedOn,
 		RawValues:               chartDetails.RawValues,
 		Readme:                  chartDetails.Readme,
+		ValuesSchemaJson:        chartDetails.ValuesSchemaJson,
+		Notes:                   chartDetails.Notes,
 		IsChartRepoActive:       chartDetails.AppStore.ChartRepo.Active,
 	}
 	return appStoreApplicationVersion, nil
@@ -103,14 +105,16 @@ func (impl *AppStoreServiceImpl) FindChartVersionsByAppStoreId(appStoreId int) (
 	return appStoreVersionsResponse, nil
 }
 
-func (impl *AppStoreServiceImpl) GetReadMeByAppStoreApplicationVersionId(id int) (*appStoreBean.ReadmeRes, error) {
-	appVersion, err := impl.appStoreApplicationRepository.GetReadMeById(id)
+func (impl *AppStoreServiceImpl) GetChartInfoByAppStoreApplicationVersionId(id int) (*appStoreBean.ChartInfoRes, error) {
+	appVersion, err := impl.appStoreApplicationRepository.GetChartInfoById(id)
 	if err != nil {
 		return nil, err
 	}
-	readme := &appStoreBean.ReadmeRes{
+	readme := &appStoreBean.ChartInfoRes{
 		AppStoreApplicationVersionId: appVersion.Id,
 		Readme:                       appVersion.Readme,
+		ValuesSchemaJson:             appVersion.ValuesSchemaJson,
+		Notes:                        appVersion.Notes,
 	}
 	return readme, nil
 }

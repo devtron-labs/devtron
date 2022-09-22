@@ -18,14 +18,19 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"net/url"
 	"strconv"
+	"time"
 
-	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
-	"github.com/argoproj/argo/pkg/client/clientset/versioned"
-	v1alpha12 "github.com/argoproj/argo/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
-	"github.com/argoproj/argo/workflow/util"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
+	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -57,41 +62,48 @@ type CdWorkflowServiceImpl struct {
 }
 
 type CdWorkflowRequest struct {
-	AppId                      int                `json:"appId"`
-	EnvironmentId              int                `json:"envId"`
-	WorkflowId                 int                `json:"workflowId"`
-	WorkflowRunnerId           int                `json:"workflowRunnerId"`
-	CdPipelineId               int                `json:"cdPipelineId"`
-	TriggeredBy                int32              `json:"triggeredBy"`
-	StageYaml                  string             `json:"stageYaml"`
-	ArtifactLocation           string             `json:"artifactLocation"`
-	CiProjectDetails           []CiProjectDetails `json:"ciProjectDetails"`
-	CiArtifactDTO              CiArtifactDTO      `json:"ciArtifactDTO"`
-	Namespace                  string             `json:"namespace"`
-	WorkflowNamePrefix         string             `json:"workflowNamePrefix"`
-	CdImage                    string             `json:"cdImage"`
-	ActiveDeadlineSeconds      int64              `json:"activeDeadlineSeconds"`
-	StageType                  string             `json:"stageType"`
-	DockerUsername             string             `json:"dockerUsername"`
-	DockerPassword             string             `json:"dockerPassword"`
-	AwsRegion                  string             `json:"awsRegion"`
-	SecretKey                  string             `json:"secretKey"`
-	AccessKey                  string             `json:"accessKey"`
-	DockerConnection           string             `json:"dockerConnection"`
-	DockerCert                 string             `json:"dockerCert"`
-	CdCacheLocation            string             `json:"cdCacheLocation"`
-	CdCacheRegion              string             `json:"cdCacheRegion"`
-	DockerRegistryType         string             `json:"dockerRegistryType"`
-	DockerRegistryURL          string             `json:"dockerRegistryURL"`
-	OrchestratorHost           string             `json:"orchestratorHost"`
-	OrchestratorToken          string             `json:"orchestratorToken"`
-	IsExtRun                   bool               `json:"isExtRun"`
-	ExtraEnvironmentVariables  map[string]string  `json:"extraEnvironmentVariables"`
-	CloudProvider              string             `json:"cloudProvider"`
-	AzureBlobConfig            *AzureBlobConfig   `json:"azureBlobConfig"`
-	MinioEndpoint              string             `json:"minioEndpoint"`
-	DefaultAddressPoolBaseCidr string             `json:"defaultAddressPoolBaseCidr"`
-	DefaultAddressPoolSize     int                `json:"defaultAddressPoolSize"`
+	AppId                      int                               `json:"appId"`
+	EnvironmentId              int                               `json:"envId"`
+	WorkflowId                 int                               `json:"workflowId"`
+	WorkflowRunnerId           int                               `json:"workflowRunnerId"`
+	CdPipelineId               int                               `json:"cdPipelineId"`
+	TriggeredBy                int32                             `json:"triggeredBy"`
+	StageYaml                  string                            `json:"stageYaml"`
+	ArtifactLocation           string                            `json:"artifactLocation"`
+	ArtifactBucket             string                            `json:"ciArtifactBucket"`
+	ArtifactFileName           string                            `json:"ciArtifactFileName"`
+	ArtifactRegion             string                            `json:"ciArtifactRegion"`
+	CiProjectDetails           []CiProjectDetails                `json:"ciProjectDetails"`
+	CiArtifactDTO              CiArtifactDTO                     `json:"ciArtifactDTO"`
+	Namespace                  string                            `json:"namespace"`
+	WorkflowNamePrefix         string                            `json:"workflowNamePrefix"`
+	CdImage                    string                            `json:"cdImage"`
+	ActiveDeadlineSeconds      int64                             `json:"activeDeadlineSeconds"`
+	StageType                  string                            `json:"stageType"`
+	DockerUsername             string                            `json:"dockerUsername"`
+	DockerPassword             string                            `json:"dockerPassword"`
+	AwsRegion                  string                            `json:"awsRegion"`
+	SecretKey                  string                            `json:"secretKey"`
+	AccessKey                  string                            `json:"accessKey"`
+	DockerConnection           string                            `json:"dockerConnection"`
+	DockerCert                 string                            `json:"dockerCert"`
+	CdCacheLocation            string                            `json:"cdCacheLocation"`
+	CdCacheRegion              string                            `json:"cdCacheRegion"`
+	DockerRegistryType         string                            `json:"dockerRegistryType"`
+	DockerRegistryURL          string                            `json:"dockerRegistryURL"`
+	OrchestratorHost           string                            `json:"orchestratorHost"`
+	OrchestratorToken          string                            `json:"orchestratorToken"`
+	IsExtRun                   bool                              `json:"isExtRun"`
+	ExtraEnvironmentVariables  map[string]string                 `json:"extraEnvironmentVariables"`
+	BlobStorageConfigured      bool                              `json:"blobStorageConfigured"`
+	BlobStorageS3Config        *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
+	CloudProvider              blob_storage.BlobStorageType      `json:"cloudProvider"`
+	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
+	GcpBlobConfig              *blob_storage.GcpBlobConfig       `json:"gcpBlobConfig"`
+	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
+	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
+	DeploymentTriggeredBy      string                            `json:"deploymentTriggeredBy,omitempty"`
+	DeploymentTriggerTime      time.Time                         `json:"deploymentTriggerTime,omitempty"`
 }
 
 const PRE = "PRE"
@@ -104,8 +116,8 @@ func NewCdWorkflowServiceImpl(Logger *zap.SugaredLogger, envRepository repositor
 
 func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowRequest, pipeline *pipelineConfig.Pipeline, env *repository.Environment) (*v1alpha1.Workflow, error) {
 	containerEnvVariables := []v12.EnvVar{}
-	if impl.cdConfig.CloudProvider == BLOB_STORAGE_MINIO {
-		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.cdConfig.MinioAccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.cdConfig.MinioSecretKey}}
+	if impl.cdConfig.CloudProvider == BLOB_STORAGE_S3 && impl.cdConfig.BlobStorageS3AccessKey != "" {
+		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.cdConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.cdConfig.BlobStorageS3SecretKey}}
 		containerEnvVariables = append(containerEnvVariables, miniCred...)
 	}
 	if (workflowRequest.StageType == PRE && pipeline.RunPreStageInEnv) || (workflowRequest.StageType == POST && pipeline.RunPostStageInEnv) {
@@ -121,17 +133,18 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 	}
 
 	privileged := true
-	archiveLogs := true
+	storageConfigured := workflowRequest.BlobStorageConfigured
+	archiveLogs := storageConfigured
 
 	limitCpu := impl.cdConfig.LimitCpu
 	limitMem := impl.cdConfig.LimitMem
 
 	reqCpu := impl.cdConfig.ReqCpu
 	reqMem := impl.cdConfig.ReqMem
-	ttl := int32(300)
+	ttl := int32(impl.cdConfig.BuildLogTTLValue)
 
 	var volumes []v12.Volume
-	var steps [][]v1alpha1.WorkflowStep
+	var steps []v1alpha1.ParallelSteps
 
 	preStageConfigMapSecretsJson := pipeline.PreStageConfigMapSecretNames
 	postStageConfigMapSecretsJson := pipeline.PostStageConfigMapSecretNames
@@ -254,11 +267,12 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 					},
 				})
 			}
-
-			steps = append(steps, []v1alpha1.WorkflowStep{
-				{
-					Name:     "create-env-cm-" + strconv.Itoa(i),
-					Template: "cm-" + strconv.Itoa(i),
+			steps = append(steps, v1alpha1.ParallelSteps{
+				Steps: []v1alpha1.WorkflowStep{
+					{
+						Name:     "create-env-cm-" + strconv.Itoa(i),
+						Template: "cm-" + strconv.Itoa(i),
+					},
 				},
 			})
 		}
@@ -307,11 +321,12 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 					},
 				})
 			}
-
-			steps = append(steps, []v1alpha1.WorkflowStep{
-				{
-					Name:     "create-env-sec-" + strconv.Itoa(i),
-					Template: "sec-" + strconv.Itoa(i),
+			steps = append(steps, v1alpha1.ParallelSteps{
+				Steps: []v1alpha1.WorkflowStep{
+					{
+						Name:     "create-env-sec-" + strconv.Itoa(i),
+						Template: "sec-" + strconv.Itoa(i),
+					},
 				},
 			})
 		}
@@ -342,17 +357,81 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 			})
 		}
 	}
-
-	steps = append(steps, []v1alpha1.WorkflowStep{
-		{
-			Name:     "run-wf",
-			Template: CD_WORKFLOW_NAME,
+	steps = append(steps, v1alpha1.ParallelSteps{
+		Steps: []v1alpha1.WorkflowStep{
+			{
+				Name:     "run-wf",
+				Template: CD_WORKFLOW_NAME,
+			},
 		},
 	})
 	templates = append(templates, v1alpha1.Template{
 		Name:  "cd-stages-with-env",
 		Steps: steps,
 	})
+
+	var s3Artifact *v1alpha1.S3Artifact
+	var gcsArtifact *v1alpha1.GCSArtifact
+	blobStorageS3Config := workflowRequest.BlobStorageS3Config
+	gcpBlobConfig := workflowRequest.GcpBlobConfig
+	cloudStorageKey := impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+	if storageConfigured && blobStorageS3Config != nil {
+		s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
+		if s3CompatibleEndpointUrl == "" {
+			s3CompatibleEndpointUrl = "s3.amazonaws.com"
+		} else {
+			parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
+			} else {
+				s3CompatibleEndpointUrl = parsedUrl.Host
+			}
+		}
+		isInsecure := blobStorageS3Config.IsInSecure
+		var accessKeySelector *v12.SecretKeySelector
+		var secretKeySelector *v12.SecretKeySelector
+		if blobStorageS3Config.AccessKey != "" {
+			accessKeySelector = &v12.SecretKeySelector{
+				Key: "accessKey",
+				LocalObjectReference: v12.LocalObjectReference{
+					Name: "workflow-minio-cred",
+				},
+			}
+			secretKeySelector = &v12.SecretKeySelector{
+				Key: "secretKey",
+				LocalObjectReference: v12.LocalObjectReference{
+					Name: "workflow-minio-cred",
+				},
+			}
+		}
+		s3Artifact = &v1alpha1.S3Artifact{
+			Key: cloudStorageKey,
+			S3Bucket: v1alpha1.S3Bucket{
+				Endpoint:        s3CompatibleEndpointUrl,
+				AccessKeySecret: accessKeySelector,
+				SecretKeySecret: secretKeySelector,
+				Bucket:          blobStorageS3Config.CiLogBucketName,
+				Insecure:        &isInsecure,
+			},
+		}
+		if blobStorageS3Config.CiLogRegion != "" {
+			//TODO checking for Azure
+			s3Artifact.Region = blobStorageS3Config.CiLogRegion
+		}
+	} else if storageConfigured && gcpBlobConfig != nil {
+		gcsArtifact = &v1alpha1.GCSArtifact{
+			Key: cloudStorageKey,
+			GCSBucket: v1alpha1.GCSBucket{
+				Bucket: gcpBlobConfig.LogBucketName,
+				ServiceAccountKeySecret: &v12.SecretKeySelector{
+					Key: "secretKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				},
+			},
+		}
+	}
 
 	templates = append(templates, v1alpha1.Template{
 		Name: "cd",
@@ -374,9 +453,13 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				},
 			},
 		},
-		ActiveDeadlineSeconds: &workflowRequest.ActiveDeadlineSeconds,
+		ActiveDeadlineSeconds: &intstr.IntOrString{
+			IntVal: int32(workflowRequest.ActiveDeadlineSeconds),
+		},
 		ArchiveLocation: &v1alpha1.ArtifactLocation{
 			ArchiveLogs: &archiveLogs,
+			S3:          s3Artifact,
+			GCS:         gcsArtifact,
 		},
 	})
 
@@ -447,13 +530,15 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				Labels:       map[string]string{"devtron.ai/workflow-purpose": "cd"},
 			},
 			Spec: v1alpha1.WorkflowSpec{
-				ServiceAccountName:      impl.cdConfig.WorkflowServiceAccount,
-				NodeSelector:            map[string]string{impl.cdConfig.TaintKey: impl.cdConfig.TaintValue},
-				Tolerations:             []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}},
-				Entrypoint:              entryPoint,
-				TTLSecondsAfterFinished: &ttl,
-				Templates:               templates,
-				Volumes:                 volumes,
+				ServiceAccountName: impl.cdConfig.WorkflowServiceAccount,
+				NodeSelector:       map[string]string{impl.cdConfig.TaintKey: impl.cdConfig.TaintValue},
+				Tolerations:        []v12.Toleration{{Key: impl.cdConfig.TaintKey, Value: impl.cdConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}},
+				Entrypoint:         entryPoint,
+				TTLStrategy: &v1alpha1.TTLStrategy{
+					SecondsAfterCompletion: &ttl,
+				},
+				Templates: templates,
+				Volumes:   volumes,
 			},
 		}
 	)
@@ -486,7 +571,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		}
 	}
 
-	createdWf, err := wfClient.Create(&cdWorkflow) // submit the hello world workflow
+	createdWf, err := wfClient.Create(context.Background(), &cdWorkflow, v1.CreateOptions{}) // submit the hello world workflow
 	if err != nil {
 		impl.Logger.Errorw("error in wf trigger", "err", err)
 		return nil, err
@@ -510,7 +595,7 @@ func (impl *CdWorkflowServiceImpl) GetWorkflow(name string, namespace string, ur
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return nil, err
 	}
-	workflow, err := wfClient.Get(name, v1.GetOptions{})
+	workflow, err := wfClient.Get(context.Background(), name, v1.GetOptions{})
 	return workflow, err
 }
 
@@ -528,7 +613,7 @@ func (impl *CdWorkflowServiceImpl) TerminateWorkflow(name string, namespace stri
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return err
 	}
-	err = util.TerminateWorkflow(wfClient, name)
+	err = util.TerminateWorkflow(context.Background(), wfClient, name)
 	return err
 }
 
@@ -539,7 +624,7 @@ func (impl *CdWorkflowServiceImpl) UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alp
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return nil, err
 	}
-	updatedWf, err := wfClient.Update(wf)
+	updatedWf, err := wfClient.Update(context.Background(), wf, v1.UpdateOptions{})
 	if err != nil {
 		impl.Logger.Errorw("cannot update wf ", "err", err)
 		return nil, err
@@ -553,7 +638,7 @@ func (impl *CdWorkflowServiceImpl) ListAllWorkflows(namespace string) (*v1alpha1
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return nil, err
 	}
-	workflowList, err := wfClient.List(v1.ListOptions{})
+	workflowList, err := wfClient.List(context.Background(), v1.ListOptions{})
 	return workflowList, err
 }
 
@@ -563,7 +648,7 @@ func (impl *CdWorkflowServiceImpl) DeleteWorkflow(wfName string, namespace strin
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return err
 	}
-	err = wfClient.Delete(wfName, &v1.DeleteOptions{})
+	err = wfClient.Delete(context.Background(), wfName, v1.DeleteOptions{})
 	return err
 }
 

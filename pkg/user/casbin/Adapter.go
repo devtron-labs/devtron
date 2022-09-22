@@ -19,15 +19,17 @@ package casbin
 
 import (
 	"fmt"
-	"github.com/casbin/casbin"
-	"github.com/casbin/xorm-adapter"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	xormadapter "github.com/casbin/xorm-adapter"
 	"log"
 	"strings"
+
+	"github.com/casbin/casbin"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 )
 
-var e *casbin.Enforcer
+var e *casbin.SyncedEnforcer
+var enforcerImplRef *EnforcerImpl
 
 type Subject string
 type Resource string
@@ -43,7 +45,7 @@ type Policy struct {
 	Obj  Object     `json:"obj"`
 }
 
-func Create() *casbin.Enforcer {
+func Create() *casbin.SyncedEnforcer {
 	metav1.Now()
 	config, err := sql.GetConfig() //FIXME: use this from wire
 	if err != nil {
@@ -54,12 +56,13 @@ func Create() *casbin.Enforcer {
 	if err != nil {
 		log.Fatal(err)
 	}
-	auth, err1 := casbin.NewEnforcerSafe("./auth_model.conf", a)
+	auth, err1 := casbin.NewSyncedEnforcerSafe("./auth_model.conf", a)
 	if err1 != nil {
 		log.Fatal(err1)
 	}
 	e = auth
 	err = e.LoadPolicy()
+	log.Println("casbin Policies Loaded Successfully")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -68,9 +71,15 @@ func Create() *casbin.Enforcer {
 	return e
 }
 
+func setEnforcerImpl(ref *EnforcerImpl) {
+	enforcerImplRef = ref
+}
+
 func AddPolicy(policies []Policy) []Policy {
+	defer handlePanic()
 	LoadPolicy()
 	var failed = []Policy{}
+	emailIdList := map[string]struct{}{}
 	for _, p := range policies {
 		success := false
 		if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
@@ -87,20 +96,22 @@ func AddPolicy(policies []Policy) []Policy {
 		if !success {
 			failed = append(failed, p)
 		}
+		if p.Sub != "" {
+			emailIdList[strings.ToLower(string(p.Sub))] = struct{}{}
+		}
 	}
 	if len(policies) != len(failed) {
-		err := e.LoadPolicy()
-		if err != nil {
-			fmt.Println("error in reloading policies", err)
-		} else {
-			fmt.Println("policy reloaded successfully")
+		LoadPolicy()
+		for emailId := range emailIdList {
+			enforcerImplRef.InvalidateCache(emailId)
 		}
 	}
 	return failed
 }
 
 func LoadPolicy() {
-	err := e.LoadPolicy()
+	defer handlePanic()
+	err := enforcerImplRef.ReloadPolicy()
 	if err != nil {
 		fmt.Println("error in reloading policies", err)
 	} else {
@@ -109,7 +120,9 @@ func LoadPolicy() {
 }
 
 func RemovePolicy(policies []Policy) []Policy {
+	defer handlePanic()
 	var failed = []Policy{}
+	emailIdList := map[string]struct{}{}
 	for _, p := range policies {
 		success := false
 		if strings.ToLower(string(p.Type)) == "p" && p.Sub != "" && p.Res != "" && p.Act != "" && p.Obj != "" {
@@ -120,9 +133,15 @@ func RemovePolicy(policies []Policy) []Policy {
 		if !success {
 			failed = append(failed, p)
 		}
+		if p.Sub != "" {
+			emailIdList[strings.ToLower(string(p.Sub))] = struct{}{}
+		}
 	}
 	if len(policies) != len(failed) {
-		_ = e.LoadPolicy()
+		LoadPolicy()
+		for emailId := range emailIdList {
+			enforcerImplRef.InvalidateCache(emailId)
+		}
 	}
 	return failed
 }
@@ -133,7 +152,9 @@ func GetAllSubjects() []string {
 
 func DeleteRoleForUser(user string, role string) bool {
 	user = strings.ToLower(user)
-	return e.DeleteRoleForUser(user, role)
+	response := e.DeleteRoleForUser(user, role)
+	enforcerImplRef.InvalidateCache(user)
+	return response
 }
 
 func GetRolesForUser(user string) ([]string, error) {
@@ -146,7 +167,15 @@ func GetUserByRole(role string) ([]string, error) {
 	return e.GetUsersForRole(role)
 }
 
-func RemovePoliciesByRoles(roles string) bool{
+func RemovePoliciesByRoles(roles string) bool {
 	roles = strings.ToLower(roles)
-	return e.RemovePolicy([]string{roles})
+	policyResponse := e.RemovePolicy([]string{roles})
+	enforcerImplRef.InvalidateCompleteCache()
+	return policyResponse
+}
+
+func handlePanic() {
+	if err := recover(); err != nil {
+		log.Println("panic occurred:", err)
+	}
 }

@@ -95,7 +95,7 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 	if wfr != nil {
 		material, err := impl.getCiMaterialInfo(wfr.CdWorkflow.Pipeline.CiPipelineId, wfr.CdWorkflow.CiArtifactId)
 		if err != nil {
-			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "material", material)
+			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "event", event, "stage", stage, "workflow runner", wfr, "pipelineOverrideId", pipelineOverrideId)
 		}
 		payload.MaterialTriggerInfo = material
 		payload.DockerImageUrl = wfr.CdWorkflow.CiArtifact.Image
@@ -106,27 +106,29 @@ func (impl *EventSimpleFactoryImpl) BuildExtraCDData(event Event, wfr *pipelineC
 	} else if pipelineOverrideId > 0 {
 		pipelineOverride, err := impl.pipelineOverrideRepository.FindById(pipelineOverrideId)
 		if err != nil {
-			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "pipelineOverride", pipelineOverride)
+			impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "event", event, "stage", stage, "workflow runner", wfr, "pipelineOverrideId", pipelineOverrideId)
 		}
-		if pipelineOverride != nil {
+		if pipelineOverride != nil && pipelineOverride.Id > 0 {
 			cdWorkflow, err := impl.cdWorkflowRepository.FindById(pipelineOverride.CdWorkflowId)
 			if err != nil {
-				impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "cdWorkflow", cdWorkflow)
+				impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "cdWorkflow", cdWorkflow, "event", event, "stage", stage, "workflow runner", wfr, "pipelineOverrideId", pipelineOverrideId)
 			}
 			wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(cdWorkflow.Id, stage)
 			if err != nil {
-				impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "wfr", wfr)
+				impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "wfr", wfr, "event", event, "stage", stage, "workflow runner", wfr, "pipelineOverrideId", pipelineOverrideId)
 			}
-			event.CdWorkflowRunnerId = wfr.Id
-			event.CiArtifactId = pipelineOverride.CiArtifactId
+			if wfr.Id > 0 {
+				event.CdWorkflowRunnerId = wfr.Id
+				event.CiArtifactId = pipelineOverride.CiArtifactId
 
-			material, err := impl.getCiMaterialInfo(pipelineOverride.CiArtifact.PipelineId, pipelineOverride.CiArtifactId)
-			if err != nil {
-				impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "material", material)
+				material, err := impl.getCiMaterialInfo(pipelineOverride.CiArtifact.PipelineId, pipelineOverride.CiArtifactId)
+				if err != nil {
+					impl.logger.Errorw("found error on payload build for cd stages, skipping this error ", "material", material)
+				}
+				payload.MaterialTriggerInfo = material
+				payload.DockerImageUrl = wfr.CdWorkflow.CiArtifact.Image
+				event.UserId = int(wfr.TriggeredBy)
 			}
-			payload.MaterialTriggerInfo = material
-			payload.DockerImageUrl = wfr.CdWorkflow.CiArtifact.Image
-			event.UserId = int(wfr.TriggeredBy)
 		}
 		event.Payload = payload
 	} else if event.PipelineId > 0 {
@@ -195,12 +197,16 @@ func (impl *EventSimpleFactoryImpl) getCiMaterialInfo(ciPipelineId int, ciArtifa
 	if ciPipelineId > 0 {
 		ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipelineId)
 		if err != nil {
-			impl.logger.Errorw("err", err)
+			impl.logger.Errorw("error on fetching materials for", "ciPipelineId", ciPipelineId, "err", err)
 			return nil, err
 		}
 
 		var ciMaterialsArr []CiPipelineMaterialResponse
 		for _, m := range ciMaterials {
+			if m.GitMaterial == nil {
+				impl.logger.Warnw("git material are empty", "material", m)
+				continue
+			}
 			res := CiPipelineMaterialResponse{
 				Id:              m.Id,
 				GitMaterialId:   m.GitMaterialId,

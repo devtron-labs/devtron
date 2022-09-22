@@ -48,7 +48,7 @@ The example shows a Post-build stage with a task created using a preset plugin -
 2. Select **+ Add task**.
 3. Select **Sonarqube** from **PRESET PLUGINS**.
 
-![Preset plugin - Sonarqube](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/preset-plugin-sonarqube.png)
+![Preset plugin - Sonarqube](https://devtron-public-asset.s3.us-east-2.amazonaws.com/plugins/preset-plugin-sonarqube-2.png)
 
 | Field name | Required/Optional | Field description |
 | --- | --- | --- |
@@ -56,6 +56,16 @@ The example shows a Post-build stage with a task created using a preset plugin -
 | Description | Optional | A descriptive message for the task |
 | Input variables | Optional | VALUE: A value for the input variable. The value may be any of the values from the previous build stages, a global variable, or a custom value |
 | Trigger/Skip Condition | Optional | A conditional statement to execute or skip the task |
+
+
+#### Input Variables
+
+| Variable | Format | Description |
+| ---- | ---- | ---- |
+| SonarqubeProjectKey | String | Project key of sonarqube account. |
+| SonarqubeApiKey | String | Api key of sonarqube account. |
+| SonarqubeEndpoint | String | Api endpoint of sonarqube account. |
+| CheckoutPath | String | Checkout path of git material. |
 
 Select **Update Pipeline**.
 

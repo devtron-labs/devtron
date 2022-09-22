@@ -19,6 +19,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
@@ -33,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/ktrysmt/go-bitbucket"
 
 	/* #nosec */
@@ -46,7 +48,7 @@ import (
 	"time"
 
 	"github.com/Pallinder/go-randomdata"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
@@ -72,7 +74,7 @@ type InstalledAppService interface {
 	CheckAppExists(appNames []*appStoreBean.AppNames) ([]*appStoreBean.AppNames, error)
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
-	UpdateInstalledAppVersionStatus(application v1alpha1.Application) (bool, error)
+	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -99,6 +101,7 @@ type InstalledAppServiceImpl struct {
 	appStoreDeploymentService            AppStoreDeploymentService
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	installedAppRepositoryHistory        repository2.InstalledAppVersionHistoryRepository
+	argoUserService                      argo.ArgoUserService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -117,7 +120,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig, gitOpsRepository repository3.GitOpsConfigRepository, userService user.UserService,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService AppStoreDeploymentService,
-	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository) (*InstalledAppServiceImpl, error) {
+	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
+	argoUserService argo.ArgoUserService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -142,6 +146,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentService:            appStoreDeploymentService,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
+		argoUserService:                      argoUserService,
 	}
 	err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
 	if err != nil {
@@ -329,22 +334,7 @@ func (impl InstalledAppServiceImpl) createChartGroupEntryObject(installAppVersio
 		},
 	}
 }
-
-func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
-	ctx, err := impl.tokenCache.BuildACDSynchContext()
-	if err != nil {
-		return nil, err
-	}
-	/*installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
-	if err != nil {
-		impl.logger.Errorw("error while fetching from db", "error", err)
-		return nil, err
-	}*/
-
-	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
-	if err != nil {
-		return nil, err
-	}
+func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion *appStoreBean.InstallAppVersionDTO, ctx context.Context, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	chartGitAttr := &util.ChartGitAttribute{}
 	if installedAppVersion.Status == appStoreBean.DEPLOY_INIT ||
 		installedAppVersion.Status == appStoreBean.ENQUEUED ||
@@ -408,12 +398,12 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		installedAppVersion.Status == appStoreBean.GIT_SUCCESS ||
 		installedAppVersion.Status == appStoreBean.ACD_ERROR {
 		//step 3 acd operation register, sync
-		_, err = impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installedAppVersion, chartGitAttr, ctx)
+		_, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationACD(installedAppVersion, chartGitAttr, ctx)
 		if err != nil {
-			impl.logger.Errorw(" error", "chartGitAttr", chartGitAttr, "err", err)
+			impl.logger.Errorw("error", "chartGitAttr", chartGitAttr, "err", err)
 			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.ACD_ERROR)
 			if err != nil {
-				impl.logger.Errorw(" error", "err", err)
+				impl.logger.Errorw("error", "err", err)
 				return nil, err
 			}
 			return nil, err
@@ -421,16 +411,50 @@ func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int
 		impl.logger.Infow("ACD SUCCESSFUL", "chartGitAttr", chartGitAttr)
 		_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.ACD_SUCCESS)
 		if err != nil {
-			impl.logger.Errorw(" error", "err", err)
+			impl.logger.Errorw("error", "err", err)
 			return nil, err
 		}
 	} else {
 		impl.logger.Infow("DB and GIT and ACD operation already done for this app and env. process has been completed", "installedAppId", installedAppVersion.InstalledAppId, "existing status", installedAppVersion.Status)
 	}
+	return installedAppVersion, nil
+}
+func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
+	ctx := context.Background()
+	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
+	if err != nil {
+		return nil, err
+	}
+	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
+		//this method should only call in case of argo-integration installed and git-ops has configured
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			return nil, err
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+		_, err = impl.performDeployStageOnAcd(installedAppVersion, ctx, userId)
+		if err != nil {
+			impl.logger.Errorw("error", "err", err)
+			return nil, err
+		}
+	} else if util.IsHelmApp(installedAppVersion.DeploymentAppType) {
+		_, err = impl.appStoreDeploymentService.InstallAppByHelm(installedAppVersion, ctx)
+		if err != nil {
+			impl.logger.Errorw("error", "err", err)
+			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.HELM_ERROR)
+			if err != nil {
+				impl.logger.Errorw("error", "err", err)
+				return nil, err
+			}
+			return nil, err
+		}
+	}
+
 	//step 4 db operation status triggered
 	_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.DEPLOY_SUCCESS)
 	if err != nil {
-		impl.logger.Errorw(" error", "err", err)
+		impl.logger.Errorw("error", "err", err)
 		return nil, err
 	}
 
@@ -735,6 +759,7 @@ func (impl *InstalledAppServiceImpl) FindAppDetailsForAppstoreApplication(instal
 		Namespace:                     installedAppVerison.InstalledApp.Environment.Namespace,
 		Deprecated:                    installedAppVerison.AppStoreApplicationVersion.Deprecated,
 		ClusterId:                     installedAppVerison.InstalledApp.Environment.ClusterId,
+		DeploymentAppType:             installedAppVerison.InstalledApp.DeploymentAppType,
 	}
 	userInfo, err := impl.userService.GetByIdIncludeDeleted(installedAppVerison.AuditLog.UpdatedBy)
 	if err != nil {
@@ -804,7 +829,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistory(installedAppId
 	return result, err
 }
 
-func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application v1alpha1.Application) (bool, error) {
+func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error) {
 	isHealthy := false
 	dbConnection := impl.installedAppRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -825,7 +850,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 		return isHealthy, err
 	}
 	if versionHistory.Status != (application2.Healthy) {
-		versionHistory.Status = application.Status.Health.Status
+		versionHistory.Status = string(application.Status.Health.Status)
 		versionHistory.UpdatedOn = time.Now()
 		versionHistory.UpdatedBy = 1
 		impl.installedAppRepositoryHistory.UpdateInstalledAppVersionHistory(versionHistory, tx)

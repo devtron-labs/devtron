@@ -18,13 +18,17 @@
 package pipeline
 
 import (
+	"context"
 	"encoding/json"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"net/url"
 	"time"
 
-	"github.com/argoproj/argo/pkg/apis/workflow/v1alpha1"
-	"github.com/argoproj/argo/pkg/client/clientset/versioned"
-	v1alpha12 "github.com/argoproj/argo/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
-	"github.com/argoproj/argo/workflow/util"
+	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
+	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
+	"github.com/argoproj/argo-workflows/v3/workflow/util"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -58,63 +62,61 @@ type WorkflowServiceImpl struct {
 }
 
 type WorkflowRequest struct {
-	WorkflowNamePrefix         string                   `json:"workflowNamePrefix"`
-	PipelineName               string                   `json:"pipelineName"`
-	PipelineId                 int                      `json:"pipelineId"`
-	DockerImageTag             string                   `json:"dockerImageTag"`
-	DockerRegistryId           string                   `json:"dockerRegistryId"`
-	DockerRegistryType         string                   `json:"dockerRegistryType"`
-	DockerRegistryURL          string                   `json:"dockerRegistryURL"`
-	DockerConnection           string                   `json:"dockerConnection"`
-	DockerCert                 string                   `json:"dockerCert"`
-	DockerBuildArgs            string                   `json:"dockerBuildArgs"`
-	DockerRepository           string                   `json:"dockerRepository"`
-	DockerFileLocation         string                   `json:"dockerfileLocation"`
-	DockerUsername             string                   `json:"dockerUsername"`
-	DockerPassword             string                   `json:"dockerPassword"`
-	AwsRegion                  string                   `json:"awsRegion"`
-	AccessKey                  string                   `json:"accessKey"`
-	SecretKey                  string                   `json:"secretKey"`
-	CiCacheLocation            string                   `json:"ciCacheLocation"`
-	CiCacheRegion              string                   `json:"ciCacheRegion"`
-	CiCacheFileName            string                   `json:"ciCacheFileName"`
-	CiProjectDetails           []CiProjectDetails       `json:"ciProjectDetails"`
-	ContainerResources         ContainerResources       `json:"containerResources"`
-	ActiveDeadlineSeconds      int64                    `json:"activeDeadlineSeconds"`
-	CiImage                    string                   `json:"ciImage"`
-	Namespace                  string                   `json:"namespace"`
-	WorkflowId                 int                      `json:"workflowId"`
-	TriggeredBy                int32                    `json:"triggeredBy"`
-	CacheLimit                 int64                    `json:"cacheLimit"`
-	BeforeDockerBuildScripts   []*bean.CiScript         `json:"beforeDockerBuildScripts"`
-	AfterDockerBuildScripts    []*bean.CiScript         `json:"afterDockerBuildScripts"`
-	CiArtifactLocation         string                   `json:"ciArtifactLocation"`
-	InvalidateCache            bool                     `json:"invalidateCache"`
-	ScanEnabled                bool                     `json:"scanEnabled"`
-	CloudProvider              string                   `json:"cloudProvider"`
-	AzureBlobConfig            *AzureBlobConfig         `json:"azureBlobConfig"`
-	MinioEndpoint              string                   `json:"minioEndpoint"`
-	DefaultAddressPoolBaseCidr string                   `json:"defaultAddressPoolBaseCidr"`
-	DefaultAddressPoolSize     int                      `json:"defaultAddressPoolSize"`
-	PreCiSteps                 []*bean2.StepObject      `json:"preCiSteps"`
-	PostCiSteps                []*bean2.StepObject      `json:"postCiSteps"`
-	RefPlugins                 []*bean2.RefPluginObject `json:"refPlugins"`
-	AppName                    string                   `json:"appName"`
-	TriggerByAuthor            string                   `json:"triggerByAuthor"`
+	WorkflowNamePrefix         string                            `json:"workflowNamePrefix"`
+	PipelineName               string                            `json:"pipelineName"`
+	PipelineId                 int                               `json:"pipelineId"`
+	DockerImageTag             string                            `json:"dockerImageTag"`
+	DockerRegistryId           string                            `json:"dockerRegistryId"`
+	DockerRegistryType         string                            `json:"dockerRegistryType"`
+	DockerRegistryURL          string                            `json:"dockerRegistryURL"`
+	DockerConnection           string                            `json:"dockerConnection"`
+	DockerCert                 string                            `json:"dockerCert"`
+	DockerBuildArgs            string                            `json:"dockerBuildArgs"`
+	DockerBuildTargetPlatform  string                            `json:"dockerBuildTargetPlatform"`
+	DockerRepository           string                            `json:"dockerRepository"`
+	DockerFileLocation         string                            `json:"dockerfileLocation"`
+	DockerUsername             string                            `json:"dockerUsername"`
+	DockerPassword             string                            `json:"dockerPassword"`
+	AwsRegion                  string                            `json:"awsRegion"`
+	AccessKey                  string                            `json:"accessKey"`
+	SecretKey                  string                            `json:"secretKey"`
+	CiCacheLocation            string                            `json:"ciCacheLocation"`
+	CiCacheRegion              string                            `json:"ciCacheRegion"`
+	CiCacheFileName            string                            `json:"ciCacheFileName"`
+	CiProjectDetails           []CiProjectDetails                `json:"ciProjectDetails"`
+	ContainerResources         ContainerResources                `json:"containerResources"`
+	ActiveDeadlineSeconds      int64                             `json:"activeDeadlineSeconds"`
+	CiImage                    string                            `json:"ciImage"`
+	Namespace                  string                            `json:"namespace"`
+	WorkflowId                 int                               `json:"workflowId"`
+	TriggeredBy                int32                             `json:"triggeredBy"`
+	CacheLimit                 int64                             `json:"cacheLimit"`
+	BeforeDockerBuildScripts   []*bean.CiScript                  `json:"beforeDockerBuildScripts"`
+	AfterDockerBuildScripts    []*bean.CiScript                  `json:"afterDockerBuildScripts"`
+	CiArtifactLocation         string                            `json:"ciArtifactLocation"`
+	CiArtifactBucket           string                            `json:"ciArtifactBucket"`
+	CiArtifactFileName         string                            `json:"ciArtifactFileName"`
+	CiArtifactRegion           string                            `json:"ciArtifactRegion"`
+	InvalidateCache            bool                              `json:"invalidateCache"`
+	ScanEnabled                bool                              `json:"scanEnabled"`
+	CloudProvider              blob_storage.BlobStorageType      `json:"cloudProvider"`
+	BlobStorageConfigured      bool                              `json:"blobStorageConfigured"`
+	BlobStorageS3Config        *blob_storage.BlobStorageS3Config `json:"blobStorageS3Config"`
+	AzureBlobConfig            *blob_storage.AzureBlobConfig     `json:"azureBlobConfig"`
+	GcpBlobConfig              *blob_storage.GcpBlobConfig       `json:"gcpBlobConfig"`
+	DefaultAddressPoolBaseCidr string                            `json:"defaultAddressPoolBaseCidr"`
+	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
+	PreCiSteps                 []*bean2.StepObject               `json:"preCiSteps"`
+	PostCiSteps                []*bean2.StepObject               `json:"postCiSteps"`
+	RefPlugins                 []*bean2.RefPluginObject          `json:"refPlugins"`
+	AppName                    string                            `json:"appName"`
+	TriggerByAuthor            string                            `json:"triggerByAuthor"`
 }
 
 const BLOB_STORAGE_AZURE = "AZURE"
 const BLOB_STORAGE_S3 = "S3"
 const BLOB_STORAGE_GCP = "GCP"
 const BLOB_STORAGE_MINIO = "MINIO"
-
-type AzureBlobConfig struct {
-	Enabled              bool   `json:"enabled"`
-	AccountName          string `json:"accountName"`
-	BlobContainerCiLog   string `json:"blobContainerCiLog"`
-	BlobContainerCiCache string `json:"blobContainerCiCache"`
-	AccountKey           string `json:"accountKey"`
-}
 
 type ContainerResources struct {
 	MinCpu        string `json:"minCpu"`
@@ -176,8 +178,8 @@ const cdStage = "CD"
 
 func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error) {
 	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
-	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
-		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.MinioAccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.MinioSecretKey}}
+	if impl.ciConfig.CloudProvider == BLOB_STORAGE_S3 && impl.ciConfig.BlobStorageS3AccessKey != "" {
+		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.BlobStorageS3SecretKey}}
 		containerEnvVariables = append(containerEnvVariables, miniCred...)
 	}
 
@@ -200,14 +202,76 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 
 	privileged := true
-	archiveLogs := true
+	blobStorageConfigured := workflowRequest.BlobStorageConfigured
+	archiveLogs := blobStorageConfigured
 
 	limitCpu := impl.ciConfig.LimitCpu
 	limitMem := impl.ciConfig.LimitMem
 
 	reqCpu := impl.ciConfig.ReqCpu
 	reqMem := impl.ciConfig.ReqMem
-	ttl := int32(600)
+	ttl := int32(impl.ciConfig.BuildLogTTLValue)
+
+	gcpBlobConfig := workflowRequest.GcpBlobConfig
+	blobStorageS3Config := workflowRequest.BlobStorageS3Config
+	cloudStorageKey := impl.ciConfig.DefaultBuildLogsKeyPrefix + "/" + workflowRequest.WorkflowNamePrefix
+	var s3Artifact *v1alpha1.S3Artifact
+	var gcsArtifact *v1alpha1.GCSArtifact
+	if blobStorageConfigured && blobStorageS3Config != nil {
+		s3CompatibleEndpointUrl := blobStorageS3Config.EndpointUrl
+		if s3CompatibleEndpointUrl == "" {
+			s3CompatibleEndpointUrl = "s3.amazonaws.com"
+		} else {
+			parsedUrl, err := url.Parse(s3CompatibleEndpointUrl)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while parsing s3CompatibleEndpointUrl, ", "s3CompatibleEndpointUrl", s3CompatibleEndpointUrl, "err", err)
+			} else {
+				s3CompatibleEndpointUrl = parsedUrl.Host
+			}
+		}
+		isInsecure := blobStorageS3Config.IsInSecure
+
+		var accessKeySelector *v12.SecretKeySelector
+		var secretKeySelector *v12.SecretKeySelector
+		if blobStorageS3Config.AccessKey != "" {
+			accessKeySelector = &v12.SecretKeySelector{
+				Key: "accessKey",
+				LocalObjectReference: v12.LocalObjectReference{
+					Name: "workflow-minio-cred",
+				},
+			}
+			secretKeySelector = &v12.SecretKeySelector{
+				Key: "secretKey",
+				LocalObjectReference: v12.LocalObjectReference{
+					Name: "workflow-minio-cred",
+				},
+			}
+		}
+		s3Artifact = &v1alpha1.S3Artifact{
+			Key: cloudStorageKey,
+			S3Bucket: v1alpha1.S3Bucket{
+				Endpoint:        s3CompatibleEndpointUrl,
+				AccessKeySecret: accessKeySelector,
+				SecretKeySecret: secretKeySelector,
+				Bucket:          blobStorageS3Config.CiLogBucketName,
+				Region:          blobStorageS3Config.CiLogRegion,
+				Insecure:        &isInsecure,
+			},
+		}
+	} else if blobStorageConfigured && gcpBlobConfig != nil {
+		gcsArtifact = &v1alpha1.GCSArtifact{
+			Key: cloudStorageKey,
+			GCSBucket: v1alpha1.GCSBucket{
+				Bucket: gcpBlobConfig.LogBucketName,
+				ServiceAccountKeySecret: &v12.SecretKeySelector{
+					Key: "secretKey",
+					LocalObjectReference: v12.LocalObjectReference{
+						Name: "workflow-minio-cred",
+					},
+				},
+			},
+		}
+	}
 
 	var (
 		ciWorkflow = v1alpha1.Workflow{
@@ -219,14 +283,16 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				ServiceAccountName: impl.ciConfig.WorkflowServiceAccount,
 				//NodeSelector:            map[string]string{impl.ciConfig.TaintKey: impl.ciConfig.TaintValue},
 				//Tolerations:             []v12.Toleration{{Key: impl.ciConfig.TaintKey, Value: impl.ciConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}},
-				Entrypoint:              "ci",
-				TTLSecondsAfterFinished: &ttl,
+				Entrypoint: "ci",
+				TTLStrategy: &v1alpha1.TTLStrategy{
+					SecondsAfterCompletion: &ttl,
+				},
 				Templates: []v1alpha1.Template{
 					{
 						Name: "ci",
 						Container: &v12.Container{
 							Env:   containerEnvVariables,
-							Image: workflowRequest.CiImage,
+							Image: workflowRequest.CiImage, //TODO need to check whether trigger buildx image or normal image
 							Args:  []string{string(workflowJson)},
 							SecurityContext: &v12.SecurityContext{
 								Privileged: &privileged,
@@ -247,9 +313,13 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 								ContainerPort: 9102,
 							}},
 						},
-						ActiveDeadlineSeconds: &workflowRequest.ActiveDeadlineSeconds,
+						ActiveDeadlineSeconds: &intstr.IntOrString{
+							IntVal: int32(workflowRequest.ActiveDeadlineSeconds),
+						},
 						ArchiveLocation: &v1alpha1.ArtifactLocation{
 							ArchiveLogs: &archiveLogs,
+							S3:          s3Artifact,
+							GCS:         gcsArtifact,
 						},
 					},
 				},
@@ -268,7 +338,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 	impl.Logger.Debug("---->", string(wfTemplate))
 
-	createdWf, err := wfClient.Create(&ciWorkflow) // submit the hello world workflow
+	createdWf, err := wfClient.Create(context.Background(), &ciWorkflow, v1.CreateOptions{}) // submit the hello world workflow
 	impl.Logger.Debug("workflow submitted: " + createdWf.Name)
 	impl.checkErr(err)
 	return createdWf, err
@@ -291,7 +361,7 @@ func (impl *WorkflowServiceImpl) GetWorkflow(name string, namespace string) (*v1
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return nil, err
 	}
-	workflow, err := wfClient.Get(name, v1.GetOptions{})
+	workflow, err := wfClient.Get(context.Background(), name, v1.GetOptions{})
 	return workflow, err
 }
 
@@ -302,7 +372,7 @@ func (impl *WorkflowServiceImpl) TerminateWorkflow(name string, namespace string
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return err
 	}
-	err = util.TerminateWorkflow(wfClient, name)
+	err = util.TerminateWorkflow(context.Background(), wfClient, name)
 	return err
 }
 
@@ -313,7 +383,7 @@ func (impl *WorkflowServiceImpl) UpdateWorkflow(wf *v1alpha1.Workflow) (*v1alpha
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return nil, err
 	}
-	updatedWf, err := wfClient.Update(wf)
+	updatedWf, err := wfClient.Update(context.Background(), wf, v1.UpdateOptions{})
 	if err != nil {
 		impl.Logger.Errorw("cannot update wf ", "err", err)
 		return nil, err
@@ -329,7 +399,7 @@ func (impl *WorkflowServiceImpl) ListAllWorkflows(namespace string) (*v1alpha1.W
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return nil, err
 	}
-	workflowList, err := wfClient.List(v1.ListOptions{})
+	workflowList, err := wfClient.List(context.Background(), v1.ListOptions{})
 	return workflowList, err
 }
 
@@ -340,7 +410,7 @@ func (impl *WorkflowServiceImpl) DeleteWorkflow(wfName string, namespace string)
 		impl.Logger.Errorw("cannot build wf client", "err", err)
 		return err
 	}
-	err = wfClient.Delete(wfName, &v1.DeleteOptions{})
+	err = wfClient.Delete(context.Background(), wfName, v1.DeleteOptions{})
 	return err
 }
 

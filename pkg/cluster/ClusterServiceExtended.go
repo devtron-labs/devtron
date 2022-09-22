@@ -3,8 +3,13 @@ package cluster
 import (
 	"context"
 	"fmt"
-	cluster3 "github.com/argoproj/argo-cd/pkg/apiclient/cluster"
-	"github.com/argoproj/argo-cd/pkg/apis/application/v1alpha1"
+	cluster3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"net/http"
+	"strings"
+	"time"
+
 	cluster2 "github.com/devtron-labs/devtron/client/argocdServer/cluster"
 	"github.com/devtron-labs/devtron/client/grafana"
 	"github.com/devtron-labs/devtron/client/k8s/informer"
@@ -14,9 +19,6 @@ import (
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
-	"net/http"
-	"strings"
-	"time"
 )
 
 //extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
@@ -26,18 +28,20 @@ type ClusterServiceImplExtended struct {
 	installedAppRepository repository2.InstalledAppRepository
 	clusterServiceCD       cluster2.ServiceClient
 	K8sInformerFactory     informer.K8sInformerFactory
+	gitOpsRepository       repository3.GitOpsConfigRepository
 	*ClusterServiceImpl
 }
 
 func NewClusterServiceImplExtended(repository repository.ClusterRepository, environmentRepository repository.EnvironmentRepository,
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
 	K8sUtil *util.K8sUtil,
-	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory) *ClusterServiceImplExtended {
+	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory, gitOpsRepository repository3.GitOpsConfigRepository) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
 		installedAppRepository: installedAppRepository,
 		clusterServiceCD:       clusterServiceCD,
+		gitOpsRepository:       gitOpsRepository,
 		ClusterServiceImpl: &ClusterServiceImpl{
 			clusterRepository:  repository,
 			logger:             logger,
@@ -122,6 +126,11 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	isGitOpsConfigured, err1 := impl.gitOpsRepository.IsGitOpsConfigured()
+	if err1 != nil {
+		return nil, err1
+	}
+
 	bean, err := impl.ClusterServiceImpl.Update(ctx, bean, userId)
 	if err != nil {
 		return nil, err
@@ -143,86 +152,95 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 			}
 			env.GrafanaDatasourceId = grafanaDatasourceId
 		}
-		promDatasource, err := impl.grafanaClient.GetDatasource(env.GrafanaDatasourceId)
-		if err != nil {
-			impl.logger.Errorw("error on getting data source", "err", err)
-			return nil, err
-		}
-
-		updateDatasourceReq := grafana.UpdateDatasourceRequest{
-			Id:                env.GrafanaDatasourceId,
-			OrgId:             promDatasource.OrgId,
-			Name:              promDatasource.Name,
-			Type:              promDatasource.Type,
-			Url:               bean.PrometheusUrl,
-			Access:            promDatasource.Access,
-			BasicAuth:         promDatasource.BasicAuth,
-			BasicAuthUser:     promDatasource.BasicAuthUser,
-			BasicAuthPassword: promDatasource.BasicAuthPassword,
-			JsonData:          promDatasource.JsonData,
-		}
-
-		if bean.PrometheusAuth != nil {
-			secureJsonData := &grafana.SecureJsonData{}
-			if len(bean.PrometheusAuth.UserName) > 0 {
-				updateDatasourceReq.BasicAuthUser = bean.PrometheusAuth.UserName
-				updateDatasourceReq.BasicAuthPassword = bean.PrometheusAuth.Password
-				secureJsonData.BasicAuthPassword = bean.PrometheusAuth.Password
+		//if the request doesn't have a non empty prometheus url and we don't have a GrafanaDataSourceId defined yet, no point in
+		//going to grafana client and trying to get data source
+		if bean.PrometheusUrl != "" && env.GrafanaDatasourceId != 0 {
+			promDatasource, err := impl.grafanaClient.GetDatasource(env.GrafanaDatasourceId)
+			if err != nil {
+				impl.logger.Errorw("error on getting data source", "err", err)
+				return nil, err
 			}
-			if len(bean.PrometheusAuth.TlsClientCert) > 0 {
-				secureJsonData.TlsClientCert = bean.PrometheusAuth.TlsClientCert
-				secureJsonData.TlsClientKey = bean.PrometheusAuth.TlsClientKey
-				updateDatasourceReq.BasicAuth = false
 
-				jsonData := &grafana.JsonData{
-					HttpMethod: http.MethodGet,
-					TlsAuth:    true,
+			updateDatasourceReq := grafana.UpdateDatasourceRequest{
+				Id:                env.GrafanaDatasourceId,
+				OrgId:             promDatasource.OrgId,
+				Name:              promDatasource.Name,
+				Type:              promDatasource.Type,
+				Url:               bean.PrometheusUrl,
+				Access:            promDatasource.Access,
+				BasicAuth:         promDatasource.BasicAuth,
+				BasicAuthUser:     promDatasource.BasicAuthUser,
+				BasicAuthPassword: promDatasource.BasicAuthPassword,
+				JsonData:          promDatasource.JsonData,
+			}
+
+			if bean.PrometheusAuth != nil {
+				secureJsonData := &grafana.SecureJsonData{}
+				if len(bean.PrometheusAuth.UserName) > 0 {
+					updateDatasourceReq.BasicAuthUser = bean.PrometheusAuth.UserName
+					updateDatasourceReq.BasicAuthPassword = bean.PrometheusAuth.Password
+					secureJsonData.BasicAuthPassword = bean.PrometheusAuth.Password
 				}
-				updateDatasourceReq.JsonData = *jsonData
+				if len(bean.PrometheusAuth.TlsClientCert) > 0 {
+					secureJsonData.TlsClientCert = bean.PrometheusAuth.TlsClientCert
+					secureJsonData.TlsClientKey = bean.PrometheusAuth.TlsClientKey
+					updateDatasourceReq.BasicAuth = false
+
+					jsonData := &grafana.JsonData{
+						HttpMethod: http.MethodGet,
+						TlsAuth:    true,
+					}
+					updateDatasourceReq.JsonData = *jsonData
+				}
+				updateDatasourceReq.SecureJsonData = secureJsonData
 			}
-			updateDatasourceReq.SecureJsonData = secureJsonData
+			_, err = impl.grafanaClient.UpdateDatasource(updateDatasourceReq, env.GrafanaDatasourceId)
+			if err != nil {
+				impl.logger.Errorw("Error while updating the datasource", "Datasource id : ", env.GrafanaDatasourceId, "error", err)
+				return nil, err
+			}
 		}
-		_, err = impl.grafanaClient.UpdateDatasource(updateDatasourceReq, env.GrafanaDatasourceId)
+
+	}
+
+	// if git-ops configured, then only update cluster in ACD, otherwise ignore
+	if isGitOpsConfigured {
+		configMap := bean.Config
+		serverUrl := bean.ServerUrl
+		bearerToken := ""
+		if configMap["bearer_token"] != "" {
+			bearerToken = configMap["bearer_token"]
+		}
+
+		tlsConfig := v1alpha1.TLSClientConfig{
+			Insecure: true,
+		}
+		cdClusterConfig := v1alpha1.ClusterConfig{
+			BearerToken:     bearerToken,
+			TLSClientConfig: tlsConfig,
+		}
+
+		cl := &v1alpha1.Cluster{
+			Name:   bean.ClusterName,
+			Server: serverUrl,
+			Config: cdClusterConfig,
+		}
+
+		_, err = impl.clusterServiceCD.Update(ctx, &cluster3.ClusterUpdateRequest{Cluster: cl})
+
 		if err != nil {
-			impl.logger.Error(err)
+			impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
+			userMsg := "failed to update on cluster via ACD"
+			if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
+				userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
+			}
+			err = &util.ApiError{
+				Code:            constants.ClusterUpdateACDFailed,
+				InternalMessage: err.Error(),
+				UserMessage:     userMsg,
+			}
 			return nil, err
 		}
-	}
-	configMap := bean.Config
-	serverUrl := bean.ServerUrl
-	bearerToken := ""
-	if configMap["bearer_token"] != "" {
-		bearerToken = configMap["bearer_token"]
-	}
-
-	tlsConfig := v1alpha1.TLSClientConfig{
-		Insecure: true,
-	}
-	cdClusterConfig := v1alpha1.ClusterConfig{
-		BearerToken:     bearerToken,
-		TLSClientConfig: tlsConfig,
-	}
-
-	cl := &v1alpha1.Cluster{
-		Name:   bean.ClusterName,
-		Server: serverUrl,
-		Config: cdClusterConfig,
-	}
-
-	_, err = impl.clusterServiceCD.Update(ctx, &cluster3.ClusterUpdateRequest{Cluster: cl})
-
-	if err != nil {
-		impl.logger.Errorw("service err, Update", "error", err, "payload", cl)
-		userMsg := "failed to update on cluster via ACD"
-		if strings.Contains(err.Error(), "https://kubernetes.default.svc") {
-			userMsg = fmt.Sprintf("%s, %s", err.Error(), ", successfully updated in ACD")
-		}
-		err = &util.ApiError{
-			Code:            constants.ClusterUpdateACDFailed,
-			InternalMessage: err.Error(),
-			UserMessage:     userMsg,
-		}
-		return nil, err
 	}
 
 	if bean.HasConfigOrUrlChanged {
@@ -281,54 +299,62 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 }
 
 func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
+	if err != nil {
+		return nil, err
+	}
+
 	clusterBean, err := impl.ClusterServiceImpl.Save(ctx, bean, userId)
 	if err != nil {
 		return nil, err
 	}
 
-	//create it into argo cd as well
-	configMap := bean.Config
-	serverUrl := bean.ServerUrl
-	bearerToken := ""
-	if configMap["bearer_token"] != "" {
-		bearerToken = configMap["bearer_token"]
-	}
-	tlsConfig := v1alpha1.TLSClientConfig{
-		Insecure: true,
-	}
-	cdClusterConfig := v1alpha1.ClusterConfig{
-		BearerToken:     bearerToken,
-		TLSClientConfig: tlsConfig,
-	}
+	// if git-ops configured, then only add cluster in ACD, otherwise ignore
+	if isGitOpsConfigured {
+		//create it into argo cd as well
+		configMap := bean.Config
+		serverUrl := bean.ServerUrl
+		bearerToken := ""
+		if configMap["bearer_token"] != "" {
+			bearerToken = configMap["bearer_token"]
+		}
+		tlsConfig := v1alpha1.TLSClientConfig{
+			Insecure: true,
+		}
+		cdClusterConfig := v1alpha1.ClusterConfig{
+			BearerToken:     bearerToken,
+			TLSClientConfig: tlsConfig,
+		}
 
-	cl := &v1alpha1.Cluster{
-		Name:   bean.ClusterName,
-		Server: serverUrl,
-		Config: cdClusterConfig,
-	}
+		cl := &v1alpha1.Cluster{
+			Name:   bean.ClusterName,
+			Server: serverUrl,
+			Config: cdClusterConfig,
+		}
 
-	_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
-	if err != nil {
-		impl.logger.Errorw("service err, Save", "err", err, "payload", cl)
-		err1 := impl.ClusterServiceImpl.Delete(bean, userId) //FIXME nishant call local
-		if err1 != nil {
-			impl.logger.Errorw("service err, Save, delete on rollback", "err", err, "payload", bean)
+		_, err = impl.clusterServiceCD.Create(ctx, &cluster3.ClusterCreateRequest{Upsert: true, Cluster: cl})
+		if err != nil {
+			impl.logger.Errorw("service err, Save", "err", err, "payload", cl)
+			err1 := impl.ClusterServiceImpl.Delete(bean, userId) //FIXME nishant call local
+			if err1 != nil {
+				impl.logger.Errorw("service err, Save, delete on rollback", "err", err, "payload", bean)
+				err = &util.ApiError{
+					Code:            constants.ClusterDBRollbackFailed,
+					InternalMessage: err.Error(),
+					UserMessage:     "failed to rollback cluster from db as it has failed in registering on ACD",
+				}
+				return nil, err
+
+			}
 			err = &util.ApiError{
-				Code:            constants.ClusterDBRollbackFailed,
+				Code:            constants.ClusterCreateACDFailed,
 				InternalMessage: err.Error(),
-				UserMessage:     "failed to rollback cluster from db as it has failed in registering on ACD",
+				UserMessage:     "failed to register on ACD, rollback completed from db",
 			}
 			return nil, err
-
 		}
-		err = &util.ApiError{
-			Code:            constants.ClusterCreateACDFailed,
-			InternalMessage: err.Error(),
-			UserMessage:     "failed to register on ACD, rollback completed from db",
-		}
-		return nil, err
-
 	}
+
 	//on successful creation of new cluster, update informer cache for namespace group by cluster
 	impl.SyncNsInformer(bean)
 

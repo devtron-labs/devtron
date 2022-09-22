@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	appStoreValuesRepository "github.com/devtron-labs/devtron/pkg/appStore/values/repository"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"time"
 )
@@ -44,16 +45,18 @@ type AppStoreValuesServiceImpl struct {
 	appStoreApplicationRepository   appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	installedAppRepository          repository.InstalledAppRepository
 	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository
+	userService                     user.UserService
 }
 
 func NewAppStoreValuesServiceImpl(logger *zap.SugaredLogger,
 	appStoreApplicationRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository, installedAppRepository repository.InstalledAppRepository,
-	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository) *AppStoreValuesServiceImpl {
+	appStoreVersionValuesRepository appStoreValuesRepository.AppStoreVersionValuesRepository, userService user.UserService) *AppStoreValuesServiceImpl {
 	return &AppStoreValuesServiceImpl{
 		logger:                          logger,
 		appStoreApplicationRepository:   appStoreApplicationRepository,
 		installedAppRepository:          installedAppRepository,
 		appStoreVersionValuesRepository: appStoreVersionValuesRepository,
+		userService:                     userService,
 	}
 }
 
@@ -63,6 +66,7 @@ func (impl AppStoreValuesServiceImpl) CreateAppStoreVersionValues(request *appSt
 		ValuesYaml:                   request.Values,
 		AppStoreApplicationVersionId: request.AppStoreVersionId,
 		ReferenceType:                appStoreBean.REFERENCE_TYPE_TEMPLATE,
+		Description:                  request.Description,
 	}
 	model.CreatedOn = time.Now()
 	model.UpdatedOn = time.Now()
@@ -89,6 +93,7 @@ func (impl AppStoreValuesServiceImpl) UpdateAppStoreVersionValues(request *appSt
 
 	model.Name = request.Name
 	model.ValuesYaml = request.Values
+	model.Description = request.Description
 	model.UpdatedBy = request.UserId
 	model.UpdatedOn = time.Now()
 	app, err := impl.appStoreVersionValuesRepository.UpdateAppStoreVersionValues(model)
@@ -273,6 +278,13 @@ func (impl AppStoreValuesServiceImpl) FindValuesByAppStoreIdAndReferenceType(app
 		}
 		appStoreVersionValuesDTO = append(appStoreVersionValuesDTO, filterItem)
 	}
+
+	// set updated by user email
+	err = impl.setUpdatedByUserEmail(appStoreVersionValuesDTO)
+	if err != nil {
+		return nil, err
+	}
+
 	return appStoreVersionValuesDTO, err
 }
 
@@ -289,6 +301,9 @@ func (impl AppStoreValuesServiceImpl) adapter(values *appStoreValuesRepository.A
 		Values:            values.ValuesYaml,
 		ChartVersion:      version,
 		AppStoreVersionId: values.AppStoreApplicationVersionId,
+		UpdatedOn:         values.UpdatedOn,
+		Description:       values.Description,
+		UpdatedByUserId:   values.UpdatedBy,
 	}, nil
 }
 
@@ -360,4 +375,43 @@ func (impl AppStoreValuesServiceImpl) GetSelectedChartMetaData(req *ChartMetaDat
 		res = append(res, chartMeta)
 	}
 	return res, err
+}
+
+func (impl AppStoreValuesServiceImpl) setUpdatedByUserEmail(appStoreVersionValuesDTO []*appStoreBean.AppStoreVersionValuesDTO) error {
+	uniqueUserIdsMap := make(map[int32]bool)
+	for _, dto := range appStoreVersionValuesDTO {
+		updatedByUserId := dto.UpdatedByUserId
+		if updatedByUserId > 0 {
+			uniqueUserIdsMap[updatedByUserId] = true
+		}
+	}
+	if len(uniqueUserIdsMap) == 0 {
+		return nil
+	}
+
+	var uniqueUserIds []int32
+	for uniqueUserId := range uniqueUserIdsMap {
+		uniqueUserIds = append(uniqueUserIds, uniqueUserId)
+	}
+
+	users, err := impl.userService.GetByIds(uniqueUserIds)
+	if err != nil {
+		impl.logger.Errorw("error while getting users from DB", "userIds", uniqueUserIds, "error", err)
+		return err
+	}
+
+	for _, dto := range appStoreVersionValuesDTO {
+		if dto.UpdatedByUserId == 0 {
+			continue
+		}
+
+		for _, user := range users {
+			if dto.UpdatedByUserId == user.Id {
+				dto.UpdatedByUserEmail = user.EmailId
+				break
+			}
+		}
+	}
+
+	return nil
 }

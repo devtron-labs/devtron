@@ -6,6 +6,8 @@
 <br>
 <a href="https://docs.devtron.ai/" rel="nofollow"><strong>Explore documentation »</strong></a>
 <br>
+<a href="https://preview.devtron.ai/dashboard/" rel="nofollow"><strong>Try Devtron Demo »</strong></a>
+<br>
 <a href="https://devtron.ai/">Website</a>
 ·
 <a href="https://devtron.ai/blog/">Blogs</a>
@@ -41,6 +43,11 @@ Devtron deeply integrates with products across the lifecycle of microservices,i.
 
 [Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
 
+
+## Devtron Demo environment
+
+Please log in the <a href="https://preview.devtron.ai/dashboard/" rel="nofollow">Demo environment</a> using github credentials. Please note the user is granted view access.
+
 ## Devtron features
 
 <details><summary><b>Application-level Resource grouping for easier Debugging</b></summary>
@@ -51,11 +58,13 @@ Devtron deeply integrates with products across the lifecycle of microservices,i.
 </details>
 <details><summary> <b>Centralized Access Management</b></summary>
 <br>
+
 - Control and give customizable view-only, edit access to users on Project, Environment and Application levels
 </details>
 
 <details><summary> <b>Deploy, Manage and Observe on multiple clusters</b></summary>
 <br>
+
 - Deploy and manage Helm charts, applications across multiple Kubernetes clusters (hosted on multiple clouds/on-prem) right from a single Devtron setup
 </details>
 
@@ -87,7 +96,7 @@ Devtron is designed to be modular, and its functionality can be easily extended 
 
 Before you begin, you must create a [Kubernetes cluster](https://kubernetes.io/docs/tutorials/kubernetes-basics/create-cluster/) (preferably K8s 1.16 or higher) and install [Helm](https://helm.sh/docs/intro/install/).
 
-### Install Devtron with CI/CD integration
+### 1. Install Devtron with CI/CD integration
 
 Run the following command to install the latest version of Devtron along with the CI/CD module:
 
@@ -98,6 +107,7 @@ helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd}
 ```
+
 ### Access Devtron
 
 **URL**: Use the following command to get the dashboard URL:
@@ -110,6 +120,7 @@ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.
 
 **UserName**:  `admin` <br>
 **Password**:   Run the following command to get the admin password
+
 ```bash
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
@@ -130,7 +141,7 @@ The command executes with one of the following output messages, indicating the s
 * **Downloaded**: The installer has downloaded all the manifests, and installation is in progress.
 * **Applied**: The installer has successfully applied all the manifests, and the installation is complete.
 
-### Install Devtron
+### 2. Install Devtron with Helm Bundle
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -138,7 +149,6 @@ helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
 
 ```
-
 
 ## :blue_heart: Technology
  
@@ -174,7 +184,7 @@ Devtron is trusted by Enterprises and Communities all across the globe:
  
 ## :question: FAQs & Troubleshooting
  
-- Devtron - [see here](https://docs.devtron.ai/devtron/faqs-and-troubleshooting/devtron-troubleshoot)
+- Devtron - [see here](https://docs.devtron.ai/resources/devtron-troubleshoot)
  
 ## :page_facing_up: Compatibility
  
@@ -201,6 +211,7 @@ Get updates on Devtron's development and chat with project maintainers, contribu
    >
 </a>
 </p>
+
 ## :handshake: Contribute
  
 Check out our [contributing guidelines](CONTRIBUTING.md). Included, are directions for opening issues, coding standards, and notes on our development processes. We deeply appreciate your contribution.

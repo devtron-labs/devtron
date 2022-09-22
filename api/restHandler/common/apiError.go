@@ -78,6 +78,11 @@ func WriteJsonResp(w http.ResponseWriter, err error, respBody interface{}, statu
 		apiErr.InternalMessage = errStatus.Error()
 		apiErr.UserMessage = errStatus.Error()
 		response.Errors = []*util.ApiError{apiErr}
+	} else if unexpectedObjectError, ok := err.(*errors2.UnexpectedObjectError); ok {
+		apiErr := &util.ApiError{}
+		apiErr.InternalMessage = unexpectedObjectError.Error()
+		apiErr.UserMessage = unexpectedObjectError.Error()
+		response.Errors = []*util.ApiError{apiErr}
 	} else {
 		apiErr := &util.ApiError{}
 		apiErr.Code = "000" // 000=unknown

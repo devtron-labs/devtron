@@ -16,7 +16,7 @@
  */
 
 /*
-	@description: user crud
+@description: user crud
 */
 package repository
 
@@ -37,7 +37,7 @@ type UserRepository interface {
 	FetchUserDetailByEmail(email string) (bean.UserInfo, error)
 	GetByIds(ids []int32) ([]UserModel, error)
 	GetConnection() (dbConnection *pg.DB)
-	FetchUserMatchesByEmailId(email string) ([]UserModel, error)
+	FetchUserMatchesByEmailIdExcludingApiTokenUser(email string) ([]UserModel, error)
 	FetchActiveOrDeletedUserByEmail(email string) (*UserModel, error)
 }
 
@@ -46,17 +46,17 @@ type UserRepositoryImpl struct {
 	Logger       *zap.SugaredLogger
 }
 
-func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, ) *UserRepositoryImpl {
+func NewUserRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *UserRepositoryImpl {
 	return &UserRepositoryImpl{dbConnection: dbConnection, Logger: logger}
 }
 
 type UserModel struct {
-	TableName    struct{}  `sql:"users"`
-	Id           int32     `sql:"id,pk"`
-	EmailId      string    `sql:"email_id,notnull"`
-	AccessToken  string    `sql:"access_token"`
-	Active       bool      `sql:"active,notnull"`
-	UserType     string    `sql:"user_type"`
+	TableName   struct{} `sql:"users"`
+	Id          int32    `sql:"id,pk"`
+	EmailId     string   `sql:"email_id,notnull"`
+	AccessToken string   `sql:"access_token"`
+	Active      bool     `sql:"active,notnull"`
+	UserType    string   `sql:"user_type"`
 	sql.AuditLog
 }
 
@@ -114,7 +114,7 @@ func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserIn
 	var users bean.UserInfo
 
 	query := "SELECT u.id, u.email_id, u.access_token, u.user_type FROM users u" +
-		" WHERE u.active = true and u.email_id ILIKE ? order by u.updated_on desc"
+		"WHERE u.active = true and u.email_id ILIKE ? order by u.updated_on desc"
 	_, err := impl.dbConnection.Query(&users, query, email)
 	if err != nil {
 		impl.Logger.Error("Exception caught:", err)
@@ -159,9 +159,12 @@ func (impl *UserRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
 	return impl.dbConnection
 }
 
-func (impl UserRepositoryImpl) FetchUserMatchesByEmailId(email string) ([]UserModel, error) {
+func (impl UserRepositoryImpl) FetchUserMatchesByEmailIdExcludingApiTokenUser(email string) ([]UserModel, error) {
 	var model []UserModel
-	err := impl.dbConnection.Model(&model).Where("email_id like (?)", "%"+email+"%").Where("active = ?", true).Select()
+	err := impl.dbConnection.Model(&model).
+		Where("email_id like (?)", "%"+email+"%").
+		Where("user_type is NULL or user_type != ?", bean.USER_TYPE_API_TOKEN).
+		Where("active = ?", true).Select()
 	return model, err
 }
 

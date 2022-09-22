@@ -19,6 +19,14 @@ package cluster
 
 import (
 	"encoding/json"
+	"net/http"
+	"strconv"
+	"strings"
+	"time"
+
+	"github.com/caarlos0/env/v6"
+	"github.com/devtron-labs/devtron/api/bean"
+
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
@@ -28,10 +36,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
-	"net/http"
-	"regexp"
-	"strconv"
-	"strings"
 )
 
 const ENV_DELETE_SUCCESS_RESP = "Environment deleted successfully."
@@ -56,12 +60,20 @@ type EnvironmentRestHandlerImpl struct {
 	validator                         *validator.Validate
 	enforcer                          casbin.Enforcer
 	deleteService                     delete2.DeleteService
+	cfg                               *bean.Config
 }
 
 func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.SugaredLogger, userService user.UserService,
 	validator *validator.Validate, enforcer casbin.Enforcer,
 	deleteService delete2.DeleteService,
 ) *EnvironmentRestHandlerImpl {
+	cfg := &bean.Config{}
+	err := env.Parse(cfg)
+	if err != nil {
+		logger.Errorw("error occurred while parsing config ", "err", err)
+		cfg.IgnoreAuthCheck = false
+	}
+	logger.Infow("evironment rest handler initialized", "ignoreAuthCheckValue", cfg.IgnoreAuthCheck)
 	return &EnvironmentRestHandlerImpl{
 		environmentClusterMappingsService: svc,
 		logger:                            logger,
@@ -69,13 +81,8 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 		validator:                         validator,
 		enforcer:                          enforcer,
 		deleteService:                     deleteService,
+		cfg:                               cfg,
 	}
-}
-
-func (impl EnvironmentRestHandlerImpl) validateNamespace(namespace string) bool {
-	hostnameRegexString := `^$|^[a-z]+[a-z0-9\-\?]*[a-z0-9]+$`
-	hostnameRegexRFC952 := regexp.MustCompile(hostnameRegexString)
-	return hostnameRegexRFC952.MatchString(namespace)
 }
 
 func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Request) {
@@ -98,11 +105,6 @@ func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Req
 	if err != nil {
 		impl.logger.Errorw("validation err, Create", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	if !impl.validateNamespace(bean.Namespace) {
-		impl.logger.Errorw("validation err, Create", "err", err, "namespace", bean.Namespace)
-		common.WriteJsonResp(w, errors.New("invalid ns"), nil, http.StatusBadRequest)
 		return
 	}
 
@@ -263,40 +265,39 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	start := time.Now()
 	environments, err := impl.environmentClusterMappingsService.GetEnvironmentListForAutocomplete()
 	if err != nil {
 		impl.logger.Errorw("service err, GetEnvironmentListForAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	dbElapsedTime := time.Since(start)
 
-	v := r.URL.Query()
-	authEnabled := true
-	auth := v.Get("auth")
-	if len(auth) > 0 {
-		authEnabled, err = strconv.ParseBool(auth)
-		if err != nil {
-			authEnabled = true
-			err = nil
-			//ignore error, apply rbac by default
-		}
-	}
 	token := r.Header.Get("token")
-	// RBAC enforcer applying
-	var grantedEnvironment []request.EnvironmentBean
-	for _, item := range environments {
-		if authEnabled == true {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
+	var grantedEnvironment = environments
+	start = time.Now()
+	if !impl.cfg.IgnoreAuthCheck {
+		grantedEnvironment = make([]request.EnvironmentBean, 0)
+		emailId, _ := impl.userService.GetEmailFromToken(token)
+		// RBAC enforcer applying
+		var envIdentifierList []string
+		for _, item := range environments {
+			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
+		}
+
+		result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+		for _, item := range environments {
+			if hasAccess := result[strings.ToLower(item.EnvironmentIdentifier)]; hasAccess {
 				grantedEnvironment = append(grantedEnvironment, item)
 			}
-		} else {
-			grantedEnvironment = append(grantedEnvironment, item)
 		}
+		//RBAC enforcer Ends
 	}
-	//RBAC enforcer Ends
-	if len(grantedEnvironment) == 0 {
-		grantedEnvironment = make([]request.EnvironmentBean, 0)
-	}
+	elapsedTime := time.Since(start)
+	impl.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
+		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
+
 	common.WriteJsonResp(w, err, grantedEnvironment, http.StatusOK)
 }
 

@@ -49,6 +49,9 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 	userAuthRouter.Path("/{id}").
 		HandlerFunc(router.userRestHandler.DeleteUser).Methods("DELETE")
 
+	userAuthRouter.Path("/detail/get").
+		HandlerFunc(router.userRestHandler.GetAllDetailedUsers).Methods("GET")
+
 	userAuthRouter.Path("/role/group/{id}").
 		HandlerFunc(router.userRestHandler.FetchRoleGroupById).Methods("GET")
 	userAuthRouter.Path("/role/group").
@@ -57,6 +60,8 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 		HandlerFunc(router.userRestHandler.UpdateRoleGroup).Methods("PUT")
 	userAuthRouter.Path("/role/group").
 		HandlerFunc(router.userRestHandler.FetchRoleGroups).Methods("GET")
+	userAuthRouter.Path("/role/group/detailed/get").
+		HandlerFunc(router.userRestHandler.FetchDetailedRoleGroups).Methods("GET")
 	userAuthRouter.Path("/role/group/search").
 		Queries("name", "{name}").
 		HandlerFunc(router.userRestHandler.FetchRoleGroupsByName).Methods("GET")
@@ -69,4 +74,8 @@ func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 		HandlerFunc(router.userRestHandler.SyncOrchestratorToCasbin).Methods("GET")
 	userAuthRouter.Path("/update/trigger/terminal").
 		HandlerFunc(router.userRestHandler.UpdateTriggerPolicyForTerminalAccess).Methods("PUT")
+	userAuthRouter.Path("/role/cache").
+		HandlerFunc(router.userRestHandler.GetRoleCacheDump).Methods("GET")
+	userAuthRouter.Path("/role/cache/invalidate").
+		HandlerFunc(router.userRestHandler.InvalidateRoleCache).Methods("GET")
 }
