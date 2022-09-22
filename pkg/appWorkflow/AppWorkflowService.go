@@ -357,7 +357,7 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 	}
 	cdPipelineIdNameMap := make(map[int]string, len(cdPipelines))
 	for _, cdPipeline := range cdPipelines {
-		cdPipelineIdNameMap[cdPipeline.Id] = cdPipeline.Name
+		cdPipelineIdNameMap[cdPipeline.Id] = cdPipeline.Environment.Name
 	}
 
 	for _, appWfMapping := range appWorkflowMappings {
@@ -368,8 +368,8 @@ func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (
 					wfComponentDetails[index].CiPipelineName = name
 				}
 			} else if appWfMapping.Type == CD_PIPELINE_TYPE {
-				if name, ok1 := cdPipelineIdNameMap[appWfMapping.ComponentId]; ok1 {
-					wfComponentDetails[index].CdPipelines = append(wfComponentDetails[index].CdPipelines, name)
+				if envName, ok1 := cdPipelineIdNameMap[appWfMapping.ComponentId]; ok1 {
+					wfComponentDetails[index].CdPipelines = append(wfComponentDetails[index].CdPipelines, envName)
 				}
 			}
 		}
