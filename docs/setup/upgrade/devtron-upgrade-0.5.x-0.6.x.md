@@ -22,7 +22,7 @@ export RELEASE_NAME=devtron
 ### 3. Run the following script to upgrade
 
 ```bash
-wget https://raw.githubusercontent.com/dheeth/utilities/argocd-integration/scripts/shell/upgrade-devtron-v6.sh
+wget https://raw.githubusercontent.com/devtron-labs/utilities/main/scripts/shell/upgrade-devtron-v6.sh
 ```
 
 ```bash
