@@ -302,9 +302,17 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			DockerfilePath:   createRequest.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
 			GitMaterialId:    createRequest.DockerConfigOverride.DockerBuildConfig.GitMaterialId,
 			Active:           true,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
 		}
 		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
 			templateOverrideReq.Id = savedTemplateOverride.Id
+			templateOverrideReq.CreatedOn = savedTemplateOverride.CreatedOn
+			templateOverrideReq.CreatedBy = savedTemplateOverride.CreatedBy
 			_, err = impl.ciTemplateOverrideRepository.Update(templateOverrideReq)
 			if err != nil {
 				impl.logger.Errorw("error in updating template override", "err", err, "templateOverrideConfig", templateOverrideReq)
@@ -522,6 +530,12 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				DockerfilePath:   ciPipeline.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
 				GitMaterialId:    ciPipeline.DockerConfigOverride.DockerBuildConfig.GitMaterialId,
 				Active:           true,
+				AuditLog: sql.AuditLog{
+					CreatedBy: createRequest.UserId,
+					CreatedOn: time.Now(),
+					UpdatedBy: createRequest.UserId,
+					UpdatedOn: time.Now(),
+				},
 			}
 			_, err = impl.ciTemplateOverrideRepository.Save(templateOverride)
 			if err != nil {
