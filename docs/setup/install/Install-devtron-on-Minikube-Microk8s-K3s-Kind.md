@@ -73,7 +73,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 
 ## Install Devtron on Cloud VM (AWS ec2, Azure VM, GCP VM)
 It is preferd to use Cloud VM with 2vCPU+, 4GB+ free Memory, 20GB+ Storage, Compute Optimized VM type & Ubuntu Flavoured OS.
- 1. Create Microk8s Cluster
+ * Create Microk8s Cluster
 ```bash
 sudo snap install microk8s --classic --channel=1.22
 sudo usermod -a -G microk8s $USER
@@ -86,7 +86,7 @@ source .bashrc
 ```
 
 
-2. Install devtron
+* Install devtron
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
@@ -95,7 +95,7 @@ helm install devtron devtron/devtron-operator \
 --set components.devtron.service.type=NodePort 
 
 ```
-3. Ensure that the port on which the devtron-service runs is open in the VM's security group or network Security group.
+* Ensure that the port on which the devtron-service runs is open in the VM's security group or network Security group.
 
 Commad to get the devtron-service Port number
 ```bash
