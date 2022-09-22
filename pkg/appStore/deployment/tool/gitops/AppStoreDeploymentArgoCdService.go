@@ -417,7 +417,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 		return nil, err
 	}
 	// update acd app
-	patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: chartGitAttr.ChartLocation, RepoURL: chartGitAttr.RepoUrl}}}
+	patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: chartGitAttr.ChartLocation, RepoURL: chartGitAttr.RepoUrl, TargetRevision: "master"}}}
 	reqbyte, err := json.Marshal(patchReq)
 	if err != nil {
 		impl.Logger.Errorw("error in creating patch", "err", err)
@@ -429,7 +429,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 		impl.Logger.Errorw("error in creating argo app ", "name", installAppVersionRequest.ACDAppName, "patch", string(reqbyte), "err", err)
 		return nil, err
 	}
-	//impl.appStoreDeploymentFullModeService.SyncACD(installAppVersionRequest.ACDAppName, ctx)
+	impl.appStoreDeploymentFullModeService.SyncACD(installAppVersionRequest.ACDAppName, ctx)
 	return installAppVersionRequest, nil
 }
 

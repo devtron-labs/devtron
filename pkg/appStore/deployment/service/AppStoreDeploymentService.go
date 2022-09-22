@@ -231,9 +231,9 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 func (impl AppStoreDeploymentServiceImpl) GetGitOpsRepoName(appName string) string {
 	var repoName string
 	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
-		repoName = appName
+		repoName = fmt.Sprintf("helm-%s", appName)
 	} else {
-		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
+		repoName = fmt.Sprintf("helm-%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
 	}
 	return repoName
 }
@@ -880,13 +880,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			}
 		}
 		//here will set new git repo name if required to migrate
-		newGitOpsRepoName := ""
-		if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
-			newGitOpsRepoName = installedApp.App.AppName
-		} else {
-			newGitOpsRepoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, installedApp.App.AppName)
-		}
-
+		newGitOpsRepoName := impl.GetGitOpsRepoName(installedApp.App.AppName)
 		//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
 		if newGitOpsRepoName != gitOpsRepoName {
 			monoRepoMigrationRequired = true
