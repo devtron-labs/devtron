@@ -14,6 +14,7 @@ FROM alpine:3.15.0 as  devtron-all
 RUN apk add --no-cache ca-certificates
 RUN apk update
 RUN apk add git
+RUN apk add curl
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/devtron .
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/auth_model.conf .
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets/ /go/src/github.com/devtron-labs/devtron/vendor/github.com/argoproj/argo-cd/assets

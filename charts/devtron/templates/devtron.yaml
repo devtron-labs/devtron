@@ -76,6 +76,14 @@ spec:
           image: {{ $.Values.components.devtron.image }}
           {{- end }}
           imagePullPolicy: {{ .imagePullPolicy }}
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - ' curl -X POST -H "Content-Type: application/json" -d ''{"eventType":
+                  "SIG_TERM"}'' localhost:8080/orchestrator/telemetry/summary'
           ports:
             - name: devtron
               containerPort: 8080
