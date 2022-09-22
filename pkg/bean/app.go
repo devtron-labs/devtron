@@ -436,7 +436,7 @@ type CDPipelineConfigObject struct {
 	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                            `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
 	Strategies                    []Strategy                        `json:"strategies,omitempty"`
-	Namespace                     string                            `json:"namespace,omitempty" validate:"name-component,max=50"` //namespace
+	Namespace                     string                            `json:"namespace,omitempty" validate:"name-space-component,max=50"` //namespace
 	AppWorkflowId                 int                               `json:"appWorkflowId,omitempty" `
 	DeploymentTemplate            pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
 	PreStage                      CdStage                           `json:"preStage"`
