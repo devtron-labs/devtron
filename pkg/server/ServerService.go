@@ -83,7 +83,7 @@ func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error)
 	helmReleaseStatus := devtronAppDetail.ReleaseStatus.Status
 	var serverStatus string
 
-	// for hyperion mode mode i.e. installer object not found - use mapping
+	// for hyperion mode  i.e. installer object not found - use mapping
 	// for full mode  -
 	// if installer object status is applied then use mapping
 	// if empty or downloaded, then check timeout

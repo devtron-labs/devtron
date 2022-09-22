@@ -16,7 +16,7 @@
  */
 
 /*
-	@description: user crud
+@description: user crud
 */
 package repository
 
@@ -114,7 +114,7 @@ func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserIn
 	var users bean.UserInfo
 
 	query := "SELECT u.id, u.email_id, u.access_token, u.user_type FROM users u" +
-		" WHERE u.active = true and u.email_id ILIKE ? order by u.updated_on desc"
+		"WHERE u.active = true and u.email_id ILIKE ? order by u.updated_on desc"
 	_, err := impl.dbConnection.Query(&users, query, email)
 	if err != nil {
 		impl.Logger.Error("Exception caught:", err)

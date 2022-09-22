@@ -20,12 +20,13 @@ package pipeline
 import (
 	"encoding/json"
 	"fmt"
+	"time"
+
 	chartService "github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"time"
 
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -44,7 +45,7 @@ type EnvironmentProperties struct {
 	Status            models.ChartStatus `json:"status" validate:"number,required"` //default new, when its ready for deployment CHARTSTATUS_SUCCESS
 	ManualReviewed    bool               `json:"manualReviewed" validate:"required"`
 	Active            bool               `json:"active" validate:"required"`
-	Namespace         string             `json:"namespace" validate:"name-component,required"`
+	Namespace         string             `json:"namespace" validate:"name-space-component,required"`
 	EnvironmentId     int                `json:"environmentId"`
 	EnvironmentName   string             `json:"environmentName"`
 	Latest            bool               `json:"latest"`
@@ -61,7 +62,7 @@ type EnvironmentPropertiesResponse struct {
 	IsOverride        bool                  `sql:"is_override"`
 	GlobalChartRefId  int                   `json:"globalChartRefId,omitempty"  validate:"number"`
 	ChartRefId        int                   `json:"chartRefId,omitempty"  validate:"number"`
-	Namespace         string                `json:"namespace" validate:"name-component"`
+	Namespace         string                `json:"namespace" validate:"name-space-component"`
 	Schema            json.RawMessage       `json:"schema"`
 	Readme            string                `json:"readme"`
 }
