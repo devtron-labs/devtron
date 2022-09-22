@@ -113,7 +113,7 @@ func (impl UserRepositoryImpl) GetAllExcludingApiTokenUser() ([]UserModel, error
 func (impl UserRepositoryImpl) FetchActiveUserByEmail(email string) (bean.UserInfo, error) {
 	var users bean.UserInfo
 
-	query := "SELECT u.id, u.email_id, u.access_token, u.user_type FROM users u" +
+	query := "SELECT u.id, u.email_id, u.access_token, u.user_type FROM users u " +
 		"WHERE u.active = true and u.email_id ILIKE ? order by u.updated_on desc"
 	_, err := impl.dbConnection.Query(&users, query, email)
 	if err != nil {
