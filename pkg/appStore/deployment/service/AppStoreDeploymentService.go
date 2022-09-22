@@ -879,7 +879,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 				return nil, err
 			}
 		}
-
+		//here will set new git repo name if required to migrate
 		newGitOpsRepoName := ""
 		if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
 			newGitOpsRepoName = installedApp.App.AppName
@@ -887,7 +887,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			newGitOpsRepoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, installedApp.App.AppName)
 		}
 
-		//checking weather git repo is with app name or not
+		//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
 		if newGitOpsRepoName != gitOpsRepoName {
 			monoRepoMigrationRequired = true
 			installAppVersionRequest.GitOpsRepoName = newGitOpsRepoName
@@ -898,6 +898,8 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 		installAppVersionRequest.ACDAppName = argocdAppName
 	}
+
+	//if charts in mono repo structure - do migrate it into independent git repo. here will create new repo and update acd application
 	if monoRepoMigrationRequired {
 		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
 		if err != nil {
@@ -981,7 +983,6 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		//DB operation
 		if monoRepoMigrationRequired {
 			// git repo and acd operation has been done above, now have to update new git repo name in db
-			//installedApp.Status = appStoreBean.DEPLOY_SUCCESS
 			_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
 			if err != nil {
 				impl.logger.Errorw("error while fetching from db", "error", err)

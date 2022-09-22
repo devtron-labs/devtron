@@ -110,6 +110,7 @@ const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 func (impl *ClusterServiceImpl) GetK8sClient() (*v12.CoreV1Client, error) {
 	return impl.K8sUtil.GetK8sClient()
 }
+
 func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
 	host := cluster.ServerUrl
 	configMap := cluster.Config
@@ -132,7 +133,6 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 }
 
 func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)

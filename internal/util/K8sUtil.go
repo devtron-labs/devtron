@@ -121,12 +121,12 @@ func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
 		config, err = rest.InClusterConfig()
 	}
 	if err != nil {
-		impl.logger.Errorw("error", "error", err)
+		impl.logger.Errorw("error fetching cluster config", "error", err)
 		return nil, err
 	}
 	client, err := v12.NewForConfig(config)
 	if err != nil {
-		impl.logger.Errorw("error", "error", err)
+		impl.logger.Errorw("error creating k8s client", "error", err)
 		return nil, err
 	}
 	return client, err
