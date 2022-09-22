@@ -46,6 +46,7 @@ type EnforcerUtil interface {
 	GetHelmObjectByAppNameAndEnvId(appName string, envId int) string
 	GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) string
 	GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int, envId int) string
+	GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string
 }
 type EnforcerUtilImpl struct {
 	logger                *zap.SugaredLogger
@@ -245,6 +246,7 @@ func (impl EnforcerUtilImpl) GetTeamAndEnvironmentRbacObjectByCDPipelineId(pipel
 	}
 	application, err := impl.appRepo.FindAppAndProjectByAppId(pipeline.AppId)
 	if err != nil {
+		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return "", ""
 	}
 	teamRbac := fmt.Sprintf("%s/%s", strings.ToLower(application.Team.Name), strings.ToLower(pipeline.App.AppName))
@@ -285,10 +287,12 @@ func (impl EnforcerUtilImpl) GetRbacObjectsForAllAppsAndEnvironments() (map[int]
 func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) string {
 	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
 	if err != nil {
+		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
+		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	environmentIdentifier := env.EnvironmentIdentifier
@@ -303,10 +307,12 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) string {
 func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envId int) string {
 	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
 	if err != nil {
+		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
+		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	environmentIdentifier := env.EnvironmentIdentifier
@@ -321,10 +327,12 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) string {
 	team, err := impl.teamRepository.FindOne(teamId)
 	if err != nil {
+		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
+		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 	environmentIdentifier := env.EnvironmentIdentifier
@@ -334,4 +342,18 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
 	}*/
 	return fmt.Sprintf("%s/%s/%s", strings.ToLower(team.Name), environmentIdentifier, "*")
+}
+
+func (impl EnforcerUtilImpl) GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string {
+	application, err := impl.appRepo.FindById(appId)
+	if err != nil {
+		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
+		return fmt.Sprintf("%s/%s", "", "")
+	}
+	team, err := impl.teamRepository.FindOne(teamId)
+	if err != nil {
+		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
+		return fmt.Sprintf("%s/%s", "", "")
+	}
+	return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(application.AppName))
 }

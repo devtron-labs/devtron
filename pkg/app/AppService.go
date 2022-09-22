@@ -111,7 +111,7 @@ type AppServiceImpl struct {
 	chartService                     chart.ChartService
 	argoUserService                  argo.ArgoUserService
 	cdPipelineStatusTimelineRepo     pipelineConfig.PipelineStatusTimelineRepository
-	appLabelService                  AppLabelService
+	appCrudOperationService          AppCrudOperationService
 }
 
 type AppService interface {
@@ -157,7 +157,7 @@ func NewAppService(
 	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	appLabelService AppLabelService) *AppServiceImpl {
+	appCrudOperationService AppCrudOperationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:      environmentConfigRepository,
 		mergeUtil:                        mergeUtil,
@@ -200,7 +200,7 @@ func NewAppService(
 		helmAppClient:                    helmAppClient,
 		argoUserService:                  argoUserService,
 		cdPipelineStatusTimelineRepo:     cdPipelineStatusTimelineRepo,
-		appLabelService:                  appLabelService,
+		appCrudOperationService:          appCrudOperationService,
 	}
 	return appServiceImpl
 }
@@ -512,7 +512,7 @@ func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *
 	event := impl.eventFactory.Build(util.Success, &override.PipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
-	_, evtErr := impl.eventClient.WriteEvent(event)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("error in writing event", "event", event, "err", evtErr)
 	}
@@ -890,7 +890,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		configMapJson = nil
 	}
 
-	appLabelJsonByte, err := impl.appLabelService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
+	appLabelJsonByte, err := impl.appCrudOperationService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 		appLabelJsonByte = nil
@@ -1281,7 +1281,7 @@ func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOver
 	event := impl.eventFactory.Build(util.Trigger, &pipeline.Id, pipeline.AppId, &pipeline.EnvironmentId, util.CD)
 	impl.logger.Debugw("event WriteCDTriggerEvent", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, pipelineOverrideId, bean.CD_WORKFLOW_TYPE_DEPLOY)
-	_, evtErr := impl.eventClient.WriteEvent(event)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("CD trigger event not sent", "error", evtErr)
 	}

@@ -44,6 +44,47 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /orchestrator/app/edit:
+    post:
+      description: update application projects and labels
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/App'
+      responses:
+        '200':
+          description: App update response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: object
+                    description: string
+                    allOf:
+                      - type: object
+                        properties:
+                          id:
+                            type: integer
+                            description: unique application id
+                        required:
+                          - id
+                      - $ref: '#/components/schemas/App'
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /orchestrator/app/list:
     post:
@@ -95,7 +136,40 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
+  /orchestrator/app/edit/projects:
+    post:
+      description: update project for app
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AppProjectUpdateRequest'
+      responses:
+        '200':
+          description: App update response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: object
+                    description: string
+                    $ref: '#/components/schemas/AppProjectUpdateRequest'
 
+        default:
+          description: unexpected error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 # components mentioned below
 components:
   schemas:
@@ -133,6 +207,20 @@ components:
           description: each apps may have multiple labels. these are optional.
           items:
             $ref: '#/components/schemas/AppLabel'
+    AppProjectUpdateRequest:
+      type: object
+      required:
+        - teamId
+        - appId
+      properties:
+        teamId:
+          type: integer
+          description: project id
+        appId:
+          type: array
+          description: team id, teams ids are projects ids
+          items:
+            type: integer
 
     AppListingRequest:
       type: object
