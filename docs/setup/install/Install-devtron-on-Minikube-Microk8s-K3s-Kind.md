@@ -1,5 +1,5 @@
 # Install Devtron on Minikube, Microk8s, K3s, Kind
-You can install and try Devtron with CI/CD integration on a high-end Laptop or on a Cloud VM but the laptop/PC may start to respond slow, so it is recommended to uninstall Devtron from your system before shutting it down.
+You can install and try Devtron on a high-end Laptop or on a Cloud VM but the laptop/PC may start to respond slow, so it is recommended to uninstall Devtron from your system before shutting it down.
 
 #### System Configurations for Devtron Installation
 1. 2 CPUs+ cores
