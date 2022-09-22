@@ -869,7 +869,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 	}
 
 	isHelmApp := util2.IsHelmApp(installedApp.App.AppOfferingMode) || util.IsHelmApp(installedApp.DeploymentAppType)
-
+	monoRepoMigrationRequired := false
 	// handle gitOps repo name and argoCdAppName for full mode app
 	if !isHelmApp {
 		gitOpsRepoName := installedApp.GitOpsRepoName
@@ -889,6 +889,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 
 		//checking weather git repo is with app name or not
 		if newGitOpsRepoName != gitOpsRepoName {
+			monoRepoMigrationRequired = true
 			installAppVersionRequest.GitOpsRepoName = newGitOpsRepoName
 		} else {
 			installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
@@ -897,7 +898,13 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 		installAppVersionRequest.ACDAppName = argocdAppName
 	}
-
+	if monoRepoMigrationRequired {
+		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
+		if err != nil {
+			impl.logger.Errorw("error while migrating the mono repo to individual", "error", err)
+			return nil, err
+		}
+	}
 	var installedAppVersion *repository.InstalledAppVersions
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
@@ -972,6 +979,15 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		}
 
 		//DB operation
+		if monoRepoMigrationRequired {
+			// git repo and acd operation has been done above, now have to update new git repo name in db
+			//installedApp.Status = appStoreBean.DEPLOY_SUCCESS
+			_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
+			if err != nil {
+				impl.logger.Errorw("error while fetching from db", "error", err)
+				return nil, err
+			}
+		}
 		installedAppVersion.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
 		installedAppVersion.UpdatedOn = time.Now()
 		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
