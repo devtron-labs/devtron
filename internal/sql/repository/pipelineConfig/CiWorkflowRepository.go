@@ -56,6 +56,7 @@ type CiWorkflow struct {
 	FinishedOn         time.Time         `sql:"finished_on"`
 	CiPipelineId       int               `sql:"ci_pipeline_id"`
 	Namespace          string            `sql:"namespace"`
+	BlobStorageEnabled bool              `sql:"blob_storage_enabled,notnull"`
 	LogLocation        string            `sql:"log_file_path"`
 	GitTriggers        map[int]GitCommit `sql:"git_triggers"`
 	TriggeredBy        int32             `sql:"triggered_by"`
@@ -80,6 +81,7 @@ type WorkflowWithArtifact struct {
 	Image              string            `json:"image"`
 	CiArtifactLocation string            `json:"ci_artifact_location"`
 	CiArtifactId       int               `json:"ci_artifact_d"`
+	BlobStorageEnabled bool              `json:"blobStorageEnabled"`
 }
 
 type GitCommit struct {
