@@ -899,7 +899,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		installAppVersionRequest.ACDAppName = argocdAppName
 	}
 	if monoRepoMigrationRequired {
-		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.InstallApp(installAppVersionRequest, ctx)
+		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
 		if err != nil {
 			impl.logger.Errorw("error while migrating the mono repo to individual", "error", err)
 			return nil, err
