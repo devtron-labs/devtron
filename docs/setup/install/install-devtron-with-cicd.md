@@ -1,6 +1,6 @@
 # Install Devtron with CICD integration
 
-Are you installing Devtron on Minikube, Microk8s, K3s, Kind? See Instructions [here](install-devtron-local.md)
+Are you installing Devtron on Minikube, Microk8s, K3s, Kind? See Instructions [here](./Install-devtron-on-Minikube%2CMicrok8s%2CK3s%2CKind.md)
 
 ## Before you begin
 
