@@ -9,10 +9,18 @@ Install [Helm](https://helm.sh/docs/intro/install/).
 1. Add Devtron repository
 2. Install Devtron
 
-
+Install with:
 {% tabs %}
-{% tab title="Install with default configurations" %}
-This installation will use Minio for storing build logs and cache.
+{% tab title="Default" %}
+
+Use the following command to install Devtron without Blob Storage. 
+
+Configuring Blob Storage in your Devtron environment allows you to store build logs and cache.
+In case, if you do not configure the Blob Storage, then:
+
+- You will not be able to access the build and deployment logs after an hour.
+- Build time for cache takes longer.
+- Artifact reports cannot be generated in pre/post build and deployment stages.
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -20,13 +28,31 @@ helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd}
-
 ```
 
 {% endtab %}
 
-{% tab title="Install with AWS S3 Buckets" %}
-This installation will use AWS s3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
+{% tab title="MinIO Storage" %}
+
+Use the following command to install Devtron along with MinIO for storing logs and cache.
+**Note**: Unlike global cloud providers such as AWS S3 Bucket, Azure Blob Storage and Google Cloud Storage, MinIO can be hosted locally also.
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set minio.enabled=true
+```
+
+{% endtab %}
+
+{% tab title="AWS S3 Bucket" %}
+Use the following command to install Devtron along with AWS S3 buckets for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#aws-specific) page.
+
+*  Install using S3 IAM policy.
+
+>NOTE: Pleasee ensure that S3 permission policy to the IAM role attached to the nodes of the cluster if you are using the below command.
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -39,11 +65,45 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 --set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
 ```
+
+*  Install using access-key and secret-key for AWS S3 authentication:
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
+```
+
+*  Install using S3 compatible storages: 
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
+--set configs.BLOB_STORAGE_S3_ENDPOINT=<endpoint>
+```
+
 {% endtab %}
 
-{% tab title="Install with Azure Blob Storage" %}
-This installation will use Azure Blob Storage for storing build logs and cache.
-Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#storage-for-logs-and-cache) page.
+{% tab title="Azure Blob Storage" %}
+Use the following command to install Devtron along with Azure Blob Storage for storing build logs and cache.
+Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#azure-specific) page.
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -56,12 +116,30 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 --set configs.AZURE_BLOB_CONTAINER_CI_LOG=ci-log-container \
 --set configs.AZURE_BLOB_CONTAINER_CI_CACHE=ci-cache-container
 ```
+
+{% endtab %}
+
+{% tab title="Google Cloud Storage" %}
+Use the following command to install Devtron along with Google Cloud Storage for storing build logs and cache.
+Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#google-cloud-storage-specific) page.
+
+```bash
+helm repo add devtron https://helm.devtron.ai
+
+helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER: GCP \
+--set secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON: {\"type\": \"service_account\",\"project_id\": \"<your-project-id>\",\"private_key_id\": \"<your-private-key-id>\",\"private_key\": \"<your-private-key>\",\"client_email\": \"<your-client-email>\",\"client_id\": \"<your-client-id>\",\"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\"token_uri\": \"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\"client_x509_cert_url\": \"<your-client-cert-url>\"} \
+--set configs.DEFAULT_CACHE_BUCKET: cache-bucket
+--set configs.DEFAULT_BUILD_LOGS_BUCKET: log-bucket
+```
+
 {% endtab %}
 {% endtabs %}
 
 > Append the command with `--set installer.release="vX.X.X"` to install a particular version of Devtron. Where `vx.x.x` is the [release tag](https://github.com/devtron-labs/devtron/releases).
 
-For those countries/users where Github is blocked, you can use Gitee as the installation source:
+For those countries/users where GitHub is blocked, you can use Gitee as the installation source:
 
 {% tabs %}
 {% tab title="Install with Gitee" %}
