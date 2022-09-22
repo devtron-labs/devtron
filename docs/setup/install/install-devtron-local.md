@@ -1,4 +1,15 @@
-# Install Devtron on Minikube, Microk8s, K3s, Kind
+# Install Devtron on Self Managed Environments (AWS AMI, Minikube, kind, k3s)
+
+
+Devtron can be installed on any feasible environment it can be either a local Cluster, Any Cloud VM, or using AWS AMI.
+
+* [Devtron using AWS AMI](https://aws.amazon.com/marketplace/pp/prodview-lk3liabqn4x2i?sr=0-1&ref_=beagle&applicationId=AWS-Marketplace-Console): Devtron can be used with CI/CD integrations using Amazon Machine Image. It is free to use with all functionalities integrated seamlessly
+
+* [Devtron on Local Cluster Environments](#before-you-begin): Devtron can be used by installing on Local Cluster Environment (Minikube, kind, k3s)
+
+* [Devtron on Any Cloud Proider VM](#install-devtron-on-cloud-vm-aws-ec2-azure-vm-gcp-vm): Devtron can be used on any Cloud  VM over a microk8s cluster, detailed steps are mentioned below.
+
+
 You can install and try Devtron with CI/CD integration on a high-end Laptop or on a Cloud VM but the laptop/PC may start to respond slow, so it is recommended to uninstall Devtron from your system before shutting it down.
 
 #### System Configurations for Devtron Installation
@@ -74,7 +85,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 ```
 
 ## Install Devtron on Cloud VM (AWS ec2, Azure VM, GCP VM)
-It is preferd to use Cloud VM with 2vCPU, 4GB free Memory & 20GB+ Storage.
+It is preferd to use Cloud VM with 2vCPU+, 4GB+ free Memory, 20GB+ Storage, Compute Optimized VM type & Ubuntu Flavoured OS.
  1. Create Microk8s Cluster
 ```bash
 sudo snap install microk8s --classic --channel=1.22
