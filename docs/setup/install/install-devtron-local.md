@@ -74,7 +74,7 @@ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}
 ```
 
 ## Install Devtron on Cloud VM (AWS ec2, Azure VM, GCP VM)
-It is preferd to use Cloud VM with 2vCPU, 4GB free Memory & 20GB+ Storage.
+It is preferd to use Cloud VM with 2vCPU+, 4GB+ free Memory, 20GB+ Storage, Compute Optimized VM type & Ubuntu Flavoured OS.
  1. Create Microk8s Cluster
 ```bash
 sudo snap install microk8s --classic --channel=1.22
