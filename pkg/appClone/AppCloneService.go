@@ -56,17 +56,17 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-
-) *AppCloneServiceImpl {
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
-		logger:                  logger,
-		pipelineBuilder:         pipelineBuilder,
-		materialRepository:      materialRepository,
-		chartService:            chartService,
-		configMapService:        configMapService,
-		appWorkflowService:      appWorkflowService,
-		appListingService:       appListingService,
-		propertiesConfigService: propertiesConfigService,
+		logger:                       logger,
+		pipelineBuilder:              pipelineBuilder,
+		materialRepository:           materialRepository,
+		chartService:                 chartService,
+		configMapService:             configMapService,
+		appWorkflowService:           appWorkflowService,
+		appListingService:            appListingService,
+		propertiesConfigService:      propertiesConfigService,
+		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
 	}
 
 }
