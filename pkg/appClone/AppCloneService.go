@@ -738,7 +738,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					return nil, err
 				}
 				//getting new git material for this app
-				gitMaterial, err := impl.materialRepository.FindByAppIdAndCheckoutPath(req.refAppId, templateOverride.GitMaterial.CheckoutPath)
+				gitMaterial, err := impl.materialRepository.FindByAppIdAndCheckoutPath(req.appId, templateOverride.GitMaterial.CheckoutPath)
 				if err != nil {
 					impl.logger.Errorw("error in getting git material by appId and checkoutPath", "err", err, "appid", req.refAppId, "checkoutPath", templateOverride.GitMaterial.CheckoutPath)
 					return nil, err
