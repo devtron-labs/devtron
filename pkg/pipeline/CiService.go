@@ -438,16 +438,19 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
 		workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildS3ArtifactLocation(ciWorkflowConfig, savedWf)
 		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
-			AccessKey:            impl.ciConfig.BlobStorageS3AccessKey,
-			Passkey:              impl.ciConfig.BlobStorageS3SecretKey,
-			EndpointUrl:          impl.ciConfig.BlobStorageS3Endpoint,
-			IsInSecure:           impl.ciConfig.BlobStorageS3EndpointInsecure,
-			CiCacheBucketName:    ciWorkflowConfig.CiCacheBucket,
-			CiCacheRegion:        ciWorkflowConfig.CiCacheRegion,
-			CiArtifactBucketName: workflowRequest.CiArtifactBucket,
-			CiArtifactRegion:     impl.ciConfig.DefaultCdLogsBucketRegion,
-			CiLogBucketName:      impl.ciConfig.DefaultBuildLogsBucket,
-			CiLogRegion:          impl.ciConfig.DefaultCdLogsBucketRegion,
+			AccessKey:                  impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:                    impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl:                impl.ciConfig.BlobStorageS3Endpoint,
+			IsInSecure:                 impl.ciConfig.BlobStorageS3EndpointInsecure,
+			CiCacheBucketName:          ciWorkflowConfig.CiCacheBucket,
+			CiCacheRegion:              ciWorkflowConfig.CiCacheRegion,
+			CiCacheBucketVersioning:    impl.ciConfig.BlobStorageS3BucketVersioned,
+			CiArtifactBucketName:       workflowRequest.CiArtifactBucket,
+			CiArtifactRegion:           impl.ciConfig.DefaultCdLogsBucketRegion,
+			CiArtifactBucketVersioning: impl.ciConfig.BlobStorageS3BucketVersioned,
+			CiLogBucketName:            impl.ciConfig.DefaultBuildLogsBucket,
+			CiLogRegion:                impl.ciConfig.DefaultCdLogsBucketRegion,
+			CiLogBucketVersioning:      impl.ciConfig.BlobStorageS3BucketVersioned,
 		}
 	case BLOB_STORAGE_GCP:
 		workflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{
@@ -468,11 +471,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			BlobContainerArtifact: impl.ciConfig.AzureBlobContainerCiLog,
 		}
 		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
-			EndpointUrl:     impl.ciConfig.AzureGatewayUrl,
-			IsInSecure:      impl.ciConfig.AzureGatewayConnectionInsecure,
-			CiLogBucketName: impl.ciConfig.AzureBlobContainerCiLog,
-			CiLogRegion:     impl.ciConfig.DefaultCacheBucketRegion,
-			AccessKey:       impl.ciConfig.AzureAccountName,
+			EndpointUrl:           impl.ciConfig.AzureGatewayUrl,
+			IsInSecure:            impl.ciConfig.AzureGatewayConnectionInsecure,
+			CiLogBucketName:       impl.ciConfig.AzureBlobContainerCiLog,
+			CiLogRegion:           impl.ciConfig.DefaultCacheBucketRegion,
+			CiLogBucketVersioning: impl.ciConfig.BlobStorageS3BucketVersioned,
+			AccessKey:             impl.ciConfig.AzureAccountName,
 		}
 		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
 		workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation
