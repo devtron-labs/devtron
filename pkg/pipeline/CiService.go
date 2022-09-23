@@ -19,6 +19,7 @@ package pipeline
 
 import (
 	"fmt"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -58,6 +59,7 @@ type CiServiceImpl struct {
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
 	userService                   user.UserService
+	ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -66,7 +68,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
-	userService user.UserService) *CiServiceImpl {
+	userService user.UserService,
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
 		workflowService:               workflowService,
@@ -80,6 +83,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
 		userService:                   userService,
+		ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
 	}
 }
 
@@ -376,36 +380,53 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		impl.Logger.Errorw("err", "err", err)
 		return nil, err
 	}
-
-	checkoutPath := pipeline.CiTemplate.GitMaterial.CheckoutPath
-	if checkoutPath == "" {
-		checkoutPath = "./"
-	}
 	user, err := impl.userService.GetById(trigger.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("unable to find user by id", "err", err, "id", trigger.TriggeredBy)
 		return nil, err
 	}
-	dockerfilePath := filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
+	var dockerfilePath string
+	var dockerRepository string
+	var checkoutPath string
+	dockerRegistry := &repository3.DockerArtifactStore{}
+	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
+		templateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(pipeline.Id)
+		if err != nil {
+			impl.Logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "err", err, "ciPipelineId", pipeline.Id)
+			return nil, err
+		}
+		dockerfilePath = filepath.Join(templateOverride.GitMaterial.CheckoutPath, templateOverride.DockerfilePath)
+		dockerRepository = templateOverride.DockerRepository
+		dockerRegistry = templateOverride.DockerRegistry
+		checkoutPath = templateOverride.GitMaterial.CheckoutPath
+	} else {
+		dockerfilePath = filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
+		dockerRegistry = pipeline.CiTemplate.DockerRegistry
+		dockerRepository = pipeline.CiTemplate.DockerRepository
+		checkoutPath = pipeline.CiTemplate.GitMaterial.CheckoutPath
+	}
+	if checkoutPath == "" {
+		checkoutPath = "./"
+	}
 	workflowRequest := &WorkflowRequest{
 		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
 		PipelineName:               pipeline.Name,
 		PipelineId:                 pipeline.Id,
-		DockerRegistryId:           pipeline.CiTemplate.DockerRegistry.Id,
-		DockerRegistryType:         string(pipeline.CiTemplate.DockerRegistry.RegistryType),
+		DockerRegistryId:           dockerRegistry.Id,
+		DockerRegistryType:         string(dockerRegistry.RegistryType),
 		DockerImageTag:             dockerImageTag,
-		DockerRegistryURL:          pipeline.CiTemplate.DockerRegistry.RegistryURL,
-		DockerRepository:           pipeline.CiTemplate.DockerRepository,
+		DockerRegistryURL:          dockerRegistry.RegistryURL,
+		DockerRepository:           dockerRepository,
 		DockerBuildArgs:            string(merged),
 		DockerBuildTargetPlatform:  pipeline.CiTemplate.TargetPlatform,
 		DockerFileLocation:         dockerfilePath,
-		DockerUsername:             pipeline.CiTemplate.DockerRegistry.Username,
-		DockerPassword:             pipeline.CiTemplate.DockerRegistry.Password,
-		AwsRegion:                  pipeline.CiTemplate.DockerRegistry.AWSRegion,
-		AccessKey:                  pipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
-		SecretKey:                  pipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
-		DockerConnection:           pipeline.CiTemplate.DockerRegistry.Connection,
-		DockerCert:                 pipeline.CiTemplate.DockerRegistry.Cert,
+		DockerUsername:             dockerRegistry.Username,
+		DockerPassword:             dockerRegistry.Password,
+		AwsRegion:                  dockerRegistry.AWSRegion,
+		AccessKey:                  dockerRegistry.AWSAccessKeyId,
+		SecretKey:                  dockerRegistry.AWSSecretAccessKey,
+		DockerConnection:           dockerRegistry.Connection,
+		DockerCert:                 dockerRegistry.Cert,
 		CiCacheFileName:            pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
 		CiProjectDetails:           ciProjectDetails,
 		Namespace:                  ciWorkflowConfig.Namespace,
