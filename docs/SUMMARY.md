@@ -72,6 +72,7 @@
 * [Bulk Edit](user-guide/bulk-update.md)
 * [Integrations](user-guide/integrations/README.md)
   * [Build and Deploy (CI/CD)](user-guide/integrations/build-and-deploy-ci-cd.md)
+  * [GitOps (by Argo CD)](user-guide/integrations/argocd.md)
 
 ## Resources
 
