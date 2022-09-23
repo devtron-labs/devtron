@@ -78,6 +78,7 @@ func (repo *CiTemplateOverrideRepositoryImpl) FindByAppId(appId int) ([]*CiTempl
 func (repo *CiTemplateOverrideRepositoryImpl) FindByCiPipelineId(ciPipelineId int) (*CiTemplateOverride, error) {
 	ciTemplateOverride := &CiTemplateOverride{}
 	err := repo.dbConnection.Model(ciTemplateOverride).
+		Column("ci_template_override.*", "GitMaterial", "DockerRegistry").
 		Where("ci_pipeline_id = ?", ciPipelineId).
 		Where("active = ?", true).
 		Select()
