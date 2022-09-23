@@ -80,7 +80,7 @@ func (repo *CiTemplateOverrideRepositoryImpl) FindByCiPipelineId(ciPipelineId in
 	err := repo.dbConnection.Model(ciTemplateOverride).
 		Column("ci_template_override.*", "GitMaterial", "DockerRegistry").
 		Where("ci_pipeline_id = ?", ciPipelineId).
-		Where("active = ?", true).
+		Where("ci_template_override.active = ?", true).
 		Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "err", err, "ciPipelineId", ciPipelineId)
