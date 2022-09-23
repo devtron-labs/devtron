@@ -27,7 +27,7 @@ The minimum requirements for Devtron and Devtron with CI/CD integration in produ
 
 > Refer to the [Override Configurations](./override-default-devtron-installation-configs.md) section for more information.
 
->**Note:** It is not recommended to use brustable instances for devtron installation. It may have performance issues.
+>**Note:** It is NOT recommended to use brustable CPU VMs (T series in AWS, B Series in Azure and E2/N1 in GCP) for Devtron installation.
  
 ## Before you begin
  
