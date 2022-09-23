@@ -146,10 +146,7 @@ annotations:
   service.beta.kubernetes.io/do-loadbalancer-redirect-http-to-https: "true"
 ```
 
-
-
-
-### 2. Application Load Balancer (ALB)
+### 2. AWS Application Load Balancer (AWS ALB)
 
 In case of AWS application load balancer, add following annotations under `ingress.annotations` to run devtron over `https`.
 
@@ -172,6 +169,3 @@ In case of AWS application load balancer, the following annotations need to be a
   appgw.ingress.kubernetes.io/appgw-ssl-certificate: "<name-of-appgw-installed-certificate>"
 ```
 > Note: Make sure to not use port 80 with HTTPS and port 443 with HTTP on the Pods.
-
-
-
