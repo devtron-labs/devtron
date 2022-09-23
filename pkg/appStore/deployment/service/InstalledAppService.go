@@ -178,7 +178,7 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 	for _, a := range installedApps {
 		appLocal := a // copied data from here because value is passed as reference
 		if appLocal.TeamId == 0 && appLocal.AppOfferingMode != util3.SERVER_MODE_HYPERION {
-			//skipping entries for empty projectId for non hyperion app
+			//skipping entries for empty projectId for non hyperion app (as app list should return the helm apps from installedApps)
 			continue
 		}
 		appId := strconv.Itoa(appLocal.Id)
