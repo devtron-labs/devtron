@@ -231,9 +231,9 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 func (impl AppStoreDeploymentServiceImpl) GetGitOpsRepoName(appName string) string {
 	var repoName string
 	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
-		repoName = fmt.Sprintf("helm-%s", appName)
+		repoName = appName
 	} else {
-		repoName = fmt.Sprintf("helm-%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
+		repoName = fmt.Sprintf("%s-%s", impl.globalEnvVariables.GitOpsRepoPrefix, appName)
 	}
 	return repoName
 }
