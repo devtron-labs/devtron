@@ -380,11 +380,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		impl.Logger.Errorw("err", "err", err)
 		return nil, err
 	}
-
-	checkoutPath := pipeline.CiTemplate.GitMaterial.CheckoutPath
-	if checkoutPath == "" {
-		checkoutPath = "./"
-	}
 	user, err := impl.userService.GetById(trigger.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("unable to find user by id", "err", err, "id", trigger.TriggeredBy)
@@ -392,6 +387,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 	var dockerfilePath string
 	var dockerRepository string
+	var checkoutPath string
 	dockerRegistry := &repository3.DockerArtifactStore{}
 	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
 		templateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(pipeline.Id)
@@ -402,10 +398,15 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerfilePath = filepath.Join(templateOverride.GitMaterial.CheckoutPath, templateOverride.DockerfilePath)
 		dockerRepository = templateOverride.DockerRepository
 		dockerRegistry = templateOverride.DockerRegistry
+		checkoutPath = templateOverride.GitMaterial.CheckoutPath
 	} else {
 		dockerfilePath = filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
 		dockerRegistry = pipeline.CiTemplate.DockerRegistry
 		dockerRepository = pipeline.CiTemplate.DockerRepository
+		checkoutPath = pipeline.CiTemplate.GitMaterial.CheckoutPath
+	}
+	if checkoutPath == "" {
+		checkoutPath = "./"
 	}
 	workflowRequest := &WorkflowRequest{
 		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
