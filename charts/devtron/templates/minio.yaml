@@ -1,0 +1,415 @@
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
+{{- if or ($.Values.minio.enabled) (eq $.Values.configs.BLOB_STORAGE_PROVIDER "AZURE") }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: devtron-minio-update-prometheus-secret
+  labels:
+    app: minio-update-prometheus-secret
+    release: devtron
+    heritage: Helm
+---
+apiVersion: v1  
+kind: ServiceAccount
+metadata:
+  name: "devtron-minio"
+  namespace: "devtroncd"
+  labels:
+    app: minio
+    release: "devtron"
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-minio
+  labels:
+    app: minio
+    release: devtron
+    heritage: Helm
+data:
+  initialize: |-
+    #!/bin/sh
+    set -e ; # Have script exit in the event of a failed command.
+    MC_CONFIG_DIR="/etc/minio/mc/"
+    MC="/usr/bin/mc --insecure --config-dir ${MC_CONFIG_DIR}"
+
+    # connectToMinio
+    # Use a check-sleep-check loop to wait for Minio service to be available
+    connectToMinio() {
+      SCHEME=$1
+      ATTEMPTS=0 ; LIMIT=29 ; # Allow 30 attempts
+      set -e ; # fail if we can't read the keys.
+      ACCESS=$(cat /config/accesskey) ; SECRET=$(cat /config/secretkey) ;
+      set +e ; # The connections to minio are allowed to fail.
+      echo "Connecting to Minio server: $SCHEME://$MINIO_ENDPOINT:$MINIO_PORT" ;
+      MC_COMMAND="${MC} config host add myminio $SCHEME://$MINIO_ENDPOINT:$MINIO_PORT $ACCESS $SECRET" ;
+      $MC_COMMAND ;
+      STATUS=$? ;
+      until [ $STATUS = 0 ]
+      do
+        ATTEMPTS=`expr $ATTEMPTS + 1` ;
+        echo \"Failed attempts: $ATTEMPTS\" ;
+        if [ $ATTEMPTS -gt $LIMIT ]; then
+          exit 1 ;
+        fi ;
+        sleep 2 ; # 1 second intervals between attempts
+        $MC_COMMAND ;
+        STATUS=$? ;
+      done ;
+      set -e ; # reset `e` as active
+      return 0
+    }
+
+    # checkBucketExists ($bucket)
+    # Check if the bucket exists, by using the exit code of `mc ls`
+    checkBucketExists() {
+      BUCKET=$1
+      CMD=$(${MC} ls myminio/$BUCKET > /dev/null 2>&1)
+      return $?
+    }
+
+    # createBucket ($bucket, $policy, $purge)
+    # Ensure bucket exists, purging if asked to
+    createBucket() {
+      BUCKET=$1
+      POLICY=$2
+      PURGE=$3
+      VERSIONING=$4
+
+      # Purge the bucket, if set & exists
+      # Since PURGE is user input, check explicitly for `true`
+      if [ $PURGE = true ]; then
+        if checkBucketExists $BUCKET ; then
+          echo "Purging bucket '$BUCKET'."
+          set +e ; # don't exit if this fails
+          ${MC} rm -r --force myminio/$BUCKET
+          set -e ; # reset `e` as active
+        else
+          echo "Bucket '$BUCKET' does not exist, skipping purge."
+        fi
+      fi
+
+      # Create the bucket if it does not exist
+      if ! checkBucketExists $BUCKET ; then
+        echo "Creating bucket '$BUCKET'"
+        ${MC} mb myminio/$BUCKET
+      else
+        echo "Bucket '$BUCKET' already exists."
+      fi
+
+      # set versioning for bucket
+      if [ ! -z $VERSIONING ] ; then
+        if [ $VERSIONING = true ] ; then
+            echo "Enabling versioning for '$BUCKET'"
+            ${MC} version enable myminio/$BUCKET
+        elif [ $VERSIONING = false ] ; then
+            echo "Suspending versioning for '$BUCKET'"
+            ${MC} version suspend myminio/$BUCKET
+        fi
+      else
+          echo "Bucket '$BUCKET' versioning unchanged."
+      fi
+
+      # At this point, the bucket should exist, skip checking for existence
+      # Set policy on the bucket
+      echo "Setting policy of bucket '$BUCKET' to '$POLICY'."
+      ${MC} policy set $POLICY myminio/$BUCKET
+    }
+
+    # Try connecting to Minio instance
+    scheme=http
+    connectToMinio $scheme
+    {{- if and ($.Values.minio.enabled) (not $.Values.configs.BLOB_STORAGE_PROVIDER) }}
+    # Create the buckets
+    {{- if lt ($.Values.minio.replicaCount | int) 4 }}
+    createBucket devtron-ci-log none false
+    createBucket devtron-ci-cache none false
+    {{- else }}
+    createBucket devtron-ci-log none false true
+    createBucket devtron-ci-cache none false true
+    {{- end }}
+    {{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: devtron-minio-update-prometheus-secret
+  labels:
+    app: minio-update-prometheus-secret
+    release: devtron
+    heritage: Helm
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - get
+      - create
+      - update
+      - patch
+    resourceNames:
+      - devtron-minio-prometheus
+  - apiGroups:
+      - ""
+    resources:
+      - secrets
+    verbs:
+      - create
+  - apiGroups:
+      - monitoring.coreos.com
+    resources:
+      - servicemonitors
+    verbs:
+      - get
+    resourceNames:
+      - devtron-minio
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devtron-minio-update-prometheus-secret
+  labels:
+    app: minio-update-prometheus-secret
+    release: devtron
+    heritage: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: devtron-minio-update-prometheus-secret
+subjects:
+  - kind: ServiceAccount
+    name: devtron-minio-update-prometheus-secret
+    namespace: "devtroncd"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devtron-minio
+  labels:
+    app: minio
+    release: {{ $.Release.Name }}
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      port: 9000
+      protocol: TCP
+      targetPort: 9000
+  selector:
+    app: minio
+    {{- if eq $.Values.configs.BLOB_STORAGE_PROVIDER "AZURE" }}
+    release: devtron-minio
+    {{- else }}
+    release: {{ $.Release.Name }}
+    {{- end }}
+{{- if and ($.Values.minio.enabled) (not $.Values.configs.BLOB_STORAGE_PROVIDER) }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: devtron-minio-svc
+  labels:
+    app: minio
+    release: {{ $.Release.Name }}
+    heritage: "Helm"
+spec:
+  publishNotReadyAddresses: true
+  clusterIP: None
+  ports:
+    - name: http
+      port: 9000
+      protocol: TCP
+  selector:
+    app: minio
+    release: {{ $.Release.Name }}
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  {{- if lt ($.Values.minio.replicaCount | int) 4 }}
+  name: minio-devtron
+  {{- else }}
+  name: devtron-minio
+  {{- end }}
+  labels:
+    app: minio
+    release: {{ $.Release.Name }}
+    heritage: Helm
+spec:
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: "Parallel"
+  serviceName: devtron-minio-svc
+  {{- if lt ($.Values.minio.replicaCount | int) 4 }}
+  replicas: 1
+  {{- else }}
+  replicas: {{ $.Values.minio.replicaCount }}
+  {{- end }}
+  selector:
+    matchLabels:
+      app: minio
+      release: {{ $.Release.Name }}
+  template:
+    metadata:
+      name: devtron-minio
+      labels:
+        app: minio
+        release: {{ $.Release.Name }}
+    spec:
+      serviceAccountName: "devtron-minio"
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: minio
+          image: {{ $.Values.minio.image }}
+          imagePullPolicy: {{ $.Values.minio.imagePullPolicy }}
+
+          command: [ "/bin/sh",
+                     "-ce",
+                     {{- if lt ($.Values.minio.replicaCount | int) 4 }}
+                     "/usr/bin/docker-entrypoint.sh minio -S /etc/minio/certs/ server  /export" ]
+                     {{- else }}
+                     "/usr/bin/docker-entrypoint.sh minio -S /etc/minio/certs/ server  http://devtron-minio-{0...{{ sub ($.Values.minio.replicaCount | int) 1 }}}.devtron-minio-svc.devtroncd.svc.cluster.local/export" ]
+                     {{- end }}
+          volumeMounts:
+            - name: export
+              mountPath: /export
+          ports:
+            - name: http
+              containerPort: 9000
+          env:
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: devtron-minio
+                  key: accesskey
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: devtron-minio
+                  key: secretkey
+          resources: {}
+      volumes:
+        - name: minio-user
+          secret:
+            secretName: devtron-minio
+  volumeClaimTemplates:
+    - metadata:
+        name: export
+      spec:
+        accessModes: [ "ReadWriteOnce" ]
+        resources:
+          requests:
+            storage: {{ $.Values.minio.persistence.storage }}
+---
+# Source: minio/templates/post-install-create-bucket-job.yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  {{- if lt ($.Values.minio.replicaCount | int) 4 }}
+  name: devtron-minio-make-bucket-job
+  {{- else }}
+  name: devtron-minio-make-bucket
+  {{- end }}
+  labels:
+    app: minio-make-bucket-job
+    release: {{ $.Release.Name }}
+    heritage: Helm
+spec:
+  template:
+    metadata:
+      labels:
+        app: minio-job
+        release: {{ $.Release.Name }}
+    spec:
+      restartPolicy: OnFailure
+      volumes:
+        - name: minio-configuration
+          projected:
+            sources:
+              - configMap:
+                  name: devtron-minio
+              - secret:
+                  name: devtron-minio
+      serviceAccountName: "devtron-minio"
+      containers:
+        - name: minio-mc
+          image: {{ $.Values.minio.mbImage }}
+          imagePullPolicy: {{ $.Values.minio.mbImagePullPolicy }}
+          command: ["/bin/sh", "/config/initialize"]
+          env:
+            - name: MINIO_ENDPOINT
+              value: devtron-minio
+            - name: MINIO_PORT
+              value: "9000"
+          volumeMounts:
+            - name: minio-configuration
+              mountPath: /config
+          resources: {}
+{{- end }}
+{{- end }}
+{{- if eq $.Values.configs.BLOB_STORAGE_PROVIDER "AZURE" }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devtron-minio
+  labels:
+    app: minio
+    chart: minio-8.0.9
+    release: devtron-minio
+    heritage: Helm
+spec:
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 100%
+      maxUnavailable: 0
+  replicas: 2
+  selector:
+    matchLabels:
+      app: minio
+      release: devtron-minio
+  template:
+    metadata:
+      name: devtron-minio
+      labels:
+        app: minio
+        release: devtron-minio
+    spec:
+      serviceAccountName: "devtron-minio"
+      containers:
+        - name: minio
+          image: "quay.io/devtron/minio:RELEASE.2020-12-03T05-49-24Z"
+          imagePullPolicy: IfNotPresent
+          command:
+            - "/bin/sh"
+            - "-ce"
+            - "/usr/bin/docker-entrypoint.sh minio -S /etc/minio/certs/ gateway azure"
+          volumeMounts:            
+          ports:
+            - name: http
+              containerPort: 9000
+          env:
+            - name: MINIO_ACCESS_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: devtron-minio
+                  key: accesskey
+            - name: MINIO_SECRET_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: devtron-minio
+                  key: secretkey
+      volumes:
+        - name: minio-user
+          secret:
+            secretName: devtron-minio
+{{- end }}
+{{- end }}
+{{- end }}
