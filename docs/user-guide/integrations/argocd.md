@@ -1,4 +1,4 @@
-# Argo CD Integration with Devtron
+# GitOps Argo CD Integration with Devtron
  
 Devtron integrates deeply with ArgoCD to implement GitOps for continuous delivery. Argo CD follows the GitOps pattern of using Git repositories as the source of truth for defining the desired application state in target Kubernetes cluster. For more information check [Argo CD documentation](https://argo-cd.readthedocs.io/en/stable/)
  
@@ -9,8 +9,8 @@ Devtron integrates deeply with ArgoCD to implement GitOps for continuous deliver
 
 ## Installation
 
-1. On the **Devtron Stack Manager > Discover** page, select the **Argo CD integration**.
-2. On the **Discover integrations/Argo CD page**, select **Install**.
+1. On the **Devtron Stack Manager > Discover** page, select the **GitOps (Argo CD) integration**.
+2. On the **Discover integrations/GitOps (Argo CD) page**, select **Install**.
  
 The installation status may be one of the following:
  
