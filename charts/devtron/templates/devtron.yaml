@@ -31,6 +31,11 @@ data:
   BLOB_STORAGE_S3_ENDPOINT_INSECURE: "true"
   DEFAULT_BUILD_LOGS_BUCKET: "devtron-ci-log"
   DEFAULT_CACHE_BUCKET: "devtron-ci-cache"
+{{- if lt ($.Values.minio.replicaCount | int) 4 }}
+  BLOB_STORAGE_S3_BUCKET_VERSIONED: "false"
+{{- else }}
+  BLOB_STORAGE_S3_BUCKET_VERSIONED: "true"
+{{- end }}
 {{- end }}
 {{- if or ($.Values.minio.enabled) (eq $.Values.configs.BLOB_STORAGE_PROVIDER "AZURE") }}
   DEFAULT_CACHE_BUCKET_REGION: "us-west-2"
@@ -38,6 +43,9 @@ data:
 {{- end }}
 {{- if and (eq $.Values.configs.BLOB_STORAGE_PROVIDER "S3") (not $.Values.configs.BLOB_STORAGE_S3_ENDPOINT) }}
   BLOB_STORAGE_S3_ENDPOINT: ""
+{{- end }}
+{{- if $.Values.configs.BLOB_STORAGE_PROVIDER }}
+  BLOB_STORAGE_S3_BUCKET_VERSIONED: "true"
 {{- end }}
 {{- if $.Values.monitoring }}
 {{- if $.Values.monitoring.grafana }}
