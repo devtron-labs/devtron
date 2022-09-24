@@ -43,12 +43,12 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
-    image: "quay.io/devtron/dashboard:22b5e4e1-325-10252"
+    image: "quay.io/devtron/dashboard:9c21414c-325-10743"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:e9175e98-282-10212"
-    cicdImage: "quay.io/devtron/devtron:e9175e98-4-10210"
+    image: "quay.io/devtron/hyperion:299b90b9-280-10744"
+    cicdImage: "quay.io/devtron/devtron:299b90b9-326-10742"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -80,7 +80,7 @@ components:
       authenticator: "quay.io/devtron/authenticator:aecda793-381-10540"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:7f5e1584-318-10138"
+    image: "quay.io/devtron/kubelink:919924e0-318-10747"
     imagePullPolicy: IfNotPresent
 
   postgres:

@@ -136,7 +136,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
 				impl.logger.Debugw("event pre stage", "event", event)
 				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, bean.CD_WORKFLOW_TYPE_PRE)
-				_, evtErr := impl.eventClient.WriteEvent(event)
+				_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 				if evtErr != nil {
 					impl.logger.Errorw("CD stage post fail or success event unable to sent", "error", evtErr)
 				}
@@ -145,7 +145,7 @@ func (impl *WorkflowStatusUpdateHandlerImpl) SubscribeCD() error {
 				event := impl.eventFactory.Build(eventType, &wfr.CdWorkflow.PipelineId, wfr.CdWorkflow.Pipeline.AppId, &wfr.CdWorkflow.Pipeline.EnvironmentId, util.CD)
 				impl.logger.Debugw("event post stage", "event", event)
 				event = impl.eventFactory.BuildExtraCDData(event, wfr, 0, bean.CD_WORKFLOW_TYPE_POST)
-				_, evtErr := impl.eventClient.WriteEvent(event)
+				_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 				if evtErr != nil {
 					impl.logger.Errorw("CD stage post fail or success event not sent", "error", evtErr)
 				}

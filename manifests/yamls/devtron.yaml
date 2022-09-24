@@ -54,7 +54,7 @@ data:
   CD_NODE_TAINTS_VALUE: "ci"
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:d43cf860-241-10670"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:5446d5b3-138-10746"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
@@ -158,8 +158,16 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:4f4fc917-4-10663"
+          image: "quay.io/devtron/devtron:299b90b9-326-10742"
           imagePullPolicy: IfNotPresent
+          lifecycle:
+            preStop:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - ' curl -X POST -H "Content-Type: application/json" -d ''{"eventType":
+                  "SIG_TERM"}'' localhost:8080/orchestrator/telemetry/summary'
           ports:
             - name: devtron
               containerPort: 8080

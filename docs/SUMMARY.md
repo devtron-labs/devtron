@@ -7,6 +7,7 @@
 * [Install Devtron](setup/install/README.md)
   * [Install Devtron with CI/CD integration](setup/install/install-devtron-with-cicd.md)
   * [Install Devtron](setup/install/install-devtron.md)
+  * [Install Devtron on Minikube, Microk8s, K3s, Kind](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
   * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
   * [Ingress setup for Devtron Installation](setup/install/ingress-setup.md)
