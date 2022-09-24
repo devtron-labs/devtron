@@ -26,6 +26,8 @@ The minimum requirements for Devtron and Devtron with CI/CD integration in produ
 | **Devtron** | 2 | 3 GB |
 
 > Refer to the [Override Configurations](./override-default-devtron-installation-configs.md) section for more information.
+
+>**Note:** It is NOT recommended to use brustable CPU VMs (T series in AWS, B Series in Azure and E2/N1 in GCP) for Devtron installation.
  
 ## Before you begin
  
@@ -37,5 +39,5 @@ Refer to the [Creating a Production grade EKS cluster using EKSCTL](https://devt
  
 * [Install Devtron with CI/CD integration](install-devtron-with-cicd.md)
 * [Install Devtron](install-devtron.md)
-* [Upgrade Devtron to latest version](/docs/setup/upgrade/README.md)
+* [Upgrade Devtron to latest version](../../setup/upgrade/README.md)
  

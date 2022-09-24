@@ -33,3 +33,15 @@ type ServerVersion struct {
 func GetDevtronVersion() *ServerVersion {
 	return &ServerVersion{BuildTime: BuildTime, GitCommit: GitCommit, ServerMode: ServerMode}
 }
+
+func IsBaseStack() bool {
+	return GetDevtronVersion().ServerMode == SERVER_MODE_HYPERION
+}
+
+func IsFullStack() bool {
+	return GetDevtronVersion().ServerMode == SERVER_MODE_FULL
+}
+
+func IsHelmApp(appOfferingMode string) bool {
+	return appOfferingMode == SERVER_MODE_HYPERION
+}

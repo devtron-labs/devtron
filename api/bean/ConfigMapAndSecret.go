@@ -48,6 +48,7 @@ type Map struct {
 	External       bool            `json:"external"`
 	MountPath      string          `json:"mountPath"`
 	Data           json.RawMessage `json:"data,omitempty"`
+	ESOSecretData  json.RawMessage `json:"esoSecretData,omitempty"`
 	ExternalType   string          `json:"externalType"`
 	RoleARN        string          `json:"roleARN"`
 	SecretData     json.RawMessage `json:"secretData,omitempty"`

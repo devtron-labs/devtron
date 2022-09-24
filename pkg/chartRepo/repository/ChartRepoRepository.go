@@ -101,7 +101,7 @@ func (repositoryImpl ChartRepositoryImpl) FindCurrentChartVersion(chartRepo, cha
 	return chart.ChartVersion, err
 }
 
-//Deprecated
+// Deprecated
 func (repositoryImpl ChartRepositoryImpl) FindActiveChart(appId int) (chart *Chart, err error) {
 	chart = &Chart{}
 	err = repositoryImpl.dbConnection.
@@ -112,7 +112,7 @@ func (repositoryImpl ChartRepositoryImpl) FindActiveChart(appId int) (chart *Cha
 	return chart, err
 }
 
-//Deprecated
+// Deprecated
 func (repositoryImpl ChartRepositoryImpl) FindLatestByAppId(appId int) (chart *Chart, err error) {
 	chart = &Chart{}
 	err = repositoryImpl.dbConnection.

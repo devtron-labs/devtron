@@ -421,24 +421,24 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 }
 func (impl InstalledAppServiceImpl) performDeployStage(installedAppVersionId int, userId int32) (*appStoreBean.InstallAppVersionDTO, error) {
 	ctx := context.Background()
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.logger.Errorw("error in getting acd token", "err", err)
-		return nil, err
-	}
-	ctx = context.WithValue(ctx, "token", acdToken)
 	installedAppVersion, err := impl.appStoreDeploymentService.GetInstalledAppVersion(installedAppVersionId, userId)
 	if err != nil {
 		return nil, err
 	}
-
-	if installedAppVersion.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-		_, err := impl.performDeployStageOnAcd(installedAppVersion, ctx, userId)
+	if util.IsAcdApp(installedAppVersion.DeploymentAppType) {
+		//this method should only call in case of argo-integration installed and git-ops has configured
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			return nil, err
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+		_, err = impl.performDeployStageOnAcd(installedAppVersion, ctx, userId)
 		if err != nil {
 			impl.logger.Errorw("error", "err", err)
 			return nil, err
 		}
-	} else if installedAppVersion.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+	} else if util.IsHelmApp(installedAppVersion.DeploymentAppType) {
 		_, err = impl.appStoreDeploymentService.InstallAppByHelm(installedAppVersion, ctx)
 		if err != nil {
 			impl.logger.Errorw("error", "err", err)

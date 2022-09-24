@@ -1,5 +1,7 @@
 # Install Devtron with CICD integration
 
+Are you installing Devtron on Minikube, Microk8s, K3s, Kind? See Instructions [here](./Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
+
 ## Before you begin
 
 Install [Helm](https://helm.sh/docs/intro/install/).
@@ -147,6 +149,10 @@ kubectl delete -n argo -f https://raw.githubusercontent.com/devtron-labs/devtron
 
 kubectl delete ns devtroncd devtron-cd devtron-ci devtron-demo
 ```
+
+## What's next
+
+[Configurations](installation-configuration.md)
 
 ### FAQs
 

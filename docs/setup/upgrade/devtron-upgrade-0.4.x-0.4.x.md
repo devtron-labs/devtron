@@ -25,18 +25,9 @@ RELEASE_NAME=devtron
 helm repo update
 ```
 
-### 4. Annotate and Label Devtron resources
+### 4. Upgrade Devtron 
 
-```bash
-kubectl -n devtroncd label role --all "app.kubernetes.io/managed-by=Helm"
-kubectl -n devtroncd annotate role --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
-kubectl -n devtroncd label rolebinding --all "app.kubernetes.io/managed-by=Helm"
-kubectl -n devtroncd annotate rolebinding --all "meta.helm.sh/release-name=$RELEASE_NAME" "meta.helm.sh/release-namespace=devtroncd"
-```
-
-### 5. Upgrade Devtron 
-
-5.1 Upgrade Devtron to latest version
+4.1 Upgrade Devtron to latest version
 
 ```bash
 helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
@@ -45,7 +36,7 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 ```
 OR
 
-5.2 Upgrade Devtron to a custom version. You can find the latest releases from Devtron on Github https://github.com/devtron-labs/devtron/releases
+4.2 Upgrade Devtron to a custom version. You can find the latest releases from Devtron on Github https://github.com/devtron-labs/devtron/releases
 
 ```bash
 DEVTRON_TARGET_VERSION=v0.4.x

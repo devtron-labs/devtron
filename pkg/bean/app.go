@@ -105,6 +105,14 @@ type CiPipeline struct {
 	PreBuildStage            *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
 	PostBuildStage           *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
 	TargetPlatform           string                 `json:"targetPlatform,omitempty"`
+	IsDockerConfigOverridden bool                   `json:"isDockerConfigOverridden"`
+	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
+}
+
+type DockerConfigOverride struct {
+	DockerRegistry    string             `json:"dockerRegistry,omitempty"`
+	DockerRepository  string             `json:"dockerRepository,omitempty"`
+	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
 }
 
 type CiPipelineMin struct {
@@ -133,7 +141,7 @@ type ExternalCiConfig struct {
 	AccessKey  string `json:"accessKey"`
 }
 
-//-------------------
+// -------------------
 type PatchAction int
 type PipelineType string
 
@@ -171,7 +179,7 @@ func (a PatchAction) String() string {
 
 }
 
-//----------------
+// ----------------
 type CiPatchRequest struct {
 	CiPipeline    *CiPipeline `json:"ciPipeline"`
 	AppId         int         `json:"appId,omitempty"`
@@ -269,7 +277,7 @@ type DockerBuildConfig struct {
 	GitMaterialId  int               `json:"gitMaterialId,omitempty" validate:"required"`
 	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
 	Args           map[string]string `json:"args,omitempty"`
-	TargetPlatform string            `json:"targetPlatform"`
+	TargetPlatform string            `json:"targetPlatform,omitempty"`
 	//Name Tag DockerfilePath RepoUrl
 }
 
@@ -320,7 +328,7 @@ contains reference to chart and values.yaml changes for next deploy
 type HelmConfig struct {
 }
 
-//used for automated unit and integration test
+// used for automated unit and integration test
 type Test struct {
 	Name    string
 	Command string
@@ -342,7 +350,7 @@ type EnvironmentGroup struct {
 	Environments []Environment
 }
 
-//set of unique attributes which corresponds to a cluster
+// set of unique attributes which corresponds to a cluster
 // different environment of gocd and k8s cluster.
 type Environment struct {
 	Values string
@@ -415,7 +423,7 @@ type MaterialOperations interface {
 	SaveMaterialMetaData(metadata *MaterialMetadata) error
 }
 
-//--------- cd related struct ---------
+// --------- cd related struct ---------
 type CDMaterialMetadata struct {
 	Url    string `json:"url,omitempty"`
 	Branch string `json:"branch,omitempty"`
@@ -436,7 +444,7 @@ type CDPipelineConfigObject struct {
 	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                            `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
 	Strategies                    []Strategy                        `json:"strategies,omitempty"`
-	Namespace                     string                            `json:"namespace,omitempty" validate:"name-component,max=50"` //namespace
+	Namespace                     string                            `json:"namespace,omitempty" validate:"name-space-component,max=50"` //namespace
 	AppWorkflowId                 int                               `json:"appWorkflowId,omitempty" `
 	DeploymentTemplate            pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
 	PreStage                      CdStage                           `json:"preStage"`
@@ -576,4 +584,14 @@ type AppMetaInfoDto struct {
 	Active      bool      `json:"active,notnull"`
 	Labels      []*Label  `json:"labels"`
 	UserId      int32     `json:"-"`
+}
+
+type AppLabelsJsonForDeployment struct {
+	Labels map[string]string `json:"appLabels"`
+}
+
+type UpdateProjectBulkAppsRequest struct {
+	AppIds []int `json:"appIds"`
+	TeamId int   `json:"teamId"`
+	UserId int32 `json:"-"`
 }

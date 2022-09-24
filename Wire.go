@@ -644,13 +644,13 @@ func InitializeApp() (*App, error) {
 		restHandler.NewWebhookDataRestHandlerImpl,
 		wire.Bind(new(restHandler.WebhookDataRestHandler), new(*restHandler.WebhookDataRestHandlerImpl)),
 
-		router.NewAppLabelRouterImpl,
-		wire.Bind(new(router.AppLabelRouter), new(*router.AppLabelRouterImpl)),
-		restHandler.NewAppLabelRestHandlerImpl,
-		wire.Bind(new(restHandler.AppLabelRestHandler), new(*restHandler.AppLabelRestHandlerImpl)),
+		router.NewAppRouterImpl,
+		wire.Bind(new(router.AppRouter), new(*router.AppRouterImpl)),
+		restHandler.NewAppRestHandlerImpl,
+		wire.Bind(new(restHandler.AppRestHandlerHandler), new(*restHandler.AppRestHandlerImpl)),
 
-		app.NewAppLabelServiceImpl,
-		wire.Bind(new(app.AppLabelService), new(*app.AppLabelServiceImpl)),
+		app.NewAppCrudOperationServiceImpl,
+		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),
 		pipelineConfig.NewAppLabelRepositoryImpl,
 		wire.Bind(new(pipelineConfig.AppLabelRepository), new(*pipelineConfig.AppLabelRepositoryImpl)),
 
@@ -717,7 +717,7 @@ func InitializeApp() (*App, error) {
 
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
-		argo.GetDevtronSecretName,
+		util2.GetDevtronSecretName,
 		//	AuthWireSet,
 		cron.GetAppStatusConfig,
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
@@ -729,8 +729,19 @@ func InitializeApp() (*App, error) {
 		app.NewPipelineStatusTimelineServiceImpl,
 		wire.Bind(new(app.PipelineStatusTimelineService), new(*app.PipelineStatusTimelineServiceImpl)),
 
+		router.NewUserAttributesRouterImpl,
+		wire.Bind(new(router.UserAttributesRouter), new(*router.UserAttributesRouterImpl)),
+		restHandler.NewUserAttributesRestHandlerImpl,
+		wire.Bind(new(restHandler.UserAttributesRestHandler), new(*restHandler.UserAttributesRestHandlerImpl)),
+		attributes.NewUserAttributesServiceImpl,
+		wire.Bind(new(attributes.UserAttributesService), new(*attributes.UserAttributesServiceImpl)),
+		repository.NewUserAttributesRepositoryImpl,
+		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
 		pipelineConfig.NewPipelineStatusTimelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineStatusTimelineRepository), new(*pipelineConfig.PipelineStatusTimelineRepositoryImpl)),
+
+		pipelineConfig.NewCiTemplateOverrideRepositoryImpl,
+		wire.Bind(new(pipelineConfig.CiTemplateOverrideRepository), new(*pipelineConfig.CiTemplateOverrideRepositoryImpl)),
 	)
 	return &App{}, nil
 }
