@@ -1,9 +1,13 @@
 package delete
 
 import (
+	"fmt"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
@@ -20,19 +24,21 @@ type DeleteServiceImpl struct {
 	clusterService         cluster.ClusterService
 	environmentService     cluster.EnvironmentService
 	chartRepositoryService chartRepo.ChartRepositoryService
+	installedAppRepository repository.InstalledAppRepository
 }
 
 func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
 	clusterService cluster.ClusterService,
 	environmentService cluster.EnvironmentService, chartRepositoryService chartRepo.ChartRepositoryService,
-) *DeleteServiceImpl {
+	installedAppRepository repository.InstalledAppRepository) *DeleteServiceImpl {
 	return &DeleteServiceImpl{
 		logger:                 logger,
 		teamService:            teamService,
 		clusterService:         clusterService,
 		environmentService:     environmentService,
 		chartRepositoryService: chartRepositoryService,
+		installedAppRepository: installedAppRepository,
 	}
 }
 
@@ -46,7 +52,19 @@ func (impl DeleteServiceImpl) DeleteCluster(deleteRequest *cluster.ClusterBean, 
 }
 
 func (impl DeleteServiceImpl) DeleteEnvironment(deleteRequest *cluster.EnvironmentBean, userId int32) error {
-	err := impl.environmentService.Delete(deleteRequest, userId)
+	filter := &appStoreBean.AppStoreFilter{
+		EnvIds: []int{deleteRequest.Id},
+	}
+	installedApps, err := impl.installedAppRepository.GetAllInstalledApps(filter)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting env", "envName", deleteRequest.Environment, "err", err)
+		return err
+	}
+	if len(installedApps) > 0 {
+		impl.logger.Errorw("err in deleting env, found helm apps in this env", "envName", deleteRequest.Environment, "err", err)
+		return fmt.Errorf(" Please delete all related helm apps before deleting this environment")
+	}
+	err = impl.environmentService.Delete(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting environment", "err", err, "deleteRequest", deleteRequest)
 		return err
