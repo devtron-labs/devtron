@@ -12,8 +12,12 @@ kubectl get jobs -n devtroncd
 ```
 - Note down or remember the names of jobs with 0/1 completions and check if their pods are in running state still or not by running the command:
 kubectl get pods -n devtroncd
-- If they are in running condition, please wait for the jobs to be completed as it may be due to internet issue and if not in running condition, then delete those incomplete jobs using:
-kubectl delete jobs <job1-name> <job2-name> -n devtroncdcommand
+- If they are in running condition, please wait for the jobs to be completed as it may be due to internet issue and if not in running condition, then delete those incomplete jobs using command:
+
+```bash
+kubectl delete jobs <job1-name> <job2-name> -n devtroncd
+```
+
 - Now download migrator.yaml file from our github repository using the command:
 ```bash
 wget https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/migrator.yaml
