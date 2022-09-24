@@ -8,7 +8,7 @@ Returns a secret if it already in Kubernetes, otherwise it creates
 it randomly.
 */}}
 {{- define "getOrGeneratePass" }}
-{{- $len := (default 16 .Length) | int -}}
+{{- $len := (default 32 .Length) | int -}}
 {{- $obj := (lookup "v1" .Kind .Namespace .Name).data -}}
 {{- if $obj }}
 {{- index $obj .Key -}}
