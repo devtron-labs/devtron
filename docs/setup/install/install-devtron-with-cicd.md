@@ -1,5 +1,7 @@
 # Install Devtron with CICD integration
 
+Are you installing Devtron on Minikube, Microk8s, K3s, Kind? See Instructions [here](./Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
+
 ## Before you begin
 
 Install [Helm](https://helm.sh/docs/intro/install/).
@@ -207,8 +209,16 @@ If you don't see any results or receive a message that says "service doesn't exi
 
 ### Devtron Admin credentials
 
-For admin login, use the username:`admin`, and run the following command to get the admin password:
+#### For Devtron version v0.6.0 and higher
 
+Use username:`admin` and for password run command mentioned below.
+```bash
+$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
+```
+
+#### For Devtron version less than v0.6.0
+
+Use username:`admin` and for password run command mentioned below.
 ```bash
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```

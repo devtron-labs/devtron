@@ -45,6 +45,7 @@ type AppWorkflowRepository interface {
 	DeleteAppWorkflowMapping(appWorkflow *AppWorkflowMapping, tx *pg.Tx) error
 	FindWFCDMappingByCIPipelineIds(ciPipelineIds []int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByParentCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
+	FindAllWFMappingsByAppId(appId int) ([]*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -273,4 +274,15 @@ func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflowMapping(appWorkflow *AppW
 		return err
 	}
 	return nil
+}
+
+func (impl AppWorkflowRepositoryImpl) FindAllWFMappingsByAppId(appId int) ([]*AppWorkflowMapping, error) {
+	var appWorkflowsMapping []*AppWorkflowMapping
+	err := impl.dbConnection.Model(&appWorkflowsMapping).
+		Join("INNER JOIN app_workflow aw on aw.id=app_workflow_mapping.app_workflow_id").
+		Where("aw.app_id = ?", appId).
+		Where("aw.active = ?", true).
+		Where("app_workflow_mapping.active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
 }

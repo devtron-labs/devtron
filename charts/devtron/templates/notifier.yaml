@@ -1,3 +1,7 @@
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
+{{- with .Values.notifier }}
+{{- if .enabled }}
 # Source: notifier/templates/secret.yaml
 apiVersion: v1
 kind: Secret
@@ -6,6 +10,12 @@ metadata:
   labels:
     release: devtron
 type: Opaque
+{{- if .secrets }}
+data:
+{{- range $k, $v := .secrets }}
+  {{ $k }}: {{ $v | b64enc }}
+{{- end }}
+{{- end }}
 ---
 # Source: notifier/templates/configmap.yaml
 apiVersion: v1
@@ -15,11 +25,9 @@ metadata:
   labels:
     release: devtron
 data:
-  CD_ENVIRONMENT: PROD
-  DB: orchestrator
-  DB_HOST: postgresql-postgresql.devtroncd
-  DB_PORT: "5432"
-  DB_USER: postgres
+{{- if .configs}}
+{{ toYaml .configs | indent 2 }}
+{{- end }}
 ---
 # Source: notifier/templates/service.yaml
 apiVersion: v1
@@ -28,7 +36,7 @@ metadata:
   name: notifier-service
   labels:
     app: notifier
-    chart: notifier-3.7.1
+    chart: {{ $.Release.Name }}-{{ $.Chart.Version }}
     release: devtron
 spec:
   type: ClusterIP
@@ -47,7 +55,7 @@ metadata:
   name: notifier
   labels:
     app: notifier
-    chart: notifier-3.7.1
+    chart: {{ $.Release.Name }}-{{ $.Chart.Version }}
     release: devtron
 spec:
   selector:
@@ -66,21 +74,24 @@ spec:
       restartPolicy: Always
       containers:
         - name: notifier
-          image: quay.io/devtron/notifier:fb4424bb-372-10748
-          imagePullPolicy: IfNotPresent
+          image: {{ .image }}
+          imagePullPolicy: {{ .imagePullPolicy }}
           ports:
             - name: app
               containerPort: 3000
               protocol: TCP
           env:
-            - name: CONFIG_HASH
-              value: f64a7abec5f850c3393a5f3a1efb3a3c62fbcb6530cc3c6807028c41677fc3ec
-            - name: SECRET_HASH
-              value: 613cf1b1ff0cf6a867565df5ff0b3585893258f3430f0cccef14cf8c600bc701
             - name: POD_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            {{- if .dbconfig }}
+            - name: DB_PWD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .dbconfig.secretName }}
+                  key: {{ .dbconfig.keyName }}
+            {{- end }}
           envFrom:
           - configMapRef:
               name: notifier-cm
@@ -89,3 +100,11 @@ spec:
           volumeMounts: []
       volumes: []
   revisionHistoryLimit: 3
+{{- if .resources }}
+          resources:
+{{ toYaml .resources | indent 12 }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

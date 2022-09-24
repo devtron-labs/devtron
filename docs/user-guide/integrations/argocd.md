@@ -1,23 +1,16 @@
-# Build and Deploy (CI/CD) integration
+# GitOps Argo CD Integration with Devtron
  
-Devtron CI/CD integration enables software development teams to automate the build and deployment process, allowing them to focus on meeting the business requirements, maintaining code quality, and ensuring security.
+Devtron integrates deeply with ArgoCD to implement GitOps for continuous delivery. Argo CD follows the GitOps pattern of using Git repositories as the source of truth for defining the desired application state in target Kubernetes cluster. For more information check [Argo CD documentation](https://argo-cd.readthedocs.io/en/stable/)
  
 **Features**
- 
-* Leverages Kubernetes auto-scaling and centralized caching to give you unlimited cost-efficient CI workers.
-* Supports pre-CI and post-CI integrations for code quality monitoring.
-* Seamlessly integrates with Clair for image vulnerability scanning.
-* Supports different deployment strategies: Blue/Green, Rolling, Canary, and Recreate.
-* Implements GitOps to manage the state of Kubernetes applications.
-* Integrates with ArgoCD for continuous deployment.
-* Check logs, events, and manifests or exec inside containers for debugging.
-* Provides deployment metrics like; deployment frequency, lead time, change failure rate, and mean-time recovery.
-* Seamless integration with Grafana for continuous application metrics like CPU and memory usage, status code, throughput, and latency on the dashboard.
+
+* No GitOps plumbing required
+* Seamless integration with Devtron CI pipelines and other Devtron integrations.
 
 ## Installation
 
-1. On the **Devtron Stack Manager > Discover** page, select the **Build and Deploy (CI/CD) integration**.
-2. On the **Discover integrations/Build and Deploy (CI/CD) page**, select **Install**.
+1. On the **Devtron Stack Manager > Discover** page, select the **GitOps (Argo CD) integration**.
+2. On the **Discover integrations/GitOps (Argo CD) page**, select **Install**.
  
 The installation status may be one of the following:
  
