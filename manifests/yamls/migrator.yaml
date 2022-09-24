@@ -14,7 +14,6 @@ kind: Job
 metadata:
   name: postgresql-migrate-devtron
 spec:
-  ttlSecondsAfterFinished: 1000
   template:
     spec:
       containers:

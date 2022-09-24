@@ -190,6 +190,8 @@ spec:
               name: devtron-secret
           - configMapRef:
               name: devtron-custom-cm
+          - secretRef:
+              name: devtron-custom-secret
           volumeMounts:
             - mountPath: /cluster/component
               name: devtron-cluster-components-vol
