@@ -280,6 +280,8 @@ minio:
   imagePullPolicy: IfNotPresent
   mbImage: "quay.io/devtron/minio-mc:RELEASE.2021-02-14T04-28-06Z"
   mbImagePullPolicy: IfNotPresent
+  persistence:
+    storage: "50Gi"
 # Change below values for workflow controller
 workflowController:
   image: "quay.io/argoproj/workflow-controller:v3.0.7"

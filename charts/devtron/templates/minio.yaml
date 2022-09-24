@@ -229,7 +229,11 @@ spec:
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
+  {{- if lt ($.Values.minio.replicaCount | int) 4 }}
+  name: minio-devtron
+  {{- else }}
   name: devtron-minio
+  {{- end }}
   labels:
     app: minio
     release: {{ $.Release.Name }}
@@ -301,7 +305,7 @@ spec:
         accessModes: [ "ReadWriteOnce" ]
         resources:
           requests:
-            storage: 50Gi
+            storage: {{ $.Values.minio.persistence.storage }}
 ---
 # Source: minio/templates/post-install-create-bucket-job.yaml
 apiVersion: batch/v1
