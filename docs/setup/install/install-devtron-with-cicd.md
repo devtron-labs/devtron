@@ -9,7 +9,7 @@ Install [Helm](https://helm.sh/docs/intro/install/).
 1. Add Devtron repository
 2. Install Devtron
 
-Install with:
+Install with one of the following commands:
 {% tabs %}
 {% tab title="Default" %}
 
@@ -19,7 +19,7 @@ Configuring Blob Storage in your Devtron environment allows you to store build l
 In case, if you do not configure the Blob Storage, then:
 
 - You will not be able to access the build and deployment logs after an hour.
-- Build time for cache takes longer.
+- Build time for commit hash takes longer as cache is not available.
 - Artifact reports cannot be generated in pre/post build and deployment stages.
 
 ```bash
@@ -209,7 +209,7 @@ If you don't see any results or receive a message that says "service doesn't exi
 For admin login, use the username:`admin`, and run the following command to get the admin password:
 
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
 ## Cleaning Devtron Helm installer

@@ -115,12 +115,12 @@ Configuring blob storage in your Devtron environment allows you to store build l
 In case, if you do not configure the Blob Storage, then:
 
 - You will not be able to access the build and deployment logs after an hour.
-- Build time for cache takes longer.
+- Build time for commit hash takes longer as cache is not available.
 - Artifact reports cannot be generated in pre/post build and deployment stages.
 
-You can configure Blob Storage with one of the following Blob Storage providers:
+You can configure Blob Storage with one of the following Blob Storage providers given below:
 
-**Note**: You can also use the respective following command to switch to another Blob Storage provider.
+**Note**: You can also use the respective following command to switch to another Blob Storage provider. As an example, If you are using MinIO Storage and want to switch to Azure Blob Storage, use the command provided on the Azure Blob Storage tab to switch.
 {% tabs %}
 
 
