@@ -317,7 +317,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 							VolumeMounts: []v12.VolumeMount{
 								{
 									Name:      "mavenDir",
-									MountPath: "/root/.m2",
+									MountPath: "/devtroncd/.m2",
 								},
 							},
 						},
