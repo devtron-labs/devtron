@@ -133,7 +133,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		return nil, nil, err
 	}
 	chartMeta := &chart.Metadata{
-		Name:    appStoreAppVersion.AppStore.Name,
+		Name:    installAppVersionRequest.AppName,
 		Version: "1.0.1",
 	}
 	_, chartGitAttr, err := impl.chartTemplateService.CreateChartProxy(chartMeta, chartPath, template, appStoreAppVersion.Version, environment.Name, installAppVersionRequest)
@@ -164,7 +164,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		return nil, nil, err
 	}
 
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(chartMeta.Name)
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	requirmentYamlConfig := &util.ChartConfig{
