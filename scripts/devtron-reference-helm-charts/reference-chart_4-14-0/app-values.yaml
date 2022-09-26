@@ -5,6 +5,7 @@ rolloutAnnotations: {}
 
 replicaCount: 1
 MinReadySeconds: 60
+lifecycle: {}
 GracePeriod: 30
 image:
   pullPolicy: IfNotPresent
@@ -260,6 +261,7 @@ servicemonitor:
 envoyproxy:
   image: quay.io/devtron/envoy:v1.14.1
   configMapName: ""
+  lifecycle: {}
   resources:
     limits:
       cpu: 50m
