@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"os"
 	"time"
 
@@ -81,6 +82,7 @@ type ClusterService interface {
 	FindAllForAutoComplete() ([]ClusterBean, error)
 	CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error)
 	GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error)
+	GetK8sClient() (*v12.CoreV1Client, error)
 }
 
 type ClusterServiceImpl struct {
@@ -105,6 +107,10 @@ func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.
 const DefaultClusterName = "default_cluster"
 const TokenFilePath = "/var/run/secrets/kubernetes.io/serviceaccount/token"
 
+func (impl *ClusterServiceImpl) GetK8sClient() (*v12.CoreV1Client, error) {
+	return impl.K8sUtil.GetK8sClient()
+}
+
 func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error) {
 	host := cluster.ServerUrl
 	configMap := cluster.Config
@@ -127,7 +133,6 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 }
 
 func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
-
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)
