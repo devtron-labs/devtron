@@ -13,7 +13,7 @@ The current release of Devtron supports the Build and Deploy (CI/CD) integration
 Select **Devtron Stack Manager** from the left navigation bar.
 Under **INTEGRATIONS**, select **Discover**.
  
-![Discover integrations](https://devtron-public-asset.s3.us-east-2.amazonaws.com/integrations/discover-integrations.png)
+![Discover integrations](https://devtron-public-asset.s3.us-east-2.amazonaws.com/integrations/devtron-integrations.png)
  
 > Although the integrations are installed separately, they cannot be upgraded separately. Integrations update happens automatically with [Devtron upgrade](#upgrade-devtron).
  
