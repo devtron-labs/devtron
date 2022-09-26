@@ -203,6 +203,7 @@ func (impl PipelineRepositoryImpl) FindByParentCiPipelineId(ciPipelineId int) (p
 
 func (impl PipelineRepositoryImpl) FindActiveByAppId(appId int) (pipelines []*Pipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.*", "Environment").
 		Where("app_id = ?", appId).
 		Where("deleted = ?", false).
 		Select()
@@ -266,7 +267,7 @@ func (impl PipelineRepositoryImpl) FindById(id int) (pipeline *Pipeline, err err
 	return pipeline, err
 }
 
-//Deprecated:
+// Deprecated:
 func (impl PipelineRepositoryImpl) FindByEnvOverrideId(envOverrideId int) (pipeline []Pipeline, err error) {
 	var pipelines []Pipeline
 	err = impl.dbConnection.

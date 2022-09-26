@@ -112,6 +112,26 @@ func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	return clientset, err
 }
 
+func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
+	var config *rest.Config
+	var err error
+	if impl.runTimeConfig.LocalDevMode {
+		config, err = clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
+	} else {
+		config, err = rest.InClusterConfig()
+	}
+	if err != nil {
+		impl.logger.Errorw("error fetching cluster config", "error", err)
+		return nil, err
+	}
+	client, err := v12.NewForConfig(config)
+	if err != nil {
+		impl.logger.Errorw("error creating k8s client", "error", err)
+		return nil, err
+	}
+	return client, err
+}
+
 func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discovery.DiscoveryClient, error) {
 	cfg := &rest.Config{}
 	cfg.Host = clusterConfig.Host

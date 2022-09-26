@@ -119,10 +119,18 @@ If you don't see any results or receive a message that says "service doesn't exi
 
 ### Devtron Admin credentials
 
-For admin login, use the username:`admin`, and run the following command to get the admin password:
+#### For Devtron version v0.6.0 and higher
 
+Use username:`admin` and for password run command mentioned below.
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
+```
+
+#### For Devtron version less than v0.6.0
+
+Use username:`admin` and for password run command mentioned below.
+```bash
+$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
 ## Cleaning Devtron Installer Helm3

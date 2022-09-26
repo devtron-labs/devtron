@@ -19,12 +19,14 @@ type App struct {
 	Logger         *zap.SugaredLogger
 	server         *http.Server
 	telemetry      telemetry.TelemetryEventClient
+	posthogClient  *telemetry.PosthogClient
 }
 
 func NewApp(db *pg.DB,
 	sessionManager *authMiddleware.SessionManager,
 	MuxRouter *MuxRouter,
 	telemetry telemetry.TelemetryEventClient,
+	posthogClient *telemetry.PosthogClient,
 	Logger *zap.SugaredLogger) *App {
 	return &App{
 		db:             db,
@@ -32,6 +34,7 @@ func NewApp(db *pg.DB,
 		MuxRouter:      MuxRouter,
 		Logger:         Logger,
 		telemetry:      telemetry,
+		posthogClient:  posthogClient,
 	}
 }
 func (app *App) Start() {
@@ -60,5 +63,10 @@ func (app *App) Start() {
 }
 
 func (app *App) Stop() {
-
+	app.Logger.Info("orchestrator shutdown initiating")
+	posthogCl := app.posthogClient.Client
+	if posthogCl != nil {
+		app.Logger.Info("flushing messages of posthog")
+		posthogCl.Close()
+	}
 }

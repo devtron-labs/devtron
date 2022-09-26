@@ -496,7 +496,8 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
 	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
-		gitOpsRepoName := impl.GetGitOpsRepoName(appStoreName)
+		//here git ops repo will be the app name, to breaking the mono repo structure
+		gitOpsRepoName := impl.GetGitOpsRepoName(installAppVersionRequest.AppName)
 		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	}
 	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)

@@ -29,6 +29,11 @@ import (
 	"time"
 )
 
+const (
+	CI_PIPELINE_TYPE = "CI_PIPELINE"
+	CD_PIPELINE_TYPE = "CD_PIPELINE"
+)
+
 type AppWorkflowService interface {
 	CreateAppWorkflow(req AppWorkflowDto) (AppWorkflowDto, error)
 	FindAppWorkflows(appId int) ([]AppWorkflowDto, error)
@@ -40,6 +45,8 @@ type AppWorkflowService interface {
 	FindAppWorkflowMappingByComponent(id int, compType string) ([]*appWorkflow.AppWorkflowMapping, error)
 	CheckCdPipelineByCiPipelineId(id int) bool
 	FindAppWorkflowByName(name string, appId int) (AppWorkflowDto, error)
+
+	FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error)
 }
 
 type AppWorkflowServiceImpl struct {
@@ -66,6 +73,18 @@ type AppWorkflowMappingDto struct {
 	ParentId      int    `json:"parentId"`
 	ParentType    string `json:"parentType"`
 	UserId        int32  `json:"-"`
+}
+
+type AllAppWorkflowComponentDetails struct {
+	Workflows []*WorkflowComponentNamesDto `json:"workflows"`
+}
+
+type WorkflowComponentNamesDto struct {
+	Id             int      `json:"id"`
+	Name           string   `json:"name"`
+	CiPipelineId   int      `json:"ciPipelineId"`
+	CiPipelineName string   `json:"ciPipelineName"`
+	CdPipelines    []string `json:"cdPipelines"`
 }
 
 func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository, dbPipelineOrchestrator pipeline.DbPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) *AppWorkflowServiceImpl {
@@ -294,4 +313,69 @@ func (impl AppWorkflowServiceImpl) CheckCdPipelineByCiPipelineId(id int) bool {
 		return true
 	}
 	return false
+}
+
+func (impl AppWorkflowServiceImpl) FindAllWorkflowsComponentDetails(appId int) (*AllAppWorkflowComponentDetails, error) {
+	//get all workflows
+	appWorkflows, err := impl.appWorkflowRepository.FindByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting app workflows by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindAllWFMappingsByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting appWorkflowMappings by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	var wfComponentDetails []*WorkflowComponentNamesDto
+	wfIdAndComponentDtoIndexMap := make(map[int]int)
+	for i, appWf := range appWorkflows {
+		wfIdAndComponentDtoIndexMap[appWf.Id] = i
+		wfComponentDetail := &WorkflowComponentNamesDto{
+			Id:   appWf.Id,
+			Name: appWf.Name,
+		}
+		wfComponentDetails = append(wfComponentDetails, wfComponentDetail)
+	}
+
+	//getting all ciPipelines by appId
+	ciPipelines, err := impl.ciPipelineRepository.FindByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting ciPipelines by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	ciPipelineIdNameMap := make(map[int]string, len(ciPipelines))
+	for _, ciPipeline := range ciPipelines {
+		ciPipelineIdNameMap[ciPipeline.Id] = ciPipeline.Name
+	}
+
+	//getting all ciPipelines by appId
+	cdPipelines, err := impl.pipelineRepository.FindActiveByAppId(appId)
+	if err != nil {
+		impl.Logger.Errorw("error in getting cdPipelines by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	cdPipelineIdNameMap := make(map[int]string, len(cdPipelines))
+	for _, cdPipeline := range cdPipelines {
+		cdPipelineIdNameMap[cdPipeline.Id] = cdPipeline.Environment.Name
+	}
+
+	for _, appWfMapping := range appWorkflowMappings {
+		if index, ok := wfIdAndComponentDtoIndexMap[appWfMapping.AppWorkflowId]; ok {
+			if appWfMapping.Type == CI_PIPELINE_TYPE {
+				wfComponentDetails[index].CiPipelineId = appWfMapping.ComponentId
+				if name, ok1 := ciPipelineIdNameMap[appWfMapping.ComponentId]; ok1 {
+					wfComponentDetails[index].CiPipelineName = name
+				}
+			} else if appWfMapping.Type == CD_PIPELINE_TYPE {
+				if envName, ok1 := cdPipelineIdNameMap[appWfMapping.ComponentId]; ok1 {
+					wfComponentDetails[index].CdPipelines = append(wfComponentDetails[index].CdPipelines, envName)
+				}
+			}
+		}
+	}
+	resp := &AllAppWorkflowComponentDetails{
+		Workflows: wfComponentDetails,
+	}
+	return resp, nil
 }
