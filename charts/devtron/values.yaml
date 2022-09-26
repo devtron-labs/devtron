@@ -1,7 +1,7 @@
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.5.2" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.0" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: c62d4c30-185-9354
   source: "github" # Available options are github and gitee
@@ -19,7 +19,7 @@ secrets: {}
 #  REQUIRED IF BLOB_STORAGE_PROVIDER=AZURE Token with read write access to AZURE_BLOB_CONTAINER_CI_LOG and AZURE_BLOB_CONTAINER_CI_CACHE
 #  AZURE_ACCOUNT_KEY: "xxxxxxxxxx"
 configs:
-  BLOB_STORAGE_PROVIDER: "MINIO"   #AZURE|S3|MINIO
+  BLOB_STORAGE_PROVIDER: ""   #AZURE|S3|MINIO|GCP
   ENABLE_LEGACY_API: "false"  # Set to true if you are installing Devtron on a kubernetes version < k8s 1.19
 # Amazon AWS S3 bucket and region for storing Build-cache for faster build process. Mandatory if BLOB_STORAGE_PROVIDER is AWS.
   #DEFAULT_CACHE_BUCKET: "change-me"   #Do not include s3://
@@ -43,12 +43,12 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
-    image: "quay.io/devtron/dashboard:22b5e4e1-325-10252"
+    image: "quay.io/devtron/dashboard:9c21414c-325-10743"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:e9175e98-282-10212"
-    cicdImage: "quay.io/devtron/devtron:e9175e98-4-10210"
+    image: "quay.io/devtron/hyperion:299b90b9-280-10744"
+    cicdImage: "quay.io/devtron/devtron:299b90b9-326-10742"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -77,11 +77,10 @@ components:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:415f5470-279-6520"
-      cicdAuthenticator: "quay.io/argoproj/argocd:v2.4.0"
+      authenticator: "quay.io/devtron/authenticator:aecda793-381-10540"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:7f5e1584-318-10138"
+    image: "quay.io/devtron/kubelink:919924e0-318-10747"
     imagePullPolicy: IfNotPresent
 
   postgres:
@@ -105,3 +104,198 @@ components:
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
         GIT_HASH: "e9175e9845c9ca8f6260ea58ce7ad22118244eac"
+
+# values for argocd integration
+argo-cd:
+  enabled: false
+  fullnameOverride: "argocd"
+  configs:
+    secret:
+      createSecret: false
+  # argocd-application-controller
+  controller:
+    args:
+      # -- define the application controller `--status-processors`
+      statusProcessors: "50"
+      # -- define the application controller `--operation-processors`
+      operationProcessors: "25"
+      # -- define the application controller `--app-hard-resync`
+      appHardResyncPeriod: "0"
+      # -- define the application controller `--app-resync`
+      appResyncPeriod: "180"
+      # -- define the application controller `--self-heal-timeout-seconds`
+      selfHealTimeout: "5"
+      # -- define the application controller `--repo-server-timeout-seconds`
+      repoServerTimeoutSeconds: "200"
+    extraArgs:
+    - --kubectl-parallelism-limit
+    - "35"
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - all
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+    env:
+    - name: ARGOCD_RECONCILIATION_TIMEOUT
+      valueFrom:
+        configMapKeyRef:
+          key: timeout.reconciliation
+          name: argocd-cm
+          optional: true
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-application-controller
+            topologyKey: kubernetes.io/hostname
+          weight: 100
+        - podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: argocd
+            topologyKey: kubernetes.io/hostname
+          weight: 5
+  # argocd-dex-server
+  dex:
+    enabled: false
+  # argocd-redis
+  redis:
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-redis
+            topologyKey: kubernetes.io/hostname
+          weight: 100
+        - podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: argocd
+            topologyKey: kubernetes.io/hostname
+          weight: 5
+  # argocd-server
+  server:
+    configEnabled: false
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-server
+            topologyKey: kubernetes.io/hostname
+          weight: 100
+        - podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: argocd
+            topologyKey: kubernetes.io/hostname
+          weight: 5
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - all
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+    # argocd-rbac-cm
+    rbacConfig:
+      policy.default: role:admin
+  # argocd-repo-server
+  repoServer:
+    affinity:
+      podAntiAffinity:
+        preferredDuringSchedulingIgnoredDuringExecution:
+        - podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: argocd-repo-server
+            topologyKey: kubernetes.io/hostname
+          weight: 100
+        - podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/part-of: argocd
+            topologyKey: kubernetes.io/hostname
+          weight: 5
+    extraArgs:
+    - --repo-cache-expiration
+    - 24h
+    - --parallelismlimit
+    - "50"
+    env:
+    - name: ARGOCD_RECONCILIATION_TIMEOUT
+      valueFrom:
+        configMapKeyRef:
+          key: timeout.reconciliation
+          name: argocd-cm
+          optional: true
+    - name: ARGOCD_EXEC_TIMEOUT
+      value: 180s
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - all
+      readOnlyRootFilesystem: true
+      runAsNonRoot: true
+  applicationSet:
+    enabled: false
+  notifications:
+    enabled: false
+# Values for security integration
+security:
+  enabled: false
+  # Values for clair
+  clair:
+    enabled: false
+    fullnameOverride: clair
+# Values for notifier integration
+notifier:
+  enabled: false
+  imagePullPolicy: IfNotPresent
+  image: "quay.io/devtron/notifier:fb4424bb-372-10748"
+  configs:
+    CD_ENVIRONMENT: PROD
+    DB: orchestrator
+    DB_HOST: postgresql-postgresql.devtroncd
+    DB_PORT: "5432"
+    DB_USER: postgres
+  secrets: {}
+  dbconfig:
+    secretName: postgresql-postgresql
+    keyName: postgresql-password
+  resources: {}
+# Set enable to true if you want to use minio for storing cache and logs
+minio:
+  enabled: false
+  replicaCount: 1
+  image: "quay.io/devtron/minio:RELEASE.2021-02-14T04-01-33Z"
+  imagePullPolicy: IfNotPresent
+  mbImage: "quay.io/devtron/minio-mc:RELEASE.2021-02-14T04-28-06Z"
+  mbImagePullPolicy: IfNotPresent
+  persistence:
+    storage: "50Gi"
+# Change below values for workflow controller
+workflowController:
+  image: "quay.io/argoproj/workflow-controller:v3.0.7"
+  executorImage: "quay.io/argoproj/argoexec:v3.0.7"
+# Values for grafana integration
+monitoring:
+  grafana:
+    enabled: false
+    image: "quay.io/devtron/grafana:7.3.1"
+    imagePullPolicy: IfNotPresent
+    resources: {}
+    grafanaDashboards:
+      image: "quay.io/kiwigrid/k8s-sidecar:1.1.0"
+      imagePullPolicy: IfNotPresent
+      resources: {}
+    persistence:
+      storage: "2Gi"

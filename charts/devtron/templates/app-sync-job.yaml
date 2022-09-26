@@ -1,4 +1,5 @@
-{{- if .Capabilities.APIVersions.Has "batch/v1/CronJob" }}
+{{- if $.Release.IsInstall }}
+{{- if .Capabilities.APIVersions.Has "batch/v1/Job" }}
 apiVersion: batch/v1
 {{- else -}}
 apiVersion: batch/v1beta1
@@ -30,7 +31,8 @@ spec:
           restartPolicy: OnFailure
       backoffLimit: 4
 ---
-{{- if .Capabilities.APIVersions.Has "batch/v1/Job" }}
+{{- end }}
+{{- if .Capabilities.APIVersions.Has "batch/v1/CronJob" }}
 apiVersion: batch/v1
 {{- else -}}
 apiVersion: batch/v1beta1
