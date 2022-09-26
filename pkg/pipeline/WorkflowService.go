@@ -316,7 +316,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 							}},
 							VolumeMounts: []v12.VolumeMount{
 								{
-									Name:      "mavenDir",
+									Name:      "maven-dir",
 									MountPath: "/devtroncd/.m2",
 								},
 							},
@@ -331,7 +331,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 						},
 						Volumes: []v12.Volume{
 							{
-								Name: "mavenDir",
+								Name: "maven-dir",
 								VolumeSource: v12.VolumeSource{
 									HostPath: &v12.HostPathVolumeSource{
 										Path: "/home/devtron/.m2",
