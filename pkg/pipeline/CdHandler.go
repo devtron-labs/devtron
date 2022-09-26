@@ -541,12 +541,13 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 			AccountKey:        impl.ciConfig.AzureAccountKey,
 		},
 		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
-			AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
-			Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
-			EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
-			IsInSecure:  impl.ciConfig.BlobStorageS3EndpointInsecure,
-			BucketName:  cdConfig.LogsBucket,
-			Region:      cdConfig.CdCacheRegion,
+			AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
+			IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+			BucketName:        cdConfig.LogsBucket,
+			Region:            cdConfig.CdCacheRegion,
+			VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
 		},
 		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
 			BucketName:             cdConfig.LogsBucket,
@@ -652,12 +653,13 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 
 	item := strconv.Itoa(wfr.Id)
 	awsS3BaseConfig := &blob_storage.AwsS3BaseConfig{
-		AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
-		Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
-		EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
-		IsInSecure:  impl.ciConfig.BlobStorageS3EndpointInsecure,
-		BucketName:  cdConfig.LogsBucket,
-		Region:      cdConfig.CdCacheRegion,
+		AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
+		Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
+		EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
+		IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+		BucketName:        cdConfig.LogsBucket,
+		Region:            cdConfig.CdCacheRegion,
+		VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
 	}
 	azureBlobBaseConfig := &blob_storage.AzureBlobBaseConfig{
 		Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,

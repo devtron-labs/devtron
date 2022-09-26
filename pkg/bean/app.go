@@ -105,6 +105,14 @@ type CiPipeline struct {
 	PreBuildStage            *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
 	PostBuildStage           *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
 	TargetPlatform           string                 `json:"targetPlatform,omitempty"`
+	IsDockerConfigOverridden bool                   `json:"isDockerConfigOverridden"`
+	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
+}
+
+type DockerConfigOverride struct {
+	DockerRegistry    string             `json:"dockerRegistry,omitempty"`
+	DockerRepository  string             `json:"dockerRepository,omitempty"`
+	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
 }
 
 type CiPipelineMin struct {
@@ -269,7 +277,7 @@ type DockerBuildConfig struct {
 	GitMaterialId  int               `json:"gitMaterialId,omitempty" validate:"required"`
 	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
 	Args           map[string]string `json:"args,omitempty"`
-	TargetPlatform string            `json:"targetPlatform"`
+	TargetPlatform string            `json:"targetPlatform,omitempty"`
 	//Name Tag DockerfilePath RepoUrl
 }
 
