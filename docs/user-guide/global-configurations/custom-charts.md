@@ -47,19 +47,16 @@ You can use the following variables in the helm template (all the placeholders a
 {
     "server": {
         "deployment": {
-            "image_tag": "{{.Tag}}"
+            "image_tag": "{{.Tag}}",
             "image": "{{.Name}}"
         }
     },
     "pipelineName": "{{.PipelineName}}",
     "releaseVersion": "{{.ReleaseVersion}}",
-    "deploymentType": "{{.DeploymentType}}", ?
+    "deploymentType": "{{.DeploymentType}}",
     "app": "{{.App}}",
     "env": "{{.Env}}",
-    "appMetrics": {
-        {.AppMetrics
-        }
-    }
+    "appMetrics": "{{.AppMetrics}}"
 }
 ```
 
@@ -117,8 +114,12 @@ The chart is being uploaded and validated. You may also **Cancel upload** if req
 The uploaded archive will be validated against:
 
 - Supported archive template should be in `*.tgz` format.
+- Content of `values.yaml` should there in `app-values.yaml` file.
+- `release-values.yaml` file is required.
+- ConfigMap/Secret template should be same as that of our [reference chart](https://github.com/devtron-labs/devtron/tree/main/scripts/devtron-reference-helm-charts/reference-chart_4-14-0).
 - `Chart.yaml` must include the name and the version number.
 - `image_descriptor_template.json` file should be present and the field format must match the format listed in the image builder template section.
+
 
 The following are the validation results:
 
