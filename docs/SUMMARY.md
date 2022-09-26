@@ -75,7 +75,9 @@
 * [Integrations](user-guide/integrations/README.md)
   * [Build and Deploy (CI/CD)](user-guide/integrations/build-and-deploy-ci-cd.md)
   * [GitOps (Argo CD)](user-guide/integrations/argocd.md)
-  * [Security (Clair)](user-guide/integrations/clair.md)
+  * [Vulnerability Scanning (Clair)](user-guide/integrations/clair.md)
+  * [Notifications](user-guide/integrations/notifications.md)
+  * [Monitoring (Grafana)](user-guide/integrations//grafana.md)
 
 ## Resources
 
