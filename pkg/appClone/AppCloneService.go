@@ -259,10 +259,12 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 			}
 		}
 		// first repo with same url
-		for _, gitMaterial := range gitMaterials {
-			if gitMaterial.Url == refGitmaterial.Url {
-				dockerfileGitMaterial = gitMaterial.Id
-				break
+		if dockerfileGitMaterial == 0 {
+			for _, gitMaterial := range gitMaterials {
+				if gitMaterial.Url == refGitmaterial.Url {
+					dockerfileGitMaterial = gitMaterial.Id
+					break
+				}
 			}
 		}
 		//take first
