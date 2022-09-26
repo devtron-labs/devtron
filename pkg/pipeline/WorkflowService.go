@@ -273,8 +273,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		}
 	}
 
-	hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
-
 	var (
 		ciWorkflow = v1alpha1.Workflow{
 			ObjectMeta: v1.ObjectMeta{
@@ -314,12 +312,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 								Name:          "app-data",
 								ContainerPort: 9102,
 							}},
-							VolumeMounts: []v12.VolumeMount{
-								{
-									Name:      "maven-dir",
-									MountPath: "/devtroncd/.m2",
-								},
-							},
 						},
 						ActiveDeadlineSeconds: &intstr.IntOrString{
 							IntVal: int32(workflowRequest.ActiveDeadlineSeconds),
@@ -329,22 +321,36 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 							S3:          s3Artifact,
 							GCS:         gcsArtifact,
 						},
-						Volumes: []v12.Volume{
-							{
-								Name: "maven-dir",
-								VolumeSource: v12.VolumeSource{
-									HostPath: &v12.HostPathVolumeSource{
-										Path: "/home/devtron/.m2",
-										Type: &hostPathDirectoryOrCreate,
-									},
-								},
-							},
-						},
 					},
 				},
 			},
 		}
 	)
+
+	// volume mount
+	if impl.ciConfig.MountMavenDirectory {
+		for _, template := range ciWorkflow.Spec.Templates {
+			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+			template.Volumes = []v12.Volume{
+				{
+					Name: "maven-dir",
+					VolumeSource: v12.VolumeSource{
+						HostPath: &v12.HostPathVolumeSource{
+							Path: impl.ciConfig.HostMavenDirectoryPath,
+							Type: &hostPathDirectoryOrCreate,
+						},
+					},
+				},
+			}
+			template.Container.VolumeMounts = []v12.VolumeMount{
+				{
+					Name:      "maven-dir",
+					MountPath: "/devtroncd/.m2",
+				},
+			}
+		}
+	}
+
 	if impl.ciConfig.TaintKey != "" || impl.ciConfig.TaintValue != "" {
 		ciWorkflow.Spec.Tolerations = []v12.Toleration{{Key: impl.ciConfig.TaintKey, Value: impl.ciConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
 	}
