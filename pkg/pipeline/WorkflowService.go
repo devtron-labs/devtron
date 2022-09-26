@@ -273,6 +273,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		}
 	}
 
+	hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+
 	var (
 		ciWorkflow = v1alpha1.Workflow{
 			ObjectMeta: v1.ObjectMeta{
@@ -312,6 +314,12 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 								Name:          "app-data",
 								ContainerPort: 9102,
 							}},
+							VolumeMounts: []v12.VolumeMount{
+								{
+									Name:      "mavenDir",
+									MountPath: "/root/.m2",
+								},
+							},
 						},
 						ActiveDeadlineSeconds: &intstr.IntOrString{
 							IntVal: int32(workflowRequest.ActiveDeadlineSeconds),
@@ -320,6 +328,17 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 							ArchiveLogs: &archiveLogs,
 							S3:          s3Artifact,
 							GCS:         gcsArtifact,
+						},
+						Volumes: []v12.Volume{
+							{
+								Name: "mavenDir",
+								VolumeSource: v12.VolumeSource{
+									HostPath: &v12.HostPathVolumeSource{
+										Path: "/home/devtron/.m2",
+										Type: &hostPathDirectoryOrCreate,
+									},
+								},
+							},
 						},
 					},
 				},
