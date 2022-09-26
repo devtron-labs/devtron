@@ -1,5 +1,7 @@
 # Security Integration (Clair)
 
+**Prerequisite**: Please make sure to install **Build and Deploy (CI/CD)** integration. To install it, click [here](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+
 Devtron security integration **(Clair)** enables you to scan the vulnerabilities of the images at the time of image build only.
 
 While building the container images, it is important to take care of how secure the application is, before it is deployed. In the source code , the third party libraries and outdated libraries might be  used that can add vulnerabilities to the image we deploy. Devtron provides **Clair** integratigration for scanning vulnerabilites of the images.
