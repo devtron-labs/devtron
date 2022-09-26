@@ -35,8 +35,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/ktrysmt/go-bitbucket"
-
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -375,12 +373,8 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 				return nil, err
 			}
 		}
-		bitbucketRepoOptions := &bitbucket.RepositoryOptions{
-			Owner:    gitOpsConfigBitbucket.BitBucketWorkspaceId,
-			Project:  gitOpsConfigBitbucket.BitBucketProjectKey,
-			RepoSlug: installedAppVersion.AppStoreName,
-		}
-		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(installedAppVersion.AppStoreName, bitbucketRepoOptions)
+
+		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(installedAppVersion.AppStoreName)
 		if err != nil {
 			//will allow to continue to persist status on next operation
 			impl.logger.Errorw("fetching error", "err", err)

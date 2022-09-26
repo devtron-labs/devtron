@@ -100,7 +100,6 @@ type AppServiceImpl struct {
 	imageScanDeployInfoRepository    security.ImageScanDeployInfoRepository
 	imageScanHistoryRepository       security.ImageScanHistoryRepository
 	ArgoK8sClient                    argocdServer.ArgoK8sClient
-	gitOpsRepository                 repository.GitOpsConfigRepository
 	pipelineStrategyHistoryService   history2.PipelineStrategyHistoryService
 	configMapHistoryService          history2.ConfigMapHistoryService
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService
@@ -148,7 +147,7 @@ func NewAppService(
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *GitFactory, gitOpsRepository repository.GitOpsConfigRepository,
+	gitFactory *GitFactory,
 	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
@@ -189,7 +188,6 @@ func NewAppService(
 		imageScanHistoryRepository:       imageScanHistoryRepository,
 		ArgoK8sClient:                    ArgoK8sClient,
 		gitFactory:                       gitFactory,
-		gitOpsRepository:                 gitOpsRepository,
 		pipelineStrategyHistoryService:   pipelineStrategyHistoryService,
 		configMapHistoryService:          configMapHistoryService,
 		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
@@ -1506,15 +1504,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 			UserName:       userName,
 			UserEmailId:    userEmailId,
 		}
-		gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-		if err != nil {
-			if err == pg.ErrNoRows {
-				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			} else {
-				return 0, 0, "", err
-			}
-		}
-		commitHash, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+		commitHash, err = impl.gitFactory.Client.CommitValues(chartGitAttr)
 		if err != nil {
 			impl.logger.Errorw("error in git commit", "err", err)
 			return 0, 0, "", err

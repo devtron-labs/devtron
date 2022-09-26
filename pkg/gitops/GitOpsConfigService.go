@@ -45,7 +45,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
-	"github.com/ktrysmt/go-bitbucket"
 	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
@@ -703,7 +702,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	appName := DryrunRepoName + util2.Generate(6)
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", config.BitBucketWorkspaceId, config.BitBucketProjectKey, userName, userEmailId)
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", userName, userEmailId)
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
@@ -747,13 +746,8 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	} else {
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CommitOnRestStage, PushStage)
 	}
-	repoOptions := &bitbucket.RepositoryOptions{
-		Owner:     config.BitBucketWorkspaceId,
-		RepoSlug:  appName,
-		IsPrivate: "true",
-		Project:   config.BitBucketProjectKey,
-	}
-	err = client.DeleteRepository(appName, config.Username, config.GitHubOrgId, config.AzureProjectName, repoOptions)
+
+	err = client.DeleteRepository(appName)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo", "err", err)
 		//here below the assignment of delete is removed for making this stage optional, and it's failure not preventing it from saving/updating gitOps config
