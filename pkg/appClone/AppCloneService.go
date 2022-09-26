@@ -37,14 +37,15 @@ type AppCloneService interface {
 	CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error)
 }
 type AppCloneServiceImpl struct {
-	logger                  *zap.SugaredLogger
-	pipelineBuilder         pipeline.PipelineBuilder
-	materialRepository      pipelineConfig.MaterialRepository
-	chartService            chart.ChartService
-	configMapService        pipeline.ConfigMapService
-	appWorkflowService      appWorkflow.AppWorkflowService
-	appListingService       app.AppListingService
-	propertiesConfigService pipeline.PropertiesConfigService
+	logger                       *zap.SugaredLogger
+	pipelineBuilder              pipeline.PipelineBuilder
+	materialRepository           pipelineConfig.MaterialRepository
+	chartService                 chart.ChartService
+	configMapService             pipeline.ConfigMapService
+	appWorkflowService           appWorkflow.AppWorkflowService
+	appListingService            app.AppListingService
+	propertiesConfigService      pipeline.PropertiesConfigService
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -55,17 +56,17 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-
-) *AppCloneServiceImpl {
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
-		logger:                  logger,
-		pipelineBuilder:         pipelineBuilder,
-		materialRepository:      materialRepository,
-		chartService:            chartService,
-		configMapService:        configMapService,
-		appWorkflowService:      appWorkflowService,
-		appListingService:       appListingService,
-		propertiesConfigService: propertiesConfigService,
+		logger:                       logger,
+		pipelineBuilder:              pipelineBuilder,
+		materialRepository:           materialRepository,
+		chartService:                 chartService,
+		configMapService:             configMapService,
+		appWorkflowService:           appWorkflowService,
+		appListingService:            appListingService,
+		propertiesConfigService:      propertiesConfigService,
+		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
 	}
 
 }
@@ -722,11 +723,34 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					BeforeDockerBuildScripts: beforeDockerBuildScripts,
 					AfterDockerBuildScripts:  afterDockerBuildScripts,
 					ParentCiPipeline:         refCiPipeline.ParentCiPipeline,
+					IsDockerConfigOverridden: refCiPipeline.IsDockerConfigOverridden,
 				},
 				AppId:         req.appId,
 				Action:        bean.CREATE,
 				AppWorkflowId: req.wfId,
 				UserId:        req.userId,
+			}
+			if !refCiPipeline.IsExternal && refCiPipeline.IsDockerConfigOverridden {
+				//get template override
+				templateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(refCiPipeline.Id)
+				if err != nil {
+					impl.logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "err", err, "ciPipelineId", refCiPipeline.Id)
+					return nil, err
+				}
+				//getting new git material for this app
+				gitMaterial, err := impl.materialRepository.FindByAppIdAndCheckoutPath(req.appId, templateOverride.GitMaterial.CheckoutPath)
+				if err != nil {
+					impl.logger.Errorw("error in getting git material by appId and checkoutPath", "err", err, "appid", req.refAppId, "checkoutPath", templateOverride.GitMaterial.CheckoutPath)
+					return nil, err
+				}
+				ciPatchReq.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+					DockerRegistry:   templateOverride.DockerRegistryId,
+					DockerRepository: templateOverride.DockerRepository,
+					DockerBuildConfig: &bean.DockerBuildConfig{
+						DockerfilePath: templateOverride.DockerfilePath,
+						GitMaterialId:  gitMaterial.Id,
+					},
+				}
 			}
 			return impl.pipelineBuilder.PatchCiPipeline(ciPatchReq)
 		}

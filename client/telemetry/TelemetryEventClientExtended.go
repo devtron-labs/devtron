@@ -97,107 +97,115 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 }
 
 type TelemetryEventDto struct {
-	UCID         string             `json:"ucid"` //unique client id
- 	Timestamp    time.Time          `json:"timestamp"`
- 	EventMessage string             `json:"eventMessage,omitempty"`
- 	EventType    TelemetryEventType `json:"eventType"`
- 	ProdAppCount                         int    `json:"prodAppCount,omitempty"`
- 	NonProdAppCount                      int    `json:"nonProdAppCount,omitempty"`
- 	UserCount                            int    `json:"userCount,omitempty"`
- 	EnvironmentCount                     int    `json:"environmentCount,omitempty"`
- 	ClusterCount                         int    `json:"clusterCount,omitempty"`
- 	CiCountPerDay                        int    `json:"ciCountPerDay,omitempty"`
- 	CdCountPerDay                        int    `json:"cdCountPerDay,omitempty"`
- 	HelmChartCount                       int    `json:"helmChartCount,omitempty"`
- 	SecurityScanCountPerDay              int    `json:"securityScanCountPerDay,omitempty"`
- 	GitAccountsCount                     int    `json:"gitAccountsCount,omitempty"`
- 	GitOpsCount                          int    `json:"gitOpsCount,omitempty"`
- 	RegistryCount                        int    `json:"registryCount,omitempty"`
- 	HostURL                              bool   `json:"hostURL,omitempty"`
- 	SSOLogin                             bool   `json:"ssoLogin,omitempty"`
- 	AppCount                             int    `json:"appCount,omitempty"`
- 	AppsWithGitRepoConfigured            int    `json:"appsWithGitRepoConfigured,omitempty"`
- 	AppsWithDockerConfigured             int    `json:"appsWithDockerConfigured,omitempty"`
- 	AppsWithDeploymentTemplateConfigured int    `json:"appsWithDeploymentTemplateConfigured,omitempty"`
- 	AppsWithCiPipelineConfigured         int    `json:"appsWithCiPipelineConfigured,omitempty"`
- 	AppsWithCdPipelineConfigured         int    `json:"appsWithCdPipelineConfigured,omitempty"`
- 	Build                                bool   `json:"build,omitempty"`
- 	Deployment                           bool   `json:"deployment,omitempty"`
- 	ServerVersion                        string `json:"serverVersion,omitempty"`
- 	DevtronGitVersion                    string `json:"devtronGitVersion,omitempty"`
- 	DevtronVersion                       string `json:"devtronVersion,omitempty"`
- 	DevtronMode                          string `json:"devtronMode,omitempty"`
+	UCID                                 string             `json:"ucid"` //unique client id
+	Timestamp                            time.Time          `json:"timestamp"`
+	EventMessage                         string             `json:"eventMessage,omitempty"`
+	EventType                            TelemetryEventType `json:"eventType"`
+	ProdAppCount                         int                `json:"prodAppCount,omitempty"`
+	NonProdAppCount                      int                `json:"nonProdAppCount,omitempty"`
+	UserCount                            int                `json:"userCount,omitempty"`
+	EnvironmentCount                     int                `json:"environmentCount,omitempty"`
+	ClusterCount                         int                `json:"clusterCount,omitempty"`
+	CiCountPerDay                        int                `json:"ciCountPerDay,omitempty"`
+	CdCountPerDay                        int                `json:"cdCountPerDay,omitempty"`
+	HelmChartCount                       int                `json:"helmChartCount,omitempty"`
+	SecurityScanCountPerDay              int                `json:"securityScanCountPerDay,omitempty"`
+	GitAccountsCount                     int                `json:"gitAccountsCount,omitempty"`
+	GitOpsCount                          int                `json:"gitOpsCount,omitempty"`
+	RegistryCount                        int                `json:"registryCount,omitempty"`
+	HostURL                              bool               `json:"hostURL,omitempty"`
+	SSOLogin                             bool               `json:"ssoLogin,omitempty"`
+	AppCount                             int                `json:"appCount,omitempty"`
+	AppsWithGitRepoConfigured            int                `json:"appsWithGitRepoConfigured,omitempty"`
+	AppsWithDockerConfigured             int                `json:"appsWithDockerConfigured,omitempty"`
+	AppsWithDeploymentTemplateConfigured int                `json:"appsWithDeploymentTemplateConfigured,omitempty"`
+	AppsWithCiPipelineConfigured         int                `json:"appsWithCiPipelineConfigured,omitempty"`
+	AppsWithCdPipelineConfigured         int                `json:"appsWithCdPipelineConfigured,omitempty"`
+	Build                                bool               `json:"build,omitempty"`
+	Deployment                           bool               `json:"deployment,omitempty"`
+	ServerVersion                        string             `json:"serverVersion,omitempty"`
+	DevtronGitVersion                    string             `json:"devtronGitVersion,omitempty"`
+	DevtronVersion                       string             `json:"devtronVersion,omitempty"`
+	DevtronMode                          string             `json:"devtronMode,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
+	err := impl.SendSummaryEvent(string(Summary))
+	if err != nil {
+		impl.logger.Errorw("error occurred in SummaryEventForTelemetry", "err", err)
+	}
+}
+
+func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string) error {
+	impl.logger.Infow("sending summary event", "eventType", eventType)
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		return err
 	}
 
 	if IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
-		return
+		return err
 	}
 
 	clusters, users, k8sServerVersion, hostURL, ssoSetup := impl.SummaryDetailsForTelemetry()
-	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
+	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
 	environments, err := impl.environmentService.GetAllActive()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		return err
 	}
 
 	prodApps, err := impl.appListingRepository.FindAppCount(true)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		return err
 	}
 
 	nonProdApps, err := impl.appListingRepository.FindAppCount(false)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		return err
 	}
 
 	ciPipeline, err := impl.ciPipelineRepository.FindAllPipelineInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		return err
 	}
 
 	cdPipeline, err := impl.pipelineRepository.FindAllPipelineInLast24Hour()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		return err
 	}
 
 	gitAccounts, err := impl.gitProviderRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		return err
 	}
 
 	gitOps, err := impl.gitOpsConfigRepository.GetAllGitOpsConfig()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		return err
 	}
 
 	containerRegistry, err := impl.dockerArtifactStoreRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		return err
 	}
 
 	//appSetup := false
 	apps, err := impl.appRepository.FindAll()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		return err
 	}
 
 	var appIds []int
@@ -255,17 +263,19 @@ func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
-		return
+		return err
 	}
 	prop := make(map[string]interface{})
 	err = json.Unmarshal(reqBody, &prop)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, payload unmarshal error", "error", err)
-		return
+		return err
 	}
 
-	err = impl.EnqueuePostHog(ucid, Summary, prop)
+	err = impl.EnqueuePostHog(ucid, TelemetryEventType(eventType), prop)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
+		return err
 	}
+	return nil
 }
