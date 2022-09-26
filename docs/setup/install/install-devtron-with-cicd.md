@@ -220,7 +220,7 @@ $ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSW
 
 Use username:`admin` and for password run command mentioned below.
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
 ## Cleaning Devtron Helm installer
