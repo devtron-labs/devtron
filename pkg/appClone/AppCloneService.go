@@ -46,6 +46,7 @@ type AppCloneServiceImpl struct {
 	appListingService            app.AppListingService
 	propertiesConfigService      pipeline.PropertiesConfigService
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
+	pipelineStageService         pipeline.PipelineStageService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -56,7 +57,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *AppCloneServiceImpl {
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
+	pipelineStageService pipeline.PipelineStageService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                       logger,
 		pipelineBuilder:              pipelineBuilder,
@@ -67,6 +69,7 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		appListingService:            appListingService,
 		propertiesConfigService:      propertiesConfigService,
 		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
+		pipelineStageService:         pipelineStageService,
 	}
 
 }
@@ -706,6 +709,13 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 				}
 				afterDockerBuildScripts = append(afterDockerBuildScripts, ciScript)
 			}
+
+			//getting pre stage and post stage details
+			preStageDetail, postStageDetail, err := impl.pipelineStageService.GetCiPipelineStageDataDeepCopy(refCiPipeline.Id)
+			if err != nil {
+				impl.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", refCiPipeline.Id)
+				return nil, err
+			}
 			ciPatchReq := &bean.CiPatchRequest{
 				CiPipeline: &bean.CiPipeline{
 					IsManual:                 refCiPipeline.IsManual,
@@ -724,6 +734,8 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					AfterDockerBuildScripts:  afterDockerBuildScripts,
 					ParentCiPipeline:         refCiPipeline.ParentCiPipeline,
 					IsDockerConfigOverridden: refCiPipeline.IsDockerConfigOverridden,
+					PreBuildStage:            preStageDetail,
+					PostBuildStage:           postStageDetail,
 				},
 				AppId:         req.appId,
 				Action:        bean.CREATE,
@@ -752,6 +764,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					},
 				}
 			}
+
 			return impl.pipelineBuilder.PatchCiPipeline(ciPatchReq)
 		}
 	}
