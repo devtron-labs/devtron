@@ -711,7 +711,7 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 			}
 
 			//getting pre stage and post stage details
-			preStageDetail, postStageDetail, err := impl.pipelineStageService.GetCiPipelineStageData(refCiPipeline.Id)
+			preStageDetail, postStageDetail, err := impl.pipelineStageService.GetCiPipelineStageDataDeepCopy(refCiPipeline.Id)
 			if err != nil {
 				impl.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", refCiPipeline.Id)
 				return nil, err

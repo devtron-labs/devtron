@@ -715,7 +715,7 @@ func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline 
 	ciPipelineResp.AfterDockerBuildScripts = afterDockerBuildScriptsResp
 
 	//getting pre stage and post stage details
-	preStageDetail, postStageDetail, err := handler.pipelineStageService.GetCiPipelineStageData(ciPipeline.Id)
+	preStageDetail, postStageDetail, err := handler.pipelineStageService.GetCiPipelineStageDataDeepCopy(ciPipeline.Id)
 	if err != nil {
 		handler.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", ciPipeline.Id)
 		return nil, err
