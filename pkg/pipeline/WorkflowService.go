@@ -329,7 +329,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 
 	// volume mount
 	if impl.ciConfig.MountMavenDirectory {
-		for _, template := range ciWorkflow.Spec.Templates {
+		for index, template := range ciWorkflow.Spec.Templates {
 			impl.Logger.Infow("before", "ciWorkflow", ciWorkflow)
 			impl.Logger.Infow("before", "template", template)
 			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
@@ -350,6 +350,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					},
 				},
 			}
+			ciWorkflow.Spec.Templates[index] = template
 			impl.Logger.Infow("after", "ciWorkflow", ciWorkflow)
 			impl.Logger.Infow("after", "template", template)
 		}
