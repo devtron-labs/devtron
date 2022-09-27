@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
@@ -14,10 +15,9 @@ import (
 )
 
 type DeleteServiceExtendedImpl struct {
-	appRepository          app.AppRepository
-	environmentRepository  repository.EnvironmentRepository
-	pipelineRepository     pipelineConfig.PipelineRepository
-	installedAppRepository repository2.InstalledAppRepository
+	appRepository         app.AppRepository
+	environmentRepository repository.EnvironmentRepository
+	pipelineRepository    pipelineConfig.PipelineRepository
 	*DeleteServiceImpl
 }
 
@@ -30,16 +30,16 @@ func NewDeleteServiceExtendedImpl(logger *zap.SugaredLogger,
 	pipelineRepository pipelineConfig.PipelineRepository, chartRepositoryService chartRepo.ChartRepositoryService, installedAppRepository repository2.InstalledAppRepository,
 ) *DeleteServiceExtendedImpl {
 	return &DeleteServiceExtendedImpl{
-		appRepository:          appRepository,
-		environmentRepository:  environmentRepository,
-		pipelineRepository:     pipelineRepository,
-		installedAppRepository: installedAppRepository,
+		appRepository:         appRepository,
+		environmentRepository: environmentRepository,
+		pipelineRepository:    pipelineRepository,
 		DeleteServiceImpl: &DeleteServiceImpl{
 			logger:                 logger,
 			teamService:            teamService,
 			clusterService:         clusterService,
 			environmentService:     environmentService,
 			chartRepositoryService: chartRepositoryService,
+			installedAppRepository: installedAppRepository,
 		},
 	}
 }
@@ -70,10 +70,26 @@ func (impl DeleteServiceExtendedImpl) DeleteEnvironment(deleteRequest *cluster.E
 		impl.logger.Errorw("err in deleting env", "envName", deleteRequest.Environment, "err", err)
 		return err
 	}
-	if len(pipelines) > 0 {
-		impl.logger.Errorw("err in deleting env, found pipelines in this env", "envName", deleteRequest.Environment, "err", err)
-		return fmt.Errorf(" Please delete all related pipelines before deleting this environment")
+	//finding if this env is used in any helm apps, if yes then will not delete
+	filter := &appStoreBean.AppStoreFilter{
+		EnvIds: []int{deleteRequest.Id},
 	}
+	installedApps, err := impl.installedAppRepository.GetAllInstalledApps(filter)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting env", "envName", deleteRequest.Environment, "err", err)
+		return err
+	}
+	if len(installedApps) > 0 && len(pipelines) > 0 {
+		impl.logger.Errorw("err in deleting env, found cd pipelines and helm apps in this env", "envName", deleteRequest.Environment, "err", err)
+		return fmt.Errorf(" Please delete all related cd pipelines and helm apps before deleting this environment")
+	} else if len(installedApps) > 0 {
+		impl.logger.Errorw("err in deleting env, found helm apps in this env", "envName", deleteRequest.Environment, "err", err)
+		return fmt.Errorf(" Please delete all related helm apps before deleting this environment")
+	} else if len(pipelines) > 0 {
+		impl.logger.Errorw("err in deleting env, found cd pipelines in this env", "envName", deleteRequest.Environment, "err", err)
+		return fmt.Errorf(" Please delete all related cd pipelines before deleting this environment")
+	}
+
 	err = impl.environmentService.Delete(deleteRequest, userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting environment", "err", err, "deleteRequest", deleteRequest)
