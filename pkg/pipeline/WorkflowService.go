@@ -331,6 +331,12 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if impl.ciConfig.MountMavenDirectory {
 		for _, template := range ciWorkflow.Spec.Templates {
 			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+			template.Container.VolumeMounts = []v12.VolumeMount{
+				{
+					Name:      "maven-dir",
+					MountPath: "/devtroncd/.m2",
+				},
+			}
 			template.Volumes = []v12.Volume{
 				{
 					Name: "maven-dir",
@@ -340,12 +346,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 							Type: &hostPathDirectoryOrCreate,
 						},
 					},
-				},
-			}
-			template.Container.VolumeMounts = []v12.VolumeMount{
-				{
-					Name:      "maven-dir",
-					MountPath: "/devtroncd/.m2",
 				},
 			}
 		}
