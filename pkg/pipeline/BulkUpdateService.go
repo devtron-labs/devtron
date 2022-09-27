@@ -1096,7 +1096,13 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 	return request, nil
 }
 func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentPayload, error) {
-	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+	var pipelines []*pipelineConfig.Pipeline
+	var err error
+	if len(request.AppIdIncludes.Ids) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByEnvIdAndAppIds(request.EnvId, request.AppIdIncludes.Ids)
+	} else {
+		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
 		return nil, err
@@ -1147,7 +1153,13 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 	return request, nil
 }
 func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentPayload, error) {
-	pipelines, err := impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+	var pipelines []*pipelineConfig.Pipeline
+	var err error
+	if len(request.AppIdIncludes.Ids) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByEnvIdAndAppIds(request.EnvId, request.AppIdIncludes.Ids)
+	} else {
+		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+	}
 	if err != nil {
 		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
 		return nil, err
@@ -1165,13 +1177,19 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
 		if !isValidAuth {
 			//skip hibernate for the app if user does not have access on that
+			pipelineResponse := response[pipeline.AppId]
+			pipelineResponse[pipeline.Id] = false
+			response[pipeline.AppId] = pipelineResponse
 			continue
 		}
 
 		artifactResponse, err := impl.pipelineBuilder.GetArtifactsByCDPipeline(pipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil {
 			impl.logger.Errorw("service err, GetArtifactsByCDPipeline", "err", err, "cdPipelineId", pipeline.Id)
-			return nil, err
+			//return nil, err
+			pipelineResponse := response[pipeline.AppId]
+			pipelineResponse[pipeline.Id] = false
+			response[pipeline.AppId] = pipelineResponse
 		}
 
 		artifacts := artifactResponse.CiArtifacts
