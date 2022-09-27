@@ -53,6 +53,7 @@
       * [Pre-Build/Post-Build Tasks](user-guide/creating-application/workflow/ci-build-pre-post-plugins.md)
     * [CI Pipeline (Legacy)](user-guide/creating-application/workflow/ci-pipeline-legacy.md)
     * [CD Pipeline](user-guide/creating-application/workflow/cd-pipeline.md)
+    * [Override Container Registry](user-guide/creating-application/container-registry-override.md)
     * [Config Maps](user-guide/creating-application/config-maps.md)
     * [Secrets](user-guide/creating-application/secrets.md)
     * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
