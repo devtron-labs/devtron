@@ -67,6 +67,8 @@ type CiConfig struct {
 	MinioRegion                string   `env:"MINIO_REGION" envDefault:"us-west-2"`
 	DefaultAddressPoolBaseCidr string   `env:"CI_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
 	DefaultAddressPoolSize     int      `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
+	MountMavenDirectory        bool     `env:"MOUNT_MAVEN_DIRECTORY"`
+	HostMavenDirectoryPath     string   `env:"HOST_MAVEN_DIRECTORY_PATH" envDefault:"/home/devtron/.m2"`
 
 	AzureAccountKey string `env:"AZURE_ACCOUNT_KEY"`
 	ClusterConfig   *rest.Config
