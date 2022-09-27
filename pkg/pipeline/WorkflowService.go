@@ -330,6 +330,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	// volume mount
 	if impl.ciConfig.MountMavenDirectory {
 		for _, template := range ciWorkflow.Spec.Templates {
+			impl.Logger.Infow("before", "ciWorkflow", ciWorkflow)
+			impl.Logger.Infow("before", "template", template)
 			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
 			template.Container.VolumeMounts = []v12.VolumeMount{
 				{
@@ -348,8 +350,13 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					},
 				},
 			}
+			impl.Logger.Infow("after", "ciWorkflow", ciWorkflow)
+			impl.Logger.Infow("after", "template", template)
 		}
 	}
+
+	impl.Logger.Infow("after2", "ciWorkflow2", ciWorkflow)
+	impl.Logger.Infow("after2", "template2", ciWorkflow.Spec.Templates)
 
 	if impl.ciConfig.TaintKey != "" || impl.ciConfig.TaintValue != "" {
 		ciWorkflow.Spec.Tolerations = []v12.Toleration{{Key: impl.ciConfig.TaintKey, Value: impl.ciConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
