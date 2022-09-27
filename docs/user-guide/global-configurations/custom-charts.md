@@ -122,7 +122,7 @@ The uploaded archive will be validated against:
 - `release-values.yaml` file is required.
 - ConfigMap/Secret template should be same as that of our [reference chart](https://github.com/devtron-labs/devtron/tree/main/scripts/devtron-reference-helm-charts/reference-chart_4-14-0).
 - `Chart.yaml` must include the name and the version number.
-- `.image_descriptor_template.json` file should be present and the field format must match the format listed in the image builder template section.
+- `..image_descriptor_template.json` file should be present and the field format must match the format listed in the image builder template section.
 
 
 The following are the validation results:
