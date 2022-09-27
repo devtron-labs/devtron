@@ -13,7 +13,7 @@ For any use case not addressed by the default helm charts, you can upload your o
 ## Prerequisites
 
 1. A valid helm chart, which contains `Chart.yaml` file with name and version fields.
-2. Image descriptor template file - `.image_descriptor_template.json`.
+2. Image descriptor template file `.image_descriptor_template.json`.
 3. Custom chart packaged in the `*.tgz` format.
 
 ### 1. How to create a helm chart
@@ -32,7 +32,7 @@ helm create my-custom-chart
 
 ![Chart.yaml file](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/chart-yaml-file.png)
 
-### 2. Create the image descriptor template file - `.image_descriptor_template.json`
+### 2. Create the image descriptor template file `.image_descriptor_template.json`
 
 It's a GO template file that should produce a valid `JSON` file upon rendering. This file is passed as the last argument in
 `helm install -f myvalues.yaml -f override.yaml ` command.
@@ -87,7 +87,7 @@ You can use the following variables in the helm template (all the placeholders a
 
 > Before you begin, ensure that your helm chart includes both `Chart.yaml` (with `name` and `version` fields) and `.image_descriptor_template.json` files.
 
-The helm chart to be uploaded must be packaged as a versioned archive file in the format - `<helm-chart-name>-vx.x.x.tgz`.
+The helm chart to be uploaded must be packaged as a versioned archive file in the format `<helm-chart-name>-vx.x.x.tgz`.
 
 ```
 helm package my-custom-chart
@@ -101,7 +101,7 @@ The above command will create a `my-custom-chart-0.1.0.tgz` file.
 
 * On the Devtron dashboard, select **Global Configurations > Custom charts**.
 * Select **Import Chart**.
-* Choose **Select tar.gz file...** and upload the packaged custom chart in the `*.tgz` format.
+* **Select tar.gz file...** and upload the packaged custom chart in the `*.tgz` format.
 
 ![Selecting custom chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/Chart+pre-requisites.png)
 
