@@ -33,7 +33,7 @@ type NameIncludesExcludes struct {
 	Names []string `json:"names"`
 }
 type IdIncludesExcludes struct {
-	Ids []int `json:"Ids"`
+	Ids []int `json:"ids"`
 }
 type DeploymentTemplateSpec struct {
 	PatchJson string `json:"patchJson"`
