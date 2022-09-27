@@ -89,6 +89,7 @@ type CoreAppRestHandlerImpl struct {
 	chartRepo               chartRepoRepository.ChartRepository
 	teamService             team.TeamService
 	argoUserService         argo.ArgoUserService
+	pipelineStageService    pipeline.PipelineStageService
 }
 
 func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
@@ -98,7 +99,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 	materialRepository pipelineConfig.MaterialRepository, gitProviderRepo repository.GitProviderRepository,
 	appWorkflowRepository appWorkflow2.AppWorkflowRepository, environmentRepository repository2.EnvironmentRepository, configMapRepository chartConfig.ConfigMapRepository,
 	envConfigRepo chartConfig.EnvConfigOverrideRepository, chartRepo chartRepoRepository.ChartRepository, teamService team.TeamService,
-	argoUserService argo.ArgoUserService) *CoreAppRestHandlerImpl {
+	argoUserService argo.ArgoUserService, pipelineStageService pipeline.PipelineStageService) *CoreAppRestHandlerImpl {
 	handler := &CoreAppRestHandlerImpl{
 		logger:                  logger,
 		userAuthService:         userAuthService,
@@ -122,6 +123,7 @@ func NewCoreAppRestHandlerImpl(logger *zap.SugaredLogger, userAuthService user.U
 		chartRepo:               chartRepo,
 		teamService:             teamService,
 		argoUserService:         argoUserService,
+		pipelineStageService:    pipelineStageService,
 	}
 	return handler
 }
@@ -712,6 +714,14 @@ func (handler CoreAppRestHandlerImpl) buildCiPipelineResp(appId int, ciPipeline 
 	}
 	ciPipelineResp.AfterDockerBuildScripts = afterDockerBuildScriptsResp
 
+	//getting pre stage and post stage details
+	preStageDetail, postStageDetail, err := handler.pipelineStageService.GetCiPipelineStageDataDeepCopy(ciPipeline.Id)
+	if err != nil {
+		handler.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", ciPipeline.Id)
+		return nil, err
+	}
+	ciPipelineResp.PreBuildStage = preStageDetail
+	ciPipelineResp.PostBuildStage = postStageDetail
 	return ciPipelineResp, nil
 }
 
@@ -1557,6 +1567,8 @@ func (handler CoreAppRestHandlerImpl) createCiPipeline(appId int, userId int32, 
 			DockerArgs:               ciPipelineData.DockerBuildArgs,
 			ScanEnabled:              ciPipelineData.VulnerabilityScanEnabled,
 			CiMaterial:               ciMaterialsRequest,
+			PreBuildStage:            ciPipelineData.PreBuildStage,
+			PostBuildStage:           ciPipelineData.PostBuildStage,
 		},
 	}
 
