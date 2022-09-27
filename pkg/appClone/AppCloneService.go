@@ -249,17 +249,19 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 			impl.logger.Errorw("error in fetching ref git material", "id", refCiConf.DockerBuildConfig.GitMaterialId, "err", err)
 			return nil, err
 		}
-		// first repo with same url
-		for _, gitMaterial := range gitMaterials {
-			if gitMaterial.Url == refGitmaterial.Url {
-				dockerfileGitMaterial = gitMaterial.Id
-				break
-			}
-		}
 		//first repo with same checkout path
 		if dockerfileGitMaterial == 0 {
 			for _, gitMaterial := range gitMaterials {
 				if gitMaterial.CheckoutPath == refGitmaterial.CheckoutPath {
+					dockerfileGitMaterial = gitMaterial.Id
+					break
+				}
+			}
+		}
+		// first repo with same url
+		if dockerfileGitMaterial == 0 {
+			for _, gitMaterial := range gitMaterials {
+				if gitMaterial.Url == refGitmaterial.Url {
 					dockerfileGitMaterial = gitMaterial.Id
 					break
 				}
