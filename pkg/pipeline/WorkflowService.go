@@ -348,10 +348,12 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					},
 				},
 			}
+			// updating the element in slice
+			//https://medium.com/@xcoulon/3-ways-to-update-elements-in-a-slice-d5df54c9b2f8
 			ciWorkflow.Spec.Templates[index] = template
 		}
 	}
-	
+
 	if impl.ciConfig.TaintKey != "" || impl.ciConfig.TaintValue != "" {
 		ciWorkflow.Spec.Tolerations = []v12.Toleration{{Key: impl.ciConfig.TaintKey, Value: impl.ciConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
 	}
