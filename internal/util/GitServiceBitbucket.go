@@ -17,6 +17,7 @@ const (
 	BITBUCKET_CLONE_BASE_URL       = "https://bitbucket.org/"
 	BITBUCKET_GITOPS_DIR           = "bitbucketGitOps"
 	BITBUCKET_REPO_NOT_FOUND_ERROR = "404 Not Found"
+	BITBUCKET_COMMIT_TIME_LAYOUT   = "2001-01-01T10:00:00+00:00"
 )
 
 type GitBitbucketClient struct {
@@ -289,4 +290,48 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig) (commitHash str
 	//extracting the latest commit hash from the paginated api response of above method, reference of api & response - https://developer.atlassian.com/bitbucket/api/2/reference/resource/repositories/%7Bworkspace%7D/%7Brepo_slug%7D/commits
 	commitHash = commits.(map[string]interface{})["values"].([]interface{})[0].(map[string]interface{})["hash"].(string)
 	return commitHash, nil
+}
+
+func (impl GitBitbucketClient) GetCommits(repoName, projectName string) ([]*GitCommitDto, error) {
+	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket = &repository.GitOpsConfig{}
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+			gitOpsConfigBitbucket.BitBucketProjectKey = ""
+		} else {
+			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
+			return nil, err
+		}
+	}
+	bitbucketWorkspaceId := gitOpsConfigBitbucket.BitBucketWorkspaceId
+	bitbucketClient := impl.client
+	getCommitsOptions := &bitbucket.CommitsOptions{
+		RepoSlug:    repoName,
+		Owner:       bitbucketWorkspaceId,
+		Branchortag: "master",
+	}
+	gitCommitsIf, err := bitbucketClient.Repositories.Commits.GetCommits(getCommitsOptions)
+	if err != nil {
+		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName)
+		return nil, err
+	}
+
+	gitCommits := gitCommitsIf.(map[string]interface{})["values"].([]interface{})
+	var gitCommitsDto []*GitCommitDto
+	for _, gitCommit := range gitCommits {
+
+		commitHash := gitCommit.(map[string]string)["hash"]
+		commitTime, err := time.Parse(BITBUCKET_COMMIT_TIME_LAYOUT, gitCommit.(map[string]string)["date"])
+		if err != nil {
+			impl.logger.Errorw("error in getting commitTime", "err", err, "gitCommit", gitCommit)
+			return nil, err
+		}
+		gitCommitDto := &GitCommitDto{
+			CommitHash: commitHash,
+			CommitTime: commitTime,
+		}
+		gitCommitsDto = append(gitCommitsDto, gitCommitDto)
+	}
+	return gitCommitsDto, nil
 }

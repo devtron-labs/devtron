@@ -305,3 +305,26 @@ func (impl GitAzureClient) ensureProjectAvailabilityOnSsh(projectName string, re
 	}
 	return false, nil
 }
+
+func (impl GitAzureClient) GetCommits(repoName, projectName string) ([]*GitCommitDto, error) {
+	azureClient := *impl.client
+	getCommitsArgs := git.GetCommitsArgs{
+		RepositoryId: &repoName,
+		Project:      &projectName,
+	}
+	gitCommits, err := azureClient.GetCommits(context.Background(), getCommitsArgs)
+	if err != nil {
+		impl.logger.Errorw("error in getting commits", "err", err, "repoName", repoName, "projectName", projectName)
+		return nil, err
+	}
+	var gitCommitsDto []*GitCommitDto
+	for _, gitCommit := range *gitCommits {
+		gitCommitDto := &GitCommitDto{
+			CommitHash: *gitCommit.CommitId,
+			AuthorName: *gitCommit.Author.Name,
+			CommitTime: gitCommit.Author.Date.Time,
+		}
+		gitCommitsDto = append(gitCommitsDto, gitCommitDto)
+	}
+	return gitCommitsDto, nil
+}
