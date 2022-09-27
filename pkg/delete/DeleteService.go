@@ -1,6 +1,7 @@
 package delete
 
 import (
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -20,19 +21,21 @@ type DeleteServiceImpl struct {
 	clusterService         cluster.ClusterService
 	environmentService     cluster.EnvironmentService
 	chartRepositoryService chartRepo.ChartRepositoryService
+	installedAppRepository repository.InstalledAppRepository
 }
 
 func NewDeleteServiceImpl(logger *zap.SugaredLogger,
 	teamService team.TeamService,
 	clusterService cluster.ClusterService,
 	environmentService cluster.EnvironmentService, chartRepositoryService chartRepo.ChartRepositoryService,
-) *DeleteServiceImpl {
+	installedAppRepository repository.InstalledAppRepository) *DeleteServiceImpl {
 	return &DeleteServiceImpl{
 		logger:                 logger,
 		teamService:            teamService,
 		clusterService:         clusterService,
 		environmentService:     environmentService,
 		chartRepositoryService: chartRepositoryService,
+		installedAppRepository: installedAppRepository,
 	}
 }
 

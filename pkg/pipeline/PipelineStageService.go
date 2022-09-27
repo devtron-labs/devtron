@@ -16,6 +16,8 @@ type PipelineStageService interface {
 	UpdateCiStage(stageReq *bean.PipelineStageDto, stageType repository.PipelineStageType, ciPipelineId int, userId int32) error
 	DeleteCiStage(stageReq *bean.PipelineStageDto, userId int32, tx *pg.Tx) error
 	BuildPrePostAndRefPluginStepsDataForWfRequest(ciPipelineId int) ([]*bean.StepObject, []*bean.StepObject, []*bean.RefPluginObject, error)
+
+	GetCiPipelineStageDataDeepCopy(ciPipelineId int) (preCiStage *bean.PipelineStageDto, postCiStage *bean.PipelineStageDto, err error)
 }
 
 func NewPipelineStageService(logger *zap.SugaredLogger,
@@ -33,6 +35,215 @@ type PipelineStageServiceImpl struct {
 	pipelineStageRepository repository.PipelineStageRepository
 	globalPluginRepository  repository2.GlobalPluginRepository
 }
+
+func (impl *PipelineStageServiceImpl) GetCiPipelineStageDataDeepCopy(ciPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
+
+	//getting all stages by ci pipeline id
+	ciStages, err := impl.pipelineStageRepository.GetAllCiStagesByCiPipelineId(ciPipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting all ciStages by ciPipelineId", "err", err, "ciPipelineId", ciStages)
+		return nil, nil, err
+	}
+	var preCiStage *bean.PipelineStageDto
+	var postCiStage *bean.PipelineStageDto
+	for _, ciStage := range ciStages {
+		if ciStage.Type == repository.PIPELINE_STAGE_TYPE_PRE_CI {
+			preCiStage, err = impl.BuildCiStageDataDeepCopy(ciStage)
+			if err != nil {
+				impl.logger.Errorw("error in getting ci stage data", "err", err, "ciStage", ciStage)
+				return nil, nil, err
+			}
+		} else if ciStage.Type == repository.PIPELINE_STAGE_TYPE_POST_CI {
+			postCiStage, err = impl.BuildCiStageDataDeepCopy(ciStage)
+			if err != nil {
+				impl.logger.Errorw("error in getting ci stage data", "err", err, "ciStage", ciStage)
+				return nil, nil, err
+			}
+		} else {
+			impl.logger.Errorw("found improper stage mapped with ciPipeline", "ciPipelineId", ciPipelineId, "stage", ciStage)
+		}
+	}
+	return preCiStage, postCiStage, nil
+}
+func (impl *PipelineStageServiceImpl) BuildCiStageDataDeepCopy(ciStage *repository.PipelineStage) (*bean.PipelineStageDto, error) {
+	stageData := &bean.PipelineStageDto{
+		Name:        ciStage.Name,
+		Description: ciStage.Description,
+		Type:        ciStage.Type,
+	}
+	//getting all steps in this stage
+	steps, err := impl.pipelineStageRepository.GetAllStepsByStageId(ciStage.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting ci steps by stage id", "err", err, "ciStageId", ciStage.Id)
+		return nil, err
+	}
+	var stepsDto []*bean.PipelineStageStepDto
+	for _, step := range steps {
+		stepDto := &bean.PipelineStageStepDto{
+			Name:                step.Name,
+			Index:               step.Index,
+			Description:         step.Description,
+			OutputDirectoryPath: step.OutputDirectoryPath,
+			StepType:            step.StepType,
+		}
+		if step.StepType == repository.PIPELINE_STEP_TYPE_INLINE {
+			inlineStepDetail, err := impl.BuildInlineStepDataDeepCopy(step)
+			if err != nil {
+				impl.logger.Errorw("error in getting inline step data", "err", err, "step", step)
+				return nil, err
+			}
+			stepDto.InlineStepDetail = inlineStepDetail
+		} else if step.StepType == repository.PIPELINE_STEP_TYPE_REF_PLUGIN {
+			refPluginStepDetail, err := impl.BuildRefPluginStepDataDeepCopy(step)
+			if err != nil {
+				impl.logger.Errorw("error in getting ref plugin step data", "err", err, "step", step)
+				return nil, err
+			}
+			stepDto.RefPluginStepDetail = refPluginStepDetail
+		}
+		stepsDto = append(stepsDto, stepDto)
+	}
+	stageData.Steps = stepsDto
+	return stageData, nil
+}
+
+func (impl *PipelineStageServiceImpl) BuildInlineStepDataDeepCopy(step *repository.PipelineStageStep) (*bean.InlineStepDetailDto, error) {
+	//getting script details for step
+	scriptDetail, err := impl.pipelineStageRepository.GetScriptDetailById(step.ScriptId)
+	if err != nil {
+		impl.logger.Errorw("error in getting script details by id", "err", err, "scriptId", step.ScriptId)
+		return nil, err
+	}
+	inlineStepDetail := &bean.InlineStepDetailDto{
+		ScriptType:               scriptDetail.Type,
+		Script:                   scriptDetail.Script,
+		StoreScriptAt:            scriptDetail.StoreScriptAt,
+		DockerfileExists:         scriptDetail.DockerfileExists,
+		MountPath:                scriptDetail.MountPath,
+		MountCodeToContainer:     scriptDetail.MountCodeToContainer,
+		MountCodeToContainerPath: scriptDetail.MountCodeToContainerPath,
+		MountDirectoryFromHost:   scriptDetail.MountDirectoryFromHost,
+		ContainerImagePath:       scriptDetail.ContainerImagePath,
+		ImagePullSecretType:      scriptDetail.ImagePullSecretType,
+		ImagePullSecret:          scriptDetail.ImagePullSecret,
+	}
+	//getting script mapping details
+	scriptMappings, err := impl.pipelineStageRepository.GetScriptMappingDetailByScriptId(step.ScriptId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting script mapping by scriptId", "err", err, "scriptId", step.ScriptId)
+		return nil, err
+	}
+	var mountPathMap []*bean.MountPathMap
+	var commandArgsMap []*bean.CommandArgsMap
+	var portMap []*bean.PortMap
+	for _, scriptMapping := range scriptMappings {
+		if scriptMapping.TypeOfMapping == repository2.SCRIPT_MAPPING_TYPE_FILE_PATH {
+			mapEntry := &bean.MountPathMap{
+				FilePathOnDisk:      scriptMapping.FilePathOnDisk,
+				FilePathOnContainer: scriptMapping.FilePathOnContainer,
+			}
+			mountPathMap = append(mountPathMap, mapEntry)
+		} else if scriptMapping.TypeOfMapping == repository2.SCRIPT_MAPPING_TYPE_DOCKER_ARG {
+			mapEntry := &bean.CommandArgsMap{
+				Command: scriptMapping.Command,
+				Args:    scriptMapping.Args,
+			}
+			commandArgsMap = append(commandArgsMap, mapEntry)
+		} else if scriptMapping.TypeOfMapping == repository2.SCRIPT_MAPPING_TYPE_PORT {
+			mapEntry := &bean.PortMap{
+				PortOnLocal:     scriptMapping.PortOnLocal,
+				PortOnContainer: scriptMapping.PortOnContainer,
+			}
+			portMap = append(portMap, mapEntry)
+		}
+	}
+	inlineStepDetail.MountPathMap = mountPathMap
+	inlineStepDetail.CommandArgsMap = commandArgsMap
+	inlineStepDetail.PortMap = portMap
+	inputVariablesDto, outputVariablesDto, conditionsDto, err := impl.BuildVariableAndConditionDataByStepIdDeepCopy(step.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting variables and conditions data by stepId", "err", err, "stepId", step.Id)
+		return nil, err
+	}
+	inlineStepDetail.InputVariables = inputVariablesDto
+	inlineStepDetail.OutputVariables = outputVariablesDto
+	inlineStepDetail.ConditionDetails = conditionsDto
+	return inlineStepDetail, nil
+}
+
+func (impl *PipelineStageServiceImpl) BuildRefPluginStepDataDeepCopy(step *repository.PipelineStageStep) (*bean.RefPluginStepDetailDto, error) {
+	refPluginStepDetail := &bean.RefPluginStepDetailDto{
+		PluginId: step.RefPluginId,
+	}
+	inputVariablesDto, outputVariablesDto, conditionsDto, err := impl.BuildVariableAndConditionDataByStepIdDeepCopy(step.Id)
+	if err != nil {
+		impl.logger.Errorw("error in getting variables and conditions data by stepId", "err", err, "stepId", step.Id)
+		return nil, err
+	}
+	refPluginStepDetail.InputVariables = inputVariablesDto
+	refPluginStepDetail.OutputVariables = outputVariablesDto
+	refPluginStepDetail.ConditionDetails = conditionsDto
+	return refPluginStepDetail, nil
+}
+func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepIdDeepCopy(stepId int) ([]*bean.StepVariableDto, []*bean.StepVariableDto, []*bean.ConditionDetailDto, error) {
+	var inputVariablesDto []*bean.StepVariableDto
+	var outputVariablesDto []*bean.StepVariableDto
+	var conditionsDto []*bean.ConditionDetailDto
+	//getting all variables in the step
+	variables, err := impl.pipelineStageRepository.GetVariablesByStepId(stepId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting variables by stepId", "err", err, "stepId", stepId)
+		return nil, nil, nil, err
+	}
+	variableNameIdMap := make(map[int]string)
+	for _, variable := range variables {
+		variableNameIdMap[variable.Id] = variable.Name
+		variableDto := &bean.StepVariableDto{
+			Name:                      variable.Name,
+			Format:                    variable.Format,
+			Description:               variable.Description,
+			IsExposed:                 variable.IsExposed,
+			AllowEmptyValue:           variable.AllowEmptyValue,
+			DefaultValue:              variable.DefaultValue,
+			Value:                     variable.Value,
+			ValueType:                 variable.ValueType,
+			PreviousStepIndex:         variable.PreviousStepIndex,
+			ReferenceVariableName:     variable.ReferenceVariableName,
+			ReferenceVariableStage:    variable.ReferenceVariableStage,
+			VariableStepIndexInPlugin: variable.VariableStepIndexInPlugin,
+		}
+		if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_INPUT {
+			inputVariablesDto = append(inputVariablesDto, variableDto)
+		} else if variable.VariableType == repository.PIPELINE_STAGE_STEP_VARIABLE_TYPE_OUTPUT {
+			outputVariablesDto = append(outputVariablesDto, variableDto)
+		}
+	}
+	conditions, err := impl.pipelineStageRepository.GetConditionsByStepId(stepId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting conditions by stepId", "err", err, "stepId", stepId)
+		return nil, nil, nil, err
+	}
+	for _, condition := range conditions {
+		conditionDto := &bean.ConditionDetailDto{
+			Id:                  condition.Id,
+			ConditionalOperator: condition.ConditionalOperator,
+			ConditionalValue:    condition.ConditionalValue,
+			ConditionType:       condition.ConditionType,
+		}
+		varName, ok := variableNameIdMap[condition.ConditionVariableId]
+		if ok {
+			conditionDto.ConditionOnVariable = varName
+		}
+		conditionsDto = append(conditionsDto, conditionDto)
+	}
+	return inputVariablesDto, outputVariablesDto, conditionsDto, nil
+}
+
+
+
+
+
+
 
 //GetCiPipelineStageData and related methods starts
 func (impl *PipelineStageServiceImpl) GetCiPipelineStageData(ciPipelineId int) (*bean.PipelineStageDto, *bean.PipelineStageDto, error) {
@@ -202,7 +413,6 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 	for _, variable := range variables {
 		variableNameIdMap[variable.Id] = variable.Name
 		variableDto := &bean.StepVariableDto{
-			Id:                        variable.Id,
 			Name:                      variable.Name,
 			Format:                    variable.Format,
 			Description:               variable.Description,
@@ -229,7 +439,6 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 	}
 	for _, condition := range conditions {
 		conditionDto := &bean.ConditionDetailDto{
-			Id:                  condition.Id,
 			ConditionalOperator: condition.ConditionalOperator,
 			ConditionalValue:    condition.ConditionalValue,
 			ConditionType:       condition.ConditionType,

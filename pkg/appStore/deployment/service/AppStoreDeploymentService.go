@@ -179,7 +179,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	installedAppModel.UpdatedOn = time.Now()
 	installedAppModel.Active = true
 	if util2.IsFullStack() {
-		installedAppModel.GitOpsRepoName = impl.GetGitOpsRepoName(appStoreAppVersion.AppStore.Name)
+		installedAppModel.GitOpsRepoName = impl.GetGitOpsRepoName(installAppVersionRequest.AppName)
 		installAppVersionRequest.GitOpsRepoName = installedAppModel.GitOpsRepoName
 	}
 	installedApp, err := impl.installedAppRepository.CreateInstalledApp(installedAppModel, tx)
@@ -869,7 +869,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 	}
 
 	isHelmApp := util2.IsHelmApp(installedApp.App.AppOfferingMode) || util.IsHelmApp(installedApp.DeploymentAppType)
-
+	monoRepoMigrationRequired := false
 	// handle gitOps repo name and argoCdAppName for full mode app
 	if !isHelmApp {
 		gitOpsRepoName := installedApp.GitOpsRepoName
@@ -879,12 +879,28 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 				return nil, err
 			}
 		}
-		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
-
+		//here will set new git repo name if required to migrate
+		newGitOpsRepoName := impl.GetGitOpsRepoName(installedApp.App.AppName)
+		//checking weather git repo migration needed or not, if existing git repo and new independent git repo is not same than go ahead with migration
+		if newGitOpsRepoName != gitOpsRepoName {
+			monoRepoMigrationRequired = true
+			installAppVersionRequest.GitOpsRepoName = newGitOpsRepoName
+		} else {
+			installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
+		}
+		installedApp.GitOpsRepoName = installAppVersionRequest.GitOpsRepoName
 		argocdAppName := installedApp.App.AppName + "-" + installedApp.Environment.Name
 		installAppVersionRequest.ACDAppName = argocdAppName
 	}
 
+	//if charts in mono repo structure - do migrate it into independent git repo. here will create new repo and update acd application
+	if monoRepoMigrationRequired {
+		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
+		if err != nil {
+			impl.logger.Errorw("error while migrating the mono repo to individual", "error", err)
+			return nil, err
+		}
+	}
 	var installedAppVersion *repository.InstalledAppVersions
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
@@ -959,6 +975,14 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		}
 
 		//DB operation
+		if monoRepoMigrationRequired {
+			// git repo and acd operation has been done above, now have to update new git repo name in db
+			_, err = impl.installedAppRepository.UpdateInstalledApp(installedApp, tx)
+			if err != nil {
+				impl.logger.Errorw("error while fetching from db", "error", err)
+				return nil, err
+			}
+		}
 		installedAppVersion.ValuesYaml = installAppVersionRequest.ValuesOverrideYaml
 		installedAppVersion.UpdatedOn = time.Now()
 		installedAppVersion.UpdatedBy = installAppVersionRequest.UserId
