@@ -19,6 +19,7 @@ package pubsub
 
 import (
 	"encoding/json"
+	"time"
 
 	v1alpha12 "github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/devtron-labs/devtron/client/pubsub"
@@ -68,6 +69,7 @@ func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClie
 type ApplicationDetail struct {
 	Application    *v1alpha12.Application `json:"application"`
 	OldApplication *v1alpha12.Application `json:"oldApplication"`
+	StatusTime     time.Time              `json:"statusTime"`
 }
 
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
@@ -88,7 +90,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 		}
 		//impl.logger.Infow("app update request", "application", newApp)
 
-		isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp)
+		isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp, applicationDetail.StatusTime)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 
