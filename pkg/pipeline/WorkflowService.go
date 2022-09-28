@@ -273,6 +273,10 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					Name:      "maven-dir",
 					MountPath: "/devtroncd/.m2",
 				},
+				{
+					Name:      "docker-dir",
+					MountPath: "/var/lib/docker",
+				},
 			}
 			template.Volumes = []v12.Volume{
 				{
@@ -280,6 +284,15 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					VolumeSource: v12.VolumeSource{
 						HostPath: &v12.HostPathVolumeSource{
 							Path: impl.ciConfig.HostMavenDirectoryPath,
+							Type: &hostPathDirectoryOrCreate,
+						},
+					},
+				},
+				{
+					Name: "docker-dir",
+					VolumeSource: v12.VolumeSource{
+						HostPath: &v12.HostPathVolumeSource{
+							Path: impl.ciConfig.HostDockerDirectoryPath,
 							Type: &hostPathDirectoryOrCreate,
 						},
 					},

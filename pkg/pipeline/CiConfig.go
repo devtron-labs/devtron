@@ -69,6 +69,7 @@ type CiConfig struct {
 	DefaultAddressPoolSize     int      `env:"CI_DEFAULT_ADDRESS_POOL_SIZE"`
 	MountMavenDirectory        bool     `env:"MOUNT_MAVEN_DIRECTORY"`
 	HostMavenDirectoryPath     string   `env:"HOST_MAVEN_DIRECTORY_PATH" envDefault:"/home/devtron/.m2"`
+	HostDockerDirectoryPath    string   `env:"HOST_DOCKER_DIRECTORY_PATH" envDefault:"/home/devtron/docker"`
 
 	AzureAccountKey string `env:"AZURE_ACCOUNT_KEY"`
 	ClusterConfig   *rest.Config
