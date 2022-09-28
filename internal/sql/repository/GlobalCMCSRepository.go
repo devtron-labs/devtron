@@ -87,7 +87,7 @@ func (impl *GlobalCMCSRepositoryImpl) FindByNameMountPathAndConfigType(configTyp
 		Where("mount_path = ?", mountPath).
 		Where("deleted = ?", false).Select()
 	if err != nil {
-		impl.logger.Errorw("err on getting global cm/cs config by name, mountPath & opposite configType", "err", err)
+		impl.logger.Errorw("err on getting global cm/cs config by name, mountPath & configType", "err", err)
 		return nil, err
 	}
 	return model, nil
