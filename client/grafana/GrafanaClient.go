@@ -200,8 +200,8 @@ func (impl *GrafanaClientImpl) GetAllDatasource() ([]*GetPrometheusDatasourceRes
 			return nil, err
 		}
 	} else {
-		impl.logger.Errorw("api err", "res", string(resBody))
-		return nil, fmt.Errorf("res not success, code: %d ,response body: %s", status, string(resBody))
+		impl.logger.Errorw("api err in grafana communication", "res", string(resBody))
+		return nil, fmt.Errorf("res not success in grafana communication, Statuscode: %d ,response body: %s", status, string(resBody))
 	}
 
 	impl.logger.Debugw("grafana resp", "body", apiRes)
@@ -245,8 +245,8 @@ func (impl *GrafanaClientImpl) GetDatasource(datasourceId int) (*GetPrometheusDa
 			return nil, err
 		}
 	} else {
-		impl.logger.Errorw("api err", "res", string(resBody))
-		return nil, fmt.Errorf("res not success, code: %d ,response body: %s", status, string(resBody))
+		impl.logger.Errorw("api err in grafana communication", "res", string(resBody))
+		return nil, fmt.Errorf("res not success in grafana communication, Statuscode: %d ,response body: %s", status, string(resBody))
 	}
 	impl.logger.Debugw("grafana resp", "body", apiRes)
 	return apiRes, nil
@@ -297,8 +297,8 @@ func (impl *GrafanaClientImpl) UpdateDatasource(updateDatasourceRequest UpdateDa
 			return nil, err
 		}
 	} else {
-		impl.logger.Errorw("api err", "res", string(resBody))
-		return nil, fmt.Errorf("res not success, code: %d ,response body: %s", status, string(resBody))
+		impl.logger.Errorw("api err in grafana communication", "res", string(resBody))
+		return nil, fmt.Errorf("res not success in grafana communication, Statuscode: %d ,response body: %s", status, string(resBody))
 	}
 
 	impl.logger.Debugw("grafana resp", "body", apiRes)
@@ -349,8 +349,8 @@ func (impl *GrafanaClientImpl) deleteDatasource(updateDatasourceRequest CreateDa
 			return nil, err
 		}
 	} else {
-		impl.logger.Errorw("api err", "res", string(resBody))
-		return nil, fmt.Errorf("res not success, code: %d ,response body: %s", status, string(resBody))
+		impl.logger.Errorw("api err in grafana communication", "res", string(resBody))
+		return nil, fmt.Errorf("res not success in grafana communication, code: %d ,response body: %s", status, string(resBody))
 	}
 
 	impl.logger.Debugw("grafana resp", "body", apiRes)
@@ -403,7 +403,7 @@ func (impl *GrafanaClientImpl) CreateDatasource(createDatasourceRequest CreateDa
 			return nil, err
 		}
 	} else {
-		impl.logger.Errorw("api err", "status", status, "res", string(resBody))
+		impl.logger.Errorw("api err in grafana communication", "status", status, "res", string(resBody))
 		err = &util.ApiError{Code: strconv.Itoa(int(status)), UserMessage: "Data source with same name already exists", InternalMessage: string(resBody)}
 		return nil, err
 	}
