@@ -449,7 +449,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 		return installAppVersionRequest, err
 	}
 	valuesMap := make(map[string]map[string]interface{})
-	valuesMap[installedAppVersion.AppStoreApplicationVersion.AppStore.Name] = dat
+	valuesMap[installedAppVersion.InstalledApp.App.AppName] = dat
 	valuesByte, err := json.Marshal(valuesMap)
 	if err != nil {
 		impl.Logger.Errorw("error in marshaling", "err", err)
