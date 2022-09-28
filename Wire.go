@@ -336,7 +336,7 @@ func InitializeApp() (*App, error) {
 		router.NewGitProviderRouterImpl,
 		wire.Bind(new(router.GitProviderRouter), new(*router.GitProviderRouterImpl)),
 		restHandler.NewGitProviderRestHandlerImpl,
-		wire.Bind(new(restHandler.GitProviderRestHandler), new(*restHandler.GitProviderRestHandlerImpl)),
+		wire.Bind(new(restHandler.GlobalCMCSRestHandler), new(*restHandler.GitProviderRestHandlerImpl)),
 		router.NewDockerRegRouterImpl,
 		wire.Bind(new(router.DockerRegRouter), new(*router.DockerRegRouterImpl)),
 		restHandler.NewDockerRegRestHandlerImpl,
@@ -731,6 +731,11 @@ func InitializeApp() (*App, error) {
 
 		pipelineConfig.NewPipelineStatusTimelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineStatusTimelineRepository), new(*pipelineConfig.PipelineStatusTimelineRepositoryImpl)),
+
+		pipeline.NewGlobalCMCSServiceImpl,
+		wire.Bind(new(pipeline.GlobalCMCSService), new(*pipeline.GlobalCMCSServiceImpl)),
+		repository.NewGlobalCMCSRepositoryImpl,
+		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
 	)
 	return &App{}, nil
 }
