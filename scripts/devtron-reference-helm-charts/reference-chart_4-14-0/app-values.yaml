@@ -270,14 +270,7 @@ servicemonitor:
 envoyproxy:
   image: quay.io/devtron/envoy:v1.14.1
   configMapName: ""
-  lifecycle:
-   enabled: false
-   preStop:
-    exec:
-     command: ["sleep","5"]
-   postStart:
-    exec:
-     command: ["sleep","5"]
+  lifecycle: {}
   resources:
     limits:
       cpu: 50m
