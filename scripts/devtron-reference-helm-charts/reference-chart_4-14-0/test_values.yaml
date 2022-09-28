@@ -18,9 +18,15 @@ imagePullSecrets:
 replicaCount: 1
 MinReadySeconds: 5
 lifecycle: 
+  enabled: true
   preStop:
    exec:
     command: ["sleep","10"]
+  postStart:
+   httpGet:
+    host: example.com
+    path: /example
+    port: 90
 MaxSurge: 1
 MaxUnavailable: 0
 GracePeriod: 30
@@ -477,9 +483,13 @@ envoyproxy:
   image: envoyproxy/envoy:v1.14.1
   configMapName: ""
   lifecycle: 
+   enabled: true
    preStop:
     exec:
-     command: ["sleep","10"]
+     command: ["sleep","5"]
+   postStart:
+    exec:
+     command: ["sleep","5"]
   resources:
     limits:
       cpu: 50m
