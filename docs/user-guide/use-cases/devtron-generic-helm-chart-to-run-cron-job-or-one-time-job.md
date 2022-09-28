@@ -1,4 +1,4 @@
-# Devtron Generic Helm Chart To Run Cron Job Or One Time Job
+# Devtron Generic Helm Chart To Run CronJob Or One Time Job
 
 **Devtron also supports Job and Cronjob pipelines. If you need to regularly update the image and configurations of your cronjob/job, you should prefer to create a pipeline,To know more about this you can refer the link** [cronjob/job documentation](https://docs.devtron.ai/user-guide/creating-application/deployment-template/job-and-cronjob).
 
@@ -10,27 +10,26 @@ You can use Devtron's generic helm chart to run the CronJobs or one time Job.
 
 Select the `devtron-charts/devtron-generic-helm` chart from the Devtron Chart Store.
 
-![](../../.gitbook/assets/use-case-chart-store%20%282%29.jpg)
+![](<../../.gitbook/assets/use-case-chart-store (1).jpg>)
 
 Select the Chart Version and the Chart Value of the Chart.
 
 And, then click on `Deploy`
 
-![](../../.gitbook/assets/use-case-deploy-chart%20%282%29.jpg)
+![](<../../.gitbook/assets/use-case-deploy-chart (3) (1).jpg>)
 
 **Configure devtron-generic-helm chart**
 
-![](../../.gitbook/assets/gc-4%20%283%29.jpg)
+![](<../../.gitbook/assets/gc-4 (3).jpg>)
 
 Click on **Deploy Chart**
 
-| Key | Description |
-| :--- | :--- |
-| `App Name` | Name of the app |
-| `Project` | Name of the Project |
-| `Environment` | Select the Environment in which you want to deploy app |
-| `Chart Version` | Select the Version of the chart |
-| `Chart Values` | Select the Chart Value or Create a Custom Value |
+| Key             | Description                                            |
+| --------------- | ------------------------------------------------------ |
+| `App Name`      | Name of the app                                        |
+| `Project`       | Name of the Project                                    |
+| `Environment`   | Select the Environment in which you want to deploy app |
+| `Chart Version` | Select the Version of the chart                        |
+| `Chart Values`  | Select the Chart Value or Create a Custom Value        |
 
 In **values.yaml**, you can specify the YAML file that schedules the CronJob for your application.
-

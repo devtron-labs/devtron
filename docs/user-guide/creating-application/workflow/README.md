@@ -1,8 +1,8 @@
-# Workflow
+# Workflow Overview
 
 Workflow is a logical sequence of different stages used for continuous integration and continuous deployment of an application.
 
-![](../../../.gitbook/assets/arora1%20%282%29.gif)
+![](<../../../.gitbook/assets/workflow (1).gif>)
 
 Click on `New Build Pipeline` to create a new workflow
 
@@ -21,6 +21,3 @@ Then, create CI/CD Pipelines for your application.
 To know how to create the CI pipeline for your application, click on: [Create CI Pipelines](ci-pipeline.md)
 
 To know how to create the CD pipeline for your application, click on: [Create CD Pipelines](cd-pipeline.md)
-
-
-

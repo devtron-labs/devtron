@@ -4,12 +4,11 @@ You will see all your environments associated with an application under the `Env
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/environment-overrides/environment-override.jpg)
 
-
 You can customize your `Deployment template, ConfigMap, Secrets` in Environment Overrides section to add separate customizations for different environments such as dev, test, integration, prod, etc.
 
 ## Deployment template - Functionality
 
-If you want to deploy an application in a non-production environment and then in production environment once testing is done in non-prod environment, then you do not need to create a new application for prod environment. Your existing pipeline\(non-prod env\) will work for both the environments with little customization in your deployment template under `Environment overrides`.
+If you want to deploy an application in a non-production environment and then in production environment once testing is done in non-prod environment, then you do not need to create a new application for prod environment. Your existing pipeline(non-prod env) will work for both the environments with little customization in your deployment template under `Environment overrides`.
 
 ### Example customization:
 
@@ -19,7 +18,7 @@ Configuring the Deployment template inside `Environment Overrides` for a specifi
 
 If there are no overrides specified for an environment in the `Environment Overrides` section, the deployment template will be the one you specified in the `deployment template section` of the app creation.
 
-*(Note: This example is meant only for a representational purpose. You can choose to add any customizations you want in your deployment templates in the `Environment Overrides` tab)*
+_(Note: This example is meant only for a representational purpose. You can choose to add any customizations you want in your deployment templates in the `Environment Overrides` tab)_
 
 Any changes in the configuration will not be added to the template, instead, it will make a copy of the template and lets you customize it for each particular environment. And now this overridden template will be used only for the specified Environment.
 
@@ -39,5 +38,4 @@ Click on `Update ConfigMap` to update Configmaps.
 
 Click on `Update Secrets` to update Secrets.
 
-![](../../.gitbook/assets/arora4%20%282%29.gif)
-
+![](<../../.gitbook/assets/creating-env (1).gif>)

@@ -1,9 +1,8 @@
 # Config Maps
 
-The ConfigMap API resource holds key-value pairs of the  configuration data that can be consumed by pods or used to store configuration data for system components such as controllers. ConfigMap is similar to Secrets, but designed to more conveniently support working with strings that do not contain sensitive information.
+The ConfigMap API resource holds key-value pairs of the configuration data that can be consumed by pods or used to store configuration data for system components such as controllers. ConfigMap is similar to Secrets, but designed to more conveniently support working with strings that do not contain sensitive information.
 
 Click on `Add ConfigMap` to add a config map to your application.
-
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/config-map.jpg)
 
@@ -11,22 +10,21 @@ Click on `Add ConfigMap` to add a config map to your application.
 
 You can configure a configmap in two ways-
 
-\(a\) Using data type **Kubernetes ConfigMap**
+(a) Using data type **Kubernetes ConfigMap**
 
-\(b\) Using data type **Kubernetes External ConfigMap**
+(b) Using data type **Kubernetes External ConfigMap**
 
-
-| Key | Description |
-| :--- | :--- |
-| `Data Type (Kubernetes ConfigMap)` | Select your preferred data type for Kubernetes ConfigMap or Kubernetes External ConfigMap |
-| `Name` | Provide a name to this ConfigMap. |
-| `Use configmap as Environment Variable` | Select this option if you want to inject Environment Variables in pods using ConfigMap. |
-| `Use configmap as Data Volume` | Select this option, if you want to configure a Data Volume that is accessible to Containers running in a pod and provide a Volume mount path. |
-| `Key-Value` | Provide the actual key-value configuration data here. Key and corresponding value to the provided key. |
+| Key                                     | Description                                                                                                                                   |
+| --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| `Data Type (Kubernetes ConfigMap)`      | Select your preferred data type for Kubernetes ConfigMap or Kubernetes External ConfigMap                                                     |
+| `Name`                                  | Provide a name to this ConfigMap.                                                                                                             |
+| `Use configmap as Environment Variable` | Select this option if you want to inject Environment Variables in pods using ConfigMap.                                                       |
+| `Use configmap as Data Volume`          | Select this option, if you want to configure a Data Volume that is accessible to Containers running in a pod and provide a Volume mount path. |
+| `Key-Value`                             | Provide the actual key-value configuration data here. Key and corresponding value to the provided key.                                        |
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/configure-configmap.jpg)
 
-### \(A\) Using Kubernetes ConfigMap
+### (A) Using Kubernetes ConfigMap
 
 **1. Data Type**
 
@@ -40,7 +38,7 @@ Provide a name to your configmap.
 
 Here we are providing two options, one can select any of them as per your requirement
 
--`Environment Variable` as part of your configMap or you want to add `Data Volume` to your container using Config Map.
+\-`Environment Variable` as part of your configMap or you want to add `Data Volume` to your container using Config Map.
 
 * Environment Variable
 
@@ -58,8 +56,8 @@ In the `Data` section, you provide your configmap in key-value pairs. You can pr
 
 You can provide variables in two ways-
 
-* YAML \(raw data\)
-* GUI \(more user friendly\)
+* YAML (raw data)
+* GUI (more user friendly)
 
 Once you have provided the config, You can click on any option-`YAML` or `GUI` to view the key and Value parameters of the ConfigMap.
 
@@ -67,7 +65,7 @@ Once you have provided the config, You can click on any option-`YAML` or `GUI` t
 
 If you select `Environment Variable` in 3rd option, then you can provide your environment variables in key-value pairs in the `Data` section using `YAML` or `GUI`.
 
-`Data in YAML` \(please Check below screenshot\)
+`Data in YAML` (please Check below screenshot)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/config-maps/configure-configmap.jpg)
 
@@ -87,26 +85,25 @@ You can click on `YAML` or `GUI` to view the key and Value parameters of the Con
 
 You can click on `Save ConfigMap` to save the configMap.
 
-
 ## Sub Path
-For multiple files mount at the same location you need to check sub path bool field, it will use the file name (key) as sub path. 
-Sub Path feature is not applicable in case of external configmap.
+
+For multiple files mount at the same location you need to check sub path bool field, it will use the file name (key) as sub path. Sub Path feature is not applicable in case of external configmap.
 
 ## File Permission
+
 File permission will be provide at the configmap level not on the each key of the configmap. It will take 3 digit standard permission for the file.
 
-### \(B\) Kubernetes External ConfigMap
+### (B) Kubernetes External ConfigMap
 
 You can select `Kubernetes External ConfigMap` in the `data type` field if you have created a ConfigMap using the kubectl command.
 
 By default, the data type is set to `Kubernetes ConfigMap`.
 
-Kubernetes External ConfigMap is created using the `kubectl create configmap` command. 
-If you are using `Kubernetes External ConfigMap`, make sure you give the name of ConfigMap the same as the name that you have given using kubectl create `Configmap <configmap-name> <data source>` command, otherwise, it might result in an error during the built.
+Kubernetes External ConfigMap is created using the `kubectl create configmap` command. If you are using `Kubernetes External ConfigMap`, make sure you give the name of ConfigMap the same as the name that you have given using kubectl create `Configmap <configmap-name> <data source>` command, otherwise, it might result in an error during the built.
 
 You have to ensure that the External ConfigMap exists and is available to the pod.
 
-![](../../.gitbook/assets/config4%20%283%29.jpg)
+![](<../../.gitbook/assets/config4 (3).jpg>)
 
 The config map is created.
 
@@ -116,7 +113,7 @@ The config map is created.
 
 You can update your configmap anytime later but you cannot change the name of your configmap. If you want to change the name of the configmap then you have to create a new configmap. To update configmap, click on the configmap you have created make changes as required.
 
-![](../../.gitbook/assets/update_configmap%20%281%29.png)
+![](<../../.gitbook/assets/update\_configmap (3) (1).png>)
 
 Click on `Update Configmap` to update your configmap.
 
@@ -124,5 +121,4 @@ Click on `Update Configmap` to update your configmap.
 
 You can delete your configmap. Click on your configmap and click on the `delete sign` to delete your configmap.
 
-![](../../.gitbook/assets/delete_configmap%20%282%29.png)
-
+![](<../../.gitbook/assets/delete\_configmap (2).png>)
