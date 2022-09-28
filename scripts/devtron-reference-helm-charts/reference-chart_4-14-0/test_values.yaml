@@ -17,16 +17,17 @@ imagePullSecrets:
   - test2
 replicaCount: 1
 MinReadySeconds: 5
-lifecycle: 
-  enabled: false
-  preStop:
-   exec:
-    command: ["sleep","10"]
-  postStart:
-   httpGet:
-    host: example.com
-    path: /example
-    port: 90
+containerSpec:
+  lifecycle: 
+    enabled: true
+    preStop:
+      exec:
+        command: ["sleep","10"]
+    postStart:
+      httpGet:
+        host: example.com
+        path: /example
+        port: 90
 MaxSurge: 1
 MaxUnavailable: 0
 GracePeriod: 30

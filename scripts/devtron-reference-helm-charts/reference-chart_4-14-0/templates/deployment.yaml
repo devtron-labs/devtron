@@ -169,11 +169,11 @@ spec:
           {{- if $.Values.envoyproxy.lifecycle }}
           lifecycle:
 {{ toYaml .Values.envoyproxy.lifecycle | indent 12 -}}
-          {{- else if $.Values.lifecycle.enabled }}
+          {{- else if $.Values.containerSpec.lifecycle.enabled }}
           lifecycle:
-           {{- if $.Values.lifecycle.preStop }}
+           {{- if $.Values.containerSpec.lifecycle.preStop }}
            preStop:
-{{ toYaml $.Values.lifecycle.preStop | indent 12 -}}
+{{ toYaml $.Values.containerSpec.lifecycle.preStop | indent 12 -}}
            {{- end }}
           {{- end }}
           resources:
@@ -199,15 +199,15 @@ spec:
         - name: {{ $.Chart.Name }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
-          {{- if $.Values.lifecycle.enabled }}
+          {{- if $.Values.containerSpec.lifecycle.enabled }}
           lifecycle:
-           {{- if $.Values.lifecycle.preStop }}
+           {{- if $.Values.containerSpec.lifecycle.preStop }}
            preStop:
-{{ toYaml $.Values.lifecycle.preStop | indent 12 -}}
+{{ toYaml $.Values.containerSpec.lifecycle.preStop | indent 12 -}}
            {{- end }}
-           {{- if $.Values.lifecycle.postStart }}
+           {{- if $.Values.containerSpec.lifecycle.postStart }}
            postStart:
-{{ toYaml $.Values.lifecycle.postStart | indent 12 -}}
+{{ toYaml $.Values.containerSpec.lifecycle.postStart | indent 12 -}}
            {{- end }}
           {{- end }}
 {{- if and $.Values.containerSecurityContext $.Values.privileged }}
