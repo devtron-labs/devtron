@@ -34,8 +34,8 @@ const (
 
 type GlobalCMCSDto struct {
 	Id         int    `json:"id"`
-	ConfigType string `sql:"config_type" validate:"oneof=CONFIGMAP SECRET"`
-	Name       string `sql:"name"  validate:"required"`
+	ConfigType string `json:"configType" validate:"oneof=CONFIGMAP SECRET"`
+	Name       string `json:"name"  validate:"required"`
 	//map of key:value, example: '{ "a" : "b", "c" : "d"}'
 	Data                     map[string]string `json:"data"  validate:"required"`
 	MountPath                string            `json:"mountPath"`
