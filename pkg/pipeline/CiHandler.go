@@ -662,10 +662,12 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	podStatus := ""
 	message := ""
 	for k, v := range workflowStatus.Nodes {
-		workflowName = k
-		podStatus = string(v.Phase)
-		message = v.Message
-		break
+		if v.TemplateName == CI_WORKFLOW_NAME {
+			workflowName = k
+			podStatus = string(v.Phase)
+			message = v.Message
+			break
+		}
 	}
 	return workflowName, status, podStatus, message
 }
