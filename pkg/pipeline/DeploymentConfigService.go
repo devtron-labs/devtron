@@ -26,6 +26,7 @@ type DeploymentConfigServiceImpl struct {
 	pipelineConfigRepository     chartConfig.PipelineConfigRepository
 	configMapRepository          chartConfig.ConfigMapRepository
 	configMapHistoryService      history.ConfigMapHistoryService
+	chartRefRepository           chartRepoRepository.ChartRefRepository
 }
 
 func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
@@ -36,7 +37,8 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
-	configMapHistoryService history.ConfigMapHistoryService) *DeploymentConfigServiceImpl {
+	configMapHistoryService history.ConfigMapHistoryService,
+	chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigServiceImpl {
 	return &DeploymentConfigServiceImpl{
 		logger:                       logger,
 		envConfigOverrideRepository:  envConfigOverrideRepository,
@@ -47,6 +49,7 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 		pipelineConfigRepository:     pipelineConfigRepository,
 		configMapRepository:          configMapRepository,
 		configMapHistoryService:      configMapHistoryService,
+		chartRefRepository:           chartRefRepository,
 	}
 }
 
@@ -106,9 +109,14 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 	deploymentTemplateConfig := &history.HistoryDetailDto{}
 	if envOverride != nil && envOverride.Id > 0 && envOverride.IsOverride {
 		if envOverride.Chart != nil {
+			chartRef, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
+			if err != nil {
+				impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
+				return nil, err
+			}
 			deploymentTemplateConfig = &history.HistoryDetailDto{
 				TemplateName:        envOverride.Chart.ChartName,
-				TemplateVersion:     envOverride.Chart.ChartVersion,
+				TemplateVersion:     chartRef.Version,
 				IsAppMetricsEnabled: &isAppMetricsEnabled,
 				CodeEditorValue: &history.HistoryDetailConfig{
 					DisplayName: "values.yaml",
@@ -122,9 +130,14 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 			impl.logger.Errorw("error in getting chart by appId", "err", err, "appId", pipeline.AppId)
 			return nil, err
 		}
+		chartRef, err := impl.chartRefRepository.FindById(chart.ChartRefId)
+		if err != nil {
+			impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
+			return nil, err
+		}
 		deploymentTemplateConfig = &history.HistoryDetailDto{
 			TemplateName:        chart.ChartName,
-			TemplateVersion:     chart.ChartVersion,
+			TemplateVersion:     chartRef.Version,
 			IsAppMetricsEnabled: &isAppMetricsEnabled,
 			CodeEditorValue: &history.HistoryDetailConfig{
 				DisplayName: "values.yaml",
