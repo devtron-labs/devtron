@@ -904,7 +904,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 	var installedAppVersion *repository.InstalledAppVersions
 	if installAppVersionRequest.Id == 0 {
 		// upgrade chart to other repo
-		_, installedAppVersion, err = impl.upgradeInstalledApp(ctx, installAppVersionRequest, installedApp, tx)
+		_, installedAppVersion, err = impl.upgradeInstalledApp(environment, ctx, installAppVersionRequest, installedApp, tx, monoRepoMigrationRequired)
 		if err != nil {
 			impl.logger.Errorw("error while upgrade the chart", "error", err)
 			return nil, err
@@ -951,8 +951,8 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 			}
 			installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
 
-			//update requirements yaml in chart for full mode app
-			if !isHelmApp {
+			//update requirements yaml in chart for full mode app, if migration happened that means its already done
+			if !isHelmApp && !monoRepoMigrationRequired {
 				err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion)
 				if err != nil {
 					impl.logger.Errorw("error while commit required dependencies to git", "error", err)
@@ -967,7 +967,10 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 		if isHelmApp {
 			installAppVersionRequest, err = impl.appStoreDeploymentHelmService.UpdateInstalledApp(ctx, installAppVersionRequest, environment, installedAppVersion)
 		} else {
-			installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.UpdateInstalledApp(ctx, installAppVersionRequest, environment, installedAppVersion)
+			// here if migration happened that means its (values update) already done
+			if !monoRepoMigrationRequired {
+				installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.UpdateInstalledApp(ctx, installAppVersionRequest, environment, installedAppVersion)
+			}
 		}
 		if err != nil {
 			impl.logger.Errorw("error while updating application", "error", err)
@@ -1043,7 +1046,7 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledAppVersion(id int, userId 
 	return installAppVersion, err
 }
 
-func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, *repository.InstalledAppVersions, error) {
+func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(environment *clusterRepository.Environment, ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, installedApp *repository.InstalledApps, tx *pg.Tx, monoRepoMigrationRequired bool) (*appStoreBean.InstallAppVersionDTO, *repository.InstalledAppVersions, error) {
 	var installedAppVersion *repository.InstalledAppVersions
 	installedAppVersions, err := impl.installedAppRepository.GetInstalledAppVersionByInstalledAppId(installAppVersionRequest.InstalledAppId)
 	if err != nil {
@@ -1084,6 +1087,7 @@ func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(ctx context.Contex
 		return installAppVersionRequest, installedAppVersion, err
 	}
 	installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
+	installedAppVersion.InstalledApp = *installedApp
 	installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
 
 	if util2.IsHelmApp(installedApp.App.AppOfferingMode) || util.IsHelmApp(installedApp.DeploymentAppType) {
@@ -1092,7 +1096,22 @@ func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(ctx context.Contex
 	} else {
 		//step 2 git operation pull push
 		//step 3 acd operation register, sync
-		installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
+		//installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
+
+		//here if migration happen that means git and acd operations already done.
+		if !monoRepoMigrationRequired {
+			err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion)
+			if err != nil {
+				impl.logger.Errorw("error while commit required dependencies to git", "error", err)
+				return installAppVersionRequest, installedAppVersion, err
+			}
+			//update values yaml in chart
+			installAppVersionRequest, err := impl.appStoreDeploymentArgoCdService.UpdateInstalledApp(ctx, installAppVersionRequest, environment, installedAppVersion)
+			if err != nil {
+				impl.logger.Errorw("error while commit values to git", "error", err)
+				return installAppVersionRequest, installedAppVersion, err
+			}
+		}
 	}
 	if err != nil {
 		impl.logger.Errorw(" error", "err", err)
