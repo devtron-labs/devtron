@@ -9,7 +9,7 @@ import (
 type GlobalCMCSRepository interface {
 	Save(model *GlobalCMCS) (*GlobalCMCS, error)
 	Update(model *GlobalCMCS) (*GlobalCMCS, error)
-	FindAllDefaultInCiPipeline() ([]*GlobalCMCS, error)
+	FindAllActive() ([]*GlobalCMCS, error)
 	FindByConfigTypeAndName(configType, name string) (*GlobalCMCS, error)
 	FindByNameMountPathAndConfigType(configType, name, mountPath string) (*GlobalCMCS, error)
 }
@@ -29,10 +29,9 @@ type GlobalCMCS struct {
 	ConfigType string   `sql:"config_type"`
 	Name       string   `sql:"name"`
 	//json string of map of key:value, example: '{ "a" : "b", "c" : "d"}'
-	Data                     string `sql:"data"`
-	MountPath                string `sql:"mount_path"`
-	UseByDefaultInCiPipeline bool   `sql:"use_by_default_in_ci_pipeline,notnull"`
-	Deleted                  bool   `sql:"deleted,notnull"`
+	Data      string `sql:"data"`
+	MountPath string `sql:"mount_path"`
+	Deleted   bool   `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
@@ -54,10 +53,9 @@ func (impl *GlobalCMCSRepositoryImpl) Update(model *GlobalCMCS) (*GlobalCMCS, er
 	return model, nil
 }
 
-func (impl *GlobalCMCSRepositoryImpl) FindAllDefaultInCiPipeline() ([]*GlobalCMCS, error) {
+func (impl *GlobalCMCSRepositoryImpl) FindAllActive() ([]*GlobalCMCS, error) {
 	var models []*GlobalCMCS
 	err := impl.dbConnection.Model(&models).
-		Where("use_by_default_in_ci_pipeline = ?", true).
 		Where("deleted = ?", false).Select()
 	if err != nil {
 		impl.logger.Errorw("err on getting global cm/cs config to be used by default in ci pipeline", "err", err)

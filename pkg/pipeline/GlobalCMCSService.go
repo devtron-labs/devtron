@@ -38,11 +38,10 @@ type GlobalCMCSDto struct {
 	ConfigType string `json:"configType" validate:"oneof=CONFIGMAP SECRET"`
 	Name       string `json:"name"  validate:"required"`
 	//map of key:value, example: '{ "a" : "b", "c" : "d"}'
-	Data                     map[string]string `json:"data"  validate:"required"`
-	MountPath                string            `json:"mountPath"`
-	UseByDefaultInCiPipeline bool              `json:"useByDefaultInCiPipeline"`
-	Deleted                  bool              `json:"deleted"`
-	UserId                   int32             `json:"-"`
+	Data      map[string]string `json:"data"  validate:"required"`
+	MountPath string            `json:"mountPath"`
+	Deleted   bool              `json:"deleted"`
+	UserId    int32             `json:"-"`
 }
 
 func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto, error) {
@@ -102,9 +101,9 @@ func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto
 }
 
 func (impl *GlobalCMCSServiceImpl) FindAllDefaultInCiPipeline() ([]*GlobalCMCSDto, error) {
-	models, err := impl.globalCMCSRepository.FindAllDefaultInCiPipeline()
+	models, err := impl.globalCMCSRepository.FindAllActive()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("err in getting global cm/cs config which are to be used as default in ci pipelines", "err", err)
+		impl.logger.Errorw("err in getting all global cm/cs configs", "err", err)
 		return nil, err
 	}
 	var configDtos []*GlobalCMCSDto

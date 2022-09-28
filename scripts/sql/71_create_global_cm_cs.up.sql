@@ -6,7 +6,6 @@ CREATE TABLE public.global_cm_cs (
 "name"                          text,
 "data"                          text,
 "mount_path"                    text,
-"use_by_default_in_ci_pipeline" bool,
 "deleted"                       bool NOT NULL DEFAULT FALSE,
 "created_on"                    timestamptz,
 "created_by"                    int4,
