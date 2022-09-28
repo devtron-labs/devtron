@@ -1045,7 +1045,9 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 	if len(request.AppIdIncludes.Ids) > 0 {
-		pipelines, err = impl.pipelineRepository.FindActiveByEnvIdAndAppIds(request.EnvId, request.AppIdIncludes.Ids)
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes.Ids)
+	} else if len(request.AppIdExcludes.Ids) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes.Ids)
 	} else {
 		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
 	}
@@ -1108,7 +1110,9 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 	if len(request.AppIdIncludes.Ids) > 0 {
-		pipelines, err = impl.pipelineRepository.FindActiveByEnvIdAndAppIds(request.EnvId, request.AppIdIncludes.Ids)
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes.Ids)
+	} else if len(request.AppIdExcludes.Ids) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes.Ids)
 	} else {
 		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
 	}
@@ -1169,7 +1173,9 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
 	if len(request.AppIdIncludes.Ids) > 0 {
-		pipelines, err = impl.pipelineRepository.FindActiveByEnvIdAndAppIds(request.EnvId, request.AppIdIncludes.Ids)
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes.Ids)
+	} else if len(request.AppIdExcludes.Ids) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes.Ids)
 	} else {
 		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
 	}
