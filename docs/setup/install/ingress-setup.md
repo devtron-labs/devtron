@@ -18,9 +18,8 @@ kubectl patch -n devtroncd svc devtron-service -p '{"spec": {"ports": [{"port": 
 ```
 
 ## Setup Ingress Using kubectl
-
  
-After that create ingress by applying the ingress yaml file.
+If you want to setup ingress using kubectl command, apply the yaml file given below.
 You can use [this yaml file](https://github.com/devtron-labs/devtron/blob/main/manifests/yamls/devtron-ingress.yaml) to create ingress to access devtron:
 
 ```yaml
