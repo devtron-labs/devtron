@@ -6,34 +6,35 @@ import (
 	"go.uber.org/zap"
 )
 
-type GlobalConfigMapRepository interface {
-	Create(model *GlobalConfigMap) (*GlobalConfigMap, error)
-	Update(model *GlobalConfigMap) (*GlobalConfigMap, error)
+type GlobalCMCSRepository interface {
+	Save(model *GlobalCMCS) (*GlobalCMCS, error)
+	Update(model *GlobalCMCS) (*GlobalCMCS, error)
+	FindAllDefaultInCiPipeline() ([]*GlobalCMCS, error)
 }
 
-type GlobalConfigMapRepositoryImpl struct {
+type GlobalCMCSRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
 }
 
-func NewGlobalConfigMapRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB) *GlobalConfigMapRepositoryImpl {
-	return &GlobalConfigMapRepositoryImpl{dbConnection: dbConnection, logger: logger}
+func NewGlobalCMCSRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB) *GlobalCMCSRepositoryImpl {
+	return &GlobalCMCSRepositoryImpl{dbConnection: dbConnection, logger: logger}
 }
 
-type GlobalConfigMap struct {
-	TableName  struct{} `sql:"global_config_map" pg:",discard_unknown_columns"`
+type GlobalCMCS struct {
+	TableName  struct{} `sql:"global_cm_cs" pg:",discard_unknown_columns"`
 	Id         int      `sql:"id,pk"`
-	ConfigType string   `sql:"config_type,notnull"`
+	ConfigType string   `sql:"config_type"`
 	Name       string   `sql:"name"`
 	//json string of map of key:value, example: '{ "a" : "b", "c" : "d"}'
 	Data                     string `sql:"data"`
 	MountPath                string `sql:"mount_path"`
 	UseByDefaultInCiPipeline bool   `sql:"use_by_default_in_ci_pipeline,notnull"`
-	Deleted                  bool   `sql:"default,notnull"`
+	Deleted                  bool   `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
-func (impl *GlobalConfigMapRepositoryImpl) Create(model *GlobalConfigMap) (*GlobalConfigMap, error) {
+func (impl *GlobalCMCSRepositoryImpl) Save(model *GlobalCMCS) (*GlobalCMCS, error) {
 	err := impl.dbConnection.Insert(model)
 	if err != nil {
 		impl.logger.Errorw("err on saving global cm/cs config ", "err", err)
@@ -42,11 +43,23 @@ func (impl *GlobalConfigMapRepositoryImpl) Create(model *GlobalConfigMap) (*Glob
 	return model, nil
 }
 
-func (impl *GlobalConfigMapRepositoryImpl) Update(model *GlobalConfigMap) (*GlobalConfigMap, error) {
+func (impl *GlobalCMCSRepositoryImpl) Update(model *GlobalCMCS) (*GlobalCMCS, error) {
 	err := impl.dbConnection.Update(model)
 	if err != nil {
 		impl.logger.Errorw("err on updating global cm/cs config ", "err", err)
 		return model, err
 	}
 	return model, nil
+}
+
+func (impl *GlobalCMCSRepositoryImpl) FindAllDefaultInCiPipeline() ([]*GlobalCMCS, error) {
+	var models []*GlobalCMCS
+	err := impl.dbConnection.Model(&models).
+		Where("use_by_default_in_ci_pipeline = ?", true).
+		Where("deleted = ?", false).Select()
+	if err != nil {
+		impl.logger.Errorw("err on getting global cm/cs config to be used by default in ci pipeline", "err", err)
+		return models, err
+	}
+	return models, nil
 }

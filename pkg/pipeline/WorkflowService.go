@@ -54,9 +54,10 @@ type CiCdTriggerEvent struct {
 }
 
 type WorkflowServiceImpl struct {
-	Logger   *zap.SugaredLogger
-	config   *rest.Config
-	ciConfig *CiConfig
+	Logger            *zap.SugaredLogger
+	config            *rest.Config
+	ciConfig          *CiConfig
+	globalCMCSService GlobalCMCSService
 }
 
 type WorkflowRequest struct {
@@ -170,8 +171,14 @@ type GitOptions struct {
 	AuthMode      repository.AuthMode `json:"authMode"`
 }
 
-func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig) *WorkflowServiceImpl {
-	return &WorkflowServiceImpl{Logger: Logger, config: ciConfig.ClusterConfig, ciConfig: ciConfig}
+func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig,
+	globalCMCSService GlobalCMCSService) *WorkflowServiceImpl {
+	return &WorkflowServiceImpl{
+		Logger:            Logger,
+		config:            ciConfig.ClusterConfig,
+		ciConfig:          ciConfig,
+		globalCMCSService: globalCMCSService,
+	}
 }
 
 const ciEvent = "CI"

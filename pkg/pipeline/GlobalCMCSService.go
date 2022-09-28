@@ -1,55 +1,100 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"time"
 )
 
-type GlobalConfigMapService interface {
-	Create(model *GlobalConfigMap) (*GlobalConfigMap, error)
-	Update(model *GlobalConfigMap) (*GlobalConfigMap, error)
+type GlobalCMCSService interface {
+	Create(model *GlobalCMCSDto) (*GlobalCMCSDto, error)
+	FindAllDefaultInCiPipeline() ([]*GlobalCMCSDto, error)
 }
 
-type GlobalConfigMapServiceImpl struct {
-	logger                    *zap.SugaredLogger
-	globalConfigMapRepository repository.GlobalConfigMapRepository
+type GlobalCMCSServiceImpl struct {
+	logger               *zap.SugaredLogger
+	globalCMCSRepository repository.GlobalCMCSRepository
 }
 
-func NewGlobalConfigMapServiceImpl(logger *zap.SugaredLogger, globalConfigMapRepository repository.GlobalConfigMapRepository) *GlobalConfigMapServiceImpl {
-	return &GlobalConfigMapServiceImpl{
-		logger:                    logger,
-		globalConfigMapRepository: globalConfigMapRepository,
+func NewGlobalCMCSServiceImpl(logger *zap.SugaredLogger,
+	globalCMCSRepository repository.GlobalCMCSRepository) *GlobalCMCSServiceImpl {
+	return &GlobalCMCSServiceImpl{
+		logger:               logger,
+		globalCMCSRepository: globalCMCSRepository,
 	}
 }
 
-type GlobalConfigMapDto struct {
-	TableName  struct{} `sql:"global_config_map" pg:",discard_unknown_columns"`
-	Id         int      `sql:"id,pk"`
-	ConfigType string   `sql:"config_type,notnull"`
-	Name       string   `sql:"name"`
-	//json string of map of key:value, example: '{ "a" : "b", "c" : "d"}'
-	Data                     string `sql:"data"`
-	MountPath                string `sql:"mount_path"`
-	UseByDefaultInCiPipeline bool   `sql:"use_by_default_in_ci_pipeline,notnull"`
-	Deleted                  bool   `sql:"default,notnull"`
-	sql.AuditLog
+const (
+	CM_TYPE_CONFIG = "CONFIGMAP"
+	CS_TYPE_CONFIG = "SECRET"
+)
+
+type GlobalCMCSDto struct {
+	Id         int    `json:"id"`
+	ConfigType string `sql:"config_type" validate:"oneof=CONFIGMAP SECRET"`
+	Name       string `sql:"name"  validate:"required"`
+	//map of key:value, example: '{ "a" : "b", "c" : "d"}'
+	Data                     map[string]string `json:"data"  validate:"required"`
+	MountPath                string            `json:"mountPath"`
+	UseByDefaultInCiPipeline bool              `json:"useByDefaultInCiPipeline"`
+	Deleted                  bool              `json:"deleted"`
+	UserId                   int32             `json:"-"`
 }
 
-func (impl *GlobalConfigMapRepositoryImpl) Create(model *GlobalConfigMap) (*GlobalConfigMap, error) {
-	err := impl.dbConnection.Insert(model)
+func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto, error) {
+	dataByte, err := json.Marshal(config.Data)
 	if err != nil {
-		impl.Logger.Errorw("err on saving global cm/cs config ", "err", err)
-		return model, err
+		impl.logger.Errorw("error in marshaling cm/cs data", "err", err)
+		return nil, err
 	}
-	return model, nil
+	model := &repository.GlobalCMCS{
+		ConfigType:               config.ConfigType,
+		Data:                     string(dataByte),
+		Name:                     config.Name,
+		MountPath:                config.MountPath,
+		UseByDefaultInCiPipeline: true,
+		Deleted:                  false,
+		AuditLog: sql.AuditLog{
+			CreatedBy: config.UserId,
+			CreatedOn: time.Now(),
+			UpdatedBy: config.UserId,
+			UpdatedOn: time.Now(),
+		},
+	}
+	model, err = impl.globalCMCSRepository.Save(model)
+	if err != nil {
+		impl.logger.Errorw("err on creating global cm/cs config ", "err", err)
+		return nil, err
+	}
+	config.Id = model.Id
+	return config, nil
 }
 
-func (impl *GlobalConfigMapRepositoryImpl) Update(model *GlobalConfigMap) (*GlobalConfigMap, error) {
-	err := impl.dbConnection.Update(model)
-	if err != nil {
-		impl.Logger.Errorw("err on updating global cm/cs config ", "err", err)
-		return model, err
+func (impl *GlobalCMCSServiceImpl) FindAllDefaultInCiPipeline() ([]*GlobalCMCSDto, error) {
+	models, err := impl.globalCMCSRepository.FindAllDefaultInCiPipeline()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in getting global cm/cs config which are to be used as default in ci pipelines", "err", err)
+		return nil, err
 	}
-	return model, nil
+	var configDtos []*GlobalCMCSDto
+	for _, model := range models {
+		data := make(map[string]string)
+		err = json.Unmarshal([]byte(model.Data), &data)
+		if err != nil {
+			impl.logger.Errorw("error in un-marshaling cm/cs data", "err", err)
+		}
+		configDto := &GlobalCMCSDto{
+			Id:         model.Id,
+			ConfigType: model.ConfigType,
+			Data:       data,
+			Name:       model.Name,
+			MountPath:  model.MountPath,
+		}
+		configDtos = append(configDtos, configDto)
+	}
+
+	return configDtos, nil
 }
