@@ -33,6 +33,7 @@ type UserAudit struct {
 type UserAuditService interface {
 	Save(userAudit *UserAudit) error
 	GetLatestByUserId(userId int32) (*UserAudit, error)
+	GetLatestUser() (*UserAudit, error)
 }
 
 type UserAuditServiceImpl struct {
@@ -78,6 +79,26 @@ func (impl UserAuditServiceImpl) GetLatestByUserId(userId int32) (*UserAudit, er
 
 	return &UserAudit{
 		UserId:    userId,
+		ClientIp:  userAuditDb.ClientIp,
+		CreatedOn: userAuditDb.CreatedOn,
+	}, nil
+}
+
+func (impl UserAuditServiceImpl) GetLatestUser() (*UserAudit, error) {
+	impl.logger.Info("Getting latest user audit")
+	userAuditDb, err := impl.userAuditRepository.GetLatestUser()
+
+	if err != nil {
+		if err == pg.ErrNoRows {
+			impl.logger.Errorw("no user audits found", "err", err)
+		} else {
+			impl.logger.Error("error while getting latest user audit log")
+		}
+		return nil, err
+	}
+
+	return &UserAudit{
+		UserId:    userAuditDb.UserId,
 		ClientIp:  userAuditDb.ClientIp,
 		CreatedOn: userAuditDb.CreatedOn,
 	}, nil
