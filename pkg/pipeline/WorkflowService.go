@@ -355,7 +355,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					Name: "docker-dir",
 					VolumeSource: v12.VolumeSource{
 						HostPath: &v12.HostPathVolumeSource{
-							Path: "/root/docker",
+							Path: impl.ciConfig.HostDockerDirectoryPath,
 							Type: &hostPathDirectoryOrCreate,
 						},
 					},
