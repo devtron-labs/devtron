@@ -11,7 +11,7 @@ type GlobalCMCSRepository interface {
 	Update(model *GlobalCMCS) (*GlobalCMCS, error)
 	FindAllActive() ([]*GlobalCMCS, error)
 	FindByConfigTypeAndName(configType, name string) (*GlobalCMCS, error)
-	FindByNameMountPathAndConfigType(configType, name, mountPath string) (*GlobalCMCS, error)
+	FindByMountPath(mountPath string) (*GlobalCMCS, error)
 }
 
 type GlobalCMCSRepositoryImpl struct {
@@ -77,15 +77,13 @@ func (impl *GlobalCMCSRepositoryImpl) FindByConfigTypeAndName(configType, name s
 	return model, nil
 }
 
-func (impl *GlobalCMCSRepositoryImpl) FindByNameMountPathAndConfigType(configType, name, mountPath string) (*GlobalCMCS, error) {
+func (impl *GlobalCMCSRepositoryImpl) FindByMountPath(mountPath string) (*GlobalCMCS, error) {
 	model := &GlobalCMCS{}
 	err := impl.dbConnection.Model(model).
-		Where("config_type = ?", configType).
-		Where("name = ?", name).
 		Where("mount_path = ?", mountPath).
 		Where("deleted = ?", false).Select()
 	if err != nil {
-		impl.logger.Errorw("err on getting global cm/cs config by name, mountPath & configType", "err", err)
+		impl.logger.Errorw("err on getting global cm/cs config by mountPath", "err", err, "mountPath", mountPath)
 		return nil, err
 	}
 	return model, nil

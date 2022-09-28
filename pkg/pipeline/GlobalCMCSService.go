@@ -12,7 +12,7 @@ import (
 
 type GlobalCMCSService interface {
 	Create(model *GlobalCMCSDto) (*GlobalCMCSDto, error)
-	FindAllDefaultInCiPipeline() ([]*GlobalCMCSDto, error)
+	FindAllActive() ([]*GlobalCMCSDto, error)
 }
 
 type GlobalCMCSServiceImpl struct {
@@ -51,26 +51,22 @@ func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto
 		impl.logger.Errorw("error in getting global cm/cs config by name and configType", "err", err, "configType", config.ConfigType, "name", config.Name)
 		return nil, err
 	}
-	if sameNameConfig != nil && sameNameConfig.Id > 0 {
-		impl.logger.Errorw("found global cm/cs config with same name", "configName", config.Name)
-		return nil, fmt.Errorf(fmt.Sprintf("found %s with same name, please update the name and try again", config.ConfigType))
-	}
-
-	//checking if same name & same mountPath config is present for other type
-	otherConfigType := ""
-	if config.ConfigType == CM_TYPE_CONFIG {
-		otherConfigType = CS_TYPE_CONFIG
-	} else if config.ConfigType == CS_TYPE_CONFIG {
-		otherConfigType = CM_TYPE_CONFIG
-	}
-	sameNameMountPathConfig, err := impl.globalCMCSRepository.FindByNameMountPathAndConfigType(otherConfigType, config.Name, config.MountPath)
+	//checking if same mountPath config is present for any type
+	sameMountPathConfig, err := impl.globalCMCSRepository.FindByMountPath(config.MountPath)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting global cm/cs config by name, mountPath and configType", "err", err, "configType", config.ConfigType, "name", config.Name, "mountPath", config.MountPath)
+		impl.logger.Errorw("error in getting global cm/cs config by mountPath and configType", "err", err, "mountPath", config.MountPath)
 		return nil, err
 	}
-	if sameNameMountPathConfig != nil && sameNameMountPathConfig.Id > 0 {
-		impl.logger.Errorw("found global cm/cs config with same name and mountPath", "configName", config.Name)
-		return nil, fmt.Errorf(fmt.Sprintf("found %s with same name and mount path, please either update the name or mount path and try again", otherConfigType))
+
+	if (sameMountPathConfig != nil && sameMountPathConfig.Id > 0) && (sameNameConfig != nil && sameNameConfig.Id > 0) {
+		impl.logger.Errorw("found global cm/cs config with same name and same mountPath", "configName", config.Name)
+		return nil, fmt.Errorf("found configs with same name & mount path, please update the name & mountPath and try again")
+	} else if sameMountPathConfig != nil && sameMountPathConfig.Id > 0 {
+		impl.logger.Errorw("found global cm/cs config with same mountPath", "configName", config.Name)
+		return nil, fmt.Errorf("found configs with same mount path, please update the mount path and try again")
+	} else if sameNameConfig != nil && sameNameConfig.Id > 0 {
+		impl.logger.Errorw("found global cm/cs config with same name", "configName", config.Name)
+		return nil, fmt.Errorf("found %s with same name, please update the name and try again", config.ConfigType)
 	}
 	dataByte, err := json.Marshal(config.Data)
 	if err != nil {
@@ -99,7 +95,7 @@ func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto
 	return config, nil
 }
 
-func (impl *GlobalCMCSServiceImpl) FindAllDefaultInCiPipeline() ([]*GlobalCMCSDto, error) {
+func (impl *GlobalCMCSServiceImpl) FindAllActive() ([]*GlobalCMCSDto, error) {
 	models, err := impl.globalCMCSRepository.FindAllActive()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in getting all global cm/cs configs", "err", err)

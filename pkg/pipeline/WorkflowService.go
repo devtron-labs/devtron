@@ -225,9 +225,9 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	ttl := int32(600)
 
 	//getting all cm/cs to be used by default
-	globalCmCsConfigs, err := impl.globalCMCSService.FindAllDefaultInCiPipeline()
+	globalCmCsConfigs, err := impl.globalCMCSService.FindAllActive()
 	if err != nil {
-		impl.Logger.Errorw("error in getting all global cm/cs config to be used by default in ci pipeline", "err", err)
+		impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
 		return nil, err
 	}
 	for i := range globalCmCsConfigs {
