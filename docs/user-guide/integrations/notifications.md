@@ -1,18 +1,20 @@
-# GitOps (Argo CD)
+# Notifications
  
-**Prerequisite**: Please make sure to install **Build and Deploy (CI/CD)** integration. To install it, click [here](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+ **Prerequisite**: Please make sure to install **Build and Deploy (CI/CD)** integration. To install it, click [here](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
 
-Devtron integrates deeply with ArgoCD to implement GitOps for continuous delivery. Argo CD follows the GitOps pattern for using Git repositories as the source of truth for defining the desired application state on the target Kubernetes cluster. For more information, check [Argo CD documentation](https://argo-cd.readthedocs.io/en/stable/).
+With Notifications integration, you can receive alerts for build and deployment pipelines on trigger, success, and failure events. An alert will be sent to your desired slack channel and email address (supports SES and SMTP configurations) with the required information to take up the actions, if required.
  
 **Features**
 
-* No GitOps plumbing is required.
-* Provides seamless integration with Devtron CI pipelines and other Devtron integrations.
+* Receive alerts for start, success, and failure events on desired build pipelines.
+* Receive alerts for start, success, and failure events on desired deployment pipelines.
+* Receive alerts on desired Slack channels via webhook.
+* Receive alerts on your email address (supports SES and SMTP).
 
 ## Installation
 
-1. On the **Devtron Stack Manager > Discover** page, click the **GitOps (Argo CD)**.
-2. On the **Discover Integrations/GitOps (Argo CD)** page, click **Install**.
+1. On the **Devtron Stack Manager > Discover** page, click the **Notifications**.
+2. On the **Discover Integrations/Notifications** page, click **Install**.
  
 The installation status may be one of the following:
  
