@@ -1087,6 +1087,7 @@ func (impl AppStoreDeploymentServiceImpl) upgradeInstalledApp(environment *clust
 		return installAppVersionRequest, installedAppVersion, err
 	}
 	installedAppVersion.AppStoreApplicationVersion = *appStoreAppVersion
+	installedAppVersion.InstalledApp = *installedApp
 	installAppVersionRequest.InstalledAppVersionId = installedAppVersion.Id
 
 	if util2.IsHelmApp(installedApp.App.AppOfferingMode) || util.IsHelmApp(installedApp.DeploymentAppType) {
