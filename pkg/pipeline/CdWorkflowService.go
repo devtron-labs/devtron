@@ -359,7 +359,7 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		Steps: steps,
 	})
 
-	templates = append(templates, v1alpha1.Template{
+	cdTemplate := v1alpha1.Template{
 		Name: "cd",
 		Container: &v12.Container{
 			Env:   containerEnvVariables,
@@ -385,16 +385,8 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 		ArchiveLocation: &v1alpha1.ArtifactLocation{
 			ArchiveLogs: &archiveLogs,
 		},
-	})
-
-	var cdTemplate v1alpha1.Template
+	}
 	for _, cm := range configMaps.Maps {
-		for _, t := range templates {
-			if t.Name == "cd" {
-				cdTemplate = t
-				break
-			}
-		}
 		if cm.Type == "environment" {
 			cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
 				ConfigMapRef: &v12.ConfigMapEnvSource{
@@ -409,21 +401,9 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				MountPath: cm.MountPath,
 			})
 		}
-		for i, t := range templates {
-			if t.Name == "cd" {
-				templates[i] = cdTemplate
-				break
-			}
-		}
 	}
 
 	for _, s := range secrets.Secrets {
-		for _, t := range templates {
-			if t.Name == "cd" {
-				cdTemplate = t
-				break
-			}
-		}
 		if s.Type == "environment" {
 			cdTemplate.Container.EnvFrom = append(cdTemplate.Container.EnvFrom, v12.EnvFromSource{
 				SecretRef: &v12.SecretEnvSource{
@@ -438,14 +418,9 @@ func (impl *CdWorkflowServiceImpl) SubmitWorkflow(workflowRequest *CdWorkflowReq
 				MountPath: s.MountPath,
 			})
 		}
-		for i, t := range templates {
-			if t.Name == "cd" {
-				templates[i] = cdTemplate
-				break
-			}
-		}
 	}
 
+	templates = append(templates, cdTemplate)
 	var (
 		cdWorkflow = v1alpha1.Workflow{
 			ObjectMeta: v1.ObjectMeta{

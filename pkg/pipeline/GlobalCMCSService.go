@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
@@ -45,6 +46,33 @@ type GlobalCMCSDto struct {
 }
 
 func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto, error) {
+	//checking if same name config is present for this type
+	sameNameConfig, err := impl.globalCMCSRepository.FindByConfigTypeAndName(config.ConfigType, config.Name)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting global cm/cs config by name and configType", "err", err, "configType", config.ConfigType, "name", config.Name)
+		return nil, err
+	}
+	if sameNameConfig != nil && sameNameConfig.Id > 0 {
+		impl.logger.Errorw("found global cm/cs config with same name", "configName", config.Name)
+		return nil, fmt.Errorf(fmt.Sprintf("found %s with same name, please update the name and try again", config.ConfigType))
+	}
+
+	//checking if same name & same mountPath config is present for other type
+	otherConfigType := ""
+	if config.ConfigType == CM_TYPE_CONFIG {
+		otherConfigType = CS_TYPE_CONFIG
+	} else if config.ConfigType == CS_TYPE_CONFIG {
+		otherConfigType = CM_TYPE_CONFIG
+	}
+	sameNameMountPathConfig, err := impl.globalCMCSRepository.FindByNameMountPathAndConfigType(otherConfigType, config.Name, config.MountPath)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting global cm/cs config by name, mountPath and configType", "err", err, "configType", config.ConfigType, "name", config.Name, "mountPath", config.MountPath)
+		return nil, err
+	}
+	if sameNameMountPathConfig != nil && sameNameMountPathConfig.Id > 0 {
+		impl.logger.Errorw("found global cm/cs config with same name and mountPath", "configName", config.Name)
+		return nil, fmt.Errorf(fmt.Sprintf("found %s with same name and mount path, please either update the name or mount path and try again", otherConfigType))
+	}
 	dataByte, err := json.Marshal(config.Data)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling cm/cs data", "err", err)
