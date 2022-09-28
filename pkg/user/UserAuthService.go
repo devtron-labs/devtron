@@ -63,6 +63,8 @@ type UserAuthServiceImpl struct {
 	userRepository      repository2.UserRepository
 	sessionManager      *middleware.SessionManager
 	roleGroupRepository repository2.RoleGroupRepository
+	userAuditRepository repository2.UserAuditRepository
+	userService         UserService
 }
 
 var (
@@ -107,7 +109,7 @@ type WebhookToken struct {
 
 func NewUserAuthServiceImpl(userAuthRepository repository2.UserAuthRepository, sessionManager *middleware.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository2.UserRepository,
-	roleGroupRepository repository2.RoleGroupRepository) *UserAuthServiceImpl {
+	roleGroupRepository repository2.RoleGroupRepository, userAuditRepository repository2.UserAuditRepository, userService UserService) *UserAuthServiceImpl {
 	serviceImpl := &UserAuthServiceImpl{
 		userAuthRepository:  userAuthRepository,
 		sessionManager:      sessionManager,
@@ -115,6 +117,8 @@ func NewUserAuthServiceImpl(userAuthRepository repository2.UserAuthRepository, s
 		logger:              logger,
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
+		userAuditRepository: userAuditRepository,
+		userService:         userService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -252,8 +256,28 @@ func (impl UserAuthServiceImpl) HandleRefresh(w http.ResponseWriter, r *http.Req
 	}
 }
 
+func (impl UserAuthServiceImpl) saveLoginAudit(token string) {
+	id, _, err := impl.userService.GetUserByToken(token)
+	if err != nil {
+		impl.logger.Infow("error occured while getting user by token", "err", err)
+	}
+	//dont know what to put in clinet ip,modify it later
+	clientIp := "localhost"
+	model := repository2.UserAudit{
+		UserId:    id,
+		ClientIp:  clientIp,
+		CreatedOn: time.Now(),
+	}
+	err = impl.userAuditRepository.Save(&model)
+	if err != nil {
+		impl.logger.Errorw("error occurred while saving user audit", "err", err)
+	}
+}
+
 func (impl UserAuthServiceImpl) HandleLogin(username string, password string) (string, error) {
-	return impl.sessionClient.Create(context.Background(), username, password)
+	token, err := impl.sessionClient.Create(context.Background(), username, password)
+	impl.saveLoginAudit(token)
+	return token, err
 }
 
 func (impl UserAuthServiceImpl) HandleDexCallback(w http.ResponseWriter, r *http.Request) {
@@ -468,6 +492,7 @@ func (impl UserAuthServiceImpl) AuthVerification(r *http.Request) (bool, error) 
 	}
 
 	//TODO - extends for other purpose
+	impl.saveLoginAudit(token)
 	return true, nil
 }
 func (impl UserAuthServiceImpl) DeleteRoles(entityType string, entityName string, tx *pg.Tx, envIdentifier string) (err error) {
