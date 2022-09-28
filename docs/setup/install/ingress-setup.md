@@ -1,11 +1,24 @@
 # Ingress Setup
 
-After Devtron is installed, Devtron is accessible through service `devtron-service`.
-If you want to access devtron through ingress, edit devtron-service and change the loadbalancer to ClusterIP. You can do this using `kubectl patch` command like :
+## Setup Ingress Using Helm
+
+To setup ingress using Helm, run the following command:
+
+```bash
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set components.ingress.enabled= true \
+--set components.ingress.host= <devtron.domain.com> \
+--resuse-values
+```
+
+If you want to access devtron through ingress, edit devtron-service and change the loadbalancer to ClusterIP. You can do this using `kubectl patch` command :
 
 ```bash
 kubectl patch -n devtroncd svc devtron-service -p '{"spec": {"ports": [{"port": 80,"targetPort": "devtron","protocol": "TCP","name": "devtron"}],"type": "ClusterIP","selector": {"app": "devtron"}}}'
 ```
+
+## Setup Ingress Using kubectl
+
  
 After that create ingress by applying the ingress yaml file.
 You can use [this yaml file](https://github.com/devtron-labs/devtron/blob/main/manifests/yamls/devtron-ingress.yaml) to create ingress to access devtron:
@@ -112,6 +125,13 @@ spec:
               number: 80
         path: /grafana
         pathType: ImplementationSpecific  
+```
+
+After Devtron is installed, Devtron is accessible through service `devtron-service`.
+If you want to access devtron through ingress, edit devtron-service and change the loadbalancer to ClusterIP. You can do this using `kubectl patch` command :
+
+```bash
+kubectl patch -n devtroncd svc devtron-service -p '{"spec": {"ports": [{"port": 80,"targetPort": "devtron","protocol": "TCP","name": "devtron"}],"type": "ClusterIP","selector": {"app": "devtron"}}}'
 ```
 
 ## Enable HTTPS For Devtron
