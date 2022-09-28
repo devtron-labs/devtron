@@ -271,7 +271,7 @@ envoyproxy:
   image: quay.io/devtron/envoy:v1.14.1
   configMapName: ""
   lifecycle:
-   enabled: true
+   enabled: false
    preStop:
     exec:
      command: ["sleep","5"]
