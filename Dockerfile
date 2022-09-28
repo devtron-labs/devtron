@@ -2,7 +2,7 @@ FROM golang:1.18-alpine3.14  AS build-env
 
 RUN echo $GOPATH
 
-RUN apk add --no-cache git gcc musl-dev
+RUN apk add --update --no-cache git gcc musl-dev  binutils-gold
 RUN apk add --update make
 RUN go install github.com/google/wire/cmd/wire@latest
 WORKDIR /go/src/github.com/devtron-labs/devtron
