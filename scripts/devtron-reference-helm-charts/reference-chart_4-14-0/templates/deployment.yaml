@@ -166,15 +166,14 @@ spec:
 {{- if $.Values.appMetrics }}
         - name: envoy
           image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
-          {{- if $.Values.envoyproxy.lifecycle.enabled }}
+          {{- if $.Values.envoyproxy.lifecycle }}
           lifecycle:
-           {{- if $.Values.envoyproxy.lifecycle.preStop }}
+{{ toYaml .Values.envoyproxy.lifecycle | indent 12 -}}
+          {{- else if $.Values.lifecycle.enabled }}
+          lifecycle:
+           {{- if $.Values.lifecycle.preStop }}
            preStop:
-{{ toYaml $.Values.envoyproxy.lifecycle.preStop | indent 12 -}}
-           {{- end }}
-           {{- if $.Values.envoyproxy.lifecycle.postStart }}
-           postStart:
-{{ toYaml $.Values.envoyproxy.lifecycle.postStart | indent 12 -}}
+{{ toYaml $.Values.lifecycle.preStop | indent 12 -}}
            {{- end }}
           {{- end }}
           resources:
