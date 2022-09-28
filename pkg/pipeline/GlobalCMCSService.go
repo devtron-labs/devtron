@@ -78,12 +78,11 @@ func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto
 		return nil, err
 	}
 	model := &repository.GlobalCMCS{
-		ConfigType:               config.ConfigType,
-		Data:                     string(dataByte),
-		Name:                     config.Name,
-		MountPath:                config.MountPath,
-		UseByDefaultInCiPipeline: true,
-		Deleted:                  false,
+		ConfigType: config.ConfigType,
+		Data:       string(dataByte),
+		Name:       config.Name,
+		MountPath:  config.MountPath,
+		Deleted:    false,
 		AuditLog: sql.AuditLog{
 			CreatedBy: config.UserId,
 			CreatedOn: time.Now(),
