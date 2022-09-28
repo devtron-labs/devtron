@@ -7,7 +7,7 @@ Within the same application, you can override a container registry during the bu
 To override a container registry:
 1. Open the build pipeline of your application.
 2. Select **Advance options**.
-3. Click **Allow Override** to select the new container registry
+3. Click **Allow Override** to select the new container registry.
 4. On **Registry to store container images** section:
 
 | Fields | Description |
