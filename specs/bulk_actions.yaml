@@ -123,6 +123,8 @@ components:
       properties:
         appIdIncludes:
           $ref: '#/components/schemas/IdsIncludesExcludes'
+        appIdExcludes:
+          $ref: '#/components/schemas/IdsIncludesExcludes'
         envId:
           type: integer
           description: environment id
