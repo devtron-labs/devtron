@@ -157,6 +157,7 @@ spec:
 {{ toYaml .volumeMounts | indent 12 -}}
 {{- end}}
 {{- else}}
+        - 
 {{ toYaml . | indent 10 -}}
 {{- end}}
 {{- end}}
