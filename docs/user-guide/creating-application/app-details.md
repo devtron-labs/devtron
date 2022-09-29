@@ -34,7 +34,7 @@ The following fields are provided on the **About** page:
 | :---    |     :---       |
 | **App Name**  | Displays the name of the application. |
 | **Created on** | Displays the day, date and time the application was created. |
-| **Created by**  | Displays the email address of a user, who created the application. |
+| **Created by**  | Displays the email address of a user who created the application. |
 | **Project**   | Displays the currect project of the application. You can change the project by selecting a different project from the drop-down list. |
 
 Click **Save**. The application will be moved to the selected project.
