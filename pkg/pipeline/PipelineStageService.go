@@ -413,6 +413,7 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 	for _, variable := range variables {
 		variableNameIdMap[variable.Id] = variable.Name
 		variableDto := &bean.StepVariableDto{
+			Id:                        variable.Id,
 			Name:                      variable.Name,
 			Format:                    variable.Format,
 			Description:               variable.Description,
@@ -439,6 +440,7 @@ func (impl *PipelineStageServiceImpl) BuildVariableAndConditionDataByStepId(step
 	}
 	for _, condition := range conditions {
 		conditionDto := &bean.ConditionDetailDto{
+			Id:                  condition.Id,
 			ConditionalOperator: condition.ConditionalOperator,
 			ConditionalValue:    condition.ConditionalValue,
 			ConditionType:       condition.ConditionType,
