@@ -12,6 +12,18 @@ rolloutAnnotations:
   Company: Devtron
   Job: DevOps
 
+containerSpec:
+  lifecycle: 
+    enabled: true
+    preStop:
+      exec:
+        command: ["sleep","10"]
+    postStart:
+      httpGet:
+        host: example.com
+        path: /example
+        port: 90
+
 imagePullSecrets:
   - test1
   - test2
@@ -472,6 +484,7 @@ podExtraSpecs: {}
 envoyproxy:
   image: envoyproxy/envoy:v1.14.1
   configMapName: ""
+  lifecycle: {}
   resources:
     limits:
       cpu: 50m
