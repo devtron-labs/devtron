@@ -24,7 +24,7 @@ The link opens in a new tab with the context you specified as `env` variables in
 
 You can change your project of your application by selecting **About app** from your application.
 
-![About app](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/about-app2.png)
+![About app](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/about-app3.png)
 
 ![Project Change](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/project-change.png)
 
