@@ -122,9 +122,13 @@ components:
       required: envId
       properties:
         appIdIncludes:
-          $ref: '#/components/schemas/IdsIncludesExcludes'
+          type: array
+          items:
+            type: integer
         appIdExcludes:
-          $ref: '#/components/schemas/IdsIncludesExcludes'
+          type: array
+          items:
+            type: integer
         envId:
           type: integer
           description: environment id

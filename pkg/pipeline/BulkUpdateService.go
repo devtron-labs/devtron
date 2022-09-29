@@ -32,9 +32,7 @@ import (
 type NameIncludesExcludes struct {
 	Names []string `json:"names"`
 }
-type IdIncludesExcludes struct {
-	Ids []int `json:"ids"`
-}
+
 type DeploymentTemplateSpec struct {
 	PatchJson string `json:"patchJson"`
 }
@@ -113,12 +111,10 @@ type CmAndSecretBulkUpdateResponse struct {
 }
 
 type BulkApplicationForEnvironmentPayload struct {
-	Includes      *NameIncludesExcludes `json:"includes,omitempty"`
-	Excludes      *NameIncludesExcludes `json:"excludes,omitempty"`
-	AppIdIncludes *IdIncludesExcludes   `json:"appIdIncludes,omitempty"`
-	AppIdExcludes *IdIncludesExcludes   `json:"appIdExcludes,omitempty"`
-	EnvId         int                   `json:"envId"`
-	UserId        int32                 `json:"-"`
+	AppIdIncludes []int `json:"appIdIncludes,omitempty"`
+	AppIdExcludes []int `json:"appIdExcludes,omitempty"`
+	EnvId         int   `json:"envId"`
+	UserId        int32 `json:"-"`
 }
 
 type BulkApplicationForEnvironmentResponse struct {
@@ -1044,10 +1040,10 @@ func (impl BulkUpdateServiceImpl) BulkUpdate(bulkUpdatePayload *BulkUpdatePayloa
 func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
-	if len(request.AppIdIncludes.Ids) > 0 {
-		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes.Ids)
-	} else if len(request.AppIdExcludes.Ids) > 0 {
-		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes.Ids)
+	if len(request.AppIdIncludes) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes)
+	} else if len(request.AppIdExcludes) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes)
 	} else {
 		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
 	}
@@ -1109,10 +1105,10 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
-	if len(request.AppIdIncludes.Ids) > 0 {
-		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes.Ids)
-	} else if len(request.AppIdExcludes.Ids) > 0 {
-		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes.Ids)
+	if len(request.AppIdIncludes) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes)
+	} else if len(request.AppIdExcludes) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes)
 	} else {
 		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
 	}
@@ -1172,10 +1168,10 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
 	var pipelines []*pipelineConfig.Pipeline
 	var err error
-	if len(request.AppIdIncludes.Ids) > 0 {
-		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes.Ids)
-	} else if len(request.AppIdExcludes.Ids) > 0 {
-		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes.Ids)
+	if len(request.AppIdIncludes) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes)
+	} else if len(request.AppIdExcludes) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes)
 	} else {
 		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
 	}
