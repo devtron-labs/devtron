@@ -24,17 +24,19 @@ The link opens in a new tab with the context you specified as `env` variables in
 
 You can change your project of your application by selecting **About app** from your application.
 
+![About app](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/about-app2.png)
+
 ![Project Change](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/project-change.png)
 
 The following fields are provided on the **About** page:
 | Fields | Description |
 | --- | --- |
-| **App name** | Shows the name of the app. |
-| **Created on** | Shows the day, date and time the app was created. |
-| **Created by** | Shows the name of a user. |
-| **Project**    | Select the project you want to change from the drop-down list. |
+| **App name** | Displays the name of the application. |
+| **Created on** | Displays the day, date and time the application was created. |
+| **Created by** | Displays the email address of a user, who created the application. |
+| **Project**    | Displays the currect project of the application. You can change the project by selecting a different project from the drop-down list. |
 
-Click **Save**. The selected projected will be updated in your application.
+Click **Save**. The application will be moved to the selected projected.
 
 **Note**: If you change the project:
 * The current users will lose the access to the application.
