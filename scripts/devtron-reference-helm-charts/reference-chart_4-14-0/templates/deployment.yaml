@@ -83,8 +83,9 @@ spec:
       hostAliases:
 {{ toYaml .Values.hostAliases | indent 8 }}
 {{- end }}
-{{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
+{{- if or ( and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values) (and $.Values.Spec.podAntiAffinity.Key $.Values.Spec.podAntiAffinity.Values) }}
       affinity:
+        {{- if and $.Values.Spec.Affinity.Key $.Values.Spec.Affinity.Values }}
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
@@ -93,6 +94,18 @@ spec:
                 operator: In
                 values:
                 - {{ $.Values.Spec.Affinity.Values | default "nodes"  }}
+        {{- end }}
+        {{- if and $.Values.Spec.podAntiAffinity.Key $.Values.Spec.podAntiAffinity.Values }}
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: {{ $.Values.Spec.podAntiAffinity.Key  }}
+                operator: In
+                values:
+                - {{ $.Values.Spec.podAntiAffinity.Values }}
+            topologyKey: kubernetes.io/hostname
+        {{- end }}
 {{- end }}
 {{- if $.Values.serviceAccountName }}
       serviceAccountName: {{ $.Values.serviceAccountName }}
