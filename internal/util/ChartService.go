@@ -495,6 +495,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
+
 	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
 		//here git ops repo will be the app name, to breaking the mono repo structure
 		gitOpsRepoName := impl.GetGitOpsRepoName(installAppVersionRequest.AppName)
@@ -519,6 +520,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			return nil, err
 		}
 	}
+
 	chartDir := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, impl.GetDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {

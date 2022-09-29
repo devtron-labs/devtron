@@ -212,7 +212,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	err = json.Unmarshal(ValuesOverrideByte, &dat)
 
 	valuesMap := make(map[string]map[string]interface{})
-	valuesMap[chartMeta.Name] = dat
+	valuesMap[appStoreAppVersion.AppStore.Name] = dat
 	valuesByte, err := json.Marshal(valuesMap)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling", "err", err)
