@@ -75,7 +75,7 @@ func (impl *GlobalCMCSServiceImpl) Create(config *GlobalCMCSDto) (*GlobalCMCSDto
 	}
 	model := &repository.GlobalCMCS{
 		ConfigType: config.ConfigType,
-		Data:       string(dataByte),
+		Data:       json.RawMessage(dataByte),
 		Name:       config.Name,
 		MountPath:  config.MountPath,
 		Deleted:    false,
