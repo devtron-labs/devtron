@@ -60,6 +60,7 @@ type CiWorkflow struct {
 	GitTriggers        map[int]GitCommit `sql:"git_triggers"`
 	TriggeredBy        int32             `sql:"triggered_by"`
 	CiArtifactLocation string            `sql:"ci_artifact_location"`
+	PodName            string            `sql:"pod_name"`
 	CiPipeline         *CiPipeline
 }
 

@@ -136,6 +136,7 @@ type CdWorkflowRunner struct {
 	LogLocation  string               `sql:"log_file_path"`
 	TriggeredBy  int32                `sql:"triggered_by"`
 	CdWorkflowId int                  `sql:"cd_workflow_id"`
+	PodName      string               `sql:"pod_name"`
 	CdWorkflow   *CdWorkflow
 }
 

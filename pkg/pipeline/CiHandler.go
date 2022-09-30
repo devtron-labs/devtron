@@ -488,8 +488,8 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		return bufio.NewReader(strings.NewReader("")), nil, nil
 	}
 	ciLogRequest := CiLogRequest{
-		WorkflowName: ciWorkflow.Name,
-		Namespace:    ciWorkflow.Namespace,
+		PodName:   ciWorkflow.PodName,
+		Namespace: ciWorkflow.Namespace,
 	}
 	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, "", "", false)
 	if logStream == nil || err != nil {
@@ -522,7 +522,7 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 	ciLogRequest := CiLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,
 		WorkflowId:    ciWorkflow.Id,
-		WorkflowName:  ciWorkflow.Name,
+		PodName:       ciWorkflow.PodName,
 		AccessKey:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
 		SecretKet:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
 		Region:        ciConfig.CiCacheRegion,
@@ -624,7 +624,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	ciLogRequest := CiLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,
 		WorkflowId:    ciWorkflow.Id,
-		WorkflowName:  ciWorkflow.Name,
+		PodName:       ciWorkflow.PodName,
 		AccessKey:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
 		SecretKet:     ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
 		Region:        ciWorkflow.CiPipeline.CiTemplate.DockerRegistry.AWSRegion,
@@ -656,24 +656,30 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	return resp, err
 }
 
-func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, string, string, string) {
+func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, string, string, string, string) {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := ""
 	message := ""
+	podName := ""
 	for k, v := range workflowStatus.Nodes {
 		if v.TemplateName == CI_WORKFLOW_NAME {
-			workflowName = k
+			if v.BoundaryID == "" {
+				workflowName = k
+			} else {
+				workflowName = v.BoundaryID
+			}
+			podName = k
 			podStatus = string(v.Phase)
 			message = v.Message
 			break
 		}
 	}
-	return workflowName, status, podStatus, message
+	return workflowName, status, podStatus, message, podName
 }
 
 func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
-	workflowName, status, podStatus, message := impl.extractWorkfowStatus(workflowStatus)
+	workflowName, status, podStatus, message, podName := impl.extractWorkfowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "podStatus", podStatus, "message", message)
 		return 0, errors.New("invalid wf name")
@@ -712,7 +718,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.Name = workflowName
 		savedWorkflow.LogLocation = "/ci-pipeline/" + strconv.Itoa(savedWorkflow.CiPipelineId) + "/workflow/" + strconv.Itoa(savedWorkflow.Id) + "/logs"
 		savedWorkflow.CiArtifactLocation = ciArtifactLocation
-
+		savedWorkflow.PodName = podName
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
 		err = impl.ciWorkflowRepository.UpdateWorkFlow(savedWorkflow)
 		if err != nil {

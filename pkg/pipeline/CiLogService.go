@@ -53,7 +53,7 @@ type CiLogServiceImpl struct {
 type CiLogRequest struct {
 	PipelineId      int
 	WorkflowId      int
-	WorkflowName    string
+	PodName         string
 	AccessKey       string
 	SecretKet       string
 	Region          string
@@ -100,10 +100,10 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest CiLogRequest
 			return nil, nil, err
 		}
 	}
-	req := kubeClient.CoreV1().Pods(ciLogRequest.Namespace).GetLogs(ciLogRequest.WorkflowName, podLogOpts)
+	req := kubeClient.CoreV1().Pods(ciLogRequest.Namespace).GetLogs(ciLogRequest.PodName, podLogOpts)
 	podLogs, err := req.Stream(context.Background())
 	if podLogs == nil || err != nil {
-		impl.logger.Errorw("error in opening stream", "name", ciLogRequest.WorkflowName)
+		impl.logger.Errorw("error in opening stream", "name", ciLogRequest.PodName)
 		return nil, nil, err
 	}
 	cleanUpFunc := func() error {
@@ -118,7 +118,7 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest CiLogRequest
 }
 
 func (impl *CiLogServiceImpl) FetchLogs(ciLogRequest CiLogRequest) (*os.File, func() error, error) {
-	tempFile := ciLogRequest.WorkflowName + ".log"
+	tempFile := ciLogRequest.PodName + ".log"
 	file, err := os.Create(tempFile)
 	if err != nil {
 		impl.logger.Errorw("err", "err", err)
