@@ -148,6 +148,7 @@ type PipelineBuilderImpl struct {
 	deploymentGroupRepository        repository.DeploymentGroupRepository
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
 	ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
+	ciBuildConfigService             CiBuildConfigService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -185,7 +186,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	helmAppService client.HelmAppService,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *PipelineBuilderImpl {
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciBuildConfigService CiBuildConfigService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -227,6 +228,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		deploymentGroupRepository:        deploymentGroupRepository,
 		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
 		ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
+		ciBuildConfigService:             ciBuildConfigService,
 	}
 }
 
@@ -721,13 +723,14 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 		return nil, err
 	}
 
+	buildConfig := createRequest.CiBuildConfig
 	ciTemplate := &pipelineConfig.CiTemplate{
-		DockerRegistryId:  createRequest.DockerRegistry,
-		DockerRepository:  createRequest.DockerRepository,
-		GitMaterialId:     createRequest.CiBuildConfig.GitMaterialId,
-		DockerfilePath:    createRequest.DockerBuildConfig.DockerfilePath,
-		Args:              string(argByte),
-		TargetPlatform:    createRequest.DockerBuildConfig.TargetPlatform,
+		DockerRegistryId: createRequest.DockerRegistry,
+		DockerRepository: createRequest.DockerRepository,
+		GitMaterialId:    buildConfig.GitMaterialId,
+		//DockerfilePath:    createRequest.DockerBuildConfig.DockerfilePath,
+		//Args:              string(argByte),
+		//TargetPlatform:    createRequest.DockerBuildConfig.TargetPlatform,
 		Active:            true,
 		TemplateName:      createRequest.CiTemplateName,
 		Version:           createRequest.Version,
@@ -741,6 +744,11 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	if err != nil {
 		impl.logger.Errorw("error in saving ci template in db ", "template", ciTemplate, "err", err)
 		//TODO delete template from gocd otherwise dangling+ no create in future
+		return nil, err
+	}
+	_, err = impl.ciBuildConfigService.Save(buildConfig)
+	if err != nil {
+		impl.logger.Errorw("error occurred while saving ci build config", "config", buildConfig, "err", err)
 		return nil, err
 	}
 	//-- template config end

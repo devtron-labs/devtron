@@ -24,3 +24,23 @@ func NewCiBuildConfigImpl(logger *zap.SugaredLogger, ciBuildConfigRepository *pi
 		CiBuildConfigRepository: ciBuildConfigRepository,
 	}
 }
+
+func (impl *CiBuildConfigImpl) Get(ciBuildConfigId int) (*bean.CiBuildConfig, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (impl *CiBuildConfigImpl) Save(ciBuildConfig *bean.CiBuildConfig) (*bean.CiBuildConfig, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (impl *CiBuildConfigImpl) Update(ciBuildConfig *bean.CiBuildConfig) (*bean.CiBuildConfig, error) {
+	//TODO implement me
+	panic("implement me")
+}
+
+func (impl *CiBuildConfigImpl) Delete(ciBuildConfigId int) error {
+	//TODO implement me
+	panic("implement me")
+}

@@ -110,9 +110,10 @@ type CiPipeline struct {
 }
 
 type DockerConfigOverride struct {
-	DockerRegistry    string             `json:"dockerRegistry,omitempty"`
-	DockerRepository  string             `json:"dockerRepository,omitempty"`
-	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
+	DockerRegistry   string              `json:"dockerRegistry,omitempty"`
+	DockerRepository string              `json:"dockerRepository,omitempty"`
+	CiBuildConfig    *bean.CiBuildConfig `json:"ciBuildConfig,omitEmpty"`
+	//DockerBuildConfig *DockerBuildConfig  `json:"dockerBuildConfig,omitempty"`
 }
 
 type CiPipelineMin struct {
@@ -249,22 +250,22 @@ type Material struct {
 }
 
 type CiConfigRequest struct {
-	Id                int            `json:"id,omitempty" validate:"number"` //ciTemplateId
-	AppId             int            `json:"appId,omitempty" validate:"required,number"`
-	DockerRegistry    string         `json:"dockerRegistry,omitempty" `  //repo id example ecr mapped one-one with gocd registry entry
-	DockerRepository  string         `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
-	CiBuildConfig     *CiBuildConfig `json:"ciBuildConfig"`
-	CiPipelines       []*CiPipeline  `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
-	AppName           string         `json:"appName,omitempty"`
-	Version           string         `json:"version,omitempty"` //gocd etag used for edit purpose
-	DockerRegistryUrl string         `json:"-"`
-	CiTemplateName    string         `json:"-"`
-	UserId            int32          `json:"-"`
-	Materials         []Material     `json:"materials"`
-	AppWorkflowId     int            `json:"appWorkflowId,omitempty"`
-	BeforeDockerBuild []*Task        `json:"beforeDockerBuild,omitempty" validate:"dive"`
-	AfterDockerBuild  []*Task        `json:"afterDockerBuild,omitempty" validate:"dive"`
-	ScanEnabled       bool           `json:"scanEnabled,notnull"`
+	Id                int                 `json:"id,omitempty" validate:"number"` //ciTemplateId
+	AppId             int                 `json:"appId,omitempty" validate:"required,number"`
+	DockerRegistry    string              `json:"dockerRegistry,omitempty" `  //repo id example ecr mapped one-one with gocd registry entry
+	DockerRepository  string              `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
+	CiBuildConfig     *bean.CiBuildConfig `json:"ciBuildConfig"`
+	CiPipelines       []*CiPipeline       `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
+	AppName           string              `json:"appName,omitempty"`
+	Version           string              `json:"version,omitempty"` //gocd etag used for edit purpose
+	DockerRegistryUrl string              `json:"-"`
+	CiTemplateName    string              `json:"-"`
+	UserId            int32               `json:"-"`
+	Materials         []Material          `json:"materials"`
+	AppWorkflowId     int                 `json:"appWorkflowId,omitempty"`
+	BeforeDockerBuild []*Task             `json:"beforeDockerBuild,omitempty" validate:"dive"`
+	AfterDockerBuild  []*Task             `json:"afterDockerBuild,omitempty" validate:"dive"`
+	ScanEnabled       bool                `json:"scanEnabled,notnull"`
 }
 
 type TestExecutorImageProperties struct {
@@ -273,28 +274,28 @@ type TestExecutorImageProperties struct {
 	ReportDir string `json:"reportDir,omitempty"`
 }
 
-type CiBuildConfig struct {
-	GitMaterialId     int                `json:"gitMaterialId,omitempty" validate:"required"`
-	CiBuildType       string             `json:"ciBuildType"`
-	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty" validate:"required,dive"`
-	BuildPackConfig   *BuildPackConfig   `json:"buildPackConfig"`
-}
-
-type DockerBuildConfig struct {
-	GitMaterialId  int               `json:"gitMaterialId,omitempty" validate:"required"`
-	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
-	Args           map[string]string `json:"args,omitempty"`
-	TargetPlatform string            `json:"targetPlatform,omitempty"`
-	//Name Tag DockerfilePath RepoUrl
-}
-
-type BuildPackConfig struct {
-	BuilderId       string            `json:"builderId"`
-	Language        string            `json:"language"`
-	LanguageVersion string            `json:"languageVersion"`
-	BuildPacks      []string          `json:"buildPacks"`
-	Args            map[string]string `json:"args"`
-}
+//type CiBuildConfig struct {
+//	GitMaterialId     int                `json:"gitMaterialId,omitempty" validate:"required"`
+//	CiBuildType       string             `json:"ciBuildType"`
+//	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty" validate:"required,dive"`
+//	BuildPackConfig   *BuildPackConfig   `json:"buildPackConfig"`
+//}
+//
+//type DockerBuildConfig struct {
+//	GitMaterialId  int               `json:"gitMaterialId,omitempty" validate:"required"`
+//	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
+//	Args           map[string]string `json:"args,omitempty"`
+//	TargetPlatform string            `json:"targetPlatform,omitempty"`
+//	//Name Tag DockerfilePath RepoUrl
+//}
+//
+//type BuildPackConfig struct {
+//	BuilderId       string            `json:"builderId"`
+//	Language        string            `json:"language"`
+//	LanguageVersion string            `json:"languageVersion"`
+//	BuildPacks      []string          `json:"buildPacks"`
+//	Args            map[string]string `json:"args"`
+//}
 
 type PipelineCreateResponse struct {
 	AppName string `json:"appName,omitempty"`
