@@ -724,7 +724,7 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	ciTemplate := &pipelineConfig.CiTemplate{
 		DockerRegistryId:  createRequest.DockerRegistry,
 		DockerRepository:  createRequest.DockerRepository,
-		GitMaterialId:     createRequest.DockerBuildConfig.GitMaterialId,
+		GitMaterialId:     createRequest.CiBuildConfig.GitMaterialId,
 		DockerfilePath:    createRequest.DockerBuildConfig.DockerfilePath,
 		Args:              string(argByte),
 		TargetPlatform:    createRequest.DockerBuildConfig.TargetPlatform,

@@ -487,15 +487,18 @@ func (handler CoreAppRestHandlerImpl) buildDockerConfig(appId int) (*appBean.Doc
 	}
 
 	//getting gitMaterialUrl by id
-	gitMaterial, err := handler.materialRepository.FindById(ciConfig.DockerBuildConfig.GitMaterialId)
+	gitMaterial, err := handler.materialRepository.FindById(ciConfig.CiBuildConfig.GitMaterialId)
 	if err != nil {
-		handler.logger.Errorw("error in fetching materialUrl by ID in GetAppAllDetail", "err", err, "gitMaterialId", ciConfig.DockerBuildConfig.GitMaterialId)
+		handler.logger.Errorw("error in fetching materialUrl by ID in GetAppAllDetail", "err", err, "gitMaterialId", ciConfig.CiBuildConfig.GitMaterialId)
 		return nil, err, http.StatusInternalServerError
 	}
 
 	dockerConfig := &appBean.DockerConfig{
 		DockerRegistry:   ciConfig.DockerRegistry,
 		DockerRepository: ciConfig.DockerRepository,
+		CiBuildConfig:    &appBean.CiBuildConfig{
+			//BuildPackConfig: ciConfig.CiBuildConfig.BuildPackConfig,
+		},
 		BuildConfig: &appBean.DockerBuildConfig{
 			Args:                   ciConfig.DockerBuildConfig.Args,
 			DockerfileRelativePath: ciConfig.DockerBuildConfig.DockerfilePath,

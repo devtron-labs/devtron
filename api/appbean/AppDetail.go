@@ -35,9 +35,24 @@ type GitMaterial struct {
 }
 
 type DockerConfig struct {
-	DockerRegistry   string             `json:"dockerRegistry" validate:"required"`
-	DockerRepository string             `json:"dockerRepository" validate:"required"`
-	BuildConfig      *DockerBuildConfig `json:"dockerBuildConfig"`
+	DockerRegistry   string         `json:"dockerRegistry" validate:"required"`
+	DockerRepository string         `json:"dockerRepository" validate:"required"`
+	CiBuildConfig    *CiBuildConfig `json:"ciBuildConfig" validate:"required"`
+}
+
+type CiBuildConfig struct {
+	GitMaterialId     int                `json:"gitMaterialId,omitempty" validate:"required"`
+	CiBuildType       string             `json:"ciBuildType"`
+	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty" validate:"required,dive"`
+	BuildPackConfig   *BuildPackConfig   `json:"buildPackConfig"`
+}
+
+type BuildPackConfig struct {
+	BuilderId       string            `json:"builderId"`
+	Language        string            `json:"language"`
+	LanguageVersion string            `json:"languageVersion"`
+	BuildPacks      []string          `json:"buildPacks"`
+	Args            map[string]string `json:"args"`
 }
 
 type DockerBuildConfig struct {

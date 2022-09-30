@@ -41,10 +41,12 @@ type CiTemplate struct {
 	Version           string   `sql:"version"` //gocd etage
 	Active            bool     `sql:"active,notnull"`
 	GitMaterialId     int      `sql:"git_material_id"`
+	CiBuildConfigId   int      `sql:"ci_build_config_id"`
 	sql.AuditLog
 	App            *app.App
 	DockerRegistry *repository.DockerArtifactStore
 	GitMaterial    *GitMaterial
+	CiBuildConfig  *CiBuildConfig
 }
 
 type CiTemplateRepository interface {
