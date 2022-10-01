@@ -1,0 +1,297 @@
+# Mandatory configs
+
+rolloutLabels: {}
+rolloutAnnotations: {}
+
+replicaCount: 1
+MinReadySeconds: 60
+GracePeriod: 30
+image:
+  pullPolicy: IfNotPresent
+service:
+  type: ClusterIP
+  #name: "service-1234567890"
+  loadBalancerSourceRanges: []
+  # loadBalancerSourceRanges: 
+  #    - 1.2.3.4/32
+  #    - 1.2.5.6/23
+  annotations: {}
+    # test1: test2
+    # test3: test4
+ContainerPort:
+  - name: app
+    port: 8080
+    servicePort: 80
+    envoyPort: 8799
+    useHTTP2: false
+    supportStreaming: false
+    idleTimeout: 1800s
+#    servicemonitor:
+#      enabled: true
+#      path: /abc
+#      scheme: 'http'
+#      interval: 30s
+#      scrapeTimeout: 20s
+#      metricRelabelings:
+#        - sourceLabels: [namespace]
+#          regex: '(.*)'
+#          replacement: myapp
+#          targetLabel: target_namespace
+resources:
+  # We usually recommend not to specify default resources and to leave this as a conscious
+  # choice for the user. This also increases chances charts run on environments with little
+  # resources, such as Minikube. If you do want to specify resources, uncomment the following
+  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
+  limits:
+    cpu: 1
+    memory: 200Mi
+  requests:
+    cpu: 0.10
+    memory: 100Mi
+
+# Optional configs
+LivenessProbe:
+  Path: ""
+  port: 8080
+  scheme: ""
+  httpHeaders: []
+#    - name: Custom-Header
+#      value: abc
+  tcp: false
+  command: []
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+ReadinessProbe:
+  Path: ""
+  port: 8080
+  scheme: ""
+  httpHeaders: []
+#    - name: Custom-Header
+#      value: abc
+  tcp: false
+  command: []
+  initialDelaySeconds: 20
+  periodSeconds: 10
+  successThreshold: 1
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+ingress:
+  enabled: false
+  className: ""
+  labels: {}
+  annotations: {}
+#    nginx.ingress.kubernetes.io/force-ssl-redirect: 'false'
+#    nginx.ingress.kubernetes.io/ssl-redirect: 'false'
+#    kubernetes.io/ingress.class: nginx
+#    nginx.ingress.kubernetes.io/rewrite-target: /$2
+#    nginx.ingress.kubernetes.io/canary: "true"
+#    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  hosts:
+    - host: chart-example1.local
+      pathType: "ImplementationSpecific"
+      paths:
+        - /example1
+    - host: chart-example2.local
+      pathType: "ImplementationSpecific"
+      paths:
+        - /example2
+        - /example2/healthz
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+ingressInternal:
+  enabled: false
+  className: ""
+  annotations: {}
+ #    kubernetes.io/ingress.class: nginx
+ #    kubernetes.io/tls-acme: "true"
+ #    nginx.ingress.kubernetes.io/canary: "true"
+ #    nginx.ingress.kubernetes.io/canary-weight: "10"
+
+  hosts:
+    - host: chart-example1.internal
+      pathType: "ImplementationSpecific"
+      paths:
+        - /example1
+    - host: chart-example2.internal
+      pathType: "ImplementationSpecific"
+      paths:
+        - /example2
+        - /example2/healthz
+  tls: []
+  #  - secretName: chart-example-tls
+  #    hosts:
+  #      - chart-example.local
+
+command:
+  workingDir: {}
+  enabled: false
+  value: []
+    
+args: 
+  enabled: false
+  value:
+    - /bin/sh
+    - -c
+    - touch /tmp/healthy; sleep 30; rm -rf /tmp/healthy; sleep 600
+
+#For adding custom labels to pods
+
+podLabels: {}
+#  customKey: customValue
+podAnnotations: {}
+#  customKey: customValue
+
+rawYaml: []
+
+topologySpreadConstraints: []
+
+initContainers: []
+  ## Additional init containers to run before the Scheduler pods.
+  ## for example, be used to run a sidecar that chown Logs storage .
+  #- name: volume-mount-hack
+  #  image: busybox
+  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #  volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+  #      name: logs-data
+
+containers: []
+  ## Additional containers to run along with application pods.
+  ## for example, be used to run a sidecar that chown Logs storage .
+  #- name: volume-mount-hack
+  #  image: busybox
+  #  command: ["sh", "-c", "chown -R 1000:1000 logs"]
+  #  volumeMounts:
+  #    - mountPath: /usr/local/airflow/logs
+  #      name: logs-data
+
+volumeMounts: []
+#     - name: log-volume
+#       mountPath: /var/log
+
+volumes: []
+#     - name: log-volume
+#       emptyDir: {}
+
+dbMigrationConfig:
+  enabled: false
+
+tolerations: []
+
+podSecurityContext: {}
+
+containerSecurityContext: {}
+
+Spec:
+  Affinity:
+    Key:
+    #  Key: kops.k8s.io/instancegroup
+    Values:
+
+autoscaling:
+  enabled: false
+  MinReplicas: 1
+  MaxReplicas: 2
+  TargetCPUUtilizationPercentage: 70
+  TargetMemoryUtilizationPercentage: 80
+  annotations: {}
+  labels: {}
+  behavior: {}
+#    scaleDown:
+#      stabilizationWindowSeconds: 300
+#      policies:
+#      - type: Percent
+#        value: 100
+#        periodSeconds: 15
+#    scaleUp:
+#      stabilizationWindowSeconds: 0
+#      policies:
+#      - type: Percent
+#        value: 100
+#        periodSeconds: 15
+#      - type: Pods
+#        value: 4
+#        periodSeconds: 15
+#      selectPolicy: Max
+
+  extraMetrics: []
+#    - external:
+#        metricName: pubsub.googleapis.com|subscription|num_undelivered_messages
+#        metricSelector:
+#          matchLabels:
+#            resource.labels.subscription_id: echo-read
+#        targetAverageValue: "2"
+#      type: External
+#
+
+kedaAutoscaling:
+  enabled: false
+  envSourceContainerName: "" # Optional. Default: .spec.template.spec.containers[0]
+  minReplicaCount: 1 
+  maxReplicaCount: 2
+  advanced: {}
+  triggers: []
+  triggerAuthentication:
+    enabled: false
+    name: ""
+    spec: {}
+  authenticationRef: {}
+
+prometheus:
+  release: monitoring
+
+server:
+  deployment:
+    image_tag: 1-95af053
+    image: ""
+
+servicemonitor:
+  additionalLabels: {}
+
+envoyproxy:
+  image: quay.io/devtron/envoy:v1.14.1
+  configMapName: ""
+  resources:
+    limits:
+      cpu: 50m
+      memory: 50Mi
+    requests:
+      cpu: 50m
+      memory: 50Mi
+
+## Pods Service Account
+## ref: https://kubernetes.io/docs/tasks/configure-pod-container/configure-service-account/
+##
+serviceAccount:
+  ## @param serviceAccount.create Enable creation of ServiceAccount for pods
+  ##  
+  create: false
+  ## @param serviceAccount.name The name of the ServiceAccount to use.
+  ## If not set and create is true, a name is generated using the `.Chart.Name .fullname` template
+  name: ""
+  ## @param serviceAccount.annotations Annotations for service account. Evaluated as a template.
+  ## Only used if `create` is `true`.
+  ##  
+  annotations: {}
+
+imagePullSecrets: []
+  # - test1
+  # - test2
+hostAliases: []
+#   - ip: "127.0.0.1"
+#     hostnames:
+#     - "foo.local"
+#     - "bar.local"
+#   - ip: "10.1.2.3"
+#     hostnames:
+#     - "foo.remote"
+#     - "bar.remote"

@@ -43,11 +43,12 @@ type UserRestHandler interface {
 	GetById(w http.ResponseWriter, r *http.Request)
 	GetAll(w http.ResponseWriter, r *http.Request)
 	DeleteUser(w http.ResponseWriter, r *http.Request)
-
+	GetAllDetailedUsers(w http.ResponseWriter, r *http.Request)
 	FetchRoleGroupById(w http.ResponseWriter, r *http.Request)
 	CreateRoleGroup(w http.ResponseWriter, r *http.Request)
 	UpdateRoleGroup(w http.ResponseWriter, r *http.Request)
 	FetchRoleGroups(w http.ResponseWriter, r *http.Request)
+	FetchDetailedRoleGroups(w http.ResponseWriter, r *http.Request)
 	FetchRoleGroupsByName(w http.ResponseWriter, r *http.Request)
 	DeleteRoleGroup(w http.ResponseWriter, r *http.Request)
 	CheckUserRoles(w http.ResponseWriter, r *http.Request)
@@ -289,8 +290,23 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 			return
 		}
+		var roleFilters []bean.RoleFilter
+		if len(user.Groups) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+			if err != nil {
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+				return
+			}
+			if len(groupRoleFilters) > 0 {
+				roleFilters = append(roleFilters, groupRoleFilters...)
+			}
+		}
 		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
-			for _, filter := range user.RoleFilters {
+			roleFilters = append(roleFilters, user.RoleFilters...)
+		}
+		if len(roleFilters) > 0 {
+			for _, filter := range roleFilters {
 				if len(filter.Team) > 0 {
 					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); ok {
 						isAuthorised = true
@@ -307,6 +323,32 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 	res, err := handler.userService.GetAll()
 	if err != nil {
 		handler.logger.Errorw("service err, GetAll", "err", err)
+		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	token := r.Header.Get("token")
+	isActionUserSuperAdmin := false
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isActionUserSuperAdmin = true
+	}
+	if !isActionUserSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	res, err := handler.userService.GetAllDetailedUsers()
+	if err != nil {
+		handler.logger.Errorw("service err, GetAllDetailedUsers", "err", err)
 		common.WriteJsonResp(w, err, "Failed to Get", http.StatusInternalServerError)
 		return
 	}
@@ -516,6 +558,31 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 		return
 	}
 	res, err := handler.roleGroupService.FetchRoleGroups()
+	if err != nil {
+		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler UserRestHandlerImpl) FetchDetailedRoleGroups(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	isActionUserSuperAdmin := false
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isActionUserSuperAdmin = true
+	}
+	if !isActionUserSuperAdmin {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	res, err := handler.roleGroupService.FetchDetailedRoleGroups()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchRoleGroups", "err", err)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)

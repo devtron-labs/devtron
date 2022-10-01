@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/devtron-labs/devtron/client/telemetry"
 	"log"
 	"net/http"
 	"os"
@@ -40,13 +41,14 @@ import (
 )
 
 type App struct {
-	MuxRouter    *router.MuxRouter
-	Logger       *zap.SugaredLogger
-	SSE          *sse.SSE
-	Enforcer     *casbin.SyncedEnforcer
-	server       *http.Server
-	db           *pg.DB
-	pubsubClient *pubsub.PubSubClient
+	MuxRouter     *router.MuxRouter
+	Logger        *zap.SugaredLogger
+	SSE           *sse.SSE
+	Enforcer      *casbin.SyncedEnforcer
+	server        *http.Server
+	db            *pg.DB
+	pubsubClient  *pubsub.PubSubClient
+	posthogClient *telemetry.PosthogClient
 	// used for local dev only
 	serveTls        bool
 	sessionManager2 *authMiddleware.SessionManager
@@ -60,12 +62,10 @@ func NewApp(router *router.MuxRouter,
 	db *pg.DB,
 	pubsubClient *pubsub.PubSubClient,
 	sessionManager2 *authMiddleware.SessionManager,
+	posthogClient *telemetry.PosthogClient,
 ) *App {
 	//check argo connection
-	err := versionService.CheckVersion()
-	if err != nil {
-		log.Panic(err)
-	}
+	//todo - check argo-cd version on acd integration installation
 	app := &App{
 		MuxRouter:       router,
 		Logger:          Logger,
@@ -75,6 +75,7 @@ func NewApp(router *router.MuxRouter,
 		pubsubClient:    pubsubClient,
 		serveTls:        false,
 		sessionManager2: sessionManager2,
+		posthogClient:   posthogClient,
 	}
 	return app
 }
@@ -113,7 +114,12 @@ func (app *App) Start() {
 }
 
 func (app *App) Stop() {
-	app.Logger.Infow("orchestrator shutdown initiating")
+	app.Logger.Info("orchestrator shutdown initiating")
+	posthogCl := app.posthogClient.Client
+	if posthogCl != nil {
+		app.Logger.Info("flushing messages of posthog")
+		posthogCl.Close()
+	}
 	timeoutContext, _ := context.WithTimeout(context.Background(), 5*time.Second)
 	app.Logger.Infow("closing router")
 	err := app.server.Shutdown(timeoutContext)
