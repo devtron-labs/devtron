@@ -44,10 +44,11 @@ type TeamServiceImpl struct {
 }
 
 type TeamRequest struct {
-	Id     int    `json:"id,omitempty" validate:"number"`
-	Name   string `json:"name,omitempty" validate:"required"`
-	Active bool   `json:"active"`
-	UserId int32  `json:"-"`
+	Id        int       `json:"id,omitempty" validate:"number"`
+	Name      string    `json:"name,omitempty" validate:"required"`
+	Active    bool      `json:"active"`
+	UserId    int32     `json:"-"`
+	CreatedOn time.Time `json:"-"`
 }
 
 func NewTeamServiceImpl(logger *zap.SugaredLogger, teamRepository TeamRepository,
@@ -109,10 +110,11 @@ func (impl TeamServiceImpl) FetchOne(teamId int) (*TeamRequest, error) {
 	}
 
 	teamRes := &TeamRequest{
-		Id:     team.Id,
-		Name:   team.Name,
-		Active: team.Active,
-		UserId: team.CreatedBy,
+		Id:        team.Id,
+		Name:      team.Name,
+		Active:    team.Active,
+		UserId:    team.CreatedBy,
+		CreatedOn: team.CreatedOn,
 	}
 
 	return teamRes, err

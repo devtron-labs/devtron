@@ -1,12 +1,14 @@
 # Git Repository
 
+**Please configure Global configurations > Git Accounts to configure Git Repository is using private repo**
+
 Git Repository is used to pull your application source code during the CI step. Select `Git Repository` section of the  `App Configuration`. Inside `Git Repository` when you click on `Add Git Repository` you will see three options as shown below:
 
 1. Git Account
 2. Git Repo URL
 3. Checkout Path
 
-Devtron also supports multiple git repositories in a single deployment. We will discuss this in detail in the multi git option [below](git-material.md#4-multi-git).
+Devtron also supports multiple git repositories in a single deployment. We will discuss this in detail in the multi git option [below](#5-multi-git).
 
 ![](../../.gitbook/assets/create-app-git-account.gif)
 

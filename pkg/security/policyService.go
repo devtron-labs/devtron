@@ -627,7 +627,7 @@ func (impl *PolicyServiceImpl) GetPolicies(policyLevel security.PolicyLevel, clu
 		}
 		envs, err := impl.environmentService.FindByIds(envId)
 		for _, env := range envs {
-			cvePolicy, severityPolicy, err := impl.getPolicies(policyLevel, clusterId, environmentId, appId)
+			cvePolicy, severityPolicy, err := impl.getPolicies(policyLevel, env.ClusterId, env.Id, appId)
 			if err != nil {
 				return nil, err
 			}

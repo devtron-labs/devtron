@@ -18,5 +18,6 @@ func NewModuleRouterImpl(moduleRestHandler ModuleRestHandler) *ModuleRouterImpl 
 
 func (impl ModuleRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("").HandlerFunc(impl.moduleRestHandler.GetModuleInfo).Queries("name", "{name}").Methods("GET")
+	configRouter.Path("/config").HandlerFunc(impl.moduleRestHandler.GetModuleConfig).Queries("name", "{name}").Methods("GET")
 	configRouter.Path("").HandlerFunc(impl.moduleRestHandler.HandleModuleAction).Queries("name", "{name}").Methods("POST")
 }

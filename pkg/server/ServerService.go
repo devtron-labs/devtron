@@ -21,6 +21,8 @@ import (
 	"context"
 	"errors"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	moduleUtil "github.com/devtron-labs/devtron/pkg/module/util"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
@@ -40,16 +42,18 @@ type ServerServiceImpl struct {
 	serverDataStore                *serverDataStore.ServerDataStore
 	serverEnvConfig                *serverEnvConfig.ServerEnvConfig
 	helmAppService                 client.HelmAppService
+	moduleRepository               moduleRepo.ModuleRepository
 }
 
 func NewServerServiceImpl(logger *zap.SugaredLogger, serverActionAuditLogRepository ServerActionAuditLogRepository,
-	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService) *ServerServiceImpl {
+	serverDataStore *serverDataStore.ServerDataStore, serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleRepository moduleRepo.ModuleRepository) *ServerServiceImpl {
 	return &ServerServiceImpl{
 		logger:                         logger,
 		serverActionAuditLogRepository: serverActionAuditLogRepository,
 		serverDataStore:                serverDataStore,
 		serverEnvConfig:                serverEnvConfig,
 		helmAppService:                 helmAppService,
+		moduleRepository:               moduleRepository,
 	}
 }
 
@@ -79,7 +83,7 @@ func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error)
 	helmReleaseStatus := devtronAppDetail.ReleaseStatus.Status
 	var serverStatus string
 
-	// for hyperion mode mode i.e. installer object not found - use mapping
+	// for hyperion mode  i.e. installer object not found - use mapping
 	// for full mode  -
 	// if installer object status is applied then use mapping
 	// if empty or downloaded, then check timeout
@@ -133,8 +137,18 @@ func (impl ServerServiceImpl) HandleServerAction(userId int32, serverActionReque
 
 	extraValues := make(map[string]interface{})
 	extraValues["installer.release"] = serverActionRequest.Version
+	alreadyInstalledModuleNames, err := impl.moduleRepository.GetInstalledModuleNames()
+	if err != nil {
+		impl.logger.Errorw("error in getting modules with installed status ", "err", err)
+		return nil, err
+	}
+	for _, alreadyInstalledModuleName := range alreadyInstalledModuleNames {
+		alreadyInstalledModuleEnableKeys := moduleUtil.BuildAllModuleEnableKeys(alreadyInstalledModuleName)
+		for _, alreadyInstalledModuleEnableKey := range alreadyInstalledModuleEnableKeys {
+			extraValues[alreadyInstalledModuleEnableKey] = true
+		}
+	}
 	extraValuesYamlUrl := util2.BuildDevtronBomUrl(impl.serverEnvConfig.DevtronBomUrl, serverActionRequest.Version)
-
 	updateResponse, err := impl.helmAppService.UpdateApplicationWithChartInfoWithExtraValues(context.Background(), devtronHelmAppIdentifier, chartRepository, extraValues, extraValuesYamlUrl, true)
 	if err != nil {
 		impl.logger.Errorw("error in updating helm release ", "err", err)

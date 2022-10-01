@@ -1,0 +1,683 @@
+{{- if $.Values.installer.modules }}
+{{- if has "cicd" $.Values.installer.modules }}
+{{- if $.Values.monitoring }}
+{{- if $.Values.monitoring.grafana }}
+{{- if $.Values.monitoring.grafana.enabled }}
+{{- if .Capabilities.APIVersions.Has "batch/v1/Job" }}
+apiVersion: batch/v1
+{{- else -}}
+apiVersion: batch/v1beta1
+{{- end }}
+kind: Job
+metadata:
+  name: grafana-org-job
+spec:
+  template:
+    spec:
+      serviceAccountName: devtron
+      containers:
+      - name: grafana-restart
+        image: "quay.io/devtron/kubectl:latest"
+        command: ["sh", "/tmp/kubectl-grafana.sh"]
+        volumeMounts:
+          - name: grafana-org-volume
+            mountPath: "/tmp/"
+      initContainers:
+      - name: grafana-org
+        image: quay.io/devtron/k8s-utils:tutum-curl
+        command: ["sh","/tmp/org.sh"]
+        env:
+          - name: GRAFANA_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: devtron-grafana-cred-secret
+                key: admin-password
+        volumeMounts:
+            - name: grafana-org-volume
+              mountPath: "/tmp/"
+      restartPolicy: OnFailure
+      volumes:
+        - name: grafana-org-volume
+          configMap:
+            name: grafana-org-cm
+  backoffLimit: 20
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-org-cm
+  namespace: devtroncd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  org.sh: |-
+
+    until nc -z devtron-grafana 80 > /dev/null; do echo Waiting for grafana to be ready; sleep 2; done;
+    grafanaUrl="http://admin:${GRAFANA_PASSWORD}@devtron-grafana.devtroncd/grafana"
+    echo $grafanaUrl
+    ORG_ID=$( curl -d '{"name":"devtron-metrics-view"}' -H "Content-Type: application/json" -X POST "${grafanaUrl}/api/orgs" )
+    echo $ORG_ID
+
+    curl -X POST "${grafanaUrl}/api/user/using/2";
+    
+    curl -X PUT -H "Content-Type: application/json" -d '{"homeDashboardId":0,"theme":"light","timezone":"browser"}' "${grafanaUrl}/api/org/preferences";
+
+    curl "${grafanaUrl}/api/datasources" -H 'content-type: application/json' -H 'x-grafana-org-id: 2' --data '{"name":"Prometheus-devtron-demo","type":"prometheus","access":"proxy","isDefault":true}'
+
+    curl "${grafanaUrl}/api/datasources/2" -X PUT \
+        -H 'content-type: application/json' \
+        -H 'x-grafana-org-id: 2' \
+        --data '{"id": 2 ,
+        "orgId": 2,
+        "name":"Prometheus-devtron-demo","type":"prometheus","access":"proxy",
+        "basicAuth":false,"jsonData":{},"version":1}'
+  
+  kubectl-grafana.sh: |-
+    cat <<EOF | kubectl -n devtroncd apply -f -
+    apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: devtron-grafana
+      namespace: devtroncd
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/instance: devtron
+        app.kubernetes.io/version: "7.3.1"
+        app.kubernetes.io/managed-by: Helm
+    data:
+      grafana.ini: |
+        [analytics]
+        check_for_updates = true
+        [auth.anonymous]
+        enabled = true
+        org_name = devtron-metrics-view
+        org_role = Viewer
+        [grafana_net]
+        url = https://grafana.net
+        [log]
+        mode = console
+        [paths]
+        data = /var/lib/grafana/data
+        logs = /var/log/grafana
+        plugins = /var/lib/grafana/plugins
+        provisioning = /etc/grafana/provisioning
+        [security]
+        allow_embedding = true
+        [server]
+        root_url = /grafana
+        serve_from_sub_path = true
+        [users]
+        allow_org_create = true
+      dashboardproviders.yaml: |
+        apiVersion: 1
+        providers:
+        - disableDeletion: true
+          editable: false
+          folder: ""
+          name: devtron-provider
+          options:
+            path: /var/lib/grafana/dashboards/devtron-provider
+          orgId: 2
+          type: file
+      download_dashboards.sh: |
+        #!/usr/bin/env sh
+        set -euf
+        mkdir -p /var/lib/grafana/dashboards/devtron-provider
+        curl -skf \
+        --connect-timeout 60 \
+        --max-time 60 \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json;charset=UTF-8" \
+          "https://grafana.com/api/dashboards/13322/revisions/4/download" > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage.json"
+        curl -skf \
+        --connect-timeout 60 \
+        --max-time 60 \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json;charset=UTF-8" \
+          "https://grafana.com/api/dashboards/13320/revisions/4/download" > "/var/lib/grafana/dashboards/devtron-provider/latency-status.json"
+        curl -skf \
+        --connect-timeout 60 \
+        --max-time 60 \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json;charset=UTF-8" \
+          "https://grafana.com/api/dashboards/13325/revisions/4/download" > "/var/lib/grafana/dashboards/devtron-provider/memory-usage.json"
+        curl -skf \
+        --connect-timeout 60 \
+        --max-time 60 \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json;charset=UTF-8" \
+          "https://grafana.com/api/dashboards/13321/revisions/6/download" > "/var/lib/grafana/dashboards/devtron-provider/response-status.json"
+        curl -skf \
+        --connect-timeout 60 \
+        --max-time 60 \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json;charset=UTF-8" \
+          "https://grafana.com/api/dashboards/13323/revisions/6/download" > "/var/lib/grafana/dashboards/devtron-provider/memory-usage-below-k8s1-15.json"
+        curl -skf \
+        --connect-timeout 60 \
+        --max-time 60 \
+        -H "Accept: application/json" \
+        -H "Content-Type: application/json;charset=UTF-8" \
+          "https://grafana.com/api/dashboards/13324/revisions/3/download" > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage-below-k8s1-15.json"
+    EOF
+    kubectl rollout restart deployment/devtron-grafana -n devtroncd
+---
+# Source: grafana/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+  name: devtron-grafana
+  namespace: devtroncd
+---
+# Source: grafana/templates/tests/test-serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+  name: devtron-grafana-test
+  namespace: devtroncd
+---
+# Source: grafana/templates/configmap-dashboard-provider.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+  name: devtron-grafana-config-dashboards
+  namespace: devtroncd
+data:
+  provider.yaml: |-
+    apiVersion: 1
+    providers:
+    - name: 'sidecarProvider'
+      orgId: 1
+      folder: ''
+      type: file
+      disableDeletion: false
+      allowUiUpdates: false
+      options:
+        foldersFromFilesStructure: false
+        path: /tmp/dashboards
+---
+# Source: grafana/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-grafana
+  namespace: devtroncd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  grafana.ini: |
+    [analytics]
+    check_for_updates = true
+    [auth.anonymous]
+    enabled = true
+    org_name = devtron-metrics-view
+    org_role = Viewer
+    [grafana_net]
+    url = https://grafana.net
+    [log]
+    mode = console
+    [paths]
+    data = /var/lib/grafana/data
+    logs = /var/log/grafana
+    plugins = /var/lib/grafana/plugins
+    provisioning = /etc/grafana/provisioning
+    [security]
+    allow_embedding = true
+    [server]
+    root_url = /grafana
+    serve_from_sub_path = true
+    [users]
+    allow_org_create = true
+  dashboardproviders.yaml: |
+    apiVersion: 1
+    providers: []
+  download_dashboards.sh: |
+    #!/usr/bin/env sh
+    set -euf
+    mkdir -p /var/lib/grafana/dashboards/devtron-provider
+    curl -skf \
+    --connect-timeout 60 \
+    --max-time 60 \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json;charset=UTF-8" \
+      "https://grafana.com/api/dashboards/13322/revisions/4/download" > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage.json"
+    curl -skf \
+    --connect-timeout 60 \
+    --max-time 60 \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json;charset=UTF-8" \
+      "https://grafana.com/api/dashboards/13320/revisions/4/download" > "/var/lib/grafana/dashboards/devtron-provider/latency-status.json"
+    curl -skf \
+    --connect-timeout 60 \
+    --max-time 60 \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json;charset=UTF-8" \
+      "https://grafana.com/api/dashboards/13325/revisions/4/download" > "/var/lib/grafana/dashboards/devtron-provider/memory-usage.json"
+    curl -skf \
+    --connect-timeout 60 \
+    --max-time 60 \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json;charset=UTF-8" \
+      "https://grafana.com/api/dashboards/13321/revisions/6/download" > "/var/lib/grafana/dashboards/devtron-provider/response-status.json"
+    curl -skf \
+    --connect-timeout 60 \
+    --max-time 60 \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json;charset=UTF-8" \
+      "https://grafana.com/api/dashboards/13323/revisions/6/download" > "/var/lib/grafana/dashboards/devtron-provider/memory-usage-below-k8s1-15.json"
+    curl -skf \
+    --connect-timeout 60 \
+    --max-time 60 \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json;charset=UTF-8" \
+      "https://grafana.com/api/dashboards/13324/revisions/3/download" > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage-below-k8s1-15.json"
+---
+# Source: grafana/templates/dashboards-json-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-grafana-dashboards-devtron-provider
+  namespace: devtroncd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+    dashboard-provider: devtron-provider
+data:
+  {}
+---
+# Source: grafana/templates/tests/test-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-grafana-test
+  namespace: devtroncd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+data:
+  run.sh: |-
+    @test "Test Health" {
+      url="http://devtron-grafana/api/health"
+
+      code=$(wget --server-response --spider --timeout 10 --tries 1 ${url} 2>&1 | awk '/^  HTTP/{print $2}')
+      [ "$code" == "200" ]
+    }
+---
+# Source: grafana/templates/pvc.yaml
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: devtron-grafana
+  namespace: devtroncd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+  finalizers:
+    - kubernetes.io/pvc-protection
+spec:
+  accessModes:
+    - "ReadWriteOnce"
+  resources:
+    requests:
+      storage: {{ $.Values.monitoring.grafana.persistence.storage }}
+---
+# Source: grafana/templates/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+  name: devtron-grafana-clusterrole
+rules:
+- apiGroups: [""] # "" indicates the core API group
+  resources: ["configmaps", "secrets"]
+  verbs: ["get", "watch", "list"]
+---
+# Source: grafana/templates/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: devtron-grafana-clusterrolebinding
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+subjects:
+  - kind: ServiceAccount
+    name: devtron-grafana
+    namespace: devtroncd
+roleRef:
+  kind: ClusterRole
+  name: devtron-grafana-clusterrole
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: grafana/templates/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: devtron-grafana
+  namespace: devtroncd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:      ['extensions']
+  resources:      ['podsecuritypolicies']
+  verbs:          ['use']
+  resourceNames:  [devtron-grafana]
+---
+# Source: grafana/templates/tests/test-role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: devtron-grafana-test
+  namespace: devtroncd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+rules:
+- apiGroups:      ['policy']
+  resources:      ['podsecuritypolicies']
+  verbs:          ['use']
+  resourceNames:  [devtron-grafana-test]
+---
+# Source: grafana/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devtron-grafana
+  namespace: devtroncd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: devtron-grafana
+subjects:
+- kind: ServiceAccount
+  name: devtron-grafana
+  namespace: devtroncd
+---
+# Source: grafana/templates/tests/test-rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: devtron-grafana-test
+  namespace: devtroncd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: devtron-grafana-test
+subjects:
+- kind: ServiceAccount
+  name: devtron-grafana-test
+  namespace: devtroncd
+---
+# Source: grafana/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: devtron-grafana
+  namespace: devtroncd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: service
+      port: 80
+      protocol: TCP
+      targetPort: 3000
+
+  selector:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+---
+# Source: grafana/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devtron-grafana
+  namespace: devtroncd
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: grafana
+      app.kubernetes.io/instance: devtron
+  strategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: grafana
+        app.kubernetes.io/instance: devtron
+    spec:
+      serviceAccountName: devtron-grafana
+      securityContext:
+        fsGroup: 472
+        runAsGroup: 472
+        runAsUser: 472
+      initContainers:
+        - name: init-chown-data
+          image: "quay.io/devtron/busybox:1.31.1"
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            runAsNonRoot: false
+            runAsUser: 0
+          command: ["chown", "-R", "472:472", "/var/lib/grafana"]
+          resources:
+            {}
+          volumeMounts:
+            - name: storage
+              mountPath: "/var/lib/grafana"
+        - name: download-dashboards
+          image: "quay.io/devtron/curl:7.73.0"
+          imagePullPolicy: IfNotPresent
+          command: ["/bin/sh"]
+          args: [ "-c", "mkdir -p /var/lib/grafana/dashboards/default && /bin/sh /etc/grafana/download_dashboards.sh" ]
+          resources:
+            {}
+          env:
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/grafana/download_dashboards.sh"
+              subPath: download_dashboards.sh
+            - name: storage
+              mountPath: "/var/lib/grafana"
+        - name: grafana-sc-datasources
+          image: "quay.io/kiwigrid/k8s-sidecar:1.1.0"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: METHOD
+              value: LIST
+            - name: LABEL
+              value: "grafana_datasource"
+            - name: FOLDER
+              value: "/etc/grafana/provisioning/datasources"
+            - name: RESOURCE
+              value: "both"
+          resources:
+            {}
+          volumeMounts:
+            - name: sc-datasources-volume
+              mountPath: "/etc/grafana/provisioning/datasources"
+      containers:
+      {{- with $.Values.monitoring.grafana.grafanaDashboards }}
+        - name: grafana-sc-dashboard
+          image: {{ .image }}
+          imagePullPolicy: {{ .imagePullPolicy }}
+          env:
+            - name: METHOD
+              value:
+            - name: LABEL
+              value: "grafana_dashboard"
+            - name: FOLDER
+              value: "/tmp/dashboards"
+            - name: RESOURCE
+              value: "both"
+          {{- if .resources }}
+          resources:
+{{ toYaml .resources | indent 12 }}
+          {{- end }}
+          volumeMounts:
+            - name: sc-dashboard-volume
+              mountPath: "/tmp/dashboards"
+          {{- end }}
+      {{- with $.Values.monitoring.grafana}}
+        - name: grafana
+          image: {{ .image }}
+          imagePullPolicy: {{ .imagePullPolicy }}
+          volumeMounts:
+            - name: config
+              mountPath: "/etc/grafana/grafana.ini"
+              subPath: grafana.ini
+            - name: storage
+              mountPath: "/var/lib/grafana"
+            - name: config
+              mountPath: "/etc/grafana/provisioning/dashboards/dashboardproviders.yaml"
+              subPath: dashboardproviders.yaml
+            - name: sc-dashboard-volume
+              mountPath: "/tmp/dashboards"
+            - name: sc-dashboard-provider
+              mountPath: "/etc/grafana/provisioning/dashboards/sc-dashboardproviders.yaml"
+              subPath: provider.yaml
+            - name: sc-datasources-volume
+              mountPath: "/etc/grafana/provisioning/datasources"
+          ports:
+            - name: service
+              containerPort: 80
+              protocol: TCP
+            - name: grafana
+              containerPort: 3000
+              protocol: TCP
+          env:
+            - name: GF_SECURITY_ADMIN_USER
+              valueFrom:
+                secretKeyRef:
+                  name: devtron-grafana-cred-secret
+                  key: admin-user
+            - name: GF_SECURITY_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: devtron-grafana-cred-secret
+                  key: admin-password
+          {{- if .resources }}
+          resources:
+{{ toYaml .resources | indent 12 }}
+          {{- end }}
+          livenessProbe:
+            failureThreshold: 10
+            httpGet:
+              path: /api/health
+              port: 3000
+            initialDelaySeconds: 60
+            timeoutSeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 3000
+      volumes:
+        - name: config
+          configMap:
+            name: devtron-grafana
+        - name: dashboards-devtron-provider
+          configMap:
+            name: devtron-grafana-dashboards-devtron-provider
+        - name: storage
+          persistentVolumeClaim:
+            claimName: devtron-grafana
+        - name: sc-dashboard-volume
+          emptyDir: {}
+        - name: sc-dashboard-provider
+          configMap:
+            name: devtron-grafana-config-dashboards
+        - name: sc-datasources-volume
+          emptyDir: {}
+        {{- end }}
+---
+apiVersion: v1
+kind: Pod
+metadata:
+  name: devtron-grafana-test
+  labels:
+    app.kubernetes.io/name: grafana
+    app.kubernetes.io/instance: devtron
+    app.kubernetes.io/version: "7.3.1"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    "helm.sh/hook": test-success
+  namespace: devtroncd
+spec:
+  serviceAccountName: devtron-grafana-test
+  containers:
+    - name: devtron-test
+      image: "quay.io/devtron/bats:v1.1.0"
+      imagePullPolicy: "IfNotPresent"
+      command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
+      volumeMounts:
+        - mountPath: /tests
+          name: tests
+          readOnly: true
+  volumes:
+  - name: tests
+    configMap:
+      name: devtron-grafana-test
+  restartPolicy: OnFailure
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}
+{{- end }}

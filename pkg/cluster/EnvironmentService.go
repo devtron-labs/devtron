@@ -19,6 +19,10 @@ package cluster
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+	"time"
+
 	"github.com/devtron-labs/devtron/client/k8s/informer"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -27,9 +31,6 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
-	"time"
 )
 
 type EnvironmentBean struct {
@@ -40,7 +41,7 @@ type EnvironmentBean struct {
 	Active                bool   `json:"active"`
 	Default               bool   `json:"default"`
 	PrometheusEndpoint    string `json:"prometheus_endpoint,omitempty"`
-	Namespace             string `json:"namespace,omitempty" validate:"max=50"`
+	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	CdArgoSetup           bool   `json:"isClusterCdActive"`
 	EnvironmentIdentifier string `json:"environmentIdentifier"`
 }
@@ -48,7 +49,7 @@ type EnvironmentBean struct {
 type EnvDto struct {
 	EnvironmentId         int    `json:"environmentId" validate:"number"`
 	EnvironmentName       string `json:"environmentName,omitempty" validate:"max=50"`
-	Namespace             string `json:"namespace,omitempty" validate:"max=50"`
+	Namespace             string `json:"namespace,omitempty" validate:"name-space-component,max=50"`
 	EnvironmentIdentifier string `json:"environmentIdentifier,omitempty"`
 }
 
@@ -83,13 +84,13 @@ type EnvironmentServiceImpl struct {
 	K8sUtil               *util.K8sUtil
 	k8sInformerFactory    informer.K8sInformerFactory
 	//propertiesConfigService pipeline.PropertiesConfigService
-	userAuthService         user.UserAuthService
+	userAuthService user.UserAuthService
 }
 
 func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepository,
 	clusterService ClusterService, logger *zap.SugaredLogger,
 	K8sUtil *util.K8sUtil, k8sInformerFactory informer.K8sInformerFactory,
-//  propertiesConfigService pipeline.PropertiesConfigService,
+	//  propertiesConfigService pipeline.PropertiesConfigService,
 	userAuthService user.UserAuthService) *EnvironmentServiceImpl {
 	return &EnvironmentServiceImpl{
 		environmentRepository: environmentRepository,
@@ -98,7 +99,7 @@ func NewEnvironmentServiceImpl(environmentRepository repository.EnvironmentRepos
 		K8sUtil:               K8sUtil,
 		k8sInformerFactory:    k8sInformerFactory,
 		//propertiesConfigService: propertiesConfigService,
-		userAuthService:         userAuthService,
+		userAuthService: userAuthService,
 	}
 }
 
@@ -393,6 +394,7 @@ func (impl EnvironmentServiceImpl) FindByIds(ids []*int) ([]*EnvironmentBean, er
 			Namespace:             model.Namespace,
 			Default:               model.Default,
 			EnvironmentIdentifier: model.EnvironmentIdentifier,
+			ClusterId:             model.ClusterId,
 		})
 	}
 	return beans, nil

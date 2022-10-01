@@ -48,6 +48,7 @@ Here, you provide a relative path where your docker file is located. Ensure that
 ### Set Target Platform for the build
 
 Using this option, users can build images for a specific or multiple **architectures and operating systems (target platforms)**. They can select the target platform from the drop-down or can type to select a custom target platform.
+
 ![Select target platform from drop-down](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/set-target-platform.png)
 
 ![Select custom target platform](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/set-target-platform-2.png)
@@ -77,5 +78,6 @@ The Target Platform feature might not work in minikube & microk8s clusters as of
    * Value
 
 ### Key-value
+
 This field will contain the key parameter and the value for the specified key for your [docker build](https://docs.docker.com/engine/reference/commandline/build/#options). This field is Optional. \(If required, this can be overridden at [CI step](../deploying-application/triggering-ci.md) later\)
 

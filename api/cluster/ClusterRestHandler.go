@@ -96,7 +96,7 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Errorw("request payload, Save", "payload", bean)
+	impl.logger.Infow("request payload, Save", "payload", bean)
 	err = impl.validator.Struct(bean)
 	if err != nil {
 		impl.logger.Errorw("validation err, Save", "err", err, "payload", bean)
@@ -120,7 +120,7 @@ func (impl ClusterRestHandlerImpl) Save(w http.ResponseWriter, r *http.Request) 
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
 	} else {
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
@@ -258,7 +258,7 @@ func (impl ClusterRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request
 			}
 		}(ctx.Done(), cn.CloseNotify())
 	}
-	if util2.GetDevtronVersion().ServerMode == util2.SERVER_MODE_HYPERION {
+	if util2.IsBaseStack() {
 		ctx = context.WithValue(ctx, "token", token)
 	} else {
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
