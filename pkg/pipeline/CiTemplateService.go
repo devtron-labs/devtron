@@ -79,6 +79,7 @@ func (impl CiTemplateServiceImpl) FindByAppId(appId int) (ciTemplateBean *bean.C
 			impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
 		}
 	}
+	ciBuildConfigBean.GitMaterialId = ciTemplate.GitMaterialId
 	return &bean.CiTemplateBean{
 		CiTemplate:    ciTemplate,
 		CiBuildConfig: ciBuildConfigBean,
@@ -105,6 +106,7 @@ func (impl CiTemplateServiceImpl) FindTemplateOverrideByAppId(appId int) (ciTemp
 				impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
 			}
 		}
+		ciBuildConfigBean.GitMaterialId = templateOverride.GitMaterialId
 		overrideBean := &bean.CiTemplateBean{
 			CiTemplateOverride: templateOverride,
 			CiBuildConfig:      ciBuildConfigBean,
@@ -132,6 +134,7 @@ func (impl CiTemplateServiceImpl) FindTemplateOverrideByCiPipelineId(ciPipelineI
 			impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
 		}
 	}
+	ciBuildConfigBean.GitMaterialId = templateOverride.GitMaterialId
 	return &bean.CiTemplateBean{CiTemplateOverride: templateOverride, CiBuildConfig: ciBuildConfigBean}, err
 }
 
