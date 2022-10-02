@@ -62,7 +62,7 @@ The hostname `aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws
 
 Use username:`admin` and for password run command mentioned below.
 ```bash
-$ kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
 #### For Devtron version less than v0.6.0
