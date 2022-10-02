@@ -742,6 +742,15 @@ func InitializeApp() (*App, error) {
 
 		pipelineConfig.NewCiTemplateOverrideRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiTemplateOverrideRepository), new(*pipelineConfig.CiTemplateOverrideRepositoryImpl)),
+
+		pipelineConfig.NewCiBuildConfigRepositoryImpl,
+		wire.Bind(new(pipelineConfig.CiBuildConfigRepository), new(*pipelineConfig.CiBuildConfigRepositoryImpl)),
+
+		pipeline.NewCiBuildConfigServiceImpl,
+		wire.Bind(new(pipeline.CiBuildConfigService), new(*pipeline.CiBuildConfigServiceImpl)),
+
+		pipeline.NewCiTemplateServiceImpl,
+		wire.Bind(new(pipeline.CiTemplateService), new(*pipeline.CiTemplateServiceImpl)),
 	)
 	return &App{}, nil
 }

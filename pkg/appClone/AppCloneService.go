@@ -37,16 +37,17 @@ type AppCloneService interface {
 	CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error)
 }
 type AppCloneServiceImpl struct {
-	logger                       *zap.SugaredLogger
-	pipelineBuilder              pipeline.PipelineBuilder
-	materialRepository           pipelineConfig.MaterialRepository
-	chartService                 chart.ChartService
-	configMapService             pipeline.ConfigMapService
-	appWorkflowService           appWorkflow.AppWorkflowService
-	appListingService            app.AppListingService
-	propertiesConfigService      pipeline.PropertiesConfigService
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
-	pipelineStageService         pipeline.PipelineStageService
+	logger                  *zap.SugaredLogger
+	pipelineBuilder         pipeline.PipelineBuilder
+	materialRepository      pipelineConfig.MaterialRepository
+	chartService            chart.ChartService
+	configMapService        pipeline.ConfigMapService
+	appWorkflowService      appWorkflow.AppWorkflowService
+	appListingService       app.AppListingService
+	propertiesConfigService pipeline.PropertiesConfigService
+	//ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
+	pipelineStageService pipeline.PipelineStageService
+	ciTemplateService    pipeline.CiTemplateService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -58,18 +59,19 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
-	pipelineStageService pipeline.PipelineStageService) *AppCloneServiceImpl {
+	pipelineStageService pipeline.PipelineStageService, ciTemplateService pipeline.CiTemplateService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
-		logger:                       logger,
-		pipelineBuilder:              pipelineBuilder,
-		materialRepository:           materialRepository,
-		chartService:                 chartService,
-		configMapService:             configMapService,
-		appWorkflowService:           appWorkflowService,
-		appListingService:            appListingService,
-		propertiesConfigService:      propertiesConfigService,
-		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
-		pipelineStageService:         pipelineStageService,
+		logger:                  logger,
+		pipelineBuilder:         pipelineBuilder,
+		materialRepository:      materialRepository,
+		chartService:            chartService,
+		configMapService:        configMapService,
+		appWorkflowService:      appWorkflowService,
+		appListingService:       appListingService,
+		propertiesConfigService: propertiesConfigService,
+		//ciTemplateOverrideRepository: ciTemplateOverrideRepository,
+		pipelineStageService: pipelineStageService,
+		ciTemplateService:    ciTemplateService,
 	}
 
 }
@@ -244,9 +246,9 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 	if len(gitMaterials) == 1 {
 		dockerfileGitMaterial = gitMaterials[0].Id
 	} else {
-		refGitmaterial, err := impl.materialRepository.FindById(refCiConf.DockerBuildConfig.GitMaterialId)
+		refGitmaterial, err := impl.materialRepository.FindById(refCiConf.CiBuildConfig.GitMaterialId)
 		if err != nil {
-			impl.logger.Errorw("error in fetching ref git material", "id", refCiConf.DockerBuildConfig.GitMaterialId, "err", err)
+			impl.logger.Errorw("error in fetching ref git material", "id", refCiConf.CiBuildConfig.GitMaterialId, "err", err)
 			return nil, err
 		}
 		//first repo with same checkout path
@@ -278,12 +280,13 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 		AppId:            newAppId,
 		DockerRegistry:   refCiConf.DockerRegistry,
 		DockerRepository: refCiConf.DockerRepository,
-		DockerBuildConfig: &bean.DockerBuildConfig{
-			GitMaterialId:  dockerfileGitMaterial,
-			DockerfilePath: refCiConf.DockerBuildConfig.DockerfilePath,
-			Args:           refCiConf.DockerBuildConfig.Args,
-			TargetPlatform: refCiConf.DockerBuildConfig.TargetPlatform,
-		},
+		CiBuildConfig:    refCiConf.CiBuildConfig,
+		//DockerBuildConfig: &bean.DockerBuildConfig{
+		//	GitMaterialId:  dockerfileGitMaterial,
+		//	DockerfilePath: refCiConf.DockerBuildConfig.DockerfilePath,
+		//	Args:           refCiConf.DockerBuildConfig.Args,
+		//	TargetPlatform: refCiConf.DockerBuildConfig.TargetPlatform,
+		//},
 		DockerRegistryUrl: refCiConf.DockerRegistry,
 		CiTemplateName:    refCiConf.CiTemplateName,
 		UserId:            userId,
@@ -746,24 +749,27 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 			}
 			if !refCiPipeline.IsExternal && refCiPipeline.IsDockerConfigOverridden {
 				//get template override
-				templateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(refCiPipeline.Id)
+				templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(refCiPipeline.Id)
 				if err != nil {
-					impl.logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "err", err, "ciPipelineId", refCiPipeline.Id)
 					return nil, err
 				}
+				templateOverride := templateOverrideBean.CiTemplateOverride
+				ciBuildConfig := templateOverrideBean.CiBuildConfig
 				//getting new git material for this app
 				gitMaterial, err := impl.materialRepository.FindByAppIdAndCheckoutPath(req.appId, templateOverride.GitMaterial.CheckoutPath)
 				if err != nil {
 					impl.logger.Errorw("error in getting git material by appId and checkoutPath", "err", err, "appid", req.refAppId, "checkoutPath", templateOverride.GitMaterial.CheckoutPath)
 					return nil, err
 				}
+				ciBuildConfig.GitMaterialId = gitMaterial.Id
 				ciPatchReq.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
 					DockerRegistry:   templateOverride.DockerRegistryId,
 					DockerRepository: templateOverride.DockerRepository,
-					DockerBuildConfig: &bean.DockerBuildConfig{
-						DockerfilePath: templateOverride.DockerfilePath,
-						GitMaterialId:  gitMaterial.Id,
-					},
+					CiBuildConfig:    ciBuildConfig,
+					//DockerBuildConfig: &bean.DockerBuildConfig{
+					//	DockerfilePath: templateOverride.DockerfilePath,
+					//	GitMaterialId:  gitMaterial.Id,
+					//},
 				}
 			}
 

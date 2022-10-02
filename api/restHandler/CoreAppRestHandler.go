@@ -496,15 +496,14 @@ func (handler CoreAppRestHandlerImpl) buildDockerConfig(appId int) (*appBean.Doc
 	dockerConfig := &appBean.DockerConfig{
 		DockerRegistry:   ciConfig.DockerRegistry,
 		DockerRepository: ciConfig.DockerRepository,
-		CiBuildConfig:    &appBean.CiBuildConfig{
-			//BuildPackConfig: ciConfig.CiBuildConfig.BuildPackConfig,
-		},
-		BuildConfig: &appBean.DockerBuildConfig{
-			Args:                   ciConfig.DockerBuildConfig.Args,
-			DockerfileRelativePath: ciConfig.DockerBuildConfig.DockerfilePath,
-			TargetPlatform:         ciConfig.DockerBuildConfig.TargetPlatform,
-			GitCheckoutPath:        gitMaterial.CheckoutPath,
-		},
+		CiBuildConfig:    ciConfig.CiBuildConfig,
+		CheckoutPath:     gitMaterial.CheckoutPath,
+		//BuildConfig: &appBean.DockerBuildConfig{
+		//	Args:                   ciConfig.DockerBuildConfig.Args,
+		//	DockerfileRelativePath: ciConfig.DockerBuildConfig.DockerfilePath,
+		//	TargetPlatform:         ciConfig.DockerBuildConfig.TargetPlatform,
+		//	GitCheckoutPath:        gitMaterial.CheckoutPath,
+		//},
 	}
 
 	return dockerConfig, nil, http.StatusOK
@@ -1256,24 +1255,26 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 	}
 
 	//finding gitMaterial by appId and checkoutPath
-	gitMaterial, err := handler.materialRepository.FindByAppIdAndCheckoutPath(appId, dockerConfig.BuildConfig.GitCheckoutPath)
+	gitMaterial, err := handler.materialRepository.FindByAppIdAndCheckoutPath(appId, dockerConfig.CheckoutPath)
 	if err != nil {
 		handler.logger.Errorw("service err, FindByAppIdAndCheckoutPath in CreateDockerConfig", "err", err, "appId", appId)
 		return err, http.StatusInternalServerError
 	}
 
-	dockerBuildArgs := make(map[string]string)
-	if dockerConfig.BuildConfig.Args != nil {
-		dockerBuildArgs = dockerConfig.BuildConfig.Args
-	}
+	//dockerBuildArgs := make(map[string]string)
+	//if dockerConfig.BuildConfig.Args != nil {
+	//	dockerBuildArgs = dockerConfig.BuildConfig.Args
+	//}
 
-	dockerBuildConfigRequest := &bean.DockerBuildConfig{
-		GitMaterialId:  gitMaterial.Id,
-		DockerfilePath: dockerConfig.BuildConfig.DockerfileRelativePath,
-		Args:           dockerBuildArgs,
-		TargetPlatform: dockerConfig.BuildConfig.TargetPlatform,
-	}
-	createDockerConfigRequest.DockerBuildConfig = dockerBuildConfigRequest
+	//dockerBuildConfigRequest := &bean.DockerBuildConfig{
+	//	GitMaterialId:  gitMaterial.Id,
+	//	DockerfilePath: dockerConfig.BuildConfig.DockerfileRelativePath,
+	//	Args:           dockerBuildArgs,
+	//	TargetPlatform: dockerConfig.BuildConfig.TargetPlatform,
+	//}
+	ciBuildConfig := dockerConfig.CiBuildConfig
+	ciBuildConfig.GitMaterialId = gitMaterial.Id
+	createDockerConfigRequest.CiBuildConfig = ciBuildConfig
 
 	_, err = handler.pipelineBuilder.CreateCiPipeline(createDockerConfigRequest)
 	if err != nil {

@@ -59,7 +59,8 @@ type CiServiceImpl struct {
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
 	userService                   user.UserService
-	ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
+	//ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
+	ciTemplateService CiTemplateService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -69,7 +70,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *CiServiceImpl {
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciTemplateService CiTemplateService) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
 		workflowService:               workflowService,
@@ -83,7 +84,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
 		userService:                   userService,
-		ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
+		//ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
+		ciTemplateService: ciTemplateService,
 	}
 }
 
@@ -390,11 +392,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var checkoutPath string
 	dockerRegistry := &repository3.DockerArtifactStore{}
 	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
-		templateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(pipeline.Id)
+		templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(pipeline.Id)
 		if err != nil {
-			impl.Logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "err", err, "ciPipelineId", pipeline.Id)
 			return nil, err
 		}
+		templateOverride := templateOverrideBean.CiTemplateOverride
 		dockerfilePath = filepath.Join(templateOverride.GitMaterial.CheckoutPath, templateOverride.DockerfilePath)
 		dockerRepository = templateOverride.DockerRepository
 		dockerRegistry = templateOverride.DockerRegistry
