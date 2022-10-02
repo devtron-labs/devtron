@@ -66,6 +66,9 @@ func ConvertDbBuildConfigToBean(dbConfig *pipelineConfig.CiBuildConfig) (*CiBuil
 	var buildPackConfig *BuildPackConfig
 	var dockerBuildConfig *DockerBuildConfig
 	var err error
+	if dbConfig == nil {
+		return nil, nil
+	}
 	ciBuildType := CiBuildType(dbConfig.Type)
 	if ciBuildType == BUILDPACK_BUILD_TYPE {
 		buildPackConfig, err = convertMetadataToBuildPackConfig(dbConfig.BuildMetadata)
@@ -97,4 +100,28 @@ func convertMetadataToDockerBuildConfig(dockerBuildMetadata string) (*DockerBuil
 	dockerBuildConfig := &DockerBuildConfig{}
 	err := json.Unmarshal([]byte(dockerBuildMetadata), dockerBuildConfig)
 	return dockerBuildConfig, err
+}
+
+func OverrideCiBuildConfig(dockerfilePath string, args string, targetPlatform string, ciBuildConfigBean *CiBuildConfigBean) (*CiBuildConfigBean, error) {
+	dockerArgs := map[string]string{}
+	if args != "" {
+		if err := json.Unmarshal([]byte(args), &dockerArgs); err != nil {
+			return nil, err
+		}
+	}
+	if ciBuildConfigBean == nil {
+		ciBuildConfigBean = &CiBuildConfigBean{
+			CiBuildType: SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &DockerBuildConfig{
+				DockerfilePath: dockerfilePath,
+				Args:           dockerArgs,
+				TargetPlatform: targetPlatform,
+			},
+		}
+	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE {
+		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
+		dockerBuildConfig.DockerfilePath = dockerfilePath
+		dockerBuildConfig.Args = dockerArgs
+	}
+	return ciBuildConfigBean, nil
 }

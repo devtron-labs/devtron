@@ -18,6 +18,7 @@
 package pipeline
 
 import (
+	"errors"
 	"fmt"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -370,7 +371,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciWorkflowConfig.CiTimeout = impl.ciConfig.DefaultTimeout
 	}
 
-	args := pipeline.CiTemplate.Args
+	ciTemplate := pipeline.CiTemplate
+	args := ciTemplate.Args
 	ciLevelArgs := pipeline.DockerArgs
 
 	if ciLevelArgs == "" {
@@ -390,38 +392,53 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var dockerfilePath string
 	var dockerRepository string
 	var checkoutPath string
+	var ciBuildConfigBean *bean2.CiBuildConfigBean
 	dockerRegistry := &repository3.DockerArtifactStore{}
 	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
 		templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(pipeline.Id)
 		if err != nil {
 			return nil, err
 		}
+		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
 		templateOverride := templateOverrideBean.CiTemplateOverride
-		dockerfilePath = filepath.Join(templateOverride.GitMaterial.CheckoutPath, templateOverride.DockerfilePath)
+		checkoutPath = templateOverride.GitMaterial.CheckoutPath
+		dockerfilePath = filepath.Join(checkoutPath, templateOverride.DockerfilePath)
 		dockerRepository = templateOverride.DockerRepository
 		dockerRegistry = templateOverride.DockerRegistry
-		checkoutPath = templateOverride.GitMaterial.CheckoutPath
 	} else {
-		dockerfilePath = filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
-		dockerRegistry = pipeline.CiTemplate.DockerRegistry
-		dockerRepository = pipeline.CiTemplate.DockerRepository
-		checkoutPath = pipeline.CiTemplate.GitMaterial.CheckoutPath
+		checkoutPath = ciTemplate.GitMaterial.CheckoutPath
+		dockerfilePath = filepath.Join(checkoutPath, ciTemplate.DockerfilePath)
+		dockerRegistry = ciTemplate.DockerRegistry
+		dockerRepository = ciTemplate.DockerRepository
+		ciBuildConfigEntity := ciTemplate.CiBuildConfig
+		ciBuildConfigBean, err = bean2.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBuildConfigEntity, "err", err)
+			return nil, errors.New("error while parsing ci build config")
+		}
 	}
 	if checkoutPath == "" {
 		checkoutPath = "./"
 	}
+	mergedArgs := string(merged)
+	ciBuildConfigBean, err = bean2.OverrideCiBuildConfig(dockerfilePath, mergedArgs, ciTemplate.TargetPlatform, ciBuildConfigBean)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while overriding ci build config", "args", mergedArgs, "error", err)
+		return nil, errors.New("error while parsing ci build config")
+	}
 	workflowRequest := &WorkflowRequest{
-		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
-		PipelineName:               pipeline.Name,
-		PipelineId:                 pipeline.Id,
-		DockerRegistryId:           dockerRegistry.Id,
-		DockerRegistryType:         string(dockerRegistry.RegistryType),
-		DockerImageTag:             dockerImageTag,
-		DockerRegistryURL:          dockerRegistry.RegistryURL,
-		DockerRepository:           dockerRepository,
-		DockerBuildArgs:            string(merged),
-		DockerBuildTargetPlatform:  pipeline.CiTemplate.TargetPlatform,
-		DockerFileLocation:         dockerfilePath,
+		WorkflowNamePrefix: strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
+		PipelineName:       pipeline.Name,
+		PipelineId:         pipeline.Id,
+		DockerRegistryId:   dockerRegistry.Id,
+		DockerRegistryType: string(dockerRegistry.RegistryType),
+		DockerImageTag:     dockerImageTag,
+		DockerRegistryURL:  dockerRegistry.RegistryURL,
+		DockerRepository:   dockerRepository,
+		//DockerBuildArgs:            string(merged),
+		//DockerBuildTargetPlatform:  ciTemplate.TargetPlatform,
+		//DockerFileLocation:         dockerfilePath,
+		CheckoutPath:               checkoutPath,
 		DockerUsername:             dockerRegistry.Username,
 		DockerPassword:             dockerRegistry.Password,
 		AwsRegion:                  dockerRegistry.AWSRegion,
@@ -448,6 +465,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		RefPlugins:                 refPluginsData,
 		AppName:                    pipeline.App.AppName,
 		TriggerByAuthor:            user.EmailId,
+		CiBuildConfig:              ciBuildConfigBean,
 	}
 
 	if ciWorkflowConfig.LogsBucket == "" {

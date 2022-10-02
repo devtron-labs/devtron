@@ -67,16 +67,17 @@ func (impl CiTemplateServiceImpl) FindByAppId(appId int) (ciTemplateBean *bean.C
 	if err != nil {
 		return nil, err
 	}
-	//dockerArgs := map[string]string{}
-	//if err := json.Unmarshal([]byte(template.Args), &dockerArgs); err != nil {
-	//	impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
-	//	return nil, err
-	//}
 	ciBuildConfig := ciTemplate.CiBuildConfig
 	ciBuildConfigBean, err := bean.ConvertDbBuildConfigToBean(ciBuildConfig)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting dbBuildConfig to bean", "ciBuildConfig",
 			ciBuildConfig, "error", err)
+	}
+	if ciBuildConfigBean == nil {
+		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(ciTemplate.DockerfilePath, ciTemplate.Args, ciTemplate.TargetPlatform, nil)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
+		}
 	}
 	return &bean.CiTemplateBean{
 		CiTemplate:    ciTemplate,
@@ -98,6 +99,12 @@ func (impl CiTemplateServiceImpl) FindTemplateOverrideByAppId(appId int) (ciTemp
 				templateOverride.CiBuildConfig, "error", err)
 			return nil, err
 		}
+		if ciBuildConfigBean == nil {
+			ciBuildConfigBean, err = bean.OverrideCiBuildConfig(templateOverride.DockerfilePath, "", "", nil)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
+			}
+		}
 		overrideBean := &bean.CiTemplateBean{
 			CiTemplateOverride: templateOverride,
 			CiBuildConfig:      ciBuildConfigBean,
@@ -118,6 +125,12 @@ func (impl CiTemplateServiceImpl) FindTemplateOverrideByCiPipelineId(ciPipelineI
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting dbBuildConfig to bean", "ciBuildConfig",
 			ciBuildConfig, "error", err)
+	}
+	if ciBuildConfigBean == nil {
+		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(templateOverride.DockerfilePath, "", "", nil)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
+		}
 	}
 	return &bean.CiTemplateBean{CiTemplateOverride: templateOverride, CiBuildConfig: ciBuildConfigBean}, err
 }
