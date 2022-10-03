@@ -203,7 +203,7 @@ Get updates on Devtron's development and chat with project maintainers, contribu
 - Follow [@DevtronL on Linkedin](Devtron Inc.: Overview | LinkedIn)
 - Raise feature requests, suggest enhancements, and report bugs in our [GitHub Issues](https://github.com/devtron-labs/devtron/issues)
 - Articles, Howtos, Tutorials - [Devtron Blogs](https://devtron.ai/blog/)
- -Fol
+
 ### Join us at Discord channel
 <p>
 <a href="https://discord.gg/jsRG5qx2gp">
