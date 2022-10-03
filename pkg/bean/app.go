@@ -133,7 +133,7 @@ type ExternalCiConfig struct {
 	AccessKey  string `json:"accessKey"`
 }
 
-//-------------------
+// -------------------
 type PatchAction int
 type PipelineType string
 
@@ -171,7 +171,7 @@ func (a PatchAction) String() string {
 
 }
 
-//----------------
+// ----------------
 type CiPatchRequest struct {
 	CiPipeline    *CiPipeline `json:"ciPipeline"`
 	AppId         int         `json:"appId,omitempty"`
@@ -266,10 +266,11 @@ type TestExecutorImageProperties struct {
 }
 
 type DockerBuildConfig struct {
-	GitMaterialId  int               `json:"gitMaterialId,omitempty" validate:"required"`
-	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
-	Args           map[string]string `json:"args,omitempty"`
-	TargetPlatform string            `json:"targetPlatform"`
+	GitMaterialId      int               `json:"gitMaterialId,omitempty" validate:"required"`
+	DockerfilePath     string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
+	Args               map[string]string `json:"args,omitempty"`
+	TargetPlatform     string            `json:"targetPlatform"`
+	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
 	//Name Tag DockerfilePath RepoUrl
 }
 
@@ -320,7 +321,7 @@ contains reference to chart and values.yaml changes for next deploy
 type HelmConfig struct {
 }
 
-//used for automated unit and integration test
+// used for automated unit and integration test
 type Test struct {
 	Name    string
 	Command string
@@ -342,7 +343,7 @@ type EnvironmentGroup struct {
 	Environments []Environment
 }
 
-//set of unique attributes which corresponds to a cluster
+// set of unique attributes which corresponds to a cluster
 // different environment of gocd and k8s cluster.
 type Environment struct {
 	Values string
@@ -415,7 +416,7 @@ type MaterialOperations interface {
 	SaveMaterialMetaData(metadata *MaterialMetadata) error
 }
 
-//--------- cd related struct ---------
+// --------- cd related struct ---------
 type CDMaterialMetadata struct {
 	Url    string `json:"url,omitempty"`
 	Branch string `json:"branch,omitempty"`

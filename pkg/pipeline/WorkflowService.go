@@ -106,6 +106,7 @@ type WorkflowRequest struct {
 	RefPlugins                 []*bean2.RefPluginObject `json:"refPlugins"`
 	AppName                    string                   `json:"appName"`
 	TriggerByAuthor            string                   `json:"triggerByAuthor"`
+	DockerBuildOptions         string                   `json:"dockerBuildOptions"`
 }
 
 const (

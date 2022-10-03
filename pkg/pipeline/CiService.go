@@ -18,6 +18,7 @@
 package pipeline
 
 import (
+	"encoding/json"
 	"fmt"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -370,12 +371,16 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciLevelArgs = "{}"
 	}
 
-	merged, err := impl.mergeUtil.JsonPatch([]byte(args), []byte(ciLevelArgs))
+	mergedArgs, err := impl.mergeUtil.JsonPatch([]byte(args), []byte(ciLevelArgs))
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return nil, err
 	}
-
+	dockerBuildOptionsByte, err := json.Marshal(pipeline.CiTemplate.DockerBuildOptions)
+	if err != nil {
+		impl.Logger.Errorw("error in marshaling dockerBuildOptions map", "err", err, "dockerBuildOptions", pipeline.CiTemplate.DockerBuildOptions)
+		return nil, err
+	}
 	checkoutPath := pipeline.CiTemplate.GitMaterial.CheckoutPath
 	if checkoutPath == "" {
 		checkoutPath = "./"
@@ -395,7 +400,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		DockerImageTag:             dockerImageTag,
 		DockerRegistryURL:          pipeline.CiTemplate.DockerRegistry.RegistryURL,
 		DockerRepository:           pipeline.CiTemplate.DockerRepository,
-		DockerBuildArgs:            string(merged),
+		DockerBuildArgs:            string(mergedArgs),
 		DockerBuildTargetPlatform:  pipeline.CiTemplate.TargetPlatform,
 		DockerFileLocation:         dockerfilePath,
 		DockerUsername:             pipeline.CiTemplate.DockerRegistry.Username,
@@ -423,6 +428,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		RefPlugins:                 refPluginsData,
 		AppName:                    pipeline.App.AppName,
 		TriggerByAuthor:            user.EmailId,
+		DockerBuildOptions:         string(dockerBuildOptionsByte),
 	}
 
 	switch workflowRequest.CloudProvider {
