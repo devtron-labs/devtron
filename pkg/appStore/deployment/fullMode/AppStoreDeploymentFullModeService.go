@@ -133,7 +133,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		return nil, nil, err
 	}
 	chartMeta := &chart.Metadata{
-		Name:    appStoreAppVersion.AppStore.Name,
+		Name:    installAppVersionRequest.AppName,
 		Version: "1.0.1",
 	}
 	_, chartGitAttr, err := impl.chartTemplateService.CreateChartProxy(chartMeta, chartPath, template, appStoreAppVersion.Version, environment.Name, installAppVersionRequest)
@@ -164,7 +164,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		return nil, nil, err
 	}
 
-	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(chartMeta.Name)
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	requirmentYamlConfig := &util.ChartConfig{
@@ -212,7 +212,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	err = json.Unmarshal(ValuesOverrideByte, &dat)
 
 	valuesMap := make(map[string]map[string]interface{})
-	valuesMap[chartMeta.Name] = dat
+	valuesMap[appStoreAppVersion.AppStore.Name] = dat
 	valuesByte, err := json.Marshal(valuesMap)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling", "err", err)
@@ -319,6 +319,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 
 func (impl AppStoreDeploymentFullModeServiceImpl) GetGitOpsRepoName(appName string, environmentName string) (string, error) {
 	gitOpsRepoName := ""
+	//this method should only call in case of argo-integration and gitops configured
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		impl.logger.Errorw("error in getting acd token", "err", err)

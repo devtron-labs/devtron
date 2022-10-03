@@ -495,8 +495,10 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	//baseTemplateName  replace whitespace
 	space := regexp.MustCompile(`\s+`)
 	appStoreName = space.ReplaceAllString(appStoreName, "-")
+
 	if len(installAppVersionRequest.GitOpsRepoName) == 0 {
-		gitOpsRepoName := impl.GetGitOpsRepoName(appStoreName)
+		//here git ops repo will be the app name, to breaking the mono repo structure
+		gitOpsRepoName := impl.GetGitOpsRepoName(installAppVersionRequest.AppName)
 		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	}
 	gitOpsConfigBitbucket, err := impl.gitFactory.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
@@ -518,6 +520,7 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 			return nil, err
 		}
 	}
+
 	chartDir := fmt.Sprintf("%s-%s", installAppVersionRequest.AppName, impl.GetDir())
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
@@ -667,4 +670,12 @@ func (impl ChartTemplateServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string
 		return err
 	}
 	return nil
+}
+
+func IsHelmApp(deploymentAppType string) bool {
+	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_HELM
+}
+
+func IsAcdApp(deploymentAppType string) bool {
+	return deploymentAppType == PIPELINE_DEPLOYMENT_TYPE_ACD
 }

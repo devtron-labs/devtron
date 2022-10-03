@@ -41,7 +41,7 @@ type UserService interface {
 	UpdateUser(userInfo *bean.UserInfo, token string, managerAuth func(token string, object string) bool) (*bean.UserInfo, error)
 	GetById(id int32) (*bean.UserInfo, error)
 	GetAll() ([]bean.UserInfo, error)
-
+	GetAllDetailedUsers() ([]bean.UserInfo, error)
 	GetEmailFromToken(token string) (string, error)
 	GetLoggedInUser(r *http.Request) (int32, error)
 	GetByIds(ids []int32) ([]bean.UserInfo, error)
@@ -53,6 +53,7 @@ type UserService interface {
 	GetByIdIncludeDeleted(id int32) (*bean.UserInfo, error)
 	UserExists(emailId string) bool
 	UpdateTriggerPolicyForTerminalAccess() (err error)
+	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
 }
 
 type UserServiceImpl struct {
@@ -749,6 +750,19 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 		return nil, err
 	}
 
+	isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(model)
+	response := &bean.UserInfo{
+		Id:          model.Id,
+		EmailId:     model.EmailId,
+		RoleFilters: roleFilters,
+		Groups:      filterGroups,
+		SuperAdmin:  isSuperAdmin,
+	}
+
+	return response, nil
+}
+
+func (impl UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool, []bean.RoleFilter, []string) {
 	roles, err := impl.userAuthRepository.GetRolesByUserId(model.Id)
 	if err != nil {
 		impl.logger.Debugw("No Roles Found for user", "id", model.Id)
@@ -827,15 +841,7 @@ func (impl UserServiceImpl) GetById(id int32) (*bean.UserInfo, error) {
 	if len(roleFilters) == 0 {
 		roleFilters = make([]bean.RoleFilter, 0)
 	}
-	response := &bean.UserInfo{
-		Id:          model.Id,
-		EmailId:     model.EmailId,
-		RoleFilters: roleFilters,
-		Groups:      filterGroups,
-		SuperAdmin:  isSuperAdmin,
-	}
-
-	return response, nil
+	return isSuperAdmin, roleFilters, filterGroups
 }
 
 // GetAll excluding API token user
@@ -852,6 +858,29 @@ func (impl UserServiceImpl) GetAll() ([]bean.UserInfo, error) {
 			EmailId:     m.EmailId,
 			RoleFilters: make([]bean.RoleFilter, 0),
 			Groups:      make([]string, 0),
+		})
+	}
+	if len(response) == 0 {
+		response = make([]bean.UserInfo, 0)
+	}
+	return response, nil
+}
+
+func (impl UserServiceImpl) GetAllDetailedUsers() ([]bean.UserInfo, error) {
+	models, err := impl.userRepository.GetAllExcludingApiTokenUser()
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	var response []bean.UserInfo
+	for _, model := range models {
+		isSuperAdmin, roleFilters, filterGroups := impl.getUserMetadata(&model)
+		response = append(response, bean.UserInfo{
+			Id:          model.Id,
+			EmailId:     model.EmailId,
+			RoleFilters: roleFilters,
+			Groups:      filterGroups,
+			SuperAdmin:  isSuperAdmin,
 		})
 	}
 	if len(response) == 0 {
@@ -1090,6 +1119,7 @@ func (impl UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 	return true, nil
 }
 
+// Deprecated
 func (impl UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isSuperAdmin := false
@@ -1161,4 +1191,51 @@ func (impl UserServiceImpl) checkGroupAuth(groupName string, token string, manag
 		}
 	}
 	return hasAccessToGroup
+}
+
+func (impl UserServiceImpl) GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error) {
+	roles, err := impl.roleGroupRepository.GetRolesByGroupNames(groupNames)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting roles by group names", "err", err)
+		return nil, err
+	}
+	var roleFilters []bean.RoleFilter
+	roleFilterMap := make(map[string]*bean.RoleFilter)
+	for _, role := range roles {
+		key := ""
+		if len(role.Team) > 0 {
+			key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
+		} else if len(role.Entity) > 0 {
+			key = fmt.Sprintf("%s_%s_%s", role.Entity, role.Action)
+		}
+		if _, ok := roleFilterMap[key]; ok {
+			envArr := strings.Split(roleFilterMap[key].Environment, ",")
+			if containsArr(envArr, AllEnvironment) {
+				roleFilterMap[key].Environment = AllEnvironment
+			} else if !containsArr(envArr, role.Environment) {
+				roleFilterMap[key].Environment = fmt.Sprintf("%s,%s", roleFilterMap[key].Environment, role.Environment)
+			}
+			entityArr := strings.Split(roleFilterMap[key].EntityName, ",")
+			if !containsArr(entityArr, role.EntityName) {
+				roleFilterMap[key].EntityName = fmt.Sprintf("%s,%s", roleFilterMap[key].EntityName, role.EntityName)
+			}
+		} else {
+			roleFilterMap[key] = &bean.RoleFilter{
+				Entity:      role.Entity,
+				Team:        role.Team,
+				Environment: role.Environment,
+				EntityName:  role.EntityName,
+				Action:      role.Action,
+				AccessType:  role.AccessType,
+			}
+
+		}
+	}
+	for _, v := range roleFilterMap {
+		if v.Action == "super-admin" {
+			continue
+		}
+		roleFilters = append(roleFilters, *v)
+	}
+	return roleFilters, nil
 }

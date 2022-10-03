@@ -147,6 +147,7 @@ type PipelineBuilderImpl struct {
 	helmAppService                   client.HelmAppService
 	deploymentGroupRepository        repository.DeploymentGroupRepository
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
+	ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -183,7 +184,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	chartTemplateService util.ChartTemplateService, chartService chart.ChartService,
 	helmAppService client.HelmAppService,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
-	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository) *PipelineBuilderImpl {
+	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -224,6 +226,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		helmAppService:                   helmAppService,
 		deploymentGroupRepository:        deploymentGroupRepository,
 		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
+		ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
 	}
 }
 
@@ -444,7 +447,16 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
 		}
 	}
-
+	//map of ciPipelineId and their templateOverrideConfig
+	templateOverrideMap := make(map[int]*pipelineConfig.CiTemplateOverride)
+	templateOverrides, err := impl.ciTemplateOverrideRepository.FindByAppId(appId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting ciTemplateOverrides by appId", "err", err, "appId", appId)
+		return nil, err
+	}
+	for _, templateOverride := range templateOverrides {
+		templateOverrideMap[templateOverride.CiPipelineId] = templateOverride
+	}
 	var ciPipelineResp []*bean.CiPipeline
 	for _, pipeline := range pipelines {
 
@@ -508,8 +520,18 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			BeforeDockerBuildScripts: beforeDockerBuildScripts,
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
+			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 		}
-
+		if templateOverride, ok := templateOverrideMap[pipeline.Id]; ok {
+			ciPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+				DockerRegistry:   templateOverride.DockerRegistryId,
+				DockerRepository: templateOverride.DockerRepository,
+				DockerBuildConfig: &bean.DockerBuildConfig{
+					GitMaterialId:  templateOverride.GitMaterialId,
+					DockerfilePath: templateOverride.DockerfilePath,
+				},
+			}
+		}
 		for _, material := range pipeline.CiPipelineMaterials {
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
@@ -1270,7 +1292,7 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	//delete app from argo cd, if created
 	if pipeline.DeploymentAppCreated == true {
 		deploymentAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
-		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		if util.IsAcdApp(pipeline.DeploymentAppType) {
 			//todo: provide option for cascading to user
 			cascadeDelete := true
 			req := &application2.ApplicationDeleteRequest{
@@ -1299,7 +1321,7 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 				}
 			}
 			impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", deploymentAppName)
-		} else if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_HELM {
+		} else if util.IsHelmApp(pipeline.DeploymentAppType) {
 			appIdentifier := &client.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
 				ReleaseName: deploymentAppName,
@@ -1386,7 +1408,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	if err != nil {
 		return 0, err
 	}
-	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, pipeline.Namespace, tx)
+	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, false, pipeline.Namespace, tx)
 	if err != nil {
 		return 0, err
 	}
@@ -2370,6 +2392,22 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		BeforeDockerBuildScripts: beforeDockerBuildScripts,
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
+		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+	}
+	if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
+		templateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(ciPipeline.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting ciTemplateOverrides by ciPipelineId", "err", err, "ciPipelineId", ciPipeline.IsDockerConfigOverridden)
+			return nil, err
+		}
+		ciPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+			DockerRegistry:   templateOverride.DockerRegistryId,
+			DockerRepository: templateOverride.DockerRepository,
+			DockerBuildConfig: &bean.DockerBuildConfig{
+				GitMaterialId:  templateOverride.GitMaterialId,
+				DockerfilePath: templateOverride.DockerfilePath,
+			},
+		}
 	}
 	for _, material := range pipeline.CiPipelineMaterials {
 		ciMaterial := &bean.CiMaterial{

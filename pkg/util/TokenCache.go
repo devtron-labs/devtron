@@ -19,7 +19,6 @@ package util
 
 import (
 	"context"
-	"fmt"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"time"
 
@@ -73,12 +72,6 @@ func GetACDAuthConfig() (*ACDAuthConfig, error) {
 	err := env.Parse(cfg)
 	if err != nil {
 		return nil, err
-	}
-	if cfg.ACDPassword == "" {
-		return nil, fmt.Errorf("ACD_PASSWORD is not present in environment")
-	}
-	if cfg.ACDUsername == "" {
-		return nil, fmt.Errorf("ACD_USERNAME is not present in environment")
 	}
 	return cfg, err
 }

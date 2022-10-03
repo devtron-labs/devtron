@@ -54,7 +54,7 @@ func (impl *DeploymentFailureHandlerImpl) WriteCDFailureEvent(pipelineId, appId,
 	event := impl.eventFactory.Build(util.Fail, &pipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDFailureEvent", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, 0, bean.CD_WORKFLOW_TYPE_DEPLOY)
-	_, evtErr := impl.eventClient.WriteEvent(event)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
 		impl.logger.Errorw("error in writing event", "err", evtErr)
 	}

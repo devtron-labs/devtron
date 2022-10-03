@@ -1,6 +1,6 @@
-# Creating Application
+# App Configuration
 
-_**Welcome! This is the documentation for Creating Applications**_
+**Please configure Global Configurations before moving ahead with App Configuration**
 
 {% embed url="https://www.youtube.com/watch?v=9u-pKiWV-tM" caption="" %}
 

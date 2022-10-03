@@ -20,6 +20,8 @@ package team
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/caarlos0/env/v6"
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/team"
@@ -54,6 +56,7 @@ type TeamRestHandlerImpl struct {
 	enforcer        casbin.Enforcer
 	userAuthService user.UserAuthService
 	deleteService   delete2.DeleteService
+	cfg             *bean.Config
 }
 
 func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
@@ -63,6 +66,14 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	validator *validator.Validate, userAuthService user.UserAuthService,
 	deleteService delete2.DeleteService,
 ) *TeamRestHandlerImpl {
+	cfg := &bean.Config{}
+	err := env.Parse(cfg)
+	if err != nil {
+		logger.Errorw("error occurred while parsing config ", "err", err)
+		cfg.IgnoreAuthCheck = false
+	}
+
+	logger.Infow("team rest handler initialized", "ignoreAuthCheckValue", cfg.IgnoreAuthCheck)
 	return &TeamRestHandlerImpl{
 		logger:          logger,
 		teamService:     teamService,
@@ -71,6 +82,7 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcer:        enforcer,
 		userAuthService: userAuthService,
 		deleteService:   deleteService,
+		cfg:             cfg,
 	}
 }
 
@@ -246,28 +258,28 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 	}
 	dbElapsedTime := time.Since(start)
 	token := r.Header.Get("token")
-	emailId, _ := impl.userService.GetEmailFromToken(token)
+	var grantedTeams = teams
 	start = time.Now()
-	// RBAC enforcer applying
-	var teamNameList []string
-	for _, item := range teams {
-		teamNameList = append(teamNameList, strings.ToLower(item.Name))
-	}
+	if !impl.cfg.IgnoreAuthCheck {
+		grantedTeams = make([]team.TeamRequest, 0)
+		emailId, _ := impl.userService.GetEmailFromToken(token)
+		// RBAC enforcer applying
+		var teamNameList []string
+		for _, item := range teams {
+			teamNameList = append(teamNameList, strings.ToLower(item.Name))
+		}
 
-	result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
+		result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
 
-	var grantedTeams []team.TeamRequest
-	for _, item := range teams {
-		if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {
-			grantedTeams = append(grantedTeams, item)
+		for _, item := range teams {
+			if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {
+				grantedTeams = append(grantedTeams, item)
+			}
 		}
 	}
 	impl.logger.Infow("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
 		"token", token, "envSize", len(grantedTeams))
 
 	//RBAC enforcer Ends
-	if len(grantedTeams) == 0 {
-		grantedTeams = make([]team.TeamRequest, 0)
-	}
 	common.WriteJsonResp(w, err, grantedTeams, http.StatusOK)
 }

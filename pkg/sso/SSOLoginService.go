@@ -20,9 +20,10 @@ package sso
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	util2 "github.com/devtron-labs/devtron/util"
+	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -38,20 +39,21 @@ type SSOLoginService interface {
 }
 
 type SSOLoginServiceImpl struct {
-	logger             *zap.SugaredLogger
-	ssoLoginRepository SSOLoginRepository
-	K8sUtil            *util.K8sUtil
+	logger              *zap.SugaredLogger
+	ssoLoginRepository  SSOLoginRepository
+	K8sUtil             *util.K8sUtil
+	devtronSecretConfig *util2.DevtronSecretConfig
 }
 
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *util.K8sUtil,
-) *SSOLoginServiceImpl {
+	K8sUtil *util.K8sUtil, devtronSecretConfig *util2.DevtronSecretConfig) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
-		logger:             logger,
-		ssoLoginRepository: ssoLoginRepository,
-		K8sUtil:            K8sUtil,
+		logger:              logger,
+		ssoLoginRepository:  ssoLoginRepository,
+		K8sUtil:             K8sUtil,
+		devtronSecretConfig: devtronSecretConfig,
 	}
 	return serviceImpl
 }
@@ -102,7 +104,7 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 	request.Id = model.Id
-	_, err = impl.updateArgocdConfigMapForDexConfig(request)
+	_, err = impl.updateDexConfig(request)
 	if err != nil {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
 		return nil, err
@@ -163,7 +165,7 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 		return nil, err
 	}
 
-	_, err = impl.updateArgocdConfigMapForDexConfig(request)
+	_, err = impl.updateDexConfig(request)
 	if err != nil {
 		impl.logger.Errorw("error in creating new sso login config", "error", err)
 		return nil, err
@@ -176,7 +178,7 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	return request, nil
 }
 
-func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.SSOLoginDto) (bool, error) {
+func (impl SSOLoginServiceImpl) updateDexConfig(request *bean.SSOLoginDto) (bool, error) {
 	flag := false
 	k8sClient, err := impl.K8sUtil.GetClientForInCluster()
 	if err != nil {
@@ -187,24 +189,24 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 	retryCount := 0
 	for !updateSuccess && retryCount < 3 {
 		retryCount = retryCount + 1
-		cm, err := impl.K8sUtil.GetConfigMap(client.ArgocdNamespaceName, client.ArgoCDConfigMapName, k8sClient)
+		secret, err := impl.K8sUtil.GetSecret(argo.DEVTRONCD_NAMESPACE, impl.devtronSecretConfig.DevtronSecretName, k8sClient)
 		if err != nil {
 			impl.logger.Errorw("exception in fetching configmap", "error", err)
 			return flag, err
 		}
-		updatedData, err := impl.updateSSODexConfigOnAcdConfigMap(request.Config)
+		updatedData, err := impl.updateSSODexConfigOnDevtronSecret(request.Config)
 		if err != nil {
 			impl.logger.Errorw("exception in update configmap sso config", "error", err)
 			return flag, err
 		}
-		data := cm.Data
-		if cm.Data == nil {
-			data = make(map[string]string)
+		data := secret.Data
+		if secret.Data == nil {
+			data = make(map[string][]byte)
 		}
-		data["dex.config"] = updatedData["dex.config"]
-		data["url"] = request.Url
-		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMap(client.ArgocdNamespaceName, cm, k8sClient)
+		data["dex.config"] = []byte(updatedData["dex.config"])
+		data["url"] = []byte(request.Url)
+		secret.Data = data
+		_, err = impl.K8sUtil.UpdateSecret(argo.DEVTRONCD_NAMESPACE, secret, k8sClient)
 		if err != nil {
 			impl.logger.Warnw("config map update failed for sso config", "err", err)
 			continue
@@ -223,7 +225,7 @@ func (impl SSOLoginServiceImpl) updateArgocdConfigMapForDexConfig(request *bean.
 	return true, nil
 }
 
-func (impl SSOLoginServiceImpl) updateSSODexConfigOnAcdConfigMap(config json.RawMessage) (map[string]string, error) {
+func (impl SSOLoginServiceImpl) updateSSODexConfigOnDevtronSecret(config json.RawMessage) (map[string]string, error) {
 	connectorConfig := map[string][]json.RawMessage{}
 	var connectors []json.RawMessage
 	connectors = append(connectors, config)

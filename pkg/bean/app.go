@@ -105,6 +105,14 @@ type CiPipeline struct {
 	PreBuildStage            *bean.PipelineStageDto `json:"preBuildStage,omitempty"`
 	PostBuildStage           *bean.PipelineStageDto `json:"postBuildStage,omitempty"`
 	TargetPlatform           string                 `json:"targetPlatform,omitempty"`
+	IsDockerConfigOverridden bool                   `json:"isDockerConfigOverridden"`
+	DockerConfigOverride     DockerConfigOverride   `json:"dockerConfigOverride,omitempty"`
+}
+
+type DockerConfigOverride struct {
+	DockerRegistry    string             `json:"dockerRegistry,omitempty"`
+	DockerRepository  string             `json:"dockerRepository,omitempty"`
+	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
 }
 
 type CiPipelineMin struct {
@@ -437,7 +445,7 @@ type CDPipelineConfigObject struct {
 	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                            `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
 	Strategies                    []Strategy                        `json:"strategies,omitempty"`
-	Namespace                     string                            `json:"namespace,omitempty" validate:"name-component,max=50"` //namespace
+	Namespace                     string                            `json:"namespace,omitempty" validate:"name-space-component,max=50"` //namespace
 	AppWorkflowId                 int                               `json:"appWorkflowId,omitempty" `
 	DeploymentTemplate            pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
 	PreStage                      CdStage                           `json:"preStage"`
@@ -577,4 +585,14 @@ type AppMetaInfoDto struct {
 	Active      bool      `json:"active,notnull"`
 	Labels      []*Label  `json:"labels"`
 	UserId      int32     `json:"-"`
+}
+
+type AppLabelsJsonForDeployment struct {
+	Labels map[string]string `json:"appLabels"`
+}
+
+type UpdateProjectBulkAppsRequest struct {
+	AppIds []int `json:"appIds"`
+	TeamId int   `json:"teamId"`
+	UserId int32 `json:"-"`
 }
