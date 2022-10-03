@@ -188,7 +188,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	helmAppService client.HelmAppService,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciBuildConfigService CiBuildConfigService) *PipelineBuilderImpl {
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciTemplateService CiTemplateService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		dbPipelineOrchestrator:        dbPipelineOrchestrator,
@@ -229,6 +229,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		helmAppService:                   helmAppService,
 		deploymentGroupRepository:        deploymentGroupRepository,
 		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
+		ciTemplateService:                ciTemplateService,
 		//ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
 		//ciBuildConfigService: ciBuildConfigService,
 	}
