@@ -90,7 +90,7 @@ components:
       volumeSize: "20Gi"
 
   migrator:
-    image: "quay.io/devtron/migrator:9c933d29-149-10140"
+    image: "quay.io/devtron/migrator:71d1b111-390-10868"
     envVars:
       devtron:
         GIT_BRANCH: "main"
