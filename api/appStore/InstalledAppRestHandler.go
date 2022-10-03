@@ -54,6 +54,7 @@ type InstalledAppRestHandler interface {
 	CheckAppExists(w http.ResponseWriter, r *http.Request)
 	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
 	FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request)
+	FetchResourceTreeHelper(w http.ResponseWriter, r *http.Request, token string, appDetail *bean2.AppDetailContainer)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -350,6 +351,10 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+}
+
+func (handler *InstalledAppRestHandlerImpl) FetchResourceTreeHelper(w http.ResponseWriter, r *http.Request, token string, appDetail *bean2.AppDetailContainer) {
+	handler.fetchResourceTree(w, r, token, appDetail)
 }
 
 func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, token string, appDetail *bean2.AppDetailContainer) {
