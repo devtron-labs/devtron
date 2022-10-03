@@ -199,9 +199,11 @@ Devtron is trusted by Enterprises and Communities all across the globe:
  
 Get updates on Devtron's development and chat with project maintainers, contributors, and community members
 - Follow [@DevtronL on Twitter](https://twitter.com/DevtronL)
+- Follow [@DevtronL on Facebbook]((https://www.facebook.com/devtronlabs/)
+- Follow [@DevtronL on Linkedin](Devtron Inc.: Overview | LinkedIn)
 - Raise feature requests, suggest enhancements, and report bugs in our [GitHub Issues](https://github.com/devtron-labs/devtron/issues)
 - Articles, Howtos, Tutorials - [Devtron Blogs](https://devtron.ai/blog/)
- 
+ -Fol
 ### Join us at Discord channel
 <p>
 <a href="https://discord.gg/jsRG5qx2gp">
