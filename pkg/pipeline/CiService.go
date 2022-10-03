@@ -18,7 +18,6 @@
 package pipeline
 
 import (
-	"encoding/json"
 	"fmt"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
@@ -384,11 +383,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if pipeline.CiTemplate.DockerBuildOptions == "" {
 		pipeline.CiTemplate.DockerBuildOptions = "{}"
 	}
-	dockerBuildOptionsByte, err := json.Marshal(pipeline.CiTemplate.DockerBuildOptions)
-	if err != nil {
-		impl.Logger.Errorw("error in marshaling dockerBuildOptions map", "err", err, "dockerBuildOptions", pipeline.CiTemplate.DockerBuildOptions)
-		return nil, err
-	}
 	user, err := impl.userService.GetById(trigger.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("unable to find user by id", "err", err, "id", trigger.TriggeredBy)
@@ -455,7 +449,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		RefPlugins:                 refPluginsData,
 		AppName:                    pipeline.App.AppName,
 		TriggerByAuthor:            user.EmailId,
-		DockerBuildOptions:         string(dockerBuildOptionsByte),
+		DockerBuildOptions:         pipeline.CiTemplate.DockerBuildOptions,
 	}
 
 	if ciWorkflowConfig.LogsBucket == "" {
