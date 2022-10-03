@@ -697,16 +697,16 @@ func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWrit
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
-type response struct {
+type Response struct {
 	kind     string
 	name     string
 	pointsTo string
 	urls     []string
 }
 
-func (handler AppListingRestHandlerImpl) getUrls(manifest application1.ManifestResponse) response {
+func (handler AppListingRestHandlerImpl) getUrls(manifest application1.ManifestResponse) Response {
 	kind := manifest.Manifest.GetKind()
-	var res response
+	var res Response
 
 	res.kind = kind
 	res.name = manifest.Manifest.GetName()
