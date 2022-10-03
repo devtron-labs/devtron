@@ -23,7 +23,7 @@ type CiBuildConfigBean struct {
 }
 
 type DockerBuildConfig struct {
-	DockerfilePath    string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
+	DockerfilePath    string            `json:"dockerfileRelativePath,omitempty"`
 	DockerfileContent string            `json:"DockerfileContent"`
 	Args              map[string]string `json:"args,omitempty"`
 	TargetPlatform    string            `json:"targetPlatform,omitempty"`
