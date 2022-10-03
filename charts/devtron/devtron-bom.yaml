@@ -19,7 +19,7 @@ components:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
   
   migrator:
-    image: "quay.io/devtron/migrator:71d1b111-390-10868"
+    image: "quay.io/devtron/migrator:980fa1b8-390-10881"
     envVars:
       devtron:
         GIT_BRANCH: "main"
