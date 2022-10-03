@@ -19,11 +19,11 @@ components:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
   
   migrator:
-    image: "quay.io/devtron/migrator:980fa1b8-390-10881"
+    image: "quay.io/devtron/migrator:cb494756-390-10883"
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "299b90b9322f40d84ebac23a9b43d0bbe23c56ca"
+        GIT_HASH: "0499da447c5ade0d8b607efe03a7326aaaa3fd85"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "299b90b9322f40d84ebac23a9b43d0bbe23c56ca"
+        GIT_HASH: "0499da447c5ade0d8b607efe03a7326aaaa3fd85"
