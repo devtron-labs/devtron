@@ -28,6 +28,13 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
+            resources:
+              limits:
+                cpu: 50m
+                memory: 150Mi
+              requests:
+                cpu: 50m
+                memory: 150Mi
           restartPolicy: OnFailure
       backoffLimit: 4
 ---
@@ -61,5 +68,12 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
+            resources:
+              limits:
+                cpu: 50m
+                memory: 150Mi
+              requests:
+                cpu: 50m
+                memory: 150Mi
           restartPolicy: Never
       backoffLimit: 4

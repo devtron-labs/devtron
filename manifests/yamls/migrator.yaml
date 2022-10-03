@@ -43,6 +43,13 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        resources:
+          requests:
+            memory: "100Mi"
+            cpu: "50m"
+          limits:
+            memory: "100Mi"
+            cpu: "50m"
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -88,8 +95,11 @@ spec:
               name: postgresql-migrator
         resources:
           requests:
-            cpu: 0.5
-            memory: 500Mi
+            memory: "100Mi"
+            cpu: "50m"
+          limits:
+            memory: "100Mi"
+            cpu: "50m"
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -128,6 +138,13 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        resources:
+          requests:
+            memory: "50Mi"
+            cpu: "25m"
+          limits:
+            memory: "50Mi"
+            cpu: "25m"
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -166,6 +183,13 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        resources:
+          requests:
+            memory: "50Mi"
+            cpu: "25m"
+          limits:
+            memory: "50Mi"
+            cpu: "25m"
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -230,5 +254,12 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
+            resources:
+              limits:
+                cpu: 50m
+                memory: 150Mi
+              requests:
+                cpu: 50m
+                memory: 150Mi
           restartPolicy: Never
       backoffLimit: 4
