@@ -393,6 +393,9 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
 		return nil, err
 	}
+	if template.DockerBuildOptions == "" {
+		template.DockerBuildOptions = "{}"
+	}
 	dockerBuildOptions := map[string]string{}
 	if err := json.Unmarshal([]byte(template.DockerBuildOptions), &dockerBuildOptions); err != nil {
 		impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)

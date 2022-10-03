@@ -381,6 +381,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		impl.Logger.Errorw("err", "err", err)
 		return nil, err
 	}
+	if pipeline.CiTemplate.DockerBuildOptions == "" {
+		pipeline.CiTemplate.DockerBuildOptions = "{}"
+	}
 	dockerBuildOptionsByte, err := json.Marshal(pipeline.CiTemplate.DockerBuildOptions)
 	if err != nil {
 		impl.Logger.Errorw("error in marshaling dockerBuildOptions map", "err", err, "dockerBuildOptions", pipeline.CiTemplate.DockerBuildOptions)
