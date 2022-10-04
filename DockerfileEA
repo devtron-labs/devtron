@@ -8,10 +8,12 @@ WORKDIR /go/src/github.com/devtron-labs/devtron
 ADD . /go/src/github.com/devtron-labs/devtron/
 RUN GOOS=linux make build-all
 
-FROM alpine:3.15.0 as  devtron-ea
+FROM ubuntu as  devtron-ea
 
-RUN apk add --no-cache ca-certificates
-RUN apk add curl
+RUN apt update
+RUN apt install ca-certificates curl -y
+RUN apt clean autoclean
+RUN apt autoremove -y
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/auth_model.conf .
 COPY --from=build-env  /go/src/github.com/devtron-labs/devtron/cmd/external-app/devtron-ea .
 
