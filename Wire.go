@@ -745,6 +745,15 @@ func InitializeApp() (*App, error) {
 
 		pipelineConfig.NewCiTemplateOverrideRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiTemplateOverrideRepository), new(*pipelineConfig.CiTemplateOverrideRepositoryImpl)),
+
+		router.NewGlobalCMCSRouterImpl,
+		wire.Bind(new(router.GlobalCMCSRouter), new(*router.GlobalCMCSRouterImpl)),
+		restHandler.NewGlobalCMCSRestHandlerImpl,
+		wire.Bind(new(restHandler.GlobalCMCSRestHandler), new(*restHandler.GlobalCMCSRestHandlerImpl)),
+		pipeline.NewGlobalCMCSServiceImpl,
+		wire.Bind(new(pipeline.GlobalCMCSService), new(*pipeline.GlobalCMCSServiceImpl)),
+		repository.NewGlobalCMCSRepositoryImpl,
+		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
 	)
 	return &App{}, nil
 }
