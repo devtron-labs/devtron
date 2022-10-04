@@ -308,7 +308,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if len(globalCmCsConfigs) > 0 {
 		entryPoint = CI_WORKFLOW_WITH_STAGES
 		for _, config := range globalCmCsConfigs {
-			if config.ConfigType == CM_TYPE_CONFIG {
+			if config.ConfigType == repository.CM_TYPE_CONFIG {
 				ownerDelete := true
 				cmBody := v12.ConfigMap{
 					TypeMeta: v1.TypeMeta{
@@ -334,17 +334,18 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				}
 				configsMapping[config.Name] = string(cmJson)
 
-				//by default considering volume type; in future when other type support is added to update if condition here
-				volumes = append(volumes, v12.Volume{
-					Name: config.Name + "-vol",
-					VolumeSource: v12.VolumeSource{
-						ConfigMap: &v12.ConfigMapVolumeSource{
-							LocalObjectReference: v12.LocalObjectReference{
-								Name: config.Name,
+				if config.Type == repository.VOLUME_CONFIG {
+					volumes = append(volumes, v12.Volume{
+						Name: config.Name + "-vol",
+						VolumeSource: v12.VolumeSource{
+							ConfigMap: &v12.ConfigMapVolumeSource{
+								LocalObjectReference: v12.LocalObjectReference{
+									Name: config.Name,
+								},
 							},
 						},
-					},
-				})
+					})
+				}
 
 				steps = append(steps, v1alpha1.ParallelSteps{
 					Steps: []v1alpha1.WorkflowStep{
@@ -355,7 +356,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					},
 				})
 				cmIndex++
-			} else if config.ConfigType == CS_TYPE_CONFIG {
+			} else if config.ConfigType == repository.CS_TYPE_CONFIG {
 				secretDataMap := make(map[string][]byte)
 				for key, value := range config.Data {
 					secretDataMap[key] = []byte(value)
@@ -385,15 +386,16 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					return nil, err
 				}
 				secretsMapping[config.Name] = string(secretJson)
-				//by default considering volume type; in future when other type support is added to update if condition here
-				volumes = append(volumes, v12.Volume{
-					Name: config.Name + "-vol",
-					VolumeSource: v12.VolumeSource{
-						Secret: &v12.SecretVolumeSource{
-							SecretName: config.Name,
+				if config.Type == repository.VOLUME_CONFIG {
+					volumes = append(volumes, v12.Volume{
+						Name: config.Name + "-vol",
+						VolumeSource: v12.VolumeSource{
+							Secret: &v12.SecretVolumeSource{
+								SecretName: config.Name,
+							},
 						},
-					},
-				})
+					})
+				}
 
 				steps = append(steps, v1alpha1.ParallelSteps{
 					Steps: []v1alpha1.WorkflowStep{
@@ -488,10 +490,30 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 
 	for _, config := range globalCmCsConfigs {
 		//by default considering volume type; in future when other type support is added to update if condition here
-		ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
-			Name:      config.Name + "-vol",
-			MountPath: config.MountPath,
-		})
+		if config.Type == repository.VOLUME_CONFIG {
+			ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+				Name:      config.Name + "-vol",
+				MountPath: config.MountPath,
+			})
+		} else if config.Type == repository.ENVIRONMENT_CONFIG {
+			if config.ConfigType == repository.CM_TYPE_CONFIG {
+				ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+					ConfigMapRef: &v12.ConfigMapEnvSource{
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: config.Name,
+						},
+					},
+				})
+			} else if config.ConfigType == repository.CS_TYPE_CONFIG {
+				ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+					SecretRef: &v12.SecretEnvSource{
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: config.Name,
+						},
+					},
+				})
+			}
+		}
 	}
 
 	templates = append(templates, ciTemplate)

@@ -15,6 +15,13 @@ type GlobalCMCSRepository interface {
 	FindByMountPath(mountPath string) (*GlobalCMCS, error)
 }
 
+const (
+	CM_TYPE_CONFIG     = "CONFIGMAP"
+	CS_TYPE_CONFIG     = "SECRET"
+	ENVIRONMENT_CONFIG = "environment"
+	VOLUME_CONFIG      = "volume"
+)
+
 type GlobalCMCSRepositoryImpl struct {
 	dbConnection *pg.DB
 	logger       *zap.SugaredLogger
@@ -27,8 +34,9 @@ func NewGlobalCMCSRepositoryImpl(logger *zap.SugaredLogger, dbConnection *pg.DB)
 type GlobalCMCS struct {
 	TableName  struct{} `sql:"global_cm_cs" pg:",discard_unknown_columns"`
 	Id         int      `sql:"id,pk"`
-	ConfigType string   `sql:"config_type"`
+	ConfigType string   `sql:"config_type"` // [CONFIGMAP, SECRET]
 	Name       string   `sql:"name"`
+	Type       string   `sql:"type"` // [environment, volume]
 	//json string of map of key:value, example: '{ "a" : "b", "c" : "d"}'
 	Data      json.RawMessage `sql:"data"`
 	MountPath string          `sql:"mount_path"`
