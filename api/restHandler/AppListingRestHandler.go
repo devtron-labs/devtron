@@ -580,11 +580,13 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 }
 
 func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	batchRequest := BatchRequest{
-		AppId:          vars["appId"],
-		InstalledAppId: vars["installedAppId"],
-		EnvId:          vars["envId"],
+	var batchRequest BatchRequest
+	decoder := json.NewDecoder(r.Body)
+	err := decoder.Decode(&batchRequest)
+	if err != nil {
+		handler.logger.Errorw("error in decoding batch request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
 	}
 	if (batchRequest.AppId == "" && batchRequest.InstalledAppId == "") || (batchRequest.AppId != "" && batchRequest.InstalledAppId != "") {
 		handler.logger.Error("error in decoding batch request body")
@@ -593,7 +595,7 @@ func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWrit
 	}
 	var appDetail bean.AppDetailContainer
 	var appId, envId int
-	envId, err := strconv.Atoi(batchRequest.EnvId)
+	envId, err = strconv.Atoi(batchRequest.EnvId)
 	if err != nil {
 		handler.logger.Errorw("error in env-id from request body", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
