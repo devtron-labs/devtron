@@ -51,6 +51,7 @@
     * [Workflow Overview](user-guide/creating-application/workflow/README.md)
     * [CI Pipeline](user-guide/creating-application/workflow/ci-pipeline.md)
       * [Pre-Build/Post-Build Tasks](user-guide/creating-application/workflow/ci-build-pre-post-plugins.md)
+      * [Override Container Registry](user-guide/creating-application/container-registry-override.md)
     * [CI Pipeline (Legacy)](user-guide/creating-application/workflow/ci-pipeline-legacy.md)
     * [CD Pipeline](user-guide/creating-application/workflow/cd-pipeline.md)
     * [Config Maps](user-guide/creating-application/config-maps.md)
@@ -75,7 +76,9 @@
 * [Integrations](user-guide/integrations/README.md)
   * [Build and Deploy (CI/CD)](user-guide/integrations/build-and-deploy-ci-cd.md)
   * [GitOps (Argo CD)](user-guide/integrations/argocd.md)
-  * [Security (Clair)](user-guide/integrations/clair.md)
+  * [Vulnerability Scanning (Clair)](user-guide/integrations/clair.md)
+  * [Notifications](user-guide/integrations/notifications.md)
+  * [Monitoring (Grafana)](user-guide/integrations//grafana.md)
 
 ## Resources
 

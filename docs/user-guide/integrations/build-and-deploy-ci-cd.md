@@ -1,4 +1,4 @@
-# Build and Deploy (CI/CD) integration
+# Build and Deploy (CI/CD)
  
 Devtron CI/CD integration enables software development teams to automate the build and deployment process, allowing them to focus on meeting the business requirements, maintaining code quality, and ensuring security.
  
@@ -16,8 +16,8 @@ Devtron CI/CD integration enables software development teams to automate the bui
 
 ## Installation
 
-1. On the **Devtron Stack Manager > Discover** page, select the **Build and Deploy (CI/CD) integration**.
-2. On the **Discover integrations/Build and Deploy (CI/CD) page**, select **Install**.
+1. On the **Devtron Stack Manager > Discover** page, click the **Build and Deploy (CI/CD)**.
+2. On the **Discover Integrations/Build and Deploy (CI/CD)** page, click **Install**.
  
 The installation status may be one of the following:
  
@@ -26,8 +26,8 @@ The installation status may be one of the following:
 | Install | The integration is not yet installed. |
 | Initializing | The installation is being initialized. |
 | Installing | The installation is in progress. The logs are available to track the progress. |
-| Failed | Installation failed and the logs are available to troubleshoot. You could retry the installation or [contact support](https://discord.devtron.ai/). |
-| Installed | The integration is successfully installed and available on the **Installed page**. |
+| Failed | Installation failed and the logs are available to troubleshoot. You can retry the installation or [contact support](https://discord.devtron.ai/). |
+| Installed | The integration is successfully installed and available on the **Installed** page. |
 | Request timed out | The request to install has hit the maximum number of retries. You may retry the installation or [contact support](https://discord.devtron.ai/) for further assistance. |
  
 > A list of installed integrations can be viewed on the **Devtron Stack Manager > Installed** page.

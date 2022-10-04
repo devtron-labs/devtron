@@ -2,6 +2,7 @@ package appbean
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
 type AppDetail struct {
@@ -67,6 +68,8 @@ type CiPipelineDetails struct {
 	BeforeDockerBuildScripts  []*BuildScript              `json:"beforeDockerBuildScripts"`
 	AfterDockerBuildScripts   []*BuildScript              `json:"afterDockerBuildScripts"`
 	VulnerabilityScanEnabled  bool                        `json:"vulnerabilitiesScanEnabled"`
+	PreBuildStage             *bean.PipelineStageDto      `json:"preBuildStage,omitempty"`
+	PostBuildStage            *bean.PipelineStageDto      `json:"postBuildStage,omitempty"`
 	IsExternal                bool                        `json:"isExternal"` // true for linked and external
 }
 
