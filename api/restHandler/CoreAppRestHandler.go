@@ -250,7 +250,7 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	ctx := context.WithValue(r.Context(), "token", acdToken)
+	ctx := context.WithValue(context.Background(), "token", acdToken)
 	var createAppRequest appBean.AppDetail
 	err = decoder.Decode(&createAppRequest)
 	if err != nil {
@@ -334,7 +334,8 @@ func (handler CoreAppRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.R
 
 	//creating deployment template starts
 	if createAppRequest.GlobalDeploymentTemplate != nil {
-		err, statusCode = handler.createDeploymentTemplate(ctx, appId, createAppRequest.GlobalDeploymentTemplate, userId)
+		err, i := handler.createDeploymentTemplate(ctx, appId, createAppRequest.GlobalDeploymentTemplate, userId)
+		err, statusCode = err, i
 		if err != nil {
 			errResp = multierror.Append(errResp, err)
 			errInAppDelete := handler.deleteApp(ctx, appId, userId)
