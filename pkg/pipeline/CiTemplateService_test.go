@@ -34,6 +34,7 @@ func TestCiTemplateService(t *testing.T) {
 		buildPackConfig := &bean.BuildPackConfig{
 			BuilderId: "gcr.io/buildpacks/builder:v1",
 		}
+		//buildPackConfig.BuilderId = "heroku/buildpacks:20"
 		ciBuildConfig := ciTemplateBean.CiBuildConfig
 		ciBuildConfig.CiBuildType = bean.BUILDPACK_BUILD_TYPE
 		ciBuildConfig.BuildPackConfig = buildPackConfig
