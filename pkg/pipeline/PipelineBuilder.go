@@ -659,6 +659,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	}
 	buildOptionsByte, err := json.Marshal(originalCiConf.DockerBuildConfig.DockerBuildOptions)
 	if err != nil {
+		impl.logger.Errorw("error in marshaling dockerBuildOptions", "err", err)
 		return nil, err
 	}
 	ciTemplate := &pipelineConfig.CiTemplate{
@@ -741,6 +742,7 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	}
 	buildOptionsByte, err := json.Marshal(createRequest.DockerBuildConfig.DockerBuildOptions)
 	if err != nil {
+		impl.logger.Errorw("error in marshaling dockerBuildOptions", "err", err)
 		return nil, err
 	}
 	ciTemplate := &pipelineConfig.CiTemplate{
