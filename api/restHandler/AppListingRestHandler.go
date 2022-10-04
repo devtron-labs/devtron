@@ -580,22 +580,20 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 }
 
 func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWriter, r *http.Request) {
-	var batchRequest BatchRequest
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&batchRequest)
-	if err != nil {
-		handler.logger.Errorw("error in decoding batch request body", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+	vars := mux.Vars(r)
+	batchRequest := BatchRequest{
+		AppId:          vars["appId"],
+		InstalledAppId: vars["installedAppId"],
+		EnvId:          vars["envId"],
 	}
 	if (batchRequest.AppId == "" && batchRequest.InstalledAppId == "") || (batchRequest.AppId != "" && batchRequest.InstalledAppId != "") {
-		handler.logger.Error("error in decoding batch request body", "err", err)
+		handler.logger.Error("error in decoding batch request body")
 		common.WriteJsonResp(w, fmt.Errorf("only one of the appId or envId should be valid"), nil, http.StatusBadRequest)
 		return
 	}
 	var appDetail bean.AppDetailContainer
 	var appId, envId int
-	envId, err = strconv.Atoi(batchRequest.EnvId)
+	envId, err := strconv.Atoi(batchRequest.EnvId)
 	if err != nil {
 		handler.logger.Errorw("error in env-id from request body", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -654,6 +652,7 @@ func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWrit
 	if len(appDetail.K8sVersion) != 0 {
 		version = strings.Split(appDetail.K8sVersion, ".")[0]
 	}
+
 	noOfNodes := len(resourceTree["nodes"].([]interface{}))
 	for i := 0; i < noOfNodes; i++ {
 		resourceI := resourceTree["nodes"].([]interface{})[i].(map[string]interface{})
