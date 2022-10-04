@@ -81,11 +81,11 @@ spec:
           image: quay.io/devtron/inception:c62d4c30-185-9354
           resources:
             limits:
-              cpu: 25m
-              memory: 100Mi
+              cpu: 100m
+              memory: 250Mi
             requests:
-              cpu: 25m
-              memory: 100Mi
+              cpu: 100m
+              memory: 250Mi
           imagePullPolicy: IfNotPresent
           name: inception
           ports:
