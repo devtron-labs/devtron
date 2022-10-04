@@ -79,6 +79,13 @@ spec:
       containers:
         -
           image: quay.io/devtron/inception:c62d4c30-185-9354
+          resources:
+            limits:
+              cpu: 25m
+              memory: 50Mi
+            requests:
+              cpu: 25m
+              memory: 50Mi
           imagePullPolicy: IfNotPresent
           name: inception
           ports:
