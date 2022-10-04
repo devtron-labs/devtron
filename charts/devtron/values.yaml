@@ -97,13 +97,13 @@ components:
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "e9175e9845c9ca8f6260ea58ce7ad22118244eac"
+        GIT_HASH: "299b90b9322f40d84ebac23a9b43d0bbe23c56ca"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "e9175e9845c9ca8f6260ea58ce7ad22118244eac"
+        GIT_HASH: "299b90b9322f40d84ebac23a9b43d0bbe23c56ca"
 
 # values for argocd integration
 argo-cd:
