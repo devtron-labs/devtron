@@ -82,7 +82,7 @@ func (impl CiTemplateRepositoryImpl) FindByAppId(appId int) (ciTemplate *CiTempl
 	template := &CiTemplate{}
 	err = impl.dbConnection.Model(template).
 		Where("app_id =? ", appId).
-		Column("ci_template.*", "App", "DockerRegistry").
+		Column("ci_template.*", "App", "DockerRegistry", "CiBuildConfig").
 		Select()
 	if pg.ErrNoRows == err {
 		return nil, errors.NotFoundf(err.Error())

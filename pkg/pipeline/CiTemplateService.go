@@ -38,6 +38,12 @@ func (impl CiTemplateServiceImpl) Save(ciTemplateBean *bean.CiTemplateBean) erro
 	ciTemplateOverride := ciTemplateBean.CiTemplateOverride
 	ciTemplateId := 0
 	ciTemplateOverrideId := 0
+
+	buildConfig := ciTemplateBean.CiBuildConfig
+	err := impl.CiBuildConfigService.Save(ciTemplateId, ciTemplateOverrideId, buildConfig)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while saving ci build config", "config", buildConfig, "err", err)
+	}
 	if ciTemplateOverride == nil {
 		err := impl.CiTemplateRepository.Save(ciTemplate)
 		if err != nil {
@@ -54,11 +60,7 @@ func (impl CiTemplateServiceImpl) Save(ciTemplateBean *bean.CiTemplateBean) erro
 		}
 		ciTemplateOverrideId = ciTemplateOverride.Id
 	}
-	buildConfig := ciTemplateBean.CiBuildConfig
-	err := impl.CiBuildConfigService.Save(ciTemplateId, ciTemplateOverrideId, buildConfig)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while saving ci build config", "config", buildConfig, "err", err)
-	}
+
 	return err
 }
 
@@ -143,25 +145,30 @@ func (impl CiTemplateServiceImpl) Update(ciTemplateBean *bean.CiTemplateBean) er
 	ciTemplateOverride := ciTemplateBean.CiTemplateOverride
 	ciTemplateId := 0
 	ciTemplateOverrideId := 0
+	ciBuildConfig := ciTemplateBean.CiBuildConfig
 	if ciTemplateOverride == nil {
+		ciTemplateId = ciTemplate.Id
+	} else {
+		ciTemplateOverrideId = ciTemplateOverride.Id
+	}
+	_, err := impl.CiBuildConfigService.UpdateOrSave(ciTemplateId, ciTemplateOverrideId, ciBuildConfig)
+	if err != nil {
+		impl.Logger.Errorw("error in updating ci build config in db", "ciBuildConfig", ciBuildConfig, "err", err)
+	}
+	if ciTemplateOverride == nil {
+		ciTemplate.CiBuildConfigId = ciBuildConfig.Id
 		err := impl.CiTemplateRepository.Update(ciTemplate)
 		if err != nil {
 			impl.Logger.Errorw("error in updating ci template in db", "template", ciTemplate, "err", err)
 			return err
 		}
-		ciTemplateId = ciTemplate.Id
 	} else {
+		ciTemplateOverride.CiBuildConfigId = ciBuildConfig.Id
 		_, err := impl.CiTemplateOverrideRepository.Update(ciTemplateOverride)
 		if err != nil {
 			impl.Logger.Errorw("error in updating template override", "err", err, "templateOverrideConfig", ciTemplateOverride)
 			return err
 		}
-		ciTemplateOverrideId = ciTemplateOverride.Id
-	}
-	ciBuildConfig := ciTemplateBean.CiBuildConfig
-	_, err := impl.CiBuildConfigService.Update(ciTemplateId, ciTemplateOverrideId, ciBuildConfig)
-	if err != nil {
-		impl.Logger.Errorw("error in updating ci build config in db", "ciBuildConfig", ciBuildConfig, "err", err)
 	}
 	return err
 }

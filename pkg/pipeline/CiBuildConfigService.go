@@ -9,7 +9,7 @@ import (
 
 type CiBuildConfigService interface {
 	Save(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean) error
-	Update(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean) (*bean.CiBuildConfigBean, error)
+	UpdateOrSave(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean) (*bean.CiBuildConfigBean, error)
 	Delete(ciBuildConfigId int) error
 }
 
@@ -26,21 +26,22 @@ func NewCiBuildConfigServiceImpl(logger *zap.SugaredLogger, ciBuildConfigReposit
 }
 
 func (impl *CiBuildConfigServiceImpl) Save(templateId int, overrideTemplateId int, ciBuildConfigBean *bean.CiBuildConfigBean) error {
-	ciBuildConfig, err := bean.ConvertBuildConfigBeanToDbEntity(templateId, overrideTemplateId, ciBuildConfigBean)
+	ciBuildConfigEntity, err := bean.ConvertBuildConfigBeanToDbEntity(templateId, overrideTemplateId, ciBuildConfigBean)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting build config to db entity", "templateId", templateId,
 			"overrideTemplateId", overrideTemplateId, "ciBuildConfigBean", ciBuildConfigBean, "err", err)
 		return errors.New("error while saving build config")
 	}
-	err = impl.CiBuildConfigRepository.Save(ciBuildConfig)
+	err = impl.CiBuildConfigRepository.Save(ciBuildConfigEntity)
+	ciBuildConfigBean.Id = ciBuildConfigEntity.Id
 	if err != nil {
 		return errors.New("error while saving build config")
 	}
 	return nil
 }
 
-func (impl *CiBuildConfigServiceImpl) Update(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean) (*bean.CiBuildConfigBean, error) {
-	if ciBuildConfig == nil || ciBuildConfig.Id == 0 {
+func (impl *CiBuildConfigServiceImpl) UpdateOrSave(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean) (*bean.CiBuildConfigBean, error) {
+	if ciBuildConfig == nil {
 		impl.Logger.Warnw("not updating build config as object is empty", "ciBuildConfig", ciBuildConfig)
 		return nil, nil
 	}
@@ -50,8 +51,14 @@ func (impl *CiBuildConfigServiceImpl) Update(templateId int, overrideTemplateId 
 			"overrideTemplateId", overrideTemplateId, "ciBuildConfig", ciBuildConfig, "err", err)
 		return nil, errors.New("error while saving build config")
 	}
-	err = impl.CiBuildConfigRepository.Update(ciBuildConfigEntity)
+	if ciBuildConfig.Id == 0 {
+		err = impl.CiBuildConfigRepository.Save(ciBuildConfigEntity)
+		ciBuildConfig.Id = ciBuildConfigEntity.Id
+	} else {
+		err = impl.CiBuildConfigRepository.Update(ciBuildConfigEntity)
+	}
 	if err != nil {
+		impl.Logger.Errorw("error occurred while updating/saving ciBuildConfig", "entity", ciBuildConfigEntity, "err", err)
 		return nil, errors.New("error while updating build config")
 	}
 	return ciBuildConfig, nil

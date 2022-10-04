@@ -53,13 +53,14 @@ func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ci
 		}
 		buildMetadata = string(dockerBuildMetadataBytes)
 	}
-	ciBuildConfig := &pipelineConfig.CiBuildConfig{
+	ciBuildConfigEntity := &pipelineConfig.CiBuildConfig{
+		Id:                   ciBuildConfigBean.Id,
 		Type:                 string(ciBuildType),
 		CiTemplateId:         templateId,
 		CiTemplateOverrideId: overrideTemplateId,
 		BuildMetadata:        buildMetadata,
 	}
-	return ciBuildConfig, nil
+	return ciBuildConfigEntity, nil
 }
 
 func ConvertDbBuildConfigToBean(dbConfig *pipelineConfig.CiBuildConfig) (*CiBuildConfigBean, error) {
