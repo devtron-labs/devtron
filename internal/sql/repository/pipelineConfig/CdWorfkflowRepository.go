@@ -512,7 +512,7 @@ func (impl *CdWorkflowRepositoryImpl) FetchArtifactsByCdPipelineId(pipelineId in
 		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("cd_workflow.pipeline_id = ?", pipelineId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
-		Order("cd_workflow_runner.started_on DESC").
+		Order("cd_workflow_runner.id DESC").
 		Limit(limit).Offset(offset).
 		Select()
 	if err != nil {
