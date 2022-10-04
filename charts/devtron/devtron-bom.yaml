@@ -23,7 +23,7 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "0499da447c5ade0d8b607efe03a7326aaaa3fd85"
+        GIT_HASH: "299b90b9322f40d84ebac23a9b43d0bbe23c56ca"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "0499da447c5ade0d8b607efe03a7326aaaa3fd85"
+        GIT_HASH: "299b90b9322f40d84ebac23a9b43d0bbe23c56ca"
