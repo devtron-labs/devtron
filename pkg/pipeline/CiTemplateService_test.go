@@ -23,7 +23,7 @@ func TestCiTemplateService(t *testing.T) {
 		ciTemplateRepositoryImpl := pipelineConfig.NewCiTemplateRepositoryImpl(db, sugaredLogger)
 		ciTemplateOverrideRepositoryImpl := pipelineConfig.NewCiTemplateOverrideRepositoryImpl(db, sugaredLogger)
 		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, ciBuildConfigServiceImpl, ciTemplateRepositoryImpl, ciTemplateOverrideRepositoryImpl)
-		appId := 1
+		appId := 3
 		ciTemplateBean, err := ciTemplateServiceImpl.FindByAppId(appId)
 		assert.True(t, err == nil, err)
 		assert.True(t, ciTemplateBean != nil, ciTemplateBean)
@@ -31,13 +31,25 @@ func TestCiTemplateService(t *testing.T) {
 		assert.True(t, ciTemplateBean.CiTemplate.AppId == appId)
 		assert.True(t, ciTemplateBean.CiBuildConfig != nil)
 
-		buildPackConfig := &bean.BuildPackConfig{
-			BuilderId: "gcr.io/buildpacks/builder:v1",
-		}
-		//buildPackConfig.BuilderId = "heroku/buildpacks:20"
 		ciBuildConfig := ciTemplateBean.CiBuildConfig
-		ciBuildConfig.CiBuildType = bean.BUILDPACK_BUILD_TYPE
-		ciBuildConfig.BuildPackConfig = buildPackConfig
+
+		//buildPackConfig := &bean.BuildPackConfig{
+		//	BuilderId: "gcr.io/buildpacks/builder:v1",
+		//}
+		//buildPackConfig.BuilderId = "heroku/buildpacks:20"
+		//ciBuildConfig.CiBuildType = bean.BUILDPACK_BUILD_TYPE
+		//ciBuildConfig.BuildPackConfig = buildPackConfig
+
+		args := make(map[string]string)
+		args["hello"] = "world"
+		dockerBuildConfig := &bean.DockerBuildConfig{
+			DockerfilePath: "Dockerfile",
+			Args:           args,
+			TargetPlatform: "linux/amd64",
+		}
+		ciBuildConfig.CiBuildType = bean.SELF_DOCKERFILE_BUILD_TYPE
+		ciBuildConfig.DockerBuildConfig = dockerBuildConfig
+
 		err = ciTemplateServiceImpl.Update(ciTemplateBean)
 		assert.True(t, err == nil, err)
 	})

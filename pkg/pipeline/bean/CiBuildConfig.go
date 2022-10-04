@@ -103,14 +103,21 @@ func convertMetadataToDockerBuildConfig(dockerBuildMetadata string) (*DockerBuil
 	return dockerBuildConfig, err
 }
 
-func OverrideCiBuildConfig(dockerfilePath string, args string, targetPlatform string, ciBuildConfigBean *CiBuildConfigBean) (*CiBuildConfigBean, error) {
-	dockerArgs := map[string]string{}
-	if args != "" {
-		if err := json.Unmarshal([]byte(args), &dockerArgs); err != nil {
+func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs string, targetPlatform string, ciBuildConfigBean *CiBuildConfigBean) (*CiBuildConfigBean, error) {
+	oldDockerArgs := map[string]string{}
+	ciLevelDockerArgs := map[string]string{}
+	if oldArgs != "" {
+		if err := json.Unmarshal([]byte(oldArgs), &oldDockerArgs); err != nil {
+			return nil, err
+		}
+	}
+	if ciLevelArgs != "" {
+		if err := json.Unmarshal([]byte(oldArgs), &ciLevelDockerArgs); err != nil {
 			return nil, err
 		}
 	}
 	if ciBuildConfigBean == nil {
+		dockerArgs := mergeMap(oldDockerArgs, ciLevelDockerArgs)
 		ciBuildConfigBean = &CiBuildConfigBean{
 			CiBuildType: SELF_DOCKERFILE_BUILD_TYPE,
 			DockerBuildConfig: &DockerBuildConfig{
@@ -121,8 +128,20 @@ func OverrideCiBuildConfig(dockerfilePath string, args string, targetPlatform st
 		}
 	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE {
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
+		dockerArgs := mergeMap(dockerBuildConfig.Args, ciLevelDockerArgs)
 		dockerBuildConfig.DockerfilePath = dockerfilePath
 		dockerBuildConfig.Args = dockerArgs
 	}
 	return ciBuildConfigBean, nil
+}
+
+func mergeMap(oldDockerArgs map[string]string, ciLevelDockerArgs map[string]string) map[string]string {
+	dockerArgs := make(map[string]string)
+	for key, value := range oldDockerArgs {
+		dockerArgs[key] = value
+	}
+	for key, value := range ciLevelDockerArgs {
+		dockerArgs[key] = value
+	}
+	return dockerArgs
 }

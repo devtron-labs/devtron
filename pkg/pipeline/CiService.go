@@ -372,18 +372,17 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 
 	ciTemplate := pipeline.CiTemplate
-	args := ciTemplate.Args
 	ciLevelArgs := pipeline.DockerArgs
 
 	if ciLevelArgs == "" {
 		ciLevelArgs = "{}"
 	}
 
-	merged, err := impl.mergeUtil.JsonPatch([]byte(args), []byte(ciLevelArgs))
-	if err != nil {
-		impl.Logger.Errorw("err", "err", err)
-		return nil, err
-	}
+	//merged, err := impl.mergeUtil.JsonPatch([]byte(args), []byte(ciLevelArgs))
+	//if err != nil {
+	//	impl.Logger.Errorw("err", "err", err)
+	//	return nil, err
+	//}
 	user, err := impl.userService.GetById(trigger.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("unable to find user by id", "err", err, "id", trigger.TriggeredBy)
@@ -420,10 +419,11 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if checkoutPath == "" {
 		checkoutPath = "./"
 	}
-	mergedArgs := string(merged)
-	ciBuildConfigBean, err = bean2.OverrideCiBuildConfig(dockerfilePath, mergedArgs, ciTemplate.TargetPlatform, ciBuildConfigBean)
+	//mergedArgs := string(merged)
+	oldArgs := ciTemplate.Args
+	ciBuildConfigBean, err = bean2.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.TargetPlatform, ciBuildConfigBean)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while overriding ci build config", "args", mergedArgs, "error", err)
+		impl.Logger.Errorw("error occurred while overriding ci build config", "oldArgs", oldArgs, "ciLevelArgs", ciLevelArgs, "error", err)
 		return nil, errors.New("error while parsing ci build config")
 	}
 	workflowRequest := &WorkflowRequest{
