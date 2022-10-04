@@ -109,6 +109,11 @@ func (impl ChartTemplateServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitA
 	repo := &v1alpha1.Repository{
 		Repo: chartGitAttribute.RepoUrl,
 	}
+	ctxErr := ctx.Err()
+	if ctxErr != nil {
+		impl.logger.Errorw("repo create api context error", "err", ctxErr)
+	}
+
 	repo, err := impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {
 		impl.logger.Errorw("error in creating argo Repository ", "err", err)
