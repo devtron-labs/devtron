@@ -159,6 +159,13 @@ spec:
       containers:
         - name: devtron
           image: "quay.io/devtron/devtron:299b90b9-326-10742"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:
