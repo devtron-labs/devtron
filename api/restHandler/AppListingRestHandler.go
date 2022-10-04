@@ -29,7 +29,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	application1 "github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -588,7 +587,7 @@ func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWrit
 	}
 	if (batchRequest.AppId == "" && batchRequest.InstalledAppId == "") || (batchRequest.AppId != "" && batchRequest.InstalledAppId != "") {
 		handler.logger.Error("error in decoding batch request body")
-		common.WriteJsonResp(w, fmt.Errorf("only one of the appId or envId should be valid"), nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, fmt.Errorf("only one of the appId or installedAppId should be valid"), nil, http.StatusBadRequest)
 		return
 	}
 	var appDetail bean.AppDetailContainer
@@ -652,92 +651,15 @@ func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWrit
 	if len(appDetail.K8sVersion) != 0 {
 		version = strings.Split(appDetail.K8sVersion, ".")[0]
 	}
-
-	noOfNodes := len(resourceTree["nodes"].([]interface{}))
-	for i := 0; i < noOfNodes; i++ {
-		resourceI := resourceTree["nodes"].([]interface{})[i].(map[string]interface{})
-		kind, name, namespace := resourceI["kind"].(string), resourceI["name"].(string), resourceI["namespace"].(string)
-		if strings.Compare(kind, "Service") == 0 || strings.Compare(kind, "Ingress") == 0 {
-			req := k8s.ResourceRequestAndGroupVersionKind{
-				ResourceRequestBean: k8s.ResourceRequestBean{
-					AppId: strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName),
-					AppIdentifier: &client.AppIdentifier{
-						ClusterId: appDetail.ClusterId,
-					},
-					K8sRequest: &application1.K8sRequestBean{
-						ResourceIdentifier: application1.ResourceIdentifier{
-							Name:      name,
-							Namespace: namespace,
-						},
-					},
-				},
-				Version: version,
-				Kind:    kind,
-			}
-			validRequests = append(validRequests, req)
-		}
-	}
-
+	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(resourceTree, validRequests, appDetail, version, "")
 	if len(validRequests) == 0 {
-		handler.logger.Error("Invalid requests in whole batch")
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.logger.Error("neither service nor ingress found")
+		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
 		return
 	}
-	resp := handler.k8sApplicationService.GetManifestsInBatch(validRequests, 5)
-	result := make([]interface{}, 0)
-	for _, res := range resp {
-		err = res.Err
-		if err != nil {
-			continue
-		}
-		urlRes := handler.getUrls(*res.ManifestResponse)
-		result = append(result, urlRes)
-	}
+	resp := handler.k8sApplicationService.GetManifestsInBatch(validRequests, k8s.BATCH_SIZE)
+	result := handler.k8sApplicationService.GetUrlsByBatch(resp, k8s.BATCH_SIZE)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
-}
-
-type Response struct {
-	kind     string
-	name     string
-	pointsTo string
-	urls     []string
-}
-
-func (handler AppListingRestHandlerImpl) getUrls(manifest application1.ManifestResponse) Response {
-	kind := manifest.Manifest.GetKind()
-	var res Response
-
-	res.kind = kind
-	res.name = manifest.Manifest.GetName()
-	res.pointsTo = ""
-
-	if kind == "Ingress" {
-		urls := make([]string, 0)
-		spec := manifest.Manifest.Object["spec"].(map[string]interface{})
-		rules := spec["rules"].([]interface{})
-		for _, rule := range rules {
-			ruleMap := rule.(map[string]interface{})
-			url := ruleMap["host"].(string)
-			httpPaths := ruleMap["http"].(map[string]interface{})["paths"].([]interface{})
-			for _, httpPath := range httpPaths {
-				path := httpPath.(map[string]interface{})["path"].(string)
-				url = url + path
-				urls = append(urls, url)
-			}
-		}
-	}
-
-	status := manifest.Manifest.Object["status"].(map[string]interface{})
-	loadBalancer := status["loadBalancer"].(map[string]interface{})
-	ingressArray := loadBalancer["ingress"].([]map[string]string)
-	if len(ingressArray) > 0 {
-		if _, ok := ingressArray[0]["hostname"]; ok {
-			res.pointsTo = ingressArray[0]["hostname"]
-		} else {
-			res.pointsTo = ingressArray[0]["ip"]
-		}
-	}
-	return res
 }
 
 func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, token string, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
