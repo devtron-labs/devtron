@@ -368,7 +368,7 @@ func (impl *AppStoreDeploymentArgoCdServiceImpl) UpdateRequirementDependencies(e
 	requirmentYamlConfig := &util.ChartConfig{
 		FileName:       appStoreBean.REQUIREMENTS_YAML_FILE,
 		FileContent:    string(requirementDependenciesByte),
-		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+		ChartName:      installedAppVersion.InstalledApp.App.AppName,
 		ChartLocation:  argocdAppName,
 		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", appStoreAppVersion.Id, environment.Id),
@@ -417,7 +417,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 		return nil, err
 	}
 	// update acd app
-	patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: chartGitAttr.ChartLocation, RepoURL: chartGitAttr.RepoUrl}}}
+	patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: chartGitAttr.ChartLocation, RepoURL: chartGitAttr.RepoUrl, TargetRevision: "master"}}}
 	reqbyte, err := json.Marshal(patchReq)
 	if err != nil {
 		impl.Logger.Errorw("error in creating patch", "err", err)
@@ -460,7 +460,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 	valuesConfig := &util.ChartConfig{
 		FileName:       appStoreBean.VALUES_YAML_FILE,
 		FileContent:    string(valuesByte),
-		ChartName:      installedAppVersion.AppStoreApplicationVersion.AppStore.Name,
+		ChartName:      installedAppVersion.InstalledApp.App.AppName,
 		ChartLocation:  argocdAppName,
 		ChartRepoName:  installAppVersionRequest.GitOpsRepoName,
 		ReleaseMessage: fmt.Sprintf("release-%d-env-%d ", installedAppVersion.AppStoreApplicationVersion.Id, environment.Id),

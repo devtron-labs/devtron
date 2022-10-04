@@ -45,6 +45,8 @@ type AppCloneServiceImpl struct {
 	appWorkflowService      appWorkflow.AppWorkflowService
 	appListingService       app.AppListingService
 	propertiesConfigService pipeline.PropertiesConfigService
+	pipelineStageService    pipeline.PipelineStageService
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -55,8 +57,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	appWorkflowService appWorkflow.AppWorkflowService,
 	appListingService app.AppListingService,
 	propertiesConfigService pipeline.PropertiesConfigService,
-
-) *AppCloneServiceImpl {
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
+	pipelineStageService pipeline.PipelineStageService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
 		logger:                  logger,
 		pipelineBuilder:         pipelineBuilder,
@@ -66,6 +68,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		appWorkflowService:      appWorkflowService,
 		appListingService:       appListingService,
 		propertiesConfigService: propertiesConfigService,
+		pipelineStageService:    pipelineStageService,
+		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
 	}
 
 }
@@ -245,17 +249,19 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 			impl.logger.Errorw("error in fetching ref git material", "id", refCiConf.DockerBuildConfig.GitMaterialId, "err", err)
 			return nil, err
 		}
-		// first repo with same url
-		for _, gitMaterial := range gitMaterials {
-			if gitMaterial.Url == refGitmaterial.Url {
-				dockerfileGitMaterial = gitMaterial.Id
-				break
-			}
-		}
 		//first repo with same checkout path
 		if dockerfileGitMaterial == 0 {
 			for _, gitMaterial := range gitMaterials {
 				if gitMaterial.CheckoutPath == refGitmaterial.CheckoutPath {
+					dockerfileGitMaterial = gitMaterial.Id
+					break
+				}
+			}
+		}
+		// first repo with same url
+		if dockerfileGitMaterial == 0 {
+			for _, gitMaterial := range gitMaterials {
+				if gitMaterial.Url == refGitmaterial.Url {
 					dockerfileGitMaterial = gitMaterial.Id
 					break
 				}
@@ -705,6 +711,13 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 				}
 				afterDockerBuildScripts = append(afterDockerBuildScripts, ciScript)
 			}
+
+			//getting pre stage and post stage details
+			preStageDetail, postStageDetail, err := impl.pipelineStageService.GetCiPipelineStageDataDeepCopy(refCiPipeline.Id)
+			if err != nil {
+				impl.logger.Errorw("error in getting pre & post stage detail by ciPipelineId", "err", err, "ciPipelineId", refCiPipeline.Id)
+				return nil, err
+			}
 			ciPatchReq := &bean.CiPatchRequest{
 				CiPipeline: &bean.CiPipeline{
 					IsManual:                 refCiPipeline.IsManual,
@@ -722,12 +735,38 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					BeforeDockerBuildScripts: beforeDockerBuildScripts,
 					AfterDockerBuildScripts:  afterDockerBuildScripts,
 					ParentCiPipeline:         refCiPipeline.ParentCiPipeline,
+					IsDockerConfigOverridden: refCiPipeline.IsDockerConfigOverridden,
+					PreBuildStage:            preStageDetail,
+					PostBuildStage:           postStageDetail,
 				},
 				AppId:         req.appId,
 				Action:        bean.CREATE,
 				AppWorkflowId: req.wfId,
 				UserId:        req.userId,
 			}
+			if !refCiPipeline.IsExternal && refCiPipeline.IsDockerConfigOverridden {
+				//get template override
+				templateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(refCiPipeline.Id)
+				if err != nil {
+					impl.logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "err", err, "ciPipelineId", refCiPipeline.Id)
+					return nil, err
+				}
+				//getting new git material for this app
+				gitMaterial, err := impl.materialRepository.FindByAppIdAndCheckoutPath(req.appId, templateOverride.GitMaterial.CheckoutPath)
+				if err != nil {
+					impl.logger.Errorw("error in getting git material by appId and checkoutPath", "err", err, "appid", req.refAppId, "checkoutPath", templateOverride.GitMaterial.CheckoutPath)
+					return nil, err
+				}
+				ciPatchReq.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+					DockerRegistry:   templateOverride.DockerRegistryId,
+					DockerRepository: templateOverride.DockerRepository,
+					DockerBuildConfig: &bean.DockerBuildConfig{
+						DockerfilePath: templateOverride.DockerfilePath,
+						GitMaterialId:  gitMaterial.Id,
+					},
+				}
+			}
+
 			return impl.pipelineBuilder.PatchCiPipeline(ciPatchReq)
 		}
 	}

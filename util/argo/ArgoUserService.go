@@ -82,15 +82,7 @@ func (impl *ArgoUserServiceImpl) ValidateGitOpsAndGetOrUpdateArgoCdUserDetail() 
 
 func (impl *ArgoUserServiceImpl) GetOrUpdateArgoCdUserDetail() string {
 	token := ""
-	cluster, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
-	if err != nil {
-		impl.logger.Errorw("error in getting default cluster", "err", err)
-	}
-	clusterConfig, err := impl.clusterService.GetClusterConfig(cluster)
-	if err != nil {
-		impl.logger.Errorw("error in getting default cluster config", "err", err)
-	}
-	k8sClient, err := getClient(clusterConfig)
+	k8sClient, err := impl.clusterService.GetK8sClient()
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 	}
@@ -185,18 +177,7 @@ func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, erro
 		//here acd token only required in context for argo cd calls
 		return "", nil
 	}
-
-	cluster, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
-	if err != nil {
-		impl.logger.Errorw("error in getting default cluster", "err", err)
-		return "", err
-	}
-	clusterConfig, err := impl.clusterService.GetClusterConfig(cluster)
-	if err != nil {
-		impl.logger.Errorw("error in getting default cluster config", "err", err)
-		return "", err
-	}
-	k8sClient, err := getClient(clusterConfig)
+	k8sClient, err := impl.clusterService.GetK8sClient()
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client for default cluster", "err", err)
 		return "", err

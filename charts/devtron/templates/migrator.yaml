@@ -1,6 +1,6 @@
 {{- with .Values.components.migrator }}
 ---
-{{- if $.Capabilities.APIVersions.Has "batch/v1" -}}
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" -}}
 apiVersion: batch/v1
 {{- else -}}
 apiVersion: batch/v1beta1
@@ -12,7 +12,6 @@ metadata:
   labels:
     job: postgresql-migrate-devtron
 spec:
-  ttlSecondsAfterFinished: 1000
   template:
     spec:
       containers:
@@ -46,7 +45,7 @@ spec:
   backoffLimit: 20
   activeDeadlineSeconds: 1500
 ---
-{{- if $.Capabilities.APIVersions.Has "batch/v1" -}}
+{{- if $.Capabilities.APIVersions.Has "batch/v1/Job" -}}
 apiVersion: batch/v1
 {{- else -}}
 apiVersion: batch/v1beta1

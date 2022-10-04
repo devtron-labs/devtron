@@ -28,20 +28,21 @@ import (
 )
 
 type CiPipeline struct {
-	tableName        struct{} `sql:"ci_pipeline" pg:",discard_unknown_columns"`
-	Id               int      `sql:"id,pk"`
-	AppId            int      `sql:"app_id"`
-	App              *app.App
-	CiTemplateId     int    `sql:"ci_template_id"`
-	DockerArgs       string `sql:"docker_args"`
-	Name             string `sql:"name"`
-	Version          string `sql:"version"`
-	Active           bool   `sql:"active,notnull"`
-	Deleted          bool   `sql:"deleted,notnull"`
-	IsManual         bool   `sql:"manual,notnull"`
-	IsExternal       bool   `sql:"external,notnull"`
-	ParentCiPipeline int    `sql:"parent_ci_pipeline"`
-	ScanEnabled      bool   `sql:"scan_enabled,notnull"`
+	tableName                struct{} `sql:"ci_pipeline" pg:",discard_unknown_columns"`
+	Id                       int      `sql:"id,pk"`
+	AppId                    int      `sql:"app_id"`
+	App                      *app.App
+	CiTemplateId             int    `sql:"ci_template_id"`
+	DockerArgs               string `sql:"docker_args"`
+	Name                     string `sql:"name"`
+	Version                  string `sql:"version"`
+	Active                   bool   `sql:"active,notnull"`
+	Deleted                  bool   `sql:"deleted,notnull"`
+	IsManual                 bool   `sql:"manual,notnull"`
+	IsExternal               bool   `sql:"external,notnull"`
+	ParentCiPipeline         int    `sql:"parent_ci_pipeline"`
+	ScanEnabled              bool   `sql:"scan_enabled,notnull"`
+	IsDockerConfigOverridden bool   `sql:"is_docker_config_overridden, notnull"`
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate

@@ -67,41 +67,6 @@ spec:
   - name: gateways
     port: 7522
 ---
-# Source: nats/templates/nats-box.yaml
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: devtron-nats-box
-  namespace: "devtroncd"
-  labels:
-    app: devtron-nats-box
-    chart: nats-0.9.2
-spec:
-  replicas: 1
-  selector:
-    matchLabels:
-      app: devtron-nats-box
-  template:
-    metadata:
-      labels:
-        app: devtron-nats-box
-    spec:
-      volumes:
-      containers:
-      - name: nats-box
-        image: quay.io/devtron/nats-box:0.7.0
-        imagePullPolicy: IfNotPresent
-        resources:
-          null
-        env:
-        - name: NATS_URL
-          value: devtron-nats
-        command:
-         - "tail"
-         - "-f"
-         - "/dev/null"
-        volumeMounts:
----
 # Source: nats/templates/statefulset.yaml
 apiVersion: apps/v1
 kind: StatefulSet

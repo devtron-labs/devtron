@@ -1,16 +1,14 @@
 # Install Devtron on Minikube, Microk8s, K3s, Kind
-You can install and try Devtron with CI/CD integration on a high-end Laptop or on a Cloud VM but the laptop/PC may start to respond slow, so it is recommended to uninstall Devtron from your system before shutting it down.
+You can install and try Devtron on a high-end machine or on a Cloud VM. If you install it on a laptop/PC, it may start to respond slow, so it is recommended to uninstall Devtron from your system before shutting it down.
 
 #### System Configurations for Devtron Installation
-1. 2 CPUs+ cores
+1. 2 vCPUs
 2. 4GB+ of free memory
 3. 20GB+ free disk space
 
 ## Before you begin
 Before we get started and install Devtron, we need to set up the cluster in our servers & install required tools
- * Create cluster using [Minikube](https://minikube.sigs.k8s.io/docs/start/)
- * Create cluster using [Kind tool](https://kind.sigs.k8s.io/docs/user/quick-start/)
- * Create cluster using [K3s](https://rancher.com/docs/k3s/latest/en/installation/)
+ * Create cluster using [Minikube](https://minikube.sigs.k8s.io/docs/start/) or [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/) or [K3s](https://rancher.com/docs/k3s/latest/en/installation/)
  * Install [Helm3](https://helm.sh/docs/intro/install/)
  * Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
 
@@ -67,8 +65,16 @@ Dashboard [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
 ### Devtron Admin credentials
 
-For admin login, use the username:`admin`, and run the following command to get the admin password:
+#### For Devtron version v0.6.0 and higher
 
+Use username:`admin` and for password run command mentioned below.
+```bash
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
+```
+
+#### For Devtron version less than v0.6.0
+
+Use username:`admin` and for password run command mentioned below.
 ```bash
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```

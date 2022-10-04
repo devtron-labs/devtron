@@ -53,21 +53,41 @@ While installing Devtron and using the AWS-S3 bucket for storing the logs and ca
 | **DEFAULT\_BUILD\_LOGS\_BUCKET** | AWS bucket to store build logs, it should be created beforehand \(required\) |  |
 | **DEFAULT\_CACHE\_BUCKET\_REGION** | AWS region of S3 bucket to store cache \(required\) |  |
 | **DEFAULT\_CD\_LOGS\_BUCKET\_REGION** | AWS region of S3 bucket to store CD logs \(required\) |  |
+| **BLOB_STORAGE_S3_ENDPOINT** | S3 compatible bucket endpoint. | |
+
+
+The below parameters are to be used in the Secrets :
+
+| Parameter | Description |
+| :--- | :--- |
+| **BLOB_STORAGE_S3_ACCESS_KEY** | AWS access key to access S3 bucket. Required if installing using AWS credentials. |
+| **BLOB_STORAGE_S3_SECRET_KEY** | AWS secret key to access S3 bucket. Required if installing using AWS credentials. |
 
 ### AZURE SPECIFIC
 
 While installing Devtron using Azure Blob Storage for storing logs and caches, the below parameters will be used in the ConfigMap.
 
-| Parameter | Description | Default |
-| :--- | :--- | :--- |
+| Parameter | Description |
+| :--- | :--- |
 | **AZURE\_ACCOUNT\_NAME** | Account name for AZURE Blob Storage |  |
 | **AZURE\_BLOB\_CONTAINER\_CI\_LOG** | AZURE Blob storage container for storing ci-logs after running the CI pipeline |  |
-| **AZURE\_BLOB\_CONTAINER\_CI\_CACHE** | AZURE Blob storage container for storing ci cache after running the CI pipeline |  |
+| **AZURE\_BLOB\_CONTAINER\_CI\_CACHE** | AZURE Blob storage container for storing ci-cache after running the CI pipeline |  |
+
+### GOOGLE CLOUD STORAGE SPECIFIC
+
+While installing Devtron using Google Cloud Storage for storing logs and caches, the below parameters will be used in the ConfigMap.
+
+| Parameter | Description | Default |
+| :--- | :--- | :--- |
+| **BLOB_STORAGE_GCP_CREDENTIALS_JSON** | Base-64 encoded GCP credentials json for accessing Google Cloud Storage | |
+| **DEFAULT_CACHE_BUCKET** | Google Cloud Storage bucket for storing ci-logs after running the CI pipeline | |
+| **DEFAULT_LOGS_BUCKET** | Google Cloud Storage bucket for storing ci-cache after running the CI pipeline | |
+
 
 To convert string to base64 use the following command:
 
 ```bash
-echo -n "string" | base64 -d
+echo -n "string" | base64
 ```
 
 > **Note**:
@@ -86,6 +106,128 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 --set secrets.POSTGRESQL_PASSWORD=change-me \
 --set configs.BLOB_STORAGE_PROVIDER=S3 \
 ```
+
+## Configuration of Blob Storage
+
+Blob Storage allows users to store large amounts of unstructured data. Unstructured data is a data that does not adhere to a particular data model or definition, such as text or binary data. 
+Configuring blob storage in your Devtron environment allows you to store build logs and cache.
+
+In case, if you do not configure the Blob Storage, then:
+
+- You will not be able to access the build and deployment logs after an hour.
+- Build time for commit hash takes longer as cache is not available.
+- Artifact reports cannot be generated in pre/post build and deployment stages.
+
+You can configure Blob Storage with one of the following Blob Storage providers given below:
+
+**Note**: You can also use the respective following command to switch to another Blob Storage provider. As an example, If you are using MinIO Storage and want to switch to Azure Blob Storage, use the command provided on the Azure Blob Storage tab to switch.
+{% tabs %}
+
+
+{% tab title="MinIO Storage" %}
+
+Use the following command to configure MinIO for storing logs and cache.
+
+**Note**: Unlike global cloud providers such as AWS S3 Bucket, Azure Blob Storage and Google Cloud Storage, MinIO can be hosted locally also.
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set minio.enabled=true
+```
+
+{% endtab %}
+
+{% tab title="AWS S3 Bucket" %}
+Use the following command to configure AWS S3 bucket for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#aws-specific) page.
+
+*  **Configure using S3 IAM policy:**
+
+>NOTE: Pleasee ensure that S3 permission policy to the IAM role attached to the nodes of the cluster if you are using the below command.
+
+```bash
+helm repo update
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
+```
+
+*  **Configure using access-key and secret-key for aws S3 authentication:**
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
+```
+
+*  **Configure using S3 compatible storages:**
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
+--set configs.BLOB_STORAGE_S3_ENDPOINT=<endpoint>
+```
+
+{% endtab %}
+
+{% tab title="Azure Blob Storage" %}
+Use the following command to configure Azure Blob Storage for storing build logs and cache.
+Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#azure-specific) page.
+
+```bash
+helm repo update
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
+--set configs.BLOB_STORAGE_PROVIDER=AZURE \
+--set configs.AZURE_ACCOUNT_NAME=test-account \
+--set configs.AZURE_BLOB_CONTAINER_CI_LOG=ci-log-container \
+--set configs.AZURE_BLOB_CONTAINER_CI_CACHE=ci-cache-container
+```
+
+{% endtab %}
+
+{% tab title="Google Cloud Storage" %}
+Use the following command to configure Google Cloud Storage for storing build logs and cache.
+Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#google-cloud-storage-specific) page.
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER: GCP \
+--set secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON= eyJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsInByb2plY3RfaWQiOiAiPHlvdXItcHJvamVjdC1pZD4iLCJwcml2YXRlX2tleV9pZCI6ICI8eW91ci1wcml2YXRlLWtleS1pZD4iLCJwcml2YXRlX2tleSI6ICI8eW91ci1wcml2YXRlLWtleT4iLCJjbGllbnRfZW1haWwiOiAiPHlvdXItY2xpZW50LWVtYWlsPiIsImNsaWVudF9pZCI6ICI8eW91ci1jbGllbnQtaWQ+IiwiYXV0aF91cmkiOiAiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJhdXRoX3Byb3ZpZGVyX3g1MDlfY2VydF91cmwiOiAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vb2F1dGgyL3YxL2NlcnRzIiwiY2xpZW50X3g1MDlfY2VydF91cmwiOiAiPHlvdXItY2xpZW50LWNlcnQtdXJsPiJ9Cg== \
+--set configs.DEFAULT_CACHE_BUCKET= cache-bucket
+--set configs.DEFAULT_BUILD_LOGS_BUCKET= log-bucket
+```
+
+{% endtab %}
+{% endtabs %}
+
 
 ## Secrets
 
