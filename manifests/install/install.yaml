@@ -82,10 +82,10 @@ spec:
           resources:
             limits:
               cpu: 25m
-              memory: 50Mi
+              memory: 100Mi
             requests:
               cpu: 25m
-              memory: 50Mi
+              memory: 100Mi
           imagePullPolicy: IfNotPresent
           name: inception
           ports:
