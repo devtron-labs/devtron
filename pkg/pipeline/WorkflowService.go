@@ -489,7 +489,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 
 	for _, config := range globalCmCsConfigs {
-		//by default considering volume type; in future when other type support is added to update if condition here
 		if config.Type == repository.VOLUME_CONFIG {
 			ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
 				Name:      config.Name + "-vol",
