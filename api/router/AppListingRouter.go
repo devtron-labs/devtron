@@ -39,7 +39,7 @@ func NewAppListingRouterImpl(appListingRestHandler restHandler.AppListingRestHan
 
 func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Router) {
 
-	appListingRouter.Path("/resource/manifests").
+	appListingRouter.Path("/resource/manifests").Queries("appId", "{appId}").Queries("installedAppId", "{installedAppId}").Queries("envId", "{envId}").
 		HandlerFunc(router.appListingRestHandler.GetManifestsByBatch).Methods("GET")
 
 	appListingRouter.Path("/list").
