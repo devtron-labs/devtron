@@ -42,7 +42,7 @@ type CiLogServiceImpl struct {
 type BuildLogRequest struct {
 	PipelineId        int
 	WorkflowId        int
-	WorkflowName      string
+	PodName         string
 	LogsFilePath      string
 	Namespace         string
 	CloudProvider     blob_storage.BlobStorageType
@@ -87,10 +87,10 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 			return nil, nil, err
 		}
 	}
-	req := kubeClient.CoreV1().Pods(ciLogRequest.Namespace).GetLogs(ciLogRequest.WorkflowName, podLogOpts)
+	req := kubeClient.CoreV1().Pods(ciLogRequest.Namespace).GetLogs(ciLogRequest.PodName, podLogOpts)
 	podLogs, err := req.Stream(context.Background())
 	if podLogs == nil || err != nil {
-		impl.logger.Errorw("error in opening stream", "name", ciLogRequest.WorkflowName)
+		impl.logger.Errorw("error in opening stream", "name", ciLogRequest.PodName)
 		return nil, nil, err
 	}
 	cleanUpFunc := func() error {
@@ -106,7 +106,7 @@ func (impl *CiLogServiceImpl) FetchRunningWorkflowLogs(ciLogRequest BuildLogRequ
 
 func (impl *CiLogServiceImpl) FetchLogs(logRequest BuildLogRequest) (*os.File, func() error, error) {
 
-	tempFile := logRequest.WorkflowName + ".log"
+	tempFile := logRequest.PodName + ".log"
 	blobStorageService := blob_storage.NewBlobStorageServiceImpl(nil)
 	request := &blob_storage.BlobStorageRequest{
 		StorageType:         logRequest.CloudProvider,
