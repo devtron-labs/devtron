@@ -692,7 +692,7 @@ func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWrit
 		if err != nil {
 			continue
 		}
-		urlRes := handler.getUrls(*res.ManifestResponse)
+		urlRes := handler.getUrls(res.ManifestResponse)
 		result = append(result, urlRes)
 	}
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
@@ -705,40 +705,65 @@ type Response struct {
 	urls     []string
 }
 
-func (handler AppListingRestHandlerImpl) getUrls(manifest application1.ManifestResponse) Response {
-	kind := manifest.Manifest.GetKind()
+func (handler AppListingRestHandlerImpl) getUrls(manifest *application1.ManifestResponse) Response {
+	kind := manifest.Manifest.Object["kind"]
+	name := manifest.Manifest.Object["name"]
 	var res Response
 
-	res.kind = kind
-	res.name = manifest.Manifest.GetName()
+	if kind != nil {
+		res.kind = kind.(string)
+	}
+	if name != nil {
+		res.name = name.(string)
+	}
 	res.pointsTo = ""
-
-	if kind == "Ingress" {
-		urls := make([]string, 0)
-		spec := manifest.Manifest.Object["spec"].(map[string]interface{})
-		rules := spec["rules"].([]interface{})
-		for _, rule := range rules {
-			ruleMap := rule.(map[string]interface{})
-			url := ruleMap["host"].(string)
-			httpPaths := ruleMap["http"].(map[string]interface{})["paths"].([]interface{})
-			for _, httpPath := range httpPaths {
-				path := httpPath.(map[string]interface{})["path"].(string)
-				url = url + path
-				urls = append(urls, url)
+	urls := make([]string, 0)
+	if res.kind == "Ingress" {
+		if manifest.Manifest.Object["spec"] != nil {
+			spec := manifest.Manifest.Object["spec"].(map[string]interface{})
+			if spec["rules"] != nil {
+				rules := spec["rules"].([]interface{})
+				for _, rule := range rules {
+					ruleMap := rule.(map[string]interface{})
+					url := ""
+					if ruleMap["host"] != nil {
+						url = ruleMap["host"].(string)
+					}
+					var httpPaths []interface{}
+					if ruleMap["http"] != nil && ruleMap["http"].(map[string]interface{})["paths"] != nil {
+						httpPaths = ruleMap["http"].(map[string]interface{})["paths"].([]interface{})
+					} else {
+						continue
+					}
+					for _, httpPath := range httpPaths {
+						path := httpPath.(map[string]interface{})["path"]
+						if path != nil {
+							url = url + path.(string)
+						}
+						urls = append(urls, url)
+					}
+				}
 			}
 		}
 	}
 
-	status := manifest.Manifest.Object["status"].(map[string]interface{})
-	loadBalancer := status["loadBalancer"].(map[string]interface{})
-	ingressArray := loadBalancer["ingress"].([]map[string]string)
-	if len(ingressArray) > 0 {
-		if _, ok := ingressArray[0]["hostname"]; ok {
-			res.pointsTo = ingressArray[0]["hostname"]
-		} else {
-			res.pointsTo = ingressArray[0]["ip"]
+	if manifest.Manifest.Object["status"] != nil {
+		status := manifest.Manifest.Object["status"].(map[string]interface{})
+		if status["loadBalancer"] != nil {
+			loadBalancer := status["loadBalancer"].(map[string]interface{})
+			if loadBalancer["ingress"] != nil {
+				ingressArray := loadBalancer["ingress"].([]interface{})
+				if len(ingressArray) > 0 {
+					if hostname, ok := ingressArray[0].(map[string]interface{})["hostname"]; ok {
+						res.pointsTo = hostname.(string)
+					} else if ip, ok := ingressArray[0].(map[string]interface{})["ip"]; ok {
+						res.pointsTo = ip.(string)
+					}
+				}
+			}
 		}
 	}
+	res.urls = urls
 	return res
 }
 
