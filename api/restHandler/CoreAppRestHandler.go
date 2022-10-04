@@ -1472,14 +1472,17 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 			return err, http.StatusInternalServerError
 		}
 		//Creating workflow ends
-
+		handler.logger.Infow("creating ci pipeline api", "appId", appId, "workflowId", workflowId)
 		//Creating CI pipeline starts
 		ciPipelineId, err := handler.createCiPipeline(appId, userId, workflowId, workflow.CiPipeline)
 		if err != nil {
 			handler.logger.Errorw("err in saving ci pipelines", err, "appId", appId)
 			return err, http.StatusInternalServerError
 		}
+		handler.logger.Infow("created ci pipeline api", "appId", appId, "workflowId", workflowId, "ciPipelineId", ciPipelineId)
+
 		//Creating CI pipeline ends
+		handler.logger.Infow("creating cd pipeline api", "appId", appId, "workflowId", workflowId, "ciPipelineId", ciPipelineId)
 
 		//Creating CD pipeline starts
 		err = handler.createCdPipelines(ctx, appId, userId, workflowId, ciPipelineId, workflow.CdPipelines, token, appName)
@@ -1487,6 +1490,8 @@ func (handler CoreAppRestHandlerImpl) createWorkflows(ctx context.Context, appId
 			handler.logger.Errorw("err in saving cd pipelines", err, "appId", appId)
 			return err, http.StatusInternalServerError
 		}
+		handler.logger.Infow("created cd pipeline api", "appId", appId, "workflowId", workflowId, "ciPipelineId", ciPipelineId)
+
 		//Creating CD pipeline ends
 	}
 	return nil, http.StatusOK
@@ -1640,6 +1645,7 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 		UserId:    userId,
 		Pipelines: cdPipelineRequestConfigs,
 	}
+	handler.logger.Infow("cd pipeline create request", "cdPipelinesRequest", cdPipelinesRequest)
 	_, err := handler.pipelineBuilder.CreateCdPipelines(cdPipelinesRequest, ctx)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateCdPipeline", "err", err, "payload", cdPipelinesRequest)

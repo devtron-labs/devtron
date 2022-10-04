@@ -1134,6 +1134,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 			impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
 			return nil, err
 		}
+		impl.logger.Infow("register in Argo", "chartGitAttr", chartGitAttr)
 		err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
 		if err != nil {
 			impl.logger.Errorw("error while register git repo in argo", "err", err)
@@ -1155,6 +1156,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 				return nil, err
 			}
 		}
+		impl.logger.Infow("register in Argo success", "chartGitAttr", chartGitAttr)
 
 		// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
 		err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
@@ -1163,7 +1165,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 			return nil, err
 		}
 	}
-
+	impl.logger.Infow("creating cd pipeline", "app", app.Id)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if isGitOpsConfigured {
 			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
@@ -1172,12 +1174,12 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		}
 		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
 		if err != nil {
-			impl.logger.Errorw("error in creating pipeline", "name", pipeline.Name, "err", err)
+			impl.logger.Errorw("error in creating cd pipeline", "name", pipeline.Name, "err", err)
 			return nil, err
 		}
 		pipeline.Id = id
 	}
-
+	impl.logger.Infow("created cd pipeline", "app", app.Id)
 	return pipelineCreateRequest, nil
 }
 
