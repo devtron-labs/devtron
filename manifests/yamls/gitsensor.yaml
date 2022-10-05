@@ -56,6 +56,13 @@ spec:
       containers:
         - name: git-sensor
           image: "quay.io/devtron/git-sensor:56168e03-200-10139"
+          resources:
+            limits:
+              cpu: 50m
+              memory: 100Mi
+            requests:
+              cpu: 50m
+              memory: 100Mi
           ports:
             - containerPort: 8080
               name: sensor

@@ -222,6 +222,13 @@ spec:
               mountPath: /etc/envoy-config/
         - name: lens
           image: "quay.io/devtron/lens:c20fad05-333-10142"
+          resources:
+            limits:
+              cpu: 25m
+              memory: 50Mi
+            requests:
+              cpu: 25m
+              memory: 50Mi
           imagePullPolicy: IfNotPresent
           ports:
             - name: app
