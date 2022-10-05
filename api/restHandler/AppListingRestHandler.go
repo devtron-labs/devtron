@@ -706,15 +706,18 @@ type Response struct {
 }
 
 func (handler AppListingRestHandlerImpl) getUrls(manifest *application1.ManifestResponse) Response {
-	kind := manifest.Manifest.Object["kind"]
-	name := manifest.Manifest.Object["name"]
 	var res Response
+	kind := manifest.Manifest.Object["kind"]
+	metadata := manifest.Manifest.Object["metadata"].(map[string]interface{})
+	if metadata != nil {
+		name := metadata["name"]
+		if name != nil {
+			res.Name = name.(string)
+		}
+	}
 
 	if kind != nil {
 		res.Kind = kind.(string)
-	}
-	if name != nil {
-		res.Name = name.(string)
 	}
 	res.PointsTo = ""
 	urls := make([]string, 0)
