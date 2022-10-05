@@ -140,11 +140,11 @@ spec:
             subPath: apply-labels.sh
         resources:
           limits:
-            cpu: 10m
-            memory: 20Mi
+            cpu: 50m
+            memory: 50Mi
           requests:
-            cpu: 10m
-            memory: 20Mi
+            cpu: 50m
+            memory: 50Mi
       volumes:
         - name: apply-helm-labels
           configMap:
