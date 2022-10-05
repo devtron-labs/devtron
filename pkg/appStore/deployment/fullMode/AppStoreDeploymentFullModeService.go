@@ -173,7 +173,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig)
+	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return nil, nil, err
@@ -217,7 +217,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	commitHash, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig)
+	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return nil, nil, err
@@ -367,7 +367,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVer
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	commitHash, err := impl.gitFactory.Client.CommitValues(valuesConfig)
+	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesConfig)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return installAppVersionRequest, err
@@ -408,7 +408,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig)
+	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return err

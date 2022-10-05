@@ -207,7 +207,7 @@ func (impl GitBitbucketClient) CreateReadme(repoName, userName, userEmailId stri
 		UserName:       userName,
 		UserEmailId:    userEmailId,
 	}
-	hash, err := impl.CommitValues(cfg)
+	hash, _, err := impl.CommitValues(cfg)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repo", repoName, "err", err)
 	}
@@ -227,7 +227,7 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbu
 	return false, nil
 }
 
-func (impl GitBitbucketClient) CommitValues(config *ChartConfig) (commitHash string, err error) {
+func (impl GitBitbucketClient) CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error) {
 	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
 	if err != nil {
 		if err == pg.ErrNoRows {
@@ -236,13 +236,13 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig) (commitHash str
 			gitOpsConfigBitbucket.BitBucketProjectKey = ""
 		} else {
 			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return "", err
+			return "", time.Time{}, err
 		}
 	}
 	bitbucketWorkspaceId := gitOpsConfigBitbucket.BitBucketWorkspaceId
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
 	bitbucketGitOpsDirPath := path.Join(homeDir, BITBUCKET_GITOPS_DIR)
 	if _, err = os.Stat(bitbucketGitOpsDirPath); !os.IsExist(err) {
@@ -257,7 +257,7 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig) (commitHash str
 
 	err = ioutil.WriteFile(bitbucketCommitFilePath, []byte(config.FileContent), 0666)
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
 	fileName := filepath.Join(config.ChartLocation, config.FileName)
 
@@ -275,7 +275,7 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig) (commitHash str
 	err = impl.client.Repositories.Repository.WriteFileBlob(repoWriteOptions)
 	_ = os.Remove(bitbucketCommitFilePath)
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
 	commitOptions := &bitbucket.CommitsOptions{
 		RepoSlug:    config.ChartRepoName,
@@ -284,12 +284,18 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig) (commitHash str
 	}
 	commits, err := impl.client.Repositories.Commits.GetCommits(commitOptions)
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
 
 	//extracting the latest commit hash from the paginated api response of above method, reference of api & response - https://developer.atlassian.com/bitbucket/api/2/reference/resource/repositories/%7Bworkspace%7D/%7Brepo_slug%7D/commits
 	commitHash = commits.(map[string]interface{})["values"].([]interface{})[0].(map[string]interface{})["hash"].(string)
-	return commitHash, nil
+	commitTimeString := commits.(map[string]interface{})["values"].([]interface{})[0].(map[string]string)["date"]
+	commitTime, err = time.Parse(BITBUCKET_COMMIT_TIME_LAYOUT, commitTimeString)
+	if err != nil {
+		impl.logger.Errorw("error in getting commitTime", "err", err)
+		return "", time.Time{}, err
+	}
+	return commitHash, commitTime, nil
 }
 
 func (impl GitBitbucketClient) GetCommits(repoName, projectName string) ([]*GitCommitDto, error) {

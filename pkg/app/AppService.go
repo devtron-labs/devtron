@@ -1490,6 +1490,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
 
 	commitHash := ""
+	commitTime := time.Time{}
 	if IsAcdApp(pipeline.DeploymentAppType) {
 		chartRepoName := impl.GetChartRepoName(envOverride.Chart.GitRepoUrl)
 		//getting username & emailId for commit author data
@@ -1504,7 +1505,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 			UserName:       userName,
 			UserEmailId:    userEmailId,
 		}
-		commitHash, err = impl.gitFactory.Client.CommitValues(chartGitAttr)
+		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr)
 		if err != nil {
 			impl.logger.Errorw("error in git commit", "err", err)
 			return 0, 0, "", err
@@ -1513,6 +1514,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	pipelineOverride := &chartConfig.PipelineOverride{
 		Id:                     override.Id,
 		GitHash:                commitHash,
+		CommitTime:             commitTime,
 		EnvConfigOverrideId:    envOverride.Id,
 		PipelineOverrideValues: overrideJson,
 		PipelineId:             overrideRequest.PipelineId,

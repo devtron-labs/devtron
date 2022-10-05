@@ -372,7 +372,7 @@ func (impl *AppStoreDeploymentArgoCdServiceImpl) UpdateRequirementDependencies(e
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig)
+	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
 		return err
@@ -455,7 +455,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	commitHash, err := impl.gitFactory.Client.CommitValues(valuesConfig)
+	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
 		return installAppVersionRequest, err

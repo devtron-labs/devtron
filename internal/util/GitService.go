@@ -52,7 +52,7 @@ const (
 
 type GitClient interface {
 	CreateRepository(name, description, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
-	CommitValues(config *ChartConfig) (commitHash string, err error)
+	CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error)
 	GetRepoUrl(projectName string) (repoUrl string, err error)
 	DeleteRepository(name string) error
 	CreateReadme(name, userName, userEmailId string) (string, error)

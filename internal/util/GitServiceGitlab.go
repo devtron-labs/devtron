@@ -242,7 +242,7 @@ func (impl GitLabClient) checkIfFileExists(projectName, ref, file string) (exist
 	return err == nil, err
 }
 
-func (impl GitLabClient) CommitValues(config *ChartConfig) (commitHash string, err error) {
+func (impl GitLabClient) CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	exists, err := impl.checkIfFileExists(config.ChartRepoName, branch, path)
@@ -261,9 +261,9 @@ func (impl GitLabClient) CommitValues(config *ChartConfig) (commitHash string, e
 	}
 	c, _, err := impl.client.Commits.CreateCommit(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.ChartRepoName), actions)
 	if err != nil {
-		return "", err
+		return "", time.Time{}, err
 	}
-	return c.ID, err
+	return c.ID, *c.AuthoredDate, err
 }
 
 func (impl GitLabClient) GetCommits(repoName, projectName string) ([]*GitCommitDto, error) {

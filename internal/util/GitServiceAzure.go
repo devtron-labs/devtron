@@ -147,14 +147,14 @@ func (impl GitAzureClient) CreateReadme(repoName, userName, userEmailId string) 
 		UserName:       userName,
 		UserEmailId:    userEmailId,
 	}
-	hash, err := impl.CommitValues(cfg)
+	hash, _, err := impl.CommitValues(cfg)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme azure", "repo", repoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string, err error) {
+func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	branchfull := "refs/heads/master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
@@ -178,14 +178,14 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 			if err != nil {
 				if e, ok := err.(azuredevops.WrappedError); !ok || *e.StatusCode >= 500 {
 					impl.logger.Errorw("error in fetching branch from azure devops", "err", err)
-					return "", err
+					return "", time.Time{}, err
 				}
 			} else if branchStat != nil {
 				oldObjId = *branchStat.Commit.CommitId
 			}
 		} else {
 			impl.logger.Errorw("error in fetching file from azure devops", "err", err)
-			return "", err
+			return "", time.Time{}, err
 		}
 	} else {
 		oldObjId = *fc.CommitId
@@ -242,15 +242,17 @@ func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string,
 
 	if err != nil {
 		impl.logger.Errorw("error in commit azure", "err", err)
-		return "", err
+		return "", time.Time{}, err
 	}
 	//gitPush.Commits
 	commitId := ""
+	commitAuthorTime := time.Time{}
 	if len(*push.Commits) > 0 {
 		commitId = *(*push.Commits)[0].CommitId
+		commitAuthorTime = (*push.Commits)[0].Author.Date.Time
 	}
 	//	push.Commits[0].CommitId
-	return commitId, nil
+	return commitId, commitAuthorTime, nil
 }
 
 func (impl GitAzureClient) repoExists(repoName, projectName string) (repoUrl string, exists bool, err error) {

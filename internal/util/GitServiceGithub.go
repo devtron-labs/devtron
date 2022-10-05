@@ -157,14 +157,14 @@ func (impl GitHubClient) CreateReadme(repoName, userName, userEmailId string) (s
 		UserName:       userName,
 		UserEmailId:    userEmailId,
 	}
-	hash, err := impl.CommitValues(cfg)
+	hash, _, err := impl.CommitValues(cfg)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "repo", repoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, err error) {
+func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	ctx := context.Background()
@@ -174,7 +174,7 @@ func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, e
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
 			impl.logger.Errorw("error in creating repo github", "err", err, "config", config)
-			return "", err
+			return "", time.Time{}, err
 		} else {
 			newFile = true
 		}
@@ -203,9 +203,9 @@ func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, e
 	c, _, err := impl.client.Repositories.CreateFile(ctx, impl.org, config.ChartRepoName, path, options)
 	if err != nil {
 		impl.logger.Errorw("error in commit github", "err", err, "config", config)
-		return "", err
+		return "", time.Time{}, err
 	}
-	return *c.SHA, nil
+	return *c.SHA, *c.Commit.Author.Date, nil
 }
 
 func (impl GitHubClient) GetRepoUrl(projectName string) (repoUrl string, err error) {
