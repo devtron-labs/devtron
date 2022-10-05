@@ -708,11 +708,13 @@ type Response struct {
 func (handler AppListingRestHandlerImpl) getUrls(manifest *application1.ManifestResponse) Response {
 	var res Response
 	kind := manifest.Manifest.Object["kind"]
-	metadata := manifest.Manifest.Object["metadata"].(map[string]interface{})
-	if metadata != nil {
-		name := metadata["name"]
-		if name != nil {
-			res.Name = name.(string)
+	if _, ok := manifest.Manifest.Object["metadata"]; ok {
+		metadata := manifest.Manifest.Object["metadata"].(map[string]interface{})
+		if metadata != nil {
+			name := metadata["name"]
+			if name != nil {
+				res.Name = name.(string)
+			}
 		}
 	}
 
