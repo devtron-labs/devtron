@@ -699,10 +699,10 @@ func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWrit
 }
 
 type Response struct {
-	kind     string
-	name     string
-	pointsTo string
-	urls     []string
+	Kind     string   `json:"kind"`
+	Name     string   `json:"name"`
+	PointsTo string   `json:"pointsTo"`
+	Urls     []string `json:"urls"`
 }
 
 func (handler AppListingRestHandlerImpl) getUrls(manifest *application1.ManifestResponse) Response {
@@ -711,14 +711,14 @@ func (handler AppListingRestHandlerImpl) getUrls(manifest *application1.Manifest
 	var res Response
 
 	if kind != nil {
-		res.kind = kind.(string)
+		res.Kind = kind.(string)
 	}
 	if name != nil {
-		res.name = name.(string)
+		res.Name = name.(string)
 	}
-	res.pointsTo = ""
+	res.PointsTo = ""
 	urls := make([]string, 0)
-	if res.kind == "Ingress" {
+	if res.Kind == "Ingress" {
 		if manifest.Manifest.Object["spec"] != nil {
 			spec := manifest.Manifest.Object["spec"].(map[string]interface{})
 			if spec["rules"] != nil {
@@ -755,15 +755,15 @@ func (handler AppListingRestHandlerImpl) getUrls(manifest *application1.Manifest
 				ingressArray := loadBalancer["ingress"].([]interface{})
 				if len(ingressArray) > 0 {
 					if hostname, ok := ingressArray[0].(map[string]interface{})["hostname"]; ok {
-						res.pointsTo = hostname.(string)
+						res.PointsTo = hostname.(string)
 					} else if ip, ok := ingressArray[0].(map[string]interface{})["ip"]; ok {
-						res.pointsTo = ip.(string)
+						res.PointsTo = ip.(string)
 					}
 				}
 			}
 		}
 	}
-	res.urls = urls
+	res.Urls = urls
 	return res
 }
 
