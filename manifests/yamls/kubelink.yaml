@@ -24,11 +24,11 @@ spec:
           image: "quay.io/devtron/kubelink:919924e0-318-10747"
           resources:
             limits:
-              cpu: 100m
-              memory: 200Mi
+              cpu: 150m
+              memory: 300Mi
             requests:
-              cpu: 100m
-              memory: 200Mi
+              cpu: 150m
+              memory: 300Mi
           imagePullPolicy: IfNotPresent
           ports:
             - name: app
