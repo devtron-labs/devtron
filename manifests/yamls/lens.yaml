@@ -208,6 +208,13 @@ spec:
       containers:
         - name: envoy
           image: "quay.io/devtron/envoy:v1.14.1"
+          resources:
+            limits:
+              cpu: 25m
+              memory: 50Mi
+            requests:
+              cpu: 25m
+              memory: 50Mi
           ports:
             - containerPort: 9901
               protocol: TCP
