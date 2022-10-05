@@ -52,11 +52,11 @@ func manualAppSyncJobByteArr(dockerImage string) []byte {
 			"resources": {
 			  "limits" : {
 				"cpu" : "50m",
-   				"memory": "150Mi"
+   				"memory": "200Mi"
 			  },
 			  "requests" : {
 				"cpu" : "50m",
-				"memory": "150Mi"
+				"memory": "200Mi"
 			  }
 			}
           }
