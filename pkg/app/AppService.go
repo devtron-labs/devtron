@@ -290,11 +290,24 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 		impl.logger.Errorw("error in fetching deployment status", "dbApp", dbApp, "err", err)
 		return isHealthy, err
 	}
-	gitHash := newApp.Status.Sync.Revision
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
+	//getting latest pipelineOverride for newApp (by appId and envId)
+	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(deploymentStatus.AppId, deploymentStatus.EnvId)
 	if err != nil {
-		impl.logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "dbApp", dbApp, "err", err)
+		impl.logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId)
 		return isHealthy, err
+	}
+	gitHash := newApp.Status.Sync.Revision
+	if pipelineOverride.GitHash != gitHash {
+		pipelineOverrideByHash, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
+		if err != nil {
+			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "dbApp", dbApp, "err", err)
+			return isHealthy, err
+		}
+		if pipelineOverrideByHash.CommitTime.After(pipelineOverride.CommitTime) {
+			//we have received trigger hash which is committed after this apps actual gitHash stored by us
+			// this means that the hash stored by us is already synced, and we can mark status healthy
+			newApp.Status.Health.Status = application.Healthy
+		}
 	}
 	//updating cd pipeline status timeline
 	err = impl.UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp, pipelineOverride, statusTime)

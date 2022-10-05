@@ -67,6 +67,7 @@ type PipelineOverrideRepository interface {
 	GetLatestReleaseByPipelineIds(pipelineIds []int) (pipelineOverrides []*PipelineOverride, err error)
 	GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error)
 	FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error)
+	FindLatestByAppIdAndEnvId(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error)
 }
 
 type PipelineOverrideRepositoryImpl struct {
@@ -234,4 +235,15 @@ func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStat
 		Where("p.deleted = ?", false).
 		Select()
 	return pipelines, err
+}
+
+func (impl PipelineOverrideRepositoryImpl) FindLatestByAppIdAndEnvId(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error) {
+	var override PipelineOverride
+	err = impl.dbConnection.Model(&override).
+		Column("pipeline_override.*", "Pipeline", "CiArtifact").
+		Where("pipeline.app_id =? ", appId).
+		Where("pipeline.environment_id =?", environmentId).
+		Order("id DESC").Limit(1).
+		Select()
+	return &override, err
 }
