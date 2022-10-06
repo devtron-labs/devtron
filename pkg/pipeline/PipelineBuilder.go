@@ -654,6 +654,11 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	if err != nil {
 		return nil, err
 	}
+	//buildOptionsByte, err := json.Marshal(originalCiConf.DockerBuildConfig.DockerBuildOptions)
+	//if err != nil {
+	//	impl.logger.Errorw("error in marshaling dockerBuildOptions", "err", err)
+	//	return nil, err
+	//}
 	ciTemplate := &pipelineConfig.CiTemplate{
 		//DockerfilePath:    originalCiConf.DockerBuildConfig.DockerfilePath,
 		GitMaterialId: originalCiConf.CiBuildConfig.GitMaterialId,
@@ -735,7 +740,6 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	if err != nil {
 		return nil, err
 	}
-
 	buildConfig := createRequest.CiBuildConfig
 	ciTemplate := &pipelineConfig.CiTemplate{
 		DockerRegistryId: createRequest.DockerRegistry,

@@ -73,7 +73,6 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		pipelineStageService: pipelineStageService,
 		ciTemplateService:    ciTemplateService,
 	}
-
 }
 
 type CloneRequest struct {

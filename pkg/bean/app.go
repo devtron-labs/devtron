@@ -286,6 +286,7 @@ type TestExecutorImageProperties struct {
 //	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
 //	Args           map[string]string `json:"args,omitempty"`
 //	TargetPlatform string            `json:"targetPlatform,omitempty"`
+//	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
 //	//Name Tag DockerfilePath RepoUrl
 //}
 //

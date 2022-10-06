@@ -378,10 +378,13 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciLevelArgs = "{}"
 	}
 
-	//merged, err := impl.mergeUtil.JsonPatch([]byte(args), []byte(ciLevelArgs))
+	//mergedArgs, err := impl.mergeUtil.JsonPatch([]byte(args), []byte(ciLevelArgs))
 	//if err != nil {
 	//	impl.Logger.Errorw("err", "err", err)
 	//	return nil, err
+	//}
+	//if pipeline.CiTemplate.DockerBuildOptions == "" {
+	//	pipeline.CiTemplate.DockerBuildOptions = "{}"
 	//}
 	user, err := impl.userService.GetById(trigger.TriggeredBy)
 	if err != nil {
@@ -466,6 +469,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		AppName:                    pipeline.App.AppName,
 		TriggerByAuthor:            user.EmailId,
 		CiBuildConfig:              ciBuildConfigBean,
+		//DockerBuildOptions:         pipeline.CiTemplate.DockerBuildOptions,
 	}
 
 	if ciWorkflowConfig.LogsBucket == "" {
