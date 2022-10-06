@@ -383,9 +383,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	//	impl.Logger.Errorw("err", "err", err)
 	//	return nil, err
 	//}
-	//if pipeline.CiTemplate.DockerBuildOptions == "" {
-	//	pipeline.CiTemplate.DockerBuildOptions = "{}"
-	//}
+	if pipeline.CiTemplate.DockerBuildOptions == "" {
+		pipeline.CiTemplate.DockerBuildOptions = "{}"
+	}
 	user, err := impl.userService.GetById(trigger.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("unable to find user by id", "err", err, "id", trigger.TriggeredBy)
@@ -424,7 +424,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 	//mergedArgs := string(merged)
 	oldArgs := ciTemplate.Args
-	ciBuildConfigBean, err = bean2.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.TargetPlatform, ciBuildConfigBean)
+	ciBuildConfigBean, err = bean2.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciBuildConfigBean)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while overriding ci build config", "oldArgs", oldArgs, "ciLevelArgs", ciLevelArgs, "error", err)
 		return nil, errors.New("error while parsing ci build config")

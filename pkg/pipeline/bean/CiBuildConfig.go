@@ -104,9 +104,10 @@ func convertMetadataToDockerBuildConfig(dockerBuildMetadata string) (*DockerBuil
 	return dockerBuildConfig, err
 }
 
-func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs string, targetPlatform string, ciBuildConfigBean *CiBuildConfigBean) (*CiBuildConfigBean, error) {
+func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs string, dockerBuildOptions string, targetPlatform string, ciBuildConfigBean *CiBuildConfigBean) (*CiBuildConfigBean, error) {
 	oldDockerArgs := map[string]string{}
 	ciLevelDockerArgs := map[string]string{}
+	dockerBuildOptionsMap := map[string]string{}
 	if oldArgs != "" {
 		if err := json.Unmarshal([]byte(oldArgs), &oldDockerArgs); err != nil {
 			return nil, err
@@ -117,17 +118,23 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 			return nil, err
 		}
 	}
+	if dockerBuildOptions != "" {
+		if err := json.Unmarshal([]byte(dockerBuildOptions), &dockerBuildOptionsMap); err != nil {
+			return nil, err
+		}
+	}
 	if ciBuildConfigBean == nil {
 		dockerArgs := mergeMap(oldDockerArgs, ciLevelDockerArgs)
 		ciBuildConfigBean = &CiBuildConfigBean{
 			CiBuildType: SELF_DOCKERFILE_BUILD_TYPE,
 			DockerBuildConfig: &DockerBuildConfig{
-				DockerfilePath: dockerfilePath,
-				Args:           dockerArgs,
-				TargetPlatform: targetPlatform,
+				DockerfilePath:     dockerfilePath,
+				Args:               dockerArgs,
+				TargetPlatform:     targetPlatform,
+				DockerBuildOptions: dockerBuildOptionsMap,
 			},
 		}
-	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE {
+	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == MANAGED_DOCKERFILE_BUILD_TYPE {
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
 		dockerArgs := mergeMap(dockerBuildConfig.Args, ciLevelDockerArgs)
 		dockerBuildConfig.DockerfilePath = dockerfilePath
