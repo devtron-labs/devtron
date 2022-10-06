@@ -44,6 +44,7 @@ curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig
 ```
 {% endtab %}
 {% endtabs %}
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/generate-cluster-credentials.png)
 
 #### Server URL
