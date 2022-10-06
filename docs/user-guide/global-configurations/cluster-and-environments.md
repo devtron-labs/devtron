@@ -28,14 +28,20 @@ Provide your kubernetes cluster’s credentials i.e server url and bearer token.
 
 You can get the **`Server URL`** & **`Bearer Token`** by running the following command. But before that, please ensure that kubectl and jq are installed on the bastion on which you are running the command.
 
+{% tabs %}
+{% tab title="k8s clusters %}
 ```bash
 curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && bash kubernetes_export_sa.sh cd-user devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/clusterrole.yaml
 ```
+{% endtab %}
+{% tab title="microk8s clusters" %}
 If you are using a **`microk8s cluster`**, run the following command to generate the server url and bearer token:
 
 ```bash
 curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && sed -i 's/kubectl/microk8s kubectl/g' kubernetes_export_sa.sh && bash kubernetes_export_sa.sh cd-user devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/clusterrole.yaml
 ```
+{% endtab %}
+{% endtabs %}
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/generate-cluster-credentials.png)
 
 #### Server URL
