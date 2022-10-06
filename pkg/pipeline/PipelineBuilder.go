@@ -393,6 +393,14 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
 		return nil, err
 	}
+	if template.DockerBuildOptions == "" {
+		template.DockerBuildOptions = "{}"
+	}
+	dockerBuildOptions := map[string]string{}
+	if err := json.Unmarshal([]byte(template.DockerBuildOptions), &dockerBuildOptions); err != nil {
+		impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
+		return nil, err
+	}
 	regHost, err := template.DockerRegistry.GetRegistryLocation()
 	if err != nil {
 		impl.logger.Errorw("invalid reg url", "err", err)
@@ -405,10 +413,16 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		DockerRepository:  template.DockerRepository,
 		DockerRegistry:    template.DockerRegistry.Id,
 		DockerRegistryUrl: regHost,
-		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId, TargetPlatform: template.TargetPlatform},
-		Version:           template.Version,
-		CiTemplateName:    template.TemplateName,
-		Materials:         materials,
+		DockerBuildConfig: &bean.DockerBuildConfig{
+			DockerfilePath:     template.DockerfilePath,
+			Args:               dockerArgs,
+			GitMaterialId:      template.GitMaterialId,
+			TargetPlatform:     template.TargetPlatform,
+			DockerBuildOptions: dockerBuildOptions,
+		},
+		Version:        template.Version,
+		CiTemplateName: template.TemplateName,
+		Materials:      materials,
 	}
 	return ciConfig, err
 }
@@ -643,18 +657,24 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	if err != nil {
 		return nil, err
 	}
+	buildOptionsByte, err := json.Marshal(originalCiConf.DockerBuildConfig.DockerBuildOptions)
+	if err != nil {
+		impl.logger.Errorw("error in marshaling dockerBuildOptions", "err", err)
+		return nil, err
+	}
 	ciTemplate := &pipelineConfig.CiTemplate{
-		DockerfilePath:    originalCiConf.DockerBuildConfig.DockerfilePath,
-		GitMaterialId:     originalCiConf.DockerBuildConfig.GitMaterialId,
-		Args:              string(argByte),
-		TargetPlatform:    originalCiConf.DockerBuildConfig.TargetPlatform,
-		BeforeDockerBuild: string(beforeByte),
-		AfterDockerBuild:  string(afterByte),
-		Version:           originalCiConf.Version,
-		Id:                originalCiConf.Id,
-		DockerRepository:  originalCiConf.DockerRepository,
-		DockerRegistryId:  originalCiConf.DockerRegistry,
-		Active:            true,
+		DockerfilePath:     originalCiConf.DockerBuildConfig.DockerfilePath,
+		GitMaterialId:      originalCiConf.DockerBuildConfig.GitMaterialId,
+		Args:               string(argByte),
+		DockerBuildOptions: string(buildOptionsByte),
+		TargetPlatform:     originalCiConf.DockerBuildConfig.TargetPlatform,
+		BeforeDockerBuild:  string(beforeByte),
+		AfterDockerBuild:   string(afterByte),
+		Version:            originalCiConf.Version,
+		Id:                 originalCiConf.Id,
+		DockerRepository:   originalCiConf.DockerRepository,
+		DockerRegistryId:   originalCiConf.DockerRegistry,
+		Active:             true,
 	}
 
 	err = impl.ciTemplateRepository.Update(ciTemplate)
@@ -720,21 +740,26 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	if err != nil {
 		return nil, err
 	}
-
+	buildOptionsByte, err := json.Marshal(createRequest.DockerBuildConfig.DockerBuildOptions)
+	if err != nil {
+		impl.logger.Errorw("error in marshaling dockerBuildOptions", "err", err)
+		return nil, err
+	}
 	ciTemplate := &pipelineConfig.CiTemplate{
-		DockerRegistryId:  createRequest.DockerRegistry,
-		DockerRepository:  createRequest.DockerRepository,
-		GitMaterialId:     createRequest.DockerBuildConfig.GitMaterialId,
-		DockerfilePath:    createRequest.DockerBuildConfig.DockerfilePath,
-		Args:              string(argByte),
-		TargetPlatform:    createRequest.DockerBuildConfig.TargetPlatform,
-		Active:            true,
-		TemplateName:      createRequest.CiTemplateName,
-		Version:           createRequest.Version,
-		AppId:             createRequest.AppId,
-		AfterDockerBuild:  string(afterByte),
-		BeforeDockerBuild: string(beforeByte),
-		AuditLog:          sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now(), CreatedBy: createRequest.UserId, UpdatedBy: createRequest.UserId},
+		DockerRegistryId:   createRequest.DockerRegistry,
+		DockerRepository:   createRequest.DockerRepository,
+		GitMaterialId:      createRequest.DockerBuildConfig.GitMaterialId,
+		DockerfilePath:     createRequest.DockerBuildConfig.DockerfilePath,
+		Args:               string(argByte),
+		DockerBuildOptions: string(buildOptionsByte),
+		TargetPlatform:     createRequest.DockerBuildConfig.TargetPlatform,
+		Active:             true,
+		TemplateName:       createRequest.CiTemplateName,
+		Version:            createRequest.Version,
+		AppId:              createRequest.AppId,
+		AfterDockerBuild:   string(afterByte),
+		BeforeDockerBuild:  string(beforeByte),
+		AuditLog:           sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now(), CreatedBy: createRequest.UserId, UpdatedBy: createRequest.UserId},
 	}
 
 	err = impl.ciTemplateRepository.Save(ciTemplate)

@@ -5437,8 +5437,8 @@ INSERT INTO "public"."chart_repo" ("id", "name", "url", "is_default", "active", 
 ('7', 'nginx-ingress', 'https://kubernetes.github.io/ingress-nginx', 'f', 't', 'now()', '1', 'now()', '1', 't'),
 ('8', 'metrics-server', 'https://kubernetes-sigs.github.io/metrics-server', 'f', 't', 'now()', '1', 'now()', '1', 't'),
 ('9', 'prometheus-community', 'https://prometheus-community.github.io/helm-charts', 'f', 't', 'now()', '1', 'now()', '1', 't'),
-('10', 'bitnami', 'https://charts.bitnami.com/bitnami', 'f', 't', 'now()', '1', 'now()', '1', 't');
-('11', 'external-secrets', 'https://charts.external-secrets.io', 'f', 't', 'now()', '1', 'now()', '1', 't');
+('10', 'bitnami', 'https://charts.bitnami.com/bitnami', 'f', 't', 'now()', '1', 'now()', '1', 't'),
+('11', 'external-secrets', 'https://charts.external-secrets.io', 'f', 't', 'now()', '1', 'now()', '1', 't'),
 ('12', 'kedacore', 'https://kedacore.github.io/charts', 'f', 't', 'now()', '1', 'now()', '1', 't');
 
 
