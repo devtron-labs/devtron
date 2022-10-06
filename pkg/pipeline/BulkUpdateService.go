@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -134,6 +135,7 @@ type BulkUpdateService interface {
 	BulkHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
 	BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
 	BulkDeploy(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
+	BulkBuildTrigger(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
 }
 
 type BulkUpdateServiceImpl struct {
@@ -163,6 +165,7 @@ type BulkUpdateServiceImpl struct {
 	helmAppService                   client.HelmAppService
 	enforcerUtil                     rbac.EnforcerUtil
 	enforcerUtilHelm                 rbac.EnforcerUtilHelm
+	ciHandler                        CiHandler
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -187,7 +190,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor WorkflowDagExecutor,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, pipelineBuilder PipelineBuilder,
 	helmAppService client.HelmAppService, enforcerUtil rbac.EnforcerUtil,
-	enforcerUtilHelm rbac.EnforcerUtilHelm) *BulkUpdateServiceImpl {
+	enforcerUtilHelm rbac.EnforcerUtilHelm, ciHandler CiHandler) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
@@ -215,6 +218,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		helmAppService:                   helmAppService,
 		enforcerUtil:                     enforcerUtil,
 		enforcerUtilHelm:                 enforcerUtilHelm,
+		ciHandler:                        ciHandler,
 	}
 }
 
@@ -1238,6 +1242,93 @@ func (impl BulkUpdateServiceImpl) BulkDeploy(request *BulkApplicationForEnvironm
 			//TODO
 			//initiate helm hibernate service
 		}
+		pipelineResponse := response[appKey]
+		pipelineResponse[pipelineKey] = success
+		response[appKey] = pipelineResponse
+	}
+	bulkOperationResponse := &BulkApplicationForEnvironmentResponse{}
+	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
+	bulkOperationResponse.Response = response
+	return bulkOperationResponse, nil
+}
+
+func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error) {
+	var pipelines []*pipelineConfig.Pipeline
+	var err error
+	if len(request.AppIdIncludes) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByInFilter(request.EnvId, request.AppIdIncludes)
+	} else if len(request.AppIdExcludes) > 0 {
+		pipelines, err = impl.pipelineRepository.FindActiveByNotFilter(request.EnvId, request.AppIdExcludes)
+	} else {
+		pipelines, err = impl.pipelineRepository.FindActiveByEnvId(request.EnvId)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in fetching pipelines", "envId", request.EnvId, "err", err)
+		return nil, err
+	}
+
+	latestCommitsMap := map[int]bean2.CiTriggerRequest{}
+	for _, pipeline := range pipelines {
+		if _, ok := latestCommitsMap[pipeline.CiPipelineId]; !ok {
+			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(pipeline.CiPipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching pipeline materials", "CiPipelineId", pipeline.CiPipelineId, "err", err)
+				return nil, err
+			}
+			var materialId int
+			var commitHash string
+			for _, material := range materialResponse {
+				materialId = material.Id
+				if len(material.History) > 0 {
+					commitHash = material.History[0].Commit
+				}
+			}
+			var ciMaterials []bean2.CiPipelineMaterial
+			ciMaterials = append(ciMaterials, bean2.CiPipelineMaterial{
+				Id:        materialId,
+				GitCommit: bean2.GitCommit{Commit: commitHash},
+			})
+			ciTriggerRequest := bean2.CiTriggerRequest{
+				PipelineId:         pipeline.CiPipelineId,
+				CiPipelineMaterial: ciMaterials,
+				TriggeredBy:        request.UserId,
+				InvalidateCache:    false,
+			}
+			latestCommitsMap[pipeline.CiPipelineId] = ciTriggerRequest
+		}
+	}
+
+	response := make(map[string]map[string]bool)
+	for _, pipeline := range pipelines {
+		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
+		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
+		success := true
+		if _, ok := response[appKey]; !ok {
+			pResponse := make(map[string]bool)
+			pResponse[pipelineKey] = false
+			response[appKey] = pResponse
+		}
+		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
+		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
+		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
+		if !isValidAuth {
+			//skip hibernate for the app if user does not have access on that
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = false
+			response[appKey] = pipelineResponse
+			continue
+		}
+
+		ciTriggerRequest := latestCommitsMap[pipeline.CiPipelineId]
+		_, err = impl.ciHandler.HandleCIManual(ciTriggerRequest)
+		if err != nil {
+			impl.logger.Errorw("service err, HandleCIManual", "err", err, "ciTriggerRequest", ciTriggerRequest)
+			//return nil, err
+			pipelineResponse := response[appKey]
+			pipelineResponse[appKey] = false
+			response[appKey] = pipelineResponse
+		}
+
 		pipelineResponse := response[appKey]
 		pipelineResponse[pipelineKey] = success
 		response[appKey] = pipelineResponse
