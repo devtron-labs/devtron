@@ -37,7 +37,7 @@ type K8sApplicationService interface {
 	GetRestConfigByClusterId(clusterId int) (*rest.Config, error)
 	GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error)
 	GetManifestsInBatch(request []ResourceRequestAndGroupVersionKind, batchSize int) []BatchResourceResponse
-	FilterServiceAndIngress(resourceTreeInf interface{}, validRequests []ResourceRequestAndGroupVersionKind, appDetail bean.AppDetailContainer, version string, appId string) []ResourceRequestAndGroupVersionKind
+	FilterServiceAndIngress(resourceTreeInf interface{}, validRequests []ResourceRequestAndGroupVersionKind, appDetail bean.AppDetailContainer, appId string) []ResourceRequestAndGroupVersionKind
 	GetUrlsByBatch(resp []BatchResourceResponse, batchSize int) []interface{}
 }
 type K8sApplicationServiceImpl struct {
@@ -86,7 +86,7 @@ type BatchResourceResponse struct {
 	Err              error
 }
 
-func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTreeInf interface{}, validRequests []ResourceRequestAndGroupVersionKind, appDetail bean.AppDetailContainer, version string, appId string) []ResourceRequestAndGroupVersionKind {
+func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTreeInf interface{}, validRequests []ResourceRequestAndGroupVersionKind, appDetail bean.AppDetailContainer, appId string) []ResourceRequestAndGroupVersionKind {
 	resourceTree := resourceTreeInf.(map[string]interface{})
 	noOfNodes := len(resourceTree["nodes"].([]interface{}))
 	for i := 0; i < noOfNodes; i++ {
@@ -96,8 +96,13 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTreeInf i
 			appId = strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName)
 		}
 		if strings.Compare(kind, "Service") == 0 || strings.Compare(kind, "Ingress") == 0 {
+			group := ""
+			version := ""
 			if _, ok := resourceI["version"]; ok {
 				version = resourceI["version"].(string)
+			}
+			if _, ok := resourceI["group"]; ok {
+				group = resourceI["group"].(string)
 			}
 			req := ResourceRequestAndGroupVersionKind{
 				ResourceRequestBean: ResourceRequestBean{
@@ -114,6 +119,7 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTreeInf i
 				},
 				Version: version,
 				Kind:    kind,
+				Group:   group,
 			}
 			validRequests = append(validRequests, req)
 		}

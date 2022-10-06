@@ -649,11 +649,7 @@ func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWrit
 	}
 	//valid batch requests, only valid requests will be sent for batch processing
 	validRequests := make([]k8s.ResourceRequestAndGroupVersionKind, 0)
-	version := ""
-	if len(appDetail.K8sVersion) != 0 {
-		version = strings.Split(appDetail.K8sVersion, ".")[0]
-	}
-	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(resourceTree, validRequests, appDetail, version, "")
+	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(resourceTree, validRequests, appDetail, "")
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found")
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
