@@ -23,10 +23,11 @@ type CiBuildConfigBean struct {
 }
 
 type DockerBuildConfig struct {
-	DockerfilePath    string            `json:"dockerfileRelativePath,omitempty"`
-	DockerfileContent string            `json:"DockerfileContent"`
-	Args              map[string]string `json:"args,omitempty"`
-	TargetPlatform    string            `json:"targetPlatform,omitempty"`
+	DockerfilePath     string            `json:"dockerfileRelativePath,omitempty"`
+	DockerfileContent  string            `json:"dockerfileContent"`
+	Args               map[string]string `json:"args,omitempty"`
+	TargetPlatform     string            `json:"targetPlatform,omitempty"`
+	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
 }
 
 type BuildPackConfig struct {
