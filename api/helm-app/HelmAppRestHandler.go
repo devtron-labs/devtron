@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"github.com/devtron-labs/devtron/api/bean"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -13,7 +12,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
@@ -27,7 +25,6 @@ import (
 type HelmAppRestHandler interface {
 	ListApplications(w http.ResponseWriter, r *http.Request)
 	GetApplicationDetail(w http.ResponseWriter, r *http.Request)
-	GetManifestsInBatch(w http.ResponseWriter, r *http.Request)
 	Hibernate(w http.ResponseWriter, r *http.Request)
 	UnHibernate(w http.ResponseWriter, r *http.Request)
 	GetReleaseInfo(w http.ResponseWriter, r *http.Request)
@@ -45,7 +42,6 @@ type HelmAppRestHandlerImpl struct {
 	enforcerUtil                    rbac.EnforcerUtilHelm
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	userAuthService                 user.UserService
-	k8sApplicationService           k8s.K8sApplicationService
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
@@ -55,7 +51,6 @@ func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	userAuthService user.UserService,
-	k8sApplicationService k8s.K8sApplicationService,
 ) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
 		logger:                          logger,
@@ -65,7 +60,6 @@ func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcerUtil:                    enforcerUtil,
 		appStoreDeploymentCommonService: appStoreDeploymentCommonService,
 		userAuthService:                 userAuthService,
-		k8sApplicationService:           k8sApplicationService,
 	}
 }
 
@@ -89,45 +83,7 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 	token := r.Header.Get("token")
 	handler.helmAppService.ListHelmApplications(clusterIds, w, token, handler.checkHelmAuth)
 }
-func (handler *HelmAppRestHandlerImpl) GetManifestsInBatch(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	clusterIdString := vars["appId"]
 
-	appIdentifier, err := handler.helmAppService.DecodeAppId(clusterIdString)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// RBAC enforcer applying
-	//rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, ""); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
-	appDetail, err := handler.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
-	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	k8sAppDetail := bean.AppDetailContainer{
-		DeploymentDetailContainer: bean.DeploymentDetailContainer{
-			ClusterId: appIdentifier.ClusterId,
-			Namespace: appIdentifier.Namespace,
-		},
-	}
-	validRequests := make([]k8s.ResourceRequestAndGroupVersionKind, 0)
-	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(*appDetail.ResourceTreeResponse, validRequests, k8sAppDetail, "", clusterIdString)
-	if len(validRequests) == 0 {
-		handler.logger.Error("neither service nor ingress found")
-		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
-		return
-	}
-	resp := handler.k8sApplicationService.GetManifestsInBatch(validRequests, k8s.BATCH_SIZE)
-	result := handler.k8sApplicationService.GetUrlsByBatch(resp, k8s.BATCH_SIZE)
-	common.WriteJsonResp(w, nil, result, http.StatusOK)
-}
 func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	clusterIdString := vars["appId"]
