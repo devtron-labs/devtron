@@ -89,7 +89,9 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			return
 		}
 		//impl.logger.Infow("app update request", "application", newApp)
-
+		if applicationDetail.StatusTime.IsZero() {
+			applicationDetail.StatusTime = time.Now()
+		}
 		isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp, applicationDetail.StatusTime)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
