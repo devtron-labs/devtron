@@ -1,10 +1,10 @@
 # Application Metrics
 
-To get application metrics, [show application metrics](../creating-application/deployment-template.md#3.-show-application-metrics) option should be enabled from deployment template.
+Application metrics provides us the raw representation of resource (CPU/Memory) comsumption, latency and throughput of the application. To get application metrics, [show application metrics](../creating-application/deployment-template.md#3.-show-application-metrics) option should be enabled from [deployment template](../creating-application/deployment-template/rollout-deployment.md).
 
 ## Standard Metrics
 
-Devtron provides certain metrics (CPU and Memory utilization) for each application by default i.e. you do not need to enable the application metrics. However, prometheus needs to be present in the cluster and the endpoint of the same should be updated in Global Configurations --> [Clusters & Environments](../global-configurations/cluster-and-environments.md) section. 
+Devtron provides certain metrics (CPU and Memory utilization) for each application by default i.e. you do not need to enable the application metrics. However, prometheus needs to be present in the cluster and the endpoint of the same should be updated in Global Configurations --> [Clusters & Environments](../global-configurations/cluster-and-environments.md#3.-prometheus-info) section. 
 
 ## Advanced Metrics
 

@@ -728,7 +728,9 @@ After enabling it, click on `save changes` and redeploy the application. Now you
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/application-metrics.jpg)
 
-Once all the configurations are done in deployment template, click on `Save` to save the deployment configurations. Now you are ready to create the [workflows](../workflow/README.md) to do CI/CD.
+>NOTE: Once all the configurations are done in deployment template, click on `Save` to save the deployment configurations.
+
+Now you are ready to create the [workflows](../workflow/README.md) to do CI/CD.
 
 ### Helm Chart Json Schema Table
 
