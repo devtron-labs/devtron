@@ -96,6 +96,9 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTreeInf i
 			appId = strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName)
 		}
 		if strings.Compare(kind, "Service") == 0 || strings.Compare(kind, "Ingress") == 0 {
+			if _, ok := resourceI["version"]; ok {
+				version = resourceI["version"].(string)
+			}
 			req := ResourceRequestAndGroupVersionKind{
 				ResourceRequestBean: ResourceRequestBean{
 					AppId: appId,
