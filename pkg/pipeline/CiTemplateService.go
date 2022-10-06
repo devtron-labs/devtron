@@ -40,7 +40,7 @@ func (impl CiTemplateServiceImpl) Save(ciTemplateBean *bean.CiTemplateBean) erro
 	ciTemplateOverrideId := 0
 
 	buildConfig := ciTemplateBean.CiBuildConfig
-	err := impl.CiBuildConfigService.Save(ciTemplateId, ciTemplateOverrideId, buildConfig)
+	err := impl.CiBuildConfigService.Save(ciTemplateId, ciTemplateOverrideId, buildConfig, ciTemplateBean.UserId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while saving ci build config", "config", buildConfig, "err", err)
 	}
@@ -151,7 +151,7 @@ func (impl CiTemplateServiceImpl) Update(ciTemplateBean *bean.CiTemplateBean) er
 	} else {
 		ciTemplateOverrideId = ciTemplateOverride.Id
 	}
-	_, err := impl.CiBuildConfigService.UpdateOrSave(ciTemplateId, ciTemplateOverrideId, ciBuildConfig)
+	_, err := impl.CiBuildConfigService.UpdateOrSave(ciTemplateId, ciTemplateOverrideId, ciBuildConfig, ciTemplateBean.UserId)
 	if err != nil {
 		impl.Logger.Errorw("error in updating ci build config in db", "ciBuildConfig", ciBuildConfig, "err", err)
 	}

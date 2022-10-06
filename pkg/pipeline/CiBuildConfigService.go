@@ -5,11 +5,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"go.uber.org/zap"
+	"time"
 )
 
 type CiBuildConfigService interface {
-	Save(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean) error
-	UpdateOrSave(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean) (*bean.CiBuildConfigBean, error)
+	Save(templateId int, overrideTemplateId int, ciBuildConfigBean *bean.CiBuildConfigBean, userId int32) error
+	UpdateOrSave(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean, userId int32) (*bean.CiBuildConfigBean, error)
 	Delete(ciBuildConfigId int) error
 }
 
@@ -25,13 +26,15 @@ func NewCiBuildConfigServiceImpl(logger *zap.SugaredLogger, ciBuildConfigReposit
 	}
 }
 
-func (impl *CiBuildConfigServiceImpl) Save(templateId int, overrideTemplateId int, ciBuildConfigBean *bean.CiBuildConfigBean) error {
-	ciBuildConfigEntity, err := bean.ConvertBuildConfigBeanToDbEntity(templateId, overrideTemplateId, ciBuildConfigBean)
+func (impl *CiBuildConfigServiceImpl) Save(templateId int, overrideTemplateId int, ciBuildConfigBean *bean.CiBuildConfigBean, userId int32) error {
+	ciBuildConfigEntity, err := bean.ConvertBuildConfigBeanToDbEntity(templateId, overrideTemplateId, ciBuildConfigBean, userId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting build config to db entity", "templateId", templateId,
 			"overrideTemplateId", overrideTemplateId, "ciBuildConfigBean", ciBuildConfigBean, "err", err)
 		return errors.New("error while saving build config")
 	}
+	ciBuildConfigEntity.CreatedOn = time.Now()
+	ciBuildConfigEntity.CreatedBy = userId
 	err = impl.CiBuildConfigRepository.Save(ciBuildConfigEntity)
 	ciBuildConfigBean.Id = ciBuildConfigEntity.Id
 	if err != nil {
@@ -40,18 +43,20 @@ func (impl *CiBuildConfigServiceImpl) Save(templateId int, overrideTemplateId in
 	return nil
 }
 
-func (impl *CiBuildConfigServiceImpl) UpdateOrSave(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean) (*bean.CiBuildConfigBean, error) {
+func (impl *CiBuildConfigServiceImpl) UpdateOrSave(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean, userId int32) (*bean.CiBuildConfigBean, error) {
 	if ciBuildConfig == nil {
 		impl.Logger.Warnw("not updating build config as object is empty", "ciBuildConfig", ciBuildConfig)
 		return nil, nil
 	}
-	ciBuildConfigEntity, err := bean.ConvertBuildConfigBeanToDbEntity(templateId, overrideTemplateId, ciBuildConfig)
+	ciBuildConfigEntity, err := bean.ConvertBuildConfigBeanToDbEntity(templateId, overrideTemplateId, ciBuildConfig, userId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting build config to db entity", "templateId", templateId,
 			"overrideTemplateId", overrideTemplateId, "ciBuildConfig", ciBuildConfig, "err", err)
 		return nil, errors.New("error while saving build config")
 	}
 	if ciBuildConfig.Id == 0 {
+		ciBuildConfigEntity.CreatedOn = time.Now()
+		ciBuildConfigEntity.CreatedBy = userId
 		err = impl.CiBuildConfigRepository.Save(ciBuildConfigEntity)
 		ciBuildConfig.Id = ciBuildConfigEntity.Id
 	} else {

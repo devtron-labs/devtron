@@ -298,13 +298,14 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			impl.logger.Errorw("error in getting templateOverride by ciPipelineId", "err", err, "ciPipelineId", createRequest.Id)
 			return nil, err
 		}
+		ciBuildConfigBean := createRequest.DockerConfigOverride.CiBuildConfig
 		templateOverrideReq := &pipelineConfig.CiTemplateOverride{
 			CiPipelineId:     createRequest.Id,
 			DockerRegistryId: createRequest.DockerConfigOverride.DockerRegistry,
 			DockerRepository: createRequest.DockerConfigOverride.DockerRepository,
 			//DockerfilePath:   createRequest.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
-			//GitMaterialId:    createRequest.DockerConfigOverride.DockerBuildConfig.GitMaterialId,
-			Active: true,
+			GitMaterialId: ciBuildConfigBean.GitMaterialId,
+			Active:        true,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: userId,
@@ -314,12 +315,14 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		}
 		savedTemplateOverride := savedTemplateOverrideBean.CiTemplateOverride
 		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
+			ciBuildConfigBean.Id = savedTemplateOverride.CiBuildConfigId
 			templateOverrideReq.Id = savedTemplateOverride.Id
 			templateOverrideReq.CreatedOn = savedTemplateOverride.CreatedOn
 			templateOverrideReq.CreatedBy = savedTemplateOverride.CreatedBy
 			ciTemplateBean := &bean2.CiTemplateBean{
 				CiTemplateOverride: templateOverrideReq,
-				CiBuildConfig:      createRequest.DockerConfigOverride.CiBuildConfig,
+				CiBuildConfig:      ciBuildConfigBean,
+				UserId:             userId,
 			}
 			err = impl.ciTemplateService.Update(ciTemplateBean)
 			if err != nil {
@@ -328,7 +331,8 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		} else {
 			ciTemplateBean := &bean2.CiTemplateBean{
 				CiTemplateOverride: templateOverrideReq,
-				CiBuildConfig:      createRequest.DockerConfigOverride.CiBuildConfig,
+				CiBuildConfig:      ciBuildConfigBean,
+				UserId:             userId,
 			}
 			err := impl.ciTemplateService.Save(ciTemplateBean)
 			if err != nil {
@@ -550,6 +554,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			ciTemplateBean := &bean2.CiTemplateBean{
 				CiTemplateOverride: templateOverride,
 				CiBuildConfig:      ciPipeline.DockerConfigOverride.CiBuildConfig,
+				UserId:             createRequest.UserId,
 			}
 			err := impl.ciTemplateService.Save(ciTemplateBean)
 			if err != nil {

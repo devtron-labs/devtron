@@ -659,9 +659,10 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	//	impl.logger.Errorw("error in marshaling dockerBuildOptions", "err", err)
 	//	return nil, err
 	//}
+	originalCiBuildConfig := originalCiConf.CiBuildConfig
 	ciTemplate := &pipelineConfig.CiTemplate{
 		//DockerfilePath:    originalCiConf.DockerBuildConfig.DockerfilePath,
-		GitMaterialId: originalCiConf.CiBuildConfig.GitMaterialId,
+		GitMaterialId: originalCiBuildConfig.GitMaterialId,
 		//Args:              string(argByte),
 		//TargetPlatform:    originalCiConf.DockerBuildConfig.TargetPlatform,
 		BeforeDockerBuild: string(beforeByte),
@@ -673,15 +674,18 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		Active:            true,
 	}
 
+	ciBuildConfig := updateRequest.CiBuildConfig
+	ciBuildConfig.Id = originalCiBuildConfig.Id
 	ciTemplateBean := &bean3.CiTemplateBean{
 		CiTemplate:    ciTemplate,
-		CiBuildConfig: updateRequest.CiBuildConfig,
+		CiBuildConfig: ciBuildConfig,
+		UserId:        updateRequest.UserId,
 	}
 	err = impl.ciTemplateService.Update(ciTemplateBean)
 	if err != nil {
 		return nil, err
 	}
-	originalCiConf.CiBuildConfig = updateRequest.CiBuildConfig
+	originalCiConf.CiBuildConfig = ciBuildConfig
 	return originalCiConf, nil
 }
 

@@ -3,6 +3,8 @@ package bean
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	"time"
 )
 
 type CiBuildType string
@@ -38,7 +40,7 @@ type BuildPackConfig struct {
 	Args            map[string]string `json:"args"`
 }
 
-func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ciBuildConfigBean *CiBuildConfigBean) (*pipelineConfig.CiBuildConfig, error) {
+func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ciBuildConfigBean *CiBuildConfigBean, userId int32) (*pipelineConfig.CiBuildConfig, error) {
 	buildMetadata := ""
 	ciBuildType := ciBuildConfigBean.CiBuildType
 	if ciBuildType == BUILDPACK_BUILD_TYPE {
@@ -60,6 +62,7 @@ func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ci
 		CiTemplateId:         templateId,
 		CiTemplateOverrideId: overrideTemplateId,
 		BuildMetadata:        buildMetadata,
+		AuditLog:             sql.AuditLog{UpdatedOn: time.Now(), UpdatedBy: userId},
 	}
 	return ciBuildConfigEntity, nil
 }

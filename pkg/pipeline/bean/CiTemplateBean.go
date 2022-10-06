@@ -6,4 +6,5 @@ type CiTemplateBean struct {
 	CiTemplate         *pipelineConfig.CiTemplate
 	CiTemplateOverride *pipelineConfig.CiTemplateOverride
 	CiBuildConfig      *CiBuildConfigBean
+	UserId             int32
 }
