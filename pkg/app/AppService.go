@@ -300,13 +300,13 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 	if pipelineOverride.GitHash != gitHash {
 		pipelineOverrideByHash, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
 		if err != nil {
-			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "dbApp", dbApp, "err", err)
+			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "err", err)
 			return isHealthy, err
 		}
-		if pipelineOverrideByHash.CommitTime.After(pipelineOverride.CommitTime) {
-			//we have received trigger hash which is committed after this apps actual gitHash stored by us
-			// this means that the hash stored by us is already synced, and we can mark status healthy
-			newApp.Status.Health.Status = application.Healthy
+		if pipelineOverrideByHash.CommitTime.Before(pipelineOverride.CommitTime) {
+			//we have received trigger hash which is committed before this apps actual gitHash stored by us
+			// this means that the hash stored by us will be synced later, so we will drop this event
+			return isHealthy, nil
 		}
 	}
 	//updating cd pipeline status timeline
