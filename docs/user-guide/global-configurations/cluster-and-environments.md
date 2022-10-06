@@ -26,7 +26,9 @@ Provide your kubernetes cluster’s credentials i.e server url and bearer token.
 
 #### Get Cluster Credentials
 
-You can get the **`Server URL`** & **`Bearer Token`** by running the following command. But before that, please ensure that kubectl and jq are installed on the bastion on which you are running the command.
+>**Prerequites:** `kubectl` and `jq` should be installed on the bastion.
+
+You can get the **`Server URL`** & **`Bearer Token`** by running the following command.
 
 {% tabs %}
 {% tab title="k8s clusters %}
