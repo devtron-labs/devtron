@@ -14,7 +14,7 @@ import (
 
 func TestCiTemplateService(t *testing.T) {
 
-	t.SkipNow()
+	//t.SkipNow()
 	t.Run("getCiTemplate", func(t *testing.T) {
 		sugaredLogger, err := util.NewSugardLogger()
 		assert.True(t, err == nil, err)
@@ -26,6 +26,7 @@ func TestCiTemplateService(t *testing.T) {
 		ciTemplateRepositoryImpl := pipelineConfig.NewCiTemplateRepositoryImpl(db, sugaredLogger)
 		ciTemplateOverrideRepositoryImpl := pipelineConfig.NewCiTemplateOverrideRepositoryImpl(db, sugaredLogger)
 		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, ciBuildConfigServiceImpl, ciTemplateRepositoryImpl, ciTemplateOverrideRepositoryImpl)
+		_, err = ciTemplateServiceImpl.FindTemplateOverrideByCiPipelineId(1)
 		appId := 1
 		ciTemplateBean, err := ciTemplateServiceImpl.FindByAppId(appId)
 		assert.True(t, err == nil, err)

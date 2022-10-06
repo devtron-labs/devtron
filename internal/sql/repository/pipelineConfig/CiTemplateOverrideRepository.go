@@ -86,7 +86,7 @@ func (repo *CiTemplateOverrideRepositoryImpl) FindByCiPipelineId(ciPipelineId in
 		Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "err", err, "ciPipelineId", ciPipelineId)
-		return nil, err
+		return ciTemplateOverride, err
 	}
 	return ciTemplateOverride, nil
 }
