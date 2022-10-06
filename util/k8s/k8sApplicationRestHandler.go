@@ -153,7 +153,14 @@ func (handler *K8sApplicationRestHandlerImpl) GetManifestsInBatch(w http.Respons
 		},
 	}
 	validRequests := make([]ResourceRequestAndGroupVersionKind, 0)
-	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(*appDetail.ResourceTreeResponse, validRequests, k8sAppDetail, clusterIdString)
+	var resourceTreeInf map[string]interface{}
+	bytes, _ := json.Marshal(appDetail.ResourceTreeResponse)
+	err = json.Unmarshal(bytes, &resourceTreeInf)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("unmarshal error of resource tree response"), nil, http.StatusInternalServerError)
+		return
+	}
+	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(resourceTreeInf, validRequests, k8sAppDetail, clusterIdString)
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found")
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
