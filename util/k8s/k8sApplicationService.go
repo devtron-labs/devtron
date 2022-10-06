@@ -119,10 +119,10 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTreeInf i
 }
 
 type Response struct {
-	kind     string
-	name     string
-	pointsTo string
-	urls     []string
+	Kind     string   `json:"kind"`
+	Name     string   `json:"name"`
+	PointsTo string   `json:"pointsTo"`
+	Urls     []string `json:"urls"`
 }
 
 func (impl *K8sApplicationServiceImpl) GetUrlsByBatch(resp []BatchResourceResponse, batchSize int) []interface{} {
@@ -132,46 +132,76 @@ func (impl *K8sApplicationServiceImpl) GetUrlsByBatch(resp []BatchResourceRespon
 		if err != nil {
 			continue
 		}
-		urlRes := impl.getUrls(*res.ManifestResponse)
+		urlRes := impl.getUrls(res.ManifestResponse)
 		result = append(result, urlRes)
 	}
 	return result
 }
 
-func (impl *K8sApplicationServiceImpl) getUrls(manifest application.ManifestResponse) Response {
-	kind := manifest.Manifest.GetKind()
+func (impl *K8sApplicationServiceImpl) getUrls(manifest *application.ManifestResponse) Response {
 	var res Response
-
-	res.kind = kind
-	res.name = manifest.Manifest.GetName()
-	res.pointsTo = ""
-
-	if kind == "Ingress" {
-		urls := make([]string, 0)
-		spec := manifest.Manifest.Object["spec"].(map[string]interface{})
-		rules := spec["rules"].([]interface{})
-		for _, rule := range rules {
-			ruleMap := rule.(map[string]interface{})
-			url := ruleMap["host"].(string)
-			httpPaths := ruleMap["http"].(map[string]interface{})["paths"].([]interface{})
-			for _, httpPath := range httpPaths {
-				path := httpPath.(map[string]interface{})["path"].(string)
-				url = url + path
-				urls = append(urls, url)
+	kind := manifest.Manifest.Object["kind"]
+	if _, ok := manifest.Manifest.Object["metadata"]; ok {
+		metadata := manifest.Manifest.Object["metadata"].(map[string]interface{})
+		if metadata != nil {
+			name := metadata["name"]
+			if name != nil {
+				res.Name = name.(string)
 			}
 		}
 	}
 
-	status := manifest.Manifest.Object["status"].(map[string]interface{})
-	loadBalancer := status["loadBalancer"].(map[string]interface{})
-	ingressArray := loadBalancer["ingress"].([]map[string]string)
-	if len(ingressArray) > 0 {
-		if _, ok := ingressArray[0]["hostname"]; ok {
-			res.pointsTo = ingressArray[0]["hostname"]
-		} else {
-			res.pointsTo = ingressArray[0]["ip"]
+	if kind != nil {
+		res.Kind = kind.(string)
+	}
+	res.PointsTo = ""
+	urls := make([]string, 0)
+	if res.Kind == "Ingress" {
+		if manifest.Manifest.Object["spec"] != nil {
+			spec := manifest.Manifest.Object["spec"].(map[string]interface{})
+			if spec["rules"] != nil {
+				rules := spec["rules"].([]interface{})
+				for _, rule := range rules {
+					ruleMap := rule.(map[string]interface{})
+					url := ""
+					if ruleMap["host"] != nil {
+						url = ruleMap["host"].(string)
+					}
+					var httpPaths []interface{}
+					if ruleMap["http"] != nil && ruleMap["http"].(map[string]interface{})["paths"] != nil {
+						httpPaths = ruleMap["http"].(map[string]interface{})["paths"].([]interface{})
+					} else {
+						continue
+					}
+					for _, httpPath := range httpPaths {
+						path := httpPath.(map[string]interface{})["path"]
+						if path != nil {
+							url = url + path.(string)
+						}
+						urls = append(urls, url)
+					}
+				}
+			}
 		}
 	}
+
+	if manifest.Manifest.Object["status"] != nil {
+		status := manifest.Manifest.Object["status"].(map[string]interface{})
+		if status["loadBalancer"] != nil {
+			loadBalancer := status["loadBalancer"].(map[string]interface{})
+			if loadBalancer["ingress"] != nil {
+				ingressArray := loadBalancer["ingress"].([]interface{})
+				if len(ingressArray) > 0 {
+					if hostname, ok := ingressArray[0].(map[string]interface{})["hostname"]; ok {
+						res.PointsTo = hostname.(string)
+					} else if ip, ok := ingressArray[0].(map[string]interface{})["ip"]; ok {
+						res.PointsTo = ip.(string)
+					}
+				}
+			}
+		}
+	}
+	res.Urls = urls
 	return res
 }
 
