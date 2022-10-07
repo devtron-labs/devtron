@@ -579,10 +579,10 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 }
 
 func (handler AppListingRestHandlerImpl) GetManifestUrlsByBatch(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	appId_ := vars["appId"]
-	installedAppId_ := vars["installedAppId"]
-	envId_ := vars["envId"]
+	vars := r.URL.Query()
+	appId_ := vars.Get("appId")
+	installedAppId_ := vars.Get("installedAppId")
+	envId_ := vars.Get("envId")
 
 	batchRequest := BatchRequest{
 		AppId:          appId_,
