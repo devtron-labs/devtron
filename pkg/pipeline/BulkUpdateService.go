@@ -166,6 +166,7 @@ type BulkUpdateServiceImpl struct {
 	enforcerUtil                     rbac.EnforcerUtil
 	enforcerUtilHelm                 rbac.EnforcerUtilHelm
 	ciHandler                        CiHandler
+	ciPipelineRepository             pipelineConfig.CiPipelineRepository
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -190,7 +191,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor WorkflowDagExecutor,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, pipelineBuilder PipelineBuilder,
 	helmAppService client.HelmAppService, enforcerUtil rbac.EnforcerUtil,
-	enforcerUtilHelm rbac.EnforcerUtilHelm, ciHandler CiHandler) *BulkUpdateServiceImpl {
+	enforcerUtilHelm rbac.EnforcerUtilHelm, ciHandler CiHandler, ciPipelineRepository pipelineConfig.CiPipelineRepository) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
@@ -219,6 +220,7 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		enforcerUtil:                     enforcerUtil,
 		enforcerUtilHelm:                 enforcerUtilHelm,
 		ciHandler:                        ciHandler,
+		ciPipelineRepository:             ciPipelineRepository,
 	}
 }
 
@@ -1270,9 +1272,23 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 	latestCommitsMap := map[int]bean2.CiTriggerRequest{}
 	for _, pipeline := range pipelines {
 		if _, ok := latestCommitsMap[pipeline.CiPipelineId]; !ok {
-			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(pipeline.CiPipelineId)
+			ciPipelineId := 0
+			ciPipeline, err := impl.ciPipelineRepository.FindById(pipeline.CiPipelineId)
 			if err != nil {
-				impl.logger.Errorw("error in fetching pipeline materials", "CiPipelineId", pipeline.CiPipelineId, "err", err)
+				impl.logger.Errorw("error in fetching ci pipeline", "CiPipelineId", pipeline.CiPipelineId, "err", err)
+				return nil, err
+			}
+			ciPipelineId = ciPipeline.Id
+			if ciPipeline.IsExternal {
+				if _, ok := latestCommitsMap[ciPipeline.ParentCiPipeline]; ok {
+					//skip linked ci pipeline for fetching materials if its parent already fetched.
+					continue
+				}
+				ciPipelineId = ciPipeline.ParentCiPipeline
+			}
+			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in fetching ci pipeline materials", "CiPipelineId", ciPipelineId, "err", err)
 				return nil, err
 			}
 			var materialId int
@@ -1289,12 +1305,12 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 				GitCommit: bean2.GitCommit{Commit: commitHash},
 			})
 			ciTriggerRequest := bean2.CiTriggerRequest{
-				PipelineId:         pipeline.CiPipelineId,
+				PipelineId:         ciPipelineId,
 				CiPipelineMaterial: ciMaterials,
 				TriggeredBy:        request.UserId,
 				InvalidateCache:    false,
 			}
-			latestCommitsMap[pipeline.CiPipelineId] = ciTriggerRequest
+			latestCommitsMap[ciPipelineId] = ciTriggerRequest
 		}
 	}
 
