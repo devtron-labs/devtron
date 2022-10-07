@@ -23,6 +23,7 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
@@ -56,9 +57,10 @@ type CiCdTriggerEvent struct {
 }
 
 type WorkflowServiceImpl struct {
-	Logger   *zap.SugaredLogger
-	config   *rest.Config
-	ciConfig *CiConfig
+	Logger            *zap.SugaredLogger
+	config            *rest.Config
+	ciConfig          *CiConfig
+	globalCMCSService GlobalCMCSService
 }
 
 type WorkflowRequest struct {
@@ -111,12 +113,17 @@ type WorkflowRequest struct {
 	RefPlugins                 []*bean2.RefPluginObject          `json:"refPlugins"`
 	AppName                    string                            `json:"appName"`
 	TriggerByAuthor            string                            `json:"triggerByAuthor"`
+	DockerBuildOptions         string                   `json:"dockerBuildOptions"`
 }
 
-const BLOB_STORAGE_AZURE = "AZURE"
-const BLOB_STORAGE_S3 = "S3"
-const BLOB_STORAGE_GCP = "GCP"
-const BLOB_STORAGE_MINIO = "MINIO"
+const (
+	BLOB_STORAGE_AZURE      = "AZURE"
+	BLOB_STORAGE_S3         = "S3"
+	BLOB_STORAGE_GCP        = "GCP"
+	BLOB_STORAGE_MINIO      = "MINIO"
+	CI_WORKFLOW_NAME        = "ci"
+	CI_WORKFLOW_WITH_STAGES = "ci-stages-with-env"
+)
 
 type ContainerResources struct {
 	MinCpu        string `json:"minCpu"`
@@ -169,8 +176,14 @@ type GitOptions struct {
 	AuthMode      repository.AuthMode `json:"authMode"`
 }
 
-func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig) *WorkflowServiceImpl {
-	return &WorkflowServiceImpl{Logger: Logger, config: ciConfig.ClusterConfig, ciConfig: ciConfig}
+func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig,
+	globalCMCSService GlobalCMCSService) *WorkflowServiceImpl {
+	return &WorkflowServiceImpl{
+		Logger:            Logger,
+		config:            ciConfig.ClusterConfig,
+		ciConfig:          ciConfig,
+		globalCMCSService: globalCMCSService,
+	}
 }
 
 const ciEvent = "CI"
@@ -272,7 +285,237 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 			},
 		}
 	}
+	//getting all cm/cs to be used by default
+	globalCmCsConfigs, err := impl.globalCMCSService.FindAllActive()
+	if err != nil {
+		impl.Logger.Errorw("error in getting all global cm/cs config", "err", err)
+		return nil, err
+	}
+	for i := range globalCmCsConfigs {
+		globalCmCsConfigs[i].Name = globalCmCsConfigs[i].Name + "-" + strconv.Itoa(workflowRequest.WorkflowId)
+	}
 
+	configsMapping := make(map[string]string)
+	secretsMapping := make(map[string]string)
+
+	var volumes []v12.Volume
+	var steps []v1alpha1.ParallelSteps
+
+	cmIndex := 0
+	csIndex := 0
+
+	entryPoint := CI_WORKFLOW_NAME
+	if len(globalCmCsConfigs) > 0 {
+		entryPoint = CI_WORKFLOW_WITH_STAGES
+		for _, config := range globalCmCsConfigs {
+			if config.ConfigType == repository.CM_TYPE_CONFIG {
+				ownerDelete := true
+				cmBody := v12.ConfigMap{
+					TypeMeta: v1.TypeMeta{
+						Kind:       "ConfigMap",
+						APIVersion: "v1",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name: config.Name,
+						OwnerReferences: []v1.OwnerReference{{
+							APIVersion:         "argoproj.io/v1alpha1",
+							Kind:               "Workflow",
+							Name:               "{{workflow.name}}",
+							UID:                "{{workflow.uid}}",
+							BlockOwnerDeletion: &ownerDelete,
+						}},
+					},
+					Data: config.Data,
+				}
+				cmJson, err := json.Marshal(cmBody)
+				if err != nil {
+					impl.Logger.Errorw("error in building json", "err", err)
+					return nil, err
+				}
+				configsMapping[config.Name] = string(cmJson)
+
+				if config.Type == repository.VOLUME_CONFIG {
+					volumes = append(volumes, v12.Volume{
+						Name: config.Name + "-vol",
+						VolumeSource: v12.VolumeSource{
+							ConfigMap: &v12.ConfigMapVolumeSource{
+								LocalObjectReference: v12.LocalObjectReference{
+									Name: config.Name,
+								},
+							},
+						},
+					})
+				}
+
+				steps = append(steps, v1alpha1.ParallelSteps{
+					Steps: []v1alpha1.WorkflowStep{
+						{
+							Name:     "create-env-cm-" + strconv.Itoa(cmIndex),
+							Template: "cm-" + strconv.Itoa(cmIndex),
+						},
+					},
+				})
+				cmIndex++
+			} else if config.ConfigType == repository.CS_TYPE_CONFIG {
+				secretDataMap := make(map[string][]byte)
+				for key, value := range config.Data {
+					secretDataMap[key] = []byte(value)
+				}
+				ownerDelete := true
+				secretObject := v12.Secret{
+					TypeMeta: v1.TypeMeta{
+						Kind:       "Secret",
+						APIVersion: "v1",
+					},
+					ObjectMeta: v1.ObjectMeta{
+						Name: config.Name,
+						OwnerReferences: []v1.OwnerReference{{
+							APIVersion:         "argoproj.io/v1alpha1",
+							Kind:               "Workflow",
+							Name:               "{{workflow.name}}",
+							UID:                "{{workflow.uid}}",
+							BlockOwnerDeletion: &ownerDelete,
+						}},
+					},
+					Data: secretDataMap,
+					Type: "Opaque",
+				}
+				secretJson, err := json.Marshal(secretObject)
+				if err != nil {
+					impl.Logger.Errorw("error in building json", "err", err)
+					return nil, err
+				}
+				secretsMapping[config.Name] = string(secretJson)
+				if config.Type == repository.VOLUME_CONFIG {
+					volumes = append(volumes, v12.Volume{
+						Name: config.Name + "-vol",
+						VolumeSource: v12.VolumeSource{
+							Secret: &v12.SecretVolumeSource{
+								SecretName: config.Name,
+							},
+						},
+					})
+				}
+
+				steps = append(steps, v1alpha1.ParallelSteps{
+					Steps: []v1alpha1.WorkflowStep{
+						{
+							Name:     "create-env-sec-" + strconv.Itoa(csIndex),
+							Template: "sec-" + strconv.Itoa(csIndex),
+						},
+					},
+				})
+				csIndex++
+			}
+
+		}
+	}
+
+	var templates []v1alpha1.Template
+	cmIndex = 0
+	csIndex = 0
+	if len(configsMapping) > 0 {
+		for _, manifest := range configsMapping {
+			templates = append(templates, v1alpha1.Template{
+				Name: "cm-" + strconv.Itoa(cmIndex),
+				Resource: &v1alpha1.ResourceTemplate{
+					Action:            "create",
+					SetOwnerReference: true,
+					Manifest:          manifest,
+				},
+			})
+			cmIndex++
+		}
+	}
+	if len(secretsMapping) > 0 {
+		for _, manifest := range secretsMapping {
+			templates = append(templates, v1alpha1.Template{
+				Name: "sec-" + strconv.Itoa(csIndex),
+				Resource: &v1alpha1.ResourceTemplate{
+					Action:            "create",
+					SetOwnerReference: true,
+					Manifest:          manifest,
+				},
+			})
+			csIndex++
+		}
+	}
+	steps = append(steps, v1alpha1.ParallelSteps{
+		Steps: []v1alpha1.WorkflowStep{
+			{
+				Name:     "run-wf",
+				Template: CI_WORKFLOW_NAME,
+			},
+		},
+	})
+	templates = append(templates, v1alpha1.Template{
+		Name:  CI_WORKFLOW_WITH_STAGES,
+		Steps: steps,
+	})
+
+	ciTemplate := v1alpha1.Template{
+		Name: CI_WORKFLOW_NAME,
+		Container: &v12.Container{
+			Env:   containerEnvVariables,
+			Image: workflowRequest.CiImage, //TODO need to check whether trigger buildx image or normal image
+			Args:  []string{string(workflowJson)},
+			SecurityContext: &v12.SecurityContext{
+				Privileged: &privileged,
+			},
+			Resources: v12.ResourceRequirements{
+				Limits: v12.ResourceList{
+					"cpu":    resource.MustParse(limitCpu),
+					"memory": resource.MustParse(limitMem),
+				},
+				Requests: v12.ResourceList{
+					"cpu":    resource.MustParse(reqCpu),
+					"memory": resource.MustParse(reqMem),
+				},
+			},
+			Ports: []v12.ContainerPort{{
+				//exposed for user specific data from ci container
+				Name:          "app-data",
+				ContainerPort: 9102,
+			}},
+		},
+		ActiveDeadlineSeconds: &intstr.IntOrString{
+			IntVal: int32(workflowRequest.ActiveDeadlineSeconds),
+		},
+		ArchiveLocation: &v1alpha1.ArtifactLocation{
+			ArchiveLogs: &archiveLogs,
+			S3:          s3Artifact,
+			GCS:         gcsArtifact,
+		},
+	}
+
+	for _, config := range globalCmCsConfigs {
+		if config.Type == repository.VOLUME_CONFIG {
+			ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+				Name:      config.Name + "-vol",
+				MountPath: config.MountPath,
+			})
+		} else if config.Type == repository.ENVIRONMENT_CONFIG {
+			if config.ConfigType == repository.CM_TYPE_CONFIG {
+				ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+					ConfigMapRef: &v12.ConfigMapEnvSource{
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: config.Name,
+						},
+					},
+				})
+			} else if config.ConfigType == repository.CS_TYPE_CONFIG {
+				ciTemplate.Container.EnvFrom = append(ciTemplate.Container.EnvFrom, v12.EnvFromSource{
+					SecretRef: &v12.SecretEnvSource{
+						LocalObjectReference: v12.LocalObjectReference{
+							Name: config.Name,
+						},
+					},
+				})
+			}
+		}
+	}
+
+	templates = append(templates, ciTemplate)
 	var (
 		ciWorkflow = v1alpha1.Workflow{
 			ObjectMeta: v1.ObjectMeta{
@@ -283,46 +526,12 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				ServiceAccountName: impl.ciConfig.WorkflowServiceAccount,
 				//NodeSelector:            map[string]string{impl.ciConfig.TaintKey: impl.ciConfig.TaintValue},
 				//Tolerations:             []v12.Toleration{{Key: impl.ciConfig.TaintKey, Value: impl.ciConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}},
-				Entrypoint: "ci",
+				Entrypoint: entryPoint,
 				TTLStrategy: &v1alpha1.TTLStrategy{
 					SecondsAfterCompletion: &ttl,
 				},
-				Templates: []v1alpha1.Template{
-					{
-						Name: "ci",
-						Container: &v12.Container{
-							Env:   containerEnvVariables,
-							Image: workflowRequest.CiImage, //TODO need to check whether trigger buildx image or normal image
-							Args:  []string{string(workflowJson)},
-							SecurityContext: &v12.SecurityContext{
-								Privileged: &privileged,
-							},
-							Resources: v12.ResourceRequirements{
-								Limits: v12.ResourceList{
-									"cpu":    resource.MustParse(limitCpu),
-									"memory": resource.MustParse(limitMem),
-								},
-								Requests: v12.ResourceList{
-									"cpu":    resource.MustParse(reqCpu),
-									"memory": resource.MustParse(reqMem),
-								},
-							},
-							Ports: []v12.ContainerPort{{
-								//exposed for user specific data from ci container
-								Name:          "app-data",
-								ContainerPort: 9102,
-							}},
-						},
-						ActiveDeadlineSeconds: &intstr.IntOrString{
-							IntVal: int32(workflowRequest.ActiveDeadlineSeconds),
-						},
-						ArchiveLocation: &v1alpha1.ArtifactLocation{
-							ArchiveLogs: &archiveLogs,
-							S3:          s3Artifact,
-							GCS:         gcsArtifact,
-						},
-					},
-				},
+				Templates: templates,
+				Volumes:   volumes,
 			},
 		}
 	)
