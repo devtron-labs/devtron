@@ -60,7 +60,7 @@ type AppListingRestHandler interface {
 
 	FetchOtherEnvironment(w http.ResponseWriter, r *http.Request)
 	RedirectToLinkouts(w http.ResponseWriter, r *http.Request)
-	GetManifestsByBatch(w http.ResponseWriter, r *http.Request)
+	GetManifestUrlsByBatch(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
@@ -578,15 +578,18 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	http.Redirect(w, r, link, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWriter, r *http.Request) {
-	var batchRequest BatchRequest
-	decoder := json.NewDecoder(r.Body)
-	err := decoder.Decode(&batchRequest)
-	if err != nil {
-		handler.logger.Errorw("error in decoding batch request body", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
+func (handler AppListingRestHandlerImpl) GetManifestUrlsByBatch(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId_ := vars["appId"]
+	installedAppId_ := vars["installedAppId"]
+	envId_ := vars["envId"]
+
+	batchRequest := BatchRequest{
+		AppId:          appId_,
+		InstalledAppId: installedAppId_,
+		EnvId:          envId_,
 	}
+
 	if (batchRequest.AppId == "" && batchRequest.InstalledAppId == "") || (batchRequest.AppId != "" && batchRequest.InstalledAppId != "") {
 		handler.logger.Error("error in decoding batch request body")
 		common.WriteJsonResp(w, fmt.Errorf("only one of the appId or installedAppId should be valid"), nil, http.StatusBadRequest)
@@ -594,7 +597,7 @@ func (handler AppListingRestHandlerImpl) GetManifestsByBatch(w http.ResponseWrit
 	}
 	var appDetail bean.AppDetailContainer
 	var appId, envId int
-	envId, err = strconv.Atoi(batchRequest.EnvId)
+	envId, err := strconv.Atoi(batchRequest.EnvId)
 	if err != nil {
 		handler.logger.Errorw("error in env-id from request body", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
