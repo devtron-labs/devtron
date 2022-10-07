@@ -6,10 +6,7 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/google/go-cmp/cmp"
 	"github.com/stretchr/testify/mock"
-	"io"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/client-go/rest"
-	"math/rand"
 	"testing"
 )
 
@@ -77,64 +74,79 @@ type NewK8sApplicationServiceImplMock struct {
 	mock.Mock
 }
 
-var testInput = make([]ResourceRequestAndGroupVersionKind, 0)
-var ptr = 0
-
-func (n NewK8sApplicationServiceImplMock) GetResource(restConfig *rest.Config, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error) {
-
-}
-
-func (n NewK8sApplicationServiceImplMock) CreateResource(restConfig *rest.Config, request *application.K8sRequestBean, manifest string) (resp *application.ManifestResponse, err error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n NewK8sApplicationServiceImplMock) UpdateResource(restConfig *rest.Config, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n NewK8sApplicationServiceImplMock) DeleteResource(restConfig *rest.Config, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n NewK8sApplicationServiceImplMock) ListEvents(restConfig *rest.Config, request *application.K8sRequestBean) (*application.EventsResponse, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (n NewK8sApplicationServiceImplMock) GetPodLogs(restConfig *rest.Config, request *application.K8sRequestBean) (io.ReadCloser, error) {
-	//TODO implement me
-	panic("implement me")
-}
-
+//func (n NewK8sApplicationServiceImplMock) GetResource(restConfig *rest.Config, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error) {
+//	kind := request.ResourceIdentifier.GroupVersionKind.Kind
+//	man := generateTestManifest(kind)
+//	return &man, nil
+//}
+//
+//func (n NewK8sApplicationServiceImplMock) CreateResource(restConfig *rest.Config, request *application.K8sRequestBean, manifest string) (resp *application.ManifestResponse, err error) {
+//	//TODO implement me
+//	panic("implement me")
+//}
+//
+//func (n NewK8sApplicationServiceImplMock) UpdateResource(restConfig *rest.Config, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error) {
+//	//TODO implement me
+//	panic("implement me")
+//}
+//
+//func (n NewK8sApplicationServiceImplMock) DeleteResource(restConfig *rest.Config, request *application.K8sRequestBean) (resp *application.ManifestResponse, err error) {
+//	//TODO implement me
+//	panic("implement me")
+//}
+//
+//func (n NewK8sApplicationServiceImplMock) ListEvents(restConfig *rest.Config, request *application.K8sRequestBean) (*application.EventsResponse, error) {
+//	//TODO implement me
+//	panic("implement me")
+//}
+//
+//func (n NewK8sApplicationServiceImplMock) GetPodLogs(restConfig *rest.Config, request *application.K8sRequestBean) (io.ReadCloser, error) {
+//	//TODO implement me
+//	panic("implement me")
+//}
+//
 var (
-	k8sASI = NewK8sApplicationServiceImplMock{}
-	impl   = NewK8sApplicationServiceImpl(
-		nil, nil, nil, k8sASI, nil,
+	//k8sASI = NewK8sApplicationServiceImplMock{}
+	impl = NewK8sApplicationServiceImpl(
+		nil, nil, nil, nil, nil,
 		nil, nil)
 )
 
-func Test_GetManifestsInBatch(t *testing.T) {
-	n := 10
-	kinds := []string{"Service", "Ingress", "Random", "Invalid"}
-	ExpectedTestOutputs := make([]BatchResourceResponse, 0)
-	for i := 0; i < n; i++ {
-		idx := rand.Int31n(int32(len(kinds)))
-		inp := generateTestResourceRequestAndGroupVersionKind(kinds[idx])
-		testInput = append(testInput, inp)
-	}
-	for i := 0; i < n; i++ {
-		man := generateTestManifest(testInput[i].Kind)
-		bRR := BatchResourceResponse{
-			ManifestResponse: &man,
-			Err:              nil,
-		}
-		ExpectedTestOutputs = append(ExpectedTestOutputs, bRR)
-	}
-
-}
+//
+//func Test_GetManifestsInBatch(t *testing.T) {
+//	n := 10
+//	kinds := []string{"Service", "Ingress", "Random", "Invalid"}
+//	var testInput = make([]ResourceRequestAndGroupVersionKind, 0)
+//	expectedTestOutputs := make([]BatchResourceResponse, 0)
+//	for i := 0; i < n; i++ {
+//		idx := rand.Int31n(int32(len(kinds)))
+//		inp := generateTestResourceRequestAndGroupVersionKind(kinds[idx])
+//		testInput = append(testInput, inp)
+//	}
+//	for i := 0; i < n; i++ {
+//		man := generateTestManifest(testInput[i].Kind)
+//		bRR := BatchResourceResponse{
+//			ManifestResponse: &man,
+//			Err:              nil,
+//		}
+//		expectedTestOutputs = append(expectedTestOutputs, bRR)
+//	}
+//
+//	tests := []int{3, 5, 8, 10, 15}
+//	for i, batchSize := range tests {
+//		t.Run(fmt.Sprint("testcase:", i), func(t *testing.T) {
+//			resultOutput := impl.GetManifestsInBatch(testInput, batchSize)
+//			for j, _ := range resultOutput {
+//				if !cmp.Equal(resultOutput[j], expectedTestOutputs[j]) {
+//					t.Errorf("expected %s but got %s", expectedTestOutputs[j], resultOutput[j])
+//					break
+//				}
+//			}
+//
+//		})
+//	}
+//
+//}
 func generateTestResourceRequestAndGroupVersionKind(kind string) ResourceRequestAndGroupVersionKind {
 	return ResourceRequestAndGroupVersionKind{
 		Kind: kind,
