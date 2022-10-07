@@ -333,5 +333,12 @@ spec:
               apiVersion: v1
               fieldPath: metadata.name
         image: quay.io/argoproj/workflow-controller:v3.0.7
+        resources:
+          limits:
+            cpu: 25m
+            memory: 50Mi
+          requests:
+            cpu: 25m
+            memory: 50Mi
         name: workflow-controller
       serviceAccountName: argo

@@ -227,11 +227,11 @@ spec:
           image: quay.io/devtron/postgres_exporter:v0.4.7
           resources:
             limits:
-              cpu: 50m
-              memory: 100Mi
+              cpu: 10m
+              memory: 20Mi
             requests:
-              cpu: 50m
-              memory: 100Mi
+              cpu: 10m
+              memory: 20Mi
           imagePullPolicy: "IfNotPresent"
           env:
             - name: DATA_SOURCE_URI

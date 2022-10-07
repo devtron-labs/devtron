@@ -90,11 +90,11 @@ spec:
           name: static-files
         resources:
           limits:
-            cpu: 25m
-            memory: 50Mi
+            cpu: 10m
+            memory: 20Mi
           requests:
-            cpu: 25m
-            memory: 50Mi
+            cpu: 10m
+            memory: 20Mi
       serviceAccountName: argocd-dex-server
       volumes:
       - emptyDir: {}
