@@ -34,7 +34,7 @@ type K8sApplicationRestHandler interface {
 	GetPodLogs(w http.ResponseWriter, r *http.Request)
 	GetTerminalSession(w http.ResponseWriter, r *http.Request)
 	GetResourceInfo(w http.ResponseWriter, r *http.Request)
-	GetManifestsInBatch(w http.ResponseWriter, r *http.Request)
+	GetManifestUrlsByBatch(w http.ResponseWriter, r *http.Request)
 }
 type K8sApplicationRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
@@ -121,7 +121,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) GetManifestsInBatch(w http.ResponseWriter, r *http.Request) {
+func (handler *K8sApplicationRestHandlerImpl) GetManifestUrlsByBatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	clusterIdString := vars["appId"]
 	if clusterIdString == "" {
