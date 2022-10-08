@@ -62,8 +62,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
-		Logger.Errorw("error occurred while parsing K8sApplicationServiceConfig,so setting batchSize to default value 5 ", "err", err)
-		cfg.BatchSize = 5
+		Logger.Errorw("error occurred while parsing K8sApplicationServiceConfig,so setting batchSize to default value", "err", err)
 	}
 	return &K8sApplicationServiceImpl{
 		logger:                      Logger,

@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/mock"
 	"io"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"math/rand"
@@ -197,15 +198,15 @@ func Test_GetManifestsInBatch(t *testing.T) {
 	)
 	n := 10
 	kinds := []string{"Service", "Ingress", "Random", "Invalid"}
-	var testInput = make([]ResourceRequestAndGroupVersionKind, 0)
+	var testInput = make([]ResourceRequestBean, 0)
 	expectedTestOutputs := make([]BatchResourceResponse, 0)
 	for i := 0; i < n; i++ {
 		idx := rand.Int31n(int32(len(kinds)))
-		inp := generateTestResourceRequestAndGroupVersionKind(kinds[idx])
+		inp := generateTestResourceRequest(kinds[idx])
 		testInput = append(testInput, inp)
 	}
 	for i := 0; i < n; i++ {
-		man := generateTestManifest(testInput[i].Kind)
+		man := generateTestManifest(testInput[i].K8sRequest.ResourceIdentifier.GroupVersionKind.Kind)
 		bRR := BatchResourceResponse{
 			ManifestResponse: &man,
 			Err:              nil,
@@ -213,29 +214,29 @@ func Test_GetManifestsInBatch(t *testing.T) {
 		expectedTestOutputs = append(expectedTestOutputs, bRR)
 	}
 
-	tests := []int{3, 5, 8, 10, 15}
-	for i, batchSize := range tests {
-		t.Run(fmt.Sprint("testcase:", i), func(t *testing.T) {
-			resultOutput := impl.GetManifestsInBatch(testInput, batchSize)
-			//check if all the output manifests are expected
-			for j, _ := range resultOutput {
-				if !cmp.Equal(resultOutput[j], expectedTestOutputs[j]) {
-					t.Errorf("expected %+v but got %+v", expectedTestOutputs[j].ManifestResponse, resultOutput[j].ManifestResponse)
-					break
-				}
+	t.Run(fmt.Sprint("test1"), func(t *testing.T) {
+		resultOutput := impl.GetHostUrlsByBatch(testInput)
+		//check if all the output manifests are expected
+		for j, _ := range resultOutput {
+			if !cmp.Equal(resultOutput[j], expectedTestOutputs[j]) {
+				t.Errorf("expected %+v but got %+v", expectedTestOutputs[j].ManifestResponse, resultOutput[j].ManifestResponse)
+				break
 			}
+		}
 
-		})
-	}
+	})
 
 }
-func generateTestResourceRequestAndGroupVersionKind(kind string) ResourceRequestAndGroupVersionKind {
-	return ResourceRequestAndGroupVersionKind{
-		ResourceRequestBean: ResourceRequestBean{
-			AppIdentifier: &client.AppIdentifier{},
-			K8sRequest:    &application.K8sRequestBean{},
+func generateTestResourceRequest(kind string) ResourceRequestBean {
+	return ResourceRequestBean{
+		AppIdentifier: &client.AppIdentifier{},
+		K8sRequest: &application.K8sRequestBean{
+			ResourceIdentifier: application.ResourceIdentifier{
+				GroupVersionKind: schema.GroupVersionKind{
+					Kind: kind,
+				},
+			},
 		},
-		Kind: kind,
 	}
 }
 
