@@ -67,27 +67,27 @@ func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ci
 	return ciBuildConfigEntity, nil
 }
 
-func ConvertDbBuildConfigToBean(dbConfig *pipelineConfig.CiBuildConfig) (*CiBuildConfigBean, error) {
+func ConvertDbBuildConfigToBean(dbBuildConfig *pipelineConfig.CiBuildConfig) (*CiBuildConfigBean, error) {
 	var buildPackConfig *BuildPackConfig
 	var dockerBuildConfig *DockerBuildConfig
 	var err error
-	if dbConfig == nil {
+	if dbBuildConfig == nil {
 		return nil, nil
 	}
-	ciBuildType := CiBuildType(dbConfig.Type)
+	ciBuildType := CiBuildType(dbBuildConfig.Type)
 	if ciBuildType == BUILDPACK_BUILD_TYPE {
-		buildPackConfig, err = convertMetadataToBuildPackConfig(dbConfig.BuildMetadata)
+		buildPackConfig, err = convertMetadataToBuildPackConfig(dbBuildConfig.BuildMetadata)
 		if err != nil {
 			return nil, err
 		}
 	} else if ciBuildType == SELF_DOCKERFILE_BUILD_TYPE || ciBuildType == MANAGED_DOCKERFILE_BUILD_TYPE {
-		dockerBuildConfig, err = convertMetadataToDockerBuildConfig(dbConfig.BuildMetadata)
+		dockerBuildConfig, err = convertMetadataToDockerBuildConfig(dbBuildConfig.BuildMetadata)
 		if err != nil {
 			return nil, err
 		}
 	}
 	ciBuildConfigBean := &CiBuildConfigBean{
-		Id:                dbConfig.Id,
+		Id:                dbBuildConfig.Id,
 		CiBuildType:       ciBuildType,
 		BuildPackConfig:   buildPackConfig,
 		DockerBuildConfig: dockerBuildConfig,

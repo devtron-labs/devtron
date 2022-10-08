@@ -13,8 +13,6 @@ type CiTemplateService interface {
 	FindTemplateOverrideByAppId(appId int) (ciTemplateBeans []*bean.CiTemplateBean, err error)
 	FindTemplateOverrideByCiPipelineId(ciPipelineId int) (*bean.CiTemplateBean, error)
 	Update(ciTemplateBean *bean.CiTemplateBean) error
-	FindByDockerRegistryId(dockerRegistryId string) (ciTemplates []*pipelineConfig.CiTemplate, err error)
-	FindNumberOfAppsWithDockerConfigured(appIds []int) (int, error)
 }
 type CiTemplateServiceImpl struct {
 	Logger                       *zap.SugaredLogger
@@ -171,14 +169,4 @@ func (impl CiTemplateServiceImpl) Update(ciTemplateBean *bean.CiTemplateBean) er
 		}
 	}
 	return err
-}
-
-func (impl CiTemplateServiceImpl) FindByDockerRegistryId(dockerRegistryId string) (ciTemplates []*pipelineConfig.CiTemplate, err error) {
-	//TODO implement me
-	panic("implement me")
-}
-
-func (impl CiTemplateServiceImpl) FindNumberOfAppsWithDockerConfigured(appIds []int) (int, error) {
-	//TODO implement me
-	panic("implement me")
 }
