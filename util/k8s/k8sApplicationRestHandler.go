@@ -34,7 +34,7 @@ type K8sApplicationRestHandler interface {
 	GetPodLogs(w http.ResponseWriter, r *http.Request)
 	GetTerminalSession(w http.ResponseWriter, r *http.Request)
 	GetResourceInfo(w http.ResponseWriter, r *http.Request)
-	GetManifestUrlsByBatch(w http.ResponseWriter, r *http.Request)
+	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 }
 type K8sApplicationRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
@@ -121,7 +121,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) GetManifestUrlsByBatch(w http.ResponseWriter, r *http.Request) {
+func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	clusterIdString := vars["appId"]
 	if clusterIdString == "" {
@@ -152,7 +152,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetManifestUrlsByBatch(w http.Resp
 			Namespace: appIdentifier.Namespace,
 		},
 	}
-	validRequests := make([]ResourceRequestAndGroupVersionKind, 0)
+	validRequests := make([]ResourceRequestBean, 0)
 	var resourceTreeInf map[string]interface{}
 	bytes, _ := json.Marshal(appDetail.ResourceTreeResponse)
 	err = json.Unmarshal(bytes, &resourceTreeInf)
@@ -162,12 +162,12 @@ func (handler *K8sApplicationRestHandlerImpl) GetManifestUrlsByBatch(w http.Resp
 	}
 	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(resourceTreeInf, validRequests, k8sAppDetail, clusterIdString)
 	if len(validRequests) == 0 {
-		handler.logger.Error("neither service nor ingress found")
+		handler.logger.Error("neither service nor ingress found for this app", "appId", clusterIdString)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
 		return
 	}
-	resp := handler.k8sApplicationService.GetManifestsInBatch(validRequests, BATCH_SIZE)
-	result := handler.k8sApplicationService.GetUrlsByBatch(resp, BATCH_SIZE)
+	resp := handler.k8sApplicationService.GetHostUrlsByBatch(validRequests)
+	result := handler.k8sApplicationService.GetUrlsByBatch(resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 

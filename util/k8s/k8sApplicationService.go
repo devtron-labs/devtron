@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -22,7 +23,6 @@ import (
 
 const (
 	DEFAULT_CLUSTER = "default_cluster"
-	BATCH_SIZE      = 5
 )
 
 type K8sApplicationService interface {
@@ -36,32 +36,44 @@ type K8sApplicationService interface {
 	GetResourceInfo() (*ResourceInfo, error)
 	GetRestConfigByClusterId(clusterId int) (*rest.Config, error)
 	GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error)
-	GetManifestsInBatch(request []ResourceRequestAndGroupVersionKind, batchSize int) []BatchResourceResponse
-	FilterServiceAndIngress(resourceTreeInf interface{}, validRequests []ResourceRequestAndGroupVersionKind, appDetail bean.AppDetailContainer, appId string) []ResourceRequestAndGroupVersionKind
-	GetUrlsByBatch(resp []BatchResourceResponse, batchSize int) []interface{}
+	GetHostUrlsByBatch(request []ResourceRequestBean) []BatchResourceResponse
+	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
+	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
 }
 type K8sApplicationServiceImpl struct {
-	logger           *zap.SugaredLogger
-	clusterService   cluster.ClusterService
-	pump             connector.Pump
-	k8sClientService application.K8sClientService
-	helmAppService   client.HelmAppService
-	K8sUtil          *util.K8sUtil
-	aCDAuthConfig    *util3.ACDAuthConfig
+	logger                      *zap.SugaredLogger
+	clusterService              cluster.ClusterService
+	pump                        connector.Pump
+	k8sClientService            application.K8sClientService
+	helmAppService              client.HelmAppService
+	K8sUtil                     *util.K8sUtil
+	aCDAuthConfig               *util3.ACDAuthConfig
+	K8sApplicationServiceConfig *K8sApplicationServiceConfig
+}
+
+type K8sApplicationServiceConfig struct {
+	BatchSize int `env:"BATCH_SIZE" envDefault:"5"`
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	pump connector.Pump, k8sClientService application.K8sClientService,
 	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig) *K8sApplicationServiceImpl {
+	cfg := &K8sApplicationServiceConfig{}
+	err := env.Parse(cfg)
+	if err != nil {
+		Logger.Errorw("error occurred while parsing K8sApplicationServiceConfig,so setting batchSize to default value 5 ", "err", err)
+		cfg.BatchSize = 5
+	}
 	return &K8sApplicationServiceImpl{
-		logger:           Logger,
-		clusterService:   clusterService,
-		pump:             pump,
-		k8sClientService: k8sClientService,
-		helmAppService:   helmAppService,
-		K8sUtil:          K8sUtil,
-		aCDAuthConfig:    aCDAuthConfig,
+		logger:                      Logger,
+		clusterService:              clusterService,
+		pump:                        pump,
+		k8sClientService:            k8sClientService,
+		helmAppService:              helmAppService,
+		K8sUtil:                     K8sUtil,
+		aCDAuthConfig:               aCDAuthConfig,
+		K8sApplicationServiceConfig: cfg,
 	}
 }
 
@@ -75,52 +87,46 @@ type ResourceInfo struct {
 	PodName string `json:"podName"`
 }
 
-type ResourceRequestAndGroupVersionKind struct {
-	ResourceRequestBean ResourceRequestBean
-	Group               string
-	Version             string
-	Kind                string
-}
 type BatchResourceResponse struct {
 	ManifestResponse *application.ManifestResponse
 	Err              error
 }
 
-func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTreeInf interface{}, validRequests []ResourceRequestAndGroupVersionKind, appDetail bean.AppDetailContainer, appId string) []ResourceRequestAndGroupVersionKind {
-	resourceTree := resourceTreeInf.(map[string]interface{})
+func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTree map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean {
 	noOfNodes := len(resourceTree["nodes"].([]interface{}))
 	for i := 0; i < noOfNodes; i++ {
-		resourceI := resourceTree["nodes"].([]interface{})[i].(map[string]interface{})
-		kind, name, namespace := resourceI["kind"].(string), resourceI["name"].(string), resourceI["namespace"].(string)
+		resourceItem := resourceTree["nodes"].([]interface{})[i].(map[string]interface{})
+		kind, name, namespace := resourceItem["kind"].(string), resourceItem["name"].(string), resourceItem["namespace"].(string)
 		if appId == "" {
 			appId = strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName)
 		}
 		if strings.Compare(kind, "Service") == 0 || strings.Compare(kind, "Ingress") == 0 {
 			group := ""
 			version := ""
-			if _, ok := resourceI["version"]; ok {
-				version = resourceI["version"].(string)
+			if _, ok := resourceItem["version"]; ok {
+				version = resourceItem["version"].(string)
 			}
-			if _, ok := resourceI["group"]; ok {
-				group = resourceI["group"].(string)
+			if _, ok := resourceItem["group"]; ok {
+				group = resourceItem["group"].(string)
 			}
-			req := ResourceRequestAndGroupVersionKind{
-				ResourceRequestBean: ResourceRequestBean{
-					AppId: appId,
-					AppIdentifier: &client.AppIdentifier{
-						ClusterId: appDetail.ClusterId,
-					},
-					K8sRequest: &application.K8sRequestBean{
-						ResourceIdentifier: application.ResourceIdentifier{
-							Name:      name,
-							Namespace: namespace,
+			req := ResourceRequestBean{
+				AppId: appId,
+				AppIdentifier: &client.AppIdentifier{
+					ClusterId: appDetail.ClusterId,
+				},
+				K8sRequest: &application.K8sRequestBean{
+					ResourceIdentifier: application.ResourceIdentifier{
+						Name:      name,
+						Namespace: namespace,
+						GroupVersionKind: schema.GroupVersionKind{
+							Version: version,
+							Kind:    kind,
+							Group:   group,
 						},
 					},
 				},
-				Version: version,
-				Kind:    kind,
-				Group:   group,
 			}
+
 			validRequests = append(validRequests, req)
 		}
 	}
@@ -134,7 +140,7 @@ type Response struct {
 	Urls     []string `json:"urls"`
 }
 
-func (impl *K8sApplicationServiceImpl) GetUrlsByBatch(resp []BatchResourceResponse, batchSize int) []interface{} {
+func (impl *K8sApplicationServiceImpl) GetUrlsByBatch(resp []BatchResourceResponse) []interface{} {
 	result := make([]interface{}, 0)
 	for _, res := range resp {
 		err := res.Err
@@ -214,8 +220,9 @@ func (impl *K8sApplicationServiceImpl) getUrls(manifest *application.ManifestRes
 	return res
 }
 
-func (impl *K8sApplicationServiceImpl) GetManifestsInBatch(requests []ResourceRequestAndGroupVersionKind, batchSize int) []BatchResourceResponse {
+func (impl *K8sApplicationServiceImpl) GetHostUrlsByBatch(requests []ResourceRequestBean) []BatchResourceResponse {
 	//total batch length
+	batchSize := impl.K8sApplicationServiceConfig.BatchSize
 	if requests == nil {
 		impl.logger.Error("Empty requests for getManifestsInBatch")
 	}
@@ -230,13 +237,13 @@ func (impl *K8sApplicationServiceImpl) GetManifestsInBatch(requests []ResourceRe
 		}
 		var wg sync.WaitGroup
 		for j := 0; j < batchSize; j++ {
-			requests[i+j].ResourceRequestBean.K8sRequest.ResourceIdentifier.GroupVersionKind.Group = requests[i+j].Group
-			requests[i+j].ResourceRequestBean.K8sRequest.ResourceIdentifier.GroupVersionKind.Version = requests[i+j].Version
-			requests[i+j].ResourceRequestBean.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind = requests[i+j].Kind
+			//requests[i+j].ResourceRequestBean.K8sRequest.ResourceIdentifier.GroupVersionKind.Group = requests[i+j].Group
+			//requests[i+j].ResourceRequestBean.K8sRequest.ResourceIdentifier.GroupVersionKind.Version = requests[i+j].Version
+			//requests[i+j].ResourceRequestBean.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind = requests[i+j].Kind
 			wg.Add(1)
 			go func(j int) {
 				resp := BatchResourceResponse{}
-				resp.ManifestResponse, resp.Err = impl.GetResource(&requests[i+j].ResourceRequestBean)
+				resp.ManifestResponse, resp.Err = impl.GetResource(&requests[i+j])
 				res[i+j] = resp
 				wg.Done()
 			}(j)
