@@ -891,7 +891,6 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(ctx context.Context, cance
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			impl.logger.Errorw("error in getting acd token", "err", err)
-			//common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return *appDetail
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)

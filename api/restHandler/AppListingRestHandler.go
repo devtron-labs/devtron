@@ -89,13 +89,6 @@ type AppStatus struct {
 	conditions []v1alpha1.ApplicationCondition
 }
 
-type BatchRequest struct {
-	AppId          string `json:"appId,omitempty"`
-	EnvId          string `json:"envId,omitempty"`
-	InstalledAppId string `json:"installedAppId"`
-	//ResourceRequests []k8s.ResourceRequestBean `json:"resourceRequests"`
-}
-
 func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	appListingService app.AppListingService,
 	teamService team.TeamService,

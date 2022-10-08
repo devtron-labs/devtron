@@ -134,7 +134,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		return
 	}
 	// RBAC enforcer applying
-	//rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, ""); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized"), nil, http.StatusForbidden)
