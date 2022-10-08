@@ -597,27 +597,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("error in parsing envId : %s must be integer", envIdParam), nil, http.StatusBadRequest)
 		return
 	}
-
-	if appIdParam != "" {
-		appId, err = strconv.Atoi(appIdParam)
-		if err != nil {
-			handler.logger.Errorw("error in parsing appId from request body", "appId", appIdParam, "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		appDetail, err = handler.appListingService.FetchAppDetails(appId, envId)
-	}
-
-	if installedAppIdParam != "" {
-		appId, err = strconv.Atoi(installedAppIdParam)
-		if err != nil {
-			handler.logger.Errorw("error in parsing installedAppId from request body", "installedAppId", installedAppIdParam, "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		appDetail, err = handler.installedAppService.FindAppDetailsForAppstoreApplication(appId, envId)
-	}
-
+	appDetail, err = handler.getAppDetails(appIdParam, installedAppIdParam, envId)
 	if err != nil {
 		handler.logger.Errorw("error occurred while getting app details", "appId", appIdParam, "installedAppId", installedAppIdParam, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -655,6 +635,26 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	resp := handler.k8sApplicationService.GetHostUrlsByBatch(validRequests)
 	result := handler.k8sApplicationService.GetUrlsByBatch(resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
+}
+
+func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppIdParam string, envId int) (bean.AppDetailContainer, error) {
+	var appDetail bean.AppDetailContainer
+	if appIdParam != "" {
+		appId, err := strconv.Atoi(appIdParam)
+		if err != nil {
+			handler.logger.Errorw("error in parsing appId from request body", "appId", appIdParam, "err", err)
+			return appDetail, nil
+		}
+		appDetail, err = handler.appListingService.FetchAppDetails(appId, envId)
+	}
+
+	appId, err := strconv.Atoi(installedAppIdParam)
+	if err != nil {
+		handler.logger.Errorw("error in parsing installedAppId from request body", "installedAppId", installedAppIdParam, "err", err)
+		return appDetail, nil
+	}
+	appDetail, err = handler.installedAppService.FindAppDetailsForAppstoreApplication(appId, envId)
+	return appDetail, nil
 }
 
 func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, token string, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
