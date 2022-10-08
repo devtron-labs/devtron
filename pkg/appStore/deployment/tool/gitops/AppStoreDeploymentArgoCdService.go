@@ -329,20 +329,23 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetGitOpsRepoName(appName string
 
 func (impl *AppStoreDeploymentArgoCdServiceImpl) OnUpdateRepoInInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error) {
 	//git operation pull push
-	impl.Logger.Infow("acd context cancel test - git start", "ctx", ctx, "time", time.Now().Local())
+	deadline, _ := ctx.Deadline()
+	impl.Logger.Infow("acd context cancel test - git start", "ctx deadline", deadline, "time", time.Now().String())
 	installAppVersionRequest, chartGitAttr, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installAppVersionRequest)
 	if err != nil {
 		return installAppVersionRequest, err
 	}
-	impl.Logger.Infow("acd context cancel test - git end", "ctx", ctx, "time", time.Now().Local())
-	impl.Logger.Infow("acd context cancel test - acd patch start", "ctx", ctx, "time", time.Now().Local())
+	deadline, _ = ctx.Deadline()
+	impl.Logger.Infow("acd context cancel test - git end", "ctx", deadline, "time", time.Now().String())
+	impl.Logger.Infow("acd context cancel test - acd patch start", "ctx", deadline, "time", time.Now().String())
 
 	//acd operation register, sync
 	installAppVersionRequest, err = impl.patchAcdApp(ctx, installAppVersionRequest, chartGitAttr)
 	if err != nil {
 		return installAppVersionRequest, err
 	}
-	impl.Logger.Infow("acd context cancel test - acd patch end", "ctx", ctx, "time", time.Now().Local())
+	deadline, _ = ctx.Deadline()
+	impl.Logger.Infow("acd context cancel test - acd patch end", "ctx", deadline, "time", time.Now().String())
 
 	return installAppVersionRequest, nil
 }
@@ -415,13 +418,15 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
 	//registerInArgo
-	impl.Logger.Infow("acd context cancel test - register in argo start", "ctx", ctx, "time", time.Now().Local())
+	deadline, _ := ctx.Deadline()
+	impl.Logger.Infow("acd context cancel test - register in argo start", "ctx", deadline, "time", time.Now().String())
 	err := impl.appStoreDeploymentFullModeService.RegisterInArgo(chartGitAttr, ctx)
 	if err != nil {
 		impl.Logger.Errorw("error in argo registry", "err", err)
 		return nil, err
 	}
-	impl.Logger.Infow("acd context cancel test - register in argo end", "ctx", ctx, "time", time.Now().Local())
+	deadline, _ = ctx.Deadline()
+	impl.Logger.Infow("acd context cancel test - register in argo end", "ctx", deadline, "time", time.Now().String())
 
 	// update acd app
 	patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: chartGitAttr.ChartLocation, RepoURL: chartGitAttr.RepoUrl, TargetRevision: "master"}}}
@@ -436,7 +441,8 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 		impl.Logger.Errorw("error in creating argo app ", "name", installAppVersionRequest.ACDAppName, "patch", string(reqbyte), "err", err)
 		return nil, err
 	}
-	impl.Logger.Infow("acd context cancel test - acd patch end", "ctx", ctx, "time", time.Now().Local())
+	deadline, _ = ctx.Deadline()
+	impl.Logger.Infow("acd context cancel test - acd patch end", "ctx", deadline, "time", time.Now().String())
 
 	//impl.appStoreDeploymentFullModeService.SyncACD(installAppVersionRequest.ACDAppName, ctx)
 	return installAppVersionRequest, nil
