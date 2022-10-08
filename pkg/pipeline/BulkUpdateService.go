@@ -1270,6 +1270,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 	}
 
 	latestCommitsMap := map[int]bean2.CiTriggerRequest{}
+	ciCompletedStatus := map[int]bool{}
 	for _, pipeline := range pipelines {
 		if _, ok := latestCommitsMap[pipeline.CiPipelineId]; !ok {
 			ciPipelineId := 0
@@ -1311,43 +1312,48 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 				InvalidateCache:    false,
 			}
 			latestCommitsMap[ciPipelineId] = ciTriggerRequest
+			ciCompletedStatus[ciPipelineId] = false
 		}
 	}
 
 	response := make(map[string]map[string]bool)
 	for _, pipeline := range pipelines {
-		appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
-		pipelineKey := fmt.Sprintf("%d_%s", pipeline.Id, pipeline.Name)
-		success := true
-		if _, ok := response[appKey]; !ok {
-			pResponse := make(map[string]bool)
-			pResponse[pipelineKey] = false
-			response[appKey] = pResponse
-		}
-		appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
-		envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
-		isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
-		if !isValidAuth {
-			//skip hibernate for the app if user does not have access on that
-			pipelineResponse := response[appKey]
-			pipelineResponse[pipelineKey] = false
-			response[appKey] = pipelineResponse
-			continue
-		}
+		ciCompleted := ciCompletedStatus[pipeline.CiPipelineId]
+		if !ciCompleted {
+			appKey := fmt.Sprintf("%d_%s", pipeline.AppId, pipeline.App.AppName)
+			pipelineKey := fmt.Sprintf("%d", pipeline.CiPipelineId)
+			success := true
+			if _, ok := response[appKey]; !ok {
+				pResponse := make(map[string]bool)
+				pResponse[pipelineKey] = false
+				response[appKey] = pResponse
+			}
+			appObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
+			envObject := impl.enforcerUtil.GetEnvRBACNameByAppId(pipeline.AppId, pipeline.EnvironmentId)
+			isValidAuth := checkAuthForBulkActions(token, appObject, envObject)
+			if !isValidAuth {
+				//skip hibernate for the app if user does not have access on that
+				pipelineResponse := response[appKey]
+				pipelineResponse[pipelineKey] = false
+				response[appKey] = pipelineResponse
+				continue
+			}
 
-		ciTriggerRequest := latestCommitsMap[pipeline.CiPipelineId]
-		_, err = impl.ciHandler.HandleCIManual(ciTriggerRequest)
-		if err != nil {
-			impl.logger.Errorw("service err, HandleCIManual", "err", err, "ciTriggerRequest", ciTriggerRequest)
-			//return nil, err
-			pipelineResponse := response[appKey]
-			pipelineResponse[appKey] = false
-			response[appKey] = pipelineResponse
-		}
+			ciTriggerRequest := latestCommitsMap[pipeline.CiPipelineId]
+			_, err = impl.ciHandler.HandleCIManual(ciTriggerRequest)
+			if err != nil {
+				impl.logger.Errorw("service err, HandleCIManual", "err", err, "ciTriggerRequest", ciTriggerRequest)
+				//return nil, err
+				pipelineResponse := response[appKey]
+				pipelineResponse[appKey] = false
+				response[appKey] = pipelineResponse
+			}
 
-		pipelineResponse := response[appKey]
-		pipelineResponse[pipelineKey] = success
-		response[appKey] = pipelineResponse
+			pipelineResponse := response[appKey]
+			pipelineResponse[pipelineKey] = success
+			response[appKey] = pipelineResponse
+			ciCompletedStatus[pipeline.CiPipelineId] = true
+		}
 	}
 	bulkOperationResponse := &BulkApplicationForEnvironmentResponse{}
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
