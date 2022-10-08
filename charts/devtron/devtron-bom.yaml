@@ -27,3 +27,13 @@ components:
       casbin:
         GIT_BRANCH: "main"
         GIT_HASH: "299b90b9322f40d84ebac23a9b43d0bbe23c56ca"
+        
+argo-cd:
+  global:
+    image:
+      # -- If defined, a repository applied to all Argo CD deployments
+      repository: quay.io/argoproj/argocd
+      # -- Overrides the global Argo CD image tag whose default is the chart appVersion
+      tag: "v2.4.0"
+      # -- If defined, a imagePullPolicy applied to all Argo CD deployments
+      imagePullPolicy: IfNotPresent
