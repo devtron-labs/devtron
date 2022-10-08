@@ -1,7 +1,7 @@
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.0" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.1" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
   tag: c62d4c30-185-9354
   source: "github" # Available options are github and gitee
@@ -47,8 +47,8 @@ components:
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:299b90b9-280-10744"
-    cicdImage: "quay.io/devtron/devtron:299b90b9-326-10742"
+    image: "quay.io/devtron/hyperion:cb0316cb-282-10980"
+    cicdImage: "quay.io/devtron/devtron:cb0316cb-360-10989"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -109,6 +109,14 @@ components:
 argo-cd:
   enabled: false
   fullnameOverride: "argocd"
+  global:
+    image:
+      # -- If defined, a repository applied to all Argo CD deployments
+      repository: quay.io/argoproj/argocd
+      # -- Overrides the global Argo CD image tag whose default is the chart appVersion
+      tag: "v2.4.0"
+      # -- If defined, a imagePullPolicy applied to all Argo CD deployments
+      imagePullPolicy: IfNotPresent
   configs:
     secret:
       createSecret: false
