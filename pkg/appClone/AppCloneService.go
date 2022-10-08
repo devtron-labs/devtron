@@ -37,16 +37,16 @@ type AppCloneService interface {
 	CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error)
 }
 type AppCloneServiceImpl struct {
-	logger                       *zap.SugaredLogger
-	pipelineBuilder              pipeline.PipelineBuilder
-	materialRepository           pipelineConfig.MaterialRepository
-	chartService                 chart.ChartService
-	configMapService             pipeline.ConfigMapService
-	appWorkflowService           appWorkflow.AppWorkflowService
-	appListingService            app.AppListingService
-	propertiesConfigService      pipeline.PropertiesConfigService
+	logger                  *zap.SugaredLogger
+	pipelineBuilder         pipeline.PipelineBuilder
+	materialRepository      pipelineConfig.MaterialRepository
+	chartService            chart.ChartService
+	configMapService        pipeline.ConfigMapService
+	appWorkflowService      appWorkflow.AppWorkflowService
+	appListingService       app.AppListingService
+	propertiesConfigService pipeline.PropertiesConfigService
+	pipelineStageService    pipeline.PipelineStageService
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
-	pipelineStageService         pipeline.PipelineStageService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -60,16 +60,16 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	pipelineStageService pipeline.PipelineStageService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
-		logger:                       logger,
-		pipelineBuilder:              pipelineBuilder,
-		materialRepository:           materialRepository,
-		chartService:                 chartService,
-		configMapService:             configMapService,
-		appWorkflowService:           appWorkflowService,
-		appListingService:            appListingService,
-		propertiesConfigService:      propertiesConfigService,
+		logger:                  logger,
+		pipelineBuilder:         pipelineBuilder,
+		materialRepository:      materialRepository,
+		chartService:            chartService,
+		configMapService:        configMapService,
+		appWorkflowService:      appWorkflowService,
+		appListingService:       appListingService,
+		propertiesConfigService: propertiesConfigService,
+		pipelineStageService:    pipelineStageService,
 		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
-		pipelineStageService:         pipelineStageService,
 	}
 
 }
