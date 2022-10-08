@@ -636,7 +636,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		if detail != nil {
 			resourceTree := util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
-			resourceTree["status"] = detail.ReleaseStatus.Status
+			resourceTree["status"] = detail.ApplicationStatus
 			appDetail.ResourceTree = resourceTree
 			handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 		} else {

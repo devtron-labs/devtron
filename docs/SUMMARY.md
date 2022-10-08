@@ -29,6 +29,7 @@
   * [External links](user-guide/global-configurations/external-links.md)
 * [Devtron Upgrade](setup/upgrade/README.md)
   * [Update Devtron from Devtron UI](setup/upgrade/upgrade-devtron-ui.md)
+  * [0.5.x-0.6.x](setup/upgrade/devtron-upgrade-0.5.x-0.6.x.md)
   * [0.4.x-0.5.x](setup/upgrade/devtron-upgrade-0.4.x-0.5.x.md)
   * [0.4.x-0.4.x](setup/upgrade/devtron-upgrade-0.4.x-0.4.x.md)
   * [0.3.x-0.4.x](setup/upgrade/devtron-upgrade-0.3.x-0.4.x.md)
@@ -50,6 +51,7 @@
     * [Workflow Overview](user-guide/creating-application/workflow/README.md)
     * [CI Pipeline](user-guide/creating-application/workflow/ci-pipeline.md)
       * [Pre-Build/Post-Build Tasks](user-guide/creating-application/workflow/ci-build-pre-post-plugins.md)
+      * [Override Container Registry](user-guide/creating-application/container-registry-override.md)
     * [CI Pipeline (Legacy)](user-guide/creating-application/workflow/ci-pipeline-legacy.md)
     * [CD Pipeline](user-guide/creating-application/workflow/cd-pipeline.md)
     * [Config Maps](user-guide/creating-application/config-maps.md)
@@ -71,7 +73,12 @@
   * [Chart Group](user-guide/deploy-chart/chart-group.md)
 * [Security](user-guide/security-features.md)
 * [Bulk Edit](user-guide/bulk-update.md)
-* [Integrations](user-guide/stack-manager.md)
+* [Integrations](user-guide/integrations/README.md)
+  * [Build and Deploy (CI/CD)](user-guide/integrations/build-and-deploy-ci-cd.md)
+  * [GitOps (Argo CD)](user-guide/integrations/argocd.md)
+  * [Vulnerability Scanning (Clair)](user-guide/integrations/clair.md)
+  * [Notifications](user-guide/integrations/notifications.md)
+  * [Monitoring (Grafana)](user-guide/integrations//grafana.md)
 
 ## Resources
 

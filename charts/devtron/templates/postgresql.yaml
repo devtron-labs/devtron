@@ -1,54 +1,5 @@
 {{- with .Values.components.postgres }}
 apiVersion: v1
-kind: Secret
-data:
-  {{- $secretObj := (lookup "v1" "Secret" "devtroncd" "postgresql-postgresql") | default dict }}
-  {{- $secretData := (get $secretObj "data") | default dict }}
-  {{- $Secret := (get $secretData "postgresql-password") | default (randAlphaNum 32) | b64enc }}
-  postgresql-password: {{ $Secret }}
-metadata:
-  name: postgresql-postgresql
-  labels:
-    app: postgresql
-    chart: postgresql-8.6.4
-    release: "devtron"
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "-5"
-    "helm.sh/resource-policy": keep
-type: Opaque
----
-apiVersion: v1
-kind: Secret
-data:
-  DB_PASSWORD: {{ $Secret }}
-metadata:
-  name: postgresql-migrator
-  labels:
-    app: postgresql
-    chart: postgresql-8.6.4
-    release: "devtron"
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "-4"
-    "helm.sh/resource-policy": keep
-type: Opaque
----
-apiVersion: v1
-kind: Secret
-metadata:
-  name: "devtron-secret"
-  labels:
-    release: devtron
-  annotations:
-    "helm.sh/hook": pre-install
-    "helm.sh/hook-weight": "-3"
-    "helm.sh/resource-policy": keep
-data:
-  PG_PASSWORD: {{ $Secret }} 
-type: Opaque
----
-apiVersion: v1
 kind: ConfigMap
 metadata:
   name: postgresql-postgresql-init-scripts

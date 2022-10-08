@@ -12,8 +12,12 @@ kubectl get jobs -n devtroncd
 ```
 - Note down or remember the names of jobs with 0/1 completions and check if their pods are in running state still or not by running the command:
 kubectl get pods -n devtroncd
-- If they are in running condition, please wait for the jobs to be completed as it may be due to internet issue and if not in running condition, then delete those incomplete jobs using:
+- If they are in running condition, please wait for the jobs to be completed as it may be due to internet issue and if not in running condition, then delete those incomplete jobs using command:
+
+```bash
 kubectl delete jobs <job1-name> <job2-name> -n devtroncd
+```
+
 - Now download migrator.yaml file from our github repository using the command:
 ```bash
 wget https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/migrator.yaml
@@ -245,7 +249,7 @@ Run `kubectl get secret -n devtroncd` and then edit the `argocd-secret`, remove 
 
 Run `kubectl delete po your-argocd-server-pod -n devtroncd`, it will create a new pod after deletion and reset your admin password. Re-run the command for admin credentials again to get the new password.
 
-#### 19. After installing Devtron using helm, getting the admin password does not work.(if using windows)
+#### 19. After installing Devtron using Helm, getting the admin password does not work.(if using windows)
 
 `Debug`
 
@@ -275,3 +279,113 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 --set installer.modules={cicd} --reuse-values \
 --set components.postgres.persistence.volumeSize=20Gi
 ```
+
+#### 21. Configure Blob Storage
+
+
+You can configure blob storage with one of the following:
+{% tabs %}
+
+
+{% tab title="MinIO storage" %}
+
+This configuration will use MinIO for storing logs and cache.
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator \
+--create-namespace --namespace devtroncd \
+--set installer.modules={cicd} \
+--set minio.enabled=true
+```
+
+{% endtab %}
+
+{% tab title="AWS S3 Bucket" %}
+This configuration will use AWS S3 bucket for storing build logs and cache. Refer to the `AWS specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#aws-specific) page.
+
+*  **Configure using S3 IAM policy:**
+
+>NOTE: Pleasee ensure that S3 permission policy to the IAM role attached to the nodes of the cluster if you are using the below command.
+
+```bash
+helm repo update
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
+```
+
+*  **Configure using access-key and secret-key for aws S3 authentication:**
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
+```
+
+*  **Configure using S3 compatible storages:**
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
+--set configs.BLOB_STORAGE_S3_ENDPOINT=<endpoint>
+```
+
+{% endtab %}
+
+{% tab title="Azure Blob Storage" %}
+This configuration will use Azure Blob Storage for storing build logs and cache.
+Refer to the `Azure specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#azure-specific) page.
+
+```bash
+helm repo update
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set secrets.AZURE_ACCOUNT_KEY=xxxxxxxxxx \
+--set configs.BLOB_STORAGE_PROVIDER=AZURE \
+--set configs.AZURE_ACCOUNT_NAME=test-account \
+--set configs.AZURE_BLOB_CONTAINER_CI_LOG=ci-log-container \
+--set configs.AZURE_BLOB_CONTAINER_CI_CACHE=ci-cache-container
+```
+
+{% endtab %}
+
+{% tab title="Google Cloud Storage" %}
+This configuration will use Google Cloud Storage for storing build logs and cache.
+Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](../setup/install/installation-configuration.md#google-cloud-storage-specific) page.
+
+```bash
+helm repo update
+
+helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
+--set installer.modules={cicd} \
+--set configs.BLOB_STORAGE_PROVIDER: GCP \
+--set secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON: {\"type\": \"service_account\",\"project_id\": \"<your-project-id>\",\"private_key_id\": \"<your-private-key-id>\",\"private_key\": \"<your-private-key>\",\"client_email\": \"<your-client-email>\",\"client_id\": \"<your-client-id>\",\"auth_uri\": \"https://accounts.google.com/o/oauth2/auth\",\"token_uri\": \"https://oauth2.googleapis.com/token\",\"auth_provider_x509_cert_url\": \"https://www.googleapis.com/oauth2/v1/certs\",\"client_x509_cert_url\": \"<your-client-cert-url>\"} \
+--set configs.DEFAULT_CACHE_BUCKET: cache-bucket
+--set configs.DEFAULT_BUILD_LOGS_BUCKET: log-bucket
+```
+
+{% endtab %}
+{% endtabs %}
