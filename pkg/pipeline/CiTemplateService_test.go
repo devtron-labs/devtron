@@ -16,11 +16,10 @@ import (
 
 func TestCiTemplateService(t *testing.T) {
 
-	//t.SkipNow()
 	t.Run("TemplateWithBuildpackConfiguration", func(t *testing.T) {
 
 		sugaredLogger, err := util.NewSugardLogger()
-		assert.True(t, err == nil, err)
+		assert.Nil(t, err)
 		builderId := "sample-builder"
 		//mockCiTemplateRepository := &CiTemplateRepositoryMock{}
 		ciTemplateRepositoryMocked := mocks.NewCiTemplateRepository(t)
@@ -35,17 +34,17 @@ func TestCiTemplateService(t *testing.T) {
 		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, nil, ciTemplateRepositoryMocked, nil)
 		templateBean, err := ciTemplateServiceImpl.FindByAppId(1)
 		template := templateBean.CiTemplate
-		assert.True(t, templateDbEntity.Id == template.Id)
-		assert.True(t, templateBean.CiBuildConfig != nil)
-		assert.True(t, templateBean.CiBuildConfig.CiBuildType == bean.BUILDPACK_BUILD_TYPE)
-		assert.True(t, templateBean.CiBuildConfig.BuildPackConfig.BuilderId == builderId)
+		assert.Equal(t, template.Id, templateDbEntity.Id)
+		assert.NotNil(t, templateBean.CiBuildConfig)
+		assert.Equal(t, bean.BUILDPACK_BUILD_TYPE, templateBean.CiBuildConfig.CiBuildType)
+		assert.Equal(t, builderId, templateBean.CiBuildConfig.BuildPackConfig.BuilderId)
 	})
 
 	t.Run("TemplateWithOldDockerData", func(t *testing.T) {
 
 		sugaredLogger, err := util.NewSugardLogger()
-		assert.True(t, err == nil, err)
-		mockCiTemplateRepository := &CiTemplateRepositoryMock{}
+		assert.Nil(t, err)
+		mockCiTemplateRepository := mocks.NewCiTemplateRepository(t)
 		argsKey := "hello"
 		argsValue := "world"
 		buildOptionsKey := "volume"
@@ -60,25 +59,25 @@ func TestCiTemplateService(t *testing.T) {
 		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, nil, mockCiTemplateRepository, nil)
 		templateBean, err := ciTemplateServiceImpl.FindByAppId(1)
 		template := templateBean.CiTemplate
-		assert.True(t, templateDbEntity.Id == template.Id)
-		assert.True(t, templateDbEntity.TargetPlatform == template.TargetPlatform)
-		assert.True(t, template.CiBuildConfig == nil)
+		assert.Equal(t, template.Id, templateDbEntity.Id)
+		assert.Equal(t, template.TargetPlatform, templateDbEntity.TargetPlatform)
+		assert.Nil(t, template.CiBuildConfig)
 		ciBuildConfig := templateBean.CiBuildConfig
-		assert.True(t, ciBuildConfig.CiBuildType == bean.SELF_DOCKERFILE_BUILD_TYPE)
-		assert.True(t, ciBuildConfig.DockerBuildConfig != nil)
-		assert.True(t, ciBuildConfig.DockerBuildConfig.TargetPlatform == templateDbEntity.TargetPlatform)
+		assert.Equal(t, bean.SELF_DOCKERFILE_BUILD_TYPE, ciBuildConfig.CiBuildType)
+		assert.NotNil(t, ciBuildConfig.DockerBuildConfig)
+		assert.Equal(t, templateDbEntity.TargetPlatform, ciBuildConfig.DockerBuildConfig.TargetPlatform)
 		args := ciBuildConfig.DockerBuildConfig.Args
-		assert.True(t, args != nil)
-		assert.True(t, args[argsKey] == argsValue)
+		assert.NotEmpty(t, args)
+		assert.Equal(t, argsValue, args[argsKey])
 		dockerBuildOptions := ciBuildConfig.DockerBuildConfig.DockerBuildOptions
-		assert.True(t, dockerBuildOptions != nil)
-		assert.True(t, dockerBuildOptions[buildOptionsKey] == buildOptionsValue, dockerBuildOptions)
+		assert.NotEmpty(t, dockerBuildOptions)
+		assert.Equal(t, buildOptionsValue, dockerBuildOptions[buildOptionsKey])
 	})
 
 	t.Run("TemplateWithManagedDockerData", func(t *testing.T) {
 		sugaredLogger, err := util.NewSugardLogger()
-		assert.True(t, err == nil, err)
-		mockCiTemplateRepository := &CiTemplateRepositoryMock{}
+		assert.Nil(t, err)
+		mockCiTemplateRepository := mocks.NewCiTemplateRepository(t)
 		targetPlatform := "linux/amd64"
 		dockerfileContent := "FROM node:9\r\n\r\nWORKDIR /app\r\n\r\nRUN npm install -g contentful-cli\r\n\r\nCOPY package.json .\r\nRUN npm install\r\n\r\nCOPY . .\r\n\r\nUSER node\r\nEXPOSE 3000\r\n\r\nCMD [\"npm\", \"run\", \"start:dev\"]"
 		notPlatform := "linux/arm64"
@@ -90,7 +89,7 @@ func TestCiTemplateService(t *testing.T) {
 			TargetPlatform:    targetPlatform,
 		}
 		buildMetadata, err := json.Marshal(buildConfigMetadata)
-		assert.True(t, err == nil, err)
+		assert.Nil(t, err)
 		templateDbEntity := &pipelineConfig.CiTemplate{
 			Id:             1,
 			GitMaterialId:  gitMaterialId,
@@ -106,19 +105,95 @@ func TestCiTemplateService(t *testing.T) {
 		templateBean, err := ciTemplateServiceImpl.FindByAppId(1)
 		ciTemplateEntity := templateBean.CiTemplate
 		ciBuildConfig := templateBean.CiBuildConfig
-		assert.True(t, ciTemplateEntity.Id == templateDbEntity.Id)
-		assert.True(t, ciBuildConfig.Id == ciBuildConfigId)
-		assert.True(t, ciBuildConfig.CiBuildType == managedDockerfileBuildType)
-		assert.True(t, ciBuildConfig.GitMaterialId == gitMaterialId)
-		assert.True(t, ciBuildConfig.BuildPackConfig == nil)
+		assert.Equal(t, templateDbEntity.Id, ciTemplateEntity.Id)
+		assert.Equal(t, ciBuildConfigId, ciBuildConfig.Id)
+		assert.Equal(t, managedDockerfileBuildType, ciBuildConfig.CiBuildType)
+		assert.Equal(t, gitMaterialId, ciBuildConfig.GitMaterialId)
+		assert.Nil(t, ciBuildConfig.BuildPackConfig)
 		dockerBuildConfig := ciBuildConfig.DockerBuildConfig
-		assert.True(t, dockerBuildConfig != nil)
-		assert.True(t, dockerBuildConfig.DockerfileContent == dockerfileContent)
-		assert.True(t, dockerBuildConfig.TargetPlatform == targetPlatform)
+		assert.NotNil(t, dockerBuildConfig)
+		assert.Nil(t, ciBuildConfig.BuildPackConfig)
+		assert.Equal(t, dockerfileContent, dockerBuildConfig.DockerfileContent)
+		assert.Equal(t, targetPlatform, dockerBuildConfig.TargetPlatform)
 	})
 
-	t.Run("ciTemplateOverride", func(t *testing.T) {
+	t.Run("ciTemplateOverrideWithOldDockerData", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.Nil(t, err)
+		mockedCiTemplateOverrideRepository := mocks.NewCiTemplateOverrideRepository(t)
+		appId := 1
+		mockedTemplateOverrides := []*pipelineConfig.CiTemplateOverride{{
+			Id:             1,
+			CiPipelineId:   2,
+			GitMaterialId:  3,
+			DockerfilePath: "Dockerfile",
+		}, {
+			Id:             2,
+			CiPipelineId:   3,
+			GitMaterialId:  3,
+			DockerfilePath: "Dockerfile_ea",
+		}}
+		mockedCiTemplateOverrideRepository.On("FindByAppId", appId).Return(mockedTemplateOverrides, nil)
+		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, nil, nil, mockedCiTemplateOverrideRepository)
+		templateBeans, err := ciTemplateServiceImpl.FindTemplateOverrideByAppId(appId)
+		assert.Nil(t, err)
+		assert.Equal(t, len(mockedTemplateOverrides), len(templateBeans))
+		for index, _ := range templateBeans {
+			templateBean := templateBeans[index]
+			mockedTemplateOverride := mockedTemplateOverrides[index]
+			templateOverride := templateBean.CiTemplateOverride
+			ciBuildConfig := templateBean.CiBuildConfig
+			assert.Equal(t, mockedTemplateOverride.Id, templateOverride.Id)
+			assert.Equal(t, mockedTemplateOverride.GitMaterialId, templateOverride.GitMaterialId)
+			assert.Equal(t, mockedTemplateOverride.CiPipelineId, templateOverride.CiPipelineId)
+			assert.Equal(t, bean.SELF_DOCKERFILE_BUILD_TYPE, ciBuildConfig.CiBuildType)
+			assert.Nil(t, ciBuildConfig.BuildPackConfig)
+			assert.Empty(t, ciBuildConfig.DockerBuildConfig.DockerBuildOptions, "docker build options not supported in pipeline override")
+			assert.Equal(t, mockedTemplateOverride.DockerfilePath, ciBuildConfig.DockerBuildConfig.DockerfilePath)
+		}
+	})
 
+	t.Run("ciTemplateOverrideWithBuildPackData", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.True(t, err == nil, err)
+		mockedCiTemplateOverrideRepository := mocks.NewCiTemplateOverrideRepository(t)
+		appId := 1
+		builderId1 := "sample-builder-1"
+		mockedTemplateOverrides := []*pipelineConfig.CiTemplateOverride{{
+			Id:            1,
+			CiPipelineId:  2,
+			GitMaterialId: 3,
+			CiBuildConfig: &pipelineConfig.CiBuildConfig{
+				Type:          string(bean.BUILDPACK_BUILD_TYPE),
+				BuildMetadata: "{\"BuilderId\":\"" + builderId1 + "\"}",
+			},
+		}, {
+			Id:            2,
+			CiPipelineId:  3,
+			GitMaterialId: 3,
+			CiBuildConfig: &pipelineConfig.CiBuildConfig{
+				Type:          string(bean.BUILDPACK_BUILD_TYPE),
+				BuildMetadata: "{\"BuilderId\":\"" + builderId1 + "\"}",
+			},
+		}}
+		mockedCiTemplateOverrideRepository.On("FindByAppId", appId).Return(mockedTemplateOverrides, nil)
+		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, nil, nil, mockedCiTemplateOverrideRepository)
+		templateBeans, err := ciTemplateServiceImpl.FindTemplateOverrideByAppId(appId)
+		assert.Nil(t, err)
+		assert.Equal(t, len(mockedTemplateOverrides), len(templateBeans))
+		for index, _ := range templateBeans {
+			templateBean := templateBeans[index]
+			mockedTemplateOverride := mockedTemplateOverrides[index]
+			templateOverride := templateBean.CiTemplateOverride
+			ciBuildConfig := templateBean.CiBuildConfig
+			assert.Equal(t, mockedTemplateOverride.Id, templateOverride.Id)
+			assert.Equal(t, mockedTemplateOverride.GitMaterialId, templateOverride.GitMaterialId)
+			assert.Equal(t, mockedTemplateOverride.CiPipelineId, templateOverride.CiPipelineId)
+			assert.Equal(t, bean.BUILDPACK_BUILD_TYPE, ciBuildConfig.CiBuildType)
+			assert.Nil(t, ciBuildConfig.DockerBuildConfig)
+			assert.NotNil(t, ciBuildConfig.BuildPackConfig)
+			assert.Equal(t, builderId1, ciBuildConfig.BuildPackConfig.BuilderId)
+		}
 	})
 
 	t.Run("getCiTemplate", func(t *testing.T) {
@@ -169,6 +244,7 @@ func TestCiTemplateService(t *testing.T) {
 
 	t.Run("escaping char test", func(t *testing.T) {
 		t.SkipNow()
+
 		input := "FROM debian\r\nRUN export node_version=\"0.10\" \\\r\n&& apt-get update && apt-get -y install nodejs=\"$node_verion\"\r\nCOPY package.json usr/src/app\r\nRUN cd /usr/src/app \\\r\n&& npm install node-static\r\n\r\nEXPOSE 80000\r\nCMD [\"npm\", \"start\"]"
 		//fmt.Println(input)
 		output := fmt.Sprint(input)
