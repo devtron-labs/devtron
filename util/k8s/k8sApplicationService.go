@@ -237,9 +237,6 @@ func (impl *K8sApplicationServiceImpl) GetHostUrlsByBatch(requests []ResourceReq
 		}
 		var wg sync.WaitGroup
 		for j := 0; j < batchSize; j++ {
-			//requests[i+j].ResourceRequestBean.K8sRequest.ResourceIdentifier.GroupVersionKind.Group = requests[i+j].Group
-			//requests[i+j].ResourceRequestBean.K8sRequest.ResourceIdentifier.GroupVersionKind.Version = requests[i+j].Version
-			//requests[i+j].ResourceRequestBean.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind = requests[i+j].Kind
 			wg.Add(1)
 			go func(j int) {
 				resp := BatchResourceResponse{}
