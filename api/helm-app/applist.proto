@@ -205,6 +205,7 @@ message ReleaseIdentifier {
 message UpgradeReleaseRequest {
   ReleaseIdentifier releaseIdentifier = 1;
   string valuesYaml = 2;
+  bool disableOpenApiValidation = 3;
 }
 
 message UpgradeReleaseResponse {
@@ -234,6 +235,7 @@ message InstallReleaseRequest {
   string chartVersion = 3;
   string valuesYaml = 4;
   ChartRepository chartRepository = 5;
+  bool disableOpenApiValidation = 6;
 }
 
 message InstallReleaseResponse {

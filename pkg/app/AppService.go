@@ -1821,7 +1821,8 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 						ApiServerUrl: envOverride.Environment.Cluster.ServerUrl,
 					},
 				},
-				ValuesYaml: mergeAndSave,
+				ValuesYaml:               mergeAndSave,
+				DisableOpenApiValidation: true,
 			}
 
 			updateApplicationResponse, err := impl.helmAppClient.UpdateApplication(ctx, req)
