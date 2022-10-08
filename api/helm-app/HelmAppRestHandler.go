@@ -46,12 +46,8 @@ type HelmAppRestHandlerImpl struct {
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	helmAppService HelmAppService, enforcer casbin.Enforcer,
-	clusterService cluster.ClusterService,
-	enforcerUtil rbac.EnforcerUtilHelm,
-
-	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	userAuthService user.UserService,
-) *HelmAppRestHandlerImpl {
+	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	userAuthService user.UserService) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
 		logger:                          logger,
 		helmAppService:                  helmAppService,

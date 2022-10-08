@@ -22,20 +22,16 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
-	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/devtron-labs/devtron/util/response"
@@ -45,7 +41,6 @@ import (
 	"net/http"
 	"strconv"
 	"strings"
-	"time"
 )
 
 type InstalledAppRestHandler interface {
@@ -54,7 +49,6 @@ type InstalledAppRestHandler interface {
 	CheckAppExists(w http.ResponseWriter, r *http.Request)
 	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
 	FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request)
-	FetchResourceTreeHelper(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -353,72 +347,16 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
-func (handler *InstalledAppRestHandlerImpl) FetchResourceTreeHelper(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) {
-	handler.fetchResourceTree(w, r, appDetail)
-}
-
 func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) {
-	if util.IsAcdApp(appDetail.DeploymentAppType) {
-		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
-		query := &application2.ResourcesQuery{
-			ApplicationName: &acdAppName,
-		}
-		ctx, cancel := context.WithCancel(r.Context())
-		if cn, ok := w.(http.CloseNotifier); ok {
-			go func(done <-chan struct{}, closed <-chan bool) {
-				select {
-				case <-done:
-				case <-closed:
-					cancel()
-				}
-			}(ctx.Done(), cn.CloseNotify())
-		}
-		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
-		if err != nil {
-			handler.Logger.Errorw("error in getting acd token", "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-			return
-		}
-		ctx = context.WithValue(ctx, "token", acdToken)
-		defer cancel()
-		start := time.Now()
-		resp, err := handler.acdServiceClient.ResourceTree(ctx, query)
-		elapsed := time.Since(start)
-		handler.Logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, appDetail.InstalledAppId, appDetail.EnvironmentId)
-		if err != nil {
-			handler.Logger.Errorw("service err, FetchAppDetailsForInstalledApp, fetching resource tree", "err", err, "installedAppId", appDetail.InstalledAppId, "envId", appDetail.EnvironmentId)
-			err = &util.ApiError{
-				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
-				UserMessage:     "app detail fetched, failed to get resource tree from acd",
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
 			}
-			appDetail.ResourceTree = map[string]interface{}{}
-			return
-		}
-		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
-		handler.Logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
-	} else if util.IsHelmApp(appDetail.DeploymentAppType) {
-		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
-		if err != nil {
-			handler.Logger.Errorw("error in fetching cluster detail", "err", err)
-		}
-		req := &client.AppDetailRequest{
-			ClusterConfig: config,
-			Namespace:     appDetail.Namespace,
-			ReleaseName:   fmt.Sprintf("%s", appDetail.AppName),
-		}
-		detail, err := handler.helmAppClient.GetAppDetail(context.Background(), req)
-		if err != nil {
-			handler.Logger.Errorw("error in fetching app detail", "err", err)
-		}
-		if detail != nil {
-			resourceTree := util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
-			resourceTree["status"] = detail.ApplicationStatus
-			appDetail.ResourceTree = resourceTree
-			handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
-		} else {
-			appDetail.ResourceTree = map[string]interface{}{}
-		}
+		}(ctx.Done(), cn.CloseNotify())
 	}
-	return
+	handler.installedAppService.FetchResourceTree(ctx, cancel, appDetail)
 }

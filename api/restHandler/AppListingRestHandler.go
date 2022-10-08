@@ -64,22 +64,21 @@ type AppListingRestHandler interface {
 }
 
 type AppListingRestHandlerImpl struct {
-	application             application.ServiceClient
-	appListingService       app.AppListingService
-	teamService             team.TeamService
-	enforcer                casbin.Enforcer
-	pipeline                pipeline.PipelineBuilder
-	logger                  *zap.SugaredLogger
-	enforcerUtil            rbac.EnforcerUtil
-	deploymentGroupService  deploymentGroup.DeploymentGroupService
-	userService             user.UserService
-	helmAppClient           client.HelmAppClient
-	clusterService          cluster.ClusterService
-	helmAppService          client.HelmAppService
-	argoUserService         argo.ArgoUserService
-	k8sApplicationService   k8s.K8sApplicationService
-	installedAppService     service1.InstalledAppService
-	installedAppRestHandler appStore.InstalledAppRestHandler
+	application            application.ServiceClient
+	appListingService      app.AppListingService
+	teamService            team.TeamService
+	enforcer               casbin.Enforcer
+	pipeline               pipeline.PipelineBuilder
+	logger                 *zap.SugaredLogger
+	enforcerUtil           rbac.EnforcerUtil
+	deploymentGroupService deploymentGroup.DeploymentGroupService
+	userService            user.UserService
+	helmAppClient          client.HelmAppClient
+	clusterService         cluster.ClusterService
+	helmAppService         client.HelmAppService
+	argoUserService        argo.ArgoUserService
+	k8sApplicationService  k8s.K8sApplicationService
+	installedAppService    service1.InstalledAppService
 }
 
 type AppStatus struct {
@@ -107,22 +106,21 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService, installedAppRestHandler appStore.InstalledAppRestHandler) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
-		application:             application,
-		appListingService:       appListingService,
-		logger:                  logger,
-		teamService:             teamService,
-		pipeline:                pipeline,
-		enforcer:                enforcer,
-		enforcerUtil:            enforcerUtil,
-		deploymentGroupService:  deploymentGroupService,
-		userService:             userService,
-		helmAppClient:           helmAppClient,
-		clusterService:          clusterService,
-		helmAppService:          helmAppService,
-		argoUserService:         argoUserService,
-		k8sApplicationService:   k8sApplicationService,
-		installedAppService:     installedAppService,
-		installedAppRestHandler: installedAppRestHandler,
+		application:            application,
+		appListingService:      appListingService,
+		logger:                 logger,
+		teamService:            teamService,
+		pipeline:               pipeline,
+		enforcer:               enforcer,
+		enforcerUtil:           enforcerUtil,
+		deploymentGroupService: deploymentGroupService,
+		userService:            userService,
+		helmAppClient:          helmAppClient,
+		clusterService:         clusterService,
+		helmAppService:         helmAppService,
+		argoUserService:        argoUserService,
+		k8sApplicationService:  k8sApplicationService,
+		installedAppService:    installedAppService,
 	}
 	return appListingHandler
 }
@@ -327,7 +325,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	appDetail = handler.fetchResourceTree(w, r, token, appId, envId, appDetail)
+	appDetail = handler.fetchResourceTree(w, r, appId, envId, appDetail)
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
@@ -577,7 +575,19 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	}
 	http.Redirect(w, r, link, http.StatusOK)
 }
-
+func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
+	ctx, cancel := context.WithCancel(r.Context())
+	if cn, ok := w.(http.CloseNotifier); ok {
+		go func(done <-chan struct{}, closed <-chan bool) {
+			select {
+			case <-done:
+			case <-closed:
+				cancel()
+			}
+		}(ctx.Done(), cn.CloseNotify())
+	}
+	return handler.installedAppService.FetchResourceTree(ctx, cancel, &appDetail)
+}
 func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
 	vars := r.URL.Query()
 	appIdParam := vars.Get("appId")
@@ -612,9 +622,9 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		return
 	}
 	if isHelmApp {
-		handler.installedAppRestHandler.FetchResourceTreeHelper(w, r, &appDetail)
+		handler.fetchResourceTreeFromInstallAppService(w, r, appDetail)
 	} else {
-		appDetail = handler.fetchResourceTree(w, r, "", appId, envId, appDetail)
+		appDetail = handler.fetchResourceTree(w, r, appId, envId, appDetail)
 	}
 
 	resourceTree := appDetail.ResourceTree
@@ -657,7 +667,7 @@ func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppI
 	return appDetail, nil
 }
 
-func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, token string, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
+func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsAcdApp(appDetail.DeploymentAppType) {
 		//RBAC enforcer Ends
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
