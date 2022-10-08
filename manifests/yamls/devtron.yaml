@@ -90,7 +90,7 @@ data:
   ENFORCER_CACHE: "true"
   ENFORCER_CACHE_EXPIRATION_IN_SEC: "345600"
   ENFORCER_MAX_BATCH_SIZE: "1"
-  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:57e17953-373-10147"
+  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:07ac8fd7-132-10782"
   DEVTRON_SECRET_NAME: "devtron-secret"
   
 
@@ -159,6 +159,13 @@ spec:
       containers:
         - name: devtron
           image: "quay.io/devtron/devtron:299b90b9-326-10742"
+          resources:
+            limits:
+              cpu: 50m
+              memory: 100Mi
+            requests:
+              cpu: 50m
+              memory: 100Mi
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:

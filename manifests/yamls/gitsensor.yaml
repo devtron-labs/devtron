@@ -55,7 +55,14 @@ spec:
       terminationGracePeriodSeconds: 10
       containers:
         - name: git-sensor
-          image: "quay.io/devtron/git-sensor:56168e03-200-10139"
+          image: "quay.io/devtron/git-sensor:0360b73a-198-10935"
+          resources:
+            limits:
+              cpu: 100m
+              memory: 200Mi
+            requests:
+              cpu: 100m
+              memory: 200Mi
           ports:
             - containerPort: 8080
               name: sensor

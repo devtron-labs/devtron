@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: postgresql-migrate-devtron
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:cb494756-390-10883
         env:
         - name: GIT_BRANCH
           value: main
@@ -43,6 +43,13 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        resources:
+          requests:
+            memory: "250Mi"
+            cpu: "100m"
+          limits:
+            memory: "250Mi"
+            cpu: "100m"
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -59,9 +66,16 @@ spec:
       - name: devtron-rollout
         image: "quay.io/devtron/kubectl:latest"
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+        resources:
+          requests:
+            memory: "50Mi"
+            cpu: "25m"
+          limits:
+            memory: "50Mi"
+            cpu: "25m"
       initContainers:
       - name: postgresql-migrate-casbin
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:cb494756-390-10883
         env:
         - name: SCRIPT_LOCATION
           value: scripts/casbin/
@@ -88,8 +102,11 @@ spec:
               name: postgresql-migrator
         resources:
           requests:
-            cpu: 0.5
-            memory: 500Mi
+            memory: "250Mi"
+            cpu: "100m"
+          limits:
+            memory: "250Mi"
+            cpu: "100m"
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -103,7 +120,7 @@ spec:
     spec:
       containers:
       - name: postgresql-migrate-gitsensor
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:cb494756-390-10883
         env:
         - name: SCRIPT_LOCATION
           value: scripts/sql/
@@ -128,6 +145,13 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        resources:
+          requests:
+            memory: "50Mi"
+            cpu: "25m"
+          limits:
+            memory: "50Mi"
+            cpu: "25m"
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -141,7 +165,7 @@ spec:
     spec:
       containers:
       - name: postgresql-migrate-lens
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:cb494756-390-10883
         env:
         - name: SCRIPT_LOCATION
           value: scripts/sql/
@@ -166,6 +190,13 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        resources:
+          requests:
+            memory: "50Mi"
+            cpu: "25m"
+          limits:
+            memory: "50Mi"
+            cpu: "25m"
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -199,6 +230,13 @@ spec:
         volumeMounts:
           - name: custom-init-scripts
             mountPath: /docker-entrypoint-initdb.d/
+        resources:
+          limits:
+            cpu: 10m
+            memory: 20Mi
+          requests:
+            cpu: 10m
+            memory: 20Mi
       volumes:
         - name: custom-init-scripts
           configMap:
@@ -219,7 +257,7 @@ spec:
         spec:
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:57e17953-373-10147
+            image: quay.io/devtron/chart-sync:07ac8fd7-132-10782
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd
@@ -230,5 +268,12 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
+            resources:
+              limits:
+                cpu: 50m
+                memory: 200Mi
+              requests:
+                cpu: 50m
+                memory: 200Mi
           restartPolicy: Never
       backoffLimit: 4

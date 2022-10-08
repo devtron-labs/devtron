@@ -161,6 +161,13 @@ spec:
       containers:
       - name: kubewatch
         image: "quay.io/devtron/kubewatch:030ff714-370-10205"
+        resources:
+          limits:
+            cpu: 25m
+            memory: 50Mi
+          requests:
+            cpu: 25m
+            memory: 50Mi
         env:
         - name: devtroncd_NAMESPACE
           value: "devtron-ci"

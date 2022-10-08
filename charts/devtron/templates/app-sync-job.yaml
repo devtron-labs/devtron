@@ -15,9 +15,16 @@ spec:
           - name: migration-wait
             image: "quay.io/devtron/kubectl:latest"
             command: ['sh', '-c', 'while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-devtron -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done']
+            resources:
+              limits:
+                cpu: 25m
+                memory: 50Mi
+              requests:
+                cpu: 25m
+                memory: 50Mi
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:57e17953-373-10147
+            image: quay.io/devtron/chart-sync:07ac8fd7-132-10782
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd
@@ -28,6 +35,13 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
+            resources:
+              limits:
+                cpu: 50m
+                memory: 200Mi
+              requests:
+                cpu: 50m
+                memory: 200Mi
           restartPolicy: OnFailure
       backoffLimit: 4
 ---
@@ -50,7 +64,7 @@ spec:
         spec:
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:57e17953-373-10147
+            image: quay.io/devtron/chart-sync:07ac8fd7-132-10782
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd
@@ -61,5 +75,12 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
+            resources:
+              limits:
+                cpu: 50m
+                memory: 200Mi
+              requests:
+                cpu: 50m
+                memory: 200Mi
           restartPolicy: Never
       backoffLimit: 4

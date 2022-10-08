@@ -138,6 +138,13 @@ spec:
           - name: apply-helm-labels
             mountPath: /apply-labels.sh
             subPath: apply-labels.sh
+        resources:
+          limits:
+            cpu: 50m
+            memory: 50Mi
+          requests:
+            cpu: 50m
+            memory: 50Mi
       volumes:
         - name: apply-helm-labels
           configMap:

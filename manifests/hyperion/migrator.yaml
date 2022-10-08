@@ -8,7 +8,7 @@ spec:
     spec:
       containers:
       - name: postgresql-migrate-devtron
-        image: quay.io/devtron/migrator:6687f572-133-2208
+        image: quay.io/devtron/migrator:cb494756-390-10883
         env:
         - name: GIT_BRANCH
           value: main
@@ -29,10 +29,17 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: b1b935700ef3dbb3222bdbc1c6bf286d45a4566d
+          value: 299b90b9322f40d84ebac23a9b43d0bbe23c56ca
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        resources:
+          requests:
+            memory: "250Mi"
+            cpu: "100m"
+          limits:
+            memory: "250Mi"
+            cpu: "100m"
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -49,9 +56,16 @@ spec:
       - name: devtron-rollout
         image: quay.io/bitnami/kubectl:latest
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+        resources:
+          requests:
+            memory: "50Mi"
+            cpu: "25m"
+          limits:
+            memory: "50Mi"
+            cpu: "25m"
       initContainers:
       - name: postgresql-migrate-casbin
-        image: quay.io/devtron/migrator:6687f572-133-2208
+        image: quay.io/devtron/migrator:cb494756-390-10883
         env:
         - name: SCRIPT_LOCATION
           value: scripts/casbin/
@@ -70,7 +84,7 @@ spec:
         - name: MIGRATE_TO_VERSION
           value: "0"
         - name: GIT_HASH
-          value: b1b935700ef3dbb3222bdbc1c6bf286d45a4566d
+          value: 299b90b9322f40d84ebac23a9b43d0bbe23c56ca
         - name: GIT_BRANCH
           value: main
         envFrom:
@@ -78,8 +92,11 @@ spec:
               name: postgresql-migrator
         resources:
           requests:
-            cpu: 0.5
-            memory: 500Mi
+            memory: "250Mi"
+            cpu: "100m"
+          limits:
+            memory: "250Mi"
+            cpu: "100m"
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500

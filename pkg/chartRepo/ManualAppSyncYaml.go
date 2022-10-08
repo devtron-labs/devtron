@@ -48,7 +48,17 @@ func manualAppSyncJobByteArr(dockerImage string) []byte {
                 "name": "PG_PASSWORD",
                 "value": "{{.DbConfig.Password}}"
               }
-            ]
+            ],
+			"resources": {
+			  "limits" : {
+				"cpu" : "50m",
+   				"memory": "200Mi"
+			  },
+			  "requests" : {
+				"cpu" : "50m",
+				"memory": "200Mi"
+			  }
+			}
           }
         ],
         "restartPolicy": "OnFailure"
