@@ -98,7 +98,7 @@ func (impl GitHostConfigImpl) GetById(id int) (*GitHostRequest, error) {
 
 	var webhookUrlPrepend string
 	if orchestratorHost == nil || len(orchestratorHost.Value) == 0 {
-		webhookUrlPrepend = "${HOST_URL}"
+		webhookUrlPrepend = "{HOST_URL_PLACEHOLDER}"
 	} else {
 		webhookUrlPrepend = orchestratorHost.Value
 	}
