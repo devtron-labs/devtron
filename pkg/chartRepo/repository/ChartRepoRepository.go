@@ -337,6 +337,7 @@ type ChartRefRepository interface {
 	GetDefault() (*ChartRef, error)
 	FindById(id int) (*ChartRef, error)
 	GetAll() ([]*ChartRef, error)
+	FindByVersionAndName(name, version string) (*ChartRef, error)
 	CheckIfDataExists(name string, version string) (bool, error)
 	FetchChart(name string) ([]*ChartRef, error)
 	FetchChartInfoByUploadFlag(userUploaded bool) ([]*ChartRef, error)
@@ -368,6 +369,22 @@ func (impl ChartRefRepositoryImpl) FindById(id int) (*ChartRef, error) {
 	err := impl.dbConnection.Model(repo).
 		Where("id = ?", id).
 		Where("active = ?", true).Select()
+	return repo, err
+}
+func (impl ChartRefRepositoryImpl) FindByVersionAndName(name, version string) (*ChartRef, error) {
+	repo := &ChartRef{}
+	var err error
+	if len(name) > 0 {
+		err = impl.dbConnection.Model(repo).
+			Where("name = ?", name).
+			Where("version= ?", version).
+			Where("active = ?", true).Select()
+	} else {
+		err = impl.dbConnection.Model(repo).
+			Where("name is NULL", name).
+			Where("version= ?", version).
+			Where("active = ?", true).Select()
+	}
 	return repo, err
 }
 

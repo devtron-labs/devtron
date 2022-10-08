@@ -29,6 +29,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
 	"net/url"
@@ -86,7 +87,7 @@ type PipelineBuilder interface {
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
 	GetArtifactsByCDPipeline(cdPipelineId int, stage bean2.WorkflowType) (bean.CiArtifactResponse, error)
-	FetchArtifactForRollback(cdPipelineId int) (bean.CiArtifactResponse, error)
+	FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error)
 	FindAppsByTeamId(teamId int) ([]*AppBean, error)
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 	FindAppsByTeamName(teamName string) ([]AppBean, error)
@@ -147,6 +148,7 @@ type PipelineBuilderImpl struct {
 	helmAppService                   client.HelmAppService
 	deploymentGroupRepository        repository.DeploymentGroupRepository
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
+	userService                      user.UserService
 	ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
 }
 
@@ -185,6 +187,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	helmAppService client.HelmAppService,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
+	userService user.UserService,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
@@ -226,6 +229,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		helmAppService:                   helmAppService,
 		deploymentGroupRepository:        deploymentGroupRepository,
 		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
+		userService:                      userService,
 		ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
 	}
 }
@@ -1960,37 +1964,58 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, ciAr
 	return ciArtifacts, nil
 }
 
-func (impl PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId int) (bean.CiArtifactResponse, error) {
-	var ciArtifacts []bean.CiArtifactBean
-	var ciArtifactsResponse bean.CiArtifactResponse
-	artifacts, err := impl.ciArtifactRepository.FetchArtifactForRollback(cdPipelineId)
-	if err != nil {
-		return ciArtifactsResponse, err
-	}
+func (impl PipelineBuilderImpl) FetchArtifactForRollback(cdPipelineId, offset, limit int) (bean.CiArtifactResponse, error) {
+	var deployedCiArtifacts []bean.CiArtifactBean
+	var deployedCiArtifactsResponse bean.CiArtifactResponse
 
-	for _, artifact := range artifacts {
-		mInfo, err := parseMaterialInfo([]byte(artifact.MaterialInfo), artifact.DataSource)
+	cdWfrs, err := impl.cdWorkflowRepository.FetchArtifactsByCdPipelineId(cdPipelineId, bean2.CD_WORKFLOW_TYPE_DEPLOY, offset, limit)
+	if err != nil {
+		impl.logger.Errorw("error in getting artifacts for rollback by cdPipelineId", "err", err, "cdPipelineId", cdPipelineId)
+		return deployedCiArtifactsResponse, err
+	}
+	var ids []int32
+	for _, item := range cdWfrs {
+		ids = append(ids, item.TriggeredBy)
+	}
+	userEmails := make(map[int32]string)
+	users, err := impl.userService.GetByIds(ids)
+	if err != nil {
+		impl.logger.Errorw("unable to fetch users by ids", "err", err, "ids", ids)
+	}
+	for _, item := range users {
+		userEmails[item.Id] = item.EmailId
+	}
+	for _, cdWfr := range cdWfrs {
+		ciArtifact := &repository.CiArtifact{}
+		if cdWfr.CdWorkflow != nil && cdWfr.CdWorkflow.CiArtifact != nil {
+			ciArtifact = cdWfr.CdWorkflow.CiArtifact
+		}
+		if ciArtifact == nil {
+			continue
+		}
+		mInfo, err := parseMaterialInfo([]byte(ciArtifact.MaterialInfo), ciArtifact.DataSource)
 		if err != nil {
 			mInfo = []byte("[]")
-			impl.logger.Errorw("Error", "err", err)
+			impl.logger.Errorw("error in parsing ciArtifact material info", "err", err, "ciArtifact", ciArtifact)
 		}
-		ciArtifacts = append(ciArtifacts, bean.CiArtifactBean{
-			Id:           artifact.Id,
-			Image:        artifact.Image,
+		userEmail := userEmails[cdWfr.TriggeredBy]
+		deployedCiArtifacts = append(deployedCiArtifacts, bean.CiArtifactBean{
+			Id:           ciArtifact.Id,
+			Image:        ciArtifact.Image,
 			MaterialInfo: mInfo,
-			//ImageDigest: artifact.ImageDigest,
-			//DataSource:   artifact.DataSource,
-			DeployedTime: formatDate(artifact.CreatedOn, bean.LayoutRFC3339),
+			DeployedTime: formatDate(cdWfr.StartedOn, bean.LayoutRFC3339),
+			WfrId:        cdWfr.Id,
+			DeployedBy:   userEmail,
 		})
 	}
 
-	ciArtifactsResponse.CdPipelineId = cdPipelineId
-	if ciArtifacts == nil {
-		ciArtifacts = []bean.CiArtifactBean{}
+	deployedCiArtifactsResponse.CdPipelineId = cdPipelineId
+	if deployedCiArtifacts == nil {
+		deployedCiArtifacts = []bean.CiArtifactBean{}
 	}
-	ciArtifactsResponse.CiArtifacts = ciArtifacts
+	deployedCiArtifactsResponse.CiArtifacts = deployedCiArtifacts
 
-	return ciArtifactsResponse, nil
+	return deployedCiArtifactsResponse, nil
 }
 
 func parseMaterialInfo(materialInfo json.RawMessage, source string) (json.RawMessage, error) {
