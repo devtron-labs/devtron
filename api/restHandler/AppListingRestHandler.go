@@ -630,6 +630,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	resourceTree := appDetail.ResourceTree
 	_, ok := resourceTree["nodes"]
 	if !ok {
+		err = fmt.Errorf("no nodes found for this resource tree appName:%s , envName:%s", appDetail.AppName, appDetail.EnvironmentName)
 		handler.logger.Errorw("no nodes found for this resource tree", "appName", appDetail.AppName, "envName", appDetail.EnvironmentName)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
@@ -653,18 +654,17 @@ func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppI
 		appId, err := strconv.Atoi(appIdParam)
 		if err != nil {
 			handler.logger.Errorw("error in parsing appId from request body", "appId", appIdParam, "err", err)
-			return appDetail, nil
+			return appDetail, err
 		}
-		appDetail, err = handler.appListingService.FetchAppDetails(appId, envId)
+		return handler.appListingService.FetchAppDetails(appId, envId)
 	}
 
 	appId, err := strconv.Atoi(installedAppIdParam)
 	if err != nil {
 		handler.logger.Errorw("error in parsing installedAppId from request body", "installedAppId", installedAppIdParam, "err", err)
-		return appDetail, nil
+		return appDetail, err
 	}
-	appDetail, err = handler.installedAppService.FindAppDetailsForAppstoreApplication(appId, envId)
-	return appDetail, nil
+	return handler.installedAppService.FindAppDetailsForAppstoreApplication(appId, envId)
 }
 
 func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
