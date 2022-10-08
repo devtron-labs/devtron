@@ -1,4 +1,5 @@
 {{- with .Values.components.argocdDexServer }}
+{{- $argocdEnabled :=  index $.Values "argo-cd" }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -6,8 +7,14 @@ metadata:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
   annotations:
     "helm.sh/resource-policy": keep
+    "meta.helm.sh/release-name": {{ $.Release.Name }}
+    "meta.helm.sh/release-namespace": {{ $.Release.Namespace }}
+    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
+    "helm.sh/hook": pre-install
+    {{- end }}
   name: argocd-dex-server
 spec:
   ports:
@@ -33,8 +40,14 @@ metadata:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
   annotations:
     "helm.sh/resource-policy": keep
+    "meta.helm.sh/release-name": {{ $.Release.Name }}
+    "meta.helm.sh/release-namespace": {{ $.Release.Namespace }}
+    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
+    "helm.sh/hook": pre-install
+    {{- end }}
   name: argocd-dex-server
 spec:
   selector:
@@ -93,8 +106,14 @@ metadata:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
   annotations:
     "helm.sh/resource-policy": keep
+    "meta.helm.sh/release-name": {{ $.Release.Name }}
+    "meta.helm.sh/release-namespace": {{ $.Release.Namespace }}
+    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
+    "helm.sh/hook": pre-install
+    {{- end }}
   name: argocd-dex-server
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -104,8 +123,14 @@ metadata:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
   annotations:
     "helm.sh/resource-policy": keep
+    "meta.helm.sh/release-name": {{ $.Release.Name }}
+    "meta.helm.sh/release-namespace": {{ $.Release.Namespace }}
+    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
+    "helm.sh/hook": pre-install
+    {{- end }}
   name: argocd-dex-server
 rules:
 - apiGroups:
@@ -128,8 +153,14 @@ metadata:
     app.kubernetes.io/component: dex-server
     app.kubernetes.io/name: argocd-dex-server
     app.kubernetes.io/part-of: argocd
+    app.kubernetes.io/managed-by: {{ $.Release.Service }}
   annotations:
     "helm.sh/resource-policy": keep
+    "meta.helm.sh/release-name": {{ $.Release.Name }}
+    "meta.helm.sh/release-namespace": {{ $.Release.Namespace }}
+    {{- if and ($argocdEnabled.enabled) ($.Release.IsInstall) }}
+    "helm.sh/hook": pre-install
+    {{- end }}
   name: argocd-dex-server
 roleRef:
   apiGroup: rbac.authorization.k8s.io
