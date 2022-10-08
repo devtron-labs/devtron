@@ -415,8 +415,9 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute) (*appStoreBean.InstallAppVersionDTO, error) {
-	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
-	defer cancel()
+	/*TimeoutLazy := 60 * time.Second
+	ctx, cancel := context.WithTimeout(ctx, TimeoutLazy)
+	defer cancel()*/
 	//registerInArgo
 	deadline, _ := ctx.Deadline()
 

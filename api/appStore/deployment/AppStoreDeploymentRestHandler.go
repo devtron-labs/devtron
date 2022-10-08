@@ -384,7 +384,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	//rbac block ends here
 
 	request.UserId = userId
-	ctx, cancel := context.WithCancel(r.Context())
+	ctx, cancel := context.WithCancel(context.Background())
 	if cn, ok := w.(http.CloseNotifier); ok {
 		go func(done <-chan struct{}, closed <-chan bool) {
 			select {
@@ -395,7 +395,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		}(ctx.Done(), cn.CloseNotify())
 	}
 	if util2.IsBaseStack() || util2.IsHelmApp(request.AppOfferingMode) {
-		ctx = context.WithValue(r.Context(), "token", token)
+		ctx = context.WithValue(context.Background(), "token", token)
 	} else {
 		acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
