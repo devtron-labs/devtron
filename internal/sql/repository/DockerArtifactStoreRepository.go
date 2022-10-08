@@ -33,7 +33,7 @@ type RegistryType string
 
 type DockerArtifactStore struct {
 	tableName          struct{}     `sql:"docker_artifact_store" json:",omitempty"  pg:",discard_unknown_columns"`
-	Id                 string       `sql:"id,pk" json:"id,,omitempty"`
+	Id                 string       `sql:"id,pk" json:"id,omitempty"`
 	PluginId           string       `sql:"plugin_id,notnull" json:"pluginId,omitempty"`
 	RegistryURL        string       `sql:"registry_url" json:"registryUrl,omitempty"`
 	RegistryType       RegistryType `sql:"registry_type,notnull" json:"registryType,omitempty"`
