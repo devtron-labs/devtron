@@ -446,10 +446,35 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = "Kubectl apply synced successfully."
 			//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-			_, err = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
+			currrentTimeline, err := impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 				return err
+			}
+			impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "data", string(b), "status", timeline.Status)
+
+			if currrentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
+				haveNewTimeline := false
+				timeline.Id = 0
+				if newApp.Status.Health.Status == health.HealthStatusHealthy {
+					impl.logger.Infow("updating pipeline status timeline for healthy app", "newApp", newApp, "APP_TO_UPDATE", newApp.Name)
+					haveNewTimeline = true
+					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
+					timeline.StatusDetail = "App status is Healthy."
+				} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
+					haveNewTimeline = true
+					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
+					timeline.StatusDetail = "App status is Degraded."
+				}
+				if haveNewTimeline {
+					//not checking if this status is already present or not because already checked for terminal status existence earlier
+					err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+					if err != nil {
+						impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+						return err
+					}
+					impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "data", string(b), "status", timeline.Status)
+				}
 			}
 		}
 	} else {
