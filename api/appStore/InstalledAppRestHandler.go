@@ -54,7 +54,7 @@ type InstalledAppRestHandler interface {
 	CheckAppExists(w http.ResponseWriter, r *http.Request)
 	DefaultComponentInstallation(w http.ResponseWriter, r *http.Request)
 	FetchAppDetailsForInstalledApp(w http.ResponseWriter, r *http.Request)
-	FetchResourceTreeHelper(w http.ResponseWriter, r *http.Request, token string, appDetail *bean2.AppDetailContainer)
+	FetchResourceTreeHelper(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer)
 }
 
 type InstalledAppRestHandlerImpl struct {
@@ -345,7 +345,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	//rback block ends here
 
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 {
-		handler.fetchResourceTree(w, r, token, &appDetail)
+		handler.fetchResourceTree(w, r, &appDetail)
 	} else {
 		appDetail.ResourceTree = map[string]interface{}{}
 		handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
@@ -353,11 +353,11 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
-func (handler *InstalledAppRestHandlerImpl) FetchResourceTreeHelper(w http.ResponseWriter, r *http.Request, token string, appDetail *bean2.AppDetailContainer) {
-	handler.fetchResourceTree(w, r, token, appDetail)
+func (handler *InstalledAppRestHandlerImpl) FetchResourceTreeHelper(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) {
+	handler.fetchResourceTree(w, r, appDetail)
 }
 
-func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, token string, appDetail *bean2.AppDetailContainer) {
+func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) {
 	if util.IsAcdApp(appDetail.DeploymentAppType) {
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
 		query := &application2.ResourcesQuery{

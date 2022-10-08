@@ -60,7 +60,7 @@ type AppListingRestHandler interface {
 
 	FetchOtherEnvironment(w http.ResponseWriter, r *http.Request)
 	RedirectToLinkouts(w http.ResponseWriter, r *http.Request)
-	GetManifestUrlsByBatch(w http.ResponseWriter, r *http.Request)
+	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 }
 
 type AppListingRestHandlerImpl struct {
@@ -578,46 +578,40 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	http.Redirect(w, r, link, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) GetManifestUrlsByBatch(w http.ResponseWriter, r *http.Request) {
+func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
 	vars := r.URL.Query()
-	appId_ := vars.Get("appId")
-	installedAppId_ := vars.Get("installedAppId")
-	envId_ := vars.Get("envId")
+	appIdParam := vars.Get("appId")
+	installedAppIdParam := vars.Get("installedAppId")
+	envIdParam := vars.Get("envId")
 
-	batchRequest := BatchRequest{
-		AppId:          appId_,
-		InstalledAppId: installedAppId_,
-		EnvId:          envId_,
-	}
-
-	if (batchRequest.AppId == "" && batchRequest.InstalledAppId == "") || (batchRequest.AppId != "" && batchRequest.InstalledAppId != "") {
-		handler.logger.Error("error in decoding batch request body")
-		common.WriteJsonResp(w, fmt.Errorf("only one of the appId or installedAppId should be valid"), nil, http.StatusBadRequest)
+	if (appIdParam == "" && installedAppIdParam == "") || (appIdParam != "" && installedAppIdParam != "") {
+		handler.logger.Error("error in decoding batch request body", "appId", appIdParam, "installedAppId", installedAppIdParam)
+		common.WriteJsonResp(w, fmt.Errorf("only one of the appId or installedAppId should be valid appId: %s installedAppId: %s", appIdParam, installedAppIdParam), nil, http.StatusBadRequest)
 		return
 	}
 	var appDetail bean.AppDetailContainer
 	var appId, envId int
-	envId, err := strconv.Atoi(batchRequest.EnvId)
+	envId, err := strconv.Atoi(envIdParam)
 	if err != nil {
-		handler.logger.Errorw("error in env-id from request body", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		handler.logger.Errorw("error in parsing envId from request body", "envId", envIdParam, "err", err)
+		common.WriteJsonResp(w, fmt.Errorf("error in parsing envId : %s must be integer", envIdParam), nil, http.StatusBadRequest)
 		return
 	}
 
-	if batchRequest.AppId != "" {
-		appId, err = strconv.Atoi(batchRequest.AppId)
+	if appIdParam != "" {
+		appId, err = strconv.Atoi(appIdParam)
 		if err != nil {
-			handler.logger.Errorw("error in app-id from request body", "err", err)
+			handler.logger.Errorw("error in parsing appId from request body", "appId", appIdParam, "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 		appDetail, err = handler.appListingService.FetchAppDetails(appId, envId)
 	}
 
-	if batchRequest.InstalledAppId != "" {
-		appId, err = strconv.Atoi(batchRequest.InstalledAppId)
+	if installedAppIdParam != "" {
+		appId, err = strconv.Atoi(installedAppIdParam)
 		if err != nil {
-			handler.logger.Errorw("error in app-id from request body", "err", err)
+			handler.logger.Errorw("error in parsing installedAppId from request body", "installedAppId", installedAppIdParam, "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
@@ -625,7 +619,7 @@ func (handler AppListingRestHandlerImpl) GetManifestUrlsByBatch(w http.ResponseW
 	}
 
 	if err != nil {
-		handler.logger.Errorw("error occurred while getting app details", "appId", batchRequest.AppId)
+		handler.logger.Errorw("error occurred while getting app details", "appId", appIdParam, "installedAppId", installedAppIdParam, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -633,12 +627,12 @@ func (handler AppListingRestHandlerImpl) GetManifestUrlsByBatch(w http.ResponseW
 	isAcdApp := len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsAcdApp(appDetail.DeploymentAppType)
 	isHelmApp := len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsHelmApp(appDetail.DeploymentAppType)
 	if !isAcdApp && !isHelmApp {
-		handler.logger.Errorw("Invalid app type", "appId", batchRequest.AppId)
+		handler.logger.Errorw("Invalid app type", "appId", appIdParam, "envId", envId, "installedAppId", installedAppIdParam)
 		common.WriteJsonResp(w, fmt.Errorf("app is neither helm app or devtron app"), nil, http.StatusBadRequest)
 		return
 	}
 	if isHelmApp {
-		handler.installedAppRestHandler.FetchResourceTreeHelper(w, r, "", &appDetail)
+		handler.installedAppRestHandler.FetchResourceTreeHelper(w, r, &appDetail)
 	} else {
 		appDetail = handler.fetchResourceTree(w, r, "", appId, envId, appDetail)
 	}
@@ -651,15 +645,15 @@ func (handler AppListingRestHandlerImpl) GetManifestUrlsByBatch(w http.ResponseW
 		return
 	}
 	//valid batch requests, only valid requests will be sent for batch processing
-	validRequests := make([]k8s.ResourceRequestAndGroupVersionKind, 0)
+	validRequests := make([]k8s.ResourceRequestBean, 0)
 	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(resourceTree, validRequests, appDetail, "")
 	if len(validRequests) == 0 {
-		handler.logger.Error("neither service nor ingress found")
+		handler.logger.Error("neither service nor ingress found for", "appId", appIdParam, "envId", envIdParam, "installedAppId", installedAppIdParam)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
 		return
 	}
-	resp := handler.k8sApplicationService.GetManifestsInBatch(validRequests, k8s.BATCH_SIZE)
-	result := handler.k8sApplicationService.GetUrlsByBatch(resp, k8s.BATCH_SIZE)
+	resp := handler.k8sApplicationService.GetHostUrlsByBatch(validRequests)
+	result := handler.k8sApplicationService.GetUrlsByBatch(resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
