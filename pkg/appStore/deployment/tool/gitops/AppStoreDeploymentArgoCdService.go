@@ -415,10 +415,15 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 }
 
 func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute) (*appStoreBean.InstallAppVersionDTO, error) {
-	/*ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
-	defer cancel()*/
+	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
+	defer cancel()
 	//registerInArgo
 	deadline, _ := ctx.Deadline()
+
+	ctxErr := ctx.Err()
+	if ctxErr != nil {
+		impl.Logger.Errorw("acd context cancel test - context error", "err", ctxErr)
+	}
 	impl.Logger.Infow("acd context cancel test - register in argo start", "ctx", deadline, "time", time.Now().String())
 	err := impl.appStoreDeploymentFullModeService.RegisterInArgo(chartGitAttr, ctx)
 	if err != nil {
@@ -427,7 +432,10 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 	}
 	deadline, _ = ctx.Deadline()
 	impl.Logger.Infow("acd context cancel test - register in argo end", "ctx", deadline, "time", time.Now().String())
-
+	ctxErr = ctx.Err()
+	if ctxErr != nil {
+		impl.Logger.Errorw("acd context cancel test - context error", "err", ctxErr)
+	}
 	// update acd app
 	patchReq := v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: v1alpha1.ApplicationSource{Path: chartGitAttr.ChartLocation, RepoURL: chartGitAttr.RepoUrl, TargetRevision: "master"}}}
 	reqbyte, err := json.Marshal(patchReq)
@@ -439,6 +447,10 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) patchAcdApp(ctx context.Context,
 	_, err = impl.acdClient.Patch(ctx, &application.ApplicationPatchRequest{Patch: &reqString, Name: &installAppVersionRequest.ACDAppName, PatchType: &patchType})
 	if err != nil {
 		impl.Logger.Errorw("error in creating argo app ", "name", installAppVersionRequest.ACDAppName, "patch", string(reqbyte), "err", err)
+		ctxErr := ctx.Err()
+		if ctxErr != nil {
+			impl.Logger.Errorw("acd context cancel test - context error", "err", ctxErr)
+		}
 		return nil, err
 	}
 	deadline, _ = ctx.Deadline()

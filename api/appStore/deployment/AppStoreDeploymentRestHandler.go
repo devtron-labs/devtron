@@ -403,7 +403,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		ctx = context.WithValue(r.Context(), "token", acdToken)
+		ctx = context.WithValue(context.Background(), "token", acdToken)
 	}
 	res, err := handler.appStoreDeploymentService.UpdateInstalledApp(ctx, &request)
 	if err != nil {
