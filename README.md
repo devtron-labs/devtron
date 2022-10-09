@@ -1,8 +1,8 @@
 <p align="center">
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="./assets/devtron-logo-light.png">
-  <source media="(prefers-color-scheme: light)" srcset="./assets/devtron-logo-dark-light.png">
-  <img alt="Shows an illustrated sun in light mode and a moon with stars in dark mode." src="./assets/devtron-logo-dark-light.png">
+  <source media="(prefers-color-scheme: dark)"  srcset="./assets/devtron-logo-light.png">
+  <source media="(prefers-color-scheme: light)"  srcset="./assets/devtron-logo-dark-light.png">
+  <img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
 </picture>
 <h1 align= "center">Tool integration platform for Kubernetes</h1>
 </p>
