@@ -723,6 +723,11 @@ func (impl NotificationRestHandlerImpl) RecipientListingSuggestion(w http.Respon
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), "Forbidden", http.StatusForbidden)
+		return
+	}
 	vars := mux.Vars(r)
 	value := vars["value"]
 	//var teams []int
