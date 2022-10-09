@@ -153,8 +153,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
-		router.NewHelmRouter,
-		wire.Bind(new(router.HelmRouter), new(*router.HelmRouterImpl)),
+		router.NewPipelineTriggerRouter,
+		wire.Bind(new(router.PipelineTriggerRouter), new(*router.PipelineTriggerRouterImpl)),
 
 		//---- pprof start ----
 		restHandler.NewPProfRestHandler,
@@ -739,6 +739,9 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
 		pipelineConfig.NewPipelineStatusTimelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineStatusTimelineRepository), new(*pipelineConfig.PipelineStatusTimelineRepositoryImpl)),
+
+		wire.Bind(new(pipeline.DeploymentConfigService), new(*pipeline.DeploymentConfigServiceImpl)),
+		pipeline.NewDeploymentConfigServiceImpl,
 
 		pipelineConfig.NewCiTemplateOverrideRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiTemplateOverrideRepository), new(*pipelineConfig.CiTemplateOverrideRepositoryImpl)),
