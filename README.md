@@ -1,4 +1,4 @@
-<p align="center"><img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
+<p align="center">
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="./assets/devtron-logo-light.png">
   <source media="(prefers-color-scheme: light)" srcset="./assets/devtron-logo-dark-light.png">
