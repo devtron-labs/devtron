@@ -21,7 +21,7 @@ import (
 	"go.uber.org/zap"
 )
 
-//extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
+// extends ClusterServiceImpl and enhances method of ClusterService with full mode specific errors
 type ClusterServiceImplExtended struct {
 	environmentRepository  repository.EnvironmentRepository
 	grafanaClient          grafana.GrafanaClient
@@ -126,12 +126,18 @@ func (impl *ClusterServiceImplExtended) FindAll() ([]*ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	//validating config
+	err := impl.CheckIfConfigIsValid(bean)
+	if err != nil {
+		impl.logger.Errorw("error in cluster config validation failed", "err", err)
+		return nil, err
+	}
 	isGitOpsConfigured, err1 := impl.gitOpsRepository.IsGitOpsConfigured()
 	if err1 != nil {
 		return nil, err1
 	}
 
-	bean, err := impl.ClusterServiceImpl.Update(ctx, bean, userId)
+	bean, err = impl.ClusterServiceImpl.Update(ctx, bean, userId)
 	if err != nil {
 		return nil, err
 	}
@@ -299,6 +305,12 @@ func (impl *ClusterServiceImplExtended) CreateGrafanaDataSource(clusterBean *Clu
 }
 
 func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	//validating config
+	err := impl.CheckIfConfigIsValid(bean)
+	if err != nil {
+		impl.logger.Errorw("error in cluster config validation failed", "err", err)
+		return nil, err
+	}
 	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
 	if err != nil {
 		return nil, err

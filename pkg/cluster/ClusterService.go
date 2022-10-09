@@ -21,7 +21,10 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
+	"log"
 	"os"
 	"time"
 
@@ -34,6 +37,8 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
+
+const DEFAULT_CLUSTER = "default_cluster"
 
 type ClusterBean struct {
 	Id                      int                        `json:"id,omitempty" validate:"number"`
@@ -133,6 +138,12 @@ func (impl *ClusterServiceImpl) GetClusterConfig(cluster *ClusterBean) (*util.Cl
 }
 
 func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	//validating config
+	err := impl.CheckIfConfigIsValid(bean)
+	if err != nil {
+		impl.logger.Errorw("error in cluster config validation failed", "err", err)
+		return nil, err
+	}
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Error(err)
@@ -323,6 +334,12 @@ func (impl *ClusterServiceImpl) FindByIds(ids []int) ([]ClusterBean, error) {
 }
 
 func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, userId int32) (*ClusterBean, error) {
+	//validating config
+	err := impl.CheckIfConfigIsValid(bean)
+	if err != nil {
+		impl.logger.Errorw("error in cluster config validation failed", "err", err)
+		return nil, err
+	}
 	model, err := impl.clusterRepository.FindById(bean.Id)
 	if err != nil {
 		impl.logger.Error(err)
@@ -475,6 +492,37 @@ func (impl ClusterServiceImpl) DeleteFromDb(bean *ClusterBean, userId int32) err
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "id", bean.Id, "err", err)
 		return err
+	}
+	return nil
+}
+
+func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error {
+	configMap := cluster.Config
+	bearerToken := configMap["bearer_token"]
+	var restConfig *rest.Config
+	var err error
+	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
+		restConfig, err = rest.InClusterConfig()
+		if err != nil {
+			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
+			return err
+		}
+	} else {
+		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
+	}
+	k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+		return err
+	}
+	//using livez path as healthz path is deprecated
+	path := "/livez"
+	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
+	log.Println("received response for cluster livez status", "response", string(response), "err", err)
+	if err != nil {
+		return fmt.Errorf("Validation failed : %v", err)
+	} else if err == nil && string(response) != "ok" {
+		return fmt.Errorf("Validation failed with response : %s", string(response))
 	}
 	return nil
 }
