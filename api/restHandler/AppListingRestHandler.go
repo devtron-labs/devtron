@@ -615,7 +615,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		return
 	}
 	if isHelmApp {
-		handler.fetchResourceTreeFromInstallAppService(w, r, appDetail)
+		appDetail = handler.fetchResourceTreeFromInstallAppService(w, r, appDetail)
 	} else {
 		appDetail = handler.fetchResourceTree(w, r, appId, envId, appDetail)
 	}
