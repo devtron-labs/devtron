@@ -345,6 +345,51 @@ func TestCiTemplateService(t *testing.T) {
 		assert.Equal(t, mockedCiBuildConfigId, mockedTemplate.CiBuildConfigId)
 	})
 
+	t.Run("SaveTemplateAndBuildConfig", func(t *testing.T) {
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.True(t, err == nil, err)
+		mockedCiTemplateRepository := mocks.NewCiTemplateRepository(t)
+		mockedBuildConfigService := pipelineMocks.NewCiBuildConfigService(t)
+		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, mockedBuildConfigService, mockedCiTemplateRepository, nil)
+		mockedCiTemplateBean := &bean.CiTemplateBean{}
+		materialId := 3
+		mockedTemplateId := 7
+		mockedCiBuildConfigId := 6
+		mockedTemplate := &pipelineConfig.CiTemplate{Id: 0, GitMaterialId: materialId}
+		mockedCiTemplateBean.CiTemplate = mockedTemplate
+		dockerBuildOptions := map[string]string{}
+		dockerBuildOptions["volume"] = "abcd:defg"
+		mockedCiTemplateBean.CiBuildConfig = &bean.CiBuildConfigBean{
+			Id:                0,
+			GitMaterialId:     materialId,
+			CiBuildType:       bean.SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: "Dockerfile", TargetPlatform: "linux/amd64", DockerBuildOptions: dockerBuildOptions},
+		}
+		mockedUserId := int32(4)
+		mockedCiTemplateBean.UserId = mockedUserId
+		mockedBuildConfigService.On("Save", mock.AnythingOfType("int"), mock.AnythingOfType("int"),
+			mock.AnythingOfType("*bean.CiBuildConfigBean"), mock.AnythingOfType("int32")).
+			Return(
+				func(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean, userId int32) error {
+					assert.Equal(t, 0, overrideTemplateId)
+					assert.Equal(t, mockedTemplate.Id, templateId)
+					assert.Equal(t, mockedUserId, userId)
+					assert.Equal(t, mockedCiTemplateBean.CiBuildConfig, ciBuildConfig)
+					ciBuildConfig.Id = mockedCiBuildConfigId
+					return nil
+				},
+			)
+		mockedCiTemplateRepository.On("Save", mock.AnythingOfType("*pipelineConfig.CiTemplate")).
+			Return(func(template *pipelineConfig.CiTemplate) error {
+				assert.Equal(t, mockedCiBuildConfigId, template.CiBuildConfigId)
+				template.Id = mockedTemplateId
+				return nil
+			})
+		err = ciTemplateServiceImpl.Save(mockedCiTemplateBean)
+		assert.Nil(t, err)
+		assert.Equal(t, mockedTemplateId, mockedTemplate.Id)
+	})
+
 	t.Run("getCiTemplate", func(t *testing.T) {
 		t.SkipNow()
 		sugaredLogger, err := util.NewSugardLogger()

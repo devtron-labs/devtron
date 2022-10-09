@@ -43,6 +43,7 @@ func (impl CiTemplateServiceImpl) Save(ciTemplateBean *bean.CiTemplateBean) erro
 		impl.Logger.Errorw("error occurred while saving ci build config", "config", buildConfig, "err", err)
 	}
 	if ciTemplateOverride == nil {
+		ciTemplate.CiBuildConfigId = buildConfig.Id
 		err := impl.CiTemplateRepository.Save(ciTemplate)
 		if err != nil {
 			impl.Logger.Errorw("error in saving ci template in db ", "template", ciTemplate, "err", err)
@@ -51,6 +52,7 @@ func (impl CiTemplateServiceImpl) Save(ciTemplateBean *bean.CiTemplateBean) erro
 		}
 		ciTemplateId = ciTemplate.Id
 	} else {
+		ciTemplateOverride.CiBuildConfigId = buildConfig.Id
 		_, err := impl.CiTemplateOverrideRepository.Save(ciTemplateOverride)
 		if err != nil {
 			impl.Logger.Errorw("error in saving template override", "err", err, "templateOverrideConfig", ciTemplateOverride)
