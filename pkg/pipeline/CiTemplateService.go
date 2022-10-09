@@ -94,19 +94,10 @@ func (impl CiTemplateServiceImpl) FindTemplateOverrideByAppId(appId int) (ciTemp
 	}
 	var templateBeanOverrides []*bean.CiTemplateBean
 	for _, templateOverride := range templateOverrides {
-		ciBuildConfigBean, err := bean.ConvertDbBuildConfigToBean(templateOverride.CiBuildConfig)
+		ciBuildConfigBean, err := impl.extractBuildConfigBean(templateOverride)
 		if err != nil {
-			impl.Logger.Errorw("error occurred while converting dbBuildConfig to bean", "ciBuildConfig",
-				templateOverride.CiBuildConfig, "error", err)
-			return nil, err
+			return templateBeanOverrides, err
 		}
-		if ciBuildConfigBean == nil {
-			ciBuildConfigBean, err = bean.OverrideCiBuildConfig(templateOverride.DockerfilePath, "", "", "", "", nil)
-			if err != nil {
-				impl.Logger.Errorw("error occurred while parsing ci build config", "err", err)
-			}
-		}
-		ciBuildConfigBean.GitMaterialId = templateOverride.GitMaterialId
 		overrideBean := &bean.CiTemplateBean{
 			CiTemplateOverride: templateOverride,
 			CiBuildConfig:      ciBuildConfigBean,
@@ -116,17 +107,12 @@ func (impl CiTemplateServiceImpl) FindTemplateOverrideByAppId(appId int) (ciTemp
 	return templateBeanOverrides, nil
 }
 
-func (impl CiTemplateServiceImpl) FindTemplateOverrideByCiPipelineId(ciPipelineId int) (*bean.CiTemplateBean, error) {
-	templateOverride, err := impl.CiTemplateOverrideRepository.FindByCiPipelineId(ciPipelineId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.Logger.Errorw("error in getting ciTemplateOverrides by ciPipelineId", "err", err, "ciPipelineId", ciPipelineId)
-		return nil, err
-	}
-	ciBuildConfig := templateOverride.CiBuildConfig
-	ciBuildConfigBean, err := bean.ConvertDbBuildConfigToBean(ciBuildConfig)
+func (impl CiTemplateServiceImpl) extractBuildConfigBean(templateOverride *pipelineConfig.CiTemplateOverride) (*bean.CiBuildConfigBean, error) {
+	ciBuildConfigBean, err := bean.ConvertDbBuildConfigToBean(templateOverride.CiBuildConfig)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting dbBuildConfig to bean", "ciBuildConfig",
-			ciBuildConfig, "error", err)
+			templateOverride.CiBuildConfig, "error", err)
+		return nil, err
 	}
 	if ciBuildConfigBean == nil {
 		ciBuildConfigBean, err = bean.OverrideCiBuildConfig(templateOverride.DockerfilePath, "", "", "", "", nil)
@@ -135,6 +121,16 @@ func (impl CiTemplateServiceImpl) FindTemplateOverrideByCiPipelineId(ciPipelineI
 		}
 	}
 	ciBuildConfigBean.GitMaterialId = templateOverride.GitMaterialId
+	return ciBuildConfigBean, nil
+}
+
+func (impl CiTemplateServiceImpl) FindTemplateOverrideByCiPipelineId(ciPipelineId int) (*bean.CiTemplateBean, error) {
+	templateOverride, err := impl.CiTemplateOverrideRepository.FindByCiPipelineId(ciPipelineId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in getting ciTemplateOverrides by ciPipelineId", "err", err, "ciPipelineId", ciPipelineId)
+		return nil, err
+	}
+	ciBuildConfigBean, err := impl.extractBuildConfigBean(templateOverride)
 	return &bean.CiTemplateBean{CiTemplateOverride: templateOverride, CiBuildConfig: ciBuildConfigBean}, err
 }
 
