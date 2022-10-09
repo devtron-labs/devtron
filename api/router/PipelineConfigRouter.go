@@ -83,7 +83,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/ci-pipeline/patch/regex").HandlerFunc(router.restHandler.UpdateBranchCiPipelinesWithRegex).Methods("POST")
 
 	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material").HandlerFunc(router.restHandler.GetArtifactsByCDPipeline).Methods("GET")
-	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactForRollback).Methods("GET")
+	configRouter.Path("/cd-pipeline/{cd_pipeline_id}/material/rollback").HandlerFunc(router.restHandler.GetArtifactsForRollback).Methods("GET")
 
 	configRouter.Path("/migrate/db").HandlerFunc(router.restHandler.CreateMigrationConfig).Methods("POST")
 	configRouter.Path("/migrate/db/update").HandlerFunc(router.restHandler.UpdateMigrationConfig).Methods("POST")
@@ -165,6 +165,14 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 
 	configRouter.Path("/history/deployed-component/detail/{appId}/{pipelineId}/{id}").
 		HandlerFunc(router.pipelineHistoryRestHandler.FetchDeployedHistoryComponentDetail).
+		Methods("GET")
+
+	configRouter.Path("/history/deployed-configuration/all/latest/{appId}/{pipelineId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.GetAllDeployedConfigurationHistoryForLatestWfrIdForPipeline).
+		Methods("GET")
+
+	configRouter.Path("/history/deployed-configuration/all/{appId}/{pipelineId}/{wfrId}").
+		HandlerFunc(router.pipelineHistoryRestHandler.GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline).
 		Methods("GET")
 
 	configRouter.Path("/commit-info/{ciPipelineMaterialId}/{gitHash}").HandlerFunc(router.restHandler.GetCommitMetadataForPipelineMaterial).Methods("GET")
