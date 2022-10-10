@@ -85,6 +85,7 @@ components:
 
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
+    armImage: "postgres:11.9"
     imagePullPolicy: "IfNotPresent"
     persistence:
       volumeSize: "20Gi"
