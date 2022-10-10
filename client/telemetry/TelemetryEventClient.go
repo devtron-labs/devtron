@@ -224,7 +224,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {
-		loginTime := latestUser.CreatedOn
+		loginTime := latestUser.UpdatedOn
 		payload.LoginTime = loginTime
 	}
 

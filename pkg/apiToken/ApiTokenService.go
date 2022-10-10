@@ -98,7 +98,7 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 			UpdatedAt:      &updatedAtStr,
 		}
 		if latestAuditLog != nil {
-			lastUsedAtStr := latestAuditLog.CreatedOn.String()
+			lastUsedAtStr := latestAuditLog.UpdatedOn.String()
 			apiToken.LastUsedAt = &lastUsedAtStr
 			apiToken.LastUsedByIp = &latestAuditLog.ClientIp
 		}
