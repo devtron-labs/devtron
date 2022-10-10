@@ -41,6 +41,10 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        {{- if .devtron.resources }}        
+        resources:
+        {{- toYaml .devtron.resources | nindent 10 }}
+        {{- end }}           
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -89,6 +93,10 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        {{- if .casbin.resources }}        
+        resources:
+        {{- toYaml .casbin.resources | nindent 10 }}
+        {{- end }}                     
         resources:
           requests:
             cpu: 0.5
