@@ -156,8 +156,8 @@ func (c ServiceClientImpl) Rollback(ctxt context.Context, query *application.App
 }
 
 func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error) {
-	ctx, cancel := context.WithTimeout(ctxt, TimeoutLazy)
-	defer cancel()
+	ctx := context.Background()
+	//defer cancel()
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
 		return nil, errors.New("Unauthorized")
