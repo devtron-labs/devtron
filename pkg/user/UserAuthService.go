@@ -257,7 +257,7 @@ func (impl UserAuthServiceImpl) HandleRefresh(w http.ResponseWriter, r *http.Req
 
 func (impl UserAuthServiceImpl) HandleLoginWithClientIp(username, password, clientIp string) (string, error) {
 	token, err := impl.HandleLogin(username, password)
-	if err != nil {
+	if err == nil {
 		id, _, err := impl.userService.GetUserByToken(token)
 		if err != nil {
 			impl.logger.Infow("error occured while getting user by token", "err", err)
