@@ -110,6 +110,9 @@ func (impl *SelfRegistrationRolesServiceImpl) CheckAndCreateUserIfConfigured(ema
 			exists = true
 		}
 	}
+	if exists {
+		impl.userService.SaveLoginAudit(emailId, -1)
+	}
 	impl.logger.Infow("user status", "email", emailId, "status", exists)
 	return exists
 }
