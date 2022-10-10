@@ -21,10 +21,12 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"log"
+	"net/url"
 	"os"
 	"time"
 
@@ -520,7 +522,17 @@ func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error 
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
 	log.Println("received response for cluster livez status", "response", string(response), "err", err)
 	if err != nil {
-		return fmt.Errorf("Validation failed : %v", err)
+		if _, ok := err.(*url.Error); ok {
+			return fmt.Errorf("Incorrect server url : %v", err)
+		} else if statusError, ok := err.(*errors.StatusError); ok {
+			if statusError != nil {
+				return fmt.Errorf("%s : %s", statusError.ErrStatus.Reason, statusError.ErrStatus.Message)
+			} else {
+				return fmt.Errorf("Validation failed : %v", err)
+			}
+		} else {
+			return fmt.Errorf("Validation failed : %v", err)
+		}
 	} else if err == nil && string(response) != "ok" {
 		return fmt.Errorf("Validation failed with response : %s", string(response))
 	}
