@@ -94,30 +94,6 @@ data:
 {{- end }}
 {{- end }}  
 
-{{- if .Values.components.argoRollout }}
-{{- if .Values.components.argoRollout.resources }}
----
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: rollout-override-cm
-  namespace:  devtroncd
-data:
-  override: |
-    apiVersion: apps/v1
-    kind: Deployment
-    metadata:
-      name: rollout
-    update:
-      spec:
-        template:
-          spec:
-            containers:
-            - resources:
-              {{- toYaml .Values.components.argoRollout.resources | nindent 16 }}
-{{- end }}
-{{- end }}
-
 {{- if .Values.components.migrator }}
 {{- if .Values.components.migrator.resources }}
 ---
@@ -128,16 +104,109 @@ metadata:
   namespace:  devtroncd
 data:
   override: |
-    apiVersion: apps/v1
-    kind: Deployment
+    apiVersion: batch/v1
+    kind: Job
     metadata:
-      name: rollout
+      name: postgresql-migrate-devtron
     update:
       spec:
         template:
           spec:
             containers:
             - resources:
-              {{- toYaml .Values.components.migrator.resources | nindent 16 }}
+              {{- toYaml .Values.components.migrator.devtron.resources | nindent 16 }}
+    ---
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: postgresql-migrate-lens
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.migrator.lens.resources | nindent 16 }}
+    ---
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: postgresql-migrate-gitsensor
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.migrator.gitSensor.resources | nindent 16 }}
+    ---
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: postgresql-migrate-casbin
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.migrator.casbin.containers.resources | nindent 16 }} 
+            initContainers:
+            - resources:
+              {{- toYaml .Values.components.migrator.casbin.initContainers.resources | nindent 16 }}                                                            
 {{- end }}
 {{- end }}
+---
+
+
+{{- if .Values.components.devtronHousekeeping }}
+{{- if .Values.components.kubewatch.devtronHousekeeping.resources }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-housekeeping-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Job
+    metadata:
+      name: devtron-housekeeping
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.devtronHousekeeping.resources | nindent 16 }}
+{{- end }}
+{{- end }}  
+
+{{- if .Values.components.nats }}
+{{- if .Values.components.kubewatch.nats.nats.resources }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nats-server-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: natsServer
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.natsServer.nats.resources | nindent 16 }}
+            - resources:
+              {{- toYaml .Values.components.natsServer.reloader.resources | nindent 16 }}
+            - resources:
+              {{- toYaml .Values.components.natsServer.metrics.resources | nindent 16 }}                            
+{{- end }}
+{{- end }}  

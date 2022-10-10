@@ -41,9 +41,9 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
-        {{- if .resources }}        
+        {{- if .devtron.resources }}        
         resources:
-        {{- toYaml .resources | nindent 10 }}
+        {{- toYaml .devtron.resources | nindent 10 }}
         {{- end }}           
       restartPolicy: OnFailure
   backoffLimit: 20
@@ -93,9 +93,9 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
-        {{- if .resources }}        
+        {{- if .casbin.resources }}        
         resources:
-        {{- toYaml .resources | nindent 10 }}
+        {{- toYaml .casbin.resources | nindent 10 }}
         {{- end }}                     
         resources:
           requests:
