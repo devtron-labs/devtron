@@ -8,25 +8,21 @@ You can add your existing Kubernetes clusters and environments here.
 
 To add a cluster on devtron, you must have superadmin access.
 
-Navigate to the `Global Configurations` → `Clusters and Environments` on devtron and click on `Add Cluster`.
+Navigate to the `Global Configurations` → `Clusters and Environments` on devtron and click `Add Cluster`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/add-clusters.png)
 
- Provide the informations mentioned below to add your kubernetes cluster:
+Provide the below information to add your kubernetes cluster:
 
-### 1. Name
-
-Give a name to your cluster inside the name box.
-
-### 2. Kubernetes Cluster Credentials
-
-Provide your kubernetes cluster’s credentials i.e server url and bearer token.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/server-url-and-token.png)
+| Field | Description |
+| :--- | :--- |
+| `Name` | Enter a name of your cluster |
+| `Server URL` | Server URL of the cluster |
+| `Bearer Token` | Bearer token of the cluster |
 
 #### Get Cluster Credentials
 
->**Prerequites:** `kubectl` and `jq` should be installed on the bastion.
+>**Prerequisites:** `kubectl` and `jq` should be installed on the bastion.
 
 You can get the **`Server URL`** & **`Bearer Token`** by running the following command.
 
@@ -57,36 +53,24 @@ Provide the server URL of your kubernetes cluster. It is recommended to use a se
 
 #### Bearer token
 
-Provide your kubernetes cluster’s Bearer token for authentication purposes so that Devtron is able to communicate with your kubernetes cluster and can deploy your application in your kubernetes cluster.
+Enter your kubernetes cluster’s Bearer token for authentication purposes so that Devtron is able to communicate with your kubernetes cluster and can deploy your application in your kubernetes cluster.
 
-### 3. Enable applications metrics for the cluster
+### Configure Prometheus (Enable Applications Metrics)
 
-If you want to see application metrics against the applications deployed in the  cluster, Prometheus should be deployed in the cluster. Prometheus is a powerful tool to provide graphical insight into your application behavior. The below inputs are required to configure Prometheus over Devtron.
+If you want to see application metrics against the applications deployed in the  cluster, Prometheus should be deployed in the cluster. Prometheus is a powerful tool to provide graphical insight into your application behavior.
+
+>**Note:** Make sure that you install `Monitoring (Grafana)` from the Devtron Stack Manager to configure prometheus.
+If you do not install `Monitoring (Grafana)`, then the option to configure prometheus will not be available. 
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/enable-app-metrics.png)
 
-* **Prometheus endpoint**
+| Field | Description |
+| :--- | :--- |
+| `Prometheus Endpoint` | Provide the URL of your prometheus. |
+| `Authentication Type` | Prometheus supports two authentication types:<ul><li>**Basic:** If you select the `Basic` authentication type, then you have to provide the `Username` and `Password` of prometheus for authentication.</li></ul> <ul><li>**Anonymous:** If you select the `Basic` authentication type, then you have to provide the `Username` and `Password` of prometheus for authentication.</li></ul> |
+| `TLS Key` & `TLS Certificate` | `TLS Key` and `TLS Certificate` are optional, these options are used when you use a custom URL. |
 
-Provide the URL of your prometheus. 
-Prometheus supports two types of authentication `Basic` and `Anonymous`. Select the authentication type for your Prometheus setup.
-
-* **Basic**
-
-If you select the `basic` type of authentication then you have to provide the `Username` and `Password` of prometheus for authentication.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/basic-auth.png)
-
-* **Anonymous**
-
-If you select `Anonymous` then you do not have to provide any username and password for authentication.
-
-* **TLS Key & TLS Certificate**
-
-TLS key and TLS certificate both options are optional, these options are used when you use a custom URL, in that case, you can pass your TLS key and TLS certificate.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/anonymous-auth.png)
-
-Now click on `Save Cluster` to save your cluster over Devtron.
+Now click `Save Cluster` to save your cluster over Devtron.
 
 ### Installing Devtron agent
 
@@ -98,23 +82,35 @@ When the Devtron agent starts installing, you can check the installation status 
 
 ![Install Devtron Agent](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/gc-cluster-agents.jpg)
 
-Click on `Details` to check what got installed inside the agents. A new window will be popped up displaying all the details about these agents.
+Click `Details` to check what got installed inside the agents. A new window will be popped up displaying all the details about these agents.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/cluster_gc5.jpg)
 
 ## Add Environment
 
-Once you have added your cluster in Cluster & Environment, you can add the environment also. Click on `Add Environment`, a window will be opened. Give a name to your environment in the `Environment Name` box and provide a namespace corresponding to your environment in the `Namespace` input box. Now choose if your environment is for Production purposes or for Non-production purposes. Production and Non-production options are only for tagging purposes. Click on `Save` and your environment will be created.
+Once you have added your cluster in the `Cluster & Environments`, you can add the environment also.
+
+1.  Click `Add Environment`.
+
+2. On the `New Environment` window, enter a name of your environment in the `Environment Name` field.
+
+3.  Enter a namespace corresponding to your environment in the `Enter Namespace` field.
+
+4. Select the Environment type:
+
+     -  `Production `
+
+     -  `Non-production`
+
+>Note:  Production and Non-production options are only for tagging purposes
+
+5. Click Save and your environment will be created. 
+
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/gc-cluster-add-environment.jpg)
 
-You can update an environment by clicking on the environment. You can only change Production and Non-production options here.
 
-**Note**
-
-You can not change the Environment name and Namespace name.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/gc-cluster-update-environment.jpg)
-
-Click on `Update` to update your environment.
-
+> **Note:** You can also update an environment by clicking the environment.
+You can change `Production` and `Non-Production` options only.
+You cannot change the `Environment Name` and `Namespace Name`.
+Make sure to click **Update** to update your environment.
