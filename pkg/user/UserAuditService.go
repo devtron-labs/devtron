@@ -28,6 +28,7 @@ type UserAudit struct {
 	UserId    int32
 	ClientIp  string
 	CreatedOn time.Time
+	UpdatedOn time.Time
 }
 
 type UserAuditService interface {
@@ -54,7 +55,7 @@ func (impl UserAuditServiceImpl) Save(userAudit *UserAudit) error {
 	userAuditDb := &repository2.UserAudit{
 		UserId:    userId,
 		ClientIp:  userAudit.ClientIp,
-		CreatedOn: userAudit.CreatedOn,
+		UpdatedOn: userAudit.UpdatedOn,
 	}
 	err := impl.userAuditRepository.Save(userAuditDb)
 	if err != nil {
@@ -81,6 +82,7 @@ func (impl UserAuditServiceImpl) GetLatestByUserId(userId int32) (*UserAudit, er
 		UserId:    userId,
 		ClientIp:  userAuditDb.ClientIp,
 		CreatedOn: userAuditDb.CreatedOn,
+		UpdatedOn: userAuditDb.UpdatedOn,
 	}, nil
 }
 
@@ -101,5 +103,6 @@ func (impl UserAuditServiceImpl) GetLatestUser() (*UserAudit, error) {
 		UserId:    userAuditDb.UserId,
 		ClientIp:  userAuditDb.ClientIp,
 		CreatedOn: userAuditDb.CreatedOn,
+		UpdatedOn: userAuditDb.UpdatedOn,
 	}, nil
 }

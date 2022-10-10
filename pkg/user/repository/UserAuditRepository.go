@@ -22,7 +22,6 @@ package repository
 
 import (
 	"github.com/go-pg/pg"
-	"go.uber.org/zap"
 	"time"
 )
 
@@ -32,6 +31,7 @@ type UserAudit struct {
 	UserId    int32     `sql:"user_id, notnull"`
 	ClientIp  string    `sql:"client_ip"`
 	CreatedOn time.Time `sql:"created_on,type:timestamptz"`
+	UpdatedOn time.Time `sql:"updated_on,type:timestamptz"`
 }
 
 type UserAuditRepository interface {
@@ -42,35 +42,38 @@ type UserAuditRepository interface {
 
 type UserAuditRepositoryImpl struct {
 	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
 }
 
-func NewUserAuditRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *UserAuditRepositoryImpl {
-	return &UserAuditRepositoryImpl{dbConnection: dbConnection, logger: logger}
+func NewUserAuditRepositoryImpl(dbConnection *pg.DB) *UserAuditRepositoryImpl {
+	return &UserAuditRepositoryImpl{dbConnection: dbConnection}
 }
 
 func (impl UserAuditRepositoryImpl) Save(userAudit *UserAudit) error {
-	return impl.dbConnection.Insert(userAudit)
+	userAuditPresentInDB, err := impl.GetLatestByUserId(userAudit.UserId)
+	if err == nil {
+		userAudit.CreatedOn = userAuditPresentInDB.CreatedOn
+		err = impl.dbConnection.Update(userAudit)
+	} else {
+		userAudit.CreatedOn = userAudit.UpdatedOn
+		err = impl.dbConnection.Insert(userAudit)
+	}
+	return err
 }
 
 func (impl UserAuditRepositoryImpl) GetLatestByUserId(userId int32) (*UserAudit, error) {
 	userAudit := &UserAudit{}
 	err := impl.dbConnection.Model(userAudit).
 		Where("user_id = ?", userId).
-		Order("id desc").
-		Limit(1).
+		//Order("id desc").
+		//Limit(1).
 		Select()
 	return userAudit, err
 }
 
 func (impl UserAuditRepositoryImpl) GetLatestUser() (*UserAudit, error) {
 	userAudit := &UserAudit{}
-	if impl.dbConnection == nil {
-		impl.logger.Info("connection to the db lost", "got null db connection")
-		return nil, pg.ErrNoRows
-	}
 	err := impl.dbConnection.Model(userAudit).
-		Order("id desc").
+		Order("updated_on desc").
 		Limit(1).
 		Select()
 	return userAudit, err
