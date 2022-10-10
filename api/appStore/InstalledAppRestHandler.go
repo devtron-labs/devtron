@@ -18,7 +18,6 @@
 package appStore
 
 import (
-	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -348,7 +347,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 }
 
 func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) {
-	ctx, cancel := context.WithCancel(r.Context())
-	cn, ok := w.(http.CloseNotifier)
-	handler.installedAppService.FetchResourceTree(ctx, cn, ok, cancel, appDetail)
+	ctx := r.Context()
+	cn, _ := w.(http.CloseNotifier)
+	handler.installedAppService.FetchResourceTree(ctx, cn, appDetail)
 }

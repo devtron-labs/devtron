@@ -568,9 +568,9 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	http.Redirect(w, r, link, http.StatusOK)
 }
 func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
-	ctx, cancel := context.WithCancel(r.Context())
-	cn, ok := w.(http.CloseNotifier)
-	return handler.installedAppService.FetchResourceTree(ctx, cn, ok, cancel, &appDetail)
+	rctx := r.Context()
+	cn, _ := w.(http.CloseNotifier)
+	return handler.installedAppService.FetchResourceTree(rctx, cn, &appDetail)
 }
 func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
 	vars := r.URL.Query()
