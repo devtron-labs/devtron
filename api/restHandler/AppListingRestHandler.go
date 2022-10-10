@@ -24,7 +24,6 @@ import (
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/devtron-labs/devtron/api/appStore"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -97,7 +96,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
 	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
-	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService, installedAppRestHandler appStore.InstalledAppRestHandler) *AppListingRestHandlerImpl {
+	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:            application,
 		appListingService:      appListingService,
