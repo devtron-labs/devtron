@@ -158,6 +158,7 @@ func (c ServiceClientImpl) Rollback(ctxt context.Context, query *application.App
 func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.ApplicationPatchRequest) (*v1alpha1.Application, error) {
 	ctx := context.Background()
 	//defer cancel()
+
 	token, ok := ctxt.Value("token").(string)
 	if !ok {
 		return nil, errors.New("Unauthorized")
@@ -165,7 +166,15 @@ func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.Applic
 	conn := argocdServer.GetConnection(token, c.settings)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
+	ctxErr := ctx.Err()
+	deadline, _ := ctx.Deadline()
+	c.logger.Errorw("acd context cancel test - context error", "deadline", deadline, "time", time.Now().String(), "err", ctxErr)
+
 	resp, err := asc.Patch(ctx, query)
+	ctxErr = ctx.Err()
+	deadline, _ = ctx.Deadline()
+	c.logger.Errorw("acd context cancel test - context error", "deadline", deadline, "time", time.Now().String(), "err", ctxErr)
+
 	return resp, err
 }
 
@@ -426,7 +435,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
 				if err != nil {
 					c.logger.Error(err)
-				}else{
+				} else {
 					rolloutManifests = append(rolloutManifests, manifest)
 				}
 			} else if kind == "Deployment" {
@@ -434,7 +443,7 @@ func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, resp
 				err := json.Unmarshal([]byte(manifestFromResponse), &manifest)
 				if err != nil {
 					c.logger.Error(err)
-				}else{
+				} else {
 					deploymentManifests = append(deploymentManifests, manifest)
 				}
 			} else if kind == "StatefulSet" {
