@@ -54,7 +54,7 @@ type UserService interface {
 	UserExists(emailId string) bool
 	UpdateTriggerPolicyForTerminalAccess() (err error)
 	GetRoleFiltersByGroupNames(groupNames []string) ([]bean.RoleFilter, error)
-	SaveLoginAudit(emailId string, id int32)
+	SaveLoginAudit(emailId, clientIp string, id int32)
 }
 
 type UserServiceImpl struct {
@@ -903,9 +903,9 @@ func (impl UserServiceImpl) UserExists(emailId string) bool {
 		return true
 	}
 }
-func (impl UserServiceImpl) SaveLoginAudit(emailId string, id int32) {
+func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 
-	if emailId != "" {
+	if emailId != "" && id <= 0 {
 		user, err := impl.GetUserByEmail(emailId)
 		if err != nil {
 			impl.logger.Errorw("error in getting userInfo bu emailId", "emailId", emailId)
@@ -917,12 +917,10 @@ func (impl UserServiceImpl) SaveLoginAudit(emailId string, id int32) {
 		impl.logger.Errorw("Invalid id to save login audit of sso user", "Id", id)
 		return
 	}
-	//dont know what to put in clinet ip,modify it later
-	clientIp := "localhost"
 	model := UserAudit{
 		UserId:    id,
 		ClientIp:  clientIp,
-		CreatedOn: time.Now(),
+		UpdatedOn: time.Now(),
 	}
 	err := impl.userAuditService.Save(&model)
 	if err != nil {
@@ -1191,7 +1189,7 @@ func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 	userAudit := &UserAudit{
 		UserId:    userId,
 		ClientIp:  clientIp,
-		CreatedOn: time.Now(),
+		UpdatedOn: time.Now(),
 	}
 	impl.userAuditService.Save(userAudit)
 }

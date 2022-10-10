@@ -46,6 +46,7 @@ import (
 )
 
 type UserAuthService interface {
+	HandleLoginWithClientIp(username, password, clientIp string) (string, error)
 	HandleLogin(username string, password string) (string, error)
 	HandleDexCallback(w http.ResponseWriter, r *http.Request)
 	HandleRefresh(w http.ResponseWriter, r *http.Request)
@@ -254,17 +255,21 @@ func (impl UserAuthServiceImpl) HandleRefresh(w http.ResponseWriter, r *http.Req
 	}
 }
 
-func (impl UserAuthServiceImpl) HandleLogin(username string, password string) (string, error) {
-	token, err := impl.sessionClient.Create(context.Background(), username, password)
+func (impl UserAuthServiceImpl) HandleLoginWithClientIp(username, password, clientIp string) (string, error) {
+	token, err := impl.HandleLogin(username, password)
 	if err != nil {
 		id, _, err := impl.userService.GetUserByToken(token)
 		if err != nil {
 			impl.logger.Infow("error occured while getting user by token", "err", err)
 		} else {
-			impl.userService.SaveLoginAudit("", id)
+			impl.userService.SaveLoginAudit("", clientIp, id)
 		}
 	}
 	return token, err
+}
+
+func (impl UserAuthServiceImpl) HandleLogin(username string, password string) (string, error) {
+	return impl.sessionClient.Create(context.Background(), username, password)
 }
 
 func (impl UserAuthServiceImpl) HandleDexCallback(w http.ResponseWriter, r *http.Request) {
