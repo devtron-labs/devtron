@@ -36,9 +36,9 @@ type K8sApplicationService interface {
 	GetResourceInfo() (*ResourceInfo, error)
 	GetRestConfigByClusterId(clusterId int) (*rest.Config, error)
 	GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error)
-	GetHostUrlsByBatch(request []ResourceRequestBean) []BatchResourceResponse
+	GetManifestsByBatch(request []ResourceRequestBean) []BatchResourceResponse
 	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
-	GetManifestsByBatch(resp []BatchResourceResponse) []interface{}
+	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
