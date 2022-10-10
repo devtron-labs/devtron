@@ -1,0 +1,143 @@
+{{- if .Values.components.lens }}
+{{- if .Values.components.lens.resources }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: lens-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: lens
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.lens.resources | nindent 16 }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.components.gitSensor }}
+{{- if .Values.components.gitSensor.resources }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: git-sensor-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: StatefulSet
+    metadata:
+      name: git-sensor
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.gitSensor.resources | nindent 16 }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.components.kubewatch }}
+{{- if .Values.components.kubewatch.resources }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kubewatch-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: git-sensor
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.kubewatch.resources | nindent 16 }}
+{{- end }}
+{{- end }}  
+
+{{- if .Values.components.argoRollout }}
+{{- if .Values.components.argoRollout.resources }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rollout-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: rollout
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.argoRollout.resources | nindent 16 }}
+{{- end }}
+{{- end }}  
+
+{{- if .Values.components.argoRollout }}
+{{- if .Values.components.argoRollout.resources }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: rollout-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: rollout
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.argoRollout.resources | nindent 16 }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.components.migrator }}
+{{- if .Values.components.migrator.resources }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: migrator-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: rollout
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.migrator.resources | nindent 16 }}
+{{- end }}
+{{- end }}
