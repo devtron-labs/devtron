@@ -35,6 +35,7 @@ type UserAuditService interface {
 	Save(userAudit *UserAudit) error
 	GetLatestByUserId(userId int32) (*UserAudit, error)
 	GetLatestUser() (*UserAudit, error)
+	Update(userAudit *UserAudit) error
 }
 
 type UserAuditServiceImpl struct {
@@ -49,13 +50,30 @@ func NewUserAuditServiceImpl(logger *zap.SugaredLogger, userAuditRepository repo
 	}
 }
 
+func (impl UserAuditServiceImpl) Update(userAudit *UserAudit) error {
+	userId := userAudit.UserId
+	impl.logger.Infow("Saving user audit", "userId", userId)
+	userAuditDb := &repository2.UserAudit{
+		UserId:    userId,
+		ClientIp:  userAudit.ClientIp,
+		CreatedOn: userAudit.CreatedOn,
+		UpdatedOn: userAudit.CreatedOn,
+	}
+	err := impl.userAuditRepository.Update(userAuditDb)
+	if err != nil {
+		impl.logger.Errorw("error while updating user audit log", "userId", userId, "error", err)
+		return err
+	}
+	return nil
+}
+
 func (impl UserAuditServiceImpl) Save(userAudit *UserAudit) error {
 	userId := userAudit.UserId
 	impl.logger.Infow("Saving user audit", "userId", userId)
 	userAuditDb := &repository2.UserAudit{
 		UserId:    userId,
 		ClientIp:  userAudit.ClientIp,
-		UpdatedOn: userAudit.UpdatedOn,
+		CreatedOn: userAudit.CreatedOn,
 	}
 	err := impl.userAuditRepository.Save(userAuditDb)
 	if err != nil {
