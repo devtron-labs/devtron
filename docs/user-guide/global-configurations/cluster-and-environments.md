@@ -102,7 +102,7 @@ Once you have added your cluster in the `Cluster & Environments`, you can add th
 
      -  `Non-production`
 
->Note:  Production and Non-production options are only for tagging purposes
+>**Note:**  Production and Non-production options are only for tagging purposes.
 
 5. Click Save and your environment will be created. 
 
