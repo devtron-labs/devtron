@@ -166,7 +166,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		return
 	}
 	resp := handler.k8sApplicationService.GetHostUrlsByBatch(validRequests)
-	result := handler.k8sApplicationService.GetUrlsByBatch(resp)
+	result := handler.k8sApplicationService.GetManifestsByBatch(resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 

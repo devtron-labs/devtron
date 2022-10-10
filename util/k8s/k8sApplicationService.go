@@ -38,7 +38,7 @@ type K8sApplicationService interface {
 	GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error)
 	GetHostUrlsByBatch(request []ResourceRequestBean) []BatchResourceResponse
 	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
-	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
+	GetManifestsByBatch(resp []BatchResourceResponse) []interface{}
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -219,7 +219,7 @@ func (impl *K8sApplicationServiceImpl) getUrls(manifest *application.ManifestRes
 	return res
 }
 
-func (impl *K8sApplicationServiceImpl) GetHostUrlsByBatch(requests []ResourceRequestBean) []BatchResourceResponse {
+func (impl *K8sApplicationServiceImpl) GetManifestsByBatch(requests []ResourceRequestBean) []BatchResourceResponse {
 	//total batch length
 	batchSize := impl.K8sApplicationServiceConfig.BatchSize
 	if requests == nil {
