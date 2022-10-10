@@ -114,6 +114,7 @@ data:
 {{- end }}
 {{- end }}  
 {{- if .Values.components.migrator }}
+{{- with .Values.components.migrator }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -122,7 +123,8 @@ metadata:
   namespace:  devtroncd
 data:
   override: |
-    {{- if .Values.components.migrator.devtron.resources }}
+    {{- if .devtron }}
+    {{- if .devtron.resources }}
     ---
     apiVersion: batch/v1
     kind: Job
@@ -134,9 +136,11 @@ data:
           spec:
             containers:
             - resources:
-              {{- toYaml .Values.components.migrator.devtron.resources | nindent 16 }}
+              {{- toYaml .devtron.resources | nindent 16 }}
     {{- end }}
-    {{- if .Values.components.migrator.lens.resources }}
+    {{- end }}
+    {{- if .lens }}
+    {{- if .lens.resources }}
     ---
     apiVersion: batch/v1
     kind: Job
@@ -148,9 +152,11 @@ data:
           spec:
             containers:
             - resources:
-              {{- toYaml .Values.components.migrator.lens.resources | nindent 16 }}
+              {{- toYaml .lens.resources | nindent 16 }}
     {{- end }}
-    {{- if .Values.components.migrator.gitSensor.resources }}
+    {{- end }}
+    {{- if .gitSensor }}
+    {{- if .gitSensor.resources }}
     ---
     apiVersion: batch/v1
     kind: Job
@@ -162,9 +168,11 @@ data:
           spec:
             containers:
             - resources:
-              {{- toYaml .Values.components.migrator.gitSensor.resources | nindent 16 }}
+              {{- toYaml .gitSensor.resources | nindent 16 }}
     {{- end }}
-    {{- if .Values.components.migrator.casbin.resources }}
+    {{- end }}
+    {{- if .casbin }}
+    {{- if or (.casbin.resources) (.casbin.initContainer.resources) }}
     ---
     apiVersion: batch/v1
     kind: Job
@@ -174,16 +182,20 @@ data:
       spec:
         template:
           spec:
+            {{- if .casbin.resources }}
             containers:
             - resources:
-              {{- toYaml .Values.components.migrator.casbin.resources | nindent 16 }}
-            {{- if .Values.components.migrator.casbin.initContainer.resources }}
+              {{- toYaml .casbin.resources | nindent 16 }}
+            {{- end }}
+            {{- if .casbin.initContainer.resources }}
             initContainers:
             - resources:
-              {{- toYaml .Values.components.migrator.casbin.initContainer.resources | nindent 16 }}
+              {{- toYaml .casbin.initContainer.resources | nindent 16 }}
             {{- end }}
     {{- end }}
-    {{- if .Values.components.migrator.miscellaneous.resources }}
+    {{- end }}
+    {{- if .miscellaneous }}
+    {{- if .miscellaneous.resources }}
     ---
     apiVersion: batch/v1
     kind: Job
@@ -195,9 +207,11 @@ data:
           spec:
             containers:
             - resources:
-              {{- toYaml .Values.components.migrator.miscellaneous.resources | nindent 16 }}
+              {{- toYaml .miscellaneous.resources | nindent 16 }}
     {{- end }}
-    {{- if .Values.components.migrator.appSync.resources }}
+    {{- end }}
+    {{- if .appSync }}
+    {{- if .appSync.resources }}
     ---
     apiVersion: batch/v1
     kind: CronJob
@@ -211,8 +225,10 @@ data:
               spec:
                 containers:
                 - resources:
-                  {{- toYaml .Values.components.migrator.appSync.resources | nindent 20 }}
+                  {{- toYaml .appSync.resources | nindent 20 }}
     {{- end }}
+    {{- end }}
+{{- end }}
 {{- end }}
 {{- if .Values.components.devtronHousekeeping }}
 {{- if .Values.components.devtronHousekeeping.resources }}
