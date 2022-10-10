@@ -908,7 +908,7 @@ func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 	if emailId != "" && id <= 0 {
 		user, err := impl.GetUserByEmail(emailId)
 		if err != nil {
-			impl.logger.Errorw("error in getting userInfo bu emailId", "emailId", emailId)
+			impl.logger.Errorw("error in getting userInfo by emailId", "emailId", emailId)
 			return
 		}
 		id = user.Id
@@ -922,7 +922,7 @@ func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 		ClientIp:  clientIp,
 		UpdatedOn: time.Now(),
 	}
-	err := impl.userAuditService.Save(&model)
+	err := impl.userAuditService.Update(&model)
 	if err != nil {
 		impl.logger.Errorw("error occurred while saving user audit", "err", err)
 	}
@@ -1189,7 +1189,7 @@ func (impl UserServiceImpl) saveUserAudit(r *http.Request, userId int32) {
 	userAudit := &UserAudit{
 		UserId:    userId,
 		ClientIp:  clientIp,
-		UpdatedOn: time.Now(),
+		CreatedOn: time.Now(),
 	}
 	impl.userAuditService.Save(userAudit)
 }
