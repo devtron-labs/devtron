@@ -18,12 +18,11 @@ import (
 
 func TestCiTemplateService(t *testing.T) {
 
-	t.Run("TemplateWithBuildpackConfiguration", func(t *testing.T) {
+	t.Run("FetchTemplateWithBuildpackConfiguration", func(t *testing.T) {
 
 		sugaredLogger, err := util.NewSugardLogger()
 		assert.Nil(t, err)
 		builderId := "sample-builder"
-		//mockCiTemplateRepository := &CiTemplateRepositoryMock{}
 		ciTemplateRepositoryMocked := mocks.NewCiTemplateRepository(t)
 		templateDbEntity := &pipelineConfig.CiTemplate{
 			Id: 1,
@@ -42,7 +41,7 @@ func TestCiTemplateService(t *testing.T) {
 		assert.Equal(t, builderId, templateBean.CiBuildConfig.BuildPackConfig.BuilderId)
 	})
 
-	t.Run("TemplateWithOldDockerData", func(t *testing.T) {
+	t.Run("FetchTemplateWithOldDockerData", func(t *testing.T) {
 
 		sugaredLogger, err := util.NewSugardLogger()
 		assert.Nil(t, err)
@@ -76,7 +75,7 @@ func TestCiTemplateService(t *testing.T) {
 		assert.Equal(t, buildOptionsValue, dockerBuildOptions[buildOptionsKey])
 	})
 
-	t.Run("TemplateWithManagedDockerData", func(t *testing.T) {
+	t.Run("FetchTemplateWithManagedDockerData", func(t *testing.T) {
 		sugaredLogger, err := util.NewSugardLogger()
 		assert.Nil(t, err)
 		mockCiTemplateRepository := mocks.NewCiTemplateRepository(t)
@@ -438,7 +437,6 @@ func TestCiTemplateService(t *testing.T) {
 
 	t.Run("escaping char test", func(t *testing.T) {
 		t.SkipNow()
-
 		input := "FROM debian\r\nRUN export node_version=\"0.10\" \\\r\n&& apt-get update && apt-get -y install nodejs=\"$node_verion\"\r\nCOPY package.json usr/src/app\r\nRUN cd /usr/src/app \\\r\n&& npm install node-static\r\n\r\nEXPOSE 80000\r\nCMD [\"npm\", \"start\"]"
 		//fmt.Println(input)
 		output := fmt.Sprint(input)
