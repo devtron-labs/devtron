@@ -15,6 +15,12 @@ spec:
           - name: migration-wait
             image: "quay.io/devtron/kubectl:latest"
             command: ['sh', '-c', 'while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-devtron -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done']
+            {{- if .Values.components.migrator }}
+            {{- if .Values.components.migrator.appSync.initContainer.resources }}
+            resources:
+            {{- toYaml .Values.components.migrator.appSync.initContainer.resources | nindent 14 }}
+            {{- end }}
+            {{- end }}
           containers:
           - name: chart-sync
             image: quay.io/devtron/chart-sync:57e17953-373-10147
@@ -28,6 +34,12 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
+            {{- if .Values.components.migrator }}
+            {{- if .Values.components.migrator.appSync.resources }}
+            resources:
+            {{- toYaml .Values.components.migrator.appSync.resources | nindent 14 }}
+            {{- end }}
+            {{- end }}
           restartPolicy: OnFailure
       backoffLimit: 4
 ---
@@ -61,5 +73,11 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
+            {{- if .Values.components.migrator }}
+            {{- if .Values.components.migrator.appSync.resources }}
+            resources:
+            {{- toYaml .Values.components.migrator.appSync.resources | nindent 14 }}
+            {{- end }}
+            {{- end }}
           restartPolicy: Never
       backoffLimit: 4

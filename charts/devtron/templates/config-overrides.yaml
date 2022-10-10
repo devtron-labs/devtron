@@ -21,7 +21,29 @@ data:
               {{- toYaml .Values.components.lens.resources | nindent 16 }}
 {{- end }}
 {{- end }}
-
+{{- if .Values.components.devtron }}
+{{- if .Values.components.devtron.resources }}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: devtron-override-cm
+  namespace:  devtroncd
+data:
+  override: |
+    apiVersion: apps/v1
+    kind: Deployment
+    metadata:
+      name: devtron
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.devtron.resources | nindent 16 }}
+{{- end }}
+{{- end }}
 {{- if .Values.components.gitSensor }}
 {{- if .Values.components.gitSensor.resources }}
 ---
@@ -45,7 +67,6 @@ data:
               {{- toYaml .Values.components.gitSensor.resources | nindent 16 }}
 {{- end }}
 {{- end }}
-
 {{- if .Values.components.kubewatch }}
 {{- if .Values.components.kubewatch.resources }}
 ---
@@ -59,7 +80,7 @@ data:
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: git-sensor
+      name: kubewatch
     update:
       spec:
         template:
@@ -69,7 +90,6 @@ data:
               {{- toYaml .Values.components.kubewatch.resources | nindent 16 }}
 {{- end }}
 {{- end }}  
-
 {{- if .Values.components.argoRollout }}
 {{- if .Values.components.argoRollout.resources }}
 ---
@@ -83,7 +103,7 @@ data:
     apiVersion: apps/v1
     kind: Deployment
     metadata:
-      name: rollout
+      name: argo-rollouts
     update:
       spec:
         template:
@@ -93,9 +113,7 @@ data:
               {{- toYaml .Values.components.argoRollout.resources | nindent 16 }}
 {{- end }}
 {{- end }}  
-
 {{- if .Values.components.migrator }}
-{{- if .Values.components.migrator.resources }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -104,6 +122,8 @@ metadata:
   namespace:  devtroncd
 data:
   override: |
+    {{- if .Values.components.migrator.devtron.resources }}
+    ---
     apiVersion: batch/v1
     kind: Job
     metadata:
@@ -115,6 +135,8 @@ data:
             containers:
             - resources:
               {{- toYaml .Values.components.migrator.devtron.resources | nindent 16 }}
+    {{- end }}
+    {{- if .Values.components.migrator.lens.resources }}
     ---
     apiVersion: batch/v1
     kind: Job
@@ -127,6 +149,8 @@ data:
             containers:
             - resources:
               {{- toYaml .Values.components.migrator.lens.resources | nindent 16 }}
+    {{- end }}
+    {{- if .Values.components.migrator.gitSensor.resources }}
     ---
     apiVersion: batch/v1
     kind: Job
@@ -139,6 +163,8 @@ data:
             containers:
             - resources:
               {{- toYaml .Values.components.migrator.gitSensor.resources | nindent 16 }}
+    {{- end }}
+    {{- if .Values.components.migrator.casbin.resources }}
     ---
     apiVersion: batch/v1
     kind: Job
@@ -150,17 +176,46 @@ data:
           spec:
             containers:
             - resources:
-              {{- toYaml .Values.components.migrator.casbin.containers.resources | nindent 16 }} 
+              {{- toYaml .Values.components.migrator.casbin.resources | nindent 16 }}
+            {{- if .Values.components.migrator.casbin.initContainer.resources }}
             initContainers:
             - resources:
-              {{- toYaml .Values.components.migrator.casbin.initContainers.resources | nindent 16 }}                                                            
+              {{- toYaml .Values.components.migrator.casbin.initContainer.resources | nindent 16 }}
+            {{- end }}
+    {{- end }}
+    {{- if .Values.components.migrator.miscellaneous.resources }}
+    ---
+    apiVersion: batch/v1
+    kind: Job
+    metadata:
+      name: postgresql-miscellaneous
+    update:
+      spec:
+        template:
+          spec:
+            containers:
+            - resources:
+              {{- toYaml .Values.components.migrator.miscellaneous.resources | nindent 16 }}
+    {{- end }}
+    {{- if .Values.components.migrator.appSync.resources }}
+    ---
+    apiVersion: batch/v1
+    kind: CronJob
+    metadata:
+      name: app-sync-cronjob
+    update:
+      spec:
+        jobTemplate:
+          spec:
+            template:
+              spec:
+                containers:
+                - resources:
+                  {{- toYaml .Values.components.migrator.appSync.resources | nindent 20 }}
+    {{- end }}
 {{- end }}
-{{- end }}
----
-
-
 {{- if .Values.components.devtronHousekeeping }}
-{{- if .Values.components.kubewatch.devtronHousekeeping.resources }}
+{{- if .Values.components.devtronHousekeeping.resources }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -169,7 +224,7 @@ metadata:
   namespace:  devtroncd
 data:
   override: |
-    apiVersion: apps/v1
+    apiVersion: batch/v1
     kind: Job
     metadata:
       name: devtron-housekeeping
@@ -182,9 +237,8 @@ data:
               {{- toYaml .Values.components.devtronHousekeeping.resources | nindent 16 }}
 {{- end }}
 {{- end }}  
-
-{{- if .Values.components.nats }}
-{{- if .Values.components.kubewatch.nats.nats.resources }}
+{{- if .Values.components.natsServer }}
+{{- if .Values.components.natsServer.nats.resources }}
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -196,7 +250,7 @@ data:
     apiVersion: apps/v1
     kind: StatefulSet
     metadata:
-      name: natsServer
+      name: devtron-nats
     update:
       spec:
         template:
@@ -209,4 +263,4 @@ data:
             - resources:
               {{- toYaml .Values.components.natsServer.metrics.resources | nindent 16 }}                            
 {{- end }}
-{{- end }}  
+{{- end }}

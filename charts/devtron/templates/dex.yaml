@@ -98,8 +98,10 @@ spec:
         volumeMounts:
         - mountPath: /shared
           name: static-files
+        {{- if .initContainer.resources }}  
         resources:
-        {{- toYaml .resources | nindent 10 }}            
+        {{- toYaml .initContainer.resources | nindent 10 }} 
+        {{- end }}           
       serviceAccountName: argocd-dex-server
       volumes:
       - emptyDir: {}
