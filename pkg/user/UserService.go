@@ -905,7 +905,6 @@ func (impl UserServiceImpl) UserExists(emailId string) bool {
 }
 func (impl UserServiceImpl) SaveLoginAudit(emailId string, id int32) {
 
-	//dont know what to put in clinet ip,modify it later
 	if emailId != "" {
 		user, err := impl.GetUserByEmail(emailId)
 		if err != nil {
@@ -918,6 +917,7 @@ func (impl UserServiceImpl) SaveLoginAudit(emailId string, id int32) {
 		impl.logger.Errorw("Invalid id to save login audit of sso user", "Id", id)
 		return
 	}
+	//dont know what to put in clinet ip,modify it later
 	clientIp := "localhost"
 	model := UserAudit{
 		UserId:    id,
