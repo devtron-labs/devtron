@@ -39,6 +39,8 @@ import (
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/ktrysmt/go-bitbucket"
+	"net/http"
+
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -77,7 +79,7 @@ type InstalledAppService interface {
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
-	FetchResourceTree(ctx context.Context, cancel context.CancelFunc, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
+	FetchResourceTree(ctx context.Context, cn http.CloseNotifier, ok bool, cancel context.CancelFunc, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
 }
 
 type InstalledAppServiceImpl struct {
@@ -881,13 +883,21 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 	values.ValuesYaml = versionHistory.ValuesYamlRaw
 	return values, err
 }
-func (impl InstalledAppServiceImpl) FetchResourceTree(ctx context.Context, cancel context.CancelFunc, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer {
+func (impl InstalledAppServiceImpl) FetchResourceTree(ctx context.Context, cn http.CloseNotifier, ok bool, cancel context.CancelFunc, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer {
 	if util.IsAcdApp(appDetail.DeploymentAppType) {
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
 		query := &application.ResourcesQuery{
 			ApplicationName: &acdAppName,
 		}
-
+		if ok {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			impl.logger.Errorw("error in getting acd token", "err", err)

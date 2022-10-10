@@ -349,14 +349,6 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 
 func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) {
 	ctx, cancel := context.WithCancel(r.Context())
-	if cn, ok := w.(http.CloseNotifier); ok {
-		go func(done <-chan struct{}, closed <-chan bool) {
-			select {
-			case <-done:
-			case <-closed:
-				cancel()
-			}
-		}(ctx.Done(), cn.CloseNotify())
-	}
-	handler.installedAppService.FetchResourceTree(ctx, cancel, appDetail)
+	cn, ok := w.(http.CloseNotifier)
+	handler.installedAppService.FetchResourceTree(ctx, cn, ok, cancel, appDetail)
 }
