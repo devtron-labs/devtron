@@ -37,10 +37,12 @@ type EnvConfigOverride struct {
 	Active            bool               `sql:"active,notnull"`
 	Namespace         string             `sql:"namespace,notnull"`
 	Chart             *chartRepoRepository.Chart
-	Environment       *repository.Environment `sql:"-"`
-	Latest            bool                    `sql:"latest,notnull"`
-	Previous          bool                    `sql:"previous,notnull"`
-	IsOverride        bool                    `sql:"is_override,notnull"`
+	Environment       *repository.Environment     `sql:"-"`
+	Latest            bool                        `sql:"latest,notnull"`
+	Previous          bool                        `sql:"previous,notnull"`
+	IsOverride        bool                        `sql:"is_override,notnull"`
+	IsBasicViewLocked bool                        `sql:"is_basic_view_locked,notnull"`
+	CurrentViewEditor models.ChartsViewEditorType `sql:"current_view_editor"`
 	sql.AuditLog
 }
 
@@ -89,24 +91,28 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		Active            bool               `sql:"active,notnull"`
 		Namespace         string             `sql:"namespace"`
 
-		ChartName               string `sql:"chart_name"`
-		ChartLocation           string `sql:"chart_location"`  //location within git repo where current chart is pointing
-		GlobalOverride          string `sql:"global_override"` //json format
-		ImageDescriptorTemplate string `sql:"image_descriptor_template"`
-		EnvironmentName         string `sql:"environment_name"`
-		Latest                  bool   `sql:"latest,notnull"`
-		AppName                 string `sql:"app_name"`
-		IsOverride              bool   `sql:"is_override"`
-		ChartRefId              int    `sql:"chart_ref_id,notnull"`
-		ChartVersion            string `sql:"chart_version,notnull"`
-		GitRepoUrl              string `sql:"git_repo_url"`
-		ReferenceTemplate       string `sql:"reference_template"`
+		ChartName               string                      `sql:"chart_name"`
+		ChartLocation           string                      `sql:"chart_location"`  //location within git repo where current chart is pointing
+		GlobalOverride          string                      `sql:"global_override"` //json format
+		ImageDescriptorTemplate string                      `sql:"image_descriptor_template"`
+		EnvironmentName         string                      `sql:"environment_name"`
+		Latest                  bool                        `sql:"latest,notnull"`
+		AppName                 string                      `sql:"app_name"`
+		IsOverride              bool                        `sql:"is_override"`
+		ChartRefId              int                         `sql:"chart_ref_id,notnull"`
+		ChartVersion            string                      `sql:"chart_version,notnull"`
+		GitRepoUrl              string                      `sql:"git_repo_url"`
+		ReferenceTemplate       string                      `sql:"reference_template"`
+		IsBasicViewLocked       bool                        `sql:"is_basic_view_locked,notnull"`
+		CurrentViewEditor       models.ChartsViewEditorType `sql:"current_view_editor"`
 	}
 
 	query := "SELECT " +
 		" ec.id as id, ec.chart_id as chart_id," +
 		" ec.target_environment as target_environment, ec.env_override_yaml as env_override_yaml, ec.status as status, ec.reviewed as reviewed," +
 		" ec.active as active, ec.namespace as namespace, ec.latest as latest," +
+		" ec.is_basic_view_locked as is_basic_view_locked," +
+		" ec.current_view_editor as current_view_editor," +
 		" ch.chart_name as chart_name," +
 		" ch.chart_location as chart_location," +
 		" ch.git_repo_url as git_repo_url,  " +

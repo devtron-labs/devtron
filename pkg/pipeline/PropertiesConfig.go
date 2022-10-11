@@ -40,19 +40,21 @@ import (
 )
 
 type EnvironmentProperties struct {
-	Id                int                `json:"id"`
-	EnvOverrideValues json.RawMessage    `json:"envOverrideValues"`
-	Status            models.ChartStatus `json:"status" validate:"number,required"` //default new, when its ready for deployment CHARTSTATUS_SUCCESS
-	ManualReviewed    bool               `json:"manualReviewed" validate:"required"`
-	Active            bool               `json:"active" validate:"required"`
-	Namespace         string             `json:"namespace" validate:"name-space-component,required"`
-	EnvironmentId     int                `json:"environmentId"`
-	EnvironmentName   string             `json:"environmentName"`
-	Latest            bool               `json:"latest"`
-	UserId            int32              `json:"-"`
-	AppMetrics        *bool              `json:"isAppMetricsEnabled"`
-	ChartRefId        int                `json:"chartRefId,omitempty"  validate:"number"`
-	IsOverride        bool               `sql:"isOverride"`
+	Id                int                         `json:"id"`
+	EnvOverrideValues json.RawMessage             `json:"envOverrideValues"`
+	Status            models.ChartStatus          `json:"status" validate:"number,required"` //default new, when its ready for deployment CHARTSTATUS_SUCCESS
+	ManualReviewed    bool                        `json:"manualReviewed" validate:"required"`
+	Active            bool                        `json:"active" validate:"required"`
+	Namespace         string                      `json:"namespace" validate:"name-space-component,required"`
+	EnvironmentId     int                         `json:"environmentId"`
+	EnvironmentName   string                      `json:"environmentName"`
+	Latest            bool                        `json:"latest"`
+	UserId            int32                       `json:"-"`
+	AppMetrics        *bool                       `json:"isAppMetricsEnabled"`
+	ChartRefId        int                         `json:"chartRefId,omitempty"  validate:"number"`
+	IsOverride        bool                        `sql:"isOverride"`
+	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
+	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"`
 }
 
 type EnvironmentPropertiesResponse struct {
@@ -71,7 +73,7 @@ type PropertiesConfigService interface {
 	CreateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties) (*EnvironmentProperties, error)
 	UpdateEnvironmentProperties(appId int, propertiesRequest *EnvironmentProperties, userId int32) (*EnvironmentProperties, error)
 	//create environment entry for each new environment
-	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error)
+	CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error)
 	GetEnvironmentProperties(appId, environmentId int, chartRefId int) (environmentPropertiesResponse *EnvironmentPropertiesResponse, err error)
 	GetEnvironmentPropertiesById(environmentId int) ([]EnvironmentProperties, error)
 
@@ -237,7 +239,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentProperties(appId int, e
 	if environmentProperties.AppMetrics != nil {
 		appMetrics = *environmentProperties.AppMetrics
 	}
-	envOverride, err := impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, true, appMetrics, environmentProperties.Namespace, nil)
+	envOverride, err := impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, true, appMetrics, environmentProperties.Namespace, environmentProperties.IsBasicViewLocked, environmentProperties.CurrentViewEditor, nil)
 	if err != nil {
 		return nil, err
 	}
@@ -328,6 +330,8 @@ func (impl PropertiesConfigServiceImpl) UpdateEnvironmentProperties(appId int, p
 		ManualReviewed:    propertiesRequest.ManualReviewed,
 		Namespace:         propertiesRequest.Namespace,
 		TargetEnvironment: propertiesRequest.EnvironmentId,
+		IsBasicViewLocked: propertiesRequest.IsBasicViewLocked,
+		CurrentViewEditor: propertiesRequest.CurrentViewEditor,
 		AuditLog:          sql.AuditLog{UpdatedBy: propertiesRequest.UserId, UpdatedOn: time.Now()},
 	}
 
@@ -388,7 +392,7 @@ func (impl PropertiesConfigServiceImpl) buildAppMetricsJson() ([]byte, error) {
 	return appMetricsJson, nil
 }
 
-func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error) {
+func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoRepository.Chart, environmentId int, userId int32, manualReviewed bool, chartStatus models.ChartStatus, isOverride, isAppMetricsEnabled bool, namespace string, IsBasicViewLocked bool, CurrentViewEditor models.ChartsViewEditorType, tx *pg.Tx) (*chartConfig.EnvConfigOverride, error) {
 	env, err := impl.environmentRepository.FindById(environmentId)
 	if err != nil {
 		return nil, err
@@ -414,6 +418,8 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 				envOverrideExisting.UpdatedOn = time.Now()
 				envOverrideExisting.UpdatedBy = userId
 				envOverrideExisting.IsOverride = isOverride
+				envOverrideExisting.IsBasicViewLocked = IsBasicViewLocked
+				envOverrideExisting.CurrentViewEditor = CurrentViewEditor
 				//maintaining backward compatibility for while
 				if tx != nil {
 					envOverrideExisting, err = impl.envConfigRepo.UpdateWithTxn(envOverrideExisting, tx)
@@ -437,6 +443,8 @@ func (impl PropertiesConfigServiceImpl) CreateIfRequired(chart *chartRepoReposit
 			AuditLog:          sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now(), CreatedBy: userId},
 			Namespace:         namespace,
 			IsOverride:        isOverride,
+			IsBasicViewLocked: IsBasicViewLocked,
+			CurrentViewEditor: CurrentViewEditor,
 		}
 		if isOverride {
 			envOverride.EnvOverrideValues = chart.GlobalOverride
@@ -582,7 +590,7 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 		if environmentProperties.AppMetrics != nil {
 			appMetrics = *environmentProperties.AppMetrics
 		}
-		envOverride, err = impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, false, appMetrics, environmentProperties.Namespace, nil)
+		envOverride, err = impl.CreateIfRequired(chart, environmentProperties.EnvironmentId, environmentProperties.UserId, environmentProperties.ManualReviewed, models.CHARTSTATUS_SUCCESS, false, appMetrics, environmentProperties.Namespace, environmentProperties.IsBasicViewLocked, environmentProperties.CurrentViewEditor, nil)
 		if err != nil {
 			return nil, err
 		}
@@ -593,6 +601,8 @@ func (impl PropertiesConfigServiceImpl) CreateEnvironmentPropertiesWithNamespace
 		}
 		envOverride.Namespace = environmentProperties.Namespace
 		envOverride.UpdatedBy = environmentProperties.UserId
+		envOverride.IsBasicViewLocked = environmentProperties.IsBasicViewLocked
+		envOverride.CurrentViewEditor = environmentProperties.CurrentViewEditor
 		envOverride.UpdatedOn = time.Now()
 		impl.logger.Debugw("updating environment override ", "value", envOverride)
 		err = impl.envConfigRepo.UpdateProperties(envOverride)
