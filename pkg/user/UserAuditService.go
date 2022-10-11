@@ -54,10 +54,8 @@ func (impl UserAuditServiceImpl) Update(userAudit *UserAudit) error {
 	userId := userAudit.UserId
 	impl.logger.Infow("Saving user audit", "userId", userId)
 	userAuditDb := &repository2.UserAudit{
-		UserId:    userId,
-		ClientIp:  userAudit.ClientIp,
-		CreatedOn: userAudit.CreatedOn,
-		UpdatedOn: userAudit.CreatedOn,
+		UserId:   userId,
+		ClientIp: userAudit.ClientIp,
 	}
 	err := impl.userAuditRepository.Update(userAuditDb)
 	if err != nil {
