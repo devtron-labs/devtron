@@ -435,6 +435,28 @@ func TestCiTemplateService(t *testing.T) {
 		assert.True(t, err == nil, err)
 	})
 
+	t.Run("fetch ci pipeline details", func(t *testing.T) {
+		t.SkipNow()
+		sugaredLogger, err := util.NewSugardLogger()
+		assert.True(t, err == nil, err)
+		config, err := sql.GetConfig()
+		assert.True(t, err == nil, err)
+		db, err := sql.NewDbConnection(config, sugaredLogger)
+		ciBuildConfigRepositoryImpl := pipelineConfig.NewCiBuildConfigRepositoryImpl(db, sugaredLogger)
+		ciBuildConfigServiceImpl := NewCiBuildConfigServiceImpl(sugaredLogger, ciBuildConfigRepositoryImpl)
+		ciTemplateRepositoryImpl := pipelineConfig.NewCiTemplateRepositoryImpl(db, sugaredLogger)
+		ciTemplateOverrideRepositoryImpl := pipelineConfig.NewCiTemplateOverrideRepositoryImpl(db, sugaredLogger)
+		ciTemplateServiceImpl := NewCiTemplateServiceImpl(sugaredLogger, ciBuildConfigServiceImpl, ciTemplateRepositoryImpl, ciTemplateOverrideRepositoryImpl)
+		appId := 7
+		templateBeans, _ := ciTemplateServiceImpl.FindTemplateOverrideByAppId(appId)
+		for _, templateBean := range templateBeans {
+			buildConfig := templateBean.CiBuildConfig
+			fmt.Println(buildConfig)
+		}
+		ciTemplateBean, _ := ciTemplateServiceImpl.FindByAppId(appId)
+		fmt.Println(ciTemplateBean.CiBuildConfig)
+	})
+
 	t.Run("escaping char test", func(t *testing.T) {
 		t.SkipNow()
 		input := "FROM debian\r\nRUN export node_version=\"0.10\" \\\r\n&& apt-get update && apt-get -y install nodejs=\"$node_verion\"\r\nCOPY package.json usr/src/app\r\nRUN cd /usr/src/app \\\r\n&& npm install node-static\r\n\r\nEXPOSE 80000\r\nCMD [\"npm\", \"start\"]"
