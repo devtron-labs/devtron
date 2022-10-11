@@ -5,6 +5,7 @@ API token allows users to generate API tokens with the desired access. Only supe
 ## Generate API Token
 
 To generate API tokens, go to global configurations -> Authorizations -> API tokens and click on Generate New Token.
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-1.png)
 
 1. Enter a name for the token

@@ -21,7 +21,7 @@ One can see multiple chart version options available in the drop-down. you can s
 
 Every chart version has its own YAML file. Helm charts are used to provide specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
 
-If you want to see [Application Metrics](rollout-deployment.md#3.-Show-application-metrics) (For example Status codes 2xx, 3xx, 5xx; throughput, and latency) for your application, then you need to select the latest chart version.
+If you want to see [Application Metrics](#3.-show-application-metrics) (For example Status codes 2xx, 3xx, 5xx; throughput, and latency) for your application, then you need to select the latest chart version.
 
 Application Metrics is not supported for Chart version older than 3.7 version.
 
@@ -720,11 +720,17 @@ Wait for given period of time before scaling down the container.
 
 ## 3. Show Application Metrics
 
-If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
+If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time, `show application metrics` option should be enabled. This can be enabled using the check box present below the deployment template.
+
+![Enable application metrics](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/app-metrics/app-metrics-2.png)
+
+After enabling it, click on `save changes` and redeploy the application. Now you should be able to see all the metrics on app details page. By default it remains disabled.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/application-metrics.jpg)
 
-Once all the Deployment template configurations are done, click on `Save` to save your deployment configuration. Now you are ready to create [Workflow](../workflow/README.md) to do CI/CD.
+>NOTE: Once all the configurations are done in deployment template, click on `Save` to save the deployment configurations.
+
+Now you are ready to create the [workflows](../workflow/README.md) to do CI/CD.
 
 ### Helm Chart Json Schema Table
 
