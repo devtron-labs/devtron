@@ -138,7 +138,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 	_, chartGitAttr, err := impl.chartTemplateService.CreateChartProxy(chartMeta, chartPath, template, appStoreAppVersion.Version, environment.Name, installAppVersionRequest)
 	if err != nil {
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	//STEP 3 - update requirements and values

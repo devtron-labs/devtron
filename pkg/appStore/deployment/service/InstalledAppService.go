@@ -345,7 +345,9 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
 			if installedAppVersion != nil {
-				_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_ERROR)
+				installedAppId := installedAppVersion.InstalledAppId
+				impl.logger.Infow(" AppStoreDeployOperationStatusUpdate", "installedAppId", installedAppId, "error", appStoreBean.GIT_ERROR)
+				_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppId, appStoreBean.GIT_ERROR)
 			}
 			if err != nil {
 				impl.logger.Errorw(" error", "err", err)
