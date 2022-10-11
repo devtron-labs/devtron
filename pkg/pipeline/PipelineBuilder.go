@@ -371,12 +371,12 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
 		return nil, err
 	}
-	template := ciTemplateBean.CiTemplate
 	if errors.IsNotFound(err) {
 		impl.logger.Debugw("no ci pipeline exists", "appId", appId, "err", err)
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline exists"}
 		return nil, err
 	}
+	template := ciTemplateBean.CiTemplate
 
 	gitMaterials, err := impl.materialRepo.FindByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
