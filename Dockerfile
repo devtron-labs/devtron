@@ -9,7 +9,7 @@ ADD . /go/src/github.com/devtron-labs/devtron/
 RUN GOOS=linux make build-all
 
 # uncomment this post build arg
-FROM ubuntu as  devtron-ea
+FROM ubuntu as  devtron-all
 
 RUN apt update
 RUN apt install ca-certificates git curl -y
