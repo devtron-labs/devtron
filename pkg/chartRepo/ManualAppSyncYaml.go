@@ -7,15 +7,17 @@ import (
 )
 
 type AppSyncConfig struct {
-	DbConfig    sql.Config
-	DockerImage string
+	DbConfig                sql.Config
+	DockerImage             string
+	LimitAppSyncJobResource bool
 }
 
-func manualAppSyncJobByteArr(dockerImage string) []byte {
+func manualAppSyncJobByteArr(dockerImage string, limitAppSyncJobResource bool) []byte {
 	cfg, _ := sql.GetConfig()
 	configValues := AppSyncConfig{
-		DbConfig:    sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
-		DockerImage: dockerImage,
+		DbConfig:                sql.Config{Addr: cfg.Addr, Database: cfg.Database, User: cfg.User, Password: cfg.Password},
+		DockerImage:             dockerImage,
+		LimitAppSyncJobResource: limitAppSyncJobResource,
 	}
 	temp := template.New("manualAppSyncJobByteArr")
 	temp, _ = temp.Parse(`{"apiVersion": "batch/v1",
@@ -31,6 +33,18 @@ func manualAppSyncJobByteArr(dockerImage string) []byte {
           {
             "name": "chart-sync",
             "image": "{{.DockerImage}}",
+			{{if .LimitAppSyncJobResource}}
+			"resources": {
+              "limits" : {
+                "cpu" : "50m",
+                "memory": "200Mi"
+              },
+              "requests" : {
+                "cpu" : "50m",
+                "memory": "200Mi"
+              }
+            },
+            {{end}}
             "env": [
               {
                 "name": "PG_ADDR",
