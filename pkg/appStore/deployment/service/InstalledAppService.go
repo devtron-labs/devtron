@@ -344,7 +344,9 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 		installedAppVersion, chartGitAttrDB, err := impl.appStoreDeploymentFullModeService.AppStoreDeployOperationGIT(installedAppVersion)
 		if err != nil {
 			impl.logger.Errorw(" error", "err", err)
-			_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_ERROR)
+			if installedAppVersion != nil {
+				_, err = impl.appStoreDeploymentService.AppStoreDeployOperationStatusUpdate(installedAppVersion.InstalledAppId, appStoreBean.GIT_ERROR)
+			}
 			if err != nil {
 				impl.logger.Errorw(" error", "err", err)
 				return nil, err
