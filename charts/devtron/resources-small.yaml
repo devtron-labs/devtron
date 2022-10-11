@@ -6,8 +6,6 @@ installer:
       requests:
         cpu: "100m"
         memory: 250Mi
-
-# Change the below values for hyperion only mode (Refer https://docs.devtron.ai/#hyperion )
 components:
   lens:
     resources:
