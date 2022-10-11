@@ -51,6 +51,7 @@ func NewUserAuditRepositoryImpl(dbConnection *pg.DB) *UserAuditRepositoryImpl {
 
 func (impl UserAuditRepositoryImpl) Update(userAudit *UserAudit) error {
 	userAuditPresentInDB, err := impl.GetLatestByUserId(userAudit.UserId)
+	userAudit.UpdatedOn = time.Now()
 	if err == nil {
 		userAudit.CreatedOn = userAuditPresentInDB.CreatedOn
 		err = impl.dbConnection.Update(userAudit)

@@ -918,9 +918,8 @@ func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 		return
 	}
 	model := UserAudit{
-		UserId:    id,
-		ClientIp:  clientIp,
-		UpdatedOn: time.Now(),
+		UserId:   id,
+		ClientIp: clientIp,
 	}
 	err := impl.userAuditService.Update(&model)
 	if err != nil {
