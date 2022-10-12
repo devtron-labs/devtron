@@ -1,4 +1,9 @@
-<p align="center"><img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
+<p align="center">
+<picture>
+  <source media="(prefers-color-scheme: dark)"  srcset="./assets/devtron-darkmode-logo.png">
+  <source media="(prefers-color-scheme: light)"  srcset="./assets/devtron-lightmode-logo.png">
+  <img width="333.333" height="260" src="./assets/devtron-logo-dark-light.png">
+</picture>
 <h1 align= "center">Tool integration platform for Kubernetes</h1>
 </p>
  
