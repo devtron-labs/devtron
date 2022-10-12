@@ -24,6 +24,7 @@ import (
 	"errors"
 	"fmt"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"io/ioutil"
 	"os"
 	"strconv"
@@ -489,7 +490,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 	}
 	ciLogRequest := BuildLogRequest{
 		PodName:   ciWorkflow.PodName,
-		Namespace:    ciWorkflow.Namespace,
+		Namespace: ciWorkflow.Namespace,
 	}
 	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, "", "", false)
 	if logStream == nil || err != nil {
@@ -701,24 +702,25 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	podName := ""
 	logLocation := ""
 	for k, v := range workflowStatus.Nodes {
-		if v.TemplateName == CI_WORKFLOW_NAME {impl.Logger.Infow("extractWorkflowStatus", "workflowName", k, "v", v)
+		if v.TemplateName == CI_WORKFLOW_NAME {
+			impl.Logger.Infow("extractWorkflowStatus", "workflowName", k, "v", v)
 			if v.BoundaryID == "" {
 				workflowName = k
 			} else {
 				workflowName = v.BoundaryID
 			}
 			podName = k
-		podStatus = string(v.Phase)
-		message = v.Message
-		if v.Outputs != nil && len(v.Outputs.Artifacts) > 0 {
-			if v.Outputs.Artifacts[0].S3 != nil {
-				logLocation = v.Outputs.Artifacts[0].S3.Key
-			} else if v.Outputs.Artifacts[0].GCS != nil {
-				logLocation = v.Outputs.Artifacts[0].GCS.Key
+			podStatus = string(v.Phase)
+			message = v.Message
+			if v.Outputs != nil && len(v.Outputs.Artifacts) > 0 {
+				if v.Outputs.Artifacts[0].S3 != nil {
+					logLocation = v.Outputs.Artifacts[0].S3.Key
+				} else if v.Outputs.Artifacts[0].GCS != nil {
+					logLocation = v.Outputs.Artifacts[0].GCS.Key
+				}
 			}
+			break
 		}
-		break
-	}
 	}
 	return workflowName, status, podStatus, message, logLocation, podName
 }
@@ -1029,28 +1031,14 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int) (*Git
 		impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
 		return &GitTriggerInfoResponse{}, err
 	}
-	var workflow *pipelineConfig.CiWorkflow
-	if ciArtifact.ParentCiArtifact > 0 {
-		workflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifact.ParentCiArtifact)
-		if err != nil {
-			impl.Logger.Errorw("err", "ciArtifactId", ciArtifact.ParentCiArtifact, "err", err)
-			return &GitTriggerInfoResponse{}, err
-		}
-	} else {
-		workflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifactId)
-		if err != nil {
-			impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
-			return &GitTriggerInfoResponse{}, err
-		}
-	}
 
-	triggeredByUser, err := impl.userService.GetById(workflow.TriggeredBy)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.Logger.Errorw("err", "err", err)
+	ciPipeline, err := impl.ciPipelineRepository.FindById(ciArtifact.PipelineId)
+	if err != nil {
+		impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
 		return &GitTriggerInfoResponse{}, err
 	}
 
-	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(workflow.CiPipelineId)
+	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(ciPipeline.Id)
 	if err != nil {
 		impl.Logger.Errorw("err", "err", err)
 		return &GitTriggerInfoResponse{}, err
@@ -1063,48 +1051,71 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int) (*Git
 	}
 
 	var ciMaterialsArr []CiPipelineMaterialResponse
-	for _, m := range ciMaterials {
-		var history []*gitSensor.GitCommit
-		_gitTrigger := workflow.GitTriggers[m.Id]
-
-		_gitCommit := &gitSensor.GitCommit{
-			Message: _gitTrigger.Message,
-			Author:  _gitTrigger.Author,
-			Date:    _gitTrigger.Date,
-			Changes: _gitTrigger.Changes,
-			Commit:  _gitTrigger.Commit,
-		}
-
-		// set webhook data
-		_webhookData := _gitTrigger.WebhookData
-		if _webhookData.Id > 0 {
-			_gitCommit.WebhookData = &gitSensor.WebhookData{
-				Id:              _webhookData.Id,
-				EventActionType: _webhookData.EventActionType,
-				Data:            _webhookData.Data,
+	triggeredByUser := &bean2.UserInfo{}
+	if !ciPipeline.IsExternal {
+		var workflow *pipelineConfig.CiWorkflow
+		if ciArtifact.ParentCiArtifact > 0 {
+			workflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifact.ParentCiArtifact)
+			if err != nil {
+				impl.Logger.Errorw("err", "ciArtifactId", ciArtifact.ParentCiArtifact, "err", err)
+				return &GitTriggerInfoResponse{}, err
+			}
+		} else {
+			workflow, err = impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(ciArtifactId)
+			if err != nil {
+				impl.Logger.Errorw("err", "ciArtifactId", ciArtifactId, "err", err)
+				return &GitTriggerInfoResponse{}, err
 			}
 		}
 
-		history = append(history, _gitCommit)
-
-		res := CiPipelineMaterialResponse{
-			Id:              m.Id,
-			GitMaterialId:   m.GitMaterialId,
-			GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
-			Type:            string(m.Type),
-			Value:           m.Value,
-			Active:          m.Active,
-			Url:             m.GitMaterial.Url,
-			History:         history,
+		triggeredByUser, err = impl.userService.GetById(workflow.TriggeredBy)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.Logger.Errorw("err", "err", err)
+			return &GitTriggerInfoResponse{}, err
 		}
-		ciMaterialsArr = append(ciMaterialsArr, res)
-	}
 
+		for _, m := range ciMaterials {
+			var history []*gitSensor.GitCommit
+			_gitTrigger := workflow.GitTriggers[m.Id]
+
+			_gitCommit := &gitSensor.GitCommit{
+				Message: _gitTrigger.Message,
+				Author:  _gitTrigger.Author,
+				Date:    _gitTrigger.Date,
+				Changes: _gitTrigger.Changes,
+				Commit:  _gitTrigger.Commit,
+			}
+
+			// set webhook data
+			_webhookData := _gitTrigger.WebhookData
+			if _webhookData.Id > 0 {
+				_gitCommit.WebhookData = &gitSensor.WebhookData{
+					Id:              _webhookData.Id,
+					EventActionType: _webhookData.EventActionType,
+					Data:            _webhookData.Data,
+				}
+			}
+
+			history = append(history, _gitCommit)
+
+			res := CiPipelineMaterialResponse{
+				Id:              m.Id,
+				GitMaterialId:   m.GitMaterialId,
+				GitMaterialName: m.GitMaterial.Name[strings.Index(m.GitMaterial.Name, "-")+1:],
+				Type:            string(m.Type),
+				Value:           m.Value,
+				Active:          m.Active,
+				Url:             m.GitMaterial.Url,
+				History:         history,
+			}
+			ciMaterialsArr = append(ciMaterialsArr, res)
+		}
+	}
 	gitTriggerInfoResponse := &GitTriggerInfoResponse{
 		//GitTriggers:      workflow.GitTriggers,
 		CiMaterials:      ciMaterialsArr,
 		TriggeredByEmail: triggeredByUser.EmailId,
-		AppId:            workflow.CiPipeline.AppId,
+		AppId:            ciPipeline.AppId,
 		AppName:          deployDetail.AppName,
 		EnvironmentId:    deployDetail.EnvironmentId,
 		EnvironmentName:  deployDetail.EnvironmentName,

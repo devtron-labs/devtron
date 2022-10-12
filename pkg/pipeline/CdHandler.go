@@ -502,7 +502,7 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, token string, host string, runStageInEnv bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := BuildLogRequest{
 		PodName:   cdWorkflow.PodName,
-		Namespace:    cdWorkflow.Namespace,
+		Namespace: cdWorkflow.Namespace,
 	}
 
 	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(cdLogRequest, token, host, runStageInEnv)
@@ -539,7 +539,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 	cdLogRequest := BuildLogRequest{
 		PipelineId:    cdWorkflow.CdWorkflow.PipelineId,
 		WorkflowId:    cdWorkflow.Id,
-		PodName:    cdWorkflow.PodName,
+		PodName:       cdWorkflow.PodName,
 		LogsFilePath:  cdWorkflow.LogLocation, // impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
@@ -611,7 +611,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		ciMaterialsArr = append(ciMaterialsArr, res)
 	}
 	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(workflow.CiArtifactId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching ci wf", "artifactId", workflow.CiArtifactId, "err", err)
 		return WorkflowResponse{}, err
 	}
