@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -172,6 +173,8 @@ func (handler AppRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Reque
 }
 
 func (handler AppRestHandlerImpl) Panic(w http.ResponseWriter, r *http.Request) {
+	deck := []string{"Spade", "Club", "Heart", "Diamond"}
+	fmt.Println("This will cause panic", deck[len(deck)])
 	panic("mein mar gaya")
 }
 
