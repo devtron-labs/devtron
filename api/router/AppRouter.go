@@ -49,6 +49,6 @@ func (router AppRouterImpl) initAppRouter(appRouter *mux.Router) {
 		HandlerFunc(router.handler.UpdateApp).Methods("POST")
 	appRouter.Path("/edit/projects").
 		HandlerFunc(router.handler.UpdateProjectForApps).Methods("POST")
-	appRouter.Path("panic").
+	appRouter.Path("/panic").
 		HandlerFunc(router.handler.Panic).Methods("GET")
 }
