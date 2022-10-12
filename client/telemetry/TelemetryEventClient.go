@@ -109,6 +109,7 @@ type TelemetryEventEA struct {
 	InstalledIntegrations       []string           `json:"installedIntegrations,omitempty"`
 	InstallFailedIntegrations   []string           `json:"installFailedIntegrations,omitempty"`
 	InstallTimedOutIntegrations []string           `json:"installTimedOutIntegrations,omitempty"`
+	LastLoginTime               time.Time          `json:"LastLoginTimeLoginTime,omitempty"`
 	InstallingIntegrations      []string           `json:"installingIntegrations,omitempty"`
 	DevtronReleaseVersion       string             `json:"devtronReleaseVersion,omitempty"`
 	LoginTime                   time.Time          `json:"loginTime,omitempty"`
@@ -228,7 +229,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 		if loginTime.IsZero() {
 			loginTime = latestUser.CreatedOn
 		}
-		payload.LoginTime = loginTime
+		payload.LastLoginTime = loginTime
 	}
 
 	reqBody, err := json.Marshal(payload)
