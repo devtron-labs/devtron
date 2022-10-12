@@ -4,11 +4,14 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
+	client2 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	"github.com/nats-io/nats.go"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
@@ -20,17 +23,20 @@ type CdApplicationStatusUpdateHandler interface {
 	ArgoApplicationStatusUpdate()
 	ArgoPipelineTimelineUpdate()
 	Subscribe() error
+	SyncPipelineStatusForResourceTreeCall(acdAppName string, appId, envId int) error
 }
 
 type CdApplicationStatusUpdateHandlerImpl struct {
-	logger              *zap.SugaredLogger
-	cron                *cron.Cron
-	appService          app.AppService
-	workflowDagExecutor pipeline.WorkflowDagExecutor
-	installedAppService service.InstalledAppService
-	CdHandler           pipeline.CdHandler
-	AppStatusConfig     *AppStatusConfig
-	pubsubClient        *pubsub.PubSubClient
+	logger                           *zap.SugaredLogger
+	cron                             *cron.Cron
+	appService                       app.AppService
+	workflowDagExecutor              pipeline.WorkflowDagExecutor
+	installedAppService              service.InstalledAppService
+	CdHandler                        pipeline.CdHandler
+	AppStatusConfig                  *AppStatusConfig
+	pubsubClient                     *pubsub.PubSubClient
+	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
+	eventClient                      client2.EventClient
 }
 
 type AppStatusConfig struct {
@@ -50,19 +56,21 @@ func GetAppStatusConfig() (*AppStatusConfig, error) {
 
 func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
-	CdHandler pipeline.CdHandler, AppStatusConfig *AppStatusConfig, pubsubClient *pubsub.PubSubClient) *CdApplicationStatusUpdateHandlerImpl {
+	CdHandler pipeline.CdHandler, AppStatusConfig *AppStatusConfig, pubsubClient *pubsub.PubSubClient,
+	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository) *CdApplicationStatusUpdateHandlerImpl {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
 	impl := &CdApplicationStatusUpdateHandlerImpl{
-		logger:              logger,
-		cron:                cron,
-		appService:          appService,
-		workflowDagExecutor: workflowDagExecutor,
-		installedAppService: installedAppService,
-		CdHandler:           CdHandler,
-		AppStatusConfig:     AppStatusConfig,
-		pubsubClient:        pubsubClient,
+		logger:                           logger,
+		cron:                             cron,
+		appService:                       appService,
+		workflowDagExecutor:              workflowDagExecutor,
+		installedAppService:              installedAppService,
+		CdHandler:                        CdHandler,
+		AppStatusConfig:                  AppStatusConfig,
+		pubsubClient:                     pubsubClient,
+		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 	}
 	err := impl.Subscribe()
 	if err != nil {
@@ -148,4 +156,28 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoPipelineTimelineUpdate() {
 		return
 	}
 	return
+}
+
+func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceTreeCall(acdAppName string, appId, envId int) error {
+	_, err := impl.pipelineStatusTimelineRepository.FetchTimelineUpdatedBeforeSecondsByAppIdAndEnvId(appId, envId, 10)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting timeline", "err", err)
+		return err
+	}
+	if err == pg.ErrNoRows {
+		//create new nats event
+		statusUpdateEvent := pipeline.ArgoPipelineStatusEvent{
+			ArgoAppName:                acdAppName,
+			AppId:                      appId,
+			EnvId:                      envId,
+			IgnoreFailedWorkflowStatus: false,
+		}
+		//write event
+		err := impl.eventClient.WriteNatsEvent(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
+		if err != nil {
+			impl.logger.Errorw("error in writing nats event", "topic", util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
+			return err
+		}
+	}
+	return nil
 }
