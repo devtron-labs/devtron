@@ -20,7 +20,7 @@ data:
     create database git_sensor;
     create database lens;
     create database clairv4
-{{- if eq $.Values.installer.arch "legacy" }}
+{{- if not $.Values.installer.arch }}
 ---
 apiVersion: v1
 kind: Service
