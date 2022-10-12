@@ -55,7 +55,7 @@ func (impl UserAuditRepositoryImpl) Update(userAudit *UserAudit) error {
 	if err == nil {
 		userAudit.CreatedOn = userAuditPresentInDB.CreatedOn
 		err = impl.dbConnection.Update(userAudit)
-	} else {
+	} else if err == pg.ErrNoRows {
 		userAudit.CreatedOn = userAudit.UpdatedOn
 		err = impl.dbConnection.Insert(userAudit)
 	}
