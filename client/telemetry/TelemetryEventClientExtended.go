@@ -133,7 +133,7 @@ type TelemetryEventDto struct {
 	InstalledIntegrations                []string           `json:"installedIntegrations,omitempty"`
 	InstallFailedIntegrations            []string           `json:"installFailedIntegrations,omitempty"`
 	InstallTimedOutIntegrations          []string           `json:"installTimedOutIntegrations,omitempty"`
-	LoginTime                            time.Time          `json:"loginTime,omitempty"`
+	LastLoginTime                        time.Time          `json:"LastLoginTime,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -282,7 +282,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		if loginTime.IsZero() {
 			loginTime = latestUser.CreatedOn
 		}
-		payload.LoginTime = loginTime
+		payload.LastLoginTime = loginTime
 	}
 
 	reqBody, err := json.Marshal(payload)
