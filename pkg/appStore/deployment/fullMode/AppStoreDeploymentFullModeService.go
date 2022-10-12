@@ -115,13 +115,13 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	environment, err := impl.environmentRepository.FindById(installAppVersionRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	//STEP 1: Commit and PUSH on Gitlab
@@ -130,7 +130,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	valid, err := chartutil.IsChartDir(chartPath)
 	if err != nil || !valid {
 		impl.logger.Errorw("invalid base chart", "dir", chartPath, "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 	chartMeta := &chart.Metadata{
 		Name:    installAppVersionRequest.AppName,
@@ -138,7 +138,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 	_, chartGitAttr, err := impl.chartTemplateService.CreateChartProxy(chartMeta, chartPath, template, appStoreAppVersion.Version, environment.Name, installAppVersionRequest)
 	if err != nil {
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	//STEP 3 - update requirements and values
@@ -157,11 +157,11 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 	requirementDependenciesByte, err := json.Marshal(requirementDependencies)
 	if err != nil {
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 	requirementDependenciesByte, err = yaml.JSONToYAML(requirementDependenciesByte)
 	if err != nil {
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
@@ -182,13 +182,13 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		if err == pg.ErrNoRows {
 			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
 		} else {
-			return nil, nil, err
+			return installAppVersionRequest, nil, err
 		}
 	}
 	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	//GIT PULL
@@ -198,14 +198,14 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
 	if err != nil {
 		impl.logger.Errorw("error in git pull", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	//update values yaml in chart
 	ValuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
 	if err != nil {
 		impl.logger.Errorw("error in json patch", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	var dat map[string]interface{}
@@ -216,7 +216,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	valuesByte, err := json.Marshal(valuesMap)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	valuesYamlConfig := &util.ChartConfig{
@@ -232,13 +232,13 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	commitHash, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 	//sync local dir with remote
 	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
 	if err != nil {
 		impl.logger.Errorw("error in git pull", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 	installAppVersionRequest.GitHash = commitHash
 	installAppVersionRequest.ACDAppName = argocdAppName
