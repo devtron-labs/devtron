@@ -213,13 +213,40 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	if userInfo.EmailId == "admin@github.com/devtron-labs" {
 		userInfo.EmailId = "admin"
 	}
-	res, err := handler.userService.UpdateUser(&userInfo, token, handler.checkManagerAuth)
+
+	res, rolesChanged, restrictedGroups, err := handler.userService.UpdateUser(&userInfo, token, handler.checkManagerAuth)
+
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+
+	if len(restrictedGroups) == 0 {
+		common.WriteJsonResp(w, err, res, http.StatusOK)
+	} else {
+		groups := strings.Join(restrictedGroups, " ")
+
+		if len(restrictedGroups) == len(userInfo.Groups) {
+
+			if rolesChanged {
+				// warning
+				message := "User permissions updated partially. " + groups + " could not be modified. You do not have manager permission for some or all projects in these groups."
+				common.WriteJsonResp(w, err, message, http.StatusExpectationFailed)
+
+			} else {
+				//error
+				message := "Permission could not be modified: You do not have manager permission for some or all projects in " + groups
+				common.WriteJsonResp(w, err, message, http.StatusBadRequest)
+			}
+
+		} else {
+			// warning
+			message := "User permissions updated partially. " + groups + " could not be modified. You do not have manager permission for some or all projects in these groups."
+			common.WriteJsonResp(w, err, message, http.StatusExpectationFailed)
+		}
+	}
+
 }
 
 func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) {
