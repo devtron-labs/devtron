@@ -23,4 +23,9 @@ func (router BulkUpdateRouterImpl) initBulkUpdateRouter(bulkRouter *mux.Router) 
 	bulkRouter.Path("/{apiVersion}/{kind}/readme").HandlerFunc(router.restHandler.FindBulkUpdateReadme).Methods("GET")
 	bulkRouter.Path("/v1beta1/application/dryrun").HandlerFunc(router.restHandler.GetImpactedAppsName).Methods("POST")
 	bulkRouter.Path("/v1beta1/application").HandlerFunc(router.restHandler.BulkUpdate).Methods("POST")
+
+	bulkRouter.Path("/v1beta1/hibernate").HandlerFunc(router.restHandler.BulkHibernate).Methods("POST")
+	bulkRouter.Path("/v1beta1/unhibernate").HandlerFunc(router.restHandler.BulkUnHibernate).Methods("POST")
+	bulkRouter.Path("/v1beta1/deploy").HandlerFunc(router.restHandler.BulkDeploy).Methods("POST")
+
 }

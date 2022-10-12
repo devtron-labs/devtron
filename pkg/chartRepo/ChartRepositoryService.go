@@ -380,7 +380,7 @@ func (impl *ChartRepositoryServiceImpl) TriggerChartSyncManual() error {
 		return err
 	}
 
-	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage)
+	manualAppSyncJobByteArr := manualAppSyncJobByteArr(impl.serverEnvConfig.AppSyncImage, impl.serverEnvConfig.AppSyncJobResourcesObj)
 
 	err = impl.K8sUtil.DeleteAndCreateJob(manualAppSyncJobByteArr, impl.aCDAuthConfig.ACDConfigMapNamespace, defaultClusterConfig)
 	if err != nil {

@@ -56,6 +56,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppVersionByClusterIds(clusterIds []int) ([]*InstalledAppVersions, error) //unused
 	GetInstalledAppVersionByClusterIdsV2(clusterIds []int) ([]*InstalledAppVersions, error)
 	GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error)
+	GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -113,6 +114,7 @@ type InstalledAppsWithChartDetails struct {
 	Namespace                    string    `json:"namespace"`
 	TeamId                       int       `json:"teamId"`
 	ClusterId                    int       `json:"clusterId"`
+	AppOfferingMode              string    `json:"app_offering_mode"`
 }
 
 type InstalledAppAndEnvDetails struct {
@@ -241,7 +243,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	var installedAppsWithChartDetails []InstalledAppsWithChartDetails
 	var query string
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name,"
-	query = query + " env.environment_name, env.id as environment_id, a.app_name, asav.icon, asav.name as app_store_application_name,"
+	query = query + " env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, asav.icon, asav.name as app_store_application_name,"
 	query = query + " env.namespace, cluster.cluster_name, a.team_id, cluster.id as cluster_id, "
 	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated"
 	query = query + " from installed_app_versions iav"
@@ -455,4 +457,17 @@ func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndName
 		Where("environment.active = ?", true).
 		Select()
 	return model, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error) {
+	var installedApps []*InstalledApps
+	err := impl.dbConnection.
+		Model(&installedApps).
+		Column("installed_apps.id", "App.app_name", "Environment.cluster_id", "Environment.namespace").
+		Where("environment.cluster_id in (?)", pg.In(clusterIds)).
+		Where("installed_apps.deployment_app_type = ?", deploymentAppType).
+		Where("app.active = ?", true).
+		Where("installed_apps.active = ?", true).
+		Select()
+	return installedApps, err
 }

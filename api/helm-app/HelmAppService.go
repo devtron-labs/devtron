@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
@@ -66,6 +67,7 @@ type HelmAppServiceImpl struct {
 	appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository
 	environmentService                   cluster.EnvironmentService
 	pipelineRepository                   pipelineConfig.PipelineRepository
+	installedAppRepository               repository.InstalledAppRepository
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
@@ -73,7 +75,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	helmAppClient HelmAppClient,
 	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore,
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository) *HelmAppServiceImpl {
+	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository.InstalledAppRepository) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
 		clusterService:                       clusterService,
@@ -85,6 +87,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 		appStoreApplicationVersionRepository: appStoreApplicationVersionRepository,
 		environmentService:                   environmentService,
 		pipelineRepository:                   pipelineRepository,
+		installedAppRepository:               installedAppRepository,
 	}
 }
 
@@ -122,6 +125,7 @@ func (impl *HelmAppServiceImpl) listApplications(clusterIds []int) (ApplicationS
 
 func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool) {
 	var helmCdPipelines []*pipelineConfig.Pipeline
+	var installedHelmApps []*repository.InstalledApps
 	appStream, err := impl.listApplications(clusterIds)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app list", "clusters", clusterIds, "err", err)
@@ -132,12 +136,20 @@ func (impl *HelmAppServiceImpl) ListHelmApplications(clusterIds []int, w http.Re
 		if err != nil {
 			impl.logger.Errorw("error in fetching helm app list from DB created using cd_pipelines", "clusters", clusterIds, "err", err)
 		}
+
+		// if not hyperion mode, then fetch from installed_apps whose deployment_app_type is helm (as in hyperion mode, these apps should be treated as external-apps)
+		if !util2.IsBaseStack() {
+			installedHelmApps, err = impl.installedAppRepository.GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(util.PIPELINE_DEPLOYMENT_TYPE_HELM, clusterIds)
+			if err != nil {
+				impl.logger.Errorw("error in fetching helm app list from DB created from app store", "clusters", clusterIds, "err", err)
+			}
+		}
 	}
 	impl.pump.StartStreamWithTransformer(w, func() (proto.Message, error) {
 		return appStream.Recv()
 	}, err,
 		func(message interface{}) interface{} {
-			return impl.appListRespProtoTransformer(message.(*DeployedAppList), token, helmAuth, helmCdPipelines)
+			return impl.appListRespProtoTransformer(message.(*DeployedAppList), token, helmAuth, helmCdPipelines, installedHelmApps)
 		})
 }
 
@@ -681,7 +693,7 @@ func (impl *HelmAppServiceImpl) EncodeAppId(appIdentifier *AppIdentifier) string
 	return fmt.Sprintf("%d|%s|%s", appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 }
 
-func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList, token string, helmAuth func(token string, object string) bool, helmCdPipelines []*pipelineConfig.Pipeline) openapi.AppList {
+func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *DeployedAppList, token string, helmAuth func(token string, object string) bool, helmCdPipelines []*pipelineConfig.Pipeline, installedHelmApps []*repository.InstalledApps) openapi.AppList {
 	applicationType := "HELM-APP"
 	appList := openapi.AppList{ClusterIds: &[]int32{deployedApps.ClusterId}, ApplicationType: &applicationType}
 	if deployedApps.Errored {
@@ -704,6 +716,19 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 			if toExcludeFromList {
 				continue
 			}
+			// end
+
+			// do not add helm apps in the list which are created using app_store
+			for _, installedHelmApp := range installedHelmApps {
+				if deployedapp.AppName == installedHelmApp.App.AppName && int(deployedapp.EnvironmentDetail.ClusterId) == installedHelmApp.Environment.ClusterId && deployedapp.EnvironmentDetail.Namespace == installedHelmApp.Environment.Namespace {
+					toExcludeFromList = true
+					break
+				}
+			}
+			if toExcludeFromList {
+				continue
+			}
+			// end
 
 			lastDeployed := deployedapp.LastDeployed.AsTime()
 			helmApp := openapi.HelmApp{

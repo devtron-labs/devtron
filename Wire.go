@@ -153,8 +153,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(session2.ServiceClient), new(*middleware.LoginService)),
 
 		sse.NewSSE,
-		router.NewHelmRouter,
-		wire.Bind(new(router.HelmRouter), new(*router.HelmRouterImpl)),
+		router.NewPipelineTriggerRouter,
+		wire.Bind(new(router.PipelineTriggerRouter), new(*router.PipelineTriggerRouterImpl)),
 
 		//---- pprof start ----
 		restHandler.NewPProfRestHandler,
@@ -740,8 +740,20 @@ func InitializeApp() (*App, error) {
 		pipelineConfig.NewPipelineStatusTimelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineStatusTimelineRepository), new(*pipelineConfig.PipelineStatusTimelineRepositoryImpl)),
 
+		wire.Bind(new(pipeline.DeploymentConfigService), new(*pipeline.DeploymentConfigServiceImpl)),
+		pipeline.NewDeploymentConfigServiceImpl,
+
 		pipelineConfig.NewCiTemplateOverrideRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiTemplateOverrideRepository), new(*pipelineConfig.CiTemplateOverrideRepositoryImpl)),
+
+		router.NewGlobalCMCSRouterImpl,
+		wire.Bind(new(router.GlobalCMCSRouter), new(*router.GlobalCMCSRouterImpl)),
+		restHandler.NewGlobalCMCSRestHandlerImpl,
+		wire.Bind(new(restHandler.GlobalCMCSRestHandler), new(*restHandler.GlobalCMCSRestHandlerImpl)),
+		pipeline.NewGlobalCMCSServiceImpl,
+		wire.Bind(new(pipeline.GlobalCMCSService), new(*pipeline.GlobalCMCSServiceImpl)),
+		repository.NewGlobalCMCSRepositoryImpl,
+		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
 	)
 	return &App{}, nil
 }
