@@ -41,6 +41,7 @@ type TelemetryEventClientImpl struct {
 	ssoLoginService  sso.SSOLoginService
 	PosthogClient    *PosthogClient
 	moduleRepository moduleRepo.ModuleRepository
+	userAuditService user.UserAuditService
 }
 
 type TelemetryEventClient interface {
@@ -55,7 +56,7 @@ type TelemetryEventClient interface {
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository) (*TelemetryEventClientImpl, error) {
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, userAuditService user.UserAuditService) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -68,6 +69,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		ssoLoginService:  ssoLoginService,
 		PosthogClient:    PosthogClient,
 		moduleRepository: moduleRepository,
+		userAuditService: userAuditService,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -104,6 +106,7 @@ type TelemetryEventEA struct {
 	InstalledIntegrations       []string           `json:"installedIntegrations,omitempty"`
 	InstallFailedIntegrations   []string           `json:"installFailedIntegrations,omitempty"`
 	InstallTimedOutIntegrations []string           `json:"installTimedOutIntegrations,omitempty"`
+	LoginTime                   time.Time          `json:"loginTime,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -211,6 +214,15 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.InstalledIntegrations = installedIntegrations
 	payload.InstallFailedIntegrations = installFailedIntegrations
 	payload.InstallTimedOutIntegrations = installTimedOutIntegrations
+
+	latestUser, err := impl.userAuditService.GetLatestUser()
+	if err == nil {
+		loginTime := latestUser.UpdatedOn
+		if loginTime.IsZero() {
+			loginTime = latestUser.CreatedOn
+		}
+		payload.LoginTime = loginTime
+	}
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {

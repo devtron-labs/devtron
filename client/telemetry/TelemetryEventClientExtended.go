@@ -49,7 +49,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
-	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository) (*TelemetryEventClientImplExtended, error) {
+	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository, userAuditService user.UserAuditService) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain())
@@ -80,6 +80,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			ssoLoginService:  ssoLoginService,
 			PosthogClient:    PosthogClient,
 			moduleRepository: moduleRepository,
+			userAuditService: userAuditService,
 		},
 	}
 
@@ -132,6 +133,7 @@ type TelemetryEventDto struct {
 	InstalledIntegrations                []string           `json:"installedIntegrations,omitempty"`
 	InstallFailedIntegrations            []string           `json:"installFailedIntegrations,omitempty"`
 	InstallTimedOutIntegrations          []string           `json:"installTimedOutIntegrations,omitempty"`
+	LoginTime                            time.Time          `json:"loginTime,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -273,6 +275,15 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.InstalledIntegrations = installedIntegrations
 	payload.InstallFailedIntegrations = installFailedIntegrations
 	payload.InstallTimedOutIntegrations = installTimedOutIntegrations
+
+	latestUser, err := impl.userAuditService.GetLatestUser()
+	if err == nil {
+		loginTime := latestUser.UpdatedOn
+		if loginTime.IsZero() {
+			loginTime = latestUser.CreatedOn
+		}
+		payload.LoginTime = loginTime
+	}
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
