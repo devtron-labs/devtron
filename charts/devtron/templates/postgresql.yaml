@@ -1,3 +1,6 @@
+{{- if not .Values.installer.arch }}
+{{- $_ := set .Values.installer "arch" "legacy" }} 
+{{- end }}
 {{- with .Values.components.postgres }}
 apiVersion: v1
 kind: ConfigMap
@@ -17,7 +20,7 @@ data:
     create database git_sensor;
     create database lens;
     create database clairv4
-{{- if or (not $.Values.installer.arch) (eq $.Values.installer.arch "legacy") }}
+{{- if eq $.Values.installer.arch "legacy" }}
 ---
 apiVersion: v1
 kind: Service
