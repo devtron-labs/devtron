@@ -110,7 +110,7 @@ func (impl UserAuditServiceImpl) GetLatestUser() (*UserAudit, error) {
 		if err == pg.ErrNoRows {
 			impl.logger.Errorw("no user audits found", "err", err)
 		} else {
-			impl.logger.Error("error while getting latest user audit log")
+			impl.logger.Errorw("error while getting latest user audit log", "err", err)
 		}
 		return nil, err
 	}
