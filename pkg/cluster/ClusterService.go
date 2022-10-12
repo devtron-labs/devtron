@@ -25,7 +25,6 @@ import (
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
-	"log"
 	"net/url"
 	"os"
 	"time"
@@ -143,7 +142,6 @@ func (impl *ClusterServiceImpl) Save(parent context.Context, bean *ClusterBean, 
 	//validating config
 	err := impl.CheckIfConfigIsValid(bean)
 	if err != nil {
-		impl.logger.Errorw("error in cluster config validation failed", "err", err)
 		return nil, err
 	}
 	existingModel, err := impl.clusterRepository.FindOne(bean.ClusterName)
@@ -339,7 +337,6 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 	//validating config
 	err := impl.CheckIfConfigIsValid(bean)
 	if err != nil {
-		impl.logger.Errorw("error in cluster config validation failed", "err", err)
 		return nil, err
 	}
 	model, err := impl.clusterRepository.FindById(bean.Id)
@@ -520,7 +517,6 @@ func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error 
 	//using livez path as healthz path is deprecated
 	path := "/livez"
 	response, err := k8sClientSet.Discovery().RESTClient().Get().AbsPath(path).DoRaw(context.Background())
-	log.Println("received response for cluster livez status", "response", string(response), "err", err)
 	if err != nil {
 		if _, ok := err.(*url.Error); ok {
 			return fmt.Errorf("Incorrect server url : %v", err)

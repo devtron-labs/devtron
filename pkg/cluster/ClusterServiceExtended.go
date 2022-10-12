@@ -129,7 +129,6 @@ func (impl *ClusterServiceImplExtended) Update(ctx context.Context, bean *Cluste
 	//validating config
 	err := impl.CheckIfConfigIsValid(bean)
 	if err != nil {
-		impl.logger.Errorw("error in cluster config validation failed", "err", err)
 		return nil, err
 	}
 	isGitOpsConfigured, err1 := impl.gitOpsRepository.IsGitOpsConfigured()
@@ -308,7 +307,6 @@ func (impl *ClusterServiceImplExtended) Save(ctx context.Context, bean *ClusterB
 	//validating config
 	err := impl.CheckIfConfigIsValid(bean)
 	if err != nil {
-		impl.logger.Errorw("error in cluster config validation failed", "err", err)
 		return nil, err
 	}
 	isGitOpsConfigured, err := impl.gitOpsRepository.IsGitOpsConfigured()
