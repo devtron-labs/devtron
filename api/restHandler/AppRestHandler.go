@@ -37,6 +37,7 @@ type AppRestHandlerHandler interface {
 	GetAppMetaInfo(w http.ResponseWriter, r *http.Request)
 	UpdateApp(w http.ResponseWriter, r *http.Request)
 	UpdateProjectForApps(w http.ResponseWriter, r *http.Request)
+	Panic(w http.ResponseWriter, r *http.Request)
 }
 
 type AppRestHandlerImpl struct {
@@ -168,6 +169,10 @@ func (handler AppRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Reque
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (handler AppRestHandlerImpl) Panic(w http.ResponseWriter, r *http.Request) {
+	panic("mein mar gaya")
 }
 
 func (handler AppRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter, r *http.Request) {
