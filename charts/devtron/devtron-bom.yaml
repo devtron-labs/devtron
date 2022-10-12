@@ -1,7 +1,7 @@
 installer:
-  release: "v0.6.1"
+  release: "v0.6.2"
   image: "quay.io/devtron/inception"
-  tag: "c62d4c30-185-9354"
+  tag: "1d2b87e5-185-11095"
   
 components:
   dashboard:
