@@ -1,6 +1,3 @@
-{{- if not .Values.installer.arch }}
-{{- $_ := set .Values.installer "arch" "legacy" }} 
-{{- end }}
 {{- with .Values.components.postgres }}
 apiVersion: v1
 kind: ConfigMap
