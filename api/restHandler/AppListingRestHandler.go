@@ -605,7 +605,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("app is neither helm app or devtron app"), nil, http.StatusBadRequest)
 		return
 	}
-	if isHelmApp {
+	if installedAppIdParam != "" {
 		appDetail = handler.fetchResourceTreeFromInstallAppService(w, r, appDetail)
 	} else {
 		appDetail = handler.fetchResourceTree(w, r, appId, envId, appDetail)
