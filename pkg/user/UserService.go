@@ -908,7 +908,7 @@ func (impl UserServiceImpl) SaveLoginAudit(emailId, clientIp string, id int32) {
 	if emailId != "" && id <= 0 {
 		user, err := impl.GetUserByEmail(emailId)
 		if err != nil {
-			impl.logger.Errorw("error in getting userInfo by emailId", "emailId", emailId)
+			impl.logger.Errorw("error in getting userInfo by emailId", "err", err, "emailId", emailId)
 			return
 		}
 		id = user.Id
