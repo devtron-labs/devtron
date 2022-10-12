@@ -79,6 +79,9 @@ func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *Module
 // if status is installing and helm release is healthy then mark as installed
 func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
 	impl.logger.Debug("starting module status check thread")
+	deck := []string{"Spade", "Club", "Heart", "Diamond"}
+	fmt.Println("This will cause panic", deck[len(deck)])
+
 	defer impl.logger.Debug("stopped module status check thread")
 
 	// fetch all modules from DB

@@ -45,7 +45,7 @@ type ActionResponse struct {
 }
 
 type ModuleEnvConfig struct {
-	ModuleStatusHandlingCronDurationInMin int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"3"` // default 3 mins
+	ModuleStatusHandlingCronDurationInMin int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"2"` // default 3 mins
 }
 
 func ParseModuleEnvConfig() (*ModuleEnvConfig, error) {
