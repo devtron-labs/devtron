@@ -1,2 +1,2 @@
 ALTER TABLE user_audit
-DROP COLUMN updated_on;
+    DROP COLUMN updated_on;
