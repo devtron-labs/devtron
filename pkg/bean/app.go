@@ -274,10 +274,11 @@ type TestExecutorImageProperties struct {
 }
 
 type DockerBuildConfig struct {
-	GitMaterialId  int               `json:"gitMaterialId,omitempty" validate:"required"`
-	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
-	Args           map[string]string `json:"args,omitempty"`
-	TargetPlatform string            `json:"targetPlatform,omitempty"`
+	GitMaterialId      int               `json:"gitMaterialId,omitempty" validate:"required"`
+	DockerfilePath     string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
+	Args               map[string]string `json:"args,omitempty"`
+	TargetPlatform     string            `json:"targetPlatform"`
+	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
 	//Name Tag DockerfilePath RepoUrl
 }
 
@@ -548,6 +549,8 @@ type CiArtifactBean struct {
 	IsVulnerable                  bool            `json:"vulnerable,notnull"`
 	ScanEnabled                   bool            `json:"scanEnabled,notnull"`
 	Scanned                       bool            `json:"scanned,notnull"`
+	WfrId                         int             `json:"wfrId"`
+	DeployedBy                    string          `json:"deployedBy"`
 }
 
 type CiArtifactResponse struct {
