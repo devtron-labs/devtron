@@ -130,7 +130,7 @@ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
-Please refer to the document for more information on how to [access the Devtron Dashboard](./docs/setup/install/install-devtron-with-cicd.md/#access-devtron-dashboard).
+Please refer to the document for more information on how to [access the Devtron Dashboard](https://github.com/devtron-labs/devtron/blob/main/docs/setup/install/install-devtron-with-cicd.md/#access-devtron-dashboard).
 
 #### Installation status
 
