@@ -1050,8 +1050,9 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int) (*Git
 		return &GitTriggerInfoResponse{}, err
 	}
 
-	var ciMaterialsArr []CiPipelineMaterialResponse
+	ciMaterialsArr := make([]CiPipelineMaterialResponse, 0)
 	triggeredByUser := &bean2.UserInfo{}
+	//check workflow data only for non external builds
 	if !ciPipeline.IsExternal {
 		var workflow *pipelineConfig.CiWorkflow
 		if ciArtifact.ParentCiArtifact > 0 {

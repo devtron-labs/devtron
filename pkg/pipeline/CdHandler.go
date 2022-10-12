@@ -615,6 +615,11 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		impl.Logger.Errorw("error in fetching ci wf", "artifactId", workflow.CiArtifactId, "err", err)
 		return WorkflowResponse{}, err
 	}
+	gitTriggers := make(map[int]pipelineConfig.GitCommit)
+	if ciWf.GitTriggers != nil {
+		gitTriggers = ciWf.GitTriggers
+	}
+
 	workflowResponse := WorkflowResponse{
 		Id:                 workflow.Id,
 		Name:               workflow.Name,
@@ -629,7 +634,7 @@ func (impl *CdHandlerImpl) FetchCdWorkflowDetails(appId int, environmentId int, 
 		TriggeredByEmail:   triggeredByUser.EmailId,
 		Artifact:           workflow.Image,
 		Stage:              workflow.WorkflowType,
-		GitTriggers:        ciWf.GitTriggers,
+		GitTriggers:        gitTriggers,
 		BlobStorageEnabled: workflow.BlobStorageEnabled,
 	}
 	return workflowResponse, nil
