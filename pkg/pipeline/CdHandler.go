@@ -191,6 +191,14 @@ func (impl *CdHandlerImpl) CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateI
 }
 
 func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(argoAppName string, appId, envId int, ignoreFailedWorkflowStatus bool) error {
+	terminalStatusExists, err := impl.appListingRepository.FindIfTerminalStatusExistsForAPipeline(appId, envId)
+	if err != nil {
+		impl.Logger.Errorw("error in FindIfTerminalStatusExistsForAPipeline", "err", err)
+		return err
+	}
+	if terminalStatusExists {
+		return nil
+	}
 	timelineStatus, appStatus, statusMessage, hash := impl.GetAppStatusByResourceTreeFetchFromArgo(argoAppName)
 	if appStatus == WorkflowFailed && ignoreFailedWorkflowStatus {
 		return nil
