@@ -17,6 +17,7 @@ components:
     image: "quay.io/devtron/kubelink:3f365493-318-11106"
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
+    armImage: "quay.io/devtron/postgres:11.9"
   
   migrator:
     image: "quay.io/devtron/migrator:71748de9-149-11112"
