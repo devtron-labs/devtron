@@ -24,7 +24,7 @@ spec:
             mountPath: "/tmp/"
       initContainers:
       - name: grafana-org
-        image: quay.io/devtron/k8s-utils:tutum-curl
+        image: quay.io/devtron/curl:latest
         command: ["sh","/tmp/org.sh"]
         env:
           - name: GRAFANA_PASSWORD
@@ -657,14 +657,12 @@ metadata:
     app.kubernetes.io/instance: devtron
     app.kubernetes.io/version: "7.3.1"
     app.kubernetes.io/managed-by: Helm
-  annotations:
-    "helm.sh/hook": test-success
   namespace: devtroncd
 spec:
   serviceAccountName: devtron-grafana-test
   containers:
     - name: devtron-test
-      image: "quay.io/devtron/bats:v1.1.0"
+      image: "quay.io/devtron/bats:v1.4.1"
       imagePullPolicy: "IfNotPresent"
       command: ["/opt/bats/bin/bats", "-t", "/tests/run.sh"]
       volumeMounts:
