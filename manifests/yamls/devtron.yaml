@@ -54,7 +54,7 @@ data:
   CD_NODE_TAINTS_VALUE: "ci"
   CD_ARTIFACT_LOCATION_FORMAT: "%d/%d.zip"
   DEFAULT_CD_NAMESPACE: "devtron-cd"
-  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:5446d5b3-138-10746"
+  DEFAULT_CI_IMAGE: "quay.io/devtron/ci-runner:bc05fe92-138-11135"
   DEFAULT_CD_TIMEOUT: "3600"
   WF_CONTROLLER_INSTANCE_ID: "devtron-runner"
   CI_LOGS_KEY_PREFIX: "ci-artifacts"
@@ -90,7 +90,7 @@ data:
   ENFORCER_CACHE: "true"
   ENFORCER_CACHE_EXPIRATION_IN_SEC: "345600"
   ENFORCER_MAX_BATCH_SIZE: "1"
-  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:57e17953-373-10147"
+  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:07ac8fd7-150-11120"
   DEVTRON_SECRET_NAME: "devtron-secret"
   
 
@@ -158,7 +158,7 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:cb0316cb-360-10989"
+          image: "quay.io/devtron/devtron:1d654f24-326-11100"
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:
