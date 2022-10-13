@@ -140,6 +140,8 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 {% endtab %}
 {% endtabs %}
 
+> To support multiple architectures on Devtron, append the command with `--set installer.arch=multi-arch`.
+
 > Append the command with `--set installer.release="vX.X.X"` to install a particular version of Devtron. Where `vx.x.x` is the [release tag](https://github.com/devtron-labs/devtron/releases).
 
 For those countries/users where GitHub is blocked, you can use Gitee as the installation source:
