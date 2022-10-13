@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean3 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
@@ -109,14 +110,13 @@ type PipelineBuilder interface {
 }
 
 type PipelineBuilderImpl struct {
-	logger                           *zap.SugaredLogger
-	dbPipelineOrchestrator           DbPipelineOrchestrator
-	dockerArtifactStoreRepository    repository.DockerArtifactStoreRepository
-	materialRepo                     pipelineConfig.MaterialRepository
-	appRepo                          app2.AppRepository
-	pipelineRepository               pipelineConfig.PipelineRepository
-	propertiesConfigService          PropertiesConfigService
-	ciTemplateRepository             pipelineConfig.CiTemplateRepository
+	logger                        *zap.SugaredLogger
+	dbPipelineOrchestrator        DbPipelineOrchestrator
+	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
+	materialRepo                  pipelineConfig.MaterialRepository
+	appRepo                       app2.AppRepository
+	pipelineRepository            pipelineConfig.PipelineRepository
+	propertiesConfigService       PropertiesConfigService
 	ciPipelineRepository             pipelineConfig.CiPipelineRepository
 	application                      application.ServiceClient
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -149,6 +149,7 @@ type PipelineBuilderImpl struct {
 	deploymentGroupRepository        repository.DeploymentGroupRepository
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
 	userService                      user.UserService
+	ciTemplateService CiTemplateService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -186,17 +187,16 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	helmAppService client.HelmAppService,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
-	userService user.UserService) *PipelineBuilderImpl {
+	userService user.UserService, ciTemplateService CiTemplateService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
-		logger:                           logger,
-		dbPipelineOrchestrator:           dbPipelineOrchestrator,
-		dockerArtifactStoreRepository:    dockerArtifactStoreRepository,
-		materialRepo:                     materialRepo,
-		appService:                       appService,
-		appRepo:                          pipelineGroupRepo,
-		pipelineRepository:               pipelineRepository,
-		propertiesConfigService:          propertiesConfigService,
-		ciTemplateRepository:             ciTemplateRepository,
+		logger:                        logger,
+		dbPipelineOrchestrator:        dbPipelineOrchestrator,
+		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
+		materialRepo:                  materialRepo,
+		appService:                    appService,
+		appRepo:                       pipelineGroupRepo,
+		pipelineRepository:            pipelineRepository,
+		propertiesConfigService:       propertiesConfigService,
 		ciPipelineRepository:             ciPipelineRepository,
 		application:                      application,
 		chartRepository:                  chartRepository,
@@ -228,6 +228,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		deploymentGroupRepository:        deploymentGroupRepository,
 		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
 		userService:                      userService,
+		ciTemplateService:                ciTemplateService,
 	}
 }
 
@@ -279,13 +280,16 @@ func (impl PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) 
 	if len(pipelines) > 0 {
 		//pipelines are present, in this case we will check if this material is used in docker config
 		//if it is used, then we won't delete
-		ciTemplate, err := impl.ciTemplateRepository.FindByAppId(request.AppId)
+		ciTemplateBean, err := impl.ciTemplateService.FindByAppId(request.AppId)
 		if err != nil && err == errors.NotFoundf(err.Error()) {
 			impl.logger.Errorw("err in getting docker registry", "appId", request.AppId, "err", err)
 			return err
 		}
-		if ciTemplate != nil && ciTemplate.GitMaterialId == request.Material.Id {
-			return fmt.Errorf("cannot delete git material, is being used in docker config")
+		if ciTemplateBean != nil {
+			ciTemplate := ciTemplateBean.CiTemplate
+			if ciTemplate != nil && ciTemplate.GitMaterialId == request.Material.Id {
+				return fmt.Errorf("cannot delete git material, is being used in docker config")
+			}
 		}
 	}
 	existingMaterial, err := impl.materialRepo.FindById(request.Material.Id)
@@ -358,7 +362,8 @@ func (impl PipelineBuilderImpl) getDefaultArtifactStore(id string) (store *repos
 }
 
 func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bean.CiConfigRequest, err error) {
-	template, err := impl.ciTemplateRepository.FindByAppId(appId)
+	//template, err := impl.ciTemplateRepository.FindByAppId(appId)
+	ciTemplateBean, err := impl.ciTemplateService.FindByAppId(appId)
 	if err != nil && !errors.IsNotFound(err) {
 		impl.logger.Errorw("error in fetching ci pipeline", "appId", appId, "err", err)
 		return nil, err
@@ -368,6 +373,7 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		err = &util.ApiError{Code: "404", HttpStatusCode: 200, UserMessage: "no ci pipeline exists"}
 		return nil, err
 	}
+	template := ciTemplateBean.CiTemplate
 
 	gitMaterials, err := impl.materialRepo.FindByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
@@ -389,11 +395,11 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		materials = append(materials, m)
 	}
 
-	dockerArgs := map[string]string{}
-	if err := json.Unmarshal([]byte(template.Args), &dockerArgs); err != nil {
-		impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
-		return nil, err
-	}
+	//dockerArgs := map[string]string{}
+	//if err := json.Unmarshal([]byte(template.Args), &dockerArgs); err != nil {
+	//	impl.logger.Debugw("error in json unmarshal", "app", appId, "err", err)
+	//	return nil, err
+	//}
 	regHost, err := template.DockerRegistry.GetRegistryLocation()
 	if err != nil {
 		impl.logger.Errorw("invalid reg url", "err", err)
@@ -406,13 +412,15 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		DockerRepository:  template.DockerRepository,
 		DockerRegistry:    template.DockerRegistry.Id,
 		DockerRegistryUrl: regHost,
-		DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId, TargetPlatform: template.TargetPlatform},
-		Version:           template.Version,
-		CiTemplateName:    template.TemplateName,
-		Materials:         materials,
+		CiBuildConfig:     ciTemplateBean.CiBuildConfig,
+		//DockerBuildConfig: &bean.DockerBuildConfig{DockerfilePath: template.DockerfilePath, Args: dockerArgs, GitMaterialId: template.GitMaterialId, TargetPlatform: template.TargetPlatform},
+		Version:        template.Version,
+		CiTemplateName: template.TemplateName,
+		Materials:      materials,
 	}
 	return ciConfig, err
 }
+
 func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error) {
 	ciConfig, err = impl.getCiTemplateVariables(appId)
 	if err != nil {
@@ -437,7 +445,17 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
 		}
 	}
+	//map of ciPipelineId and their templateOverrideConfig
+	ciOverrideTemplateMap := make(map[int]*bean3.CiTemplateBean)
+	ciTemplateBeanOverrides, err := impl.ciTemplateService.FindTemplateOverrideByAppId(appId)
+	if err != nil {
+		return nil, err
+	}
 
+	for _, templateBeanOverride := range ciTemplateBeanOverrides {
+		ciTemplateOverride := templateBeanOverride.CiTemplateOverride
+		ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
+	}
 	var ciPipelineResp []*bean.CiPipeline
 	for _, pipeline := range pipelines {
 
@@ -501,8 +519,16 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			BeforeDockerBuildScripts: beforeDockerBuildScripts,
 			AfterDockerBuildScripts:  afterDockerBuildScripts,
 			ScanEnabled:              pipeline.ScanEnabled,
+			IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
 		}
-
+		if ciTemplateBean, ok := ciOverrideTemplateMap[pipeline.Id]; ok {
+			templateOverride := ciTemplateBean.CiTemplateOverride
+			ciPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+				DockerRegistry:   templateOverride.DockerRegistryId,
+				DockerRepository: templateOverride.DockerRepository,
+				CiBuildConfig:    ciTemplateBean.CiBuildConfig,
+			}
+		}
 		for _, material := range pipeline.CiPipelineMaterials {
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
@@ -608,15 +634,15 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 
 	originalCiConf.AfterDockerBuild = updateRequest.AfterDockerBuild
 	originalCiConf.BeforeDockerBuild = updateRequest.BeforeDockerBuild
-	originalCiConf.DockerBuildConfig = updateRequest.DockerBuildConfig
+	//originalCiConf.CiBuildConfigBean = updateRequest.CiBuildConfigBean
 	originalCiConf.DockerRegistry = updateRequest.DockerRegistry
 	originalCiConf.DockerRepository = updateRequest.DockerRepository
 	originalCiConf.DockerRegistryUrl = regHost
 
-	argByte, err := json.Marshal(originalCiConf.DockerBuildConfig.Args)
-	if err != nil {
-		return nil, err
-	}
+	//argByte, err := json.Marshal(originalCiConf.DockerBuildConfig.Args)
+	//if err != nil {
+	//	return nil, err
+	//}
 	afterByte, err := json.Marshal(originalCiConf.AfterDockerBuild)
 	if err != nil {
 		return nil, err
@@ -625,11 +651,17 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	if err != nil {
 		return nil, err
 	}
+	//buildOptionsByte, err := json.Marshal(originalCiConf.DockerBuildConfig.DockerBuildOptions)
+	//if err != nil {
+	//	impl.logger.Errorw("error in marshaling dockerBuildOptions", "err", err)
+	//	return nil, err
+	//}
+	originalCiBuildConfig := originalCiConf.CiBuildConfig
 	ciTemplate := &pipelineConfig.CiTemplate{
-		DockerfilePath:    originalCiConf.DockerBuildConfig.DockerfilePath,
-		GitMaterialId:     originalCiConf.DockerBuildConfig.GitMaterialId,
-		Args:              string(argByte),
-		TargetPlatform:    originalCiConf.DockerBuildConfig.TargetPlatform,
+		//DockerfilePath:    originalCiConf.DockerBuildConfig.DockerfilePath,
+		GitMaterialId: originalCiBuildConfig.GitMaterialId,
+		//Args:              string(argByte),
+		//TargetPlatform:    originalCiConf.DockerBuildConfig.TargetPlatform,
 		BeforeDockerBuild: string(beforeByte),
 		AfterDockerBuild:  string(afterByte),
 		Version:           originalCiConf.Version,
@@ -639,11 +671,18 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		Active:            true,
 	}
 
-	err = impl.ciTemplateRepository.Update(ciTemplate)
+	ciBuildConfig := updateRequest.CiBuildConfig
+	ciBuildConfig.Id = originalCiBuildConfig.Id
+	ciTemplateBean := &bean3.CiTemplateBean{
+		CiTemplate:    ciTemplate,
+		CiBuildConfig: ciBuildConfig,
+		UserId:        updateRequest.UserId,
+	}
+	err = impl.ciTemplateService.Update(ciTemplateBean)
 	if err != nil {
-		impl.logger.Errorw("error in updating ci template in db", "template", ciTemplate, "err", err)
 		return nil, err
 	}
+	originalCiConf.CiBuildConfig = ciBuildConfig
 	return originalCiConf, nil
 }
 
@@ -690,10 +729,10 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	//--ecr config	end
 	//-- template config start
 
-	argByte, err := json.Marshal(createRequest.DockerBuildConfig.Args)
-	if err != nil {
-		return nil, err
-	}
+	//argByte, err := json.Marshal(createRequest.DockerBuildConfig.Args)
+	//if err != nil {
+	//	return nil, err
+	//}
 	afterByte, err := json.Marshal(createRequest.AfterDockerBuild)
 	if err != nil {
 		return nil, err
@@ -702,14 +741,14 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	if err != nil {
 		return nil, err
 	}
-
+	buildConfig := createRequest.CiBuildConfig
 	ciTemplate := &pipelineConfig.CiTemplate{
-		DockerRegistryId:  createRequest.DockerRegistry,
-		DockerRepository:  createRequest.DockerRepository,
-		GitMaterialId:     createRequest.DockerBuildConfig.GitMaterialId,
-		DockerfilePath:    createRequest.DockerBuildConfig.DockerfilePath,
-		Args:              string(argByte),
-		TargetPlatform:    createRequest.DockerBuildConfig.TargetPlatform,
+		DockerRegistryId: createRequest.DockerRegistry,
+		DockerRepository: createRequest.DockerRepository,
+		GitMaterialId:    buildConfig.GitMaterialId,
+		//DockerfilePath:    createRequest.DockerBuildConfig.DockerfilePath,
+		//Args:              string(argByte),
+		//TargetPlatform:    createRequest.DockerBuildConfig.TargetPlatform,
 		Active:            true,
 		TemplateName:      createRequest.CiTemplateName,
 		Version:           createRequest.Version,
@@ -719,12 +758,15 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 		AuditLog:          sql.AuditLog{CreatedOn: time.Now(), UpdatedOn: time.Now(), CreatedBy: createRequest.UserId, UpdatedBy: createRequest.UserId},
 	}
 
-	err = impl.ciTemplateRepository.Save(ciTemplate)
+	ciTemplateBean := &bean3.CiTemplateBean{
+		CiTemplate:    ciTemplate,
+		CiBuildConfig: createRequest.CiBuildConfig,
+	}
+	err = impl.ciTemplateService.Save(ciTemplateBean)
 	if err != nil {
-		impl.logger.Errorw("error in saving ci template in db ", "template", ciTemplate, "err", err)
-		//TODO delete template from gocd otherwise dangling+ no create in future
 		return nil, err
 	}
+
 	//-- template config end
 	createRequest.Id = ciTemplate.Id
 	createRequest.CiTemplateName = ciTemplate.TemplateName
@@ -2388,6 +2430,24 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		BeforeDockerBuildScripts: beforeDockerBuildScripts,
 		AfterDockerBuildScripts:  afterDockerBuildScripts,
 		ScanEnabled:              pipeline.ScanEnabled,
+		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+	}
+	if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
+		ciTemplateBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(ciPipeline.Id)
+		if err != nil {
+			return nil, err
+		}
+		templateOverride := ciTemplateBean.CiTemplateOverride
+		ciBuildConfig := ciTemplateBean.CiBuildConfig
+		ciPipeline.DockerConfigOverride = bean.DockerConfigOverride{
+			DockerRegistry:   templateOverride.DockerRegistryId,
+			DockerRepository: templateOverride.DockerRepository,
+			CiBuildConfig:    ciBuildConfig,
+			//DockerBuildConfig: &bean.DockerBuildConfig{
+			//	GitMaterialId:  templateOverride.GitMaterialId,
+			//	DockerfilePath: templateOverride.DockerfilePath,
+			//},
+		}
 	}
 	for _, material := range pipeline.CiPipelineMaterials {
 		ciMaterial := &bean.CiMaterial{

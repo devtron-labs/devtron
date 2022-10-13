@@ -113,6 +113,7 @@ type MuxRouter struct {
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
 	k8sCapacityRouter                  k8s.K8sCapacityRouter
 	webhookHelmRouter                  webhookHelm.WebhookHelmRouter
+	globalCMCSRouter                   GlobalCMCSRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -138,7 +139,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	commonDeploymentRouter appStoreDeployment.CommonDeploymentRouter, externalLinkRouter externalLink.ExternalLinkRouter,
 	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
-	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter, webhookHelmRouter webhookHelm.WebhookHelmRouter) *MuxRouter {
+	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
+	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -202,6 +204,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		helmApplicationStatusUpdateHandler: helmApplicationStatusUpdateHandler,
 		k8sCapacityRouter:                  k8sCapacityRouter,
 		webhookHelmRouter:                  webhookHelmRouter,
+		globalCMCSRouter:                   globalCMCSRouter,
 	}
 	return r
 }
@@ -399,4 +402,7 @@ func (r MuxRouter) Init() {
 	// webhook helm app router
 	webhookHelmRouter := r.Router.PathPrefix("/orchestrator/webhook/helm").Subrouter()
 	r.webhookHelmRouter.InitWebhookHelmRouter(webhookHelmRouter)
+
+	globalCMCSRouter := r.Router.PathPrefix("/orchestrator/global/cm-cs").Subrouter()
+	r.globalCMCSRouter.initGlobalCMCSRouter(globalCMCSRouter)
 }

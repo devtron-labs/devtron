@@ -18,7 +18,9 @@
 package pipeline
 
 import (
+	"errors"
 	"fmt"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -58,6 +60,8 @@ type CiServiceImpl struct {
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
 	userService                   user.UserService
+	//ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
+	ciTemplateService CiTemplateService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -66,7 +70,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
-	userService user.UserService) *CiServiceImpl {
+	userService user.UserService,
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciTemplateService CiTemplateService) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
 		workflowService:               workflowService,
@@ -80,6 +85,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
 		userService:                   userService,
+		//ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
+		ciTemplateService: ciTemplateService,
 	}
 }
 
@@ -364,48 +371,84 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciWorkflowConfig.CiTimeout = impl.ciConfig.DefaultTimeout
 	}
 
-	args := pipeline.CiTemplate.Args
+	ciTemplate := pipeline.CiTemplate
 	ciLevelArgs := pipeline.DockerArgs
 
 	if ciLevelArgs == "" {
 		ciLevelArgs = "{}"
 	}
 
-	merged, err := impl.mergeUtil.JsonPatch([]byte(args), []byte(ciLevelArgs))
-	if err != nil {
-		impl.Logger.Errorw("err", "err", err)
-		return nil, err
-	}
-
-	checkoutPath := pipeline.CiTemplate.GitMaterial.CheckoutPath
-	if checkoutPath == "" {
-		checkoutPath = "./"
+	//mergedArgs, err := impl.mergeUtil.JsonPatch([]byte(args), []byte(ciLevelArgs))
+	//if err != nil {
+	//	impl.Logger.Errorw("err", "err", err)
+	//	return nil, err
+	//}
+	if pipeline.CiTemplate.DockerBuildOptions == "" {
+		pipeline.CiTemplate.DockerBuildOptions = "{}"
 	}
 	user, err := impl.userService.GetById(trigger.TriggeredBy)
 	if err != nil {
 		impl.Logger.Errorw("unable to find user by id", "err", err, "id", trigger.TriggeredBy)
 		return nil, err
 	}
-	dockerfilePath := filepath.Join(pipeline.CiTemplate.GitMaterial.CheckoutPath, pipeline.CiTemplate.DockerfilePath)
+	var dockerfilePath string
+	var dockerRepository string
+	var checkoutPath string
+	var ciBuildConfigBean *bean2.CiBuildConfigBean
+	dockerRegistry := &repository3.DockerArtifactStore{}
+	if !pipeline.IsExternal && pipeline.IsDockerConfigOverridden {
+		templateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(pipeline.Id)
+		if err != nil {
+			return nil, err
+		}
+		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
+		templateOverride := templateOverrideBean.CiTemplateOverride
+		checkoutPath = templateOverride.GitMaterial.CheckoutPath
+		dockerfilePath = filepath.Join(checkoutPath, templateOverride.DockerfilePath)
+		dockerRepository = templateOverride.DockerRepository
+		dockerRegistry = templateOverride.DockerRegistry
+	} else {
+		checkoutPath = ciTemplate.GitMaterial.CheckoutPath
+		dockerfilePath = filepath.Join(checkoutPath, ciTemplate.DockerfilePath)
+		dockerRegistry = ciTemplate.DockerRegistry
+		dockerRepository = ciTemplate.DockerRepository
+		ciBuildConfigEntity := ciTemplate.CiBuildConfig
+		ciBuildConfigBean, err = bean2.ConvertDbBuildConfigToBean(ciBuildConfigEntity)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while converting buildconfig dbEntity to configBean", "ciBuildConfigEntity", ciBuildConfigEntity, "err", err)
+			return nil, errors.New("error while parsing ci build config")
+		}
+	}
+	if checkoutPath == "" {
+		checkoutPath = "./"
+	}
+	//mergedArgs := string(merged)
+	oldArgs := ciTemplate.Args
+	ciBuildConfigBean, err = bean2.OverrideCiBuildConfig(dockerfilePath, oldArgs, ciLevelArgs, ciTemplate.DockerBuildOptions, ciTemplate.TargetPlatform, ciBuildConfigBean)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while overriding ci build config", "oldArgs", oldArgs, "ciLevelArgs", ciLevelArgs, "error", err)
+		return nil, errors.New("error while parsing ci build config")
+	}
 	workflowRequest := &WorkflowRequest{
-		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
-		PipelineName:               pipeline.Name,
-		PipelineId:                 pipeline.Id,
-		DockerRegistryId:           pipeline.CiTemplate.DockerRegistry.Id,
-		DockerRegistryType:         string(pipeline.CiTemplate.DockerRegistry.RegistryType),
-		DockerImageTag:             dockerImageTag,
-		DockerRegistryURL:          pipeline.CiTemplate.DockerRegistry.RegistryURL,
-		DockerRepository:           pipeline.CiTemplate.DockerRepository,
-		DockerBuildArgs:            string(merged),
-		DockerBuildTargetPlatform:  pipeline.CiTemplate.TargetPlatform,
-		DockerFileLocation:         dockerfilePath,
-		DockerUsername:             pipeline.CiTemplate.DockerRegistry.Username,
-		DockerPassword:             pipeline.CiTemplate.DockerRegistry.Password,
-		AwsRegion:                  pipeline.CiTemplate.DockerRegistry.AWSRegion,
-		AccessKey:                  pipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
-		SecretKey:                  pipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
-		DockerConnection:           pipeline.CiTemplate.DockerRegistry.Connection,
-		DockerCert:                 pipeline.CiTemplate.DockerRegistry.Cert,
+		WorkflowNamePrefix: strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
+		PipelineName:       pipeline.Name,
+		PipelineId:         pipeline.Id,
+		DockerRegistryId:   dockerRegistry.Id,
+		DockerRegistryType: string(dockerRegistry.RegistryType),
+		DockerImageTag:     dockerImageTag,
+		DockerRegistryURL:  dockerRegistry.RegistryURL,
+		DockerRepository:   dockerRepository,
+		//DockerBuildArgs:            string(merged),
+		//DockerBuildTargetPlatform:  ciTemplate.TargetPlatform,
+		//DockerFileLocation:         dockerfilePath,
+		CheckoutPath:               checkoutPath,
+		DockerUsername:             dockerRegistry.Username,
+		DockerPassword:             dockerRegistry.Password,
+		AwsRegion:                  dockerRegistry.AWSRegion,
+		AccessKey:                  dockerRegistry.AWSAccessKeyId,
+		SecretKey:                  dockerRegistry.AWSSecretAccessKey,
+		DockerConnection:           dockerRegistry.Connection,
+		DockerCert:                 dockerRegistry.Cert,
 		CiCacheFileName:            pipeline.Name + "-" + strconv.Itoa(pipeline.Id) + ".tar.gz",
 		CiProjectDetails:           ciProjectDetails,
 		Namespace:                  ciWorkflowConfig.Namespace,
@@ -425,6 +468,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		RefPlugins:                 refPluginsData,
 		AppName:                    pipeline.App.AppName,
 		TriggerByAuthor:            user.EmailId,
+		CiBuildConfig:              ciBuildConfigBean,
+		//DockerBuildOptions:         pipeline.CiTemplate.DockerBuildOptions,
 	}
 
 	if ciWorkflowConfig.LogsBucket == "" {
@@ -438,16 +483,19 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		workflowRequest.CiCacheLocation = ciWorkflowConfig.CiCacheBucket
 		workflowRequest.CiArtifactLocation, workflowRequest.CiArtifactBucket, workflowRequest.CiArtifactFileName = impl.buildS3ArtifactLocation(ciWorkflowConfig, savedWf)
 		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
-			AccessKey:            impl.ciConfig.BlobStorageS3AccessKey,
-			Passkey:              impl.ciConfig.BlobStorageS3SecretKey,
-			EndpointUrl:          impl.ciConfig.BlobStorageS3Endpoint,
-			IsInSecure:           impl.ciConfig.BlobStorageS3EndpointInsecure,
-			CiCacheBucketName:    ciWorkflowConfig.CiCacheBucket,
-			CiCacheRegion:        ciWorkflowConfig.CiCacheRegion,
-			CiArtifactBucketName: workflowRequest.CiArtifactBucket,
-			CiArtifactRegion:     impl.ciConfig.DefaultCdLogsBucketRegion,
-			CiLogBucketName:      impl.ciConfig.DefaultBuildLogsBucket,
-			CiLogRegion:          impl.ciConfig.DefaultCdLogsBucketRegion,
+			AccessKey:                  impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:                    impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl:                impl.ciConfig.BlobStorageS3Endpoint,
+			IsInSecure:                 impl.ciConfig.BlobStorageS3EndpointInsecure,
+			CiCacheBucketName:          ciWorkflowConfig.CiCacheBucket,
+			CiCacheRegion:              ciWorkflowConfig.CiCacheRegion,
+			CiCacheBucketVersioning:    impl.ciConfig.BlobStorageS3BucketVersioned,
+			CiArtifactBucketName:       workflowRequest.CiArtifactBucket,
+			CiArtifactRegion:           impl.ciConfig.DefaultCdLogsBucketRegion,
+			CiArtifactBucketVersioning: impl.ciConfig.BlobStorageS3BucketVersioned,
+			CiLogBucketName:            impl.ciConfig.DefaultBuildLogsBucket,
+			CiLogRegion:                impl.ciConfig.DefaultCdLogsBucketRegion,
+			CiLogBucketVersioning:      impl.ciConfig.BlobStorageS3BucketVersioned,
 		}
 	case BLOB_STORAGE_GCP:
 		workflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{
@@ -468,11 +516,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			BlobContainerArtifact: impl.ciConfig.AzureBlobContainerCiLog,
 		}
 		workflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
-			EndpointUrl:     impl.ciConfig.AzureGatewayUrl,
-			IsInSecure:      impl.ciConfig.AzureGatewayConnectionInsecure,
-			CiLogBucketName: impl.ciConfig.AzureBlobContainerCiLog,
-			CiLogRegion:     impl.ciConfig.DefaultCacheBucketRegion,
-			AccessKey:       impl.ciConfig.AzureAccountName,
+			EndpointUrl:           impl.ciConfig.AzureGatewayUrl,
+			IsInSecure:            impl.ciConfig.AzureGatewayConnectionInsecure,
+			CiLogBucketName:       impl.ciConfig.AzureBlobContainerCiLog,
+			CiLogRegion:           impl.ciConfig.DefaultCacheBucketRegion,
+			CiLogBucketVersioning: impl.ciConfig.BlobStorageS3BucketVersioned,
+			AccessKey:             impl.ciConfig.AzureAccountName,
 		}
 		workflowRequest.CiArtifactLocation = impl.buildDefaultArtifactLocation(ciWorkflowConfig, savedWf)
 		workflowRequest.CiArtifactFileName = workflowRequest.CiArtifactLocation

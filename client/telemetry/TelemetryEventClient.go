@@ -9,6 +9,8 @@ import (
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	module2 "github.com/devtron-labs/devtron/pkg/module"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -28,16 +30,17 @@ import (
 )
 
 type TelemetryEventClientImpl struct {
-	cron            *cron.Cron
-	logger          *zap.SugaredLogger
-	client          *http.Client
-	clusterService  cluster.ClusterService
-	K8sUtil         *util2.K8sUtil
-	aCDAuthConfig   *util3.ACDAuthConfig
-	userService     user.UserService
-	attributeRepo   repository.AttributesRepository
-	ssoLoginService sso.SSOLoginService
-	PosthogClient   *PosthogClient
+	cron             *cron.Cron
+	logger           *zap.SugaredLogger
+	client           *http.Client
+	clusterService   cluster.ClusterService
+	K8sUtil          *util2.K8sUtil
+	aCDAuthConfig    *util3.ACDAuthConfig
+	userService      user.UserService
+	attributeRepo    repository.AttributesRepository
+	ssoLoginService  sso.SSOLoginService
+	PosthogClient    *PosthogClient
+	moduleRepository moduleRepo.ModuleRepository
 }
 
 type TelemetryEventClient interface {
@@ -46,12 +49,13 @@ type TelemetryEventClient interface {
 	SendTelemetryDashboardAccessEvent() error
 	SendTelemetryDashboardLoggedInEvent() error
 	SendGenericTelemetryEvent(eventType string, prop map[string]interface{}) error
+	SendSummaryEvent(eventType string) error
 }
 
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient) (*TelemetryEventClientImpl, error) {
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -61,8 +65,9 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		client: client, clusterService: clusterService,
 		K8sUtil: K8sUtil, aCDAuthConfig: aCDAuthConfig,
 		userService: userService, attributeRepo: attributeRepo,
-		ssoLoginService: ssoLoginService,
-		PosthogClient:   PosthogClient,
+		ssoLoginService:  ssoLoginService,
+		PosthogClient:    PosthogClient,
+		moduleRepository: moduleRepository,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -85,18 +90,20 @@ func (impl *TelemetryEventClientImpl) StopCron() {
 }
 
 type TelemetryEventEA struct {
-	UCID         string             `json:"ucid"` //unique client id
-	Timestamp    time.Time          `json:"timestamp"`
-	EventMessage string             `json:"eventMessage,omitempty"`
-	EventType    TelemetryEventType `json:"eventType"`
-	//Summary        *SummaryEA         `json:"summary,omitempty"`
-	ServerVersion  string `json:"serverVersion,omitempty"`
-	UserCount      int    `json:"userCount,omitempty"`
-	ClusterCount   int    `json:"clusterCount,omitempty"`
-	HostURL        bool   `json:"hostURL,omitempty"`
-	SSOLogin       bool   `json:"ssoLogin,omitempty"`
-	DevtronVersion string `json:"devtronVersion,omitempty"`
-	DevtronMode    string `json:"devtronMode,omitempty"`
+	UCID                        string             `json:"ucid"` //unique client id
+	Timestamp                   time.Time          `json:"timestamp"`
+	EventMessage                string             `json:"eventMessage,omitempty"`
+	EventType                   TelemetryEventType `json:"eventType"`
+	ServerVersion               string             `json:"serverVersion,omitempty"`
+	UserCount                   int                `json:"userCount,omitempty"`
+	ClusterCount                int                `json:"clusterCount,omitempty"`
+	HostURL                     bool               `json:"hostURL,omitempty"`
+	SSOLogin                    bool               `json:"ssoLogin,omitempty"`
+	DevtronVersion              string             `json:"devtronVersion,omitempty"`
+	DevtronMode                 string             `json:"devtronMode,omitempty"`
+	InstalledIntegrations       []string           `json:"installedIntegrations,omitempty"`
+	InstallFailedIntegrations   []string           `json:"installFailedIntegrations,omitempty"`
+	InstallTimedOutIntegrations []string           `json:"installTimedOutIntegrations,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -122,6 +129,7 @@ const (
 	InstallationApplicationError TelemetryEventType = "InstallationApplicationError"
 	DashboardAccessed            TelemetryEventType = "DashboardAccessed"
 	DashboardLoggedIn            TelemetryEventType = "DashboardLoggedIn"
+	SIG_TERM                     TelemetryEventType = "SIG_TERM"
 )
 
 func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool) {
@@ -166,43 +174,62 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 }
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
+	err := impl.SendSummaryEvent(string(Summary))
+	if err != nil {
+		impl.logger.Errorw("error occurred in SummaryEventForTelemetryEA", "err", err)
+	}
+}
+
+func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
+	impl.logger.Infow("sending summary event", "eventType", eventType)
 	ucid, err := impl.getUCID()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
-		return
+		return err
 	}
 
 	if IsOptOut {
 		impl.logger.Warnw("client is opt-out for telemetry, there will be no events capture", "ucid", ucid)
-		return
+		return err
+	}
+
+	// build integrations data
+	installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, err := impl.buildIntegrationsList()
+	if err != nil {
+		return err
 	}
 
 	clusters, users, k8sServerVersion, hostURL, ssoSetup := impl.SummaryDetailsForTelemetry()
 
-	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: Summary, DevtronVersion: "v1"}
+	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 	payload.DevtronMode = util.GetDevtronVersion().ServerMode
 	payload.HostURL = hostURL
 	payload.SSOLogin = ssoSetup
 	payload.UserCount = len(users)
 	payload.ClusterCount = len(clusters)
+	payload.InstalledIntegrations = installedIntegrations
+	payload.InstallFailedIntegrations = installFailedIntegrations
+	payload.InstallTimedOutIntegrations = installTimedOutIntegrations
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
-		return
+		return err
 	}
 	prop := make(map[string]interface{})
 	err = json.Unmarshal(reqBody, &prop)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, payload unmarshal error", "error", err)
-		return
+		return err
 	}
 
-	err = impl.EnqueuePostHog(ucid, Summary, prop)
+	err = impl.EnqueuePostHog(ucid, TelemetryEventType(eventType), prop)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, failed to push event", "ucid", ucid, "error", err)
+		return err
 	}
+	return nil
 }
 
 func (impl *TelemetryEventClientImpl) EnqueuePostHog(ucid string, eventType TelemetryEventType, prop map[string]interface{}) error {
@@ -525,4 +552,34 @@ func (impl *TelemetryEventClientImpl) retryPosthogClient(PosthogApiKey string, P
 		impl.logger.Errorw("exception caught while creating posthog client", "err", err)
 	}
 	return client, err
+}
+
+// returns installedIntegrations, installFailedIntegrations, installTimedOutIntegrations
+func (impl *TelemetryEventClientImpl) buildIntegrationsList() ([]string, []string, []string, error) {
+	impl.logger.Info("building integrations list for telemetry")
+
+	modules, err := impl.moduleRepository.FindAll()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while getting integrations list", "err", err)
+		return nil, nil, nil, err
+	}
+
+	var installedIntegrations []string
+	var installFailedIntegrations []string
+	var installTimedOutIntegrations []string
+
+	for _, module := range modules {
+		integrationName := module.Name
+		switch module.Status {
+		case module2.ModuleStatusInstalled:
+			installedIntegrations = append(installedIntegrations, integrationName)
+		case module2.ModuleStatusInstallFailed:
+			installFailedIntegrations = append(installFailedIntegrations, integrationName)
+		case module2.ModuleStatusTimeout:
+			installTimedOutIntegrations = append(installTimedOutIntegrations, integrationName)
+		}
+	}
+
+	return installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, nil
+
 }

@@ -488,7 +488,7 @@ func (impl *CiHandlerImpl) getWorkflowLogs(pipelineId int, ciWorkflow *pipelineC
 		return bufio.NewReader(strings.NewReader("")), nil, nil
 	}
 	ciLogRequest := BuildLogRequest{
-		WorkflowName: ciWorkflow.Name,
+		PodName:   ciWorkflow.PodName,
 		Namespace:    ciWorkflow.Namespace,
 	}
 	logStream, cleanUp, err := impl.ciLogService.FetchRunningWorkflowLogs(ciLogRequest, "", "", false)
@@ -528,7 +528,7 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 	ciLogRequest := BuildLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,
 		WorkflowId:    ciWorkflow.Id,
-		WorkflowName:  ciWorkflow.Name,
+		PodName:       ciWorkflow.PodName,
 		LogsFilePath:  logsFilePath,
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
@@ -538,12 +538,13 @@ func (impl *CiHandlerImpl) getLogsFromRepository(pipelineId int, ciWorkflow *pip
 			AccountKey:        impl.ciConfig.AzureAccountKey,
 		},
 		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
-			AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
-			Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
-			EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
-			IsInSecure:  impl.ciConfig.BlobStorageS3EndpointInsecure,
-			BucketName:  ciConfig.LogsBucket,
-			Region:      ciConfig.CiCacheRegion,
+			AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
+			IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+			BucketName:        ciConfig.LogsBucket,
+			Region:            ciConfig.CiCacheRegion,
+			VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
 		},
 		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
 			BucketName:             ciConfig.LogsBucket,
@@ -596,12 +597,13 @@ func (impl *CiHandlerImpl) DownloadCiWorkflowArtifacts(pipelineId int, buildId i
 		AccountKey:        impl.ciConfig.AzureAccountKey,
 	}
 	awsS3BaseConfig := &blob_storage.AwsS3BaseConfig{
-		AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
-		Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
-		EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
-		IsInSecure:  impl.ciConfig.BlobStorageS3EndpointInsecure,
-		BucketName:  ciConfig.LogsBucket,
-		Region:      ciConfig.CiCacheRegion,
+		AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
+		Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
+		EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
+		IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+		BucketName:        ciConfig.LogsBucket,
+		Region:            ciConfig.CiCacheRegion,
+		VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
 	}
 	gcpBlobBaseConfig := &blob_storage.GcpBlobBaseConfig{
 		BucketName:             ciConfig.LogsBucket,
@@ -655,7 +657,7 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	ciLogRequest := BuildLogRequest{
 		PipelineId:    ciWorkflow.CiPipelineId,
 		WorkflowId:    ciWorkflow.Id,
-		WorkflowName:  ciWorkflow.Name,
+		PodName:       ciWorkflow.PodName,
 		LogsFilePath:  ciWorkflow.LogLocation,
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
@@ -665,12 +667,13 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 			AccountKey:        impl.ciConfig.AzureAccountKey,
 		},
 		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
-			AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
-			Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
-			EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
-			IsInSecure:  impl.ciConfig.BlobStorageS3EndpointInsecure,
-			BucketName:  ciConfig.LogsBucket,
-			Region:      ciConfig.CiCacheRegion,
+			AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
+			IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+			BucketName:        ciConfig.LogsBucket,
+			Region:            ciConfig.CiCacheRegion,
+			VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
 		},
 		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
 			BucketName:             ciConfig.LogsBucket,
@@ -690,15 +693,21 @@ func (impl *CiHandlerImpl) GetHistoricBuildLogs(pipelineId int, workflowId int, 
 	return resp, err
 }
 
-func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, string, string, string, string) {
+func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.WorkflowStatus) (string, string, string, string, string, string) {
 	workflowName := ""
 	status := string(workflowStatus.Phase)
 	podStatus := ""
 	message := ""
+	podName := ""
 	logLocation := ""
 	for k, v := range workflowStatus.Nodes {
-		impl.Logger.Infow("extractWorkflowStatus", "workflowName", k, "v", v)
-		workflowName = k
+		if v.TemplateName == CI_WORKFLOW_NAME {impl.Logger.Infow("extractWorkflowStatus", "workflowName", k, "v", v)
+			if v.BoundaryID == "" {
+				workflowName = k
+			} else {
+				workflowName = v.BoundaryID
+			}
+			podName = k
 		podStatus = string(v.Phase)
 		message = v.Message
 		if v.Outputs != nil && len(v.Outputs.Artifacts) > 0 {
@@ -710,11 +719,12 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 		}
 		break
 	}
-	return workflowName, status, podStatus, message, logLocation
+	}
+	return workflowName, status, podStatus, message, logLocation, podName
 }
 
 func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, error) {
-	workflowName, status, podStatus, message, logLocation := impl.extractWorkfowStatus(workflowStatus)
+	workflowName, status, podStatus, message, logLocation, podName := impl.extractWorkfowStatus(workflowStatus)
 	if workflowName == "" {
 		impl.Logger.Errorw("extract workflow status, invalid wf name", "workflowName", workflowName, "status", status, "podStatus", podStatus, "message", message)
 		return 0, errors.New("invalid wf name")
@@ -754,7 +764,7 @@ func (impl *CiHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		//savedWorkflow.LogLocation = "/ci-pipeline/" + strconv.Itoa(savedWorkflow.CiPipelineId) + "/workflow/" + strconv.Itoa(savedWorkflow.Id) + "/logs" //TODO need to fetch from workflow object
 		savedWorkflow.LogLocation = logLocation
 		savedWorkflow.CiArtifactLocation = ciArtifactLocation
-
+		savedWorkflow.PodName = podName
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
 		err = impl.ciWorkflowRepository.UpdateWorkFlow(savedWorkflow)
 		if err != nil {

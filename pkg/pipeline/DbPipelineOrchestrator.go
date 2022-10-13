@@ -27,6 +27,7 @@ import (
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -90,6 +91,8 @@ type DbPipelineOrchestratorImpl struct {
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService
 	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
+	//ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
+	ciTemplateService CiTemplateService
 }
 
 func NewDbPipelineOrchestrator(
@@ -108,7 +111,8 @@ func NewDbPipelineOrchestrator(
 	userAuthService user.UserAuthService,
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService,
 	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService,
-	pipelineStageService PipelineStageService) *DbPipelineOrchestratorImpl {
+	pipelineStageService PipelineStageService,
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciTemplateService CiTemplateService) *DbPipelineOrchestratorImpl {
 	return &DbPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -127,6 +131,8 @@ func NewDbPipelineOrchestrator(
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
+		//ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
+		ciTemplateService: ciTemplateService,
 	}
 }
 
@@ -148,16 +154,17 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	defer tx.Rollback()
 
 	ciPipelineObject := &pipelineConfig.CiPipeline{
-		Version:          createRequest.Version,
-		Id:               createRequest.Id,
-		DockerArgs:       string(argByte),
-		Active:           createRequest.Active,
-		IsManual:         createRequest.IsManual,
-		IsExternal:       createRequest.IsExternal,
-		Deleted:          createRequest.Deleted,
-		ParentCiPipeline: createRequest.ParentCiPipeline,
-		ScanEnabled:      createRequest.ScanEnabled,
-		AuditLog:         sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+		Version:                  createRequest.Version,
+		Id:                       createRequest.Id,
+		DockerArgs:               string(argByte),
+		Active:                   createRequest.Active,
+		IsManual:                 createRequest.IsManual,
+		IsExternal:               createRequest.IsExternal,
+		Deleted:                  createRequest.Deleted,
+		ParentCiPipeline:         createRequest.ParentCiPipeline,
+		ScanEnabled:              createRequest.ScanEnabled,
+		IsDockerConfigOverridden: createRequest.IsDockerConfigOverridden,
+		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
 	err = impl.ciPipelineRepository.Update(ciPipelineObject, tx)
 	if err != nil {
@@ -284,7 +291,55 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			return nil, err
 		}
 	}
-
+	if !createRequest.IsExternal && createRequest.IsDockerConfigOverridden {
+		//get override
+		savedTemplateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(createRequest.Id)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting templateOverride by ciPipelineId", "err", err, "ciPipelineId", createRequest.Id)
+			return nil, err
+		}
+		ciBuildConfigBean := createRequest.DockerConfigOverride.CiBuildConfig
+		templateOverrideReq := &pipelineConfig.CiTemplateOverride{
+			CiPipelineId:     createRequest.Id,
+			DockerRegistryId: createRequest.DockerConfigOverride.DockerRegistry,
+			DockerRepository: createRequest.DockerConfigOverride.DockerRepository,
+			//DockerfilePath:   createRequest.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
+			GitMaterialId: ciBuildConfigBean.GitMaterialId,
+			Active:        true,
+			AuditLog: sql.AuditLog{
+				CreatedOn: time.Now(),
+				CreatedBy: userId,
+				UpdatedOn: time.Now(),
+				UpdatedBy: userId,
+			},
+		}
+		savedTemplateOverride := savedTemplateOverrideBean.CiTemplateOverride
+		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
+			ciBuildConfigBean.Id = savedTemplateOverride.CiBuildConfigId
+			templateOverrideReq.Id = savedTemplateOverride.Id
+			templateOverrideReq.CreatedOn = savedTemplateOverride.CreatedOn
+			templateOverrideReq.CreatedBy = savedTemplateOverride.CreatedBy
+			ciTemplateBean := &bean2.CiTemplateBean{
+				CiTemplateOverride: templateOverrideReq,
+				CiBuildConfig:      ciBuildConfigBean,
+				UserId:             userId,
+			}
+			err = impl.ciTemplateService.Update(ciTemplateBean)
+			if err != nil {
+				return nil, err
+			}
+		} else {
+			ciTemplateBean := &bean2.CiTemplateBean{
+				CiTemplateOverride: templateOverrideReq,
+				CiBuildConfig:      ciBuildConfigBean,
+				UserId:             userId,
+			}
+			err := impl.ciTemplateService.Save(ciTemplateBean)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
 	if len(childrenCiPipelineIds) > 0 {
 
 		ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(childrenCiPipelineIds)
@@ -385,18 +440,19 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 		defer tx.Rollback()
 
 		ciPipelineObject := &pipelineConfig.CiPipeline{
-			AppId:            createRequest.AppId,
-			IsManual:         ciPipeline.IsManual,
-			IsExternal:       ciPipeline.IsExternal,
-			CiTemplateId:     templateId,
-			Version:          ciPipeline.Version,
-			Name:             ciPipeline.Name,
-			ParentCiPipeline: ciPipeline.ParentCiPipeline,
-			DockerArgs:       string(argByte),
-			Active:           true,
-			Deleted:          false,
-			ScanEnabled:      createRequest.ScanEnabled,
-			AuditLog:         sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
+			AppId:                    createRequest.AppId,
+			IsManual:                 ciPipeline.IsManual,
+			IsExternal:               ciPipeline.IsExternal,
+			CiTemplateId:             templateId,
+			Version:                  ciPipeline.Version,
+			Name:                     ciPipeline.Name,
+			ParentCiPipeline:         ciPipeline.ParentCiPipeline,
+			DockerArgs:               string(argByte),
+			Active:                   true,
+			Deleted:                  false,
+			ScanEnabled:              createRequest.ScanEnabled,
+			IsDockerConfigOverridden: ciPipeline.IsDockerConfigOverridden,
+			AuditLog:                 sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 		}
 		err = impl.ciPipelineRepository.Save(ciPipelineObject, tx)
 		ciPipeline.Id = ciPipelineObject.Id
@@ -477,6 +533,33 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 		err = tx.Commit()
 		if err != nil {
 			return nil, err
+		}
+
+		if !ciPipeline.IsExternal && ciPipeline.IsDockerConfigOverridden {
+			//creating template override
+			templateOverride := &pipelineConfig.CiTemplateOverride{
+				CiPipelineId:     ciPipeline.Id,
+				DockerRegistryId: ciPipeline.DockerConfigOverride.DockerRegistry,
+				DockerRepository: ciPipeline.DockerConfigOverride.DockerRepository,
+				//DockerfilePath:   ciPipeline.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
+				//GitMaterialId:    ciPipeline.DockerConfigOverride.DockerBuildConfig.GitMaterialId,
+				Active: true,
+				AuditLog: sql.AuditLog{
+					CreatedBy: createRequest.UserId,
+					CreatedOn: time.Now(),
+					UpdatedBy: createRequest.UserId,
+					UpdatedOn: time.Now(),
+				},
+			}
+			ciTemplateBean := &bean2.CiTemplateBean{
+				CiTemplateOverride: templateOverride,
+				CiBuildConfig:      ciPipeline.DockerConfigOverride.CiBuildConfig,
+				UserId:             createRequest.UserId,
+			}
+			err := impl.ciTemplateService.Save(ciTemplateBean)
+			if err != nil {
+				return nil, err
+			}
 		}
 		//creating ci stages after tx commit due to FK constraints
 		if ciPipeline.PreBuildStage != nil && len(ciPipeline.PreBuildStage.Steps) > 0 {

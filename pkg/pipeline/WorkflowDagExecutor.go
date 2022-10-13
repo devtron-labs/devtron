@@ -636,16 +636,19 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.CdCacheLocation = cdWorkflowConfig.CdCacheBucket
 		cdStageWorkflowRequest.ArtifactLocation, cdStageWorkflowRequest.ArtifactBucket, cdStageWorkflowRequest.ArtifactFileName = impl.buildArtifactLocationForS3(cdWorkflowConfig, cdWf, runner)
 		cdStageWorkflowRequest.BlobStorageS3Config = &blob_storage.BlobStorageS3Config{
-			AccessKey:            impl.cdConfig.BlobStorageS3AccessKey,
-			Passkey:              impl.cdConfig.BlobStorageS3SecretKey,
-			EndpointUrl:          impl.cdConfig.BlobStorageS3Endpoint,
-			IsInSecure:           impl.cdConfig.BlobStorageS3EndpointInsecure,
-			CiCacheBucketName:    cdWorkflowConfig.CdCacheBucket,
-			CiCacheRegion:        cdWorkflowConfig.CdCacheRegion,
-			CiArtifactBucketName: cdStageWorkflowRequest.ArtifactBucket,
-			CiArtifactRegion:     cdWorkflowConfig.CdCacheRegion,
-			CiLogBucketName:      impl.cdConfig.DefaultBuildLogsBucket,
-			CiLogRegion:          impl.cdConfig.DefaultCdLogsBucketRegion,
+			AccessKey:                  impl.cdConfig.BlobStorageS3AccessKey,
+			Passkey:                    impl.cdConfig.BlobStorageS3SecretKey,
+			EndpointUrl:                impl.cdConfig.BlobStorageS3Endpoint,
+			IsInSecure:                 impl.cdConfig.BlobStorageS3EndpointInsecure,
+			CiCacheBucketName:          cdWorkflowConfig.CdCacheBucket,
+			CiCacheRegion:              cdWorkflowConfig.CdCacheRegion,
+			CiCacheBucketVersioning:    impl.cdConfig.BlobStorageS3BucketVersioned,
+			CiArtifactBucketName:       cdStageWorkflowRequest.ArtifactBucket,
+			CiArtifactRegion:           cdWorkflowConfig.CdCacheRegion,
+			CiArtifactBucketVersioning: impl.cdConfig.BlobStorageS3BucketVersioned,
+			CiLogBucketName:            impl.cdConfig.DefaultBuildLogsBucket,
+			CiLogRegion:                impl.cdConfig.DefaultCdLogsBucketRegion,
+			CiLogBucketVersioning:      impl.cdConfig.BlobStorageS3BucketVersioned,
 		}
 	case BLOB_STORAGE_GCP:
 		cdStageWorkflowRequest.GcpBlobConfig = &blob_storage.GcpBlobConfig{

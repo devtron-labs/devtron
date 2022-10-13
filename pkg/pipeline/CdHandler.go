@@ -353,7 +353,7 @@ func (impl *CdHandlerImpl) CancelStage(workflowRunnerId int) (int, error) {
 
 func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus) (int, string, error) {
 	wfStatusRs := impl.extractWorkfowStatus(workflowStatus)
-	workflowName, status, podStatus, message := wfStatusRs.WorkflowName, wfStatusRs.Status, wfStatusRs.PodStatus, wfStatusRs.Message
+	workflowName, status, podStatus, message, podName := wfStatusRs.WorkflowName, wfStatusRs.Status, wfStatusRs.PodStatus, wfStatusRs.Message, wfStatusRs.PodName
 	impl.Logger.Debugw("cd update for ", "wf ", workflowName, "status", status)
 	if workflowName == "" {
 		return 0, "", errors.New("invalid wf name")
@@ -390,6 +390,7 @@ func (impl *CdHandlerImpl) UpdateWorkflow(workflowStatus v1alpha1.WorkflowStatus
 		savedWorkflow.FinishedOn = workflowStatus.FinishedAt.Time
 		savedWorkflow.Name = workflowName
 		savedWorkflow.LogLocation = wfStatusRs.LogLocation
+		savedWorkflow.PodName = podName
 		impl.Logger.Debugw("updating workflow ", "workflow", savedWorkflow)
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(savedWorkflow)
 		if err != nil {
@@ -409,10 +410,16 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	podStatus := "Pending"
 	message := ""
 	logLocation := ""
+	podName := ""
 	for k, v := range workflowStatus.Nodes {
 		impl.Logger.Debugw("extractWorkflowStatus", "workflowName", k, "v", v)
 		if v.TemplateName == CD_WORKFLOW_NAME {
-			workflowName = k
+			if v.BoundaryID == "" {
+				workflowName = k
+			} else {
+				workflowName = v.BoundaryID
+			}
+			podName = k
 			podStatus = string(v.Phase)
 			message = v.Message
 			if v.Outputs != nil && len(v.Outputs.Artifacts) > 0 {
@@ -431,12 +438,13 @@ func (impl *CdHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 		PodStatus:    podStatus,
 		Message:      message,
 		LogLocation:  logLocation,
+		PodName:      podName,
 	}
 	return workflowStatusRes
 }
 
 type WorkflowStatus struct {
-	WorkflowName, Status, PodStatus, Message, LogLocation string
+	WorkflowName, Status, PodStatus, Message, LogLocation, PodName string
 }
 
 func (impl *CdHandlerImpl) stateChanged(status string, podStatus string, msg string,
@@ -498,7 +506,7 @@ func (impl *CdHandlerImpl) GetRunningWorkflowLogs(environmentId int, pipelineId 
 
 func (impl *CdHandlerImpl) getWorkflowLogs(pipelineId int, cdWorkflow *pipelineConfig.CdWorkflowRunner, token string, host string, runStageInEnv bool) (*bufio.Reader, func() error, error) {
 	cdLogRequest := BuildLogRequest{
-		WorkflowName: cdWorkflow.Name,
+		PodName:   cdWorkflow.PodName,
 		Namespace:    cdWorkflow.Namespace,
 	}
 
@@ -536,7 +544,7 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 	cdLogRequest := BuildLogRequest{
 		PipelineId:    cdWorkflow.CdWorkflow.PipelineId,
 		WorkflowId:    cdWorkflow.Id,
-		WorkflowName:  cdWorkflow.Name,
+		PodName:    cdWorkflow.PodName,
 		LogsFilePath:  cdWorkflow.LogLocation, // impl.cdConfig.DefaultBuildLogsKeyPrefix + "/" + cdWorkflow.Name + "/main.log", //TODO - fixme
 		CloudProvider: impl.ciConfig.CloudProvider,
 		AzureBlobConfig: &blob_storage.AzureBlobBaseConfig{
@@ -546,12 +554,13 @@ func (impl *CdHandlerImpl) getLogsFromRepository(pipelineId int, cdWorkflow *pip
 			AccountKey:        impl.ciConfig.AzureAccountKey,
 		},
 		AwsS3BaseConfig: &blob_storage.AwsS3BaseConfig{
-			AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
-			Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
-			EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
-			IsInSecure:  impl.ciConfig.BlobStorageS3EndpointInsecure,
-			BucketName:  cdConfig.LogsBucket,
-			Region:      cdConfig.CdCacheRegion,
+			AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
+			Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
+			EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
+			IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+			BucketName:        cdConfig.LogsBucket,
+			Region:            cdConfig.CdCacheRegion,
+			VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
 		},
 		GcpBlobBaseConfig: &blob_storage.GcpBlobBaseConfig{
 			BucketName:             cdConfig.LogsBucket,
@@ -657,12 +666,13 @@ func (impl *CdHandlerImpl) DownloadCdWorkflowArtifacts(pipelineId int, buildId i
 
 	item := strconv.Itoa(wfr.Id)
 	awsS3BaseConfig := &blob_storage.AwsS3BaseConfig{
-		AccessKey:   impl.ciConfig.BlobStorageS3AccessKey,
-		Passkey:     impl.ciConfig.BlobStorageS3SecretKey,
-		EndpointUrl: impl.ciConfig.BlobStorageS3Endpoint,
-		IsInSecure:  impl.ciConfig.BlobStorageS3EndpointInsecure,
-		BucketName:  cdConfig.LogsBucket,
-		Region:      cdConfig.CdCacheRegion,
+		AccessKey:         impl.ciConfig.BlobStorageS3AccessKey,
+		Passkey:           impl.ciConfig.BlobStorageS3SecretKey,
+		EndpointUrl:       impl.ciConfig.BlobStorageS3Endpoint,
+		IsInSecure:        impl.ciConfig.BlobStorageS3EndpointInsecure,
+		BucketName:        cdConfig.LogsBucket,
+		Region:            cdConfig.CdCacheRegion,
+		VersioningEnabled: impl.ciConfig.BlobStorageS3BucketVersioned,
 	}
 	azureBlobBaseConfig := &blob_storage.AzureBlobBaseConfig{
 		Enabled:           impl.ciConfig.CloudProvider == BLOB_STORAGE_AZURE,

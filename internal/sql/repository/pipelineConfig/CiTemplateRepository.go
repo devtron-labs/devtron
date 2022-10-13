@@ -27,24 +27,27 @@ import (
 )
 
 type CiTemplate struct {
-	tableName         struct{} `sql:"ci_template" pg:",discard_unknown_columns"`
-	Id                int      `sql:"id"`
-	AppId             int      `sql:"app_id"`             //foreign key of app
-	DockerRegistryId  string   `sql:"docker_registry_id"` //foreign key of registry
-	DockerRepository  string   `sql:"docker_repository"`
-	DockerfilePath    string   `sql:"dockerfile_path"`
-	Args              string   `sql:"args"` //json string format of map[string]string
-	TargetPlatform    string   `sql:"target_platform,notnull"`
-	BeforeDockerBuild string   `sql:"before_docker_build"` //json string  format of []*Task
-	AfterDockerBuild  string   `sql:"after_docker_build"`  //json string  format of []*Task
-	TemplateName      string   `sql:"template_name"`
-	Version           string   `sql:"version"` //gocd etage
-	Active            bool     `sql:"active,notnull"`
-	GitMaterialId     int      `sql:"git_material_id"`
+	tableName          struct{} `sql:"ci_template" pg:",discard_unknown_columns"`
+	Id                 int      `sql:"id"`
+	AppId              int      `sql:"app_id"`             //foreign key of app
+	DockerRegistryId   string   `sql:"docker_registry_id"` //foreign key of registry
+	DockerRepository   string   `sql:"docker_repository"`
+	DockerfilePath     string   `sql:"dockerfile_path"`
+	Args               string   `sql:"args"` //json string format of map[string]string
+	TargetPlatform     string   `sql:"target_platform,notnull"`
+	BeforeDockerBuild  string   `sql:"before_docker_build"` //json string  format of []*Task
+	AfterDockerBuild   string   `sql:"after_docker_build"`  //json string  format of []*Task
+	TemplateName       string   `sql:"template_name"`
+	Version            string   `sql:"version"` //gocd etage
+	Active             bool     `sql:"active,notnull"`
+	GitMaterialId      int      `sql:"git_material_id"`
+	DockerBuildOptions string   `sql:"docker_build_options"` //json string format of map[string]string
+	CiBuildConfigId    int      `sql:"ci_build_config_id"`
 	sql.AuditLog
 	App            *app.App
 	DockerRegistry *repository.DockerArtifactStore
 	GitMaterial    *GitMaterial
+	CiBuildConfig  *CiBuildConfig
 }
 
 type CiTemplateRepository interface {
@@ -80,7 +83,7 @@ func (impl CiTemplateRepositoryImpl) FindByAppId(appId int) (ciTemplate *CiTempl
 	template := &CiTemplate{}
 	err = impl.dbConnection.Model(template).
 		Where("app_id =? ", appId).
-		Column("ci_template.*", "App", "DockerRegistry").
+		Column("ci_template.*", "App", "DockerRegistry", "CiBuildConfig").
 		Select()
 	if pg.ErrNoRows == err {
 		return nil, errors.NotFoundf(err.Error())

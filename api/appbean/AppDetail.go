@@ -2,6 +2,7 @@ package appbean
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
 type AppDetail struct {
@@ -34,16 +35,10 @@ type GitMaterial struct {
 }
 
 type DockerConfig struct {
-	DockerRegistry   string             `json:"dockerRegistry" validate:"required"`
-	DockerRepository string             `json:"dockerRepository" validate:"required"`
-	BuildConfig      *DockerBuildConfig `json:"dockerBuildConfig"`
-}
-
-type DockerBuildConfig struct {
-	GitCheckoutPath        string            `json:"gitCheckoutPath,omitempty" validate:"required"`
-	DockerfileRelativePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
-	Args                   map[string]string `json:"args,omitempty"`
-	TargetPlatform         string            `json:"targetPlatform"`
+	DockerRegistry   string                  `json:"dockerRegistry" validate:"required"`
+	DockerRepository string                  `json:"dockerRepository" validate:"required"`
+	CiBuildConfig    *bean.CiBuildConfigBean `json:"ciBuildConfig" validate:"required"`
+	CheckoutPath     string                  `json:"checkoutPath"`
 }
 
 type DeploymentTemplate struct {
@@ -67,6 +62,8 @@ type CiPipelineDetails struct {
 	BeforeDockerBuildScripts  []*BuildScript              `json:"beforeDockerBuildScripts"`
 	AfterDockerBuildScripts   []*BuildScript              `json:"afterDockerBuildScripts"`
 	VulnerabilityScanEnabled  bool                        `json:"vulnerabilitiesScanEnabled"`
+	PreBuildStage             *bean.PipelineStageDto      `json:"preBuildStage,omitempty"`
+	PostBuildStage            *bean.PipelineStageDto      `json:"postBuildStage,omitempty"`
 	IsExternal                bool                        `json:"isExternal"` // true for linked and external
 }
 
