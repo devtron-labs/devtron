@@ -18,7 +18,7 @@ spec:
     spec:
       containers:
       - name: postgresql-migrate-devtron
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:71748de9-149-11112
         env:
         - name: GIT_BRANCH
           value: main
@@ -61,7 +61,7 @@ spec:
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
       initContainers:
       - name: postgresql-migrate-casbin
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:71748de9-149-11112
         env:
         - name: SCRIPT_LOCATION
           value: scripts/casbin/
@@ -103,7 +103,7 @@ spec:
     spec:
       containers:
       - name: postgresql-migrate-gitsensor
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:71748de9-149-11112
         env:
         - name: SCRIPT_LOCATION
           value: scripts/sql/
@@ -141,7 +141,7 @@ spec:
     spec:
       containers:
       - name: postgresql-migrate-lens
-        image: quay.io/devtron/migrator:9c933d29-149-10140
+        image: quay.io/devtron/migrator:71748de9-149-11112
         env:
         - name: SCRIPT_LOCATION
           value: scripts/sql/
