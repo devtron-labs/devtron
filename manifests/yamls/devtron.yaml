@@ -90,7 +90,7 @@ data:
   ENFORCER_CACHE: "true"
   ENFORCER_CACHE_EXPIRATION_IN_SEC: "345600"
   ENFORCER_MAX_BATCH_SIZE: "1"
-  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:57e17953-373-10147"
+  APP_SYNC_IMAGE: "quay.io/devtron/chart-sync:07ac8fd7-150-11117"
   DEVTRON_SECRET_NAME: "devtron-secret"
   
 
