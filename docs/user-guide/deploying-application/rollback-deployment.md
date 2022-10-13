@@ -6,7 +6,7 @@ Deployments can be rolled back manually. After a deployment is completed, you ca
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/rollback-deployment/rollback-icon.jpg)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/rollback-deployment/select-config-to-deploy.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/rollback-deployment/select-config-to-deploy.png)
 
 1. Select `Rollback` in your deployed pipeline.
 
