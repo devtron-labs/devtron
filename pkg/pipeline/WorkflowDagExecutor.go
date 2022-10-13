@@ -238,9 +238,13 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 		return err
 	}
 	for _, pipeline := range pipelines {
+		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
+			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
+			continue
+		}
 		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, async, triggeredBy)
 		if err != nil {
-			impl.logger.Debugw("err", "err", err)
+			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
 		}
 	}
 	return nil
@@ -543,7 +547,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			if err != nil {
 				return nil, err
 			}
-			ciProjectDetail.CommitTime = *commitTime
+			ciProjectDetail.CommitTime = commitTime.Format(bean2.LayoutRFC3339)
 		} else {
 			impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
 			return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
