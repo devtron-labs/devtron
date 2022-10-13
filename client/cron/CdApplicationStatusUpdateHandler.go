@@ -74,21 +74,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		eventClient:                      eventClient,
 	}
-	//TODO: created dummy event temporarily, remove this before release
-	//create new nats event
-	statusUpdateEvent := pipeline.ArgoPipelineStatusEvent{
-		ArgoAppName:                "",
-		AppId:                      0,
-		EnvId:                      0,
-		IgnoreFailedWorkflowStatus: true,
-	}
-	//write event
-	err := impl.eventClient.WriteNatsEvent(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
-	if err != nil {
-		logger.Errorw("error in writing nats event", "topic", util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent, "err", err)
-		return nil
-	}
-	err = impl.Subscribe()
+	err := impl.Subscribe()
 	if err != nil {
 		logger.Errorw("error on subscribe", "err", err)
 		return nil
@@ -120,10 +106,6 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 		err := json.Unmarshal([]byte(string(msg.Data)), &statusUpdateEvent)
 		if err != nil {
 			impl.logger.Errorw("unmarshal error on argo pipeline status update event", "err", err)
-			return
-		}
-		if statusUpdateEvent.AppId == 0 {
-			impl.logger.Infow("dummy event for ARGO_PIPELINE_STATUS_UPDATE_TOPIC, skip")
 			return
 		}
 		err = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(statusUpdateEvent.ArgoAppName, statusUpdateEvent.AppId, statusUpdateEvent.EnvId, statusUpdateEvent.IgnoreFailedWorkflowStatus)

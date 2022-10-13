@@ -18,9 +18,8 @@
 package util
 
 import (
-	"log"
-
 	"github.com/nats-io/nats.go"
+	"log"
 )
 
 const (
@@ -102,7 +101,28 @@ func AddStream(js nats.JetStreamContext, streamNames ...string) error {
 			}
 		} else if err != nil {
 			log.Fatal("Error while getting stream info", "stream name", streamName, "error", err)
+		} else {
+			config := streamInfo.Config
+			if checkConfigChangeReqd(&config, streamName) {
+				_, err1 := js.UpdateStream(&config)
+				if err1 != nil {
+					log.Println("error occurred while updating stream config", "streamName", streamName, "existingConfig", config, "error", err1)
+				} else {
+					log.Println("stream config updated successfully", "existingConfig", config)
+				}
+			}
 		}
+
 	}
 	return err
+}
+
+func checkConfigChangeReqd(existingConfig *nats.StreamConfig, streamName string) bool {
+	configChanged := false
+	newStreamSubjects := GetStreamSubjects(streamName)
+	if len(newStreamSubjects) != len(existingConfig.Subjects) {
+		existingConfig.Subjects = newStreamSubjects
+		configChanged = true
+	}
+	return configChanged
 }
