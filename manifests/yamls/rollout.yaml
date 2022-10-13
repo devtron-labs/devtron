@@ -320,7 +320,7 @@ spec:
       containers:
       - command:
         - /bin/rollouts-controller
-        image: quay.io/devtron/rollout:v0.6.0
+        image: quay.io/devtron/rollout:v0.6.2
         imagePullPolicy: IfNotPresent
         name: argo-rollouts
         volumeMounts:
