@@ -513,6 +513,60 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		}
 	}
 
+	// volume mount
+	if impl.ciConfig.MountMavenDirectory {
+
+		impl.Logger.Info(ciTemplate.Container)
+
+		hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+		ciTemplate.Container.VolumeMounts = []v12.VolumeMount{
+			{
+				Name:      "maven-dir",
+				MountPath: "/devtroncd/.m2",
+			},
+			{
+				Name:      "docker-dir",
+				MountPath: "/var/lib/docker",
+			},
+		}
+		ciTemplate.Volumes = []v12.Volume{
+			{
+				Name: "maven-dir",
+				VolumeSource: v12.VolumeSource{
+					HostPath: &v12.HostPathVolumeSource{
+						Path: impl.ciConfig.HostMavenDirectoryPath,
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
+			{
+				Name: "docker-dir",
+				VolumeSource: v12.VolumeSource{
+					HostPath: &v12.HostPathVolumeSource{
+						Path: impl.ciConfig.HostDockerDirectoryPath,
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			},
+		}
+
+		if val, ok := appLabels["nodeSelectorDevtron"]; ok {
+			impl.Logger.Infow("nodeSelectorDevtron found", "val", val)
+
+			var nodeSelectors map[string]string
+
+			// Unmarshal or Decode the JSON to the interface.
+			err = json.Unmarshal([]byte(val), &nodeSelectors)
+			if err != nil {
+				impl.Logger.Errorw("err in unmarshalling nodeSelectors", "err", err, "val", val)
+				return nil, err
+			}
+
+			ciTemplate.NodeSelector = nodeSelectors
+		}
+
+	}
+
 	templates = append(templates, ciTemplate)
 	var (
 		ciWorkflow = v1alpha1.Workflow{
@@ -533,62 +587,6 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 			},
 		}
 	)
-
-	// volume mount
-	if impl.ciConfig.MountMavenDirectory {
-		for index, template := range ciWorkflow.Spec.Templates {
-			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
-			template.Container.VolumeMounts = []v12.VolumeMount{
-				{
-					Name:      "maven-dir",
-					MountPath: "/devtroncd/.m2",
-				},
-				{
-					Name:      "docker-dir",
-					MountPath: "/var/lib/docker",
-				},
-			}
-			template.Volumes = []v12.Volume{
-				{
-					Name: "maven-dir",
-					VolumeSource: v12.VolumeSource{
-						HostPath: &v12.HostPathVolumeSource{
-							Path: impl.ciConfig.HostMavenDirectoryPath,
-							Type: &hostPathDirectoryOrCreate,
-						},
-					},
-				},
-				{
-					Name: "docker-dir",
-					VolumeSource: v12.VolumeSource{
-						HostPath: &v12.HostPathVolumeSource{
-							Path: impl.ciConfig.HostDockerDirectoryPath,
-							Type: &hostPathDirectoryOrCreate,
-						},
-					},
-				},
-			}
-
-			if val, ok := appLabels["nodeSelectorDevtron"]; ok {
-				impl.Logger.Infow("nodeSelectorDevtron found", "val", val)
-
-				var nodeSelectors map[string]string
-
-				// Unmarshal or Decode the JSON to the interface.
-				err = json.Unmarshal([]byte(val), &nodeSelectors)
-				if err != nil {
-					impl.Logger.Errorw("err in unmarshalling nodeSelectors", "err", err, "val", val)
-					return nil, err
-				}
-
-				template.NodeSelector = nodeSelectors
-			}
-
-			// updating the element in slice
-			//https://medium.com/@xcoulon/3-ways-to-update-elements-in-a-slice-d5df54c9b2f8
-			ciWorkflow.Spec.Templates[index] = template
-		}
-	}
 
 	if impl.ciConfig.TaintKey != "" || impl.ciConfig.TaintValue != "" {
 		ciWorkflow.Spec.Tolerations = []v12.Toleration{{Key: impl.ciConfig.TaintKey, Value: impl.ciConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
