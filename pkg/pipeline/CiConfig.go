@@ -76,6 +76,9 @@ type CiConfig struct {
 	BlobStorageGcpCredentialJson   string                       `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
 	BuildLogTTLValue               int                          `json:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
 	AzureAccountKey                string                       `env:"AZURE_ACCOUNT_KEY"`
+	MountMavenDirectory            bool                         `env:"MOUNT_MAVEN_DIRECTORY"`
+	HostMavenDirectoryPath         string                       `env:"HOST_MAVEN_DIRECTORY_PATH" envDefault:"/home/devtron/.m2"`
+	HostDockerDirectoryPath        string                       `env:"HOST_DOCKER_DIRECTORY_PATH" envDefault:"/home/devtron/docker"`
 	ClusterConfig                  *rest.Config
 	NodeLabel                      map[string]string
 }

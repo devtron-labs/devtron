@@ -534,20 +534,55 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		}
 	)
 
-	for index, template := range ciWorkflow.Spec.Templates {
-		if val, ok := appLabels["nodeSelectorDevtron"]; ok {
-			impl.Logger.Infow("nodeSelectorDevtron found", "val", val)
-
-			var nodeSelectors map[string]string
-
-			// Unmarshal or Decode the JSON to the interface.
-			err = json.Unmarshal([]byte(val), &nodeSelectors)
-			if err != nil {
-				impl.Logger.Errorw("err in unmarshalling nodeSelectors", "err", err, "val", val)
-				return nil, err
+	// volume mount
+	if impl.ciConfig.MountMavenDirectory {
+		for index, template := range ciWorkflow.Spec.Templates {
+			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+			template.Container.VolumeMounts = []v12.VolumeMount{
+				{
+					Name:      "maven-dir",
+					MountPath: "/devtroncd/.m2",
+				},
+				{
+					Name:      "docker-dir",
+					MountPath: "/var/lib/docker",
+				},
+			}
+			template.Volumes = []v12.Volume{
+				{
+					Name: "maven-dir",
+					VolumeSource: v12.VolumeSource{
+						HostPath: &v12.HostPathVolumeSource{
+							Path: impl.ciConfig.HostMavenDirectoryPath,
+							Type: &hostPathDirectoryOrCreate,
+						},
+					},
+				},
+				{
+					Name: "docker-dir",
+					VolumeSource: v12.VolumeSource{
+						HostPath: &v12.HostPathVolumeSource{
+							Path: impl.ciConfig.HostDockerDirectoryPath,
+							Type: &hostPathDirectoryOrCreate,
+						},
+					},
+				},
 			}
 
-			template.NodeSelector = nodeSelectors
+			if val, ok := appLabels["nodeSelectorDevtron"]; ok {
+				impl.Logger.Infow("nodeSelectorDevtron found", "val", val)
+
+				var nodeSelectors map[string]string
+
+				// Unmarshal or Decode the JSON to the interface.
+				err = json.Unmarshal([]byte(val), &nodeSelectors)
+				if err != nil {
+					impl.Logger.Errorw("err in unmarshalling nodeSelectors", "err", err, "val", val)
+					return nil, err
+				}
+
+				template.NodeSelector = nodeSelectors
+			}
 
 			// updating the element in slice
 			//https://medium.com/@xcoulon/3-ways-to-update-elements-in-a-slice-d5df54c9b2f8
