@@ -112,7 +112,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error on argo pipeline status update", "err", err, "msg", string(msg.Data))
 			return
 		}
-	}, nats.Durable(util.ARGO_PIPELINE_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.KUBEWATCH_STREAM))
+	}, nats.Durable(util.ARGO_PIPELINE_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
 	if err != nil {
 		impl.logger.Error("error in subscribing to argo application status update topic", "err", err)
 		return err
