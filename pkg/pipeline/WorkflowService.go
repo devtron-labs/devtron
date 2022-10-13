@@ -40,7 +40,7 @@ import (
 )
 
 type WorkflowService interface {
-	SubmitWorkflow(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error)
+	SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error)
 	DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(name string, namespace string) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
@@ -149,12 +149,12 @@ type ContainerResources struct {
 }*/
 
 type CiProjectDetails struct {
-	GitRepository   string    `json:"gitRepository"`
-	MaterialName    string    `json:"materialName"`
-	CheckoutPath    string    `json:"checkoutPath"`
-	FetchSubmodules bool      `json:"fetchSubmodules"`
-	CommitHash      string    `json:"commitHash"`
-	GitTag          string    `json:"gitTag"`
+	GitRepository   string `json:"gitRepository"`
+	MaterialName    string `json:"materialName"`
+	CheckoutPath    string `json:"checkoutPath"`
+	FetchSubmodules bool   `json:"fetchSubmodules"`
+	CommitHash      string `json:"commitHash"`
+	GitTag          string `json:"gitTag"`
 	CommitTime      string `json:"commitTime"`
 	//Branch        string          `json:"branch"`
 	Type        string                    `json:"type"`
@@ -187,7 +187,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig,
 const ciEvent = "CI"
 const cdStage = "CD"
 
-func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error) {
+func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error) {
 	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
 	if impl.ciConfig.CloudProvider == BLOB_STORAGE_S3 && impl.ciConfig.BlobStorageS3AccessKey != "" {
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.BlobStorageS3SecretKey}}
@@ -533,6 +533,28 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 			},
 		}
 	)
+
+	for index, template := range ciWorkflow.Spec.Templates {
+		if val, ok := appLabels["nodeSelectorDevtron"]; ok {
+			impl.Logger.Infow("nodeSelectorDevtron found", "val", val)
+
+			var nodeSelectors map[string]string
+
+			// Unmarshal or Decode the JSON to the interface.
+			err = json.Unmarshal([]byte(val), &nodeSelectors)
+			if err != nil {
+				impl.Logger.Errorw("err in unmarshalling nodeSelectors", "err", err, "val", val)
+				return nil, err
+			}
+
+			template.NodeSelector = nodeSelectors
+
+			// updating the element in slice
+			//https://medium.com/@xcoulon/3-ways-to-update-elements-in-a-slice-d5df54c9b2f8
+			ciWorkflow.Spec.Templates[index] = template
+		}
+	}
+
 	if impl.ciConfig.TaintKey != "" || impl.ciConfig.TaintValue != "" {
 		ciWorkflow.Spec.Tolerations = []v12.Toleration{{Key: impl.ciConfig.TaintKey, Value: impl.ciConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
 	}
@@ -543,7 +565,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if err != nil {
 		impl.Logger.Errorw("marshal error", "err", err)
 	}
-	impl.Logger.Debug("---->", string(wfTemplate))
+	impl.Logger.Info("---->", string(wfTemplate))
 
 	createdWf, err := wfClient.Create(context.Background(), &ciWorkflow, v1.CreateOptions{}) // submit the hello world workflow
 	impl.Logger.Debug("workflow submitted: " + createdWf.Name)
