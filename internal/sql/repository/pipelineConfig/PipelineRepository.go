@@ -436,11 +436,22 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 }
 
 func (impl PipelineRepositoryImpl) GetPipelinesHavingStatusTimelinesPendingAfterKubectlApplyStatus(pendingSinceSeconds int) ([]*Pipeline, error) {
-	var pipelines []*Pipeline
-	query := fmt.Sprintf("select p.*, a.app_name, e.environment_name from pipeline p inner join app a on p.app_id = a.id inner join environment e on p.environment_id = e.id inner join cd_workflow cw on cw.pipeline_id = p.id inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id where cwr.id in (select cd_workflow_runner_id from pipeline_status_timeline where id in (select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline group by cd_workflow_runner_id, id order by cd_workflow_runner_id,id desc) and status='KUBECTL_APPLY_SYNCED' and status_time < NOW() - INTERVAL '%d seconds') group by p.id;", pendingSinceSeconds)
-	_, err := impl.dbConnection.Query(&pipelines, query)
+	var pipelineIds []int
+	query := fmt.Sprintf("select p.id from pipeline p inner join app a on p.app_id = a.id inner join environment e on p.environment_id = e.id inner join cd_workflow cw on cw.pipeline_id = p.id inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id where cwr.id in (select cd_workflow_runner_id from pipeline_status_timeline where id in (select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline group by cd_workflow_runner_id, id order by cd_workflow_runner_id,id desc) and status='KUBECTL_APPLY_SYNCED' and status_time < NOW() - INTERVAL '%d seconds') group by p.id, a.app_name, e.environment_name;", pendingSinceSeconds)
+	_, err := impl.dbConnection.Query(&pipelineIds, query)
 	if err != nil {
 		impl.logger.Errorw("error in GetPipelinesHavingStatusTimelinesPendingAfterKubectlApplyStatus", "err", err)
+		return nil, err
+	}
+	var pipelines []*Pipeline
+	err = impl.dbConnection.Model(&pipelines).
+		Column("pipeline.id", "App.app_name", "Environment.environment_name").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Join("inner join environment e on pipeline.environment_id = e.id").
+		Where("pipeline.id in (?)", pg.In(pipelineIds)).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error on fetching pipelines by ids", "ids", pipelineIds)
 		return nil, err
 	}
 	return pipelines, nil
