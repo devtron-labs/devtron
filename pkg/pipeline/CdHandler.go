@@ -191,12 +191,13 @@ func (impl *CdHandlerImpl) CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateI
 }
 
 func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(argoAppName string, appId, envId int, ignoreFailedWorkflowStatus bool) error {
-	terminalStatusExists, err := impl.appListingRepository.FindIfTerminalStatusExistsForAPipeline(appId, envId)
-	if err != nil {
-		impl.Logger.Errorw("error in FindIfTerminalStatusExistsForAPipeline", "err", err)
+	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatus(argoAppName)
+	if err != nil && err != pg.ErrNoRows {
+		impl.Logger.Errorw("error in fetching deployment status", "appName", argoAppName, "err", err)
 		return err
 	}
-	if terminalStatusExists {
+	if IsTerminalStatus(deploymentStatus.Status) {
+		//drop event
 		return nil
 	}
 	timelineStatus, appStatus, statusMessage, hash := impl.GetAppStatusByResourceTreeFetchFromArgo(argoAppName)
@@ -293,7 +294,17 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 	}
 	return nil
 }
-
+func IsTerminalStatus(status string) bool {
+	switch status {
+	case
+		string(health.HealthStatusHealthy),
+		string(health.HealthStatusDegraded),
+		WorkflowAborted,
+		WorkflowFailed:
+		return true
+	}
+	return false
+}
 func (impl *CdHandlerImpl) GetAppStatusByResourceTreeFetchFromArgo(appName string) (timelineStatus pipelineConfig.TimelineStatus, appStatus, statusMessage, hash string) {
 	//this should only be called when we have git-ops configured
 	//try fetching status from argo cd

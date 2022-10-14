@@ -54,7 +54,6 @@ type AppListingRepository interface {
 	FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(deployedBeforeMinutes int) ([]DeploymentStatus, error)
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
 	FindAppCount(isProd bool) (int, error)
-	FindIfTerminalStatusExistsForAPipeline(appId, envId int) (bool, error)
 }
 
 type DeploymentStatus struct {
@@ -554,17 +553,4 @@ func (impl AppListingRepositoryImpl) FindAppCount(isProd bool) (int, error) {
 	}
 
 	return count, nil
-}
-
-func (impl AppListingRepositoryImpl) FindIfTerminalStatusExistsForAPipeline(appId, envId int) (bool, error) {
-	var deploymentStatus DeploymentStatus
-	terminalStatuses := []string{"Healthy", "Degraded", "Failed"}
-	exists, err := impl.dbConnection.Model(&deploymentStatus).
-		Where("app_id = ?", appId).Where("env_id = ?", envId).
-		Where("status in (?)", pg.In(terminalStatuses)).Exists()
-	if err != nil {
-		impl.Logger.Error("err, FindIfTerminalStatusExistsForAPipeline", err)
-		return exists, err
-	}
-	return exists, nil
 }
