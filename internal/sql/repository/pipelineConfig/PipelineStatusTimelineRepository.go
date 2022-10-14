@@ -152,9 +152,10 @@ func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelineP
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineUpdatedBeforeSecondsByAppIdAndEnvId(appId, envId, updatedBeforeSeconds int) (*PipelineStatusTimeline, error) {
 	var timeline PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timeline).
+		Column("pipeline_status_timeline.*").
 		Join("INNER JOIN cd_workflow_runner wfr ON wfr.id = pipeline_status_timeline.cd_workflow_runner_id").
 		Join("INNER JOIN cd_workflow cw ON cw.id=wfr.cd_workflow_id").
-		Join("INNER JOIN pipeline p ON p.id=cd.pipeline.id").
+		Join("INNER JOIN pipeline p ON p.id=cw.pipeline_id").
 		Where("p.app_id = ?", appId).
 		Where("p.environment_id = ?", envId).
 		Where("pipeline_status_timeline.status_time < NOW() - INTERVAL '? seconds'", updatedBeforeSeconds).
