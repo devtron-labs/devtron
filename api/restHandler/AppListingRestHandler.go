@@ -605,6 +605,14 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("app is neither helm app or devtron app"), nil, http.StatusBadRequest)
 		return
 	}
+	//check user authorization for this app
+	token := r.Header.Get("token")
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
+
 	if installedAppIdParam != "" {
 		appDetail = handler.fetchResourceTreeFromInstallAppService(w, r, appDetail)
 	} else {
@@ -627,7 +635,12 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
 		return
 	}
-	resp := handler.k8sApplicationService.GetManifestsByBatch(validRequests)
+	resp, err := handler.k8sApplicationService.GetManifestsByBatch(r.Context(), validRequests)
+	if err != nil {
+		handler.logger.Errorw("error in getting manifests in batch", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	result := handler.k8sApplicationService.GetUrlsByBatch(resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }

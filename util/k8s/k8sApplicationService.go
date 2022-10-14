@@ -19,6 +19,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 )
 
 const (
@@ -36,7 +37,7 @@ type K8sApplicationService interface {
 	GetResourceInfo() (*ResourceInfo, error)
 	GetRestConfigByClusterId(clusterId int) (*rest.Config, error)
 	GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error)
-	GetManifestsByBatch(request []ResourceRequestBean) []BatchResourceResponse
+	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
 }
@@ -52,7 +53,8 @@ type K8sApplicationServiceImpl struct {
 }
 
 type K8sApplicationServiceConfig struct {
-	BatchSize int `env:"BATCH_SIZE" envDefault:"5"`
+	BatchSize        int `env:"BATCH_SIZE" envDefault:"5"`
+	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5"`
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
@@ -62,7 +64,7 @@ func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	cfg := &K8sApplicationServiceConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
-		Logger.Errorw("error occurred while parsing K8sApplicationServiceConfig,so setting batchSize to default value", "err", err)
+		Logger.Infow("error occurred while parsing K8sApplicationServiceConfig,so setting batchSize and timeOutInSeconds to default value", "err", err)
 	}
 	return &K8sApplicationServiceImpl{
 		logger:                      Logger,
@@ -219,7 +221,26 @@ func (impl *K8sApplicationServiceImpl) getUrls(manifest *application.ManifestRes
 	return res
 }
 
-func (impl *K8sApplicationServiceImpl) GetManifestsByBatch(requests []ResourceRequestBean) []BatchResourceResponse {
+func (impl *K8sApplicationServiceImpl) GetManifestsByBatch(ctx context.Context, requests []ResourceRequestBean) ([]BatchResourceResponse, error) {
+	ch := make(chan []BatchResourceResponse)
+	var res []BatchResourceResponse
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(impl.K8sApplicationServiceConfig.TimeOutInSeconds)*time.Second)
+	defer cancel()
+	go func() {
+		ans := impl.getManifestsByBatch(requests)
+		ch <- ans
+	}()
+	select {
+	case ans := <-ch:
+		res = ans
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	impl.logger.Info("successfully fetched the requested manifests")
+	return res, nil
+}
+
+func (impl *K8sApplicationServiceImpl) getManifestsByBatch(requests []ResourceRequestBean) []BatchResourceResponse {
 	//total batch length
 	batchSize := impl.K8sApplicationServiceConfig.BatchSize
 	if requests == nil {

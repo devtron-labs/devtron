@@ -165,7 +165,13 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
 		return
 	}
-	resp := handler.k8sApplicationService.GetManifestsByBatch(validRequests)
+
+	resp, err := handler.k8sApplicationService.GetManifestsByBatch(r.Context(), validRequests)
+	if err != nil {
+		handler.logger.Errorw("error in getting manifests in batch", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
 	result := handler.k8sApplicationService.GetUrlsByBatch(resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
