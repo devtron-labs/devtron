@@ -445,7 +445,7 @@ func (impl PipelineRepositoryImpl) GetPipelinesHavingStatusTimelinesPendingAfter
 	}
 	var pipelines []*Pipeline
 	err = impl.dbConnection.Model(&pipelines).
-		Column("pipeline.id", "App.app_name", "Environment.environment_name").
+		Column("pipeline.*", "App.app_name", "Environment.environment_name").
 		Join("inner join app a on pipeline.app_id = a.id").
 		Join("inner join environment e on pipeline.environment_id = e.id").
 		Where("pipeline.id in (?)", pg.In(pipelineIds)).
