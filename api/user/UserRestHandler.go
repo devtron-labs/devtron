@@ -225,7 +225,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	if len(restrictedGroups) == 0 {
 		common.WriteJsonResp(w, err, res, http.StatusOK)
 	} else {
-		groups := strings.Join(restrictedGroups, " ")
+		groups := strings.Join(restrictedGroups, ", ")
 
 		if len(restrictedGroups) == len(userInfo.Groups) {
 
