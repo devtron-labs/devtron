@@ -558,7 +558,7 @@ func (impl AppListingRepositoryImpl) FindAppCount(isProd bool) (int, error) {
 
 func (impl AppListingRepositoryImpl) FindIfTerminalStatusExistsForAPipeline(appId, envId int) (bool, error) {
 	var deploymentStatus DeploymentStatus
-	terminalStatuses := fmt.Sprint("'Healthy', 'Degraded', 'Failed'")
+	terminalStatuses := []string{"Healthy", "Degraded", "Failed"}
 	exists, err := impl.dbConnection.Model(&deploymentStatus).
 		Where("app_id = ?", appId).Where("env_id = ?", envId).
 		Where("status in (?)", pg.In(terminalStatuses)).Exists()
