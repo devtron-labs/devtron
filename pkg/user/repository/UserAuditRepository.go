@@ -53,6 +53,7 @@ func (impl UserAuditRepositoryImpl) Update(userAudit *UserAudit) error {
 	userAuditPresentInDB, err := impl.GetLatestByUserId(userAudit.UserId)
 	userAudit.UpdatedOn = time.Now()
 	if err == nil {
+		userAudit.Id = userAuditPresentInDB.Id
 		userAudit.CreatedOn = userAuditPresentInDB.CreatedOn
 		err = impl.dbConnection.Update(userAudit)
 	} else if err == pg.ErrNoRows {
@@ -62,6 +63,7 @@ func (impl UserAuditRepositoryImpl) Update(userAudit *UserAudit) error {
 	return err
 }
 func (impl UserAuditRepositoryImpl) Save(userAudit *UserAudit) error {
+	userAudit.UpdatedOn = time.Now()
 	return impl.dbConnection.Insert(userAudit)
 }
 
