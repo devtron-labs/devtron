@@ -105,13 +105,13 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, util.ARGO_PIPELINE_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("received argo pipeline status update request")
 		defer msg.Ack()
-		impl.logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "raw", "data", msg.Data)
 		statusUpdateEvent := pipeline.ArgoPipelineStatusEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &statusUpdateEvent)
 		if err != nil {
 			impl.logger.Errorw("unmarshal error on argo pipeline status update event", "err", err)
 			return
 		}
+		impl.logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "subscribeDataUnmarshal", "data", statusUpdateEvent)
 		err = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(statusUpdateEvent.ArgoAppName, statusUpdateEvent.AppId, statusUpdateEvent.EnvId, statusUpdateEvent.IgnoreFailedWorkflowStatus)
 		if err != nil {
 			impl.logger.Errorw("error on argo pipeline status update", "err", err, "msg", string(msg.Data))

@@ -196,6 +196,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		impl.Logger.Errorw("error in fetching deployment status", "appName", argoAppName, "err", err)
 		return err
 	}
+	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", argoAppName, "deploymentStatus", deploymentStatus)
 	if IsTerminalStatus(deploymentStatus.Status) {
 		//drop event
 		return nil
@@ -238,7 +239,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		CreatedOn: time.Now(),
 		UpdatedOn: time.Now(),
 	}
-
+	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "saving new DeploymentStatus", "argoAppName", argoAppName, "newDeploymentStatus", newDeploymentStatus)
 	err = impl.appListingRepository.SaveNewDeploymentsWithTxn([]repository.DeploymentStatus{newDeploymentStatus}, tx)
 	if err != nil {
 		impl.Logger.Errorw("error on saving new deployment status for wf", "err", err)
@@ -251,6 +252,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		return err
 	}
 	cdWfr.Status = appStatus
+	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "saving new DeploymentStatus", "argoAppName", argoAppName, "newCdWfr", cdWfr)
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunnersWithTxn([]pipelineConfig.CdWorkflowRunner{cdWfr}, tx)
 	if err != nil {
 		impl.Logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
@@ -269,6 +271,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 			UpdatedOn: time.Now(),
 		},
 	}
+	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "saving new DeploymentStatus", "argoAppName", argoAppName, "newTimeline", timeline)
 	err = impl.pipelineStatusTimelineRepository.SaveTimelinesWithTxn([]pipelineConfig.PipelineStatusTimeline{timeline}, tx)
 	if err != nil {
 		impl.Logger.Errorw("error in creating timeline status for app", "err", err, "timeline", timeline)
@@ -284,6 +287,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		impl.deploymentEventHandler.WriteCDDeploymentEvent(cdWfr.CdWorkflow.PipelineId, appId, envId, util2.Fail)
 	} else if appStatus == string(health.HealthStatusHealthy) {
 		//handling deployment success event
+		impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "handling deployment success event", "argoAppName", argoAppName, "pipelineOverride", pipelineOverride)
 		err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
 		if err != nil {
 			impl.Logger.Errorw("error in handling deployment success event", "err", err, "pipelineOverrideId", pipelineOverride.Id)
