@@ -17,7 +17,7 @@ spec:
             command: ['sh', '-c', 'while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-devtron -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done']
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:57e17953-373-10147
+            image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd
@@ -50,7 +50,7 @@ spec:
         spec:
           containers:
           - name: chart-sync
-            image: quay.io/devtron/chart-sync:57e17953-373-10147
+            image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
             env:
             - name: PG_ADDR
               value: postgresql-postgresql.devtroncd

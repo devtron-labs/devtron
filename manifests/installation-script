@@ -1,4 +1,4 @@
-LTAG="v0.6.1";
+LTAG="v0.6.2";
 REPO_RAW_URL="https://raw.githubusercontent.com/devtron-labs/devtron/";
 
 operatorSecret = kubectl get secret -n devtroncd devtron-operator-secret;
@@ -62,7 +62,6 @@ argocdResource_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/argocd-resource.jso
 devtronHousekeeping_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/devtron-housekeeping.yaml";
 dashboard_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/dashboard.yaml";
 gitSensor_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/gitsensor.yaml";
-postgresql_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/postgresql.yaml";
 kubelink_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubelink.yaml";
 kubewatch_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/kubewatch.yaml";
 lens_raw = REPO_RAW_URL + LTAG + "/manifests/yamls/lens.yaml";
@@ -83,7 +82,6 @@ argocdResource = download(argocdResource_raw);
 devtronHousekeeping = download(devtronHousekeeping_raw);
 dashboard = download(dashboard_raw);
 gitSensor = download(gitSensor_raw);
-postgresql = download(postgresql_raw);
 kubelink = download(kubelink_raw);
 kubewatch = download(kubewatch_raw);
 lens = download(lens_raw);
@@ -100,7 +98,6 @@ rollout = download(rollout_raw);
 devtronHousekeepingOverride = kubectl get cm -n devtroncd devtron-housekeeping-override-cm;
 dashboardOverride = kubectl get cm -n devtroncd dashboard-override-cm;
 gitSensorOverride = kubectl get cm -n devtroncd git-sensor-override-cm;
-postgresqlOverride = kubectl get cm -n devtroncd postgresql-override-cm;
 kubelinkOverride = kubectl get cm -n devtroncd kubelink-override-cm;
 kubewatchOverride = kubectl get cm -n devtroncd kubewatch-override-cm;
 lensOverride = kubectl get cm -n devtroncd lens-override-cm;
@@ -114,7 +111,6 @@ rolloutOverride = kubectl get cm -n devtroncd rollout-override-cm;
 
 dashboardOverride = jsonSelect(dashboardOverride, "data.override");
 gitSensorOverride = jsonSelect(gitSensorOverride, "data.override");
-postgresqlOverride = jsonSelect(postgresqlOverride, "data.override");
 kubelinkOverride = jsonSelect(kubelinkOverride, "data.override");
 kubewatchOverride = jsonSelect(kubewatchOverride, "data.override");
 lensOverride = jsonSelect(lensOverride, "data.override");
@@ -130,11 +126,6 @@ namespaces = kubectl apply namespace;
 log("created namespaces");
 sa = kubectl apply serviceAccount;
 log("created service account");
-
-#postgresql
-kubeYamlEdit(postgresql, "data.postgresql-password", postgresqlPassword, `/Secret//postgresql-postgresql`);
-postgresql = kubectl apply -n devtroncd postgresql -u postgresqlOverride;
-log("created postgresql");
 
 pa = kubectl patch -n devtroncd cm/argocd-cm --type "application/json-patch+json" -p argocdResource;
 log("executed argocd setup command");
