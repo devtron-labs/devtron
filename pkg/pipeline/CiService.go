@@ -432,6 +432,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
 		dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
+		dockerBuildConfig.DockerfilePath = dockerfilePath
 	}
 	workflowRequest := &WorkflowRequest{
 		WorkflowNamePrefix: strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
