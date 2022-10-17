@@ -1,4 +1,4 @@
-package bean
+package models
 
 type UserTerminalSessionRequest struct {
 	Id        int
@@ -27,7 +27,11 @@ const TerminalAccessClusterIdTemplateVar = "${cluster_id}"
 const TerminalAccessUserIdTemplateVar = "${user_id}"
 const TerminalAccessRandomIdVar = "${random_id}"
 const TerminalAccessPodNameVar = "${pod_name}"
-const TerminalAccessPodTemplateName = "terminal-access-pod-template"
+const TerminalAccessBaseImageVar = "${base_image}"
+const TerminalAccessPodTemplateName = "terminal-access-pod"
+const TerminalAccessRoleTemplateName = "terminal-access-role"
+const TerminalAccessRoleBindingTemplateName = "terminal-access-role-binding"
+const TerminalAccessServiceAccountTemplateName = "terminal-access-service-account"
 
 type TerminalPodStatus string
 

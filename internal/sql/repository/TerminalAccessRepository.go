@@ -2,7 +2,6 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
@@ -43,12 +42,33 @@ func (impl TerminalAccessRepositoryImpl) FetchTerminalAccessTemplate(templateNam
 func (impl TerminalAccessRepositoryImpl) FetchAllTemplates() ([]*models.TerminalAccessTemplates, error) {
 	var templates []*models.TerminalAccessTemplates
 	err := impl.dbConnection.
-		Model(templates).
+		Model(&templates).
 		Select()
 	if err == pg.ErrNoRows {
 		impl.Logger.Debug("no terminal access templates found")
 		err = nil
 	}
+	//templates = append(templates, &models.TerminalAccessTemplates{
+	//	TemplateName:     bean.TerminalAccessRoleTemplateName,
+	//	TemplateKindData: "{\"group\":\"\", \"version\":\"\", \"kind\":\"\"}",
+	//	TemplateData:     "",
+	//})
+	templates = append(templates, &models.TerminalAccessTemplates{
+		TemplateName:     models.TerminalAccessServiceAccountTemplateName,
+		TemplateKindData: "{\"version\":\"v1\", \"kind\":\"ServiceAccount\"}",
+		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"name\":\"terminal-access-service-account\",\"namespace\":\"default\"}}",
+	})
+	templates = append(templates, &models.TerminalAccessTemplates{
+		TemplateName:     models.TerminalAccessRoleBindingTemplateName,
+		TemplateKindData: "{\"group\":\"rbac.authorization.k8s.io\",\"version\":\"v1\",\"kind\":\"ClusterRoleBinding\"}",
+		TemplateData:     "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"terminal-access-role-binding\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"terminal-access-service-account\",\"namespace\":\"default\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}",
+	})
+	templates = append(templates, &models.TerminalAccessTemplates{
+		TemplateName:     models.TerminalAccessPodTemplateName,
+		TemplateKindData: "{\"group\":\"\", \"version\":\"v1\", \"kind\":\"Pod\"}",
+		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"terminal-access-service-account\",\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\"}]}}",
+	})
+
 	return templates, err
 }
 
@@ -64,10 +84,10 @@ func (impl TerminalAccessRepositoryImpl) GetUserTerminalAccessData(id int) (*mod
 // GetUserTerminalAccessDataByUser return empty array for no data and return only running/starting instances
 func (impl TerminalAccessRepositoryImpl) GetUserTerminalAccessDataByUser(userId int32) ([]*models.UserTerminalAccessData, error) {
 	var accessDataArray []*models.UserTerminalAccessData
-	err := impl.dbConnection.Model(accessDataArray).
+	err := impl.dbConnection.Model(&accessDataArray).
 		Where("user_id = ?", userId).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			query = query.WhereOr("status = ?", string(bean.TerminalPodRunning)).WhereOr("status = ?", string(bean.TerminalPodStarting))
+			query = query.WhereOr("status = ?", string(models.TerminalPodRunning)).WhereOr("status = ?", string(models.TerminalPodStarting))
 			return query, nil
 		}).
 		Select()
@@ -97,9 +117,9 @@ func (impl TerminalAccessRepositoryImpl) UpdateUserTerminalStatus(id int, status
 
 func (impl TerminalAccessRepositoryImpl) GetAllUserTerminalAccessData() ([]*models.UserTerminalAccessData, error) {
 	var accessDataArray []*models.UserTerminalAccessData
-	err := impl.dbConnection.Model(accessDataArray).
+	err := impl.dbConnection.Model(&accessDataArray).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			query = query.WhereOr("status = ?", string(bean.TerminalPodRunning)).WhereOr("status = ?", string(bean.TerminalPodStarting))
+			query = query.WhereOr("status = ?", string(models.TerminalPodRunning)).WhereOr("status = ?", string(models.TerminalPodStarting))
 			return query, nil
 		}).
 		Select()
