@@ -205,9 +205,8 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *
 	}
 	ciArtifactArr = append(ciArtifactArr, artifact)
 
-	go impl.WriteCISuccessEvent(request, pipeline, artifact)
-
-	impl.ciHandler.WriteToCreateTestSuites(pipeline.Id, *request.WorkflowId, int(request.UserId))
+	//go impl.WriteCISuccessEvent(request, pipeline, artifact)
+	//impl.ciHandler.WriteToCreateTestSuites(pipeline.Id, *request.WorkflowId, int(request.UserId))
 
 	isCiManual := true
 	if request.UserId == 1 {
@@ -225,7 +224,7 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *
 	for _, ciArtifact := range ciArtifactArr {
 		err = impl.workflowDagExecutor.HandleCiSuccessEvent(ciArtifact, isCiManual, async, request.UserId)
 		if err != nil {
-			impl.logger.Errorw("err", "err", err)
+			impl.logger.Errorw("error on handle  ci success event", "err", err)
 			return 0, err
 		}
 	}
