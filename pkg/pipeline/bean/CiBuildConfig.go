@@ -117,7 +117,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 		}
 	}
 	if ciLevelArgs != "" {
-		if err := json.Unmarshal([]byte(oldArgs), &ciLevelDockerArgs); err != nil {
+		if err := json.Unmarshal([]byte(ciLevelArgs), &ciLevelDockerArgs); err != nil {
 			return nil, err
 		}
 	}
