@@ -449,6 +449,7 @@ func (impl PipelineRepositoryImpl) GetPipelinesHavingStatusTimelinesPendingAfter
 		Join("inner join app a on pipeline.app_id = a.id").
 		Join("inner join environment e on pipeline.environment_id = e.id").
 		Where("pipeline.id in (?)", pg.In(pipelineIds)).
+		Where("pipeline.deleted = false").
 		Select()
 	if err != nil {
 		impl.logger.Errorw("error on fetching pipelines by ids", "ids", pipelineIds)
