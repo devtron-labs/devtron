@@ -10,7 +10,8 @@ type UserTerminalSessionRequest struct {
 }
 
 type UserTerminalSessionConfig struct {
-	MaxSessionPerUser int
+	MaxSessionPerUser             int
+	TerminalPodStatusSyncCronExpr string
 }
 
 type UserTerminalSessionResponse struct {
@@ -31,8 +32,8 @@ const TerminalAccessPodTemplateName = "terminal-access-pod-template"
 type TerminalPodStatus string
 
 const (
-	Starting   TerminalPodStatus = "Starting"
-	Running    TerminalPodStatus = "Running"
-	Terminated TerminalPodStatus = "Terminated"
-	Error      TerminalPodStatus = "Error"
+	TerminalPodStarting   TerminalPodStatus = "Starting"
+	TerminalPodRunning    TerminalPodStatus = "Running"
+	TerminalPodTerminated TerminalPodStatus = "Terminated"
+	TerminalPodError      TerminalPodStatus = "Error"
 )

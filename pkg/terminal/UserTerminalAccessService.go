@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -37,8 +38,15 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 		TerminalAccessRepository: terminalAccessRepository,
 		Config:                   config,
 	}
-	//fetches all running and starting entities from db
-	return accessServiceImpl, nil
+	//fetches all running and starting entities from db and start SyncStatus
+	cron := cron.New(
+		cron.WithChain())
+	cron.Start()
+	_, err = cron.AddFunc(config.TerminalPodStatusSyncCronExpr, accessServiceImpl.SyncPodStatus)
+	if err != nil {
+		logger.Errorw("error occurred while starting cron job", "cron Expr", config.TerminalPodStatusSyncCronExpr)
+	}
+	return accessServiceImpl, err
 }
 
 func (impl UserTerminalAccessServiceImpl) StartTerminalSession(request *bean.UserTerminalSessionRequest) (*bean.UserTerminalSessionResponse, error) {
@@ -52,7 +60,7 @@ func (impl UserTerminalAccessServiceImpl) StartTerminalSession(request *bean.Use
 	maxSessionPerUser := impl.Config.MaxSessionPerUser
 	userRunningSessionCount := len(terminalAccessDataList)
 	if userRunningSessionCount >= maxSessionPerUser {
-		errStr := fmt.Sprintf("cannot create more session than configured %s", strconv.Itoa(maxSessionPerUser))
+		errStr := fmt.Sprintf("cannot start new session more than configured %s", strconv.Itoa(maxSessionPerUser))
 		impl.Logger.Errorw(errStr, "req", request)
 		return nil, errors.New(errStr)
 	}
@@ -65,7 +73,7 @@ func (impl UserTerminalAccessServiceImpl) createTerminalEntity(request *bean.Use
 		UserId:    request.UserId,
 		ClusterId: request.ClusterId,
 		NodeName:  request.NodeName,
-		Status:    string(bean.Starting),
+		Status:    string(bean.TerminalPodStarting),
 		PodName:   podName,
 		Metadata:  impl.extractMetadataString(request),
 	}
@@ -110,7 +118,7 @@ func (impl UserTerminalAccessServiceImpl) checkTerminalExists(userTerminalSessio
 	}
 	terminalStatus := terminalAccessData.Status
 	terminalPodStatus := bean.TerminalPodStatus(terminalStatus)
-	if terminalPodStatus == bean.Terminated || terminalPodStatus == bean.Error {
+	if terminalPodStatus == bean.TerminalPodTerminated || terminalPodStatus == bean.TerminalPodError {
 		impl.Logger.Errorw("pod is already in terminated/error state", "userTerminalSessionId", userTerminalSessionId, "terminalPodStatus", terminalPodStatus)
 		return nil, errors.New("pod already terminated")
 	}
@@ -128,7 +136,7 @@ func (impl UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminal
 		impl.Logger.Errorw("error occurred while stopping terminal pod", "userTerminalSessionId", userTerminalSessionId, "err", err)
 		return err
 	}
-	err = impl.TerminalAccessRepository.UpdateUserTerminalStatus(userTerminalSessionId, string(bean.Terminated))
+	err = impl.TerminalAccessRepository.UpdateUserTerminalStatus(userTerminalSessionId, string(bean.TerminalPodTerminated))
 	if err != nil {
 		impl.Logger.Errorw("error occurred while updating terminal status in db", "userTerminalSessionId", userTerminalSessionId, "err", err)
 	}
@@ -185,7 +193,7 @@ func (impl UserTerminalAccessServiceImpl) applyTemplateData(request *bean.UserTe
 	return nil
 }
 
-func (impl UserTerminalAccessServiceImpl) syncPodStatus() {
+func (impl UserTerminalAccessServiceImpl) SyncPodStatus() {
 	// set starting/running pods in memory and fetch status of those pods and update their status in Db
 	for _, terminalAccessData := range impl.terminalAccessDataArray {
 		clusterId := terminalAccessData.ClusterId
@@ -202,8 +210,16 @@ func (impl UserTerminalAccessServiceImpl) syncPodStatus() {
 				impl.Logger.Errorw("error occurred while updating terminal status", "terminalAccessId", terminalAccessId, "err", err)
 				continue
 			}
+			terminalAccessData.Status = terminalPodStatusString
 		}
 	}
+	var newArray []*models.UserTerminalAccessData
+	for _, terminalAccessData := range impl.terminalAccessDataArray {
+		if terminalAccessData.Status != string(bean.TerminalPodTerminated) && terminalAccessData.Status != string(bean.TerminalPodError) {
+			newArray = append(newArray, terminalAccessData)
+		}
+	}
+	impl.terminalAccessDataArray = newArray
 }
 
 func (impl UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, terminalPodName string) error {
@@ -217,5 +233,5 @@ func (impl UserTerminalAccessServiceImpl) applyTemplate(clusterId int, templateD
 
 func (impl UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName string) (bean.TerminalPodStatus, error) {
 	// return terminated if pod does not exist
-	return bean.Running, nil
+	return bean.TerminalPodRunning, nil
 }
