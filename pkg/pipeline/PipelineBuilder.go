@@ -19,6 +19,7 @@ package pipeline
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -34,6 +35,7 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -2370,11 +2372,13 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		}
 	}
 
+	ciPipelineIdByte := []byte(strconv.Itoa(pipeline.Id))
+	base64EncodedCiPipelineId := base64.StdEncoding.EncodeToString(ciPipelineIdByte)
 	var externalCiConfig bean.ExternalCiConfig
 	if pipeline.ExternalCiPipeline != nil {
 		externalCiConfig = bean.ExternalCiConfig{
 			Id:         pipeline.ExternalCiPipeline.Id,
-			AccessKey:  pipeline.ExternalCiPipeline.AccessToken,
+			AccessKey:  fmt.Sprintf("%s.%s", base64EncodedCiPipelineId, pipeline.ExternalCiPipeline.AccessToken),
 			WebhookUrl: impl.ciConfig.ExternalCiWebhookUrl,
 			Payload:    impl.ciConfig.ExternalCiPayload,
 		}
