@@ -140,7 +140,7 @@ func OverrideCiBuildConfig(dockerfilePath string, oldArgs string, ciLevelArgs st
 	} else if ciBuildConfigBean.CiBuildType == SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == MANAGED_DOCKERFILE_BUILD_TYPE {
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
 		dockerArgs := mergeMap(dockerBuildConfig.Args, ciLevelDockerArgs)
-		dockerBuildConfig.DockerfilePath = dockerfilePath
+		//dockerBuildConfig.DockerfilePath = dockerfilePath
 		dockerBuildConfig.Args = dockerArgs
 	}
 	return ciBuildConfigBean, nil
