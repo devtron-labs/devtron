@@ -97,6 +97,14 @@ spec:
           {{- if $.Values.installer.resources }}    
           resources:
           {{- toYaml $.Values.installer.resources | nindent 12 }}
+          {{- else }}
+          resources:
+            limits:
+              cpu: 50m
+              memory: 500Mi
+            requests:
+              cpu: 10m
+              memory: 100Mi
           {{- end }}    
       restartPolicy: Always
       serviceAccountName: installer
