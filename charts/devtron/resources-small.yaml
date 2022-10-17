@@ -91,7 +91,7 @@ components:
     resources:
       limits:
         cpu: "50m"
-        memory: 100Mi
+        memory: 200Mi
       requests:
         cpu: "50m"
         memory: 100Mi    
@@ -117,7 +117,7 @@ components:
     resources:
       limits:
         cpu: "150m"
-        memory: 300Mi
+        memory: 400Mi
       requests:
         cpu: "150m"
         memory: 300Mi    
