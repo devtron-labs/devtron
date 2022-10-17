@@ -429,6 +429,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		impl.Logger.Errorw("error occurred while overriding ci build config", "oldArgs", oldArgs, "ciLevelArgs", ciLevelArgs, "error", err)
 		return nil, errors.New("error while parsing ci build config")
 	}
+	if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
+		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
+		dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
+	}
 	workflowRequest := &WorkflowRequest{
 		WorkflowNamePrefix: strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
 		PipelineName:       pipeline.Name,
