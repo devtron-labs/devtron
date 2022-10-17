@@ -572,7 +572,8 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 	slackConfigs, fErr := impl.slackService.FetchAllSlackNotificationConfig()
 	if fErr != nil && fErr != pg.ErrNoRows {
 		impl.logger.Errorw("service err, FindAllNotificationConfig", "err", err)
-
+		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
+		return
 	}
 
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
