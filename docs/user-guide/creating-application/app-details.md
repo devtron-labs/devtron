@@ -1,6 +1,6 @@
 # Application Details
 
-## Access an external link
+## Access an External Link
 
 The users can access the [configured external links](../../user-guide/global-configurations/external-links.md) on the **App Details** page.
 
@@ -42,3 +42,17 @@ Click **Save**. The application will be moved to the selected project.
 **Note**: If you change the project:
 * The current users will lose the access to the application.
 * The users who already have an access to the selected project, will get an access to the application automatically.
+
+
+## Ingress Host URL
+
+You can copy the Ingress Host URL from the **URLs** on the **App Details** instead of searching in the `Manifest`.
+
+1. Select **Applications** from the left navigation pane.
+2. After selecting your configured application, select the **App Details**.
+3. Click **URLs**.
+4. Copy the URLs of the ingress.
+
+**Note**: You can also view the Service name with its Loadbalancer detail.
+
+
