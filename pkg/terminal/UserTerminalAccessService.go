@@ -8,10 +8,12 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type UserTerminalAccessService interface {
@@ -21,14 +23,16 @@ type UserTerminalAccessService interface {
 }
 
 type UserTerminalAccessServiceImpl struct {
-	TerminalAccessRepository repository.TerminalAccessRepository
-	Logger                   *zap.SugaredLogger
-	Config                   *bean.UserTerminalSessionConfig
-	terminalAccessDataArray  []*models.UserTerminalAccessData
-	PodStatusSyncCron        *cron.Cron
+	TerminalAccessRepository     repository.TerminalAccessRepository
+	Logger                       *zap.SugaredLogger
+	Config                       *bean.UserTerminalSessionConfig
+	TerminalAccessDataArray      []*models.UserTerminalAccessData
+	TerminalAccessDataArrayMutex *sync.RWMutex
+	PodStatusSyncCron            *cron.Cron
+	k8sApplicationService        k8s.K8sApplicationService
 }
 
-func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository) (*UserTerminalAccessServiceImpl, error) {
+func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, k8sApplicationService k8s.K8sApplicationService) (*UserTerminalAccessServiceImpl, error) {
 	config := &bean.UserTerminalSessionConfig{}
 	err := env.Parse(config)
 	if err != nil {
@@ -37,17 +41,21 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 	//fetches all running and starting entities from db and start SyncStatus
 	podStatusSyncCron := cron.New(
 		cron.WithChain())
+	terminalAccessDataArrayMutex := &sync.RWMutex{}
 	accessServiceImpl := &UserTerminalAccessServiceImpl{
-		Logger:                   logger,
-		TerminalAccessRepository: terminalAccessRepository,
-		Config:                   config,
-		PodStatusSyncCron:        podStatusSyncCron,
+		Logger:                       logger,
+		TerminalAccessRepository:     terminalAccessRepository,
+		Config:                       config,
+		PodStatusSyncCron:            podStatusSyncCron,
+		TerminalAccessDataArrayMutex: terminalAccessDataArrayMutex,
+		k8sApplicationService:        k8sApplicationService,
 	}
 	podStatusSyncCron.Start()
 	_, err = podStatusSyncCron.AddFunc(fmt.Sprintf("@every %ds", config.TerminalPodStatusSyncTimeInSecs), accessServiceImpl.SyncPodStatus)
 	if err != nil {
 		logger.Errorw("error occurred while starting cron job", "time in secs", config.TerminalPodStatusSyncTimeInSecs)
 	}
+	go accessServiceImpl.SyncRunningInstances()
 	return accessServiceImpl, err
 }
 
@@ -84,6 +92,9 @@ func (impl UserTerminalAccessServiceImpl) createTerminalEntity(request *bean.Use
 		impl.Logger.Errorw("error occurred while saving user terminal access data", "err", err)
 		return nil, err
 	}
+	impl.TerminalAccessDataArrayMutex.Lock()
+	impl.TerminalAccessDataArray = append(impl.TerminalAccessDataArray, userAccessData)
+	impl.TerminalAccessDataArrayMutex.Unlock()
 	return &bean.UserTerminalSessionResponse{
 		UserTerminalSessionId: userAccessData.Id,
 		UserId:                userAccessData.UserId,
@@ -197,7 +208,7 @@ func (impl UserTerminalAccessServiceImpl) applyTemplateData(request *bean.UserTe
 
 func (impl UserTerminalAccessServiceImpl) SyncPodStatus() {
 	// set starting/running pods in memory and fetch status of those pods and update their status in Db
-	for _, terminalAccessData := range impl.terminalAccessDataArray {
+	for _, terminalAccessData := range impl.TerminalAccessDataArray {
 		clusterId := terminalAccessData.ClusterId
 		terminalAccessPodName := terminalAccessData.PodName
 		terminalPodStatus, err := impl.getPodStatus(clusterId, terminalAccessPodName)
@@ -216,12 +227,12 @@ func (impl UserTerminalAccessServiceImpl) SyncPodStatus() {
 		}
 	}
 	var newArray []*models.UserTerminalAccessData
-	for _, terminalAccessData := range impl.terminalAccessDataArray {
+	for _, terminalAccessData := range impl.TerminalAccessDataArray {
 		if terminalAccessData.Status != string(bean.TerminalPodTerminated) && terminalAccessData.Status != string(bean.TerminalPodError) {
 			newArray = append(newArray, terminalAccessData)
 		}
 	}
-	impl.terminalAccessDataArray = newArray
+	impl.TerminalAccessDataArray = newArray
 }
 
 func (impl UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, terminalPodName string) error {
@@ -236,4 +247,14 @@ func (impl UserTerminalAccessServiceImpl) applyTemplate(clusterId int, templateD
 func (impl UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName string) (bean.TerminalPodStatus, error) {
 	// return terminated if pod does not exist
 	return bean.TerminalPodRunning, nil
+}
+
+func (impl UserTerminalAccessServiceImpl) SyncRunningInstances() {
+	terminalAccessData, err := impl.TerminalAccessRepository.GetAllUserTerminalAccessData()
+	if err != nil {
+		impl.Logger.Fatalw("error occurred while fetching all running/starting data", "err", err)
+	}
+	impl.TerminalAccessDataArrayMutex.Lock()
+	impl.TerminalAccessDataArray = terminalAccessData
+	impl.TerminalAccessDataArrayMutex.Unlock()
 }

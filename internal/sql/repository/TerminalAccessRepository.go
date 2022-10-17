@@ -13,6 +13,7 @@ type TerminalAccessRepository interface {
 	FetchAllTemplates() ([]*models.TerminalAccessTemplates, error)
 	GetUserTerminalAccessData(id int) (*models.UserTerminalAccessData, error)
 	GetUserTerminalAccessDataByUser(userId int32) ([]*models.UserTerminalAccessData, error)
+	GetAllUserTerminalAccessData() ([]*models.UserTerminalAccessData, error)
 	SaveUserTerminalAccessData(data *models.UserTerminalAccessData) error
 	UpdateUserTerminalAccessData(data *models.UserTerminalAccessData) error
 	UpdateUserTerminalStatus(id int, status string) error
@@ -45,7 +46,7 @@ func (impl TerminalAccessRepositoryImpl) FetchAllTemplates() ([]*models.Terminal
 		Model(templates).
 		Select()
 	if err == pg.ErrNoRows {
-		impl.Logger.Errorw("no terminal access templates found")
+		impl.Logger.Debug("no terminal access templates found")
 		err = nil
 	}
 	return templates, err
@@ -60,7 +61,7 @@ func (impl TerminalAccessRepositoryImpl) GetUserTerminalAccessData(id int) (*mod
 	return terminalAccessData, err
 }
 
-// GetUserTerminalAccessDataByUser return empty array for no data and return only running instances
+// GetUserTerminalAccessDataByUser return empty array for no data and return only running/starting instances
 func (impl TerminalAccessRepositoryImpl) GetUserTerminalAccessDataByUser(userId int32) ([]*models.UserTerminalAccessData, error) {
 	var accessDataArray []*models.UserTerminalAccessData
 	err := impl.dbConnection.Model(accessDataArray).
@@ -71,7 +72,7 @@ func (impl TerminalAccessRepositoryImpl) GetUserTerminalAccessDataByUser(userId 
 		}).
 		Select()
 	if err == pg.ErrNoRows {
-		impl.Logger.Errorw("no running/starting pods found", "userId", userId)
+		impl.Logger.Debug("no running/starting pods found", "userId", userId)
 		err = nil
 	}
 	return accessDataArray, err
@@ -92,4 +93,21 @@ func (impl TerminalAccessRepositoryImpl) UpdateUserTerminalStatus(id int, status
 	}
 	_, err := impl.dbConnection.Model(accessDataArray).WherePK().UpdateNotNull()
 	return err
+}
+
+func (impl TerminalAccessRepositoryImpl) GetAllUserTerminalAccessData() ([]*models.UserTerminalAccessData, error) {
+	var accessDataArray []*models.UserTerminalAccessData
+	err := impl.dbConnection.Model(accessDataArray).
+		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
+			query = query.WhereOr("status = ?", string(bean.TerminalPodRunning)).WhereOr("status = ?", string(bean.TerminalPodStarting))
+			return query, nil
+		}).
+		Select()
+
+	if err == pg.ErrNoRows {
+		impl.Logger.Debug("no running/starting pods found")
+		err = nil
+	}
+	return accessDataArray, err
+
 }
