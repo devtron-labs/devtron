@@ -10,8 +10,8 @@ type UserTerminalSessionRequest struct {
 }
 
 type UserTerminalSessionConfig struct {
-	MaxSessionPerUser             int
-	TerminalPodStatusSyncCronExpr string
+	MaxSessionPerUser               int `env:"MAX_SESSION_PER_USER" envDefault:"5"`
+	TerminalPodStatusSyncTimeInSecs int `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"5"`
 }
 
 type UserTerminalSessionResponse struct {

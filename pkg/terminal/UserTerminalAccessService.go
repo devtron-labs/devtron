@@ -25,6 +25,7 @@ type UserTerminalAccessServiceImpl struct {
 	Logger                   *zap.SugaredLogger
 	Config                   *bean.UserTerminalSessionConfig
 	terminalAccessDataArray  []*models.UserTerminalAccessData
+	PodStatusSyncCron        *cron.Cron
 }
 
 func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository) (*UserTerminalAccessServiceImpl, error) {
@@ -33,18 +34,19 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 	if err != nil {
 		return nil, err
 	}
+	//fetches all running and starting entities from db and start SyncStatus
+	podStatusSyncCron := cron.New(
+		cron.WithChain())
 	accessServiceImpl := &UserTerminalAccessServiceImpl{
 		Logger:                   logger,
 		TerminalAccessRepository: terminalAccessRepository,
 		Config:                   config,
+		PodStatusSyncCron:        podStatusSyncCron,
 	}
-	//fetches all running and starting entities from db and start SyncStatus
-	cron := cron.New(
-		cron.WithChain())
-	cron.Start()
-	_, err = cron.AddFunc(config.TerminalPodStatusSyncCronExpr, accessServiceImpl.SyncPodStatus)
+	podStatusSyncCron.Start()
+	_, err = podStatusSyncCron.AddFunc(fmt.Sprintf("@every %ds", config.TerminalPodStatusSyncTimeInSecs), accessServiceImpl.SyncPodStatus)
 	if err != nil {
-		logger.Errorw("error occurred while starting cron job", "cron Expr", config.TerminalPodStatusSyncCronExpr)
+		logger.Errorw("error occurred while starting cron job", "time in secs", config.TerminalPodStatusSyncTimeInSecs)
 	}
 	return accessServiceImpl, err
 }
