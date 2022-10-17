@@ -3,6 +3,8 @@
 
 Deployments can be rolled back manually. After a deployment is completed, you can manually rollback a stage to a previously deployed image by retaining the same configuration or changing the configuration.
 
+**As an example**: You have deployed three different images A1, A2 and A3. And the image A1 is currently deployed on your environment. Now, if you want to roll back the deployment from image A1 to image A3, you can retain the same configuration of the selected image A3 or change the configuration to `last saved` or `last deployed` configuration.
+
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/rollback-deployment/rollback-icon.jpg)
 
@@ -20,14 +22,14 @@ Deployments can be rolled back manually. After a deployment is completed, you ca
 
 3. Once you select the previously deployed image and the configuration, review the difference between `Last Deployed Configuration` and the selected configuration.
 
-4. You can also edit the configuration values on the `Deployment Template` and click `Deploy`.
+4. Click `Deploy`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/rollback-deployment/config-diff.jpg)
 
 The selected previously deployed image will be deployed.
 
 **Note**: 
-- There will be no difference in configuration if you select `Last deployed config` from the list.
+- There will be no difference in the configuration if you select `Last deployed config` from the list.
 - When you select `Config deployed with selected image` and  if the configuration is missing in the selected previously deployed image, it will show as `Config Not Available`. In such cases, you can select either `Last saved config` or `Last deployed config`.
 
 
