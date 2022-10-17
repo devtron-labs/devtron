@@ -204,6 +204,10 @@ func (impl PropertiesConfigServiceImpl) GetEnvironmentProperties(appId, environm
 		globalOverride := []byte(chart.GlobalOverride)
 		environmentPropertiesResponse.GlobalConfig = globalOverride
 		environmentPropertiesResponse.GlobalChartRefId = chart.ChartRefId
+		if !environmentPropertiesResponse.IsOverride {
+			environmentPropertiesResponse.EnvironmentConfig.IsBasicViewLocked = chart.IsBasicViewLocked
+			environmentPropertiesResponse.EnvironmentConfig.CurrentViewEditor = chart.CurrentViewEditor
+		}
 	}
 
 	envLevelMetrics, err := impl.envLevelAppMetricsRepository.FindByAppIdAndEnvId(appId, environmentId)
