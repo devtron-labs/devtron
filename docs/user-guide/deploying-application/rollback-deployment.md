@@ -3,7 +3,7 @@
 
 Deployments can be rolled back manually. After a deployment is completed, you can manually rollback a stage to a previously deployed image by retaining the same configuration or changing the configuration.
 
-**As an example**: You have deployed three different images A1, A2 and A3. And the image A1 is currently deployed on your environment. Now, if you want to roll back the deployment from image A1 to image A3, you can retain the same configuration of the selected image A3 or change the configuration to `last saved` or `last deployed` configuration.
+**As an example**: You have deployed three different images V1, V2 and V3. And image V3 is currently deployed on your environment. Now, if you want to roll back the deployment from image V3 to image V1, you can retain the same configuration of the selected image V1 or change the configuration to `last saved config` or `last deployed config` of image V3.
 
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/rollback-deployment/rollback-icon.jpg)
@@ -17,8 +17,8 @@ Deployments can be rolled back manually. After a deployment is completed, you ca
 | Configurations | Description |
 | --- | --- |
 | **Last saved config** | Deploy the image with the latest saved configuration. |
-| **Last deployed config** | Deploy the image with the last deployed configuration. |
-| **Config deployed with selected image** | Deploy the image with the configuration of a newly selected image. |
+| **Last deployed config** | Deploy the image with the last deployed configuration. [As an example](#rollback-deployment): `The configuration of image V3`.|
+| **Config deployed with selected image** | Deploy the image with the configuration of a newly selected image. [As an example](#rollback-deployment): `The configuration of image V1`. |
 
 3. Once you select the previously deployed image and the configuration, review the difference between `Last Deployed Configuration` and the selected configuration.
 
