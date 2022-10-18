@@ -165,7 +165,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	res, err := handler.userService.CreateUser(&userInfo, token, handler.checkManagerAuth)
+	res, err := handler.userService.CreateUser(&userInfo, token, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateUser", "err", err, "payload", userInfo)
 		if _, ok := err.(*util.ApiError); ok {
@@ -214,7 +214,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 		userInfo.EmailId = "admin"
 	}
 
-	res, rolesChanged, restrictedGroups, err := handler.userService.UpdateUser(&userInfo, token, handler.checkManagerAuth)
+	res, rolesChanged, groupsModified, restrictedGroups, err := handler.userService.UpdateUser(&userInfo, token, handler.CheckManagerAuth)
 
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
@@ -227,9 +227,9 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	} else {
 		groups := strings.Join(restrictedGroups, ", ")
 
-		if len(restrictedGroups) == len(userInfo.Groups) {
+		if len(restrictedGroups) >= len(userInfo.Groups) {
 
-			if rolesChanged {
+			if rolesChanged || groupsModified {
 				// warning
 				message := fmt.Errorf("User permissions updated partially. " + groups + " could not be modified. You do not have manager permission for some or all projects in these groups.")
 				common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
@@ -568,7 +568,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := handler.roleGroupService.UpdateRoleGroup(&request, token, handler.checkManagerAuth)
+	res, err := handler.roleGroupService.UpdateRoleGroup(&request, token, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateRoleGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -806,9 +806,10 @@ func (handler UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r 
 
 }
 
-func (handler UserRestHandlerImpl) checkManagerAuth(token string, object string) bool {
+func (handler UserRestHandlerImpl) CheckManagerAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
 		return false
 	}
 	return true
+
 }
