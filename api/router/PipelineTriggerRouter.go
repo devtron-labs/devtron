@@ -30,8 +30,8 @@ import (
 
 var sse *sse2.SSE
 
-type HelmRouter interface {
-	initHelmRouter(helmRouter *mux.Router)
+type PipelineTriggerRouter interface {
+	initPipelineTriggerRouter(pipelineTriggerRouter *mux.Router)
 }
 
 func PollTopic(r *http.Request) (string, error) {
@@ -46,25 +46,27 @@ func PollTopic(r *http.Request) (string, error) {
 	return "/" + name, nil
 }
 
-func NewHelmRouter(pipelineRestHandler restHandler.PipelineTriggerRestHandler, sseChannel *sse2.SSE) *HelmRouterImpl {
-	routerImpl := &HelmRouterImpl{restHandler: pipelineRestHandler}
+func NewPipelineTriggerRouter(pipelineRestHandler restHandler.PipelineTriggerRestHandler, sseChannel *sse2.SSE) *PipelineTriggerRouterImpl {
+	routerImpl := &PipelineTriggerRouterImpl{restHandler: pipelineRestHandler}
 	sse = sseChannel
 	return routerImpl
 }
 
-type HelmRouterImpl struct {
+type PipelineTriggerRouterImpl struct {
 	restHandler restHandler.PipelineTriggerRestHandler
 }
 
-func (router HelmRouterImpl) initHelmRouter(helmRouter *mux.Router) {
-	helmRouter.Path("/cd-pipeline/trigger").HandlerFunc(router.restHandler.OverrideConfig).Methods("POST")
-	helmRouter.Path("/update-release-status").HandlerFunc(router.restHandler.ReleaseStatusUpdate).Methods("POST")
-	helmRouter.Path("/stop-start-app").HandlerFunc(router.restHandler.StartStopApp).Methods("POST")
-	helmRouter.Path("/stop-start-dg").HandlerFunc(router.restHandler.StartStopDeploymentGroup).Methods("POST")
-	helmRouter.Path("/release/").
+func (router PipelineTriggerRouterImpl) initPipelineTriggerRouter(pipelineTriggerRouter *mux.Router) {
+	pipelineTriggerRouter.Path("/cd-pipeline/trigger").HandlerFunc(router.restHandler.OverrideConfig).Methods("POST")
+	pipelineTriggerRouter.Path("/update-release-status").HandlerFunc(router.restHandler.ReleaseStatusUpdate).Methods("POST")
+	pipelineTriggerRouter.Path("/stop-start-app").HandlerFunc(router.restHandler.StartStopApp).Methods("POST")
+	pipelineTriggerRouter.Path("/stop-start-dg").HandlerFunc(router.restHandler.StartStopDeploymentGroup).Methods("POST")
+	pipelineTriggerRouter.Path("/release/").
 		Handler(sse2.SubscribeHandler(sse.Broker, PollTopic, fetchReleaseData)).
 		Methods("GET").
 		Queries("name", "{name}")
+
+	pipelineTriggerRouter.Path("/deployment-configuration/all/latest/{appId}/{pipelineId}").HandlerFunc(router.restHandler.GetAllLatestDeploymentConfiguration).Methods("GET")
 }
 
 func fetchReleaseData(r *http.Request, receive <-chan int, send chan<- int) {
