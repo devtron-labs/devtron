@@ -24,10 +24,10 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "1d654f247a545926bac39189eaa63309e9b6bbc7"
+        GIT_HASH: "476538f173bf2f46df724b021e8a46a9af130d2d"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "1d654f247a545926bac39189eaa63309e9b6bbc7"
+        GIT_HASH: "476538f173bf2f46df724b021e8a46a9af130d2d"
         
 argo-cd:
   global:
