@@ -1415,6 +1415,27 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	// Rollback tx on error.
 	defer tx.Rollback()
 
+	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
+		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
+			AccessToken: "TEST ACCESS KEY",
+			Active:      false,
+			AuditLog:    sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+		}
+		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
+		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
+			ComponentId: externalCiPipeline.Id,
+			Type:        "WEBHOOK",
+			Active:      true,
+			AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+		}
+		appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
+		if err != nil {
+			return 0, err
+		}
+		pipeline.ParentPipelineId = externalCiPipeline.Id
+		pipeline.AppWorkflowId = appWorkflowMap.Id
+	}
+
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 	if err != nil {
 		return 0, err

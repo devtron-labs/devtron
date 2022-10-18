@@ -50,11 +50,10 @@ type CiPipeline struct {
 }
 
 type ExternalCiPipeline struct {
-	tableName    struct{} `sql:"external_ci_pipeline" pg:",discard_unknown_columns"`
-	Id           int      `sql:"id,pk"`
-	CiPipelineId int      `sql:"ci_pipeline_id"`
-	Active       bool     `sql:"active,notnull"`
-	AccessToken  string   `sql:"access_token,notnull"`
+	tableName   struct{} `sql:"external_ci_pipeline" pg:",discard_unknown_columns"`
+	Id          int      `sql:"id,pk"`
+	Active      bool     `sql:"active,notnull"`
+	AccessToken string   `sql:"access_token,notnull"`
 	sql.AuditLog
 	CiPipeline *CiPipeline
 }
@@ -132,7 +131,7 @@ func (impl CiPipelineRepositoryImpl) SaveExternalCi(pipeline *ExternalCiPipeline
 }
 
 func (impl CiPipelineRepositoryImpl) UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, int, error) {
-	r, err := tx.Model(pipeline).Where("ci_pipeline_id= ?", pipeline.CiPipelineId).UpdateNotNull()
+	r, err := tx.Model(pipeline).Update(pipeline)
 	rowsUpdated := r.RowsAffected()
 	impl.logger.Infof("total rows updated %d", rowsUpdated)
 	return pipeline, rowsUpdated, err
