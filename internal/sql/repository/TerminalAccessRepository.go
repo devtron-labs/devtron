@@ -5,6 +5,7 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/go-pg/pg/orm"
 	"go.uber.org/zap"
+	"time"
 )
 
 type TerminalAccessRepository interface {
@@ -36,6 +37,14 @@ func (impl TerminalAccessRepositoryImpl) FetchTerminalAccessTemplate(templateNam
 		Model(template).
 		Where("template_name = ?", templateName).
 		Select()
+	if templateName == models.TerminalAccessPodTemplateName {
+		template = &models.TerminalAccessTemplates{
+			TemplateName:     models.TerminalAccessPodTemplateName,
+			TemplateKindData: "{\"group\":\"\", \"version\":\"v1\", \"kind\":\"Pod\"}",
+			TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"terminal-access-service-account\",\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}",
+		}
+	}
+	err = nil //TODO remove this
 	return template, err
 }
 
@@ -66,7 +75,7 @@ func (impl TerminalAccessRepositoryImpl) FetchAllTemplates() ([]*models.Terminal
 	templates = append(templates, &models.TerminalAccessTemplates{
 		TemplateName:     models.TerminalAccessPodTemplateName,
 		TemplateKindData: "{\"group\":\"\", \"version\":\"v1\", \"kind\":\"Pod\"}",
-		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"terminal-access-service-account\",\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\"}]}}",
+		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"terminal-access-service-account\",\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}",
 	})
 
 	return templates, err
@@ -99,19 +108,26 @@ func (impl TerminalAccessRepositoryImpl) GetUserTerminalAccessDataByUser(userId 
 }
 
 func (impl TerminalAccessRepositoryImpl) SaveUserTerminalAccessData(data *models.UserTerminalAccessData) error {
+	data.CreatedBy = data.UserId
+	data.UpdatedBy = data.UserId
+	data.CreatedOn = time.Now()
+	data.UpdatedOn = time.Now()
 	return impl.dbConnection.Insert(data)
 }
 
 func (impl TerminalAccessRepositoryImpl) UpdateUserTerminalAccessData(data *models.UserTerminalAccessData) error {
+	data.UpdatedBy = data.UserId
+	data.UpdatedOn = time.Now()
 	return impl.dbConnection.Update(data)
 }
 
 func (impl TerminalAccessRepositoryImpl) UpdateUserTerminalStatus(id int, status string) error {
-	accessDataArray := &models.UserTerminalAccessData{
+	accessData := &models.UserTerminalAccessData{
 		Id:     id,
 		Status: status,
 	}
-	_, err := impl.dbConnection.Model(accessDataArray).WherePK().UpdateNotNull()
+	accessData.UpdatedOn = time.Now()
+	_, err := impl.dbConnection.Model(accessData).WherePK().UpdateNotNull()
 	return err
 }
 

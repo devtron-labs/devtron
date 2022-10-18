@@ -13,9 +13,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"testing"
+	"time"
 )
 
 func TestNewUserTerminalAccessService(t *testing.T) {
+	//t.SkipNow()
 	t.Run("applyTemplates", func(t *testing.T) {
 		sugaredLogger, _ := util.InitLogger()
 		config, _ := sql.GetConfig()
@@ -30,9 +32,10 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		//clusterServiceImpl := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, nil, nil, sugaredLogger, nil, nil, nil, nil, nil)
 		k8sApplicationService := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, nil, nil)
 		terminalAccessServiceImpl, _ := NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, k8sApplicationService, k8sClientServiceImpl)
+		clusterId := 2
 		request := &models.UserTerminalSessionRequest{
 			UserId:    1,
-			ClusterId: 2,
+			ClusterId: clusterId,
 			BaseImage: "trstringer/internal-kubectl:latest",
 			ShellName: "sh",
 		}
@@ -41,6 +44,14 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 			return
 		}
 		fmt.Println(startTerminalSession)
+		err = terminalAccessServiceImpl.DisconnectTerminalSession(startTerminalSession.UserTerminalSessionId)
+		if err != nil {
+			fmt.Println(err)
+		}
+		for true {
+			fmt.Println("looping")
+			time.Sleep(5 * time.Second)
+		}
 
 	})
 }
