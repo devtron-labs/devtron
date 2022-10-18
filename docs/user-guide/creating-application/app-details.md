@@ -46,7 +46,8 @@ Click **Save**. The application will be moved to the selected project.
 
 ## Ingress Host URL
 
-You can copy the Ingress Host URL from the **URLs** on the **App Details** instead of searching in the `Manifest`.
+You can view the Ingress Host URL and the Load Balancer URL on the **URLs** section on the **App Details**.
+You can also copy the Ingress Host URL from the **URLs** on the **App Details** instead of searching in the `Manifest`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/ingress-url-appdetails.jpg)
 
@@ -55,11 +56,11 @@ You can copy the Ingress Host URL from the **URLs** on the **App Details** inste
 1. Select **Applications** from the left navigation pane.
 2. After selecting your configured application, select the **App Details**.
 3. Click **URLs**.
-4. Copy the URL of the ingress.
+4. Copy the URL of the Ingress Host.
 
 
 **Note**: 
-* The ingress URL will point to the load balancer of your application.
+* The Ingress Host URL will point to the load balancer of your application.
 * You can also view the Service name with the load balancer detail.
 
 
