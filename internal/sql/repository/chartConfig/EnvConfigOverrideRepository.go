@@ -201,6 +201,8 @@ func (r EnvConfigOverrideRepositoryImpl) UpdateProperties(config *EnvConfigOverr
 		Set("is_override =?", config.IsOverride).
 		Set("namespace =?", config.Namespace).
 		Set("latest =?", config.Latest).
+		Set("is_basic_view_locked = ?", config.IsBasicViewLocked).
+		Set("current_view_editor = ?", config.CurrentViewEditor).
 		//Set("app_metrics_override =?", config.AppMetricsOverride).
 		WherePK().
 		Update()
