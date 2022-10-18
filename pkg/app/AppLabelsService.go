@@ -36,6 +36,7 @@ type AppLabelService interface {
 	FindAll() ([]*bean.AppLabelDto, error)
 	GetAppMetaInfo(appId int) (*bean.AppMetaInfoDto, error)
 	GetLabelsByAppIdForDeployment(appId int) ([]byte, error)
+	GetLabelsByAppId(appId int) (map[string]string, error)
 }
 type AppLabelServiceImpl struct {
 	logger             *zap.SugaredLogger
@@ -246,4 +247,21 @@ func (impl AppLabelServiceImpl) GetLabelsByAppIdForDeployment(appId int) ([]byte
 		return nil, err
 	}
 	return appLabelByte, nil
+}
+
+func (impl AppLabelServiceImpl) GetLabelsByAppId(appId int) (map[string]string, error) {
+	labels, err := impl.appLabelRepository.FindAllByAppId(appId)
+	if err != nil {
+		if err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting app labels by appId", "err", err, "appId", appId)
+			return nil, err
+		} else {
+			return nil, nil
+		}
+	}
+	labelsDto := make(map[string]string)
+	for _, label := range labels {
+		labelsDto[label.Key] = label.Value
+	}
+	return labelsDto, nil
 }

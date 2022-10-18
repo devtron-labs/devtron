@@ -19,6 +19,7 @@ package pipeline
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -57,6 +58,7 @@ type CiServiceImpl struct {
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
 	userService                   user.UserService
+	appLabelService               app.AppLabelService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -65,7 +67,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	eventFactory client.EventFactory, mergeUtil *util.MergeUtil, ciPipelineRepository pipelineConfig.CiPipelineRepository,
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
-	userService user.UserService) *CiServiceImpl {
+	userService user.UserService, appLabelService app.AppLabelService) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
 		workflowService:               workflowService,
@@ -79,6 +81,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
 		userService:                   userService,
+		appLabelService:               appLabelService,
 	}
 }
 
@@ -139,7 +142,12 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	createdWf, err := impl.executeCiPipeline(workflowRequest)
+	appLabels, err := impl.appLabelService.GetLabelsByAppId(pipeline.AppId)
+	if err != nil {
+		return 0, err
+	}
+
+	createdWf, err := impl.executeCiPipeline(workflowRequest, appLabels)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return 0, err
@@ -244,8 +252,8 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	return ciWorkflow, nil
 }
 
-func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error) {
-	createdWorkFlow, err := impl.workflowService.SubmitWorkflow(workflowRequest)
+func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error) {
+	createdWorkFlow, err := impl.workflowService.SubmitWorkflow(workflowRequest, appLabels)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return nil, err

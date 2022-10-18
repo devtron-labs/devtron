@@ -39,7 +39,7 @@ import (
 )
 
 type WorkflowService interface {
-	SubmitWorkflow(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error)
+	SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error)
 	DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(name string, namespace string) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
@@ -177,7 +177,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig) *Work
 const ciEvent = "CI"
 const cdStage = "CD"
 
-func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error) {
+func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error) {
 	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
 	if impl.ciConfig.CloudProvider == BLOB_STORAGE_MINIO {
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.MinioAccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.MinioSecretKey}}
@@ -298,6 +298,22 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 					},
 				},
 			}
+
+			if val, ok := appLabels["devtron.ai/node-selector"]; ok {
+				impl.Logger.Infow("devtron.ai/node-selector found", "val", val)
+
+				var nodeSelectors map[string]string
+
+				// Unmarshal or Decode the JSON to the interface.
+				err = json.Unmarshal([]byte(val), &nodeSelectors)
+				if err != nil {
+					impl.Logger.Errorw("err in unmarshalling nodeSelectors", "err", err, "val", val)
+					return nil, err
+				}
+
+				template.NodeSelector = nodeSelectors
+			}
+
 			// updating the element in slice
 			//https://medium.com/@xcoulon/3-ways-to-update-elements-in-a-slice-d5df54c9b2f8
 			ciWorkflow.Spec.Templates[index] = template
