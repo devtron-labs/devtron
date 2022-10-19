@@ -98,11 +98,12 @@ Once you have added your cluster in the `Cluster & Environments`, you can add th
 
 4. Select the Environment type:
 
+Devtron shows Deployment metrics for environments tagged as Production only.
+
      -  `Production `
 
      -  `Non-production`
 
->**Note:**  Production and Non-production options are only for tagging purposes.
 
 5. Click Save and your environment will be created. 
 
