@@ -1,10 +1,8 @@
 # Installation Configuration
 
-## Configuration
+## Configure Secrets
 
-**Configure Secrets**
-
-For `helm` installation this section referes to _**secrets**_ section of `values.yaml`.
+For `Helm` installation this section referes to _**secrets**_ section of `values.yaml`.
 
 Configure the following properties:
 
@@ -13,9 +11,9 @@ Configure the following properties:
 | **POSTGRESQL\_PASSWORD** | Using this parameter the auto-generated password for Postgres can be edited as per requirement(Used by Devtron to store the app information) | NA |
 | **WEBHOOK\_TOKEN** | If you want to continue using Jenkins for CI then provide this for authentication of requests should be base64 encoded | NA |
 
-**Configure ConfigMaps**
+## Configure ConfigMaps
 
-For `helm` installation this section refers to _**configs**_ section of `values.yaml`.
+For `Helm` installation this section refers to _**configs**_ section of `values.yaml`.
 
 Configure the following properties:
 
@@ -26,6 +24,14 @@ Configure the following properties:
 | **DEX\_CONFIG** | dex config if you want to integrate login with SSO \(optional\) for more information check [Argocd documentation](https://argoproj.github.io/argo-cd/operator-manual/user-management/) | NA |
 | **EXTERNAL\_SECRET\_AMAZON\_REGION** | AWS region for the secret manager to pick \(required\) | NA |
 | **PROMETHEUS\_URL** | URL of Prometheus where all cluster data is stored; if this is wrong, you will not be able to see application metrics like CPU, RAM, HTTP status code, latency, and throughput \(required\) | NA |
+
+## Configuration Of Resources
+
+ 
+**Small Resources:** 
+
+Devtron provides ways to control how much memory or CPU a container can use for the microservices you installed. You can modify the resources that are allocated to a container based on your requirements. 
+To configure the small resources (less than 10 applications) based on the requirements, append the Devtron installation command with  `-f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/resources-small.yaml`.
 
 **Configure Overrides**
 
