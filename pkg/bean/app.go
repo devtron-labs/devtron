@@ -441,7 +441,7 @@ type CDPipelineConfigObject struct {
 	Id                            int                               `json:"id,omitempty"  validate:"number" `
 	EnvironmentId                 int                               `json:"environmentId,omitempty"  validate:"number,required" `
 	EnvironmentName               string                            `json:"environmentName,omitempty" `
-	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number,required"`
+	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number"`
 	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                            `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
 	Strategies                    []Strategy                        `json:"strategies,omitempty"`

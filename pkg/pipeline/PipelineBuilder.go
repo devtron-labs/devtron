@@ -19,7 +19,6 @@ package pipeline
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -35,7 +34,6 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -478,14 +476,6 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		}
 
 		var externalCiConfig bean.ExternalCiConfig
-		if pipeline.ExternalCiPipeline != nil {
-			externalCiConfig = bean.ExternalCiConfig{
-				Id:         pipeline.ExternalCiPipeline.Id,
-				AccessKey:  pipeline.ExternalCiPipeline.AccessToken,
-				WebhookUrl: impl.ciConfig.ExternalCiWebhookUrl,
-				Payload:    impl.ciConfig.ExternalCiPayload,
-			}
-		}
 
 		ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(pipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
@@ -1422,18 +1412,30 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			AuditLog:    sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 		}
 		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
+		wf := &appWorkflow.AppWorkflow{
+			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
+			AppId:    app.Id,
+			Active:   true,
+			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+		}
+		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflow(wf)
+		if err != nil {
+			impl.logger.Errorw("err", err)
+			return 0, err
+		}
 		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-			ComponentId: externalCiPipeline.Id,
-			Type:        "WEBHOOK",
-			Active:      true,
-			AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+			AppWorkflowId: savedAppWf.Id,
+			ComponentId:   externalCiPipeline.Id,
+			Type:          "WEBHOOK",
+			Active:        true,
+			AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
 		appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
 		if err != nil {
 			return 0, err
 		}
 		pipeline.ParentPipelineId = externalCiPipeline.Id
-		pipeline.AppWorkflowId = appWorkflowMap.Id
+		pipeline.AppWorkflowId = savedAppWf.Id
 	}
 
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
@@ -2393,17 +2395,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		}
 	}
 
-	ciPipelineIdByte := []byte(strconv.Itoa(pipeline.Id))
-	base64EncodedCiPipelineId := base64.StdEncoding.EncodeToString(ciPipelineIdByte)
 	var externalCiConfig bean.ExternalCiConfig
-	if pipeline.ExternalCiPipeline != nil {
-		externalCiConfig = bean.ExternalCiConfig{
-			Id:         pipeline.ExternalCiPipeline.Id,
-			AccessKey:  fmt.Sprintf("%s.%s", base64EncodedCiPipelineId, pipeline.ExternalCiPipeline.AccessToken),
-			WebhookUrl: impl.ciConfig.ExternalCiWebhookUrl,
-			Payload:    impl.ciConfig.ExternalCiPayload,
-		}
-	}
 
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(pipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {

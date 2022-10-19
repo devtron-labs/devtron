@@ -46,7 +46,6 @@ type CiPipeline struct {
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
-	ExternalCiPipeline  *ExternalCiPipeline
 }
 
 type ExternalCiPipeline struct {
@@ -55,7 +54,6 @@ type ExternalCiPipeline struct {
 	Active      bool     `sql:"active,notnull"`
 	AccessToken string   `sql:"access_token,notnull"`
 	sql.AuditLog
-	CiPipeline *CiPipeline
 }
 
 type CiPipelineScript struct {
@@ -166,7 +164,7 @@ func (impl CiPipelineRepositoryImpl) MarkCiPipelineScriptsInactiveByCiPipelineId
 
 func (impl CiPipelineRepositoryImpl) FindByAppId(appId int) (pipelines []*CiPipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
-		Column("ci_pipeline.*", "CiPipelineMaterials", "ExternalCiPipeline", "CiPipelineMaterials.GitMaterial").
+		Column("ci_pipeline.*", "CiPipelineMaterials", "CiPipelineMaterials.GitMaterial").
 		Where("app_id =?", appId).
 		Where("deleted =? ", false).
 		Select()
@@ -201,7 +199,7 @@ func (impl CiPipelineRepositoryImpl) SaveCiPipelineScript(ciPipelineScript *CiPi
 func (impl CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, err error) {
 	pipeline = &CiPipeline{Id: id}
 	err = impl.dbConnection.Model(pipeline).
-		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial", "ExternalCiPipeline").
+		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial").
 		Where("ci_pipeline.id= ?", id).
 		Where("ci_pipeline.deleted =? ", false).
 		Select()
