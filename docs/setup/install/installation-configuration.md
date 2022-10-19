@@ -4,18 +4,18 @@
 
 **Configure Secrets**
 
-For `helm` installation this section referes to _**secrets**_ section of `values.yaml`. For `kubectl` based installation it refers to `kind: secret` in _**install/devtron-operator-configs.yaml**_.
+For `helm` installation this section referes to _**secrets**_ section of `values.yaml`.
 
 Configure the following properties:
 
 | Parameter | Description | Default |
 | :--- | :--- | :--- |
-| **POSTGRESQL\_PASSWORD** | Using this parameter the auto-generated password for Postgres can be edited as per requirement(Used by Devtron to store the app information) | |
-| **WEBHOOK\_TOKEN** | If you want to continue using Jenkins for CI then provide this for authentication of requests should be base64 encoded |  |
+| **POSTGRESQL\_PASSWORD** | Using this parameter the auto-generated password for Postgres can be edited as per requirement(Used by Devtron to store the app information) | NA |
+| **WEBHOOK\_TOKEN** | If you want to continue using Jenkins for CI then provide this for authentication of requests should be base64 encoded | NA |
 
 **Configure ConfigMaps**
 
-For `helm` installation this section refers to _**configs**_ section of `values.yaml`. For `kubectl` based installation it refers to `kind: ConfigMap` in _**install/devtron-operator-configs.yaml**_.
+For `helm` installation this section refers to _**configs**_ section of `values.yaml`.
 
 Configure the following properties:
 
@@ -23,21 +23,21 @@ Configure the following properties:
 | :--- | :--- | :--- |
 | **BASE\_URL\_SCHEME** | Either of HTTP or HTTPS \(required\) | HTTP |
 | **BASE\_URL** | URL without scheme and trailing slash, this is the domain pointing to the cluster on which the Devtron platform is being installed. For example, if you have directed domain `devtron.example.com` to the cluster and the ingress controller is listening on port `32080` then URL will be `devtron.example.com:32080` \(required\) | `change-me` |
-| **DEX\_CONFIG** | dex config if you want to integrate login with SSO \(optional\) for more information check [Argocd documentation](https://argoproj.github.io/argo-cd/operator-manual/user-management/) |  |
-| **EXTERNAL\_SECRET\_AMAZON\_REGION** | AWS region for the secret manager to pick \(required\) |  |
-| **PROMETHEUS\_URL** | URL of Prometheus where all cluster data is stored; if this is wrong, you will not be able to see application metrics like CPU, RAM, HTTP status code, latency, and throughput \(required\) |  |
+| **DEX\_CONFIG** | dex config if you want to integrate login with SSO \(optional\) for more information check [Argocd documentation](https://argoproj.github.io/argo-cd/operator-manual/user-management/) | NA |
+| **EXTERNAL\_SECRET\_AMAZON\_REGION** | AWS region for the secret manager to pick \(required\) | NA |
+| **PROMETHEUS\_URL** | URL of Prometheus where all cluster data is stored; if this is wrong, you will not be able to see application metrics like CPU, RAM, HTTP status code, latency, and throughput \(required\) | NA |
 
 **Configure Overrides**
 
-For `helm` installation this section refers to _**customOverrides**_ section of `values.yaml`. In this section you can override values of devtron-cm which you want to keep persistent. For example:
+For `Helm` installation this section refers to _**customOverrides**_ section of `values.yaml`. In this section you can override values of devtron-cm which you want to keep persistent. For example:
 
 You can configure the following properties:
 
 | Parameter | Description | Default |
 | :--- | :--- | :--- |
-| **CI\_NODE\_LABEL\_SELECTOR** | Labels for a particular nodegroup which you want to use for running CIs | |
-| **CI\_NODE\_TAINTS\_KEY** | Key for toleration if nodegroup chosen for CIs have some taints | |
-| **CI\_NODE\_TAINTS\_VALUE** | Value for toleration if nodegroup chosen for CIs have some taints |  |
+| **CI\_NODE\_LABEL\_SELECTOR** | Labels for a particular nodegroup which you want to use for running CIs | NA |
+| **CI\_NODE\_TAINTS\_KEY** | Key for toleration if nodegroup chosen for CIs have some taints | NA |
+| **CI\_NODE\_TAINTS\_VALUE** | Value for toleration if nodegroup chosen for CIs have some taints | NA |
 
 ## Storage for Logs and Cache
 
@@ -97,14 +97,14 @@ echo -n "string" | base64
 ---
 
 The following tables contain parameters and their details for Secrets and ConfigMaps that are configured during the installation of Devtron. 
-While installing Devtron using `kubectl` the following parameters can be tweaked in [devtron-operator-configs.yaml](https://github.com/devtron-labs/devtron/blob/main/manifests/install/devtron-operator-configs.yaml) file. If the installation is proceeded using `helm3`, the values can be tweaked in [values.yaml](https://github.com/devtron-labs/charts/blob/main/charts/devtron/values.yaml) file.
+If the installation is done using `Helm`, the values can be tweaked in [values.yaml](https://github.com/devtron-labs/charts/blob/main/charts/devtron/values.yaml) file.
 
 We can use the `--set` flag to override the default values when installing with Helm. For example, to update POSTGRESQL_PASSWORD and BLOB_STORAGE_PROVIDER, use the install command as:
 
 ```bash
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me \
---set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.BLOB_STORAGE_PROVIDER=S3
 ```
 
 ## Configuration of Blob Storage
