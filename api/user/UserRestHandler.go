@@ -234,7 +234,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 
 		} else {
 			//error
-			message := fmt.Errorf("Permission could not be added/removed: You do not have manager permission for some or all projects in group(s): " + groups)
+			message := fmt.Errorf("Permission could not be added/removed: You do not have manager permission for some or all projects in group(s): " + groups + ".")
 			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
 		}
 	}
