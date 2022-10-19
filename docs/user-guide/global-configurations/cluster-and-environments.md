@@ -74,7 +74,7 @@ Now click `Save Cluster` to save your cluster over Devtron.
 
 ### Installing Devtron agent
 
-Your Kubernetes cluster gets mapped with the Devtron when you save the cluster configurations. Now the Devtron agent needs to be installed on the cluster that you added over Devtron. So that the components of Devtron can communicate with your cluster. 
+Your Kubernetes cluster gets mapped with the Devtron when you save the cluster configurations. Now the Devtron agent needs to be installed on the cluster that you have added on Devtron so that you're able to deploy on the added cluster.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/install-devtron-agent.png)
 
