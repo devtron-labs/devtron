@@ -97,7 +97,7 @@ echo -n "string" | base64
 ---
 
 The following tables contain parameters and their details for Secrets and ConfigMaps that are configured during the installation of Devtron. 
-If the installation is proceeded using `Helm`, the values can be tweaked in [values.yaml](https://github.com/devtron-labs/charts/blob/main/charts/devtron/values.yaml) file.
+If the installation is done using `Helm`, the values can be tweaked in [values.yaml](https://github.com/devtron-labs/charts/blob/main/charts/devtron/values.yaml) file.
 
 We can use the `--set` flag to override the default values when installing with Helm. For example, to update POSTGRESQL_PASSWORD and BLOB_STORAGE_PROVIDER, use the install command as:
 
