@@ -229,12 +229,12 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 
 		if rolesChanged || groupsModified {
 			// warning
-			message := fmt.Errorf("User permissions updated partially. " + groups + " could not be modified. You do not have manager permission for some or all projects in these groups.")
+			message := fmt.Errorf("User permissions updated partially. Group(s): " + groups + " could not be added/removed. You do not have manager permission for some or all projects in these groups.")
 			common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
 
 		} else {
 			//error
-			message := fmt.Errorf("Permission could not be modified: You do not have manager permission for some or all projects in " + groups)
+			message := fmt.Errorf("Permission could not be added/removed: You do not have manager permission for some or all projects in group(s): " + groups)
 			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
 		}
 	}
