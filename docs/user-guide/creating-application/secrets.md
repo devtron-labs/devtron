@@ -95,7 +95,7 @@ You can install `External Secrets Operator` using charts store:
 3. If you don't find any chart with this name i.e `external-secrets`, add chart repository using repository url  ` https://charts.external-secrets.io`. Please follow this [documentation](https://docs.devtron.ai/getting-started/global-configurations/chart-repo#add-chart-repository) for adding chart repository.
 4. Deploy the chart.
 
-### Kubernetes External Secret (Depricated)
+### Kubernetes External Secret (Deprecated)
 
 The secret that is already created and stored in the environment and being used by Devtron externally is referred here as `Kubernetes External Secret`. For this option, Devtron will not create any secret by itself but they can be used within the pods. Before adding secret from kubernetes external secret, please make sure that secret with the same name is present in the environment. To add secret from kubernetes external secret, follow the steps mentioned below:
 
