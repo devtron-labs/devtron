@@ -94,7 +94,7 @@ Once you have added your cluster in the `Cluster & Environments`, you can add th
 
 2. On the `New Environment` window, enter a name of your environment in the `Environment Name` field.
 
-3.  Enter a namespace corresponding to your environment in the `Enter Namespace` field. (If this namespace doesn't already exist in your cluster, devtron will create it, if it already exists, Devtron will map the env to the existing namespace)
+3.  Enter a namespace corresponding to your environment in the `Enter Namespace` field. (If this namespace doesn't already exist in your cluster, devtron will create it. If it already exists, Devtron will map the env to the existing namespace)
 
 4. Select the Environment type:
 
