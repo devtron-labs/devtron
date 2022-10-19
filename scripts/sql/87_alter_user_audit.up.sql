@@ -1,2 +1,2 @@
 ALTER TABLE user_audit
-    ADD COLUMN updated_on timestampz;
+    ADD COLUMN updated_on timestamptz;
