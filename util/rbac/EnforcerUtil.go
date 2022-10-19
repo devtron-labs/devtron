@@ -315,7 +315,15 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
+
+	clusterName := env.Cluster.ClusterName
+	namespace := env.Namespace
 	environmentIdentifier := env.EnvironmentIdentifier
+
+	if environmentIdentifier != clusterName+"__"+namespace {
+		environmentIdentifier = clusterName + "__" + namespace
+	}
+
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
 	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
