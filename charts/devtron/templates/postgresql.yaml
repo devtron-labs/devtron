@@ -129,10 +129,15 @@ spec:
               find /bitnami/postgresql -mindepth 1 -maxdepth 1 -not -name ".snapshot" -not -name "lost+found" | \
                 xargs chown -R 1001:1001
               chmod -R 777 /dev/shm
+          {{- if .initContainer }}
+          {{- if .initContainer.resources }}
+          resources:
+          {{- toYaml .initContainer.resources | nindent 12 }}
+          {{- end }}
+          {{- end }}
           securityContext:
             runAsUser: 0
           volumeMounts:
-
             - name: data
               mountPath: /bitnami/postgresql
               subPath:
@@ -166,6 +171,10 @@ spec:
               value: "no"
             - name: POSTGRESQL_SHARED_PRELOAD_LIBRARIES
               value: pgaudit, uuid-ossp
+          {{- if .resources }}
+          resources:
+          {{- toYaml .resources | nindent 12 }}
+          {{- end }}
           ports:
             - name: tcp-postgresql
               containerPort: 5432
@@ -215,6 +224,12 @@ spec:
                   key: postgresql-password
             - name: DATA_SOURCE_USER
               value: postgres
+          {{- if .postgresExporter }}
+          {{- if .postgresExporter.resources }}
+          resources:
+          {{- toYaml .postgresExporter.resources | nindent 12 }}
+          {{- end }}
+          {{- end }}
           livenessProbe:
             httpGet:
               path: /
