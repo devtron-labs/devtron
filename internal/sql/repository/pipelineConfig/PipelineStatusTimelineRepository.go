@@ -150,6 +150,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelineP
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineUpdatedBeforeSecondsByAppIdAndEnvId(appId, envId, updatedBeforeSeconds int) (*PipelineStatusTimeline, error) {
+	terminalStatus := []string{string(TIMELINE_STATUS_APP_HEALTHY), string(TIMELINE_STATUS_APP_DEGRADED), string(TIMELINE_STATUS_DEPLOYMENT_FAILED), string(TIMELINE_STATUS_GIT_COMMIT_FAILED)}
 	var timeline PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timeline).
 		Column("pipeline_status_timeline.*").
@@ -158,6 +159,8 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineUpdatedBeforeSeco
 		Join("INNER JOIN pipeline p ON p.id=cw.pipeline_id").
 		Where("p.app_id = ?", appId).
 		Where("p.environment_id = ?", envId).
+		Where("p.deleted = false").
+		Where("pipeline_status_timeline.status not in (?)", pg.In(terminalStatus)).
 		Where("pipeline_status_timeline.status_time < NOW() - INTERVAL '? seconds'", updatedBeforeSeconds).
 		Order("pipeline_status_timeline.id DESC").
 		Limit(1).

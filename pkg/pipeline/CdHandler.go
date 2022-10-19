@@ -220,7 +220,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		if pipelineOverrideByHash.CommitTime.Before(pipelineOverride.CommitTime) {
 			//we have received trigger hash which is committed before this apps actual gitHash stored by us
 			// this means that the hash stored by us will be synced later, so we will drop this event
-			return err
+			return nil
 		}
 	}
 	dbConnection := impl.cdWorkflowRepository.GetConnection()
@@ -252,7 +252,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		return err
 	}
 	cdWfr.Status = appStatus
-	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "saving new DeploymentStatus", "argoAppName", argoAppName, "newCdWfr", cdWfr)
+	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "updating wfr", "argoAppName", argoAppName, "newCdWfr", cdWfr)
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunnersWithTxn([]pipelineConfig.CdWorkflowRunner{cdWfr}, tx)
 	if err != nil {
 		impl.Logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
@@ -271,7 +271,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 			UpdatedOn: time.Now(),
 		},
 	}
-	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "saving new DeploymentStatus", "argoAppName", argoAppName, "newTimeline", timeline)
+	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "saving new timeline", "argoAppName", argoAppName, "newTimeline", timeline)
 	err = impl.pipelineStatusTimelineRepository.SaveTimelinesWithTxn([]pipelineConfig.PipelineStatusTimeline{timeline}, tx)
 	if err != nil {
 		impl.Logger.Errorw("error in creating timeline status for app", "err", err, "timeline", timeline)
