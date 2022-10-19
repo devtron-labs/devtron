@@ -58,7 +58,7 @@ type TelemetryEventClient interface {
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore ,userAuditService user.UserAuditService) (*TelemetryEventClientImpl, error) {
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -112,7 +112,6 @@ type TelemetryEventEA struct {
 	LastLoginTime               time.Time          `json:"LastLoginTimeLoginTime,omitempty"`
 	InstallingIntegrations      []string           `json:"installingIntegrations,omitempty"`
 	DevtronReleaseVersion       string             `json:"devtronReleaseVersion,omitempty"`
-	LoginTime                   time.Time          `json:"loginTime,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
