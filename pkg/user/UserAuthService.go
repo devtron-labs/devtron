@@ -256,7 +256,7 @@ func (impl UserAuthServiceImpl) HandleRefresh(w http.ResponseWriter, r *http.Req
 }
 
 func (impl UserAuthServiceImpl) HandleLoginWithClientIp(username, password, clientIp string) (string, error) {
-	token, err := impl.HandleLogin(username, password)
+	token, err := impl.sessionClient.Create(context.Background(), username, password)
 	if err == nil {
 		id, _, err := impl.userService.GetUserByToken(token)
 		if err != nil {
