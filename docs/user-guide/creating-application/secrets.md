@@ -73,9 +73,9 @@ There are five Data types that you can use to save your secret.
 
 *Note: The conversion of secrets from various data types to Kubernetes Secrets is done within Devtron and irrespective of the data type, after conversion, the Pods access `secrets` normally.*
 
-## External Secrets
+## Mount Existing Kuberentes Secrets
 
-In some cases, it may be that you already have secrets for your application on some other sources and you want to use that on devtron. External secrets are fetched by devtron externally and then converted to kubernetes secrets.
+Use this option to mount an existing Kuberentes Secret in your application pods. A Secret will not be created by system so please ensure that the secret already exist within the namespace else the deployment will fail.
 
 ### External Secret Operator (ESO)
 
