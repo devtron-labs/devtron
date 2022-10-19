@@ -37,6 +37,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+          {{- if .resources }}        
+          resources:
+          {{- toYaml .resources | nindent 12 }}
+          {{- end }}                  
   revisionHistoryLimit: 3
 ---
 apiVersion: v1

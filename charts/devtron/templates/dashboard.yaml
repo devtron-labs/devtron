@@ -90,5 +90,9 @@ spec:
           - secretRef:
               name: devtron-dashboard-secret
           volumeMounts: []
+          {{- if .resources }}
+          resources:
+          {{- toYaml .resources | nindent 12 }}
+          {{- end }}        
   revisionHistoryLimit: 3
 {{- end }}
