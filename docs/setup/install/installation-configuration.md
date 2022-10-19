@@ -2,7 +2,7 @@
 
 ## Configure Secrets
 
-For `Helm` installation this section referes to _**secrets**_ section of `values.yaml`.
+For `Helm` installation this section refers to _**secrets**_ section of `values.yaml`.
 
 Configure the following properties:
 
@@ -26,12 +26,11 @@ Configure the following properties:
 | **PROMETHEUS\_URL** | URL of Prometheus where all cluster data is stored; if this is wrong, you will not be able to see application metrics like CPU, RAM, HTTP status code, latency, and throughput \(required\) | NA |
 
 ## Configure Resources
-
+Devtron provides ways to control how much `memory` or `CPU` can be allocated to each Devtron microservice. You can modify the resources that are allocated to these microservices based on your requirements. 
  
-####Small Resources:
+#### Small:
 
-Devtron provides ways to control how much `memory` or  `CPU` a container can use for the microservices you installed. You can modify the resources that are allocated to a container based on your requirements. 
-To configure the small resources (e.g. less than 10 applications ) based on the requirements, append the Devtron installation command with  `-f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/resources-small.yaml`.
+To configure the small resources (e.g. to manage less than 10 apps on Devtron ) based on the requirements, append the Devtron installation command with  `-f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/resources-small.yaml`.
 
 ## Configure Overrides
 
