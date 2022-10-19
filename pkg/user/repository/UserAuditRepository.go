@@ -81,7 +81,7 @@ func (impl UserAuditRepositoryImpl) GetLatestUser() (*UserAudit, error) {
 	userAudit := &UserAudit{}
 	err := impl.dbConnection.Model(userAudit).
 		Where("updated_on is not null").
-		Order("updated_on asc").
+		Order("updated_on desc").
 		Limit(1).
 		Select()
 	return userAudit, err
