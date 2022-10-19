@@ -22,6 +22,7 @@ import (
 type UserTerminalAccessService interface {
 	StartTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
+	FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error)
 	DisconnectTerminalSession(userTerminalSessionId int) error
 }
 
@@ -107,7 +108,8 @@ func (impl UserTerminalAccessServiceImpl) createTerminalEntity(request *models.U
 	return &models.UserTerminalSessionResponse{
 		UserTerminalSessionId: userAccessData.Id,
 		UserId:                userAccessData.UserId,
-		ShellName:             request.ShellName,
+		//ShellName:             request.ShellName,
+		PodName: podName,
 	}, nil
 }
 
@@ -175,6 +177,16 @@ func (impl UserTerminalAccessServiceImpl) extractMetadataString(request *models.
 		return "{}"
 	}
 	return string(metadataJsonBytes)
+}
+
+func (impl UserTerminalAccessServiceImpl) getMetadataMap(metadata string) (map[string]string, error) {
+	var metadataMap map[string]string
+	err := json.Unmarshal([]byte(metadata), &metadataMap)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while converting metadata to map", "metadata", metadata, "err", err)
+		return nil, err
+	}
+	return metadataMap, nil
 }
 
 func (impl UserTerminalAccessServiceImpl) startTerminalPod(request *models.UserTerminalSessionRequest, runningCount int) (string, error) {
@@ -253,6 +265,24 @@ func (impl UserTerminalAccessServiceImpl) SyncPodStatus() {
 	impl.TerminalAccessDataArray = &terminalAccessDataMap
 	impl.TerminalAccessDataArrayMutex.Unlock()
 
+}
+
+func (impl UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error) {
+	terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(terminalAccessId)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while fetching terminal status", "terminalAccessId", terminalAccessId, "err", err)
+		return nil, err
+	}
+	//terminalAccessMetadata, err := impl.getMetadataMap(terminalAccessData.Metadata)
+	terminalAccessResponse := &models.UserTerminalSessionResponse{
+		UserTerminalSessionId: terminalAccessData.Id,
+		TerminalAccessId:      terminalAccessData.Id,
+		UserId:                terminalAccessData.UserId,
+		Status:                models.TerminalPodStatus(terminalAccessData.Status),
+		PodName:               terminalAccessData.PodName,
+		//ShellName:             terminalAccessMetadata["ShellName"],
+	}
+	return terminalAccessResponse, nil
 }
 
 func (impl UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, terminalPodName string) error {

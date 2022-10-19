@@ -1,12 +1,12 @@
 package models
 
 type UserTerminalSessionRequest struct {
-	Id        int
-	UserId    int32
-	ClusterId int
-	NodeName  string
-	BaseImage string
-	ShellName string
+	Id        int    `json:"id"`
+	UserId    int32  `json:"userId" validate:"required"`
+	ClusterId int    `json:"clusterId" validate:"required"`
+	NodeName  string `json:"nodeName"`
+	BaseImage string `json:"baseImage" validate:"required"`
+	ShellName string `json:"shellName" validate:"required"`
 }
 
 type UserTerminalSessionConfig struct {
@@ -15,11 +15,11 @@ type UserTerminalSessionConfig struct {
 }
 
 type UserTerminalSessionResponse struct {
-	UserTerminalSessionId int
-	UserId                int32
-	TerminalAccessId      int
-	ShellName             string
-	Status                TerminalPodStatus
+	UserTerminalSessionId int               `json:"userTerminalSessionId"`
+	UserId                int32             `json:"userId"`
+	TerminalAccessId      int               `json:"terminalAccessId"`
+	Status                TerminalPodStatus `json:"status"`
+	PodName               string            `json:"podName"`
 }
 
 const TerminalAccessPodNameTemplate = "terminal-access-" + TerminalAccessClusterIdTemplateVar + "-" + TerminalAccessUserIdTemplateVar + "-" + TerminalAccessRandomIdVar
