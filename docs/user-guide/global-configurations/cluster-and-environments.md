@@ -27,7 +27,7 @@ Provide the below information to add your kubernetes cluster:
 You can get the **`Server URL`** & **`Bearer Token`** by running the following command.
 
 {% tabs %}
-{% tab title="k8s cluster providers %}
+{% tab title="k8s cluster providers" %}
 ```bash
 curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && bash kubernetes_export_sa.sh cd-user devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/clusterrole.yaml
 ```
