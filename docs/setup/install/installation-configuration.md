@@ -26,7 +26,7 @@ Configure the following properties:
 | **PROMETHEUS\_URL** | URL of Prometheus where all cluster data is stored; if this is wrong, you will not be able to see application metrics like CPU, RAM, HTTP status code, latency, and throughput \(required\) | NA |
 
 ## Configure Resources
-Devtron provides ways to control how much `memory` or `CPU` can be allocated to each Devtron microservice. You can adjust the resources that are allocated to these microservices based on your requirements. The resource configs are available in following sizes:
+Devtron provides ways to control how much `memory` or `CPU` can be allocated to each Devtron microservice. You can adjust the resources that are allocated to these microservices based on your requirements. The resource configurations are available in following sizes:
  
 ### Small
 
