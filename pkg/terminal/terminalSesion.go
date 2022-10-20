@@ -330,6 +330,7 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 
 type TerminalSessionHandler interface {
 	GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error)
+	Close(sessionId string, statusCode uint32, msg string)
 }
 type TerminalSessionHandlerImpl struct {
 	environmentService cluster.EnvironmentService
@@ -345,6 +346,11 @@ func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService
 		logger:             logger,
 	}
 }
+
+func (impl *TerminalSessionHandlerImpl) Close(sessionId string, statusCode uint32, msg string) {
+	terminalSessions.Close(sessionId, statusCode, msg)
+}
+
 func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error) {
 	sessionID, err := genTerminalSessionId()
 	if err != nil {

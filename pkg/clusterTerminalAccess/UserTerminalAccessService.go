@@ -122,16 +122,17 @@ func (impl UserTerminalAccessServiceImpl) createTerminalEntity(request *models.U
 }
 
 func (impl UserTerminalAccessServiceImpl) UpdateTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
-	userTerminalSessionId := request.Id
-	terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(userTerminalSessionId)
+	userTerminalAccessId := request.Id
+	terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(userTerminalAccessId)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalSessionId", userTerminalSessionId, "err", err)
+		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return nil, err
 	}
 	podName := terminalAccessData.PodName
-	err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, podName)
+	//err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, podName)
+	err = impl.DisconnectTerminalSession(userTerminalAccessId)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while deleting terminal pod", "userTerminalSessionId", userTerminalSessionId, "err", err)
+		impl.Logger.Errorw("error occurred while deleting terminal pod", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return nil, err
 	}
 	terminalAccessPodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessPodTemplateName)
@@ -161,15 +162,22 @@ func (impl UserTerminalAccessServiceImpl) checkTerminalExists(userTerminalSessio
 	return terminalAccessData, nil
 }
 
-func (impl UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminalSessionId int) error {
-	terminalAccessData, err := impl.checkTerminalExists(userTerminalSessionId)
+func (impl UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminalAccessId int) error {
+	terminalAccessData, err := impl.checkTerminalExists(userTerminalAccessId)
 	if err != nil {
 		return err
+	}
+	// disconnect session first
+	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
+	accessSessionData, present := accessSessionDataMap[userTerminalAccessId]
+	if present {
+		impl.Logger.Infow("closing socket connection", "userTerminalAccessId", userTerminalAccessId)
+		impl.terminalSessionHandler.Close(accessSessionData.sessionId, 1, "Process exited")
 	}
 	// handle already terminated/not found cases
 	err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while stopping terminal pod", "userTerminalSessionId", userTerminalSessionId, "err", err)
+		impl.Logger.Errorw("error occurred while stopping terminal pod", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return err
 	}
 	return err
