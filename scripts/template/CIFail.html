@@ -1,0 +1,253 @@
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@300;600;700&family=Open+Sans:wght@400;600;700&display=swap"
+    rel="stylesheet">
+</head>
+
+<body>
+  <div style="background-color: #f2f4f7;">
+    <div class="notification-wrapper"
+      style="max-height: 100%;
+      overflow: scroll; border: 1px solid #f2f4f7; max-width: 600px; min-width: 400px; margin: auto;color: #000a14; font-family: Open Sans; font-size: 14px; background-color: #fff;">
+      <div style="padding: 20px; border-bottom: 1px solid #f2f4f7;">
+        <img style="max-width: 122px;"
+          src="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/devtron/devtron-logo.png"
+          alt="ci-triggered" />
+      </div>
+
+      <div style="margin: 20px; background-color: #fde7e7; border-radius: 8px">
+        <table width="100%" cellpadding="0" cellspacing="0">
+          <tr>
+            <td style="padding-top: 20px;">
+              <span style="font-size: 16px;font-weight: 600; border: 0; padding: 20px 20px 0 20px;">
+                ❌ <span style="padding-left: 10px">Build Pipeline Failed</span>
+              </span>
+              <br />
+              <span
+                style="padding-top: 4px; line-height: 1.43; border: 0; padding: 0 20px;font-size: 14px;">{{eventTime}}</span>
+
+              <br />
+              <span
+                style=" padding-bottom: 20px; line-height: 1.43; border: 0; padding: 0px 20px 0px 20px;font-size: 14px;">
+                by <span style="color: #0066cc; margin-left: 4px;">{{triggeredBy}}</span></span>
+              <br />
+              <div
+                style="padding: 10px 12px; font-size: 12px; border-radius: 4px; background: #0066cc; cursor: pointer; font-weight: 600; max-width: fit-content; margin: 20px">
+                {{#buildHistoryLink}} <a href="{{& buildHistoryLink }}" target="_blank" style="color: #fff;
+                     text-decoration: none;
+                   ">View Pipeline</a> {{/buildHistoryLink}}
+              </div>
+            </td>
+            <td style="vertical-align: top;text-align: right; padding: 20px;">
+              <svg xmlns="http://www.w3.org/2000/svg" width="72" height="72" viewBox="0 0 72 72">
+                <defs>
+                  <filter id="6piwc36asa" width="132.5%" height="140.6%" x="-16.2%" y="-20.3%"
+                    filterUnits="objectBoundingBox">
+                    <feOffset dy="1" in="SourceAlpha" result="shadowOffsetOuter1" />
+                    <feGaussianBlur in="shadowOffsetOuter1" result="shadowBlurOuter1" stdDeviation="1" />
+                    <feColorMatrix in="shadowBlurOuter1" result="shadowMatrixOuter1"
+                      values="0 0 0 0 0.117647059 0 0 0 0 0.137254902 0 0 0 0 0.376470588 0 0 0 0.25 0" />
+                    <feMerge>
+                      <feMergeNode in="shadowMatrixOuter1" />
+                      <feMergeNode in="SourceGraphic" />
+                    </feMerge>
+                  </filter>
+                </defs>
+                <g fill="none" fill-rule="evenodd">
+                  <rect width="72" height="72" opacity=".2" rx="3.273" />
+                  <g filter="url(#6piwc36asa)" transform="translate(16.364 20.455)">
+                    <g fill="#0053A6" fill-rule="nonzero">
+                      <path
+                        d="M9 .026H2.455C1.099.026 0 1.124 0 2.48v4.91c0 .451.366.817.818.817h9.818c.452 0 .819-.366.819-.818V2.48c0-1.356-1.1-2.454-2.455-2.454zM27 .026h-6.545C19.099.026 18 1.124 18 2.48v4.91c0 .451.366.817.818.817h9.818c.452 0 .819-.366.819-.818V2.48c0-1.356-1.1-2.454-2.455-2.454z"
+                        transform="translate(4.91)" />
+                    </g>
+                    <path fill="#3384D6" fill-rule="nonzero"
+                      d="M2.455 6.545h34.363c1.356 0 2.455 1.1 2.455 2.455v21.273c0 .452-.367.818-.818.818H.818c-.452 0-.818-.366-.818-.818V9c0-1.356 1.099-2.455 2.455-2.455z" />
+                    <path fill="#06C" fill-rule="nonzero"
+                      d="M2.455 6.545h31.909c1.355 0 2.454 1.1 2.454 2.455v21.273c0 .452-.366.818-.818.818H.818c-.452 0-.818-.366-.818-.818V9c0-1.356 1.099-2.455 2.455-2.455z" />
+                    <g>
+                      <path d="M0 0H14.033V14.033H0z" transform="translate(12.718 11.842)" />
+                      <path fill="#FFF" fill-rule="nonzero"
+                        d="M10.369 1.833c.343-.059.652.121.788.4l2.552 3.98c.22.342.225.78.013 1.127l-3.244 5.305c-.21.341-.58.55-.981.55l-4.718.004h-.032c-.46-.022-.714-.548-.462-.933l3.252-4.977c.122-.253.407-.413.72-.343.23.051.418.239.47.47.037.159.013.31-.052.437-.02.04-.043.074-.069.107l-.495.765c-.147.22-.008.517.256.546l1.198.086c.223.016.442-.06.607-.211.215-.255 1.172-1.813 1.608-2.543.141-.236.123-.53-.037-.753l.005-.002-1.537-2.39-.288-.453c-.03-.039-.056-.08-.078-.123l-.01-.017c-.057-.126-.081-.266-.061-.414.042-.309.287-.565.595-.618zM4.409.877l4.718.017h.032c.46.024.712.551.459.936L6.343 6.79c-.123.253-.409.412-.72.34-.232-.052-.419-.24-.47-.472-.036-.158-.011-.31.054-.436v-.001c.02-.038.044-.074.07-.106l.498-.762c.148-.22.01-.518-.253-.548l-1.198-.091c-.222-.017-.442.058-.607.208-.217.254-1.18 1.808-1.62 2.536-.142.235-.125.529.034.753l-.005.002 1.526 2.397.286.454c.03.039.056.08.077.124l.011.017c.056.126.08.266.059.413-.044.309-.29.565-.598.616-.343.057-.651-.124-.786-.404L.166 7.84c-.219-.344-.222-.782-.008-1.128l3.268-5.29c.21-.34.583-.547.983-.546z"
+                        transform="translate(12.718 11.842)" />
+                    </g>
+                  </g>
+                </g>
+              </svg>
+            </td>
+          </tr>
+        </table>
+      </div>
+
+      <div style="border-bottom: 1px solid #f2f4f7; padding: 0px 20px 20px 20px;">
+        <table width="100%">
+          <tbody style="border-bottom: 1px solid #edf1f5;">
+            <tr>
+              <td style="font-size: 12px; color: #3b444c; font-weight: 600; width:50%;">Application
+              </td>
+              <td style="font-size: 12px; color: #3b444c; font-weight: 600; width: 50%;">Pipeline
+              </td>
+            </tr>
+            <tr>
+              <td style="width: 50%;font-size: 14px;"> {{appName}}</td>
+              <td style="width: 50%;font-size: 14px;">{{pipelineName}}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div style="padding: 20px;">
+        <div style="font-weight: 700; padding-bottom: 10px">
+          Source Code
+        </div>
+        {{#ciMaterials}}
+        {{^webhookType}}
+        <div style="padding: 10px 0;">
+          <table width="100%">
+            <tbody>
+              <tr>
+                <td style="font-size: 12px; color: #3b444c; font-weight: 600; width:50%;">Branch</td>
+                <td style="font-size: 12px; color: #3b444c; font-weight: 600; width: 50%;">Commit</td>
+              </tr>
+              <tr>
+                <td style="width: 50%; font-size: 14px;">{{appName}}/{{branch}}</td>
+                <td style="width: 50%; font-size: 14px;">
+                  <a href="{{& commitLink }}" target="_blank" style="color: #0066cc;"> {{commit}}</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        {{/webhookType}}
+        {{#webhookType}}{{#webhookData.mergedType}}
+        <div style="padding: 10px 0">
+          <table width="100%">
+            <tbody>
+              <tr>
+                <td style="font-size: 12px; color: #3b444c; font-weight: 600; width:50%;">Title</td>
+                <td style="font-size: 12px; color: #3b444c; font-weight: 600; width: 50%">Git URL
+                </td>
+              </tr>
+              <tr>
+                <td style="width: 50%;font-size: 14px;">{{webhookData.data.title}}</td>
+                <td style="width: 50%;font-size: 14px;">
+                  <a href="{{& webhookData.data.giturl}}" target="_blank" style="color: #0066cc;"> View</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; padding: 10px 0px; grid-template-columns: 50% 50%;">
+          <table width="100%">
+            <tbody>
+              <tr>
+                <td style="font-size: 12px; color: #3b444c; font-weight: 600; width:50%;">Source branch</td>
+                <td style="font-size: 12px; color: #3b444c; font-weight: 600; width: 50%">Source Commit
+                </td>
+              </tr>
+              <tr>
+                <td style="width: 50%;font-size: 14px;">{{webhookData.data.sourcebranchname}}</td>
+                <td style="width: 50%;">
+                  <a href="{{& webhookData.data.sourcecheckoutlink}}" target="_blank"
+                    style="color: #0066cc;font-size: 14px;">
+                    {{webhookData.data.sourcecheckout}}</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+
+        <div style="display: flex; padding: 10px 0px; grid-template-columns: 50% 50%;">
+          <table width="100%">
+            <tbody>
+              <tr>
+                <td style="font-size: 12px; color: #3b444c; font-weight: 600; width:50%;">Target Branch</td>
+                <td style="font-size: 12px; color: #3b444c; font-weight: 600; width: 50%">Target Commit</td>
+              </tr>
+              <tr>
+                <td style="width: 50%;font-size: 14px;">{{webhookData.data.targetbranchname}}</td>
+                <td style="width: 50%;font-size: 14px;">
+                  <a href="{{& webhookData.data.sourcecheckoutlink}}" target="_blank" style="color: #0066cc;">
+                    {{webhookData.data.targetcheckout}}</a>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        {{/webhookData.mergedType}}
+        {{#webhookData.mergedType}}
+        <div style=" padding-top: 10px">
+          <div style="font-size: 12px; color: #3b444c; font-weight: 600;">Target Checkout</div>
+          <div style="font-size: 14px;">{{webhookData.data.targetcheckout}}</div>
+        </div>
+        {{/webhookData.mergedType}}
+      </div>
+      {{/webhookType}}{
+      {{/ciMaterials}}
+
+      <div
+        style="display: flex; align-items: center; line-height: 16px; border-top: 1px solid #f2f4f7; padding: 20px; align-items: center;">
+        <table>
+          <tbody>
+            <tr>
+              <td>
+                <a href="https://twitter.com/DevtronL" target="_blank"
+                  style=" cursor: pointer; text-decoration: none; padding-right: 20px;">
+                  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path
+                      d="M19.9525 8.04571C19.9647 8.22203 19.9647 8.39834 19.9647 8.57628C19.9647 13.9982 15.8371 20.2513 8.28966 20.2513V20.248C6.06013 20.2513 3.8769 19.6126 2 18.4085C2.32419 18.4475 2.65001 18.467 2.97664 18.4678C4.82429 18.4694 6.61913 17.8495 8.07272 16.7079C6.31688 16.6746 4.77717 15.5298 4.23928 13.8584C4.85436 13.9771 5.48812 13.9527 6.09181 13.7877C4.17753 13.401 2.80033 11.7191 2.80033 9.7658V9.7138C3.37071 10.0315 4.00934 10.2078 4.6626 10.2273C2.85964 9.02235 2.30388 6.62382 3.39265 4.74854C5.47593 7.31201 8.54967 8.87041 11.8493 9.03535C11.5186 7.61021 11.9703 6.11681 13.0364 5.11498C14.689 3.56146 17.2882 3.64108 18.8418 5.29292C19.7607 5.11173 20.6415 4.77454 21.4475 4.29678C21.1412 5.24661 20.5001 6.05343 19.6437 6.56613C20.457 6.47025 21.2517 6.2525 22 5.92018C21.4491 6.74569 20.7552 7.46477 19.9525 8.04571Z"
+                      fill="#1D9BF0" />
+                  </svg>
+                </a>
+              </td>
+              <td>
+                <a href="https://www.linkedin.com/company/devtron-labs/mycompany/" target="_blank"
+                  style=" cursor: pointer; text-decoration: none; padding-right: 20px;">
+                  <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+                    <g fill="none" fill-rule="evenodd">
+                      <path d="M0 0H24V24H0z" />
+                      <path fill="#959BA1"
+                        d="M20 2c1.105 0 2 .895 2 2v16c0 1.105-.895 2-2 2H4c-1.105 0-2-.895-2-2V4c0-1.105.895-2 2-2h16zM8.179 9.46H5.177v9.03H8.18V9.46zm7.366-.211l-.225.006c-1.388.075-2.055.845-2.441 1.425l-.039.059V9.461h-3l.002.065c.032 1.033.003 7.625-.002 8.788v.176h3v-5.042l.003-.162c.007-.213.033-.417.096-.57.217-.54.71-1.098 1.54-1.098 1.086 0 1.52.828 1.52 2.041v4.83H19v-5.176l-.004-.256c-.089-2.597-1.538-3.808-3.451-3.808zM6.698 5.108C5.67 5.108 5 5.782 5 6.668c0 .867.651 1.56 1.658 1.56h.02l.162-.006c.951-.068 1.536-.733 1.536-1.554-.02-.886-.652-1.56-1.678-1.56z" />
+                    </g>
+                  </svg>
+                </a>
+              </td>
+              <td>
+                <a href="https://devtron.ai/blog/" target="_blank"
+                  style="color: #000a14; cursor: pointer; text-decoration: none; padding-right: 20px;">
+                  Blog
+                </a>
+              </td>
+              <td>
+                <a href="https://devtron.ai/" target="_blank"
+                  style="color: #000a14; cursor: pointer; text-decoration: none;padding-right: 20px;">
+                  Website
+                </a>
+              </td>
+              <td>
+                <a href="https://discord.com/invite/jsRG5qx2gp" target="_blank"
+                  style="color: #000a14; cursor: pointer; text-decoration: none;">
+                  Support
+                </a>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div style="color: #767d84; margin: auto; margin-right: 0;">
+          &copy; Devtron Labs 2020
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+
+</html>
