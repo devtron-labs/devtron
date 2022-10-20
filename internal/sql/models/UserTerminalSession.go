@@ -10,12 +10,13 @@ type UserTerminalSessionRequest struct {
 }
 
 type UserTerminalSessionConfig struct {
-	MaxSessionPerUser               int `env:"MAX_SESSION_PER_USER" envDefault:"50"`
-	TerminalPodStatusSyncTimeInSecs int `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"5"`
+	MaxSessionPerUser               int    `env:"MAX_SESSION_PER_USER" envDefault:"50"`
+	TerminalPodStatusSyncTimeInSecs int    `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"5"`
+	TerminalPodDefaultNamespace     string `env:"TERMINAL_POD_DEFAULT_NAMESPACE" envDefault:"default"`
 }
 
 type UserTerminalSessionResponse struct {
-	UserTerminalSessionId int               `json:"userTerminalSessionId"`
+	UserTerminalSessionId string            `json:"userTerminalSessionId"`
 	UserId                int32             `json:"userId"`
 	TerminalAccessId      int               `json:"terminalAccessId"`
 	Status                TerminalPodStatus `json:"status"`

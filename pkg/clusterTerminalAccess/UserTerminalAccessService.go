@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
@@ -30,14 +31,21 @@ type UserTerminalAccessServiceImpl struct {
 	TerminalAccessRepository     repository.TerminalAccessRepository
 	Logger                       *zap.SugaredLogger
 	Config                       *models.UserTerminalSessionConfig
-	TerminalAccessDataArray      *map[int]*models.UserTerminalAccessData
+	TerminalAccessSessionDataMap *map[int]*UserTerminalAccessSessionData
 	TerminalAccessDataArrayMutex *sync.RWMutex
 	PodStatusSyncCron            *cron.Cron
 	k8sApplicationService        k8s.K8sApplicationService
 	k8sClientService             application.K8sClientService
+	terminalSessionHandler       terminal.TerminalSessionHandler
 }
 
-func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, k8sApplicationService k8s.K8sApplicationService, k8sClientService application.K8sClientService) (*UserTerminalAccessServiceImpl, error) {
+type UserTerminalAccessSessionData struct {
+	sessionId                string
+	terminalAccessDataEntity *models.UserTerminalAccessData
+}
+
+func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository,
+	k8sApplicationService k8s.K8sApplicationService, k8sClientService application.K8sClientService, terminalSessionHandler terminal.TerminalSessionHandler) (*UserTerminalAccessServiceImpl, error) {
 	config := &models.UserTerminalSessionConfig{}
 	err := env.Parse(config)
 	if err != nil {
@@ -47,7 +55,7 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 	podStatusSyncCron := cron.New(
 		cron.WithChain())
 	terminalAccessDataArrayMutex := &sync.RWMutex{}
-	map1 := make(map[int]*models.UserTerminalAccessData)
+	map1 := make(map[int]*UserTerminalAccessSessionData)
 	accessServiceImpl := &UserTerminalAccessServiceImpl{
 		Logger:                       logger,
 		TerminalAccessRepository:     terminalAccessRepository,
@@ -56,12 +64,14 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 		TerminalAccessDataArrayMutex: terminalAccessDataArrayMutex,
 		k8sApplicationService:        k8sApplicationService,
 		k8sClientService:             k8sClientService,
-		TerminalAccessDataArray:      &map1,
+		TerminalAccessSessionDataMap: &map1,
+		terminalSessionHandler:       terminalSessionHandler,
 	}
 	podStatusSyncCron.Start()
 	_, err = podStatusSyncCron.AddFunc(fmt.Sprintf("@every %ds", config.TerminalPodStatusSyncTimeInSecs), accessServiceImpl.SyncPodStatus)
 	if err != nil {
 		logger.Errorw("error occurred while starting cron job", "time in secs", config.TerminalPodStatusSyncTimeInSecs)
+		return nil, err
 	}
 	go accessServiceImpl.SyncRunningInstances()
 	return accessServiceImpl, err
@@ -101,14 +111,12 @@ func (impl UserTerminalAccessServiceImpl) createTerminalEntity(request *models.U
 		return nil, err
 	}
 	impl.TerminalAccessDataArrayMutex.Lock()
-	terminalAccessDataArray := *impl.TerminalAccessDataArray
-	terminalAccessDataArray[userAccessData.Id] = userAccessData
-	impl.TerminalAccessDataArray = &terminalAccessDataArray
+	terminalAccessDataArray := *impl.TerminalAccessSessionDataMap
+	terminalAccessDataArray[userAccessData.Id] = &UserTerminalAccessSessionData{terminalAccessDataEntity: userAccessData}
+	impl.TerminalAccessSessionDataMap = &terminalAccessDataArray
 	impl.TerminalAccessDataArrayMutex.Unlock()
 	return &models.UserTerminalSessionResponse{
-		UserTerminalSessionId: userAccessData.Id,
-		UserId:                userAccessData.UserId,
-		//ShellName:             request.ShellName,
+		UserId:  userAccessData.UserId,
 		PodName: podName,
 	}, nil
 }
@@ -236,8 +244,9 @@ func (impl UserTerminalAccessServiceImpl) SyncPodStatus() {
 		impl.Logger.Errorw("error occurred while fetching template", "template", models.TerminalAccessPodTemplateName, "err", err)
 		return
 	}
-	terminalAccessDataMap := *impl.TerminalAccessDataArray
-	for _, terminalAccessData := range terminalAccessDataMap {
+	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
+	for _, terminalAccessSessionData := range terminalAccessDataMap {
+		terminalAccessData := terminalAccessSessionData.terminalAccessDataEntity
 		clusterId := terminalAccessData.ClusterId
 		terminalAccessPodName := terminalAccessData.PodName
 		existingStatus := terminalAccessData.Status
@@ -254,17 +263,37 @@ func (impl UserTerminalAccessServiceImpl) SyncPodStatus() {
 				continue
 			}
 			terminalAccessData.Status = terminalPodStatusString
+			//create terminal session if status is Running and store sessionId
+			metadata := terminalAccessData.Metadata
+			metadataMap, err := impl.getMetadataMap(metadata)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while converting metadata json to map", "metadata", metadata, "err", err)
+				continue
+			}
+			request := &terminal.TerminalSessionRequest{
+				Shell:     metadataMap["ShellName"],
+				Namespace: impl.Config.TerminalPodDefaultNamespace,
+				PodName:   terminalAccessPodName,
+				ClusterId: clusterId,
+			}
+			_, terminalMessage, err := impl.terminalSessionHandler.GetTerminalSession(request)
+			if err != nil {
+				impl.Logger.Errorw("error occurred while creating terminal session", "terminalAccessId", terminalAccessId, "err", err)
+				continue
+			}
+			sessionID := terminalMessage.SessionID
+			terminalAccessSessionData.sessionId = sessionID
 		}
 	}
 	impl.TerminalAccessDataArrayMutex.Lock()
-	for _, terminalAccessData := range terminalAccessDataMap {
+	for _, terminalAccessSessionData := range terminalAccessDataMap {
+		terminalAccessData := terminalAccessSessionData.terminalAccessDataEntity
 		if terminalAccessData.Status != string(models.TerminalPodStarting) && terminalAccessData.Status != string(models.TerminalPodRunning) {
 			delete(terminalAccessDataMap, terminalAccessData.Id)
 		}
 	}
-	impl.TerminalAccessDataArray = &terminalAccessDataMap
+	impl.TerminalAccessSessionDataMap = &terminalAccessDataMap
 	impl.TerminalAccessDataArrayMutex.Unlock()
-
 }
 
 func (impl UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error) {
@@ -273,14 +302,19 @@ func (impl UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId i
 		impl.Logger.Errorw("error occurred while fetching terminal status", "terminalAccessId", terminalAccessId, "err", err)
 		return nil, err
 	}
-	//terminalAccessMetadata, err := impl.getMetadataMap(terminalAccessData.Metadata)
+	terminalAccessDataId := terminalAccessData.Id
+	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
+	terminalAccessSessionData, present := terminalAccessDataMap[terminalAccessDataId]
+	var terminalSessionId = ""
+	if present {
+		terminalSessionId = terminalAccessSessionData.sessionId
+	}
 	terminalAccessResponse := &models.UserTerminalSessionResponse{
-		UserTerminalSessionId: terminalAccessData.Id,
-		TerminalAccessId:      terminalAccessData.Id,
+		TerminalAccessId:      terminalAccessDataId,
 		UserId:                terminalAccessData.UserId,
 		Status:                models.TerminalPodStatus(terminalAccessData.Status),
 		PodName:               terminalAccessData.PodName,
-		//ShellName:             terminalAccessMetadata["ShellName"],
+		UserTerminalSessionId: terminalSessionId,
 	}
 	return terminalAccessResponse, nil
 }
@@ -309,7 +343,7 @@ func (impl UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, termi
 	k8sRequest := &application.K8sRequestBean{
 		ResourceIdentifier: application.ResourceIdentifier{
 			Name:      terminalPodName,
-			Namespace: "default",
+			Namespace: impl.Config.TerminalPodDefaultNamespace,
 			GroupVersionKind: schema.GroupVersionKind{
 				Group:   gvkData["group"],
 				Version: gvkData["version"],
@@ -339,7 +373,7 @@ func (impl UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataSt
 
 	k8sRequest := &application.K8sRequestBean{
 		ResourceIdentifier: application.ResourceIdentifier{
-			Namespace: "default",
+			Namespace: impl.Config.TerminalPodDefaultNamespace,
 			GroupVersionKind: schema.GroupVersionKind{
 				Group:   gvkData["group"],
 				Version: gvkData["version"],
@@ -371,7 +405,7 @@ func (impl UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName st
 		K8sRequest: &application.K8sRequestBean{
 			ResourceIdentifier: application.ResourceIdentifier{
 				Name:      podName,
-				Namespace: "default",
+				Namespace: impl.Config.TerminalPodDefaultNamespace,
 				GroupVersionKind: schema.GroupVersionKind{
 					Group:   gvkData["group"],
 					Version: gvkData["version"],
@@ -409,10 +443,12 @@ func (impl UserTerminalAccessServiceImpl) SyncRunningInstances() {
 		impl.Logger.Fatalw("error occurred while fetching all running/starting data", "err", err)
 	}
 	impl.TerminalAccessDataArrayMutex.Lock()
-	terminalAccessDataMap := *impl.TerminalAccessDataArray
+	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
 	for _, accessData := range terminalAccessData {
-		terminalAccessDataMap[accessData.Id] = accessData
+		terminalAccessDataMap[accessData.Id] = &UserTerminalAccessSessionData{
+			terminalAccessDataEntity: accessData,
+		}
 	}
-	impl.TerminalAccessDataArray = &terminalAccessDataMap
+	impl.TerminalAccessSessionDataMap = &terminalAccessDataMap
 	impl.TerminalAccessDataArrayMutex.Unlock()
 }
