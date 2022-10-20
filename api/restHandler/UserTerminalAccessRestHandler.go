@@ -28,10 +28,12 @@ type UserTerminalAccessRestHandlerImpl struct {
 	UserService               user.UserService
 }
 
-func NewUserTerminalAccessRestHandlerImpl(logger *zap.SugaredLogger, userTerminalAccessService clusterTerminalAccess.UserTerminalAccessService) *UserTerminalAccessRestHandlerImpl {
+func NewUserTerminalAccessRestHandlerImpl(logger *zap.SugaredLogger, userTerminalAccessService clusterTerminalAccess.UserTerminalAccessService, Enforcer casbin.Enforcer, UserService user.UserService) *UserTerminalAccessRestHandlerImpl {
 	return &UserTerminalAccessRestHandlerImpl{
 		Logger:                    logger,
 		UserTerminalAccessService: userTerminalAccessService,
+		Enforcer:                  Enforcer,
+		UserService:               UserService,
 	}
 }
 
