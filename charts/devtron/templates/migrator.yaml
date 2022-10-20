@@ -41,6 +41,12 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        {{- if .devtron }}
+        {{- if .devtron.resources }}        
+        resources:
+        {{- toYaml .devtron.resources | nindent 10 }}
+        {{- end }}
+        {{- end }}           
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500
@@ -62,6 +68,12 @@ spec:
       - name: devtron-rollout
         image: "quay.io/devtron/kubectl:latest"
         command: ['sh', '-c', 'kubectl rollout restart deployment/devtron -n devtroncd']
+        {{- if .casbin }}
+        {{- if .casbin.resources }}        
+        resources:
+        {{- toYaml .casbin.resources | nindent 10 }}
+        {{- end }}
+        {{- end }} 
       initContainers:
       - name: postgresql-migrate-casbin
         image: {{ .image }}
@@ -89,10 +101,17 @@ spec:
         envFrom:
           - secretRef:
               name: postgresql-migrator
+        {{- if .casbin }}
+        {{- if .casbin.initContainer.resources }}        
+        resources:
+        {{- toYaml .casbin.initContainer.resources | nindent 10 }}
+        {{- end }}
+        {{- else }}
         resources:
           requests:
             cpu: 0.5
             memory: 500Mi
+        {{- end }}                     
       restartPolicy: OnFailure
   backoffLimit: 20
   activeDeadlineSeconds: 1500

@@ -8,28 +8,46 @@ kind: Job
 metadata:
   name: app-sync-job-{{ randAlphaNum 5 | lower }}
 spec:
-      template:
-        spec:
-          serviceAccountName: devtron
-          initContainers:
-          - name: migration-wait
-            image: "quay.io/devtron/kubectl:latest"
-            command: ['sh', '-c', 'while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-devtron -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done']
-          containers:
-          - name: chart-sync
-            image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
-            env:
-            - name: PG_ADDR
-              value: postgresql-postgresql.devtroncd
-            - name: PG_DATABASE
-              value: orchestrator
-            - name: PG_USER
-              value: postgres
-            envFrom:
-            - secretRef:
-                name: devtron-secret
-          restartPolicy: OnFailure
-      backoffLimit: 4
+  template:
+    spec:
+      serviceAccountName: devtron
+      initContainers:
+      - name: migration-wait
+        image: "quay.io/devtron/kubectl:latest"
+        command: ['sh', '-c', 'while [ ! $(kubectl -n devtroncd get $(kubectl -n devtroncd get job -l job=postgresql-migrate-devtron -o name) -o jsonpath="{.status.succeeded}")  ]; do sleep 10; done']
+        {{- if .Values.components.migrator }}
+        {{- if .Values.components.migrator.appSync }}
+        {{- if .Values.components.migrator.appSync.initContainer }}
+        {{- if .Values.components.migrator.appSync.initContainer.resources }}
+        resources:
+        {{- toYaml .Values.components.migrator.appSync.initContainer.resources | nindent 10 }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+      containers:
+      - name: chart-sync
+        image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
+        env:
+        - name: PG_ADDR
+          value: postgresql-postgresql.devtroncd
+        - name: PG_DATABASE
+          value: orchestrator
+        - name: PG_USER
+          value: postgres
+        envFrom:
+        - secretRef:
+            name: devtron-secret
+        {{- if .Values.components.migrator }}
+        {{- if .Values.components.migrator.appSync }}
+        {{- if .Values.components.migrator.appSync.resources }}
+        resources:
+        {{- toYaml .Values.components.migrator.appSync.resources | nindent 14 }}
+        {{- end }}
+        {{- end }}
+        {{- end }}
+      restartPolicy: OnFailure
+  backoffLimit: 4
 ---
 {{- end }}
 {{- if .Capabilities.APIVersions.Has "batch/v1/CronJob" }}
@@ -61,5 +79,13 @@ spec:
             envFrom:
             - secretRef:
                 name: devtron-secret
+            {{- if .Values.components.migrator }}
+            {{- if .Values.components.migrator.appSync }}
+            {{- if .Values.components.migrator.appSync.resources }}
+            resources:
+            {{- toYaml .Values.components.migrator.appSync.resources | nindent 14 }}
+            {{- end }}
+            {{- end }}
+            {{- end }}
           restartPolicy: Never
       backoffLimit: 4
