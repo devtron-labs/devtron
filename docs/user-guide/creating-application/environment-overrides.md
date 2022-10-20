@@ -9,11 +9,11 @@ You can customize your `Deployment template, ConfigMap, Secrets` in Environment 
 
 ## Deployment template - Functionality
 
-If you want to deploy an application in a non-production environment and then in production environment once testing is done in non-prod environment, then you do not need to create a new application for prod environment. Your existing pipeline\(non-prod env\) will work for both the environments with little customization in your deployment template under `Environment overrides`.
+If you want to deploy an application in a non-production environment and then in production environment, once testing is done in the non-production environment, then you do not need to create a new application for production environment. Your existing pipeline\(non-production env\) will work for both the environments with little customization in your deployment template under `Environment overrides`.
 
 ### Example customization:
 
-In a Non-production environment, you may have specified 100m CPU resources in the deployment template but in the Production environment you may want to have 500m CPU resources as the traffic on Pods will be higher than traffic on non-prod env.
+In a Non-production environment, you may have specified 100m CPU resources in the deployment template but in the Production environment, you may want to have 500m CPU resources as the traffic on Pods will be higher than traffic on non-production env.
 
 Configuring the Deployment template inside `Environment Overrides` for a specific environment will not affect the other environments because `Environment Overrides` will configure deployment templates on environment basis. And at the time of deployment, it will always pick the overridden deployment template if any.
 
@@ -25,9 +25,20 @@ Any changes in the configuration will not be added to the template, instead, it 
 
 This will save you the trouble to manually create deployment files separately for each environment. Instead, all you have to do is to change the required variables in the deployment template.
 
+
 ## How to add Environment Overrides
 
 In the `Environment Overrides` section, click on `Allow Override` and make changes to your Deployment template and click on `Save` to save your changes of the Deployment template.
+
+### Basic Configuration
+
+The basic deployment configuration which you specified on the **Basic** GUI section will be visible for you to customize for your environment.
+
+If you want to configure **Basic** GUI at the application level, then you can provide the required information in the [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#basic-configuration).
+
+If `Basic` is locked, you can modify the configurations on YAML file which will be the default page.
+
+**Note**: **Delete Override** will discard the current overrides and the base configuration will be applicable to the environment.
 
 ### ConfigMaps & Secrets
 

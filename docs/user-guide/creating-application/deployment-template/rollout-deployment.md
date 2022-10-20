@@ -1,11 +1,12 @@
 
 # Rollout Deployment
 
-Deployment configuration is the Manifest for the application, it defines the runtime behavior of the application. You can define application behavior by providing information in three sections:
+Deployment configuration is the manifest of the application which defines the runtime behavior of the application. You can define application behavior by providing information in the following sections:
 
-1. Chart Version
-2. Yaml file
-3. Show application metrics
+* Chart version
+* YAMl file
+* Basic Configuration
+* Show Application Metrics
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-template.gif)
 
@@ -21,15 +22,15 @@ One can see multiple chart version options available in the drop-down. you can s
 
 Every chart version has its own YAML file. Helm charts are used to provide specifications for your application. To make it easy to use, we have created templates for the YAML file and have added some variables inside the YAML. You can provide or change the values of these variables as per your requirement.
 
-If you want to see [Application Metrics](rollout-deployment.md#3.-Show-application-metrics) (For example Status codes 2xx, 3xx, 5xx; throughput, and latency) for your application, then you need to select the latest chart version.
+If you want to see [Application Metrics](rollout-deployment.md#3.-Show-application-metrics) (as an example, Status codes 2xx, 3xx, 5xx; throughput, and latency etc.) for your application, then you need to select the latest chart version.
 
-Application Metrics is not supported for Chart version older than 3.7 version.
+**Note**: Application Metrics are not supported for the Chart version older than 3.7 version.
 
-## 2. Yaml file
+## 2. YAML file
 
 ### Container Ports
 
-This defines ports on which application services will be exposed to other services
+This defines the ports on which application services will be exposed to other services.
 
 ```yaml
 ContainerPort:
@@ -64,7 +65,7 @@ Here we can pass the list of env variables , every record is an object which con
 
 To set environment variables for the containers that run in the Pod.
 
-### Example of env variables
+### Example of Envvariables
 
 `IMP` Docker image should have env variables, whatever we want to set.
 ```yaml
@@ -77,7 +78,7 @@ EnvVariables:
     value: xyz
 ```
 
-But `ConfigMap` and `Secret` are the prefered way to inject env variables. So we can create this in `App Configuration` Section
+But `ConfigMap` and `Secret` are the prefered way to inject env variables. So we can create this in `App Configuration` Section.
 
 ### ConfigMap
 
@@ -239,7 +240,8 @@ regcred is the secret that contains the docker credentials that are used for acc
 
 ### Ingress
 
-This allows public access to the url, please ensure you are using right nginx annotation for nginx class, its default value is nginx
+This allows public access to the url. Please ensure you are using the right nginx annotation for nginx class. 
+The default value is `nginx`.
 
 ```yaml
 ingress:
@@ -718,7 +720,31 @@ waitForSecondsBeforeScalingDown: 30
 ```
 Wait for given period of time before scaling down the container.
 
-## 3. Show Application Metrics
+
+## 3. Basic Configuration
+
+Some of the use-cases which are defined on the Deployment Template (YAML file) may not be applicable to configure for your application. In such cases, you can do the basic deployment configuration for your application on the **Basic** GUI section instead of configuring the YAML file.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/basic-config-deployment-template.jpg)
+
+The following fields are provided on the **Basic** GUI section:
+
+| Fields | Description |
+| :---    |     :---       |
+| **Port**  | The internal HTTP port. |
+| **HTTP Request Routes** | Enable the `HTTP Request Routes` to define `Host` and `Path`. By default, it is in `disabled` state.<ul><li> **Host**: Domain name of the server. </li></ul> <ul><li>**Path**: Path of the specific component in the host that the HTTP wants to access.</li></ul> You can define multiple paths as required by clicking **Add path**.|
+| **CPU**  | The CPU resource as per the application. |
+| **RAM**   | The RAM resource as per the application. |
+| **Environment Variables** (**Key/Value**)  | Define `key/value` by clicking **Add variable**. <ul><li> **Key**: Define the key of the environment.</li></ul> <ul><li>**Value**: Define the value of the environment.</li></ul> You can define multiple env variables by clicking **Add variable**.  |
+
+Click **Save Changes**.
+
+If you want to do additional configurations, then click **Advanced (YAML)** for modifications.
+
+**Note**: If you change any values in the `Basic` GUI, then the corresponding values will be changed in `YAML` file also.
+
+
+## 4. Show Application Metrics
 
 If you want to see application metrics like different HTTP status codes metrics, application throughput, latency, response time. Enable the Application metrics from below the deployment template Save button. After enabling it, you should be able to see all metrics on App detail page. By default it remains disabled.
 
