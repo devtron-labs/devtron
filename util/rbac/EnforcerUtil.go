@@ -316,13 +316,7 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
 
-	clusterName := env.Cluster.ClusterName
-	namespace := env.Namespace
 	environmentIdentifier := env.EnvironmentIdentifier
-
-	if environmentIdentifier != clusterName+"__"+namespace {
-		environmentIdentifier = clusterName + "__" + namespace
-	}
 
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
