@@ -11,7 +11,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
-	"github.com/go-pg/pg"
 	"github.com/nats-io/nats.go"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
@@ -164,12 +163,13 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoPipelineTimelineUpdate() {
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceTreeCall(acdAppName string, appId, envId int) error {
-	_, err := impl.pipelineStatusTimelineRepository.FetchTimelineUpdatedBeforeSecondsByAppIdAndEnvId(appId, envId, 10)
-	if err != nil && err != pg.ErrNoRows {
+	timeline, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelineByAppIdAndEnvId(appId, envId)
+	if err != nil {
 		impl.logger.Errorw("error in getting timeline", "err", err)
 		return err
 	}
-	if err == pg.ErrNoRows {
+
+	if !IsTerminalTimelineStatus(timeline.Status) {
 		//create new nats event
 		statusUpdateEvent := pipeline.ArgoPipelineStatusEvent{
 			ArgoAppName:                acdAppName,
@@ -185,4 +185,16 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceT
 		}
 	}
 	return nil
+}
+
+func IsTerminalTimelineStatus(timeline pipelineConfig.TimelineStatus) bool {
+	switch timeline {
+	case
+		pipelineConfig.TIMELINE_STATUS_APP_HEALTHY,
+		pipelineConfig.TIMELINE_STATUS_APP_DEGRADED,
+		pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
+		pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED:
+		return true
+	}
+	return false
 }

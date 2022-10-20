@@ -29,7 +29,7 @@ type PipelineStatusTimelineRepository interface {
 	FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineId int, status TimelineStatus) (*PipelineStatusTimeline, error)
 	FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error)
 	CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error)
-	FetchTimelineUpdatedBeforeSecondsByAppIdAndEnvId(appId, envId, updatedBeforeSeconds int) (*PipelineStatusTimeline, error)
+	FetchLatestTimelineByAppIdAndEnvId(appId, envId int) (*PipelineStatusTimeline, error)
 }
 
 type PipelineStatusTimelineRepositoryImpl struct {
@@ -149,8 +149,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelineP
 	return exists, nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineUpdatedBeforeSecondsByAppIdAndEnvId(appId, envId, updatedBeforeSeconds int) (*PipelineStatusTimeline, error) {
-	terminalStatus := []string{string(TIMELINE_STATUS_APP_HEALTHY), string(TIMELINE_STATUS_APP_DEGRADED), string(TIMELINE_STATUS_DEPLOYMENT_FAILED), string(TIMELINE_STATUS_GIT_COMMIT_FAILED)}
+func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByAppIdAndEnvId(appId, envId int) (*PipelineStatusTimeline, error) {
 	var timeline PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timeline).
 		Column("pipeline_status_timeline.*").
@@ -160,8 +159,6 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineUpdatedBeforeSeco
 		Where("p.app_id = ?", appId).
 		Where("p.environment_id = ?", envId).
 		Where("p.deleted = false").
-		Where("pipeline_status_timeline.status not in (?)", pg.In(terminalStatus)).
-		Where("pipeline_status_timeline.status_time < NOW() - INTERVAL '? seconds'", updatedBeforeSeconds).
 		Order("pipeline_status_timeline.id DESC").
 		Limit(1).
 		Select()

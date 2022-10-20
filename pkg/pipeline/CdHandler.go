@@ -197,7 +197,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		return err
 	}
 	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "checkingDeploymentStatus", "argoAppName", argoAppName, "deploymentStatus", deploymentStatus)
-	if IsTerminalStatus(deploymentStatus.Status) {
+	if util3.IsTerminalStatus(deploymentStatus.Status) {
 		//drop event
 		return nil
 	}
@@ -298,17 +298,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 	}
 	return nil
 }
-func IsTerminalStatus(status string) bool {
-	switch status {
-	case
-		string(health.HealthStatusHealthy),
-		string(health.HealthStatusDegraded),
-		WorkflowAborted,
-		WorkflowFailed:
-		return true
-	}
-	return false
-}
+
 func (impl *CdHandlerImpl) GetAppStatusByResourceTreeFetchFromArgo(appName string) (timelineStatus pipelineConfig.TimelineStatus, appStatus, statusMessage, hash string) {
 	//this should only be called when we have git-ops configured
 	//try fetching status from argo cd

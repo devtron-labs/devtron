@@ -111,7 +111,7 @@ type AppServiceImpl struct {
 	chartService                        chart.ChartService
 	argoUserService                     argo.ArgoUserService
 	cdPipelineStatusTimelineRepo        pipelineConfig.PipelineStatusTimelineRepository
-	appCrudOperationService          AppCrudOperationService
+	appCrudOperationService             AppCrudOperationService
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
@@ -160,7 +160,7 @@ func NewAppService(
 	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	appCrudOperationService          AppCrudOperationService,
+	appCrudOperationService AppCrudOperationService,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository) *AppServiceImpl {
@@ -205,7 +205,7 @@ func NewAppService(
 		helmAppClient:                       helmAppClient,
 		argoUserService:                     argoUserService,
 		cdPipelineStatusTimelineRepo:        cdPipelineStatusTimelineRepo,
-		appCrudOperationService:                     appCrudOperationService,
+		appCrudOperationService:             appCrudOperationService,
 		configMapHistoryRepository:          configMapHistoryRepository,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
@@ -214,10 +214,8 @@ func NewAppService(
 }
 
 const (
-	WorkflowAborted = "Aborted"
-	WorkflowFailed  = "Failed"
-	Success         = "SUCCESS"
-	Failure         = "FAILURE"
+	Success = "SUCCESS"
+	Failure = "FAILURE"
 )
 
 func (impl AppServiceImpl) getValuesFileForEnv(environmentId int) string {
@@ -325,7 +323,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
 
-	if !IsTerminalStatus(deploymentStatus.Status) {
+	if !util2.IsTerminalStatus(deploymentStatus.Status) {
 		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
@@ -395,18 +393,6 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 		}
 	}
 	return isHealthy, nil
-}
-
-func IsTerminalStatus(status string) bool {
-	switch status {
-	case
-		string(health.HealthStatusHealthy),
-		string(health.HealthStatusDegraded),
-		WorkflowAborted,
-		WorkflowFailed:
-		return true
-	}
-	return false
 }
 
 func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp *v1alpha1.Application, pipelineOverride *chartConfig.PipelineOverride, statusTime time.Time) error {
