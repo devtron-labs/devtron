@@ -162,12 +162,15 @@ func (sm *SessionMap) Set(sessionId string, session TerminalSession) {
 func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
 	sm.Lock.Lock()
 	defer sm.Lock.Unlock()
-	err := sm.Sessions[sessionId].sockJSSession.Close(status, reason)
-	if err != nil {
-		log.Println(err)
+	terminalSession := sm.Sessions[sessionId]
+	if terminalSession.sockJSSession != nil {
+		err := terminalSession.sockJSSession.Close(status, reason)
+		if err != nil {
+			log.Println(err)
+		}
+		delete(sm.Sessions, sessionId)
 	}
 
-	delete(sm.Sessions, sessionId)
 }
 
 var terminalSessions = SessionMap{Sessions: make(map[string]TerminalSession)}

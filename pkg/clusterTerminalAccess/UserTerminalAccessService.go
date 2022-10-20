@@ -116,8 +116,9 @@ func (impl UserTerminalAccessServiceImpl) createTerminalEntity(request *models.U
 	impl.TerminalAccessSessionDataMap = &terminalAccessDataArray
 	impl.TerminalAccessDataArrayMutex.Unlock()
 	return &models.UserTerminalSessionResponse{
-		UserId:  userAccessData.UserId,
-		PodName: podName,
+		UserId:           userAccessData.UserId,
+		PodName:          podName,
+		TerminalAccessId: userAccessData.Id,
 	}, nil
 }
 

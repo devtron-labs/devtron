@@ -11,13 +11,15 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
+	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util/k8s"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
 )
 
 func TestNewUserTerminalAccessService(t *testing.T) {
-	//t.SkipNow()
+	t.SkipNow()
 	t.Run("applyTemplates", func(t *testing.T) {
 		sugaredLogger, _ := util.InitLogger()
 		config, _ := sql.GetConfig()
@@ -31,10 +33,11 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, nil, k8sInformerFactoryImpl)
 		//clusterServiceImpl := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, nil, nil, sugaredLogger, nil, nil, nil, nil, nil)
 		k8sApplicationService := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, nil, nil)
-		terminalAccessServiceImpl, _ := NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, k8sApplicationService, k8sClientServiceImpl)
+		terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger)
+		terminalAccessServiceImpl, _ := NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, k8sApplicationService, k8sClientServiceImpl, terminalSessionHandlerImpl)
 		clusterId := 2
 		request := &models.UserTerminalSessionRequest{
-			UserId:    1,
+			UserId:    2,
 			ClusterId: clusterId,
 			BaseImage: "trstringer/internal-kubectl:latest",
 			ShellName: "sh",
@@ -44,7 +47,17 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 			return
 		}
 		fmt.Println(startTerminalSession)
-		err = terminalAccessServiceImpl.DisconnectTerminalSession(startTerminalSession.UserTerminalSessionId)
+		sessionId := ""
+		for sessionId == "" {
+			fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(startTerminalSession.TerminalAccessId)
+			assert.Nil(t, err)
+			sessionId = fetchTerminalStatus.UserTerminalSessionId
+			fmt.Println("sessionId: ", sessionId)
+			time.Sleep(1 * time.Second)
+		}
+		fmt.Println("SessionId: ", sessionId)
+
+		err = terminalAccessServiceImpl.DisconnectTerminalSession(startTerminalSession.TerminalAccessId)
 		if err != nil {
 			fmt.Println(err)
 		}
