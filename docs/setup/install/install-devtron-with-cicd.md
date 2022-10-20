@@ -54,7 +54,15 @@ Use the following command to install Devtron along with AWS S3 buckets for stori
 
 *  Install using S3 IAM policy.
 
->NOTE: Pleasee ensure that S3 permission policy to the IAM role attached to the nodes of the cluster if you are using the below command.
+>NOTE: Please ensure that S3 permission policy to the IAM role attached to the nodes of the cluster if you are using the below command.
+
+If your EKS version is 1.23 or above, you will need to install [aws-ebs-csi-driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html). Run the following commands to install it using Helm.
+
+```bash
+helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+helm repo update
+helm upgrade --install aws-ebs-csi-driver --namespace kube-system aws-ebs-csi-driver/aws-ebs-csi-driver
+```
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
