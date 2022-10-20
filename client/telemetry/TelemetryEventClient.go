@@ -109,7 +109,7 @@ type TelemetryEventEA struct {
 	InstalledIntegrations       []string           `json:"installedIntegrations,omitempty"`
 	InstallFailedIntegrations   []string           `json:"installFailedIntegrations,omitempty"`
 	InstallTimedOutIntegrations []string           `json:"installTimedOutIntegrations,omitempty"`
-	LastLoginTime               time.Time          `json:"LastLoginTimeLoginTime,omitempty"`
+	LastLoginTime               time.Time          `json:"LastLoginTime,omitempty"`
 	InstallingIntegrations      []string           `json:"installingIntegrations,omitempty"`
 	DevtronReleaseVersion       string             `json:"devtronReleaseVersion,omitempty"`
 }
