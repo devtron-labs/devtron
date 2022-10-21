@@ -46,6 +46,7 @@ import (
 )
 
 type UserAuthService interface {
+	HandleLoginWithClientIp(username, password, clientIp string) (string, error)
 	HandleLogin(username string, password string) (string, error)
 	HandleDexCallback(w http.ResponseWriter, r *http.Request)
 	HandleRefresh(w http.ResponseWriter, r *http.Request)
@@ -63,6 +64,7 @@ type UserAuthServiceImpl struct {
 	userRepository      repository2.UserRepository
 	sessionManager      *middleware.SessionManager
 	roleGroupRepository repository2.RoleGroupRepository
+	userService         UserService
 }
 
 var (
@@ -107,7 +109,7 @@ type WebhookToken struct {
 
 func NewUserAuthServiceImpl(userAuthRepository repository2.UserAuthRepository, sessionManager *middleware.SessionManager,
 	client session2.ServiceClient, logger *zap.SugaredLogger, userRepository repository2.UserRepository,
-	roleGroupRepository repository2.RoleGroupRepository) *UserAuthServiceImpl {
+	roleGroupRepository repository2.RoleGroupRepository, userService UserService) *UserAuthServiceImpl {
 	serviceImpl := &UserAuthServiceImpl{
 		userAuthRepository:  userAuthRepository,
 		sessionManager:      sessionManager,
@@ -115,6 +117,7 @@ func NewUserAuthServiceImpl(userAuthRepository repository2.UserAuthRepository, s
 		logger:              logger,
 		userRepository:      userRepository,
 		roleGroupRepository: roleGroupRepository,
+		userService:         userService,
 	}
 	cStore = sessions.NewCookieStore(randKey())
 	return serviceImpl
@@ -250,6 +253,19 @@ func (impl UserAuthServiceImpl) HandleRefresh(w http.ResponseWriter, r *http.Req
 
 		http.Redirect(w, r, "/", http.StatusFound)
 	}
+}
+
+func (impl UserAuthServiceImpl) HandleLoginWithClientIp(username, password, clientIp string) (string, error) {
+	token, err := impl.HandleLogin(username, password)
+	if err == nil {
+		id, _, err := impl.userService.GetUserByToken(token)
+		if err != nil {
+			impl.logger.Infow("error occured while getting user by token", "err", err)
+		} else {
+			impl.userService.SaveLoginAudit("", clientIp, id)
+		}
+	}
+	return token, err
 }
 
 func (impl UserAuthServiceImpl) HandleLogin(username string, password string) (string, error) {
