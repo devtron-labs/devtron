@@ -46,6 +46,7 @@ type AppWorkflowRepository interface {
 	FindWFCDMappingByCIPipelineIds(ciPipelineIds []int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByParentCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
 	FindAllWFMappingsByAppId(appId int) ([]*AppWorkflowMapping, error)
+	FindWFCDMappingByExternalCiId(externalCiId int) (*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -60,6 +61,7 @@ func NewAppWorkflowRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB
 const (
 	CIPIPELINE string = "CI_PIPELINE"
 	CDPIPELINE string = "CD_PIPELINE"
+	WEBHOOK    string = "WEBHOOK"
 )
 
 type AppWorkflow struct {
@@ -285,4 +287,15 @@ func (impl AppWorkflowRepositoryImpl) FindAllWFMappingsByAppId(appId int) ([]*Ap
 		Where("app_workflow_mapping.active = ?", true).
 		Select()
 	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiId(externalCiId int) (*AppWorkflowMapping, error) {
+	var appWorkflowsMapping AppWorkflowMapping
+	err := impl.dbConnection.Model(&appWorkflowsMapping).
+		Where("parent_id = ?", externalCiId).
+		Where("parent_type = ?", WEBHOOK).
+		Where("type = ?", CDPIPELINE).
+		Where("active = ?", true).
+		Select()
+	return &appWorkflowsMapping, err
 }

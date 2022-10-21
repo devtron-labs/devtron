@@ -78,6 +78,7 @@ type PipelineBuilder interface {
 	DeleteMaterial(request *bean.UpdateMaterialDTO) error
 	DeleteApp(appId int, userId int32) error
 	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
+	GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error)
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
 	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
@@ -557,6 +558,61 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 	ciConfig.CiPipelines = ciPipelineResp
 	//--------pipeline population end
 	return ciConfig, err
+}
+
+func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error) {
+	externalCiPipelines, err := impl.ciPipelineRepository.FindExternalCiByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+		return nil, err
+	}
+
+	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	if err != nil {
+		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+		return nil, err
+	}
+	if hostUrl != nil {
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+	}
+
+	var externalCiConfig []*bean.ExternalCiConfig
+	for _, externalCiPipeline := range externalCiPipelines {
+		appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+			return nil, err
+		}
+		cdPipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+			return nil, err
+		}
+
+		app, err := impl.appRepo.FindAppAndProjectByAppId(cdPipeline.AppId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+			return nil, err
+		}
+
+		externalCiConfig = append(externalCiConfig, &bean.ExternalCiConfig{
+			Id:         externalCiPipeline.Id,
+			WebhookUrl: impl.ciConfig.ExternalCiWebhookUrl,
+			Payload:    impl.ciConfig.ExternalCiPayload,
+			AccessKey:  "",
+			ExternalCiConfigRole: bean.ExternalCiConfigRole{
+				ProjectId:       app.TeamId,
+				ProjectName:     app.Team.Name,
+				EnvironmentId:   cdPipeline.EnvironmentId,
+				EnvironmentName: cdPipeline.Environment.Name,
+				AppId:           cdPipeline.AppId,
+				AppName:         cdPipeline.App.AppName,
+				Role:            "Build and deploy",
+			},
+		})
+	}
+	//--------pipeline population end
+	return externalCiConfig, err
 }
 
 func (impl PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipelineMin, error) {
@@ -1407,6 +1463,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 
 	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
 		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
+			AppId:       app.Id,
 			AccessToken: "TEST ACCESS KEY",
 			Active:      false,
 			AuditLog:    sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},

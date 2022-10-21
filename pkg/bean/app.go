@@ -139,6 +139,17 @@ type ExternalCiConfig struct {
 	WebhookUrl string `json:"webhookUrl"`
 	Payload    string `json:"payload"`
 	AccessKey  string `json:"accessKey"`
+	ExternalCiConfigRole
+}
+
+type ExternalCiConfigRole struct {
+	ProjectId       int    `json:"projectId"`
+	ProjectName     string `json:"projectName"`
+	EnvironmentId   int    `json:"environmentId"`
+	EnvironmentName string `json:"environmentName"`
+	AppId           int    `json:"appId"`
+	AppName         string `json:"appName"`
+	Role            string `json:"role"`
 }
 
 // -------------------
