@@ -40,6 +40,7 @@ type BuildPackConfig struct {
 	LanguageVersion string            `json:"languageVersion"`
 	BuildPacks      []string          `json:"buildPacks"`
 	Args            map[string]string `json:"args"`
+	ProjectPath     string            `json:"projectPath,omitempty"`
 }
 
 func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ciBuildConfigBean *CiBuildConfigBean, userId int32) (*pipelineConfig.CiBuildConfig, error) {
