@@ -74,8 +74,8 @@ type InstallAppVersionDTO struct {
 	ValuesOverrideYaml        string                     `json:"valuesOverrideYaml,omitempty"`
 	Readme                    string                     `json:"readme,omitempty"`
 	UserId                    int32                      `json:"-"`
-	ReferenceValueId          int                        `json:"referenceValueId, omitempty" validate:"required,number"`
-	ReferenceValueKind        string                     `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
+	ReferenceValueId          int                        `json:"referenceValueId,omitempty" validate:"required,number"`
+	ReferenceValueKind        string                     `json:"referenceValueKind,omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED EXISTING"`
 	ACDAppName                string                     `json:"-"`
 	Environment               *repository2.Environment   `json:"-"`
 	ChartGroupEntryId         int                        `json:"-"`
@@ -123,8 +123,8 @@ type ChartGroupInstallChartRequest struct {
 	EnvironmentId           int    `json:"environmentId,omitempty" validate:"required,number" `
 	AppStoreVersion         int    `json:"appStoreVersion,omitempty,notnull" validate:"required,number" `
 	ValuesOverrideYaml      string `json:"valuesOverrideYaml,omitempty"` //optional
-	ReferenceValueId        int    `json:"referenceValueId, omitempty" validate:"required,number"`
-	ReferenceValueKind      string `json:"referenceValueKind, omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED"`
+	ReferenceValueId        int    `json:"referenceValueId,omitempty" validate:"required,number"`
+	ReferenceValueKind      string `json:"referenceValueKind,omitempty" validate:"oneof=DEFAULT TEMPLATE DEPLOYED"`
 	ChartGroupEntryId       int    `json:"chartGroupEntryId"` //optional
 	DefaultClusterComponent bool   `json:"-"`
 }
