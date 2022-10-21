@@ -379,6 +379,10 @@ spec:
               fieldPath: metadata.name
         image: {{ $.Values.workflowController.image }}
         name: workflow-controller
+        {{- if $.Values.workflowController.resources }}        
+        resources:
+        {{- toYaml $.Values.workflowController.resources | nindent 10 }}
+        {{- end }}           
       serviceAccountName: argo
 {{- end }}
 {{- end }}
