@@ -300,12 +300,12 @@ func (session *GitSensorClientImpl) doRequest(clientRequest *ClientRequest) (res
 			err = json.Unmarshal(apiRes.Result, clientRequest.ResponseBody)
 			return resBody, &apiStatus, err
 		} else {
-			session.logger.Errorw("api err", "res", apiRes.Errors)
-			return resBody, &apiStatus, fmt.Errorf("err in api res")
+			session.logger.Errorw("api err in argocd communication", "res", apiRes.Errors)
+			return resBody, &apiStatus, fmt.Errorf("err in argocd communication api res")
 		}
 	} else {
-		session.logger.Errorw("api err", "res", string(resBody))
-		return resBody, &status, fmt.Errorf("res not success, code: %d ", status)
+		session.logger.Errorw("api err in argocd communication", "res", string(resBody))
+		return resBody, &status, fmt.Errorf("res not success in argocd communication, Statuscode: %d ", status)
 	}
 	return resBody, &status, err
 }

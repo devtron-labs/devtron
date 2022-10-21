@@ -43,6 +43,7 @@ type TelemetryEventClientImpl struct {
 	PosthogClient    *PosthogClient
 	moduleRepository moduleRepo.ModuleRepository
 	serverDataStore  *serverDataStore.ServerDataStore
+	userAuditService user.UserAuditService
 }
 
 type TelemetryEventClient interface {
@@ -57,7 +58,7 @@ type TelemetryEventClient interface {
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore) (*TelemetryEventClientImpl, error) {
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -71,6 +72,7 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		PosthogClient:    PosthogClient,
 		moduleRepository: moduleRepository,
 		serverDataStore:  serverDataStore,
+		userAuditService: userAuditService,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -107,6 +109,7 @@ type TelemetryEventEA struct {
 	InstalledIntegrations       []string           `json:"installedIntegrations,omitempty"`
 	InstallFailedIntegrations   []string           `json:"installFailedIntegrations,omitempty"`
 	InstallTimedOutIntegrations []string           `json:"installTimedOutIntegrations,omitempty"`
+	LastLoginTime               time.Time          `json:"LastLoginTime,omitempty"`
 	InstallingIntegrations      []string           `json:"installingIntegrations,omitempty"`
 	DevtronReleaseVersion       string             `json:"devtronReleaseVersion,omitempty"`
 }
@@ -218,6 +221,15 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.InstallTimedOutIntegrations = installTimedOutIntegrations
 	payload.InstallingIntegrations = installingIntegrations
 	payload.DevtronReleaseVersion = impl.serverDataStore.CurrentVersion
+
+	latestUser, err := impl.userAuditService.GetLatestUser()
+	if err == nil {
+		loginTime := latestUser.UpdatedOn
+		if loginTime.IsZero() {
+			loginTime = latestUser.CreatedOn
+		}
+		payload.LastLoginTime = loginTime
+	}
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
