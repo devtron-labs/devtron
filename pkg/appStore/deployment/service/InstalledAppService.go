@@ -20,8 +20,11 @@ package service
 import (
 	"bytes"
 	"context"
+	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
+	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
@@ -35,6 +38,8 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
+	"net/http"
+
 	/* #nosec */
 	"crypto/sha1"
 	"encoding/json"
@@ -73,6 +78,7 @@ type InstalledAppService interface {
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
 }
 
 type InstalledAppServiceImpl struct {
@@ -100,6 +106,8 @@ type InstalledAppServiceImpl struct {
 	appStoreDeploymentFullModeService    appStoreDeploymentFullMode.AppStoreDeploymentFullModeService
 	installedAppRepositoryHistory        repository2.InstalledAppVersionHistoryRepository
 	argoUserService                      argo.ArgoUserService
+	helmAppClient                        client.HelmAppClient
+	helmAppService                       client.HelmAppService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -119,7 +127,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
-	argoUserService argo.ArgoUserService) (*InstalledAppServiceImpl, error) {
+	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -145,6 +153,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentFullModeService:    appStoreDeploymentFullModeService,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		argoUserService:                      argoUserService,
+		helmAppClient:                        helmAppClient,
+		helmAppService:                       helmAppService,
 	}
 	err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
 	if err != nil {
@@ -205,7 +215,7 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 	return installedAppsResponse, nil
 }
 
-//converts db object to bean
+// converts db object to bean
 func (impl InstalledAppServiceImpl) chartAdaptor(chart *repository2.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error) {
 
 	return &appStoreBean.InstallAppVersionDTO{
@@ -297,7 +307,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	return &appStoreBean.ChartGroupInstallAppRes{}, nil
 }
 
-//generate unique installation ID using APPID
+// generate unique installation ID using APPID
 func (impl InstalledAppServiceImpl) getInstallationId(installAppVersions []*appStoreBean.InstallAppVersionDTO) (string, error) {
 	var buffer bytes.Buffer
 	for _, installAppVersionDTO := range installAppVersions {
@@ -867,4 +877,68 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 	}
 	values.ValuesYaml = versionHistory.ValuesYamlRaw
 	return values, err
+}
+func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer {
+	if util.IsAcdApp(appDetail.DeploymentAppType) {
+		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
+		query := &application.ResourcesQuery{
+			ApplicationName: &acdAppName,
+		}
+		ctx, cancel := context.WithCancel(rctx)
+		if cn != nil {
+			go func(done <-chan struct{}, closed <-chan bool) {
+				select {
+				case <-done:
+				case <-closed:
+					cancel()
+				}
+			}(ctx.Done(), cn.CloseNotify())
+		}
+		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
+		if err != nil {
+			impl.logger.Errorw("error in getting acd token", "err", err)
+			return *appDetail
+		}
+		ctx = context.WithValue(ctx, "token", acdToken)
+		defer cancel()
+		start := time.Now()
+		resp, err := impl.acdClient.ResourceTree(ctx, query)
+		elapsed := time.Since(start)
+		impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, appDetail.InstalledAppId, appDetail.EnvironmentId)
+		if err != nil {
+			impl.logger.Errorw("service err, FetchAppDetailsForInstalledApp, fetching resource tree", "err", err, "installedAppId", appDetail.InstalledAppId, "envId", appDetail.EnvironmentId)
+			err = &util.ApiError{
+				Code:            constants.AppDetailResourceTreeNotFound,
+				InternalMessage: "app detail fetched, failed to get resource tree from acd",
+				UserMessage:     "app detail fetched, failed to get resource tree from acd",
+			}
+			appDetail.ResourceTree = map[string]interface{}{}
+			return *appDetail
+		}
+		appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
+		impl.logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
+	} else if util.IsHelmApp(appDetail.DeploymentAppType) {
+		config, err := impl.helmAppService.GetClusterConf(appDetail.ClusterId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching cluster detail", "err", err)
+		}
+		req := &client.AppDetailRequest{
+			ClusterConfig: config,
+			Namespace:     appDetail.Namespace,
+			ReleaseName:   fmt.Sprintf("%s", appDetail.AppName),
+		}
+		detail, err := impl.helmAppClient.GetAppDetail(context.Background(), req)
+		if err != nil {
+			impl.logger.Errorw("error in fetching app detail", "err", err)
+		}
+		if detail != nil {
+			resourceTree := util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
+			resourceTree["status"] = detail.ApplicationStatus
+			appDetail.ResourceTree = resourceTree
+			impl.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
+		} else {
+			appDetail.ResourceTree = map[string]interface{}{}
+		}
+	}
+	return *appDetail
 }
