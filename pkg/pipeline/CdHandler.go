@@ -166,10 +166,18 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDe
 
 func (impl *CdHandlerImpl) CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int) error {
 	//getting all the progressing status that are stucked since some time
-	pipelines, err := impl.pipelineRepository.GetPipelinesHavingStatusTimelinesPendingAfterKubectlApplyStatus(pendingSinceSeconds)
-	if err != nil {
+	pipelineIds, err := impl.pipelineRepository.GetPipelineIdsHavingStatusTimelinesPendingAfterKubectlApplyStatus(pendingSinceSeconds)
+	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("err in GetPipelinesHavingStatusTimelinesPendingAfterKubectlApplyStatus", "err", err)
 		return err
+	}
+	var pipelines []*pipelineConfig.Pipeline
+	if len(pipelineIds) > 0 {
+		pipelines, err = impl.pipelineRepository.FindByIdsIn(pipelineIds)
+		if err != nil {
+			impl.Logger.Errorw("err in finding pipelines by pipelineIds", "err", err)
+			return err
+		}
 	}
 	impl.Logger.Infow("received argo cd pipelines stucked at kubectl apply synced stage", "pipelines", pipelines)
 	for _, pipeline := range pipelines {
