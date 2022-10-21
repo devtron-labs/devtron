@@ -1,6 +1,6 @@
 # Application Details
 
-## Access an external link
+## Access an External Link
 
 The users can access the [configured external links](../../user-guide/global-configurations/external-links.md) on the **App Details** page.
 
@@ -42,3 +42,25 @@ Click **Save**. The application will be moved to the selected project.
 **Note**: If you change the project:
 * The current users will lose the access to the application.
 * The users who already have an access to the selected project, will get an access to the application automatically.
+
+
+## Ingress Host URL
+
+You can view the Ingress Host URL and the Load Balancer URL on the **URLs** section on the **App Details**.
+You can also copy the Ingress Host URL from the **URLs** instead of searching in the `Manifest`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/ingress-url-appdetails.jpg)
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/ingress-host-url1.jpg)
+
+1. Select **Applications** from the left navigation pane.
+2. After selecting your configured application, select the **App Details**.
+3. Click **URLs**.
+4. You can view or copy the **URL** of the Ingress Host.
+
+
+**Note**: 
+* The Ingress Host URL will point to the load balancer of your application.
+* You can also view the `Service` name with the load balancer detail.
+
+

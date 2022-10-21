@@ -28,11 +28,14 @@ type UserAudit struct {
 	UserId    int32
 	ClientIp  string
 	CreatedOn time.Time
+	UpdatedOn time.Time
 }
 
 type UserAuditService interface {
 	Save(userAudit *UserAudit) error
 	GetLatestByUserId(userId int32) (*UserAudit, error)
+	GetLatestUser() (*UserAudit, error)
+	Update(userAudit *UserAudit) error
 }
 
 type UserAuditServiceImpl struct {
@@ -45,6 +48,21 @@ func NewUserAuditServiceImpl(logger *zap.SugaredLogger, userAuditRepository repo
 		logger:              logger,
 		userAuditRepository: userAuditRepository,
 	}
+}
+
+func (impl UserAuditServiceImpl) Update(userAudit *UserAudit) error {
+	userId := userAudit.UserId
+	impl.logger.Infow("Saving user audit", "userId", userId)
+	userAuditDb := &repository2.UserAudit{
+		UserId:   userId,
+		ClientIp: userAudit.ClientIp,
+	}
+	err := impl.userAuditRepository.Update(userAuditDb)
+	if err != nil {
+		impl.logger.Errorw("error while updating user audit log", "userId", userId, "error", err)
+		return err
+	}
+	return nil
 }
 
 func (impl UserAuditServiceImpl) Save(userAudit *UserAudit) error {
@@ -80,5 +98,27 @@ func (impl UserAuditServiceImpl) GetLatestByUserId(userId int32) (*UserAudit, er
 		UserId:    userId,
 		ClientIp:  userAuditDb.ClientIp,
 		CreatedOn: userAuditDb.CreatedOn,
+		UpdatedOn: userAuditDb.UpdatedOn,
+	}, nil
+}
+
+func (impl UserAuditServiceImpl) GetLatestUser() (*UserAudit, error) {
+	impl.logger.Info("Getting latest user audit")
+	userAuditDb, err := impl.userAuditRepository.GetLatestUser()
+
+	if err != nil {
+		if err == pg.ErrNoRows {
+			impl.logger.Errorw("no user audits found", "err", err)
+		} else {
+			impl.logger.Errorw("error while getting latest user audit log", "err", err)
+		}
+		return nil, err
+	}
+
+	return &UserAudit{
+		UserId:    userAuditDb.UserId,
+		ClientIp:  userAuditDb.ClientIp,
+		CreatedOn: userAuditDb.CreatedOn,
+		UpdatedOn: userAuditDb.UpdatedOn,
 	}, nil
 }

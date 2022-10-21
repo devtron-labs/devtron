@@ -1,10 +1,8 @@
 # Installation Configuration
 
-## Configuration
+## Configure Secrets
 
-**Configure Secrets**
-
-For `helm` installation this section referes to _**secrets**_ section of `values.yaml`.
+For `Helm` installation this section refers to _**secrets**_ section of `values.yaml`.
 
 Configure the following properties:
 
@@ -13,9 +11,9 @@ Configure the following properties:
 | **POSTGRESQL\_PASSWORD** | Using this parameter the auto-generated password for Postgres can be edited as per requirement(Used by Devtron to store the app information) | NA |
 | **WEBHOOK\_TOKEN** | If you want to continue using Jenkins for CI then provide this for authentication of requests should be base64 encoded | NA |
 
-**Configure ConfigMaps**
+## Configure ConfigMaps
 
-For `helm` installation this section refers to _**configs**_ section of `values.yaml`.
+For `Helm` installation this section refers to _**configs**_ section of `values.yaml`.
 
 Configure the following properties:
 
@@ -27,7 +25,12 @@ Configure the following properties:
 | **EXTERNAL\_SECRET\_AMAZON\_REGION** | AWS region for the secret manager to pick \(required\) | NA |
 | **PROMETHEUS\_URL** | URL of Prometheus where all cluster data is stored; if this is wrong, you will not be able to see application metrics like CPU, RAM, HTTP status code, latency, and throughput \(required\) | NA |
 
-**Configure Overrides**
+## Configure Resources
+Devtron provides ways to control how much `memory` or `CPU` can be allocated to each Devtron microservice. You can adjust the resources that are allocated to these microservices based on your requirements. The resource configurations are available in following sizes:
+ 
+**`Small`**: To configure the small resources (e.g. to manage less than 10 apps on Devtron ) based on the requirements, append the Devtron installation command with  `-f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/resources-small.yaml`.
+
+## Configure Overrides
 
 For `Helm` installation this section refers to _**customOverrides**_ section of `values.yaml`. In this section you can override values of devtron-cm which you want to keep persistent. For example:
 
@@ -39,9 +42,9 @@ You can configure the following properties:
 | **CI\_NODE\_TAINTS\_KEY** | Key for toleration if nodegroup chosen for CIs have some taints | NA |
 | **CI\_NODE\_TAINTS\_VALUE** | Value for toleration if nodegroup chosen for CIs have some taints | NA |
 
-## Storage for Logs and Cache
+### Storage for Logs and Cache
 
-### AWS SPECIFIC	
+#### `AWS SPECIFIC`
 
 While installing Devtron and using the AWS-S3 bucket for storing the logs and caches, the below parameters are to be used in the ConfigMap.
 
@@ -63,7 +66,7 @@ The below parameters are to be used in the Secrets :
 | **BLOB_STORAGE_S3_ACCESS_KEY** | AWS access key to access S3 bucket. Required if installing using AWS credentials. |
 | **BLOB_STORAGE_S3_SECRET_KEY** | AWS secret key to access S3 bucket. Required if installing using AWS credentials. |
 
-### AZURE SPECIFIC
+#### `AZURE SPECIFIC`
 
 While installing Devtron using Azure Blob Storage for storing logs and caches, the below parameters will be used in the ConfigMap.
 
@@ -73,7 +76,7 @@ While installing Devtron using Azure Blob Storage for storing logs and caches, t
 | **AZURE\_BLOB\_CONTAINER\_CI\_LOG** | AZURE Blob storage container for storing ci-logs after running the CI pipeline |  |
 | **AZURE\_BLOB\_CONTAINER\_CI\_CACHE** | AZURE Blob storage container for storing ci-cache after running the CI pipeline |  |
 
-### GOOGLE CLOUD STORAGE SPECIFIC
+#### `GOOGLE CLOUD STORAGE SPECIFIC`
 
 While installing Devtron using Google Cloud Storage for storing logs and caches, the below parameters will be used in the ConfigMap.
 
