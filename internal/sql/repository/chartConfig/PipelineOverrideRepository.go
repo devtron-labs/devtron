@@ -68,7 +68,6 @@ type PipelineOverrideRepository interface {
 	GetLatestReleaseDeploymentType(pipelineIds []int) ([]*PipelineOverride, error)
 	FetchHelmTypePipelineOverridesForStatusUpdate() (pipelines []*PipelineOverride, err error)
 	FindLatestByAppIdAndEnvId(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error)
-	FindAllAfterCommitTimeForApp(appId int, commitTime time.Time) (pipelineOverrides []*PipelineOverride, err error)
 }
 
 type PipelineOverrideRepositoryImpl struct {
@@ -247,15 +246,4 @@ func (impl PipelineOverrideRepositoryImpl) FindLatestByAppIdAndEnvId(appId, envi
 		Order("id DESC").Limit(1).
 		Select()
 	return &override, err
-}
-
-func (impl PipelineOverrideRepositoryImpl) FindAllAfterCommitTimeForApp(appId int, commitTime time.Time) (pipelineOverrides []*PipelineOverride, err error) {
-	var overrides []*PipelineOverride
-	err = impl.dbConnection.Model(&overrides).
-		Column("pipeline_override.*", "Pipeline", "CiArtifact").
-		Where("pipeline.app_id =? ", appId).
-		Where("pipeline_override.commit_time >= ?", commitTime).
-		Order("id DESC").Limit(1).
-		Select()
-	return overrides, err
 }
