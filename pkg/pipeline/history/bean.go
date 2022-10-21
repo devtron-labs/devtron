@@ -15,6 +15,19 @@ const (
 	PIPELINE_STRATEGY_TYPE_HISTORY_COMPONENT   HistoryComponent = "PIPELINE_STRATEGY"
 )
 
+type ComponentLevelHistoryDetailDto struct {
+	ComponentName string            `json:"componentName"`
+	HistoryConfig *HistoryDetailDto `json:"config"`
+}
+
+type AllDeploymentConfigurationDetail struct {
+	DeploymentTemplateConfig *HistoryDetailDto                 `json:"deploymentTemplate"`
+	ConfigMapConfig          []*ComponentLevelHistoryDetailDto `json:"configMap"`
+	SecretConfig             []*ComponentLevelHistoryDetailDto `json:"secret"`
+	StrategyConfig           *HistoryDetailDto                 `json:"pipelineStrategy"`
+	WfrId                    int                               `json:"wfrId"`
+}
+
 type DeploymentConfigurationDto struct {
 	Id                  int              `json:"id,omitempty"`
 	Name                HistoryComponent `json:"name"`
@@ -139,6 +152,8 @@ type ConfigData struct {
 	ExternalSecretType    string           `json:"externalType"`
 	ExternalSecret        []ExternalSecret `json:"secretData"`
 	DefaultExternalSecret []ExternalSecret `json:"defaultSecretData,omitempty"`
+	ESOSecretData         ESOSecretData    `json:"esoSecretData"`
+	DefaultESOSecretData  ESOSecretData    `json:"defaultESOSecretData,omitempty"`
 	RoleARN               string           `json:"roleARN"`
 	SubPath               bool             `json:"subPath"`
 	FilePermission        string           `json:"filePermission"`
@@ -149,4 +164,15 @@ type ExternalSecret struct {
 	Name     string `json:"name"`
 	Property string `json:"property,omitempty"`
 	IsBinary bool   `json:"isBinary"`
+}
+
+type ESOSecretData struct {
+	SecretStore json.RawMessage `json:"secretStore"`
+	EsoData     []ESOData       `json:"esoData"`
+}
+
+type ESOData struct {
+	SecretKey string `json:"secretKey"`
+	Key       string `json:"key"`
+	Property  string `json:"property,omitempty"`
 }

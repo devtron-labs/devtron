@@ -9,6 +9,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -49,7 +50,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
-	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository) (*TelemetryEventClientImplExtended, error) {
+	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain())
@@ -80,6 +81,8 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			ssoLoginService:  ssoLoginService,
 			PosthogClient:    PosthogClient,
 			moduleRepository: moduleRepository,
+			serverDataStore:  serverDataStore,
+			userAuditService: userAuditService,
 		},
 	}
 
@@ -132,6 +135,9 @@ type TelemetryEventDto struct {
 	InstalledIntegrations                []string           `json:"installedIntegrations,omitempty"`
 	InstallFailedIntegrations            []string           `json:"installFailedIntegrations,omitempty"`
 	InstallTimedOutIntegrations          []string           `json:"installTimedOutIntegrations,omitempty"`
+	InstallingIntegrations               []string           `json:"installingIntegrations,omitempty"`
+	DevtronReleaseVersion                string             `json:"devtronReleaseVersion,omitempty"`
+	LastLoginTime                        time.Time          `json:"LastLoginTime,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -248,7 +254,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	deployment, err := impl.cdWorkflowRepository.ExistsByStatus("Healthy")
 
 	// build integrations data
-	installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, err := impl.buildIntegrationsList()
+	installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, installingIntegrations, err := impl.buildIntegrationsList()
 	if err != nil {
 		return err
 	}
@@ -273,6 +279,17 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.InstalledIntegrations = installedIntegrations
 	payload.InstallFailedIntegrations = installFailedIntegrations
 	payload.InstallTimedOutIntegrations = installTimedOutIntegrations
+	payload.InstallingIntegrations = installingIntegrations
+	payload.DevtronReleaseVersion = impl.serverDataStore.CurrentVersion
+
+	latestUser, err := impl.userAuditService.GetLatestUser()
+	if err == nil {
+		loginTime := latestUser.UpdatedOn
+		if loginTime.IsZero() {
+			loginTime = latestUser.CreatedOn
+		}
+		payload.LastLoginTime = loginTime
+	}
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {

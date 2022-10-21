@@ -52,7 +52,7 @@ import (
 type MuxRouter struct {
 	logger                             *zap.SugaredLogger
 	Router                             *mux.Router
-	HelmRouter                         HelmRouter
+	HelmRouter                         PipelineTriggerRouter
 	PipelineConfigRouter               PipelineConfigRouter
 	MigrateDbRouter                    MigrateDbRouter
 	EnvironmentClusterMappingsRouter   cluster.EnvironmentRouter
@@ -115,7 +115,7 @@ type MuxRouter struct {
 	globalCMCSRouter                   GlobalCMCSRouter
 }
 
-func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter HelmRouter, PipelineConfigRouter PipelineConfigRouter,
+func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
 	MigrateDbRouter MigrateDbRouter, AppListingRouter AppListingRouter,
 	EnvironmentClusterMappingsRouter cluster.EnvironmentRouter, ClusterRouter cluster.ClusterRouter,
 	WebHookRouter WebhookRouter, UserAuthRouter user.UserAuthRouter, ApplicationRouter ApplicationRouter,
@@ -249,7 +249,7 @@ func (r MuxRouter) Init() {
 	pipelineConfigRouter := r.Router.PathPrefix("/orchestrator/app").Subrouter()
 	r.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)
 	r.AppListingRouter.initAppListingRouter(pipelineConfigRouter)
-	r.HelmRouter.initHelmRouter(pipelineConfigRouter)
+	r.HelmRouter.initPipelineTriggerRouter(pipelineConfigRouter)
 	r.appRouter.initAppRouter(pipelineConfigRouter)
 
 	migrateRouter := r.Router.PathPrefix("/orchestrator/migrate").Subrouter()

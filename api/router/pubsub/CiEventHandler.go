@@ -20,11 +20,9 @@ package pubsub
 import (
 	"encoding/json"
 	"fmt"
-
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/nats-io/nats.go"
@@ -122,7 +120,7 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 
 		modification := repository.Modification{
 			Revision:     p.CommitHash,
-			ModifiedTime: p.CommitTime.Format(bean.LayoutRFC3339),
+			ModifiedTime: p.CommitTime,
 			Author:       p.Author,
 			Branch:       branch,
 			Tag:          tag,
