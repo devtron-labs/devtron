@@ -175,7 +175,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceT
 			ArgoAppName:                acdAppName,
 			AppId:                      appId,
 			EnvId:                      envId,
-			IgnoreFailedWorkflowStatus: false,
+			IgnoreFailedWorkflowStatus: true,
 		}
 		//write event
 		err := impl.eventClient.WriteNatsEvent(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
