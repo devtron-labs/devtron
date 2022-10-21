@@ -28,6 +28,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
@@ -63,21 +64,22 @@ type AppListingRestHandler interface {
 }
 
 type AppListingRestHandlerImpl struct {
-	application            application.ServiceClient
-	appListingService      app.AppListingService
-	teamService            team.TeamService
-	enforcer               casbin.Enforcer
-	pipeline               pipeline.PipelineBuilder
-	logger                 *zap.SugaredLogger
-	enforcerUtil           rbac.EnforcerUtil
-	deploymentGroupService deploymentGroup.DeploymentGroupService
-	userService            user.UserService
-	helmAppClient          client.HelmAppClient
-	clusterService         cluster.ClusterService
-	helmAppService         client.HelmAppService
-	argoUserService        argo.ArgoUserService
-	k8sApplicationService  k8s.K8sApplicationService
-	installedAppService    service1.InstalledAppService
+	application                      application.ServiceClient
+	appListingService                app.AppListingService
+	teamService                      team.TeamService
+	enforcer                         casbin.Enforcer
+	pipeline                         pipeline.PipelineBuilder
+	logger                           *zap.SugaredLogger
+	enforcerUtil                     rbac.EnforcerUtil
+	deploymentGroupService           deploymentGroup.DeploymentGroupService
+	userService                      user.UserService
+	helmAppClient                    client.HelmAppClient
+	clusterService                   cluster.ClusterService
+	helmAppService                   client.HelmAppService
+	argoUserService                  argo.ArgoUserService
+	k8sApplicationService            k8s.K8sApplicationService
+	installedAppService              service1.InstalledAppService
+	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
 }
 
 type AppStatus struct {
@@ -96,23 +98,25 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	logger *zap.SugaredLogger, enforcerUtil rbac.EnforcerUtil,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
 	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
-	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService) *AppListingRestHandlerImpl {
+	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService,
+	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
-		application:            application,
-		appListingService:      appListingService,
-		logger:                 logger,
-		teamService:            teamService,
-		pipeline:               pipeline,
-		enforcer:               enforcer,
-		enforcerUtil:           enforcerUtil,
-		deploymentGroupService: deploymentGroupService,
-		userService:            userService,
-		helmAppClient:          helmAppClient,
-		clusterService:         clusterService,
-		helmAppService:         helmAppService,
-		argoUserService:        argoUserService,
-		k8sApplicationService:  k8sApplicationService,
-		installedAppService:    installedAppService,
+		application:                      application,
+		appListingService:                appListingService,
+		logger:                           logger,
+		teamService:                      teamService,
+		pipeline:                         pipeline,
+		enforcer:                         enforcer,
+		enforcerUtil:                     enforcerUtil,
+		deploymentGroupService:           deploymentGroupService,
+		userService:                      userService,
+		helmAppClient:                    helmAppClient,
+		clusterService:                   clusterService,
+		helmAppService:                   helmAppService,
+		argoUserService:                  argoUserService,
+		k8sApplicationService:            k8sApplicationService,
+		installedAppService:              installedAppService,
+		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
 	}
 	return appListingHandler
 }
@@ -722,6 +726,12 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
 		handler.logger.Debugw("application environment status", "appId", appId, "envId", envId, "resp", resp)
+		if resp.Status == string(health.HealthStatusHealthy) {
+			err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(acdAppName, appId, envId)
+			if err != nil {
+				handler.logger.Errorw("error in syncing pipeline status", "err", err)
+			}
+		}
 	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsHelmApp(appDetail.DeploymentAppType) {
 		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
 		if err != nil {

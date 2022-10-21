@@ -11,7 +11,6 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/internal/constants"
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
@@ -49,7 +48,6 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	installedAppRepository            repository.InstalledAppRepository
 	installedAppRepositoryHistory     repository.InstalledAppVersionHistoryRepository
 	chartTemplateService              util.ChartTemplateService
-	gitOpsRepository                  repository2.GitOpsConfigRepository
 	gitFactory                        *util.GitFactory
 	argoUserService                   argo.ArgoUserService
 }
@@ -57,7 +55,7 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
-	gitOpsRepository repository2.GitOpsConfigRepository, gitFactory *util.GitFactory, argoUserService argo.ArgoUserService) *AppStoreDeploymentArgoCdServiceImpl {
+	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -66,7 +64,6 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		installedAppRepository:            installedAppRepository,
 		installedAppRepositoryHistory:     installedAppRepositoryHistory,
 		chartTemplateService:              chartTemplateService,
-		gitOpsRepository:                  gitOpsRepository,
 		gitFactory:                        gitFactory,
 		argoUserService:                   argoUserService,
 	}
@@ -375,16 +372,7 @@ func (impl *AppStoreDeploymentArgoCdServiceImpl) UpdateRequirementDependencies(e
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			impl.Logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return err
-		}
-	}
-	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
 		return err
@@ -467,16 +455,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			impl.Logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return installAppVersionRequest, err
-		}
-	}
-	commitHash, err := impl.gitFactory.Client.CommitValues(valuesConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesConfig)
 	if err != nil {
 		impl.Logger.Errorw("error in git commit", "err", err)
 		return installAppVersionRequest, err

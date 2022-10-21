@@ -38,7 +38,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-	"github.com/ktrysmt/go-bitbucket"
 	"net/http"
 
 	/* #nosec */
@@ -216,7 +215,7 @@ func (impl InstalledAppServiceImpl) GetAll(filter *appStoreBean.AppStoreFilter) 
 	return installedAppsResponse, nil
 }
 
-//converts db object to bean
+// converts db object to bean
 func (impl InstalledAppServiceImpl) chartAdaptor(chart *repository2.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error) {
 
 	return &appStoreBean.InstallAppVersionDTO{
@@ -308,7 +307,7 @@ func (impl InstalledAppServiceImpl) DeployBulk(chartGroupInstallRequest *appStor
 	return &appStoreBean.ChartGroupInstallAppRes{}, nil
 }
 
-//generate unique installation ID using APPID
+// generate unique installation ID using APPID
 func (impl InstalledAppServiceImpl) getInstallationId(installAppVersions []*appStoreBean.InstallAppVersionDTO) (string, error) {
 	var buffer bytes.Buffer
 	for _, installAppVersionDTO := range installAppVersions {
@@ -384,12 +383,8 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 				return nil, err
 			}
 		}
-		bitbucketRepoOptions := &bitbucket.RepositoryOptions{
-			Owner:    gitOpsConfigBitbucket.BitBucketWorkspaceId,
-			Project:  gitOpsConfigBitbucket.BitBucketProjectKey,
-			RepoSlug: installedAppVersion.AppStoreName,
-		}
-		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(installedAppVersion.AppStoreName, bitbucketRepoOptions)
+
+		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(installedAppVersion.AppStoreName)
 		if err != nil {
 			//will allow to continue to persist status on next operation
 			impl.logger.Errorw("fetching error", "err", err)
