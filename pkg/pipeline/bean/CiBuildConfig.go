@@ -29,6 +29,8 @@ type DockerBuildConfig struct {
 	DockerfileContent  string            `json:"dockerfileContent"`
 	Args               map[string]string `json:"args,omitempty"`
 	TargetPlatform     string            `json:"targetPlatform,omitempty"`
+	Language           string            `json:"language,omitempty"`
+	LanguageFramework  string            `json:"languageFramework,omitempty"`
 	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
 }
 
