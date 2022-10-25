@@ -50,7 +50,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
-	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore) (*TelemetryEventClientImplExtended, error) {
+	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain())
@@ -82,6 +82,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 			PosthogClient:    PosthogClient,
 			moduleRepository: moduleRepository,
 			serverDataStore:  serverDataStore,
+			userAuditService: userAuditService,
 		},
 	}
 
@@ -136,6 +137,7 @@ type TelemetryEventDto struct {
 	InstallTimedOutIntegrations          []string           `json:"installTimedOutIntegrations,omitempty"`
 	InstallingIntegrations               []string           `json:"installingIntegrations,omitempty"`
 	DevtronReleaseVersion                string             `json:"devtronReleaseVersion,omitempty"`
+	LastLoginTime                        time.Time          `json:"LastLoginTime,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -279,6 +281,15 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.InstallTimedOutIntegrations = installTimedOutIntegrations
 	payload.InstallingIntegrations = installingIntegrations
 	payload.DevtronReleaseVersion = impl.serverDataStore.CurrentVersion
+
+	latestUser, err := impl.userAuditService.GetLatestUser()
+	if err == nil {
+		loginTime := latestUser.UpdatedOn
+		if loginTime.IsZero() {
+			loginTime = latestUser.CreatedOn
+		}
+		payload.LastLoginTime = loginTime
+	}
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
