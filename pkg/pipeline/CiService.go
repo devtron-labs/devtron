@@ -158,6 +158,7 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 	impl.Logger.Debugw("ci triggered", "wf name ", createdWf.Name, " pipeline ", trigger.PipelineId)
+
 	middleware.CiTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(trigger.PipelineId)).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
 	return savedCiWf.Id, err
@@ -266,6 +267,7 @@ func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest, a
 	}
 	return createdWorkFlow, nil
 }
+
 func (impl *CiServiceImpl) buildS3ArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) (string, string, string) {
 	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
 	if ciArtifactLocationFormat == "" {
@@ -447,7 +449,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		WorkflowId:                 savedWf.Id,
 		TriggeredBy:                savedWf.TriggeredBy,
 		CacheLimit:                 impl.ciConfig.CacheLimit,
-		InvalidateCache:            trigger.InvalidateCache,
 		ScanEnabled:                pipeline.ScanEnabled,
 		CloudProvider:              impl.ciConfig.CloudProvider,
 		DefaultAddressPoolBaseCidr: impl.ciConfig.DefaultAddressPoolBaseCidr,
@@ -458,6 +459,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		AppName:                    pipeline.App.AppName,
 		TriggerByAuthor:            user.EmailId,
 		DockerBuildOptions:         pipeline.CiTemplate.DockerBuildOptions,
+		IgnoreDockerCachePush:      impl.ciConfig.IgnoreDockerCacheForCI,
+		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI || trigger.InvalidateCache,
 	}
 
 	if ciWorkflowConfig.LogsBucket == "" {

@@ -97,7 +97,6 @@ type WorkflowRequest struct {
 	CiArtifactBucket           string                            `json:"ciArtifactBucket"`
 	CiArtifactFileName         string                            `json:"ciArtifactFileName"`
 	CiArtifactRegion           string                            `json:"ciArtifactRegion"`
-	InvalidateCache            bool                              `json:"invalidateCache"`
 	ScanEnabled                bool                              `json:"scanEnabled"`
 	CloudProvider              blob_storage.BlobStorageType      `json:"cloudProvider"`
 	BlobStorageConfigured      bool                              `json:"blobStorageConfigured"`
@@ -112,15 +111,18 @@ type WorkflowRequest struct {
 	AppName                    string                            `json:"appName"`
 	TriggerByAuthor            string                            `json:"triggerByAuthor"`
 	DockerBuildOptions         string                            `json:"dockerBuildOptions"`
+	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
+	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
 }
 
 const (
-	BLOB_STORAGE_AZURE      = "AZURE"
-	BLOB_STORAGE_S3         = "S3"
-	BLOB_STORAGE_GCP        = "GCP"
-	BLOB_STORAGE_MINIO      = "MINIO"
-	CI_WORKFLOW_NAME        = "ci"
-	CI_WORKFLOW_WITH_STAGES = "ci-stages-with-env"
+	BLOB_STORAGE_AZURE             = "AZURE"
+	BLOB_STORAGE_S3                = "S3"
+	BLOB_STORAGE_GCP               = "GCP"
+	BLOB_STORAGE_MINIO             = "MINIO"
+	CI_WORKFLOW_NAME               = "ci"
+	CI_WORKFLOW_WITH_STAGES        = "ci-stages-with-env"
+	CI_NODE_SELECTOR_APP_LABEL_KEY = "devtron.ai/node-selector"
 )
 
 type ContainerResources struct {
@@ -514,57 +516,44 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	}
 
 	// volume mount
-	if impl.ciConfig.MountMavenDirectory {
-
-		impl.Logger.Info(ciTemplate.Container)
-
-		hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
-		ciTemplate.Container.VolumeMounts = []v12.VolumeMount{
-			{
-				Name:      "maven-dir",
-				MountPath: "/devtroncd/.m2",
-			},
-			{
-				Name:      "docker-dir",
-				MountPath: "/var/lib/docker",
-			},
+	volumeMountsForCiJson := impl.ciConfig.VolumeMountsForCiJson
+	if len(volumeMountsForCiJson) > 0 {
+		var volumeMountsForCi []CiVolumeMount
+		// Unmarshal or Decode the JSON to the interface.
+		err = json.Unmarshal([]byte(volumeMountsForCiJson), &volumeMountsForCi)
+		if err != nil {
+			impl.Logger.Errorw("err in unmarshalling volumeMountsForCiJson", "err", err, "val", volumeMountsForCiJson)
+			return nil, err
 		}
-		ciTemplate.Volumes = []v12.Volume{
-			{
-				Name: "maven-dir",
+
+		for _, volumeMountsForCi := range volumeMountsForCi {
+			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+			ciTemplate.Volumes = append(ciTemplate.Volumes, v12.Volume{
+				Name: volumeMountsForCi.Name,
 				VolumeSource: v12.VolumeSource{
 					HostPath: &v12.HostPathVolumeSource{
-						Path: impl.ciConfig.HostMavenDirectoryPath,
+						Path: volumeMountsForCi.HostMountPath,
 						Type: &hostPathDirectoryOrCreate,
 					},
 				},
-			},
-			{
-				Name: "docker-dir",
-				VolumeSource: v12.VolumeSource{
-					HostPath: &v12.HostPathVolumeSource{
-						Path: impl.ciConfig.HostDockerDirectoryPath,
-						Type: &hostPathDirectoryOrCreate,
-					},
-				},
-			},
+			})
+			ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+				Name:      volumeMountsForCi.Name,
+				MountPath: volumeMountsForCi.ContainerMountPath,
+			})
 		}
+	}
 
-		if val, ok := appLabels["nodeSelectorDevtron"]; ok {
-			impl.Logger.Infow("nodeSelectorDevtron found", "val", val)
-
-			var nodeSelectors map[string]string
-
-			// Unmarshal or Decode the JSON to the interface.
-			err = json.Unmarshal([]byte(val), &nodeSelectors)
-			if err != nil {
-				impl.Logger.Errorw("err in unmarshalling nodeSelectors", "err", err, "val", val)
-				return nil, err
-			}
-
-			ciTemplate.NodeSelector = nodeSelectors
+	// node selector
+	if val, ok := appLabels[CI_NODE_SELECTOR_APP_LABEL_KEY]; ok {
+		var nodeSelectors map[string]string
+		// Unmarshal or Decode the JSON to the interface.
+		err = json.Unmarshal([]byte(val), &nodeSelectors)
+		if err != nil {
+			impl.Logger.Errorw("err in unmarshalling nodeSelectors", "err", err, "val", val)
+			return nil, err
 		}
-
+		ciTemplate.NodeSelector = nodeSelectors
 	}
 
 	templates = append(templates, ciTemplate)

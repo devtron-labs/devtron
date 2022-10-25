@@ -76,11 +76,16 @@ type CiConfig struct {
 	BlobStorageGcpCredentialJson   string                       `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
 	BuildLogTTLValue               int                          `json:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
 	AzureAccountKey                string                       `env:"AZURE_ACCOUNT_KEY"`
-	MountMavenDirectory            bool                         `env:"MOUNT_MAVEN_DIRECTORY"`
-	HostMavenDirectoryPath         string                       `env:"HOST_MAVEN_DIRECTORY_PATH" envDefault:"/home/devtron/.m2"`
-	HostDockerDirectoryPath        string                       `env:"HOST_DOCKER_DIRECTORY_PATH" envDefault:"/home/devtron/docker"`
+	IgnoreDockerCacheForCI         bool                         `env:"CI_IGNORE_DOCKER_CACHE"`
+	VolumeMountsForCiJson          string                       `env:"CI_VOLUME_MOUNTS_JSON"`
 	ClusterConfig                  *rest.Config
 	NodeLabel                      map[string]string
+}
+
+type CiVolumeMount struct {
+	Name               string `json:"name"`
+	HostMountPath      string `json:"hostMountPath"`
+	ContainerMountPath string `json:"containerMountPath"`
 }
 
 const ExternalCiWebhookPath = "orchestrator/webhook/ext-ci"
