@@ -19,4 +19,4 @@ ALTER TABLE "public"."docker_registry_ips_config"
 
 -- insert values
 INSERT INTO docker_registry_ips_config (docker_artifact_store_id, credential_type, ignored_cluster_ids_csv)
-VALUES (SELECT id, 'SAME_AS_REGISTRY', '-1' from docker_artifact_store);
+SELECT id, 'SAME_AS_REGISTRY', '-1' from docker_artifact_store;
