@@ -18,8 +18,8 @@
 package pipelineConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
@@ -44,7 +44,7 @@ type CiTemplate struct {
 	DockerBuildOptions string   `sql:"docker_build_options"` //json string format of map[string]string
 	sql.AuditLog
 	App            *app.App
-	DockerRegistry *repository.DockerArtifactStore
+	DockerRegistry *dockerRegistryRepository.DockerArtifactStore
 	GitMaterial    *GitMaterial
 }
 

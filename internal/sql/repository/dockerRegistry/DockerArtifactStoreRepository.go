@@ -46,6 +46,7 @@ type DockerArtifactStore struct {
 	Connection         string       `sql:"connection" json:"connection,omitempty"`
 	Cert               string       `sql:"cert" json:"cert,omitempty"`
 	Active             bool         `sql:"active,notnull" json:"active"`
+	IpsConfig          *DockerRegistryIpsConfig
 	sql.AuditLog
 }
 
@@ -59,12 +60,13 @@ func (store *DockerArtifactStore) GetRegistryLocation() (registryLocation string
 }
 
 type DockerArtifactStoreRepository interface {
-	Save(artifactStore *DockerArtifactStore) error
+	GetConnection() *pg.DB
+	Save(artifactStore *DockerArtifactStore, tx *pg.Tx) error
 	FindActiveDefaultStore() (*DockerArtifactStore, error)
 	FindAllActiveForAutocomplete() ([]DockerArtifactStore, error)
 	FindAll() ([]DockerArtifactStore, error)
 	FindOne(storeId string) (*DockerArtifactStore, error)
-	Update(artifactStore *DockerArtifactStore) error
+	Update(artifactStore *DockerArtifactStore, tx *pg.Tx) error
 	Delete(storeId string) error
 	MarkRegistryDeleted(artifactStore *DockerArtifactStore) error
 }
@@ -76,7 +78,11 @@ func NewDockerArtifactStoreRepositoryImpl(dbConnection *pg.DB) *DockerArtifactSt
 	return &DockerArtifactStoreRepositoryImpl{dbConnection: dbConnection}
 }
 
-func (impl DockerArtifactStoreRepositoryImpl) Save(artifactStore *DockerArtifactStore) error {
+func (impl DockerArtifactStoreRepositoryImpl) GetConnection() *pg.DB {
+	return impl.dbConnection
+}
+
+func (impl DockerArtifactStoreRepositoryImpl) Save(artifactStore *DockerArtifactStore, tx *pg.Tx) error {
 	//TODO check for unique default
 	//there can be only one default
 	model, err := impl.FindActiveDefaultStore()
@@ -84,12 +90,12 @@ func (impl DockerArtifactStoreRepositoryImpl) Save(artifactStore *DockerArtifact
 		artifactStore.IsDefault = true
 	} else if err == nil && model.Id != artifactStore.Id && artifactStore.IsDefault == true {
 		model.IsDefault = false
-		err = impl.Update(model)
+		err = impl.Update(model, tx)
 		if err != nil {
 			return err
 		}
 	}
-	return impl.dbConnection.Insert(artifactStore)
+	return tx.Insert(artifactStore)
 }
 
 func (impl DockerArtifactStoreRepositoryImpl) FindActiveDefaultStore() (*DockerArtifactStore, error) {
@@ -112,8 +118,8 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]
 func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, error) {
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
+		Column("docker_artifact_store.*", "IpsConfig").
 		Where("active = ?", true).
-		//Column("id", "plugin_id","registry_url", "registry_type","aws_accesskey_id","aws_secret_accesskey","aws_region","username","password","is_default","active").
 		Select()
 	return providers, err
 }
@@ -121,14 +127,14 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAll() ([]DockerArtifactStore, 
 func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerArtifactStore, error) {
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
+		Column("docker_artifact_store.*", "IpsConfig").
 		Where("id = ?", storeId).
 		Where("active = ?", true).
-		//Column("id", "plugin_id","registry_url", "registry_type","aws_accesskey_id","aws_secret_accesskey","aws_region","username","password","is_default","active").
 		Select()
 	return &provider, err
 }
 
-func (impl DockerArtifactStoreRepositoryImpl) Update(artifactStore *DockerArtifactStore) error {
+func (impl DockerArtifactStoreRepositoryImpl) Update(artifactStore *DockerArtifactStore, tx *pg.Tx) error {
 	//TODO check for unique default
 	//there can be only one default
 
@@ -136,10 +142,10 @@ func (impl DockerArtifactStoreRepositoryImpl) Update(artifactStore *DockerArtifa
 		model, err := impl.FindActiveDefaultStore()
 		if err == nil && model.Id != artifactStore.Id {
 			model.IsDefault = false
-			_ = impl.Update(model)
+			_ = impl.Update(model, tx)
 		}
 	}
-	return impl.dbConnection.Update(artifactStore)
+	return tx.Update(artifactStore)
 }
 
 func (impl DockerArtifactStoreRepositoryImpl) Delete(storeId string) error {
