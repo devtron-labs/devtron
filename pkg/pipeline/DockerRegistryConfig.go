@@ -20,7 +20,6 @@ package pipeline
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
-	"strconv"
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/constants"
@@ -124,14 +123,9 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 	bean.Id = store.Id
 
 	// 3- insert imagePullSecretConfig for this docker registry
-	dockerArtifactStoreId, err := strconv.Atoi(store.Id)
-	if err != nil {
-		impl.logger.Errorw("error in converting dockerArtifactStoreId string to int", "dockerArtifactStoreId", store.Id, "err", err)
-		return nil, err
-	}
 	dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
 	ipsConfig := &repository.DockerRegistryIpsConfig{
-		DockerArtifactStoreId: dockerArtifactStoreId,
+		DockerArtifactStoreId: store.Id,
 		CredentialType:        dockerRegistryIpsConfig.CredentialType,
 		CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
 		AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
@@ -311,15 +305,10 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 	bean.Id = store.Id
 
 	// 4- update imagePullSecretConfig for this docker registry
-	dockerArtifactStoreId, err := strconv.Atoi(store.Id)
-	if err != nil {
-		impl.logger.Errorw("error in converting dockerArtifactStoreId string to int", "dockerArtifactStoreId", store.Id, "err", err)
-		return nil, err
-	}
 	dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
 	ipsConfig := &repository.DockerRegistryIpsConfig{
 		Id:                    dockerRegistryIpsConfig.Id,
-		DockerArtifactStoreId: dockerArtifactStoreId,
+		DockerArtifactStoreId: store.Id,
 		CredentialType:        dockerRegistryIpsConfig.CredentialType,
 		CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
 		AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,

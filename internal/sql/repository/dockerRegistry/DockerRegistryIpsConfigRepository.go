@@ -24,7 +24,7 @@ import (
 type DockerRegistryIpsConfig struct {
 	tableName             struct{}                        `sql:"docker_registry_ips_config" pg:",discard_unknown_columns"`
 	Id                    int                             `sql:"id,pk"`
-	DockerArtifactStoreId int                             `sql:"docker_artifact_store_id,notnull"`
+	DockerArtifactStoreId string                          `sql:"docker_artifact_store_id,notnull"`
 	CredentialType        DockerRegistryIpsCredentialType `sql:"credential_type,notnull"`
 	CredentialValue       string                          `sql:"credential_value"`
 	AppliedClusterIdsCsv  string                          `sql:"applied_cluster_ids_csv"` // -1 means all_cluster
