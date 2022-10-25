@@ -110,7 +110,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindAllActiveForAutocomplete() ([]
 	var providers []DockerArtifactStore
 	err := impl.dbConnection.Model(&providers).
 		Where("active = ?", true).
-		Column("id", "registry_url", "registry_type", "is_default").
+		Column("docker_artifact_store.id", "registry_url", "registry_type", "is_default").
 		Select()
 	return providers, err
 }
@@ -128,7 +128,7 @@ func (impl DockerArtifactStoreRepositoryImpl) FindOne(storeId string) (*DockerAr
 	var provider DockerArtifactStore
 	err := impl.dbConnection.Model(&provider).
 		Column("docker_artifact_store.*", "IpsConfig").
-		Where("id = ?", storeId).
+		Where("docker_artifact_store.id = ?", storeId).
 		Where("active = ?", true).
 		Select()
 	return &provider, err
