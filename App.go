@@ -21,6 +21,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	pubsub1 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/client/telemetry"
 	"log"
 	"net/http"
@@ -49,6 +50,7 @@ type App struct {
 	db            *pg.DB
 	pubsubClient  *pubsub.PubSubClient
 	posthogClient *telemetry.PosthogClient
+	pubsubClinet1 *pubsub1.PubSubClientServiceImpl
 	// used for local dev only
 	serveTls        bool
 	sessionManager2 *authMiddleware.SessionManager
@@ -61,6 +63,7 @@ func NewApp(router *router.MuxRouter,
 	enforcer *casbin.SyncedEnforcer,
 	db *pg.DB,
 	pubsubClient *pubsub.PubSubClient,
+	pubsubClinet1 *pubsub1.PubSubClientServiceImpl,
 	sessionManager2 *authMiddleware.SessionManager,
 	posthogClient *telemetry.PosthogClient,
 ) *App {
@@ -73,6 +76,7 @@ func NewApp(router *router.MuxRouter,
 		Enforcer:        enforcer,
 		db:              db,
 		pubsubClient:    pubsubClient,
+		pubsubClinet1:   pubsubClinet1,
 		serveTls:        false,
 		sessionManager2: sessionManager2,
 		posthogClient:   posthogClient,

@@ -19,6 +19,7 @@ package router
 
 import (
 	"encoding/json"
+	pubsub3 "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	"github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
@@ -69,6 +70,7 @@ type MuxRouter struct {
 	NotificationRouter                 NotificationRouter
 	TeamRouter                         team.TeamRouter
 	pubsubClient                       *pubsub2.PubSubClient
+	pubsubClient1                      *pubsub3.PubSubClientServiceImpl
 	UserRouter                         user.UserRouter
 	gitWebhookHandler                  pubsub.GitWebhookHandler
 	workflowUpdateHandler              pubsub.WorkflowStatusUpdateHandler
@@ -127,7 +129,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	gitWebhookHandler pubsub.GitWebhookHandler,
 	workflowUpdateHandler pubsub.WorkflowStatusUpdateHandler,
 	appUpdateHandler pubsub.ApplicationStatusUpdateHandler,
-	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClient, UserRouter user.UserRouter,
+	ciEventHandler pubsub.CiEventHandler, pubsubClient *pubsub2.PubSubClient, pubsubClient1 *pubsub3.PubSubClientServiceImpl, UserRouter user.UserRouter,
 	ChartRefRouter ChartRefRouter, ConfigMapRouter ConfigMapRouter, AppStoreRouter appStore.AppStoreRouter, chartRepositoryRouter chartRepo.ChartRepositoryRouter,
 	ReleaseMetricsRouter ReleaseMetricsRouter, deploymentGroupRouter DeploymentGroupRouter, batchOperationRouter BatchOperationRouter,
 	chartGroupRouter ChartGroupRouter, testSuitRouter TestSuitRouter, imageScanRouter ImageScanRouter,
@@ -164,6 +166,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		appUpdateHandler:                   appUpdateHandler,
 		ciEventHandler:                     ciEventHandler,
 		pubsubClient:                       pubsubClient,
+		pubsubClient1:                      pubsubClient1,
 		UserRouter:                         UserRouter,
 		ChartRefRouter:                     ChartRefRouter,
 		ConfigMapRouter:                    ConfigMapRouter,
