@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
@@ -69,55 +70,57 @@ import (
 )
 
 type AppServiceImpl struct {
-	environmentConfigRepository      chartConfig.EnvConfigOverrideRepository
-	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
-	mergeUtil                        *MergeUtil
-	logger                           *zap.SugaredLogger
-	ciArtifactRepository             repository.CiArtifactRepository
-	pipelineRepository               pipelineConfig.PipelineRepository
-	gitFactory                       *GitFactory
-	dbMigrationConfigRepository      pipelineConfig.DbMigrationConfigRepository
-	eventClient                      client.EventClient
-	eventFactory                     client.EventFactory
-	acdClient                        application.ServiceClient
-	tokenCache                       *util3.TokenCache
-	acdAuthConfig                    *util3.ACDAuthConfig
-	enforcer                         casbin.Enforcer
-	enforcerUtil                     rbac.EnforcerUtil
-	user                             user.UserService
-	appListingRepository             repository.AppListingRepository
-	appRepository                    app.AppRepository
-	envRepository                    repository2.EnvironmentRepository
-	pipelineConfigRepository         chartConfig.PipelineConfigRepository
-	configMapRepository              chartConfig.ConfigMapRepository
-	chartRepository                  chartRepoRepository.ChartRepository
-	appRepo                          app.AppRepository
-	appLevelMetricsRepository        repository.AppLevelMetricsRepository
-	envLevelMetricsRepository        repository.EnvLevelAppMetricsRepository
-	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
-	commonService                    commonService.CommonService
-	imageScanDeployInfoRepository    security.ImageScanDeployInfoRepository
-	imageScanHistoryRepository       security.ImageScanHistoryRepository
-	ArgoK8sClient                    argocdServer.ArgoK8sClient
-	gitOpsRepository                 repository.GitOpsConfigRepository
-	pipelineStrategyHistoryService   history2.PipelineStrategyHistoryService
-	configMapHistoryService          history2.ConfigMapHistoryService
-	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService
-	chartTemplateService             ChartTemplateService
-	refChartDir                      chartRepoRepository.RefChartDir
-	helmAppClient                    client2.HelmAppClient
-	chartRefRepository               chartRepoRepository.ChartRefRepository
-	chartService                     chart.ChartService
-	argoUserService                  argo.ArgoUserService
-	cdPipelineStatusTimelineRepo     pipelineConfig.PipelineStatusTimelineRepository
-	appCrudOperationService          AppCrudOperationService
+	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
+	pipelineOverrideRepository          chartConfig.PipelineOverrideRepository
+	mergeUtil                           *MergeUtil
+	logger                              *zap.SugaredLogger
+	ciArtifactRepository                repository.CiArtifactRepository
+	pipelineRepository                  pipelineConfig.PipelineRepository
+	gitFactory                          *GitFactory
+	dbMigrationConfigRepository         pipelineConfig.DbMigrationConfigRepository
+	eventClient                         client.EventClient
+	eventFactory                        client.EventFactory
+	acdClient                           application.ServiceClient
+	tokenCache                          *util3.TokenCache
+	acdAuthConfig                       *util3.ACDAuthConfig
+	enforcer                            casbin.Enforcer
+	enforcerUtil                        rbac.EnforcerUtil
+	user                                user.UserService
+	appListingRepository                repository.AppListingRepository
+	appRepository                       app.AppRepository
+	envRepository                       repository2.EnvironmentRepository
+	pipelineConfigRepository            chartConfig.PipelineConfigRepository
+	configMapRepository                 chartConfig.ConfigMapRepository
+	chartRepository                     chartRepoRepository.ChartRepository
+	appRepo                             app.AppRepository
+	appLevelMetricsRepository           repository.AppLevelMetricsRepository
+	envLevelMetricsRepository           repository.EnvLevelAppMetricsRepository
+	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
+	commonService                       commonService.CommonService
+	imageScanDeployInfoRepository       security.ImageScanDeployInfoRepository
+	imageScanHistoryRepository          security.ImageScanHistoryRepository
+	ArgoK8sClient                       argocdServer.ArgoK8sClient
+	pipelineStrategyHistoryService      history2.PipelineStrategyHistoryService
+	configMapHistoryService             history2.ConfigMapHistoryService
+	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
+	chartTemplateService                ChartTemplateService
+	refChartDir                         chartRepoRepository.RefChartDir
+	helmAppClient                       client2.HelmAppClient
+	chartRefRepository                  chartRepoRepository.ChartRefRepository
+	chartService                        chart.ChartService
+	argoUserService                     argo.ArgoUserService
+	cdPipelineStatusTimelineRepo        pipelineConfig.PipelineStatusTimelineRepository
+	appCrudOperationService             AppCrudOperationService
+	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
+	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
 }
 
 type AppService interface {
 	TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32, wfrId int) (id int, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
-	UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp *v1alpha1.Application) (bool, error)
+	UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp *v1alpha1.Application, statusTime time.Time) (bool, error)
 	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, async bool, triggeredAt time.Time) error
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWorkflowId int) error
@@ -148,7 +151,7 @@ func NewAppService(
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, commonService commonService.CommonService,
 	imageScanDeployInfoRepository security.ImageScanDeployInfoRepository, imageScanHistoryRepository security.ImageScanHistoryRepository,
 	ArgoK8sClient argocdServer.ArgoK8sClient,
-	gitFactory *GitFactory, gitOpsRepository repository.GitOpsConfigRepository,
+	gitFactory *GitFactory,
 	pipelineStrategyHistoryService history2.PipelineStrategyHistoryService,
 	configMapHistoryService history2.ConfigMapHistoryService,
 	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService,
@@ -157,59 +160,62 @@ func NewAppService(
 	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	appCrudOperationService AppCrudOperationService) *AppServiceImpl {
+	appCrudOperationService AppCrudOperationService,
+	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
+	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
-		environmentConfigRepository:      environmentConfigRepository,
-		mergeUtil:                        mergeUtil,
-		pipelineOverrideRepository:       pipelineOverrideRepository,
-		logger:                           logger,
-		ciArtifactRepository:             ciArtifactRepository,
-		pipelineRepository:               pipelineRepository,
-		dbMigrationConfigRepository:      dbMigrationConfigRepository,
-		eventClient:                      eventClient,
-		eventFactory:                     eventFactory,
-		acdClient:                        acdClient,
-		tokenCache:                       cache,
-		acdAuthConfig:                    authConfig,
-		enforcer:                         enforcer,
-		enforcerUtil:                     enforcerUtil,
-		user:                             user,
-		appListingRepository:             appListingRepository,
-		appRepository:                    appRepository,
-		envRepository:                    envRepository,
-		pipelineConfigRepository:         pipelineConfigRepository,
-		configMapRepository:              configMapRepository,
-		chartRepository:                  chartRepository,
-		appLevelMetricsRepository:        appLevelMetricsRepository,
-		envLevelMetricsRepository:        envLevelMetricsRepository,
-		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
-		cdWorkflowRepository:             cdWorkflowRepository,
-		commonService:                    commonService,
-		imageScanDeployInfoRepository:    imageScanDeployInfoRepository,
-		imageScanHistoryRepository:       imageScanHistoryRepository,
-		ArgoK8sClient:                    ArgoK8sClient,
-		gitFactory:                       gitFactory,
-		gitOpsRepository:                 gitOpsRepository,
-		pipelineStrategyHistoryService:   pipelineStrategyHistoryService,
-		configMapHistoryService:          configMapHistoryService,
-		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
-		chartTemplateService:             chartTemplateService,
-		refChartDir:                      refChartDir,
-		chartRefRepository:               chartRefRepository,
-		chartService:                     chartService,
-		helmAppClient:                    helmAppClient,
-		argoUserService:                  argoUserService,
-		cdPipelineStatusTimelineRepo:     cdPipelineStatusTimelineRepo,
-		appCrudOperationService:          appCrudOperationService,
+		environmentConfigRepository:         environmentConfigRepository,
+		mergeUtil:                           mergeUtil,
+		pipelineOverrideRepository:          pipelineOverrideRepository,
+		logger:                              logger,
+		ciArtifactRepository:                ciArtifactRepository,
+		pipelineRepository:                  pipelineRepository,
+		dbMigrationConfigRepository:         dbMigrationConfigRepository,
+		eventClient:                         eventClient,
+		eventFactory:                        eventFactory,
+		acdClient:                           acdClient,
+		tokenCache:                          cache,
+		acdAuthConfig:                       authConfig,
+		enforcer:                            enforcer,
+		enforcerUtil:                        enforcerUtil,
+		user:                                user,
+		appListingRepository:                appListingRepository,
+		appRepository:                       appRepository,
+		envRepository:                       envRepository,
+		pipelineConfigRepository:            pipelineConfigRepository,
+		configMapRepository:                 configMapRepository,
+		chartRepository:                     chartRepository,
+		appLevelMetricsRepository:           appLevelMetricsRepository,
+		envLevelMetricsRepository:           envLevelMetricsRepository,
+		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
+		cdWorkflowRepository:                cdWorkflowRepository,
+		commonService:                       commonService,
+		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
+		imageScanHistoryRepository:          imageScanHistoryRepository,
+		ArgoK8sClient:                       ArgoK8sClient,
+		gitFactory:                          gitFactory,
+		pipelineStrategyHistoryService:      pipelineStrategyHistoryService,
+		configMapHistoryService:             configMapHistoryService,
+		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
+		chartTemplateService:                chartTemplateService,
+		refChartDir:                         refChartDir,
+		chartRefRepository:                  chartRefRepository,
+		chartService:                        chartService,
+		helmAppClient:                       helmAppClient,
+		argoUserService:                     argoUserService,
+		cdPipelineStatusTimelineRepo:        cdPipelineStatusTimelineRepo,
+		appCrudOperationService:             appCrudOperationService,
+		configMapHistoryRepository:          configMapHistoryRepository,
+		strategyHistoryRepository:           strategyHistoryRepository,
+		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
 	}
 	return appServiceImpl
 }
 
 const (
-	WorkflowAborted = "Aborted"
-	WorkflowFailed  = "Failed"
-	Success         = "SUCCESS"
-	Failure         = "FAILURE"
+	Success = "SUCCESS"
+	Failure = "FAILURE"
 )
 
 func (impl AppServiceImpl) getValuesFileForEnv(environmentId int) string {
@@ -264,7 +270,7 @@ func (impl AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.Release
 	return count == 1, nil
 }
 
-func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp *v1alpha1.Application) (bool, error) {
+func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp *v1alpha1.Application, statusTime time.Time) (bool, error) {
 	isHealthy := false
 	repoUrl := newApp.Spec.Source.RepoURL
 	// backward compatibility for updating application status - if unable to find app check it in charts
@@ -292,19 +298,32 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 		impl.logger.Errorw("error in fetching deployment status", "dbApp", dbApp, "err", err)
 		return isHealthy, err
 	}
-	gitHash := newApp.Status.Sync.Revision
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
+	//getting latest pipelineOverride for newApp (by appId and envId)
+	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(deploymentStatus.AppId, deploymentStatus.EnvId)
 	if err != nil {
-		impl.logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "dbApp", dbApp, "err", err)
+		impl.logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId)
 		return isHealthy, err
 	}
+	gitHash := newApp.Status.Sync.Revision
+	if pipelineOverride.GitHash != gitHash {
+		pipelineOverrideByHash, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
+		if err != nil {
+			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "err", err)
+			return isHealthy, err
+		}
+		if pipelineOverrideByHash.CommitTime.Before(pipelineOverride.CommitTime) {
+			//we have received trigger hash which is committed before this apps actual gitHash stored by us
+			// this means that the hash stored by us will be synced later, so we will drop this event
+			return isHealthy, nil
+		}
+	}
 	//updating cd pipeline status timeline
-	err = impl.UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp, pipelineOverride)
+	err = impl.UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp, pipelineOverride, statusTime)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
 
-	if !IsTerminalStatus(deploymentStatus.Status) {
+	if !util2.IsTerminalStatus(deploymentStatus.Status) {
 		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
@@ -376,19 +395,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 	return isHealthy, nil
 }
 
-func IsTerminalStatus(status string) bool {
-	switch status {
-	case
-		string(health.HealthStatusHealthy),
-		string(health.HealthStatusDegraded),
-		WorkflowAborted,
-		WorkflowFailed:
-		return true
-	}
-	return false
-}
-
-func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp *v1alpha1.Application, pipelineOverride *chartConfig.PipelineOverride) error {
+func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp *v1alpha1.Application, pipelineOverride *chartConfig.PipelineOverride, statusTime time.Time) error {
 	b, _ := json.Marshal(newApp)
 	impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "timeline", "data", string(b))
 
@@ -411,7 +418,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 	// creating cd pipeline status timeline
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: cdWfr.Id,
-		StatusTime:         time.Now(),
+		StatusTime:         statusTime,
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
 			CreatedOn: time.Now(),
@@ -435,10 +442,35 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
 			timeline.StatusDetail = "Kubectl apply synced successfully."
 			//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-			_, err = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
+			currrentTimeline, err := impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 				return err
+			}
+			impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "data", string(b), "status", timeline.Status)
+
+			if currrentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
+				haveNewTimeline := false
+				timeline.Id = 0
+				if newApp.Status.Health.Status == health.HealthStatusHealthy {
+					impl.logger.Infow("updating pipeline status timeline for healthy app", "newApp", newApp, "APP_TO_UPDATE", newApp.Name)
+					haveNewTimeline = true
+					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
+					timeline.StatusDetail = "App status is Healthy."
+				} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
+					haveNewTimeline = true
+					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
+					timeline.StatusDetail = "App status is Degraded."
+				}
+				if haveNewTimeline {
+					//not checking if this status is already present or not because already checked for terminal status existence earlier
+					err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+					if err != nil {
+						impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+						return err
+					}
+					impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "data", string(b), "status", timeline.Status)
+				}
 			}
 		}
 	} else {
@@ -570,12 +602,13 @@ func (impl AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, ar
 	impl.logger.Debugw("triggering release for ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
 	//Iterate for each even if there is error in one
 	request := &bean.ValuesOverrideRequest{
-		PipelineId:   pipeline.Id,
-		UserId:       artifact.CreatedBy,
-		CiArtifactId: artifact.Id,
-		AppId:        pipeline.AppId,
-		CdWorkflowId: cdWorkflowId,
-		ForceTrigger: true,
+		PipelineId:           pipeline.Id,
+		UserId:               artifact.CreatedBy,
+		CiArtifactId:         artifact.Id,
+		AppId:                pipeline.AppId,
+		CdWorkflowId:         cdWorkflowId,
+		ForceTrigger:         true,
+		DeploymentWithConfig: bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED,
 	}
 
 	ctx, err := impl.buildACDContext()
@@ -673,62 +706,151 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 	}
+	if len(overrideRequest.DeploymentWithConfig) == 0 {
+		overrideRequest.DeploymentWithConfig = bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED
+	}
 	pipeline, err := impl.pipelineRepository.FindById(overrideRequest.PipelineId)
 	if err != nil {
 		impl.logger.Errorw("invalid req", "err", err, "req", overrideRequest)
 		return 0, err
 	}
-
-	envOverride, err := impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
-		return 0, err
-	}
-
-	if envOverride.Id == 0 {
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
+	envOverride := &chartConfig.EnvConfigOverride{}
+	var appMetrics *bool
+	strategy := &chartConfig.PipelineStrategy{}
+	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+		deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+		if err != nil {
+			impl.logger.Errorw("error in getting deployed deployment template history by pipelineId and wfrId", "err", err, "pipelineId", &overrideRequest, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+			return 0, err
+		}
+		templateName := deploymentTemplateHistory.TemplateName
+		templateVersion := deploymentTemplateHistory.TemplateVersion
+		if templateName == "Rollout Deployment" {
+			templateName = ""
+		}
+		//getting chart_ref by id
+		chartRef, err := impl.chartRefRepository.FindByVersionAndName(templateName, templateVersion)
+		if err != nil {
+			impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", templateVersion, "name", templateName)
+			return 0, err
+		}
+		//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
+		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(pipeline.AppId, pipeline.EnvironmentId, chartRef.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "chartRefId", chartRef.Id)
+			return 0, err
+		}
+		//updating historical data in envConfigOverride and appMetrics flag
+		envOverride.IsOverride = true
+		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
+		appMetrics = &deploymentTemplateHistory.IsAppMetricsEnabled
+		strategyHistory, err := impl.strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+		if err != nil {
+			impl.logger.Errorw("error in getting deployed strategy history by pipleinId and wfrId", "err", err, "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
+			return 0, err
+		}
+		strategy.Strategy = strategyHistory.Strategy
+		strategy.Config = strategyHistory.Config
+		strategy.PipelineId = pipeline.Id
+	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
+		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 			return 0, err
 		}
-		envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, pipeline.EnvironmentId, chart.ChartRefId)
-		if err != nil && !errors2.IsNotFound(err) {
-			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
-			return 0, err
-		}
-
-		//creating new env override config
-		if errors2.IsNotFound(err) || envOverride == nil {
-			environment, err := impl.envRepository.FindById(pipeline.EnvironmentId)
-			if err != nil && !IsErrNoRows(err) {
-				return 0, err
-			}
-			envOverride = &chartConfig.EnvConfigOverride{
-				Active:            true,
-				ManualReviewed:    true,
-				Status:            models.CHARTSTATUS_SUCCESS,
-				TargetEnvironment: pipeline.EnvironmentId,
-				ChartId:           chart.Id,
-				AuditLog:          sql.AuditLog{UpdatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId},
-				Namespace:         environment.Namespace,
-				IsOverride:        false,
-				EnvOverrideValues: "{}",
-				Latest:            false,
-			}
-			err = impl.environmentConfigRepository.Save(envOverride)
+		if envOverride.Id == 0 {
+			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
 			if err != nil {
-				impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
+				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 				return 0, err
 			}
+			envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, pipeline.EnvironmentId, chart.ChartRefId)
+			if err != nil && !errors2.IsNotFound(err) {
+				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
+				return 0, err
+			}
+
+			//creating new env override config
+			if errors2.IsNotFound(err) || envOverride == nil {
+				environment, err := impl.envRepository.FindById(pipeline.EnvironmentId)
+				if err != nil && !IsErrNoRows(err) {
+					return 0, err
+				}
+				envOverride = &chartConfig.EnvConfigOverride{
+					Active:            true,
+					ManualReviewed:    true,
+					Status:            models.CHARTSTATUS_SUCCESS,
+					TargetEnvironment: pipeline.EnvironmentId,
+					ChartId:           chart.Id,
+					AuditLog:          sql.AuditLog{UpdatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId},
+					Namespace:         environment.Namespace,
+					IsOverride:        false,
+					EnvOverrideValues: "{}",
+					Latest:            false,
+				}
+				err = impl.environmentConfigRepository.Save(envOverride)
+				if err != nil {
+					impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
+					return 0, err
+				}
+			}
+			envOverride.Chart = chart
+		} else if envOverride.Id > 0 && !envOverride.IsOverride {
+			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
+			if err != nil {
+				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
+				return 0, err
+			}
+			envOverride.Chart = chart
 		}
-		envOverride.Chart = chart
-	} else if envOverride.Id > 0 && !envOverride.IsOverride {
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
-		if err != nil {
-			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
+
+		appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(pipeline.AppId)
+		if err != nil && !IsErrNoRows(err) {
+			impl.logger.Errorw("err", err)
+			return 0, &ApiError{InternalMessage: "unable to fetch app level metrics flag"}
+		}
+		appMetrics = &appLevelMetrics.AppMetrics
+
+		envLevelMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+		if err != nil && !IsErrNoRows(err) {
+			impl.logger.Errorw("err", err)
+			return 0, &ApiError{InternalMessage: "unable to fetch env level metrics flag"}
+		}
+		if envLevelMetrics.Id != 0 && envLevelMetrics.AppMetrics != nil {
+			appMetrics = envLevelMetrics.AppMetrics
+		}
+		//fetch pipeline config from strategy table, if pipeline is automatic fetch always default, else depends on request
+
+		//forceTrigger true if CD triggered Auto, triggered occurred from CI
+		if overrideRequest.ForceTrigger {
+			strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
+		} else {
+			var deploymentTemplate pipelineConfig.DeploymentTemplate
+			if overrideRequest.DeploymentTemplate == "ROLLING" {
+				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_ROLLING
+			} else if overrideRequest.DeploymentTemplate == "BLUE-GREEN" {
+				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_BLUE_GREEN
+			} else if overrideRequest.DeploymentTemplate == "CANARY" {
+				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY
+			} else if overrideRequest.DeploymentTemplate == "RECREATE" {
+				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE
+			}
+
+			if len(deploymentTemplate) > 0 {
+				strategy, err = impl.pipelineConfigRepository.FindByStrategyAndPipelineId(deploymentTemplate, overrideRequest.PipelineId)
+			} else {
+				strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
+			}
+		}
+		if err != nil && errors2.IsNotFound(err) == false {
+			impl.logger.Errorf("invalid state", "err", err, "req", strategy)
 			return 0, err
 		}
-		envOverride.Chart = chart
+	}
+	err = impl.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, envOverride.Chart.ImageDescriptorTemplate, triggeredAt, deployedBy)
+	if err != nil {
+		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
+		return 0, err
 	}
 
 	// auto-healing :  data corruption fix - if ChartLocation in chart is not correct, need correction
@@ -845,36 +967,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		impl.logger.Errorw("error in fetching db migration config", "req", overrideRequest, "err", err)
 		return 0, err
 	}
-
-	//fetch pipeline config from strategy table, if pipeline is automatic fetch always default, else depends on request
-	var strategy *chartConfig.PipelineStrategy
-
-	//forceTrigger true if CD triggered Auto, triggered occurred from CI
-	if overrideRequest.ForceTrigger {
-		strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
-	} else {
-		var deploymentTemplate pipelineConfig.DeploymentTemplate
-		if overrideRequest.DeploymentTemplate == "ROLLING" {
-			deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_ROLLING
-		} else if overrideRequest.DeploymentTemplate == "BLUE-GREEN" {
-			deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_BLUE_GREEN
-		} else if overrideRequest.DeploymentTemplate == "CANARY" {
-			deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY
-		} else if overrideRequest.DeploymentTemplate == "RECREATE" {
-			deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE
-		}
-
-		if len(deploymentTemplate) > 0 {
-			strategy, err = impl.pipelineConfigRepository.FindByStrategyAndPipelineId(deploymentTemplate, overrideRequest.PipelineId)
-		} else {
-			strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
-		}
-	}
-	if err != nil && errors2.IsNotFound(err) == false {
-		impl.logger.Errorf("invalid state", "err", err, "req", strategy)
-		return 0, err
-	}
-
 	if !userUploaded {
 		valid, err := impl.validateVersionForStrategy(envOverride, strategy)
 		if err != nil || !valid {
@@ -882,9 +974,8 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			return 0, err
 		}
 	}
-
 	chartVersion := envOverride.Chart.ChartVersion
-	configMapJson, err := impl.getConfigMapAndSecretJsonV2(overrideRequest.AppId, envOverride.TargetEnvironment, overrideRequest.PipelineId, chartVersion)
+	configMapJson, err := impl.getConfigMapAndSecretJsonV2(overrideRequest.AppId, envOverride.TargetEnvironment, overrideRequest.PipelineId, chartVersion, overrideRequest.DeploymentWithConfig, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 	if err != nil {
 		impl.logger.Errorw("error in fetching config map n secret ", "err", err)
 		configMapJson = nil
@@ -895,7 +986,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 		appLabelJsonByte = nil
 	}
-	releaseId, pipelineOverrideId, mergeAndSave, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, appLabelJsonByte, strategy, ctx, triggeredAt, deployedBy)
+	releaseId, pipelineOverrideId, mergeAndSave, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, appLabelJsonByte, strategy, ctx, triggeredAt, deployedBy, appMetrics)
 	if releaseId != 0 {
 		//updating the acd app with updated values and sync operation
 		if IsAcdApp(pipeline.DeploymentAppType) {
@@ -1182,7 +1273,7 @@ func (impl AppServiceImpl) GetConfigMapAndSecretJson(appId int, envId int, pipel
 	return merged, nil
 }
 
-func (impl AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pipelineId int, chartVersion string) ([]byte, error) {
+func (impl AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pipelineId int, chartVersion string, deploymentWithConfig bean.DeploymentConfigurationType, wfrIdForDeploymentWithSpecificTrigger int) ([]byte, error) {
 
 	var configMapJson string
 	var secretDataJson string
@@ -1190,28 +1281,43 @@ func (impl AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pip
 	var secretDataJsonApp string
 	var configMapJsonEnv string
 	var secretDataJsonEnv string
+	var err error
 	//var configMapJsonPipeline string
 	//var secretDataJsonPipeline string
 
 	merged := []byte("{}")
-	configMapA, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
-	if err != nil && pg.ErrNoRows != err {
-		return []byte("{}"), err
+	if deploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
+		configMapA, err := impl.configMapRepository.GetByAppIdAppLevel(appId)
+		if err != nil && pg.ErrNoRows != err {
+			return []byte("{}"), err
+		}
+		if configMapA != nil && configMapA.Id > 0 {
+			configMapJsonApp = configMapA.ConfigMapData
+			secretDataJsonApp = configMapA.SecretData
+		}
+		configMapE, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envId)
+		if err != nil && pg.ErrNoRows != err {
+			return []byte("{}"), err
+		}
+		if configMapE != nil && configMapE.Id > 0 {
+			configMapJsonEnv = configMapE.ConfigMapData
+			secretDataJsonEnv = configMapE.SecretData
+		}
+	} else if deploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+		//fetching history and setting envLevelConfig and not appLevelConfig because history already contains merged appLevel and envLevel configs
+		configMapHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrIdForDeploymentWithSpecificTrigger, repository3.CONFIGMAP_TYPE)
+		if err != nil {
+			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", pipelineId, "wfrid", wfrIdForDeploymentWithSpecificTrigger)
+			return []byte("{}"), err
+		}
+		configMapJsonEnv = configMapHistory.Data
+		secretHistory, err := impl.configMapHistoryRepository.GetHistoryByPipelineIdAndWfrId(pipelineId, wfrIdForDeploymentWithSpecificTrigger, repository3.SECRET_TYPE)
+		if err != nil {
+			impl.logger.Errorw("error in getting config map history config by pipelineId and wfrId ", "err", err, "pipelineId", pipelineId, "wfrid", wfrIdForDeploymentWithSpecificTrigger)
+			return []byte("{}"), err
+		}
+		secretDataJsonEnv = secretHistory.Data
 	}
-	if configMapA != nil && configMapA.Id > 0 {
-		configMapJsonApp = configMapA.ConfigMapData
-		secretDataJsonApp = configMapA.SecretData
-	}
-
-	configMapE, err := impl.configMapRepository.GetByAppIdAndEnvIdEnvLevel(appId, envId)
-	if err != nil && pg.ErrNoRows != err {
-		return []byte("{}"), err
-	}
-	if configMapE != nil && configMapE.Id > 0 {
-		configMapJsonEnv = configMapE.ConfigMapData
-		secretDataJsonEnv = configMapE.SecretData
-	}
-
 	configMapJson, err = impl.mergeUtil.ConfigMapMerge(configMapJsonApp, configMapJsonEnv)
 	if err != nil {
 		return []byte("{}"), err
@@ -1361,30 +1467,13 @@ func (impl AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfig
 	overrideRequest *bean.ValuesOverrideRequest,
 	artifact *repository.CiArtifact,
 	pipeline *pipelineConfig.Pipeline,
-	pipelineOverride *chartConfig.PipelineOverride, strategy *chartConfig.PipelineStrategy) (releaseOverride string, err error) {
+	pipelineOverride *chartConfig.PipelineOverride, strategy *chartConfig.PipelineStrategy, appMetrics *bool) (releaseOverride string, err error) {
 
 	artifactImage := artifact.Image
 	imageTag := strings.Split(artifactImage, ":")
 
 	appId := strconv.Itoa(pipeline.App.Id)
 	envId := strconv.Itoa(pipeline.EnvironmentId)
-
-	var appMetrics *bool
-	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(pipeline.AppId)
-	if err != nil && !IsErrNoRows(err) {
-		impl.logger.Errorw("err", err)
-		return "", &ApiError{InternalMessage: "unable to fetch app level metrics flag"}
-	}
-	appMetrics = &appLevelMetrics.AppMetrics
-
-	envLevelMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
-	if err != nil && !IsErrNoRows(err) {
-		impl.logger.Errorw("err", err)
-		return "", &ApiError{InternalMessage: "unable to fetch env level metrics flag"}
-	}
-	if envLevelMetrics.Id != 0 && envLevelMetrics.AppMetrics != nil {
-		appMetrics = envLevelMetrics.AppMetrics
-	}
 
 	deploymentStrategy := ""
 	if strategy != nil {
@@ -1429,7 +1518,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	dbMigrationOverride []byte,
 	artifact *repository.CiArtifact,
 	pipeline *pipelineConfig.Pipeline, configMapJson, appLabelJsonByte []byte, strategy *chartConfig.PipelineStrategy, ctx context.Context,
-	triggeredAt time.Time, deployedBy int32) (releaseId int, overrideId int, mergedValues string, err error) {
+	triggeredAt time.Time, deployedBy int32, appMetrics *bool) (releaseId int, overrideId int, mergedValues string, err error) {
 
 	//register release , obtain release id TODO: populate releaseId to template
 	override, err := impl.savePipelineOverride(overrideRequest, envOverride.Id, triggeredAt)
@@ -1437,7 +1526,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		return 0, 0, "", err
 	}
 	//TODO: check status and apply lock
-	overrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipeline, override, strategy)
+	overrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipeline, override, strategy, appMetrics)
 	if err != nil {
 		return 0, 0, "", err
 	}
@@ -1492,6 +1581,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
 
 	commitHash := ""
+	commitTime := time.Time{}
 	if IsAcdApp(pipeline.DeploymentAppType) {
 		chartRepoName := impl.GetChartRepoName(envOverride.Chart.GitRepoUrl)
 		//getting username & emailId for commit author data
@@ -1506,15 +1596,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 			UserName:       userName,
 			UserEmailId:    userEmailId,
 		}
-		gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
-		if err != nil {
-			if err == pg.ErrNoRows {
-				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-			} else {
-				return 0, 0, "", err
-			}
-		}
-		commitHash, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr)
 		if err != nil {
 			impl.logger.Errorw("error in git commit", "err", err)
 			return 0, 0, "", err
@@ -1523,6 +1605,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	pipelineOverride := &chartConfig.PipelineOverride{
 		Id:                     override.Id,
 		GitHash:                commitHash,
+		CommitTime:             commitTime,
 		EnvConfigOverrideId:    envOverride.Id,
 		PipelineOverrideValues: overrideJson,
 		PipelineId:             overrideRequest.PipelineId,
@@ -1532,11 +1615,6 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	}
 	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
 	if err != nil {
-		return 0, 0, "", err
-	}
-	err = impl.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, overrideJson, triggeredAt, deployedBy)
-	if err != nil {
-		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
 		return 0, 0, "", err
 	}
 	mergedValues = string(merged)

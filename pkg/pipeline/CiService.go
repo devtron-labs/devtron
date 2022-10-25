@@ -299,7 +299,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 			GitTag:          ciMaterial.GitTag,
 			Message:         commitHashForPipelineId.Message,
 			Type:            string(ciMaterial.Type),
-			CommitTime:      commitHashForPipelineId.Date,
+			CommitTime:      commitHashForPipelineId.Date.Format(bean.LayoutRFC3339),
 			GitOptions: GitOptions{
 				UserName:      ciMaterial.GitMaterial.GitProvider.UserName,
 				Password:      ciMaterial.GitMaterial.GitProvider.Password,

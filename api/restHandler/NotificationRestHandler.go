@@ -576,6 +576,11 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 		return
 	}
 
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
+		// if user does not have notification level access then return unauthorized
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+		return
+	}
 	//RBAC
 	pass := true
 	if len(slackConfigs) > 0 {
@@ -601,10 +606,6 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 	}
 	if pass {
 		channelsResponse.SlackConfigs = slackConfigs
-	}
-
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
-		pass = false
 	}
 	sesConfigs, fErr := impl.sesService.FetchAllSESNotificationConfig()
 	if fErr != nil && fErr != pg.ErrNoRows {
@@ -721,6 +722,11 @@ func (impl NotificationRestHandlerImpl) RecipientListingSuggestion(w http.Respon
 	userId, err := impl.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), "Forbidden", http.StatusForbidden)
 		return
 	}
 	vars := mux.Vars(r)

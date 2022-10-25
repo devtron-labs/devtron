@@ -28,7 +28,7 @@ type DevtronAppDeploymentRestHandler interface {
 	GetCdPipelinesForAppAndEnv(w http.ResponseWriter, r *http.Request)
 
 	GetArtifactsByCDPipeline(w http.ResponseWriter, r *http.Request)
-	GetArtifactForRollback(w http.ResponseWriter, r *http.Request)
+	GetArtifactsForRollback(w http.ResponseWriter, r *http.Request)
 
 	UpgradeForAllApps(w http.ResponseWriter, r *http.Request)
 
@@ -862,29 +862,42 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 
 }
-func (handler PipelineConfigRestHandlerImpl) GetArtifactForRollback(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cdPipelineId, err := strconv.Atoi(vars["cd_pipeline_id"])
 	if err != nil {
-		handler.Logger.Errorw("request err, GetArtifactForRollback", "err", err, "cdPipelineId", cdPipelineId)
+		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, "invalid request", http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, GetArtifactForRollback", "cdPipelineId", cdPipelineId)
+	handler.Logger.Infow("request payload, GetArtifactsForRollback", "cdPipelineId", cdPipelineId)
 	token := r.Header.Get("token")
 	deploymentPipeline, err := handler.pipelineBuilder.FindPipelineById(cdPipelineId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetArtifactForRollback", "err", err, "cdPipelineId", cdPipelineId)
+		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	app, err := handler.pipelineBuilder.GetApp(deploymentPipeline.AppId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetArtifactForRollback", "err", err, "cdPipelineId", cdPipelineId)
+		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	offsetQueryParam := r.URL.Query().Get("offset")
+	offset, err := strconv.Atoi(offsetQueryParam)
+	if offsetQueryParam == "" || err != nil {
+		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "offsetQueryParam", offsetQueryParam)
+		common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+		return
+	}
+	sizeQueryParam := r.URL.Query().Get("size")
+	limit, err := strconv.Atoi(sizeQueryParam)
+	if sizeQueryParam == "" || err != nil {
+		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "sizeQueryParam", sizeQueryParam)
+		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+		return
+	}
 	//rbac block starts from here
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
@@ -898,9 +911,9 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactForRollback(w http.Respo
 	}
 	//rbac block ends here
 
-	ciArtifactResponse, err := handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId)
+	ciArtifactResponse, err := handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, offset, limit)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetArtifactForRollback", "err", err, "cdPipelineId", cdPipelineId)
+		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, "unable to fetch artifacts", http.StatusInternalServerError)
 		return
 	}

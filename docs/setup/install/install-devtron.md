@@ -19,6 +19,8 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 {% endtab %}
 {% endtabs %}
 
+> To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the installation command with `--set installer.arch=multi-arch`.
+
 [//]: # (If you are planning to use Hyperion for `production deployments`, please refer to our recommended overrides for [Devtron Installation]&#40;override-default-devtron-installation-configs.md&#41;.)
 
 [//]: # (## Installation status)

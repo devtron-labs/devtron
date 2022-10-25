@@ -1,9 +1,9 @@
 installer:
   repo: "devtron-labs/devtron"
 #  For Kubernetes version < 1.16, set release: legacy. You won't be able to upgrade Devtron unless you upgrade the K8s version to 1.16 or above.
-  release: "v0.6.0" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
+  release: "v0.6.3" #You can use a branch name or a release tag name as a release, for gitee as source only "main" is supported as of now
   image: quay.io/devtron/inception
-  tag: c62d4c30-185-9354
+  tag: 1d2b87e5-185-11095
   source: "github" # Available options are github and gitee
 #  mode: "dashboard" # Available options are dashboard, full and hyperion (deprecated) NOT USING THIS
   modules: [] # Available options are cicd
@@ -43,12 +43,12 @@ components:
       sentry: "false"
       sentryEnv: "PRODUCTION"
       applicationMetrics: "true"
-    image: "quay.io/devtron/dashboard:9c21414c-325-10743"
+    image: "quay.io/devtron/dashboard:fee4094b-325-11181"
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:299b90b9-280-10744"
-    cicdImage: "quay.io/devtron/devtron:299b90b9-326-10742"
+    image: "quay.io/devtron/hyperion:476538f1-280-11185"
+    cicdImage: "quay.io/devtron/devtron:476538f1-326-11189"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -77,38 +77,47 @@ components:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     imagePullPolicy: IfNotPresent
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:aecda793-381-10540"
+      authenticator: "quay.io/devtron/authenticator:aecda793-393-11109"
 
   kubelink:
-    image: "quay.io/devtron/kubelink:919924e0-318-10747"
+    image: "quay.io/devtron/kubelink:3f365493-318-11106"
     imagePullPolicy: IfNotPresent
 
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
+    armImage: "quay.io/devtron/postgres:11.9"
     imagePullPolicy: "IfNotPresent"
     persistence:
       volumeSize: "20Gi"
 
   migrator:
-    image: "quay.io/devtron/migrator:9c933d29-149-10140"
+    image: "quay.io/devtron/migrator:71748de9-149-11112"
     envVars:
       devtron:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "299b90b9322f40d84ebac23a9b43d0bbe23c56ca"
+        GIT_HASH: "476538f173bf2f46df724b021e8a46a9af130d2d"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "299b90b9322f40d84ebac23a9b43d0bbe23c56ca"
+        GIT_HASH: "476538f173bf2f46df724b021e8a46a9af130d2d"
 
 # values for argocd integration
 argo-cd:
   enabled: false
   fullnameOverride: "argocd"
+  global:
+    image:
+      # -- If defined, a repository applied to all Argo CD deployments
+      repository: quay.io/argoproj/argocd
+      # -- Overrides the global Argo CD image tag whose default is the chart appVersion
+      tag: "v2.4.0"
+      # -- If defined, a imagePullPolicy applied to all Argo CD deployments
+      imagePullPolicy: IfNotPresent
   configs:
     secret:
       createSecret: false
@@ -260,7 +269,7 @@ security:
 notifier:
   enabled: false
   imagePullPolicy: IfNotPresent
-  image: "quay.io/devtron/notifier:fb4424bb-372-10748"
+  image: "quay.io/devtron/notifier:6c7a356a-372-11107"
   configs:
     CD_ENVIRONMENT: PROD
     DB: orchestrator

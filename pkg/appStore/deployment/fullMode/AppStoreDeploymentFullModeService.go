@@ -39,10 +39,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/ghodss/yaml"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/proto/hapi/chart"
@@ -74,7 +72,6 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	ArgoK8sClient                        argocdServer.ArgoK8sClient
 	gitFactory                           *util.GitFactory
 	aCDAuthConfig                        *util2.ACDAuthConfig
-	gitOpsRepository                     repository3.GitOpsConfigRepository
 	globalEnvVariables                   *util3.GlobalEnvVariables
 	installedAppRepository               repository4.InstalledAppRepository
 	tokenCache                           *util2.TokenCache
@@ -89,7 +86,7 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 	acdClient application2.ServiceClient,
 	argoK8sClient argocdServer.ArgoK8sClient,
 	gitFactory *util.GitFactory, aCDAuthConfig *util2.ACDAuthConfig,
-	gitOpsRepository repository3.GitOpsConfigRepository, globalEnvVariables *util3.GlobalEnvVariables,
+	globalEnvVariables *util3.GlobalEnvVariables,
 	installedAppRepository repository4.InstalledAppRepository, tokenCache *util2.TokenCache,
 	argoUserService argo.ArgoUserService) *AppStoreDeploymentFullModeServiceImpl {
 	return &AppStoreDeploymentFullModeServiceImpl{
@@ -103,7 +100,6 @@ func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
 		ArgoK8sClient:                        argoK8sClient,
 		gitFactory:                           gitFactory,
 		aCDAuthConfig:                        aCDAuthConfig,
-		gitOpsRepository:                     gitOpsRepository,
 		globalEnvVariables:                   globalEnvVariables,
 		installedAppRepository:               installedAppRepository,
 		tokenCache:                           tokenCache,
@@ -115,13 +111,13 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	environment, err := impl.environmentRepository.FindById(installAppVersionRequest.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	//STEP 1: Commit and PUSH on Gitlab
@@ -130,7 +126,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	valid, err := chartutil.IsChartDir(chartPath)
 	if err != nil || !valid {
 		impl.logger.Errorw("invalid base chart", "dir", chartPath, "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 	chartMeta := &chart.Metadata{
 		Name:    installAppVersionRequest.AppName,
@@ -138,7 +134,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 	_, chartGitAttr, err := impl.chartTemplateService.CreateChartProxy(chartMeta, chartPath, template, appStoreAppVersion.Version, environment.Name, installAppVersionRequest)
 	if err != nil {
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	//STEP 3 - update requirements and values
@@ -157,11 +153,11 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 	requirementDependenciesByte, err := json.Marshal(requirementDependencies)
 	if err != nil {
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 	requirementDependenciesByte, err = yaml.JSONToYAML(requirementDependenciesByte)
 	if err != nil {
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(installAppVersionRequest.AppName)
@@ -177,18 +173,10 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			return nil, nil, err
-		}
-	}
-	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	//GIT PULL
@@ -198,14 +186,14 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
 	if err != nil {
 		impl.logger.Errorw("error in git pull", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	//update values yaml in chart
 	ValuesOverrideByte, err := yaml.YAMLToJSON([]byte(installAppVersionRequest.ValuesOverrideYaml))
 	if err != nil {
 		impl.logger.Errorw("error in json patch", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	var dat map[string]interface{}
@@ -216,7 +204,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	valuesByte, err := json.Marshal(valuesMap)
 	if err != nil {
 		impl.logger.Errorw("error in marshaling", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 
 	valuesYamlConfig := &util.ChartConfig{
@@ -229,16 +217,16 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	commitHash, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesYamlConfig)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 	//sync local dir with remote
 	err = impl.chartTemplateService.GitPull(clonedDir, chartGitAttr.RepoUrl, appStoreName)
 	if err != nil {
 		impl.logger.Errorw("error in git pull", "err", err)
-		return nil, nil, err
+		return installAppVersionRequest, nil, err
 	}
 	installAppVersionRequest.GitHash = commitHash
 	installAppVersionRequest.ACDAppName = argocdAppName
@@ -379,16 +367,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateValuesYaml(installAppVer
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return installAppVersionRequest, err
-		}
-	}
-	commitHash, err := impl.gitFactory.Client.CommitValues(valuesConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	commitHash, _, err := impl.gitFactory.Client.CommitValues(valuesConfig)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return installAppVersionRequest, err
@@ -429,16 +408,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) UpdateRequirementYaml(installA
 		UserEmailId:    userEmailId,
 		UserName:       userName,
 	}
-	gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
-	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps bitbucket config", "err", err)
-			return err
-		}
-	}
-	_, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig, gitOpsConfigBitbucket.BitBucketWorkspaceId)
+	_, _, err = impl.gitFactory.Client.CommitValues(requirmentYamlConfig)
 	if err != nil {
 		impl.logger.Errorw("error in git commit", "err", err)
 		return err
