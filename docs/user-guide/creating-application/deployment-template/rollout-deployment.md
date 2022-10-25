@@ -3,10 +3,10 @@
 
 Deployment configuration is the manifest of the application which defines the runtime behavior of the application. You can define application behavior by providing information in the following sections:
 
-* Chart version
-* YAMl file
-* Basic Configuration
-* Show Application Metrics
+* [Chart version](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#1.-chart-version)
+* [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#3.-basic-configuration)
+* [YAML file](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#2.-yaml-file)
+* [Show Application Metrics](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#3.-show-application-metrics)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-template.gif)
 
@@ -26,7 +26,29 @@ If you want to see [Application Metrics](rollout-deployment.md#3.-Show-applicati
 
 **Note**: Application Metrics are not supported for the Chart version older than 3.7 version.
 
-## 2. YAML file
+## 2. Basic Configuration
+
+Some of the use-cases which are defined on the Deployment Template (YAML file) may not be applicable to configure for your application. In such cases, you can do the basic deployment configuration for your application on the **Basic** GUI section instead of configuring the YAML file.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/basic-config-deployment-template.jpg)
+
+The following fields are provided on the **Basic** GUI section:
+
+| Fields | Description |
+| :---    |     :---       |
+| **Port**  | The internal HTTP port. |
+| **HTTP Request Routes** | Enable the `HTTP Request Routes` to define `Host` and `Path`. By default, it is in `disabled` state.<ul><li> **Host**: Domain name of the server. </li></ul> <ul><li>**Path**: Path of the specific component in the host that the HTTP wants to access.</li></ul> You can define multiple paths as required by clicking **Add path**.|
+| **CPU**  | The CPU resource as per the application. |
+| **RAM**   | The RAM resource as per the application. |
+| **Environment Variables** (**Key/Value**)  | Define `key/value` by clicking **Add variable**. <ul><li> **Key**: Define the key of the environment.</li></ul> <ul><li>**Value**: Define the value of the environment.</li></ul> You can define multiple env variables by clicking **Add variable**.  |
+
+Click **Save Changes**.
+
+If you want to do additional configurations, then click **Advanced (YAML)** for modifications.
+
+**Note**: If you change any values in the `Basic` GUI, then the corresponding values will be changed in `YAML` file also.
+
+## 3. YAML file
 
 ### Container Ports
 
@@ -65,7 +87,7 @@ Here we can pass the list of env variables , every record is an object which con
 
 To set environment variables for the containers that run in the Pod.
 
-### Example of Envvariables
+### Example of EnvVariables
 
 `IMP` Docker image should have env variables, whatever we want to set.
 ```yaml
@@ -78,7 +100,7 @@ EnvVariables:
     value: xyz
 ```
 
-But `ConfigMap` and `Secret` are the prefered way to inject env variables. So we can create this in `App Configuration` Section.
+But `ConfigMap` and `Secret` are the prefered way to inject env variables. You can create this in `App Configuration` Section.
 
 ### ConfigMap
 
@@ -720,28 +742,6 @@ waitForSecondsBeforeScalingDown: 30
 ```
 Wait for given period of time before scaling down the container.
 
-
-## 3. Basic Configuration
-
-Some of the use-cases which are defined on the Deployment Template (YAML file) may not be applicable to configure for your application. In such cases, you can do the basic deployment configuration for your application on the **Basic** GUI section instead of configuring the YAML file.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/basic-config-deployment-template.jpg)
-
-The following fields are provided on the **Basic** GUI section:
-
-| Fields | Description |
-| :---    |     :---       |
-| **Port**  | The internal HTTP port. |
-| **HTTP Request Routes** | Enable the `HTTP Request Routes` to define `Host` and `Path`. By default, it is in `disabled` state.<ul><li> **Host**: Domain name of the server. </li></ul> <ul><li>**Path**: Path of the specific component in the host that the HTTP wants to access.</li></ul> You can define multiple paths as required by clicking **Add path**.|
-| **CPU**  | The CPU resource as per the application. |
-| **RAM**   | The RAM resource as per the application. |
-| **Environment Variables** (**Key/Value**)  | Define `key/value` by clicking **Add variable**. <ul><li> **Key**: Define the key of the environment.</li></ul> <ul><li>**Value**: Define the value of the environment.</li></ul> You can define multiple env variables by clicking **Add variable**.  |
-
-Click **Save Changes**.
-
-If you want to do additional configurations, then click **Advanced (YAML)** for modifications.
-
-**Note**: If you change any values in the `Basic` GUI, then the corresponding values will be changed in `YAML` file also.
 
 
 ## 4. Show Application Metrics
