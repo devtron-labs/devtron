@@ -587,7 +587,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 	if err != nil {
 		impl.Logger.Errorw("marshal error", "err", err)
 	}
-	impl.Logger.Info("---->", string(wfTemplate))
+	impl.Logger.Debug("---->", string(wfTemplate))
 
 	createdWf, err := wfClient.Create(context.Background(), &ciWorkflow, v1.CreateOptions{}) // submit the hello world workflow
 	impl.Logger.Debug("workflow submitted: " + createdWf.Name)
