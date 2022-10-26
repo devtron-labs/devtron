@@ -1464,9 +1464,9 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
 		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
 			AppId:       app.Id,
-			AccessToken: "TEST ACCESS KEY",
-			Active:      false,
-			AuditLog:    sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+			AccessToken: "",
+			Active:      true,
+			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
 		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
 		wf := &appWorkflow.AppWorkflow{
