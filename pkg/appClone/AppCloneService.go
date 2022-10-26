@@ -275,7 +275,6 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 	}
 
 	ciBuildConfig := refCiConf.CiBuildConfig
-	ciBuildConfig.Id = 0
 	ciConfRequest := &bean.CiConfigRequest{
 		Id:               0,
 		AppId:            newAppId,

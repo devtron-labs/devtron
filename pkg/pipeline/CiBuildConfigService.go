@@ -35,6 +35,7 @@ func (impl *CiBuildConfigServiceImpl) Save(templateId int, overrideTemplateId in
 	}
 	ciBuildConfigEntity.CreatedOn = time.Now()
 	ciBuildConfigEntity.CreatedBy = userId
+	ciBuildConfigEntity.Id = 0
 	err = impl.CiBuildConfigRepository.Save(ciBuildConfigEntity)
 	ciBuildConfigBean.Id = ciBuildConfigEntity.Id
 	if err != nil {
