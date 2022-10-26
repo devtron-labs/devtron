@@ -35,7 +35,7 @@ Click on `Artifacts` to download the _reports_ of the Pre-CI and Post-CI stages 
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history-artifacts.jpg)
 
-Click on `security` to see if there is any vulnerabilitiesin the build image. You can see the vulnerabilities here only if you have enabled `Scan for vulnerabilities` before building image from advanced options of CI pipeline. To know more about this feature, follow our [documentation](https://docs.devtron.ai/devtron/user-guide/security-features).
+Click on `security` to see if there is any vulnerabilities in the build image. You can see the vulnerabilities here only if you have enabled `Scan for vulnerabilities` before building image from advanced options of CI pipeline. To know more about this feature, follow our [documentation](https://docs.devtron.ai/devtron/user-guide/security-features).
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploying-application/triggering-ci/build-history-security.jpg)
 

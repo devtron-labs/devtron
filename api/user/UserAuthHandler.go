@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
@@ -73,7 +74,8 @@ func (handler UserAuthHandlerImpl) LoginHandler(w http.ResponseWriter, r *http.R
 		return
 	}
 	//token, err := handler.loginService.CreateLoginSession(up.Username, up.Password)
-	token, err := handler.userAuthService.HandleLogin(up.Username, up.Password)
+	clientIp := util.GetClientIP(r)
+	token, err := handler.userAuthService.HandleLoginWithClientIp(up.Username, up.Password, clientIp)
 	if err != nil {
 		common.WriteJsonResp(w, fmt.Errorf("invalid username or password"), nil, http.StatusForbidden)
 		return
