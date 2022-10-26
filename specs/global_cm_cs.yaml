@@ -51,6 +51,11 @@ components:
           example:
             - "CONFIGMAP"
             - "SECRET"
+        type:
+          type: string
+          example:
+            - "environment"
+            - "volume"
         data:
           type: object
           additionalProperties:

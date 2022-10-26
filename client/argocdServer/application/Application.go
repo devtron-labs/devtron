@@ -93,6 +93,7 @@ type ResourceTreeResponse struct {
 	*v1alpha1.ApplicationTree
 	NewGenerationReplicaSets []string                        `json:"newGenerationReplicaSets"`
 	Status                   string                          `json:"status"`
+	RevisionHash             string                          `json:"revisionHash"`
 	PodMetadata              []*PodMetadata                  `json:"podMetadata"`
 	Conditions               []v1alpha1.ApplicationCondition `json:"conditions"`
 }
@@ -398,10 +399,12 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	app, err := asc.Watch(ctxt, &appQuery)
 	var conditions = make([]v1alpha1.ApplicationCondition, 0)
 	status := "Unknown"
+	hash := ""
 	if app != nil {
 		appResp, err := app.Recv()
 		if err == nil {
 			status = string(appResp.Application.Status.Health.Status)
+			hash = appResp.Application.Status.Sync.Revision
 			conditions = appResp.Application.Status.Conditions
 			for _, condition := range conditions {
 				if condition.Type != v1alpha1.ApplicationConditionSharedResourceWarning {
@@ -413,7 +416,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 			}
 		}
 	}
-	return &ResourceTreeResponse{resp, newReplicaSets, status, podMetadata, conditions}, err
+	return &ResourceTreeResponse{resp, newReplicaSets, status, hash, podMetadata, conditions}, err
 }
 
 func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*Result) (podMetaData []*PodMetadata, newReplicaSets []string) {
