@@ -26,6 +26,7 @@ import (
 
 type AppWorkflowRepository interface {
 	SaveAppWorkflow(wf *AppWorkflow) (*AppWorkflow, error)
+	SaveAppWorkflowWithTx(wf *AppWorkflow, tx *pg.Tx) (*AppWorkflow, error)
 	UpdateAppWorkflow(wf *AppWorkflow) (*AppWorkflow, error)
 	FindByIdAndAppId(id int, appId int) (*AppWorkflow, error)
 	FindByAppId(appId int) (appWorkflow []*AppWorkflow, err error)
@@ -82,6 +83,15 @@ type WorkflowDAG struct {
 
 func (impl AppWorkflowRepositoryImpl) SaveAppWorkflow(wf *AppWorkflow) (*AppWorkflow, error) {
 	err := impl.dbConnection.Insert(wf)
+	if err != nil {
+		impl.Logger.Errorw("err", err)
+		return wf, err
+	}
+	return wf, nil
+}
+
+func (impl AppWorkflowRepositoryImpl) SaveAppWorkflowWithTx(wf *AppWorkflow, tx *pg.Tx) (*AppWorkflow, error) {
+	err := tx.Insert(wf)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
 		return wf, err

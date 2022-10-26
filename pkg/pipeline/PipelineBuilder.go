@@ -1475,7 +1475,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			Active:   true,
 			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
-		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflow(wf)
+		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
 		if err != nil {
 			impl.logger.Errorw("err", err)
 			return 0, err
@@ -1512,12 +1512,12 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 
-	//adding ci pipeline to workflow
-	appWorkflowModel, err := impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
+	//adding pipeline to workflow
+	_, err = impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
 	if err != nil && err != pg.ErrNoRows {
 		return 0, err
 	}
-	if appWorkflowModel.Id > 0 {
+	if pipeline.AppWorkflowId > 0 {
 		var parentPipelineId int
 		var parentPipelineType string
 		if pipeline.ParentPipelineId == 0 {
@@ -1528,7 +1528,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			parentPipelineType = pipeline.ParentPipelineType
 		}
 		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-			AppWorkflowId: appWorkflowModel.Id,
+			AppWorkflowId: pipeline.AppWorkflowId,
 			ParentId:      parentPipelineId,
 			ParentType:    parentPipelineType,
 			ComponentId:   pipelineId,

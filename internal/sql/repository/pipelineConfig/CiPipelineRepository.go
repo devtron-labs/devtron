@@ -54,8 +54,6 @@ type ExternalCiPipeline struct {
 	AppId       int      `sql:"app_id"`
 	Active      bool     `sql:"active,notnull"`
 	AccessToken string   `sql:"access_token,notnull"`
-	ApiTokenId  int      `sql:"api_token_id"`
-	Payload     string   `sql:"payload"`
 	sql.AuditLog
 }
 
