@@ -74,12 +74,12 @@ type ApplicationDetail struct {
 }
 
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.NatsClient.JetStrCtxt.QueueSubscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, pubsub.APPLICATION_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
+	callback := func(msg *pubsub.PubSubMsg) {
 		impl.logger.Debug("received app update request")
-		defer msg.Ack()
+		//defer msg.Ack()
 		impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "raw", "data", msg.Data)
 		applicationDetail := ApplicationDetail{}
-		err := json.Unmarshal(msg.Data, &applicationDetail)
+		err := json.Unmarshal([]byte(msg.Data), &applicationDetail)
 		if err != nil {
 			impl.logger.Errorw("unmarshal error on app update status", "err", err)
 			return
@@ -124,8 +124,9 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			}
 		}
 		impl.logger.Debugw("application status update completed", "app", newApp.Name)
-	}, nats.Durable(pubsub.APPLICATION_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(pubsub.KUBEWATCH_STREAM))
+	}
 
+	err := impl.pubsubClient.Subscribe(pubsub.APPLICATION_STATUS_UPDATE_TOPIC, callback)
 	if err != nil {
 		impl.logger.Error(err)
 		return err
