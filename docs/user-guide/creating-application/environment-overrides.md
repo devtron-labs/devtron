@@ -36,7 +36,7 @@ The basic deployment configuration which you specified on the **Basic** GUI sect
 
 If you want to configure **Basic** GUI at the application level, then you can provide the required information in the [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#3.-basic-configuration).
 
-If `Basic` is locked, you can modify the configurations on YAML file which will be the default page.
+If `Basic` is locked, you can modify the configurations on `Advanced (YAML)` which will be the default page.
 
 **Note**: **Delete Override** will discard the current overrides and the base configuration will be applicable to the environment.
 

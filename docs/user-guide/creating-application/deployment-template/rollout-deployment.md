@@ -4,9 +4,9 @@
 Deployment configuration is the manifest of the application which defines the runtime behavior of the application. You can define application behavior by providing information in the following sections:
 
 * [Chart version](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#1.-chart-version)
-* [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#3.-basic-configuration)
-* [YAML file](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#2.-yaml-file)
-* [Show Application Metrics](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#3.-show-application-metrics)
+* [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#2.-basic-configuration)
+* [Advanced(YAML](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#3.-advanced-yaml)
+* [Show Application Metrics](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#4.-show-application-metrics)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-template.gif)
 
@@ -48,7 +48,7 @@ If you want to do additional configurations, then click **Advanced (YAML)** for 
 
 **Note**: If you change any values in the `Basic` GUI, then the corresponding values will be changed in `YAML` file also.
 
-## 3. YAML file
+## 3. Advanced (YAML)
 
 ### Container Ports
 
