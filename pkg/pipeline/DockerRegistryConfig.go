@@ -53,7 +53,7 @@ type DockerArtifactStoreBean struct {
 	Cert                    string                       `json:"cert"`
 	Active                  bool                         `json:"active"`
 	User                    int32                        `json:"-"`
-	DockerRegistryIpsConfig *DockerRegistryIpsConfigBean `json:"ipsConfig,notnull" validate:"required"`
+	DockerRegistryIpsConfig *DockerRegistryIpsConfigBean `json:"ipsConfig,notnull,omitempty" validate:"required"`
 }
 
 type DockerRegistryIpsConfigBean struct {
