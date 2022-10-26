@@ -165,7 +165,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 		return
 	}
 
-	res, err := handler.userService.CreateUser(&userInfo, token, handler.checkManagerAuth)
+	res, err := handler.userService.CreateUser(&userInfo, token, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, CreateUser", "err", err, "payload", userInfo)
 		if _, ok := err.(*util.ApiError); ok {
@@ -213,13 +213,32 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 	if userInfo.EmailId == "admin@github.com/devtron-labs" {
 		userInfo.EmailId = "admin"
 	}
-	res, err := handler.userService.UpdateUser(&userInfo, token, handler.checkManagerAuth)
+
+	res, rolesChanged, groupsModified, restrictedGroups, err := handler.userService.UpdateUser(&userInfo, token, handler.CheckManagerAuth)
+
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateUser", "err", err, "payload", userInfo)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+
+	if len(restrictedGroups) == 0 {
+		common.WriteJsonResp(w, err, res, http.StatusOK)
+	} else {
+		groups := strings.Join(restrictedGroups, ", ")
+
+		if rolesChanged || groupsModified {
+			// warning
+			message := fmt.Errorf("User permissions updated partially. Group(s): " + groups + " could not be added/removed. You do not have manager permission for some or all projects in these groups.")
+			common.WriteJsonResp(w, message, nil, http.StatusExpectationFailed)
+
+		} else {
+			//error
+			message := fmt.Errorf("Permission could not be added/removed: You do not have manager permission for some or all projects in group(s): " + groups + ".")
+			common.WriteJsonResp(w, message, nil, http.StatusBadRequest)
+		}
+	}
+
 }
 
 func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) {
@@ -541,7 +560,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := handler.roleGroupService.UpdateRoleGroup(&request, token, handler.checkManagerAuth)
+	res, err := handler.roleGroupService.UpdateRoleGroup(&request, token, handler.CheckManagerAuth)
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateRoleGroup", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -555,6 +574,53 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	isAuthorised := false
+	//checking superAdmin access
+	isAuthorised, err = handler.userService.IsSuperAdmin(int(userId))
+	if err != nil {
+		handler.logger.Errorw("error in checking superAdmin access of user", "err", err)
+		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+		return
+	}
+	if !isAuthorised {
+		user, err := handler.userService.GetById(userId)
+		if err != nil {
+			handler.logger.Errorw("error in getting user by id", "err", err)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return
+		}
+		var roleFilters []bean.RoleFilter
+		if len(user.Groups) > 0 {
+			groupRoleFilters, err := handler.userService.GetRoleFiltersByGroupNames(user.Groups)
+			if err != nil {
+				handler.logger.Errorw("Error in getting role filters by group names", "err", err, "groupNames", user.Groups)
+				common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+				return
+			}
+			if len(groupRoleFilters) > 0 {
+				roleFilters = append(roleFilters, groupRoleFilters...)
+			}
+		}
+		if user.RoleFilters != nil && len(user.RoleFilters) > 0 {
+			roleFilters = append(roleFilters, user.RoleFilters...)
+		}
+		if len(roleFilters) > 0 {
+			for _, filter := range roleFilters {
+				if len(filter.Team) > 0 {
+					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); ok {
+						isAuthorised = true
+						break
+					}
+				}
+			}
+		}
+	}
+	if !isAuthorised {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	res, err := handler.roleGroupService.FetchRoleGroups()
@@ -779,9 +845,10 @@ func (handler UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r 
 
 }
 
-func (handler UserRestHandlerImpl) checkManagerAuth(token string, object string) bool {
+func (handler UserRestHandlerImpl) CheckManagerAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
 		return false
 	}
 	return true
+
 }
