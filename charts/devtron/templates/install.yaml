@@ -94,6 +94,10 @@ spec:
               containerPort: 8080
               name: app
               protocol: TCP
+          {{- if $.Values.installer.resources }}    
+          resources:
+          {{- toYaml $.Values.installer.resources | nindent 12 }}
+          {{- else }}
           resources:
             limits:
               cpu: 50m
@@ -101,6 +105,7 @@ spec:
             requests:
               cpu: 10m
               memory: 100Mi
+          {{- end }}    
       restartPolicy: Always
       serviceAccountName: installer
       terminationGracePeriodSeconds: 30

@@ -24,7 +24,7 @@ spec:
             mountPath: "/tmp/"
       initContainers:
       - name: grafana-org
-        image: quay.io/devtron/curl:latest
+        image: quay.io/devtron/k8s-utils:tutum-curl
         command: ["sh","/tmp/org.sh"]
         env:
           - name: GRAFANA_PASSWORD

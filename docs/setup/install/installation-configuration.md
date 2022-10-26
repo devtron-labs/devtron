@@ -1,21 +1,19 @@
 # Installation Configuration
 
-## Configuration
+## Configure Secrets
 
-**Configure Secrets**
-
-For `helm` installation this section referes to _**secrets**_ section of `values.yaml`. For `kubectl` based installation it refers to `kind: secret` in _**install/devtron-operator-configs.yaml**_.
+For `Helm` installation this section refers to _**secrets**_ section of `values.yaml`.
 
 Configure the following properties:
 
 | Parameter | Description | Default |
 | :--- | :--- | :--- |
-| **POSTGRESQL\_PASSWORD** | Using this parameter the auto-generated password for Postgres can be edited as per requirement(Used by Devtron to store the app information) | |
-| **WEBHOOK\_TOKEN** | If you want to continue using Jenkins for CI then provide this for authentication of requests should be base64 encoded |  |
+| **POSTGRESQL\_PASSWORD** | Using this parameter the auto-generated password for Postgres can be edited as per requirement(Used by Devtron to store the app information) | NA |
+| **WEBHOOK\_TOKEN** | If you want to continue using Jenkins for CI then provide this for authentication of requests should be base64 encoded | NA |
 
-**Configure ConfigMaps**
+## Configure ConfigMaps
 
-For `helm` installation this section refers to _**configs**_ section of `values.yaml`. For `kubectl` based installation it refers to `kind: ConfigMap` in _**install/devtron-operator-configs.yaml**_.
+For `Helm` installation this section refers to _**configs**_ section of `values.yaml`.
 
 Configure the following properties:
 
@@ -23,25 +21,30 @@ Configure the following properties:
 | :--- | :--- | :--- |
 | **BASE\_URL\_SCHEME** | Either of HTTP or HTTPS \(required\) | HTTP |
 | **BASE\_URL** | URL without scheme and trailing slash, this is the domain pointing to the cluster on which the Devtron platform is being installed. For example, if you have directed domain `devtron.example.com` to the cluster and the ingress controller is listening on port `32080` then URL will be `devtron.example.com:32080` \(required\) | `change-me` |
-| **DEX\_CONFIG** | dex config if you want to integrate login with SSO \(optional\) for more information check [Argocd documentation](https://argoproj.github.io/argo-cd/operator-manual/user-management/) |  |
-| **EXTERNAL\_SECRET\_AMAZON\_REGION** | AWS region for the secret manager to pick \(required\) |  |
-| **PROMETHEUS\_URL** | URL of Prometheus where all cluster data is stored; if this is wrong, you will not be able to see application metrics like CPU, RAM, HTTP status code, latency, and throughput \(required\) |  |
+| **DEX\_CONFIG** | dex config if you want to integrate login with SSO \(optional\) for more information check [Argocd documentation](https://argoproj.github.io/argo-cd/operator-manual/user-management/) | NA |
+| **EXTERNAL\_SECRET\_AMAZON\_REGION** | AWS region for the secret manager to pick \(required\) | NA |
+| **PROMETHEUS\_URL** | URL of Prometheus where all cluster data is stored; if this is wrong, you will not be able to see application metrics like CPU, RAM, HTTP status code, latency, and throughput \(required\) | NA |
 
-**Configure Overrides**
+## Configure Resources
+Devtron provides ways to control how much `memory` or `CPU` can be allocated to each Devtron microservice. You can adjust the resources that are allocated to these microservices based on your requirements. The resource configurations are available in following sizes:
+ 
+**`Small`**: To configure the small resources (e.g. to manage less than 10 apps on Devtron ) based on the requirements, append the Devtron installation command with  `-f https://raw.githubusercontent.com/devtron-labs/devtron/main/charts/devtron/resources-small.yaml`.
 
-For `helm` installation this section refers to _**customOverrides**_ section of `values.yaml`. In this section you can override values of devtron-cm which you want to keep persistent. For example:
+## Configure Overrides
+
+For `Helm` installation this section refers to _**customOverrides**_ section of `values.yaml`. In this section you can override values of devtron-cm which you want to keep persistent. For example:
 
 You can configure the following properties:
 
 | Parameter | Description | Default |
 | :--- | :--- | :--- |
-| **CI\_NODE\_LABEL\_SELECTOR** | Labels for a particular nodegroup which you want to use for running CIs | |
-| **CI\_NODE\_TAINTS\_KEY** | Key for toleration if nodegroup chosen for CIs have some taints | |
-| **CI\_NODE\_TAINTS\_VALUE** | Value for toleration if nodegroup chosen for CIs have some taints |  |
+| **CI\_NODE\_LABEL\_SELECTOR** | Labels for a particular nodegroup which you want to use for running CIs | NA |
+| **CI\_NODE\_TAINTS\_KEY** | Key for toleration if nodegroup chosen for CIs have some taints | NA |
+| **CI\_NODE\_TAINTS\_VALUE** | Value for toleration if nodegroup chosen for CIs have some taints | NA |
 
-## Storage for Logs and Cache
+### Storage for Logs and Cache
 
-### AWS SPECIFIC	
+#### `AWS SPECIFIC`
 
 While installing Devtron and using the AWS-S3 bucket for storing the logs and caches, the below parameters are to be used in the ConfigMap.
 
@@ -63,7 +66,7 @@ The below parameters are to be used in the Secrets :
 | **BLOB_STORAGE_S3_ACCESS_KEY** | AWS access key to access S3 bucket. Required if installing using AWS credentials. |
 | **BLOB_STORAGE_S3_SECRET_KEY** | AWS secret key to access S3 bucket. Required if installing using AWS credentials. |
 
-### AZURE SPECIFIC
+#### `AZURE SPECIFIC`
 
 While installing Devtron using Azure Blob Storage for storing logs and caches, the below parameters will be used in the ConfigMap.
 
@@ -73,7 +76,7 @@ While installing Devtron using Azure Blob Storage for storing logs and caches, t
 | **AZURE\_BLOB\_CONTAINER\_CI\_LOG** | AZURE Blob storage container for storing ci-logs after running the CI pipeline |  |
 | **AZURE\_BLOB\_CONTAINER\_CI\_CACHE** | AZURE Blob storage container for storing ci-cache after running the CI pipeline |  |
 
-### GOOGLE CLOUD STORAGE SPECIFIC
+#### `GOOGLE CLOUD STORAGE SPECIFIC`
 
 While installing Devtron using Google Cloud Storage for storing logs and caches, the below parameters will be used in the ConfigMap.
 
@@ -97,14 +100,14 @@ echo -n "string" | base64
 ---
 
 The following tables contain parameters and their details for Secrets and ConfigMaps that are configured during the installation of Devtron. 
-While installing Devtron using `kubectl` the following parameters can be tweaked in [devtron-operator-configs.yaml](https://github.com/devtron-labs/devtron/blob/main/manifests/install/devtron-operator-configs.yaml) file. If the installation is proceeded using `helm3`, the values can be tweaked in [values.yaml](https://github.com/devtron-labs/charts/blob/main/charts/devtron/values.yaml) file.
+If the installation is done using `Helm`, the values can be tweaked in [values.yaml](https://github.com/devtron-labs/charts/blob/main/charts/devtron/values.yaml) file.
 
 We can use the `--set` flag to override the default values when installing with Helm. For example, to update POSTGRESQL_PASSWORD and BLOB_STORAGE_PROVIDER, use the install command as:
 
 ```bash
 helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
 --set secrets.POSTGRESQL_PASSWORD=change-me \
---set configs.BLOB_STORAGE_PROVIDER=S3 \
+--set configs.BLOB_STORAGE_PROVIDER=S3
 ```
 
 ## Configuration of Blob Storage
