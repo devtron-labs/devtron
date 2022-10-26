@@ -40,6 +40,7 @@ type DockerRegistryIpsCredentialType string
 type DockerRegistryIpsConfigRepository interface {
 	Save(config *DockerRegistryIpsConfig, tx *pg.Tx) error
 	Update(config *DockerRegistryIpsConfig, tx *pg.Tx) error
+	FindByDockerRegistryId(dockerRegistryId string) (*DockerRegistryIpsConfig, error)
 }
 
 type DockerRegistryIpsConfigRepositoryImpl struct {
@@ -56,4 +57,12 @@ func (impl DockerRegistryIpsConfigRepositoryImpl) Save(config *DockerRegistryIps
 
 func (impl DockerRegistryIpsConfigRepositoryImpl) Update(config *DockerRegistryIpsConfig, tx *pg.Tx) error {
 	return tx.Update(config)
+}
+
+func (impl DockerRegistryIpsConfigRepositoryImpl) FindByDockerRegistryId(dockerRegistryId string) (*DockerRegistryIpsConfig, error) {
+	var dockerRegistryIpsConfig DockerRegistryIpsConfig
+	err := impl.dbConnection.Model(&dockerRegistryIpsConfig).
+		Where("docker_artifact_store_id = ?", dockerRegistryId).
+		Select()
+	return &dockerRegistryIpsConfig, err
 }
