@@ -29,30 +29,30 @@ import (
 	"go.uber.org/zap"
 )
 
-type DeploymentFailureHandler interface {
-	WriteCDFailureEvent(pipelineId, appId, envId int)
+type DeploymentEventHandler interface {
+	WriteCDDeploymentEvent(pipelineId, appId, envId int, eventType util.EventType)
 }
 
-type DeploymentFailureHandlerImpl struct {
+type DeploymentEventHandlerImpl struct {
 	logger            *zap.SugaredLogger
 	appListingService AppListingService
 	eventFactory      client.EventFactory
 	eventClient       client.EventClient
 }
 
-func NewDeploymentFailureHandlerImpl(logger *zap.SugaredLogger, appListingService AppListingService, eventClient client.EventClient, eventFactory client.EventFactory) *DeploymentFailureHandlerImpl {
-	deploymentFailureHandlerImpl := &DeploymentFailureHandlerImpl{
+func NewDeploymentEventHandlerImpl(logger *zap.SugaredLogger, appListingService AppListingService, eventClient client.EventClient, eventFactory client.EventFactory) *DeploymentEventHandlerImpl {
+	deploymentEventHandlerImpl := &DeploymentEventHandlerImpl{
 		logger:            logger,
 		appListingService: appListingService,
 		eventClient:       eventClient,
 		eventFactory:      eventFactory,
 	}
-	return deploymentFailureHandlerImpl
+	return deploymentEventHandlerImpl
 }
 
-func (impl *DeploymentFailureHandlerImpl) WriteCDFailureEvent(pipelineId, appId, envId int) {
-	event := impl.eventFactory.Build(util.Fail, &pipelineId, appId, &envId, util.CD)
-	impl.logger.Debugw("event WriteCDFailureEvent", "event", event)
+func (impl *DeploymentEventHandlerImpl) WriteCDDeploymentEvent(pipelineId, appId, envId int, eventType util.EventType) {
+	event := impl.eventFactory.Build(eventType, &pipelineId, appId, &envId, util.CD)
+	impl.logger.Debugw("event WriteCDDeploymentEvent", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, 0, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
@@ -60,7 +60,7 @@ func (impl *DeploymentFailureHandlerImpl) WriteCDFailureEvent(pipelineId, appId,
 	}
 }
 
-func (impl *DeploymentFailureHandlerImpl) BuildPayload(appName string, deploymentFailureTime time.Time) *client.Payload {
+func (impl *DeploymentEventHandlerImpl) BuildPayload(appName string, deploymentFailureTime time.Time) *client.Payload {
 	applicationName := appName[:strings.LastIndex(appName, "-")]
 	evnName := appName[strings.LastIndex(appName, "-")+1:]
 	payload := &client.Payload{}
@@ -70,6 +70,6 @@ func (impl *DeploymentFailureHandlerImpl) BuildPayload(appName string, deploymen
 	return payload
 }
 
-func (impl *DeploymentFailureHandlerImpl) isDeploymentFailed(ds repository.DeploymentStatus) bool {
+func (impl *DeploymentEventHandlerImpl) isDeploymentFailed(ds repository.DeploymentStatus) bool {
 	return ds.Status == application.Degraded && time.Since(ds.UpdatedOn) > 5*time.Minute
 }
