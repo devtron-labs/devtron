@@ -65,28 +65,29 @@ type CdHandler interface {
 }
 
 type CdHandlerImpl struct {
-	Logger                           *zap.SugaredLogger
-	cdService                        CdWorkflowService
-	cdConfig                         *CdConfig
-	ciConfig                         *CiConfig
-	userService                      user.UserService
-	ciLogService                     CiLogService
-	ciArtifactRepository             repository.CiArtifactRepository
-	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
-	envRepository                    repository2.EnvironmentRepository
-	pipelineRepository               pipelineConfig.PipelineRepository
-	ciWorkflowRepository             pipelineConfig.CiWorkflowRepository
-	helmAppService                   client.HelmAppService
-	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
-	workflowDagExecutor              WorkflowDagExecutor
-	appListingService                app.AppListingService
-	appListingRepository             repository.AppListingRepository
-	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
-	application                      application.ServiceClient
-	argoUserService                  argo.ArgoUserService
-	deploymentEventHandler           app.DeploymentEventHandler
-	eventClient                      client2.EventClient
+	Logger                                 *zap.SugaredLogger
+	cdService                              CdWorkflowService
+	cdConfig                               *CdConfig
+	ciConfig                               *CiConfig
+	userService                            user.UserService
+	ciLogService                           CiLogService
+	ciArtifactRepository                   repository.CiArtifactRepository
+	ciPipelineMaterialRepository           pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository                   pipelineConfig.CdWorkflowRepository
+	envRepository                          repository2.EnvironmentRepository
+	pipelineRepository                     pipelineConfig.PipelineRepository
+	ciWorkflowRepository                   pipelineConfig.CiWorkflowRepository
+	helmAppService                         client.HelmAppService
+	pipelineOverrideRepository             chartConfig.PipelineOverrideRepository
+	workflowDagExecutor                    WorkflowDagExecutor
+	appListingService                      app.AppListingService
+	appListingRepository                   repository.AppListingRepository
+	pipelineStatusTimelineRepository       pipelineConfig.PipelineStatusTimelineRepository
+	application                            application.ServiceClient
+	argoUserService                        argo.ArgoUserService
+	deploymentEventHandler                 app.DeploymentEventHandler
+	eventClient                            client2.EventClient
+	pipelineStatusTimelineResourcesService app.PipelineStatusTimelineResourcesService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -104,30 +105,32 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	application application.ServiceClient, argoUserService argo.ArgoUserService,
 	deploymentEventHandler app.DeploymentEventHandler,
-	eventClient client2.EventClient) *CdHandlerImpl {
+	eventClient client2.EventClient,
+	pipelineStatusTimelineResourcesService app.PipelineStatusTimelineResourcesService) *CdHandlerImpl {
 	return &CdHandlerImpl{
-		Logger:                           Logger,
-		cdConfig:                         cdConfig,
-		userService:                      userService,
-		cdService:                        cdWorkflowService,
-		ciLogService:                     ciLogService,
-		cdWorkflowRepository:             cdWorkflowRepository,
-		ciArtifactRepository:             ciArtifactRepository,
-		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
-		envRepository:                    envRepository,
-		pipelineRepository:               pipelineRepository,
-		ciWorkflowRepository:             ciWorkflowRepository,
-		ciConfig:                         ciConfig,
-		helmAppService:                   helmAppService,
-		pipelineOverrideRepository:       pipelineOverrideRepository,
-		workflowDagExecutor:              workflowDagExecutor,
-		appListingService:                appListingService,
-		appListingRepository:             appListingRepository,
-		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
-		application:                      application,
-		argoUserService:                  argoUserService,
-		deploymentEventHandler:           deploymentEventHandler,
-		eventClient:                      eventClient,
+		Logger:                                 Logger,
+		cdConfig:                               cdConfig,
+		userService:                            userService,
+		cdService:                              cdWorkflowService,
+		ciLogService:                           ciLogService,
+		cdWorkflowRepository:                   cdWorkflowRepository,
+		ciArtifactRepository:                   ciArtifactRepository,
+		ciPipelineMaterialRepository:           ciPipelineMaterialRepository,
+		envRepository:                          envRepository,
+		pipelineRepository:                     pipelineRepository,
+		ciWorkflowRepository:                   ciWorkflowRepository,
+		ciConfig:                               ciConfig,
+		helmAppService:                         helmAppService,
+		pipelineOverrideRepository:             pipelineOverrideRepository,
+		workflowDagExecutor:                    workflowDagExecutor,
+		appListingService:                      appListingService,
+		appListingRepository:                   appListingRepository,
+		pipelineStatusTimelineRepository:       pipelineStatusTimelineRepository,
+		application:                            application,
+		argoUserService:                        argoUserService,
+		deploymentEventHandler:                 deploymentEventHandler,
+		eventClient:                            eventClient,
+		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
 	}
 }
 
@@ -209,7 +212,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		//drop event
 		return nil
 	}
-	timelineStatus, appStatus, statusMessage, hash := impl.GetAppStatusByResourceTreeFetchFromArgo(argoAppName)
+	timelineStatus, appStatus, statusMessage, hash := impl.GetAppStatusByApplicationFetchFromArgo(argoAppName, deploymentStatus.AppId, deploymentStatus.EnvId)
 	if appStatus == WorkflowFailed && ignoreFailedWorkflowStatus {
 		return nil
 	}
@@ -307,7 +310,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 	return nil
 }
 
-func (impl *CdHandlerImpl) GetAppStatusByResourceTreeFetchFromArgo(appName string) (timelineStatus pipelineConfig.TimelineStatus, appStatus, statusMessage, hash string) {
+func (impl *CdHandlerImpl) GetAppStatusByApplicationFetchFromArgo(appName string, appId, envId int) (timelineStatus pipelineConfig.TimelineStatus, appStatus, statusMessage, gitHash string) {
 	//this should only be called when we have git-ops configured
 	//try fetching status from argo cd
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
@@ -315,33 +318,50 @@ func (impl *CdHandlerImpl) GetAppStatusByResourceTreeFetchFromArgo(appName strin
 		impl.Logger.Errorw("error in getting acd token", "err", err)
 	}
 	ctx := context.WithValue(context.Background(), "token", acdToken)
-	query := &application2.ResourcesQuery{
-		ApplicationName: &appName,
+	query := &application2.ApplicationQuery{
+		Name: &appName,
 	}
-	hash = ""
-	resp, err := impl.application.ResourceTree(ctx, query)
+	gitHash = ""
+	resp, err := impl.application.Get(ctx, query)
 	if err != nil {
 		impl.Logger.Errorw("error in getting resource tree of acd", "err", err, "appName", appName)
 		appStatus = WorkflowFailed
 		timelineStatus = pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED
 		statusMessage = "Failed to connect to Argo CD to fetch deployment status."
 	} else {
-		hash = resp.RevisionHash
-		if resp.Status == string(health.HealthStatusHealthy) {
-			appStatus = resp.Status
+		//getting latest pipelineOverride for newApp (by appId and envId)
+		pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(appId, envId)
+		if err != nil {
+			impl.Logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", appId, "envId", envId)
+		}
+		gitHash = resp.Status.Sync.Revision
+		if pipelineOverride.GitHash != gitHash {
+			pipelineOverrideByHash, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
+			if err != nil {
+				impl.Logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "err", err)
+			}
+			if pipelineOverrideByHash.CommitTime.Before(pipelineOverride.CommitTime) {
+				//we have received trigger hash which is committed before this apps actual gitHash stored by us
+				// this means that the hash stored by us will be synced later, so we will drop this event
+				return
+			}
+		}
+		if resp.Status.Health.Status == health.HealthStatusHealthy {
+			appStatus = string(resp.Status.Health.Status)
 			timelineStatus = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
 			statusMessage = "App is healthy."
-		} else if resp.Status == string(health.HealthStatusDegraded) {
-			appStatus = resp.Status
+		} else if resp.Status.Health.Status == health.HealthStatusDegraded {
+			appStatus = string(resp.Status.Health.Status)
 			timelineStatus = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
 			statusMessage = "App is degraded."
 		} else {
+			//TODO : confirm for failing
 			appStatus = WorkflowFailed
 			timelineStatus = pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED
 			statusMessage = "Deployment timed out. Failed to deploy application."
 		}
 	}
-	return timelineStatus, appStatus, statusMessage, hash
+	return timelineStatus, appStatus, statusMessage, gitHash
 }
 
 func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error {

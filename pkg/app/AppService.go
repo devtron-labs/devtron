@@ -70,51 +70,52 @@ import (
 )
 
 type AppServiceImpl struct {
-	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
-	pipelineOverrideRepository          chartConfig.PipelineOverrideRepository
-	mergeUtil                           *MergeUtil
-	logger                              *zap.SugaredLogger
-	ciArtifactRepository                repository.CiArtifactRepository
-	pipelineRepository                  pipelineConfig.PipelineRepository
-	gitFactory                          *GitFactory
-	dbMigrationConfigRepository         pipelineConfig.DbMigrationConfigRepository
-	eventClient                         client.EventClient
-	eventFactory                        client.EventFactory
-	acdClient                           application.ServiceClient
-	tokenCache                          *util3.TokenCache
-	acdAuthConfig                       *util3.ACDAuthConfig
-	enforcer                            casbin.Enforcer
-	enforcerUtil                        rbac.EnforcerUtil
-	user                                user.UserService
-	appListingRepository                repository.AppListingRepository
-	appRepository                       app.AppRepository
-	envRepository                       repository2.EnvironmentRepository
-	pipelineConfigRepository            chartConfig.PipelineConfigRepository
-	configMapRepository                 chartConfig.ConfigMapRepository
-	chartRepository                     chartRepoRepository.ChartRepository
-	appRepo                             app.AppRepository
-	appLevelMetricsRepository           repository.AppLevelMetricsRepository
-	envLevelMetricsRepository           repository.EnvLevelAppMetricsRepository
-	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
-	commonService                       commonService.CommonService
-	imageScanDeployInfoRepository       security.ImageScanDeployInfoRepository
-	imageScanHistoryRepository          security.ImageScanHistoryRepository
-	ArgoK8sClient                       argocdServer.ArgoK8sClient
-	pipelineStrategyHistoryService      history2.PipelineStrategyHistoryService
-	configMapHistoryService             history2.ConfigMapHistoryService
-	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
-	chartTemplateService                ChartTemplateService
-	refChartDir                         chartRepoRepository.RefChartDir
-	helmAppClient                       client2.HelmAppClient
-	chartRefRepository                  chartRepoRepository.ChartRefRepository
-	chartService                        chart.ChartService
-	argoUserService                     argo.ArgoUserService
-	cdPipelineStatusTimelineRepo        pipelineConfig.PipelineStatusTimelineRepository
-	appCrudOperationService             AppCrudOperationService
-	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
-	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
-	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
+	environmentConfigRepository            chartConfig.EnvConfigOverrideRepository
+	pipelineOverrideRepository             chartConfig.PipelineOverrideRepository
+	mergeUtil                              *MergeUtil
+	logger                                 *zap.SugaredLogger
+	ciArtifactRepository                   repository.CiArtifactRepository
+	pipelineRepository                     pipelineConfig.PipelineRepository
+	gitFactory                             *GitFactory
+	dbMigrationConfigRepository            pipelineConfig.DbMigrationConfigRepository
+	eventClient                            client.EventClient
+	eventFactory                           client.EventFactory
+	acdClient                              application.ServiceClient
+	tokenCache                             *util3.TokenCache
+	acdAuthConfig                          *util3.ACDAuthConfig
+	enforcer                               casbin.Enforcer
+	enforcerUtil                           rbac.EnforcerUtil
+	user                                   user.UserService
+	appListingRepository                   repository.AppListingRepository
+	appRepository                          app.AppRepository
+	envRepository                          repository2.EnvironmentRepository
+	pipelineConfigRepository               chartConfig.PipelineConfigRepository
+	configMapRepository                    chartConfig.ConfigMapRepository
+	chartRepository                        chartRepoRepository.ChartRepository
+	appRepo                                app.AppRepository
+	appLevelMetricsRepository              repository.AppLevelMetricsRepository
+	envLevelMetricsRepository              repository.EnvLevelAppMetricsRepository
+	ciPipelineMaterialRepository           pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository                   pipelineConfig.CdWorkflowRepository
+	commonService                          commonService.CommonService
+	imageScanDeployInfoRepository          security.ImageScanDeployInfoRepository
+	imageScanHistoryRepository             security.ImageScanHistoryRepository
+	ArgoK8sClient                          argocdServer.ArgoK8sClient
+	pipelineStrategyHistoryService         history2.PipelineStrategyHistoryService
+	configMapHistoryService                history2.ConfigMapHistoryService
+	deploymentTemplateHistoryService       history2.DeploymentTemplateHistoryService
+	chartTemplateService                   ChartTemplateService
+	refChartDir                            chartRepoRepository.RefChartDir
+	helmAppClient                          client2.HelmAppClient
+	chartRefRepository                     chartRepoRepository.ChartRefRepository
+	chartService                           chart.ChartService
+	argoUserService                        argo.ArgoUserService
+	cdPipelineStatusTimelineRepo           pipelineConfig.PipelineStatusTimelineRepository
+	appCrudOperationService                AppCrudOperationService
+	configMapHistoryRepository             repository3.ConfigMapHistoryRepository
+	strategyHistoryRepository              repository3.PipelineStrategyHistoryRepository
+	deploymentTemplateHistoryRepository    repository3.DeploymentTemplateHistoryRepository
+	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService
 }
 
 type AppService interface {
@@ -163,52 +164,54 @@ func NewAppService(
 	appCrudOperationService AppCrudOperationService,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
-	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository) *AppServiceImpl {
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
+	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
-		environmentConfigRepository:         environmentConfigRepository,
-		mergeUtil:                           mergeUtil,
-		pipelineOverrideRepository:          pipelineOverrideRepository,
-		logger:                              logger,
-		ciArtifactRepository:                ciArtifactRepository,
-		pipelineRepository:                  pipelineRepository,
-		dbMigrationConfigRepository:         dbMigrationConfigRepository,
-		eventClient:                         eventClient,
-		eventFactory:                        eventFactory,
-		acdClient:                           acdClient,
-		tokenCache:                          cache,
-		acdAuthConfig:                       authConfig,
-		enforcer:                            enforcer,
-		enforcerUtil:                        enforcerUtil,
-		user:                                user,
-		appListingRepository:                appListingRepository,
-		appRepository:                       appRepository,
-		envRepository:                       envRepository,
-		pipelineConfigRepository:            pipelineConfigRepository,
-		configMapRepository:                 configMapRepository,
-		chartRepository:                     chartRepository,
-		appLevelMetricsRepository:           appLevelMetricsRepository,
-		envLevelMetricsRepository:           envLevelMetricsRepository,
-		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
-		cdWorkflowRepository:                cdWorkflowRepository,
-		commonService:                       commonService,
-		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
-		imageScanHistoryRepository:          imageScanHistoryRepository,
-		ArgoK8sClient:                       ArgoK8sClient,
-		gitFactory:                          gitFactory,
-		pipelineStrategyHistoryService:      pipelineStrategyHistoryService,
-		configMapHistoryService:             configMapHistoryService,
-		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
-		chartTemplateService:                chartTemplateService,
-		refChartDir:                         refChartDir,
-		chartRefRepository:                  chartRefRepository,
-		chartService:                        chartService,
-		helmAppClient:                       helmAppClient,
-		argoUserService:                     argoUserService,
-		cdPipelineStatusTimelineRepo:        cdPipelineStatusTimelineRepo,
-		appCrudOperationService:             appCrudOperationService,
-		configMapHistoryRepository:          configMapHistoryRepository,
-		strategyHistoryRepository:           strategyHistoryRepository,
-		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
+		environmentConfigRepository:            environmentConfigRepository,
+		mergeUtil:                              mergeUtil,
+		pipelineOverrideRepository:             pipelineOverrideRepository,
+		logger:                                 logger,
+		ciArtifactRepository:                   ciArtifactRepository,
+		pipelineRepository:                     pipelineRepository,
+		dbMigrationConfigRepository:            dbMigrationConfigRepository,
+		eventClient:                            eventClient,
+		eventFactory:                           eventFactory,
+		acdClient:                              acdClient,
+		tokenCache:                             cache,
+		acdAuthConfig:                          authConfig,
+		enforcer:                               enforcer,
+		enforcerUtil:                           enforcerUtil,
+		user:                                   user,
+		appListingRepository:                   appListingRepository,
+		appRepository:                          appRepository,
+		envRepository:                          envRepository,
+		pipelineConfigRepository:               pipelineConfigRepository,
+		configMapRepository:                    configMapRepository,
+		chartRepository:                        chartRepository,
+		appLevelMetricsRepository:              appLevelMetricsRepository,
+		envLevelMetricsRepository:              envLevelMetricsRepository,
+		ciPipelineMaterialRepository:           ciPipelineMaterialRepository,
+		cdWorkflowRepository:                   cdWorkflowRepository,
+		commonService:                          commonService,
+		imageScanDeployInfoRepository:          imageScanDeployInfoRepository,
+		imageScanHistoryRepository:             imageScanHistoryRepository,
+		ArgoK8sClient:                          ArgoK8sClient,
+		gitFactory:                             gitFactory,
+		pipelineStrategyHistoryService:         pipelineStrategyHistoryService,
+		configMapHistoryService:                configMapHistoryService,
+		deploymentTemplateHistoryService:       deploymentTemplateHistoryService,
+		chartTemplateService:                   chartTemplateService,
+		refChartDir:                            refChartDir,
+		chartRefRepository:                     chartRefRepository,
+		chartService:                           chartService,
+		helmAppClient:                          helmAppClient,
+		argoUserService:                        argoUserService,
+		cdPipelineStatusTimelineRepo:           cdPipelineStatusTimelineRepo,
+		appCrudOperationService:                appCrudOperationService,
+		configMapHistoryRepository:             configMapHistoryRepository,
+		strategyHistoryRepository:              strategyHistoryRepository,
+		deploymentTemplateHistoryRepository:    deploymentTemplateHistoryRepository,
+		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
 	}
 	return appServiceImpl
 }
@@ -430,17 +433,22 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		//case of first trigger
 		//committing timeline for kubectl apply as revision will be started when
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
-		timeline.StatusDetail = "Kubectl apply initiated successfully."
+		timeline.StatusDetail = newApp.Status.OperationState.Message
 		//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 		_, err = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 			return err
 		}
+		//saving timeline resource details
+		err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY, nil, 1)
+		if err != nil {
+			impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY)
+		}
 		if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
 			timeline.Id = 0
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
-			timeline.StatusDetail = "Kubectl apply synced successfully."
+			timeline.StatusDetail = newApp.Status.OperationState.Message
 			//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			currrentTimeline, err := impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 			if err != nil {
@@ -470,33 +478,47 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 						return err
 					}
 					impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "data", string(b), "status", timeline.Status)
+					//saving timeline resource details
+					err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, pipelineConfig.TIMELINE_RESOURCE_STAGE_APP_HEALTH, nil, 1)
+					if err != nil {
+						impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_APP_HEALTH)
+					}
 				}
 			}
 		}
 	} else {
 		if oldApp.Status.Sync.Revision != newApp.Status.Sync.Revision {
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
-			timeline.StatusDetail = "Kubectl apply initiated successfully."
+			timeline.StatusDetail = newApp.Status.OperationState.Message
 			//save after checking if this timeline is present or not because kubewatch may stream same objects multiple times
 			_, err = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 				return err
 			}
+			//saving timeline resource details
+			err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY, nil, 1)
+			if err != nil {
+				impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY)
+			}
 		} else if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
 			timeline.Id = 0
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
-			timeline.StatusDetail = "Kubectl apply synced successfully."
+			timeline.StatusDetail = newApp.Status.OperationState.Message
 			//save after checking if this timeline is present or not because sync status can change from synced to some other status
 			//and back to synced, or kubewatch may stream same objects multiple times
-			currrentTimeline, err := impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
+			currentTimeline, err := impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 				return err
 			}
 			impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "data", string(b), "status", timeline.Status)
-
-			if currrentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
+			//saving timeline resource details
+			err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY, nil, 1)
+			if err != nil {
+				impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY)
+			}
+			if currentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
 				haveNewTimeline := false
 				timeline.Id = 0
 				if newApp.Status.Health.Status == health.HealthStatusHealthy {
@@ -517,6 +539,11 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 						return err
 					}
 					impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "data", string(b), "status", timeline.Status)
+					//saving timeline resource details
+					err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, pipelineConfig.TIMELINE_RESOURCE_STAGE_APP_HEALTH, nil, 1)
+					if err != nil {
+						impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_APP_HEALTH)
+					}
 				}
 			}
 		}

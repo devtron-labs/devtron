@@ -754,6 +754,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.GlobalCMCSService), new(*pipeline.GlobalCMCSServiceImpl)),
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
+
+		app.NewPipelineStatusTimelineResourcesServiceImpl,
+		wire.Bind(new(app.PipelineStatusTimelineResourcesService), new(*app.PipelineStatusTimelineResourcesServiceImpl)),
+		pipelineConfig.NewPipelineStatusTimelineResourcesRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusTimelineResourcesRepository), new(*pipelineConfig.PipelineStatusTimelineResourcesRepositoryImpl)),
 	)
 	return &App{}, nil
 }
