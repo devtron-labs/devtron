@@ -108,6 +108,12 @@ message ResourceNode {
   HealthStatus health = 10;
   bool isHibernated = 11;
   bool canBeHibernated = 12;
+  repeated InfoItem info = 13;
+}
+
+message InfoItem {
+  string name = 1;
+  string value = 2;
 }
 
 message HealthStatus {
