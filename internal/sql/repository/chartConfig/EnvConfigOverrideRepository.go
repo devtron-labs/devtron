@@ -157,6 +157,8 @@ func (r EnvConfigOverrideRepositoryImpl) ActiveEnvConfigOverride(appId, environm
 		Environment:       env,
 		Latest:            environmentConfig.Latest,
 		IsOverride:        environmentConfig.IsOverride,
+		IsBasicViewLocked: environmentConfig.IsBasicViewLocked,
+		CurrentViewEditor: environmentConfig.CurrentViewEditor,
 		//AppMetricsOverride: environmentConfig.AppMetricsOverride,
 	}
 	return eco, err
