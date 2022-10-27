@@ -65,9 +65,18 @@ func (impl ServerRestHandlerImpl) GetServerInfo(w http.ResponseWriter, r *http.R
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	showServerStatus := true
+	showServerStatusQueryParam := r.URL.Query().Get("showServerStatus")
+	if len(showServerStatusQueryParam) != 0 {
+		if showServerStatusQueryParam == "false" {
+			showServerStatus = false
+		} else if showServerStatusQueryParam == "true" {
+			showServerStatus = true
+		}
+	}
 
 	// service call
-	res, err := impl.serverService.GetServerInfo()
+	res, err := impl.serverService.GetServerInfo(showServerStatus)
 	if err != nil {
 		impl.logger.Errorw("service err, GetServerInfo", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

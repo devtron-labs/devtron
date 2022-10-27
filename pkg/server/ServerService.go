@@ -32,7 +32,7 @@ import (
 )
 
 type ServerService interface {
-	GetServerInfo() (*serverBean.ServerInfoDto, error)
+	GetServerInfo(showServerStatus bool) (*serverBean.ServerInfoDto, error)
 	HandleServerAction(userId int32, serverActionRequest *serverBean.ServerActionRequestDto) (*serverBean.ActionResponse, error)
 }
 
@@ -57,7 +57,7 @@ func NewServerServiceImpl(logger *zap.SugaredLogger, serverActionAuditLogReposit
 	}
 }
 
-func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error) {
+func (impl ServerServiceImpl) GetServerInfo(showServerStatus bool) (*serverBean.ServerInfoDto, error) {
 	impl.logger.Debug("getting server info")
 
 	serverInfoDto := &serverBean.ServerInfoDto{
@@ -67,8 +67,8 @@ func (impl ServerServiceImpl) GetServerInfo() (*serverBean.ServerInfoDto, error)
 		InstallationType: impl.serverEnvConfig.DevtronInstallationType,
 	}
 
-	// if installation type is not OSS helm, then return (do not calculate server status)
-	if serverInfoDto.InstallationType != serverBean.DevtronInstallationTypeOssHelm {
+	// if showServerStatus flag is false and installation type is not OSS helm, then return (do not calculate server status)
+	if serverInfoDto.InstallationType != serverBean.DevtronInstallationTypeOssHelm && showServerStatus {
 		return serverInfoDto, nil
 	}
 
