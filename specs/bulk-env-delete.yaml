@@ -6,47 +6,17 @@ paths:
   /cd-pipeline/bulk-action:
     post:
       description: perform bulk actions on cd pipelines
-      requestBody:
-        description: A JSON object containing the bulk action configuration
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/CdPipelineBulkActionDto'
-      responses:
-        '200':
-          description: Successfully return a message stating the operation is successful.
-          content:
-            application/json:
-              schema:
-                type: string
-        '400':
-          description: Bad Request. Validation error/wrong request body.
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '500':
-          description: Internal Server Error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        '403':
-          description: Unauthorized User
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Error'
-        default:
-          description: unexpected error
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/ErrorResponse'
-  /cd-pipeline/bulk-action/impacted-objects:
-    post:
-      description: get impacted objects of bulk action to be performed on cd pipelines
+      parameters:
+        - name: forceDelete
+          in: query
+          required: true
+          schema:
+            type: boolean
+        - name: dryRun
+          in: query
+          required: true
+          schema:
+            type: boolean
       requestBody:
         description: A JSON object containing the bulk action configuration
         required: true

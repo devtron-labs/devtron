@@ -1851,9 +1851,9 @@ func (handler PipelineConfigRestHandlerImpl) HandleCdPipelineBulkAction(w http.R
 
 	v := r.URL.Query()
 	forceDelete := false
-	force := v.Get("force")
-	if len(force) > 0 {
-		forceDelete, err = strconv.ParseBool(force)
+	forceDeleteParam := v.Get("forceDelete")
+	if len(forceDeleteParam) > 0 {
+		forceDelete, err = strconv.ParseBool(forceDeleteParam)
 		if err != nil {
 			handler.Logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
