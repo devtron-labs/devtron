@@ -288,12 +288,12 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 	application, err := impl.appRepo.FindAppAndProjectByAppId(appId)
 	if err != nil {
 		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
-		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
+		return fmt.Sprintf("%s/%s/%s", "", "", ""), ""
 	}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
 		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
-		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
+		return fmt.Sprintf("%s/%s/%s", "", "", ""), ""
 	}
 	clusterName := env.Cluster.ClusterName
 	namespace := env.Namespace
@@ -313,6 +313,12 @@ func (impl EnforcerUtilImpl) GetHelmObject(appId int, envId int) (string, string
 	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
 		environmentIdentifier = fmt.Sprintf("%s__%s", env.Cluster.ClusterName, env.EnvironmentIdentifier)
 	}*/
+
+	if environmentIdentifier2 == "" {
+
+		return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName)), ""
+	}
+
 	return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName)),
 		fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier2, strings.ToLower(application.AppName))
 }
@@ -321,12 +327,12 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 	application, err := impl.appRepo.FindAppAndProjectByAppName(appName)
 	if err != nil {
 		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
-		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
+		return fmt.Sprintf("%s/%s/%s", "", "", ""), ""
 	}
 	env, err := impl.environmentRepository.FindById(envId)
 	if err != nil {
 		impl.logger.Errorw("error on fetching data for rbac object", "err", err)
-		return fmt.Sprintf("%s/%s/%s", "", "", ""), fmt.Sprintf("%s/%s/%s", "", "", "")
+		return fmt.Sprintf("%s/%s/%s", "", "", ""), ""
 	}
 
 	clusterName := env.Cluster.ClusterName
@@ -341,6 +347,11 @@ func (impl EnforcerUtilImpl) GetHelmObjectByAppNameAndEnvId(appName string, envI
 
 	if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
 		environmentIdentifier2 = clusterName + "__" + namespace
+	}
+
+	if environmentIdentifier2 == "" {
+
+		return fmt.Sprintf("%s/%s/%s", strings.ToLower(application.Team.Name), environmentIdentifier, strings.ToLower(application.AppName)), ""
 	}
 
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
@@ -378,6 +389,11 @@ func (impl EnforcerUtilImpl) GetHelmObjectByProjectIdAndEnvId(teamId int, envId 
 	if environmentIdentifier != clusterName+"__"+namespace { // for futuristic permission cluster name is not present in environment identifier
 		environmentIdentifier2 = clusterName + "__" + namespace
 	}
+
+	if environmentIdentifier2 == "" {
+		return fmt.Sprintf("%s/%s/%s", strings.ToLower(team.Name), environmentIdentifier, "*"), ""
+	}
+
 	//TODO - FIX required for futuristic permission for cluster__* all environment for migrated environment identifier only
 	/*//here cluster, env, namespace must not have double underscore in names, as we are using that for separator.
 	if !strings.HasPrefix(env.EnvironmentIdentifier, fmt.Sprintf("%s__", env.Cluster.ClusterName)) {
