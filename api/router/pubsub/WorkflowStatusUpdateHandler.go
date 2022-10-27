@@ -28,7 +28,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	util "github.com/devtron-labs/devtron/util/event"
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -57,17 +56,7 @@ func NewWorkflowStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClient 
 		eventClient:          eventClient,
 		cdWorkflowRepository: cdWorkflowRepository,
 	}
-
-	streamConfig := &nats.StreamConfig{
-		Name:     pubsub.KUBEWATCH_STREAM,
-		Subjects: pubsub.GetStreamSubjects(pubsub.KUBEWATCH_STREAM),
-	}
-	err := pubsub.AddStream(workflowStatusUpdateHandlerImpl.pubsubClient.NatsClient.JetStrCtxt, streamConfig, pubsub.KUBEWATCH_STREAM)
-	if err != nil {
-		logger.Error("err", err)
-		return nil
-	}
-	err = workflowStatusUpdateHandlerImpl.Subscribe()
+	err := workflowStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
 		logger.Error("err", err)
 		return nil

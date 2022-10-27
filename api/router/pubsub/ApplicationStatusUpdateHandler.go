@@ -26,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -51,16 +50,7 @@ func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClie
 		workflowDagExecutor: workflowDagExecutor,
 		installedAppService: installedAppService,
 	}
-	streamConfig := &nats.StreamConfig{
-		Name:     pubsub.KUBEWATCH_STREAM,
-		Subjects: pubsub.GetStreamSubjects(pubsub.KUBEWATCH_STREAM),
-	}
-	err := pubsub.AddStream(appStatusUpdateHandlerImpl.pubsubClient.NatsClient.JetStrCtxt, streamConfig, pubsub.KUBEWATCH_STREAM)
-	if err != nil {
-		//logger.Error("err", err)
-		return nil
-	}
-	err = appStatusUpdateHandlerImpl.Subscribe()
+	err := appStatusUpdateHandlerImpl.Subscribe()
 	if err != nil {
 		//logger.Error("err", err)
 		return nil

@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -57,16 +56,7 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 		pubsubClient:   pubsubClient,
 		webhookService: webhookService,
 	}
-	streamConfig := &nats.StreamConfig{
-		Name:     pubsub.CI_RUNNER_STREAM,
-		Subjects: pubsub.GetStreamSubjects(pubsub.CI_RUNNER_STREAM),
-	}
-	err := pubsub.AddStream(ciEventHandlerImpl.pubsubClient.NatsClient.JetStrCtxt, streamConfig, pubsub.CI_RUNNER_STREAM)
-	if err != nil {
-		logger.Error(err)
-		return nil
-	}
-	err = ciEventHandlerImpl.Subscribe()
+	err := ciEventHandlerImpl.Subscribe()
 	if err != nil {
 		logger.Error(err)
 		return nil

@@ -58,7 +58,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bean"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -148,15 +147,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		argoUserService:                      argoUserService,
 	}
-	streamConfig := &nats.StreamConfig{
-		Name:     pubsub.ORCHESTRATOR_STREAM,
-		Subjects: pubsub.GetStreamSubjects(pubsub.ORCHESTRATOR_STREAM),
-	}
-	err := pubsub.AddStream(impl.pubsubClient.NatsClient.JetStrCtxt, streamConfig, pubsub.ORCHESTRATOR_STREAM)
-	if err != nil {
-		return nil, err
-	}
-	err = impl.Subscribe()
+	err := impl.Subscribe()
 	if err != nil {
 		return nil, err
 	}

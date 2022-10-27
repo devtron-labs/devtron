@@ -24,7 +24,6 @@ import (
 	"github.com/devtron-labs/devtron/client/gitSensor"
 	"github.com/devtron-labs/devtron/pkg/git"
 
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -44,16 +43,7 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 		pubsubClient:      pubsubClient,
 		gitWebhookService: gitWebhookService,
 	}
-	streamConfig := &nats.StreamConfig{
-		Name:     pubsub.GIT_SENSOR_STREAM,
-		Subjects: pubsub.GetStreamSubjects(pubsub.GIT_SENSOR_STREAM),
-	}
-	err := pubsub.AddStream(gitWebhookHandlerImpl.pubsubClient.NatsClient.JetStrCtxt, streamConfig, pubsub.GIT_SENSOR_STREAM)
-	if err != nil {
-		logger.Error("err", err)
-		return nil
-	}
-	err = gitWebhookHandlerImpl.Subscribe()
+	err := gitWebhookHandlerImpl.Subscribe()
 	if err != nil {
 		logger.Error("err", err)
 		return nil

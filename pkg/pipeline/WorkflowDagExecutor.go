@@ -51,7 +51,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util/event"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/go-pg/pg"
-	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
 )
 
@@ -169,15 +168,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		argoUserService:               argoUserService,
 		cdPipelineStatusTimelineRepo:  cdPipelineStatusTimelineRepo,
 	}
-	streamConfig := &nats.StreamConfig{
-		Name:     pubsub.ORCHESTRATOR_STREAM,
-		Subjects: pubsub.GetStreamSubjects(pubsub.ORCHESTRATOR_STREAM),
-	}
-	err := pubsub.AddStream(wde.pubsubClient.NatsClient.JetStrCtxt, streamConfig, pubsub.ORCHESTRATOR_STREAM)
-	if err != nil {
-		return nil
-	}
-	err = wde.Subscribe()
+	err := wde.Subscribe()
 	if err != nil {
 		return nil
 	}
