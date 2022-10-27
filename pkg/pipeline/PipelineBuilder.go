@@ -108,6 +108,8 @@ type PipelineBuilder interface {
 	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
 	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
+
+	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, ctx context.Context, dryRun bool) ([]*bean.CdBulkActionResponseDto, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -1225,16 +1227,21 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 		err := impl.updateCdPipeline(ctx, cdPipelines.Pipeline, cdPipelines.UserId)
 		return pipelineRequest, err
 	case bean.CD_DELETE:
-		err := impl.deleteCdPipeline(cdPipelines.Pipeline.Id, cdPipelines.UserId, ctx, cdPipelines.ForceDelete)
+		pipeline, err := impl.pipelineRepository.FindById(cdPipelines.Pipeline.Id)
+		if err != nil {
+			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
+			return pipelineRequest, err
+		}
+		err = impl.deleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete)
 		return pipelineRequest, err
 	default:
 		return nil, &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "operation not supported"}
 	}
 }
 
-func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, ctx context.Context, forceDelete bool) (err error) {
+func (impl PipelineBuilderImpl) deleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool) (err error) {
 	//getting children CD pipeline details
-	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipelineId)
+	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting children cd details", "err", err)
 		return err
@@ -1242,21 +1249,12 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 		impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
 		return fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
 	}
-	pipeline, err := impl.pipelineRepository.FindById(pipelineId)
-	if err != nil {
-		impl.logger.Errorw("err in fetching pipeline", "id", pipelineId, "err", err)
-		return err
-	}
 	//getting deployment group for this pipeline
-	deploymentGroups, err := impl.deploymentGroupRepository.FindByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
+	deploymentGroupNames, err := impl.deploymentGroupRepository.GetNamesByAppIdAndEnvId(pipeline.EnvironmentId, pipeline.AppId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting deployment groups by envId", "err", err)
+		impl.logger.Errorw("error in getting deployment group names by appId and envId", "err", err)
 		return err
-	} else if len(deploymentGroups) > 0 {
-		var deploymentGroupNames []string
-		for _, group := range deploymentGroups {
-			deploymentGroupNames = append(deploymentGroupNames, group.Name)
-		}
+	} else if len(deploymentGroupNames) > 0 {
 		groupNamesByte, err := json.Marshal(deploymentGroupNames)
 		if err != nil {
 			impl.logger.Errorw("error in marshaling deployment group names", "err", err, "deploymentGroupNames", deploymentGroupNames)
@@ -1271,19 +1269,16 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	if err = impl.dbPipelineOrchestrator.DeleteCdPipeline(pipelineId, tx); err != nil {
+	if err = impl.dbPipelineOrchestrator.DeleteCdPipeline(pipeline.Id, tx); err != nil {
 		impl.logger.Errorw("err in deleting pipeline from db", "id", pipeline, "err", err)
 		return err
 	}
 
 	//delete app workflow mapping
-	appWorkflowMapping, err = impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(pipelineId)
-	for _, mapping := range appWorkflowMapping {
-		err := impl.appWorkflowRepository.DeleteAppWorkflowMapping(mapping, tx)
-		if err != nil {
-			impl.logger.Errorw("error in deleting workflow mapping", "err", err)
-			return err
-		}
+	err = impl.appWorkflowRepository.DeleteAppWorkflowMappingsByCdPipelineId(pipeline.Id, tx)
+	if err != nil {
+		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+		return err
 	}
 
 	if pipeline.PreStageConfig != "" {
@@ -1331,7 +1326,7 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipelineId int, userId int32, c
 					return err
 				}
 			}
-			impl.logger.Infow("app deleted from argocd", "id", pipelineId, "pipelineName", pipeline.Name, "app", deploymentAppName)
+			impl.logger.Infow("app deleted from argocd", "id", pipeline.Id, "pipelineName", pipeline.Name, "app", deploymentAppName)
 		} else if util.IsHelmApp(pipeline.DeploymentAppType) {
 			appIdentifier := &client.AppIdentifier{
 				ClusterId:   pipeline.Environment.ClusterId,
@@ -2519,4 +2514,67 @@ func (impl PipelineBuilderImpl) updateGitRepoUrlInCharts(appId int, chartGitAttr
 		}
 	}
 	return nil
+}
+
+func (impl PipelineBuilderImpl) PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, ctx context.Context, dryRun bool) ([]*bean.CdBulkActionResponseDto, error) {
+	switch dto.Action {
+	case bean.CD_BULK_DELETE:
+		bulkDeleteResp, err := impl.BulkDeleteCdPipelines(dto, ctx, dryRun)
+		if err != nil {
+			impl.logger.Errorw("error in bulk deleting cd pipelines", "err", err)
+			return nil, err
+		}
+		return bulkDeleteResp, nil
+	default:
+		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "this action is not supported"}
+	}
+}
+
+func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(dto *bean.CdBulkActionRequestDto, ctx context.Context, dryRun bool) ([]*bean.CdBulkActionResponseDto, error) {
+	//getting pipeline IDs for app level deletion request
+	pipelineIdsByAppLevel, err := impl.pipelineRepository.FindIdsByAppIdsAndEnvironmentIds(dto.AppIds, dto.EnvIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting cd pipelines by appIds and envIds", "err", err)
+		return nil, err
+	}
+	//getting pipeline IDs for project level deletion request
+	pipelineIdsByProjectLevel, err := impl.pipelineRepository.FindIdsByProjectIdsAndEnvironmentIds(dto.ProjectIds, dto.EnvIds)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting cd pipelines by projectIds and envIds", "err", err)
+		return nil, err
+	}
+	var pipelineIdsMerged []int
+	//it might be possible that pipelineIdsByAppLevel & pipelineIdsByProjectLevel have some same values
+	//we are still appending them to save operation cost of checking same ids as we will get pipelines from
+	//in clause which gives correct results even if some values are repeating
+	pipelineIdsMerged = append(pipelineIdsMerged, pipelineIdsByAppLevel...)
+	pipelineIdsMerged = append(pipelineIdsMerged, pipelineIdsByProjectLevel...)
+	var pipelines []*pipelineConfig.Pipeline
+	if len(pipelineIdsMerged) > 0 {
+		pipelines, err = impl.pipelineRepository.FindByIdsIn(pipelineIdsMerged)
+		if err != nil {
+			impl.logger.Errorw("error in getting cd pipelines by ids", "err", err, "ids", pipelineIdsMerged)
+			return nil, err
+		}
+	}
+	var respDtos []*bean.CdBulkActionResponseDto
+	for _, pipeline := range pipelines {
+		respDto := &bean.CdBulkActionResponseDto{
+			PipelineName:    pipeline.Name,
+			AppName:         pipeline.App.AppName,
+			EnvironmentName: pipeline.Environment.Name,
+		}
+		if !dryRun {
+			err = impl.deleteCdPipeline(pipeline, ctx, dto.ForceDelete)
+			if err != nil {
+				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
+				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline : %v", err)
+			} else {
+				respDto.DeletionResult = "Pipeline deleted successfully."
+			}
+		}
+		respDtos = append(respDtos, respDto)
+	}
+	return respDtos, nil
+
 }
