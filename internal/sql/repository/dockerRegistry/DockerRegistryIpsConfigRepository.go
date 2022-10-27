@@ -31,10 +31,6 @@ type DockerRegistryIpsConfig struct {
 	IgnoredClusterIdsCsv  string                          `sql:"ignored_cluster_ids_csv"`
 }
 
-const IPS_CREDENTIAL_TYPE_SAME_AS_REGISTRY = "SAME_AS_REGISTRY"
-const IPS_CREDENTIAL_TYPE_NAME = "NAME"
-const IPS_CREDENTIAL_TYPE_CUSTOM_CREDENTIAL = "CUSTOM_CREDENTIAL"
-
 type DockerRegistryIpsCredentialType string
 
 type DockerRegistryIpsConfigRepository interface {

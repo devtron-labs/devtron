@@ -20,8 +20,6 @@ package dockerRegistry
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"go.uber.org/zap"
-	"strconv"
-	"strings"
 )
 
 type DockerRegistryIpsConfigService interface {
@@ -40,8 +38,6 @@ func NewDockerRegistryIpsConfigServiceImpl(logger *zap.SugaredLogger, dockerRegi
 	}
 }
 
-const ALL_CLUSTER_ID string = "-1"
-
 func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int) (bool, error) {
 	impl.logger.Infow("checking if Ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId)
 
@@ -50,28 +46,6 @@ func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(d
 		impl.logger.Errorw("Error while getting docker registry ips config", "dockerRegistryId", dockerRegistryId, "err", err)
 		return false, err
 	}
-
-	clusterIdStr := strconv.Itoa(clusterId)
-
-	if len(ipsConfig.AppliedClusterIdsCsv) > 0 {
-		appliedClusterIds := strings.Split(ipsConfig.AppliedClusterIdsCsv, ",")
-		for _, appliedClusterId := range appliedClusterIds {
-			if appliedClusterId == ALL_CLUSTER_ID || appliedClusterId == clusterIdStr {
-				return true, nil
-			}
-		}
-		return false, nil
-	}
-	if len(ipsConfig.IgnoredClusterIdsCsv) > 0 {
-		ignoredClusterIds := strings.Split(ipsConfig.IgnoredClusterIdsCsv, ",")
-		for _, ignoredClusterId := range ignoredClusterIds {
-			if ignoredClusterId == ALL_CLUSTER_ID || ignoredClusterId == clusterIdStr {
-				return false, nil
-			}
-		}
-		return true, nil
-	}
-
-	return false, nil
-
+	isAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId)
+	return isAccessProvided, nil
 }
