@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -112,7 +113,7 @@ type AppServiceImpl struct {
 	chartService                        chart.ChartService
 	argoUserService                     argo.ArgoUserService
 	cdPipelineStatusTimelineRepo        pipelineConfig.PipelineStatusTimelineRepository
-	appCrudOperationService          AppCrudOperationService
+	appCrudOperationService             AppCrudOperationService
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
@@ -161,7 +162,7 @@ func NewAppService(
 	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	appCrudOperationService          AppCrudOperationService,
+	appCrudOperationService AppCrudOperationService,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository) *AppServiceImpl {
@@ -207,7 +208,7 @@ func NewAppService(
 		helmAppClient:                       helmAppClient,
 		argoUserService:                     argoUserService,
 		cdPipelineStatusTimelineRepo:        cdPipelineStatusTimelineRepo,
-		appCrudOperationService:                     appCrudOperationService,
+		appCrudOperationService:             appCrudOperationService,
 		configMapHistoryRepository:          configMapHistoryRepository,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
@@ -1387,7 +1388,7 @@ func (impl *AppServiceImpl) WriteCDTriggerEvent(overrideRequest *bean.ValuesOver
 		deploymentEvent.PipelineMaterials = append(deploymentEvent.PipelineMaterials, pipelineMaterialInfo)
 	}
 	impl.logger.Infow("triggering deployment event", "event", deploymentEvent)
-	err = impl.eventClient.WriteNatsEvent(util2.CD_SUCCESS, deploymentEvent)
+	err = impl.eventClient.WriteNatsEvent(pubsub.CD_SUCCESS, deploymentEvent)
 	if err != nil {
 		impl.logger.Errorw("error in writing cd trigger event", "err", err)
 	}
