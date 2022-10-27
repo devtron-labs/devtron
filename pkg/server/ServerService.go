@@ -68,7 +68,7 @@ func (impl ServerServiceImpl) GetServerInfo(showServerStatus bool) (*serverBean.
 	}
 
 	// if showServerStatus flag is false and installation type is not OSS helm, then return (do not calculate server status)
-	if serverInfoDto.InstallationType != serverBean.DevtronInstallationTypeOssHelm && !showServerStatus {
+	if serverInfoDto.InstallationType != serverBean.DevtronInstallationTypeOssHelm || !showServerStatus {
 		return serverInfoDto, nil
 	}
 
