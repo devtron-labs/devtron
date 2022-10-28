@@ -61,7 +61,7 @@ func BuildIpsData(dockerRegistryUrl, dockerRegistryUsername, dockerRegistryPassw
 func GetUsernamePasswordFromIpsSecret(dockerRegistryUrl string, data map[string][]byte) (string, string) {
 	dockerConfig := create.DockerConfigJSON{}
 	err := json.Unmarshal(data[corev1.DockerConfigJsonKey], &dockerConfig)
-	if err != nil {
+	if err == nil {
 		val, found := dockerConfig.Auths[dockerRegistryUrl]
 		if found {
 			return val.Username, val.Password
