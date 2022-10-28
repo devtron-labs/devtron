@@ -15,7 +15,7 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/devtron-labs/authenticator v0.4.31-0.20220913121257-aecda79359cc
-	github.com/devtron-labs/common-lib v0.0.0-20221028102333-22559ddb5f6f
+	github.com/devtron-labs/common-lib v0.0.0-20221028123910-ac349a64526a
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-pg/pg v6.15.1+incompatible
