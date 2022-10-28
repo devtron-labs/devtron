@@ -1,4 +1,4 @@
-# Deployment Template
+# Base Deployment Template
 
 
 A deployment configuration is a manifest of the application. It defines the runtime behavior of the application.
