@@ -68,7 +68,7 @@ With the option **Build without Dockerfile**, you can use buildpacks to automate
 
 | Field | Description |
 | --- | --- |
-| **Select repository containing code** | Select the Git checkout path of your repository. This repository is the same which you defined on the [Git Repository](https://docs.devtron.ai/usage/applications/creating-application/git-material) section..|
+| **Select repository containing code** | Select the Git checkout path of your repository. This repository is the same which you defined on the [Git Repository](https://docs.devtron.ai/usage/applications/creating-application/git-material) section.|
 | **Project Path (Relative)** | Enter a project path for the builder if you are working on multiple projects under a single repository (monorepo).|
 | **Language** | Select the programming language (e.g., `Java`, `Go`, `Python`, `Node` etc.) from the drop-down list you want to cbuild your container image as per the compatibility to your system.<br> **Note**: We will be adding other programming languages in the future releases.</br>|
 | **Version** | Select the version of the selected programming language. You can also select **Autodetect** to auto-select the compatible version.|
