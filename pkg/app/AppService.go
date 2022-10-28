@@ -1647,6 +1647,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 
 func (impl AppServiceImpl) handleImagePullSecretIfAccessGiven(environment *repository2.Environment, ciPipelineId int, valuesFileContent []byte) ([]byte, error) {
 	clusterId := environment.ClusterId
+	impl.logger.Infow("handling ips if access given", "ciPipelineId", ciPipelineId, "clusterId", clusterId)
 
 	ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
 	if err != nil {
@@ -1665,6 +1666,7 @@ func (impl AppServiceImpl) handleImagePullSecretIfAccessGiven(environment *repos
 	ipsConfig := dockerRegistryBean.IpsConfig
 	ipsAccessProvided := dockerRegistry.CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId)
 	if !ipsAccessProvided {
+		impl.logger.Infow("ips access not given", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId)
 		return valuesFileContent, nil
 	}
 
@@ -1680,6 +1682,7 @@ func (impl AppServiceImpl) handleImagePullSecretIfAccessGiven(environment *repos
 	}
 
 	// merge ipsName in values
+	impl.logger.Infow("setting ips name in values file", "ipsName", ipsName)
 	updatedValuesFileContent, err := dockerRegistry.SetIpsNameInValues(valuesFileContent, ipsName)
 	if err != nil {
 		impl.logger.Errorw("error in setting ips name", "ipsName", ipsName, "error", err)
@@ -1690,6 +1693,8 @@ func (impl AppServiceImpl) handleImagePullSecretIfAccessGiven(environment *repos
 }
 
 func (impl AppServiceImpl) createOrUpdateDockerRegistryImagePullSecret(clusterId int, namespace string, ipsName string, dockerRegistryBean *repository4.DockerArtifactStore) error {
+	impl.logger.Infow("creating/updating ips", "ipsName", ipsName, "clusterId", clusterId)
+
 	ipsConfig := dockerRegistryBean.IpsConfig
 
 	clusterBean, err := impl.clusterService.FindById(clusterId)
@@ -1715,8 +1720,8 @@ func (impl AppServiceImpl) createOrUpdateDockerRegistryImagePullSecret(clusterId
 			return err
 		}
 		// create secret
-		// TODO : build
-		ipsData := dockerRegistry.BuildIpsData(string(dockerRegistryBean.RegistryType), dockerRegistryBean.Username, dockerRegistryBean.Password, string(ipsConfig.CredentialType), ipsConfig.CredentialValue)
+		impl.logger.Infow("creating ips", "ipsName", ipsName, "clusterId", clusterId)
+		ipsData := dockerRegistry.BuildIpsData(dockerRegistryBean.RegistryURL, dockerRegistryBean.Username, dockerRegistryBean.Password, string(ipsConfig.CredentialType), ipsConfig.CredentialValue)
 		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient)
 		if err != nil {
 			impl.logger.Errorw("error in creating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
@@ -1724,11 +1729,14 @@ func (impl AppServiceImpl) createOrUpdateDockerRegistryImagePullSecret(clusterId
 		}
 	} else {
 		// update secret if username or password changed
-		// TODO : logic
-		_, err = impl.k8sUtil.UpdateSecret(namespace, secret, k8sClient)
-		if err != nil {
-			impl.logger.Errorw("error in updating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
-			return err
+		username, password := dockerRegistry.GetUsernamePasswordFromIpsSecret(dockerRegistryBean.RegistryURL, secret.Data)
+		if dockerRegistryBean.Username != username || dockerRegistryBean.Password != password {
+			impl.logger.Infow("updating ips", "ipsName", ipsName, "clusterId", clusterId)
+			_, err = impl.k8sUtil.UpdateSecret(namespace, secret, k8sClient)
+			if err != nil {
+				impl.logger.Errorw("error in updating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
+				return err
+			}
 		}
 	}
 	return nil
