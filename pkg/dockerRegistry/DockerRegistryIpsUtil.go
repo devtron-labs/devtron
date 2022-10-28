@@ -97,9 +97,9 @@ func SetIpsNameInValues(valuesContent []byte, ipsName string) ([]byte, error) {
 	}
 
 	val, found := valuesMap[IMAGE_PULL_SECRET_KEY_IN_VALUES_YAML]
-	var ipsNames []string
+	var ipsNames []interface{}
 	if found {
-		ipsNames = val.([]string)
+		ipsNames = val.([]interface{})
 	}
 
 	var ipsNameFound bool
