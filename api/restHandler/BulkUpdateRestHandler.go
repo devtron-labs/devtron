@@ -35,6 +35,7 @@ type BulkUpdateRestHandler interface {
 	BulkHibernate(w http.ResponseWriter, r *http.Request)
 	BulkUnHibernate(w http.ResponseWriter, r *http.Request)
 	BulkDeploy(w http.ResponseWriter, r *http.Request)
+	BulkBuildTrigger(w http.ResponseWriter, r *http.Request)
 }
 type BulkUpdateRestHandlerImpl struct {
 	pipelineBuilder         pipeline.PipelineBuilder
@@ -350,6 +351,42 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 	token := r.Header.Get("token")
 	response, err := handler.bulkUpdateService.BulkDeploy(&request, ctx, w, token, handler.checkAuthForBulkActions)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
+}
+
+func (handler BulkUpdateRestHandlerImpl) BulkBuildTrigger(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var request pipeline.BulkApplicationForEnvironmentPayload
+	err = decoder.Decode(&request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	request.UserId = userId
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.logger.Errorw("validation err", "err", err, "request", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+	token := r.Header.Get("token")
+	response, err := handler.bulkUpdateService.BulkBuildTrigger(&request, ctx, w, token, handler.checkAuthForBulkActions)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return

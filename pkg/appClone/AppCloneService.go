@@ -37,15 +37,15 @@ type AppCloneService interface {
 	CloneApp(createReq *bean.CreateAppDTO, context context.Context) (*bean.CreateAppDTO, error)
 }
 type AppCloneServiceImpl struct {
-	logger                  *zap.SugaredLogger
-	pipelineBuilder         pipeline.PipelineBuilder
-	materialRepository      pipelineConfig.MaterialRepository
-	chartService            chart.ChartService
-	configMapService        pipeline.ConfigMapService
-	appWorkflowService      appWorkflow.AppWorkflowService
-	appListingService       app.AppListingService
-	propertiesConfigService pipeline.PropertiesConfigService
-	pipelineStageService    pipeline.PipelineStageService
+	logger                       *zap.SugaredLogger
+	pipelineBuilder              pipeline.PipelineBuilder
+	materialRepository           pipelineConfig.MaterialRepository
+	chartService                 chart.ChartService
+	configMapService             pipeline.ConfigMapService
+	appWorkflowService           appWorkflow.AppWorkflowService
+	appListingService            app.AppListingService
+	propertiesConfigService      pipeline.PropertiesConfigService
+	pipelineStageService         pipeline.PipelineStageService
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
 }
 
@@ -60,15 +60,15 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	pipelineStageService pipeline.PipelineStageService) *AppCloneServiceImpl {
 	return &AppCloneServiceImpl{
-		logger:                  logger,
-		pipelineBuilder:         pipelineBuilder,
-		materialRepository:      materialRepository,
-		chartService:            chartService,
-		configMapService:        configMapService,
-		appWorkflowService:      appWorkflowService,
-		appListingService:       appListingService,
-		propertiesConfigService: propertiesConfigService,
-		pipelineStageService:    pipelineStageService,
+		logger:                       logger,
+		pipelineBuilder:              pipelineBuilder,
+		materialRepository:           materialRepository,
+		chartService:                 chartService,
+		configMapService:             configMapService,
+		appWorkflowService:           appWorkflowService,
+		appListingService:            appListingService,
+		propertiesConfigService:      propertiesConfigService,
+		pipelineStageService:         pipelineStageService,
 		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
 	}
 
@@ -302,12 +302,14 @@ func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int
 		return nil, err
 	}
 	templateReq := chart.TemplateRequest{
-		Id:             0,
-		AppId:          newAppId,
-		Latest:         refTemplate.Latest,
-		ValuesOverride: refTemplate.DefaultAppOverride,
-		ChartRefId:     refTemplate.ChartRefId,
-		UserId:         userId,
+		Id:                0,
+		AppId:             newAppId,
+		Latest:            refTemplate.Latest,
+		ValuesOverride:    refTemplate.DefaultAppOverride,
+		ChartRefId:        refTemplate.ChartRefId,
+		UserId:            userId,
+		IsBasicViewLocked: refTemplate.IsBasicViewLocked,
+		CurrentViewEditor: refTemplate.CurrentViewEditor,
 	}
 	templateRes, err := impl.chartService.Create(templateReq, context)
 	if err != nil {
@@ -475,15 +477,19 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 			AppMetrics:        refEnvProperties.EnvironmentConfig.AppMetrics,
 			ChartRefId:        refEnvProperties.EnvironmentConfig.ChartRefId,
 			IsOverride:        refEnvProperties.EnvironmentConfig.IsOverride,
+			IsBasicViewLocked: refEnvProperties.EnvironmentConfig.IsBasicViewLocked,
+			CurrentViewEditor: refEnvProperties.EnvironmentConfig.CurrentViewEditor,
 		}
 		createResp, err := impl.propertiesConfigService.CreateEnvironmentProperties(newAppId, envPropertiesReq)
 		if err != nil {
 			if err.Error() == bean2.NOCHARTEXIST {
 				templateRequest := chart.TemplateRequest{
-					AppId:          newAppId,
-					ChartRefId:     envPropertiesReq.ChartRefId,
-					ValuesOverride: []byte("{}"),
-					UserId:         userId,
+					AppId:             newAppId,
+					ChartRefId:        envPropertiesReq.ChartRefId,
+					ValuesOverride:    []byte("{}"),
+					UserId:            userId,
+					IsBasicViewLocked: envPropertiesReq.IsBasicViewLocked,
+					CurrentViewEditor: envPropertiesReq.CurrentViewEditor,
 				}
 				_, err = impl.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
 				if err != nil {

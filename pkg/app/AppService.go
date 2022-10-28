@@ -791,6 +791,8 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 					IsOverride:        false,
 					EnvOverrideValues: "{}",
 					Latest:            false,
+					IsBasicViewLocked: chart.IsBasicViewLocked,
+					CurrentViewEditor: chart.CurrentViewEditor,
 				}
 				err = impl.environmentConfigRepository.Save(envOverride)
 				if err != nil {
