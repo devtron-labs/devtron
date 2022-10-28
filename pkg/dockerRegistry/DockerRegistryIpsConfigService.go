@@ -125,6 +125,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) CreateOrUpdateDockerRegistryImage
 	registryURL := dockerRegistryBean.RegistryURL
 	var email string
 
+	// fetch from custom credentials
 	if dockerRegistryBean.IpsConfig.CredentialType == IPS_CREDENTIAL_TYPE_CUSTOM_CREDENTIAL {
 		var dockerIpsCustomCredential DockerIpsCustomCredential
 		credentialValue := dockerRegistryBean.IpsConfig.CredentialValue
