@@ -1,0 +1,52 @@
+{{!--
+Wow what the hell is going on in here even?
+
+Ok so, several templates use this big header with a giant BG image. Nice idea, but big images
+have a heavy impact on performance, so it's a good idea to make them responsive. Because we
+can only get the image dynamically using Handlebars, and we can only set the image to properly
+be a background image using CSS, we end up with a handful of inline styles.
+
+If the template in question has a background image, then we render responsive image styles
+for it, and apply those styles to the <header> tag. Else, we just output a <header> tag
+with a `no-image` class so we can style it accordingly.
+--}}
+
+{{#if background}}
+
+<style type="text/css">
+    .responsive-header-img {
+        background-image: url({{img_url background size='xl'}});
+    }
+
+    @media(max-width: 1000px) {
+        .responsive-header-img {
+            background-image: url({{img_url background size='l'}});
+            background-image: -webkit-image-set(url({{img_url background size='l'}}) 1x,
+                url({{img_url background size='xl'}}) 2x);
+            background-image: image-set(url({{img_url background size='l'}}) 1x,
+                url({{img_url background size='xl'}}) 2x);
+        }
+    }
+
+    @media(max-width: 600px) {
+        .responsive-header-img {
+            background-image: url({{img_url background size='m'}});
+            background-image: -webkit-image-set(url({{img_url background size='m'}}) 1x,
+                url({{img_url background size='l'}}) 2x);
+            background-image: image-set(url({{img_url background size='m'}}) 1x,
+                url({{img_url background size='l'}}) 2x);
+        }
+    }
+</style>
+<div class="outer site-header-background responsive-header-img">
+
+{{else}}
+<a class="devops__banner" href="https://devtron.ai/devops-in-a-box.html" target="_blank">
+  <div class="devops_wrapper flex center"> 🔥 DevOps in a box<div class="devops__desktop">
+      <span class="mr-4"> - Leave DevOps on us;</span></div>Focus on your core product.<span
+      class="devops__know-more">Click to know more!
+      🔥</span></div>
+</a>
+<div class="outer site-header-background no-image">
+
+{{/if}}

@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="{{@site.lang}}">
+<head>
+
+    {{!-- Document Settings --}}
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+    {{!-- Base Meta --}}
+    <title>{{meta_title}}</title>
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    {{!-- Styles'n'Scripts --}}
+    <link rel="stylesheet" type="text/css" href="{{asset "built/screen.css"}}" />
+    <link rel="stylesheet" type="text/css" href="{{asset "css/screen.css"}}" />
+
+
+    {{!-- This tag outputs SEO meta+structured data and other important settings --}}
+    {{ghost_head}}
+
+</head>
+<body class="{{body_class}}">
+
+    {{!-- Devops banner --}}
+    <div class="site-wrapper">
+      <a class="devops__banner" href="https://devtron.ai/devops-in-a-box.html" target="_blank">
+        <div class="devops_wrapper flex center"> 🔥 DevOps in a box<div class="devops__desktop">
+            <span class="mr-4"> - Leave DevOps on us;</span></div>Focus on your core product.<span class="devops__know-more">Click to know more!
+            🔥</span></div>
+      </a>
+
+        {{!-- All the main content gets inserted here, index.hbs, post.hbs, etc --}}
+        {{{body}}}
+        {{!-- The footer at the very bottom of the screen --}}
+     <footer class="bg-blue">
+        <div class="devtron-footer">
+            <div class="devtron-footer__content">
+                <div class="devtron-footer__left">
+                    <a href="https://devtron.ai/" target="_blank"><img class="devtron-footer__logo" src="https://devtron.ai/images/devtron-header-logo.svg" width="120" height="32" /></a>
+                    <div class="devtron-footer__title">An open-source release orchestration & CI/CD platform for
+                        Kubernetes</div>
+                        <a href="https://github.com/devtron-labs/devtron.git" target="_blank" class="devtron-footer__git" onclick="viewOnGithubGAEvent(&quot;Footer&quot;)">
+                        <svg class="devtron-footer__icon" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M6.14335 13.8122C6.40785 13.7329 6.55794 13.4542 6.47859 13.1897C6.39924 12.9252 6.1205 12.7751 5.856 12.8544L6.14335 13.8122ZM1.45428 10.8483C1.18638 10.7813 0.914911 10.9442 0.847937 11.2121C0.780962 11.48 0.943842 11.7514 1.21174 11.8184L1.45428 10.8483ZM10.1663 15.3333C10.1663 15.6095 10.3902 15.8333 10.6663 15.8333C10.9425 15.8333 11.1663 15.6095 11.1663 15.3333H10.1663ZM10.6663 12.7533L10.1679 12.7141C10.1668 12.7272 10.1663 12.7402 10.1663 12.7533H10.6663ZM10.0396 11.0133L9.98426 10.5164C9.79466 10.5375 9.63361 10.6647 9.5691 10.8443C9.50459 11.0238 9.54787 11.2244 9.68065 11.3614L10.0396 11.0133ZM14.333 6.34666H14.833V6.34657L14.333 6.34666ZM13.333 3.84666L12.8645 3.67184C12.7976 3.85111 12.8389 4.05284 12.9708 4.19142L13.333 3.84666ZM13.273 1.33333L13.7325 1.13636C13.674 0.999729 13.5577 0.896242 13.4152 0.853972L13.273 1.33333ZM10.6663 2.32L10.5355 2.80259C10.6752 2.84045 10.8245 2.81591 10.9447 2.73532L10.6663 2.32ZM5.99965 2.32L5.72125 2.73532C5.84148 2.81591 5.99073 2.84045 6.13044 2.80259L5.99965 2.32ZM3.39298 1.33333L3.2508 0.853972C3.10829 0.896242 2.99197 0.999729 2.93341 1.13636L3.39298 1.33333ZM3.33298 3.84666L3.69511 4.19143C3.82705 4.05285 3.86833 3.85111 3.80142 3.67184L3.33298 3.84666ZM2.33298 6.36666H2.83299L2.83297 6.36401L2.33298 6.36666ZM6.62631 11.0333L6.98562 11.381C7.11744 11.2448 7.1609 11.0458 7.09784 10.867C7.03478 10.6882 6.87606 10.5605 6.68794 10.5371L6.62631 11.0333ZM5.99965 12.7533H6.49965C6.49965 12.7416 6.49924 12.7299 6.49842 12.7183L5.99965 12.7533ZM5.49965 15.3333C5.49965 15.6095 5.72351 15.8333 5.99965 15.8333C6.27579 15.8333 6.49965 15.6095 6.49965 15.3333H5.49965ZM5.856 12.8544C5.07952 13.0874 4.54652 13.0919 4.1657 13.0027C3.79132 12.9151 3.51604 12.7259 3.26989 12.4798C3.14401 12.3539 3.02755 12.2149 2.90736 12.0644C2.79333 11.9215 2.66306 11.7514 2.53655 11.6028C2.2813 11.3032 1.94554 10.9711 1.45428 10.8483L1.21174 11.8184C1.38714 11.8622 1.55138 11.9884 1.7753 12.2513C1.88837 12.384 1.99248 12.5212 2.12585 12.6882C2.25304 12.8476 2.39701 13.0211 2.56279 13.1869C2.89997 13.5241 3.33303 13.8349 3.93782 13.9764C4.53616 14.1165 5.25316 14.0793 6.14335 13.8122L5.856 12.8544ZM11.1663 15.3333V12.7533H10.1663V15.3333H11.1663ZM11.1648 12.7925C11.2266 12.0064 10.9476 11.2315 10.3986 10.6653L9.68065 11.3614C10.0297 11.7214 10.2072 12.2142 10.1679 12.7141L11.1648 12.7925ZM10.095 11.5103C11.1698 11.3905 12.3657 11.12 13.2931 10.3402C14.2448 9.53991 14.833 8.27479 14.833 6.34666H13.833C13.833 8.05854 13.3211 9.01009 12.6495 9.57481C11.9536 10.16 11.0028 10.4029 9.98426 10.5164L10.095 11.5103ZM14.833 6.34657C14.8328 5.28746 14.4254 4.26898 13.6951 3.5019L12.9708 4.19142C13.5242 4.77262 13.8328 5.5443 13.833 6.34675L14.833 6.34657ZM13.8014 4.02148C14.1503 3.08669 14.1256 2.05344 13.7325 1.13636L12.8134 1.5303C13.1052 2.21102 13.1235 2.97798 12.8645 3.67184L13.8014 4.02148ZM13.273 1.33333C13.4152 0.853972 13.4147 0.853828 13.4142 0.853685C13.414 0.853636 13.4135 0.853491 13.4132 0.853394C13.4125 0.853199 13.4119 0.853002 13.4112 0.852802C13.4098 0.852403 13.4083 0.851996 13.4069 0.851581C13.4039 0.85075 13.4007 0.849888 13.3973 0.849002C13.3905 0.84723 13.383 0.845362 13.3746 0.843452C13.3578 0.83963 13.3377 0.835648 13.3144 0.831926C13.2676 0.824475 13.2081 0.818125 13.1354 0.816123C12.9897 0.812113 12.7934 0.825622 12.5438 0.881047C12.0454 0.991699 11.3366 1.26872 10.3879 1.90467L10.9447 2.73532C11.816 2.15128 12.4106 1.93496 12.7605 1.85728C12.935 1.81854 13.0492 1.81413 13.1079 1.81574C13.1373 1.81656 13.1535 1.8189 13.1569 1.81945C13.1586 1.81972 13.1572 1.81956 13.1528 1.81856C13.1506 1.81806 13.1477 1.81736 13.144 1.81639C13.1422 1.81591 13.1402 1.81537 13.138 1.81475C13.1369 1.81444 13.1357 1.81412 13.1345 1.81377C13.1339 1.8136 13.1333 1.81343 13.1327 1.81324C13.1324 1.81315 13.1319 1.81302 13.1318 1.81297C13.1313 1.81283 13.1308 1.81269 13.273 1.33333ZM10.7971 1.83741C9.18346 1.40007 7.4825 1.40007 5.86886 1.83741L6.13044 2.80259C7.57278 2.41168 9.09318 2.41168 10.5355 2.80259L10.7971 1.83741ZM6.27805 1.90467C5.32932 1.26872 4.6206 0.991699 4.12218 0.881047C3.87252 0.825622 3.67628 0.812113 3.53058 0.816123C3.45786 0.818125 3.39831 0.824475 3.35159 0.831926C3.32826 0.835648 3.30821 0.83963 3.2914 0.843452C3.283 0.845362 3.27542 0.84723 3.26865 0.849002C3.26527 0.849888 3.26209 0.85075 3.25911 0.851581C3.25762 0.851996 3.25619 0.852403 3.2548 0.852802C3.25411 0.853002 3.25343 0.853199 3.25276 0.853394C3.25243 0.853491 3.25194 0.853636 3.25177 0.853685C3.25128 0.853828 3.2508 0.853972 3.39298 1.33333C3.53516 1.81269 3.53468 1.81283 3.53421 1.81297C3.53405 1.81302 3.53358 1.81315 3.53327 1.81324C3.53265 1.81343 3.53205 1.8136 3.53145 1.81377C3.53026 1.81412 3.52911 1.81444 3.528 1.81475C3.5258 1.81537 3.52378 1.81591 3.52194 1.81639C3.51826 1.81736 3.51532 1.81806 3.51312 1.81856C3.50872 1.81956 3.50735 1.81972 3.50908 1.81945C3.51249 1.8189 3.52862 1.81656 3.55809 1.81574C3.61677 1.81413 3.73094 1.81854 3.90545 1.85728C4.25536 1.93496 4.84997 2.15128 5.72125 2.73532L6.27805 1.90467ZM2.93341 1.13636C2.54035 2.05344 2.51568 3.08669 2.86454 4.02148L3.80142 3.67184C3.54248 2.97798 3.56078 2.21102 3.85255 1.5303L2.93341 1.13636ZM2.97086 3.50189C2.23513 4.27466 1.82732 5.30235 1.83299 6.36932L2.83297 6.36401C2.82868 5.55559 3.13767 4.77693 3.69511 4.19143L2.97086 3.50189ZM1.83298 6.36666C1.83298 8.28306 2.42211 9.54074 3.37286 10.3402C4.29853 11.1185 5.49242 11.3963 6.56469 11.5295L6.68794 10.5371C5.66687 10.4103 4.7141 10.1614 4.01644 9.57481C3.34385 9.00925 2.83298 8.06359 2.83298 6.36666H1.83298ZM6.26701 10.6856C5.7247 11.246 5.44617 12.0105 5.50088 12.7884L6.49842 12.7183C6.46362 12.2236 6.64075 11.7374 6.98562 11.381L6.26701 10.6856ZM5.49965 12.7533V15.3333H6.49965V12.7533H5.49965Z" fill="#fff"></path>
+                        </svg>
+                        View on Github
+                    </a>
+                    <h6 class="devtron-footer__time" id="ävailableTime"></h6>
+                </div>
+                <div class="devtron-footer__right">
+                    <article class="devtron-footer__social-mob">
+                        <div class="square-container">
+                            <a href="https://discord.com/invite/jsRG5qx2gp"
+                                target="_blank" class="devtron-footer__href">
+                                    <svg width="24.8" height="24.8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path fill="white" d="M18.8914 1.7998H5.10857C3.94629 1.7998 3 2.74609 3 3.91866V17.8249C3 18.9975 3.94629 19.9438 5.10857 19.9438H16.7726L16.2274 18.0409L17.544 19.2649L18.7886 20.4169L21 22.3712V3.91866C21 2.74609 20.0537 1.7998 18.8914 1.7998ZM14.9211 15.2329C14.9211 15.2329 14.5509 14.7907 14.2423 14.3998C15.5897 14.0192 16.104 13.1758 16.104 13.1758C15.6823 13.4535 15.2811 13.6489 14.9211 13.7827C14.4069 13.9987 13.9131 14.1427 13.4297 14.2249C12.4423 14.4101 11.5371 14.3587 10.7657 14.2147C10.1794 14.1015 9.67543 13.9369 9.25371 13.7724C9.01714 13.6798 8.76 13.5667 8.50286 13.4227C8.472 13.4021 8.44114 13.3918 8.41029 13.3712C8.38971 13.3609 8.37943 13.3507 8.36914 13.3404C8.184 13.2375 8.08114 13.1655 8.08114 13.1655C8.08114 13.1655 8.57486 13.9884 9.88114 14.3792C9.57257 14.7701 9.192 15.2329 9.192 15.2329C6.91886 15.1609 6.05486 13.6695 6.05486 13.6695C6.05486 10.3575 7.536 7.67295 7.536 7.67295C9.01714 6.56209 10.4263 6.59295 10.4263 6.59295L10.5291 6.71638C8.67771 7.25123 7.824 8.0638 7.824 8.0638C7.824 8.0638 8.05029 7.94038 8.43086 7.76552C9.53143 7.28209 10.4057 7.14838 10.7657 7.11752C10.8274 7.10723 10.8789 7.09695 10.9406 7.09695C11.568 7.01466 12.2777 6.99409 13.0183 7.07638C13.9954 7.18952 15.0446 7.47752 16.1143 8.0638C16.1143 8.0638 15.3017 7.29238 13.5531 6.75752L13.6971 6.59295C13.6971 6.59295 15.1063 6.56209 16.5874 7.67295C16.5874 7.67295 18.0686 10.3575 18.0686 13.6695C18.0686 13.6695 17.1943 15.1609 14.9211 15.2329ZM10.1383 10.4295C9.552 10.4295 9.08914 10.9438 9.08914 11.5712C9.08914 12.1987 9.56229 12.7129 10.1383 12.7129C10.7246 12.7129 11.1874 12.1987 11.1874 11.5712C11.1977 10.9438 10.7246 10.4295 10.1383 10.4295ZM13.8926 10.4295C13.3063 10.4295 12.8434 10.9438 12.8434 11.5712C12.8434 12.1987 13.3166 12.7129 13.8926 12.7129C14.4789 12.7129 14.9417 12.1987 14.9417 11.5712C14.9417 10.9438 14.4789 10.4295 13.8926 10.4295Z" fill="#7289DA"/>
+                                    </svg>
+                            </a>
+                            </div>
+                            <div class="square-container">
+                            <a href="https://www.linkedin.com/company/devtron-labs/"
+                                onclick="footerLinksGAEvent('Linkedin')" target="_blank" class="devtron-footer__href">
+                                <img src="https://devtron.ai/images/linkedin.svg" alt="linked-in" width="20" height="20" />
+                            </a>
+                        </div>
+                        <div class="square-container">
+                            <a href="https://twitter.com/DevtronL" target="_blank"
+                                onclick="footerLinksGAEvent('Twitter')" class="devtron-footer__href">
+                                <img src="https://devtron.ai/images/twitter.svg" alt="twitter" width="20" height="20" />
+                            </a>
+                        </div>
+                      <div class="square-container square-container-placeholder">
+                            <a href="" target="_blank"
+                                onclick="" class="square-container-placeholder-href">
+                            </a>
+                        </div>
+                        <div class="square-container">
+                            <a href="https://www.youtube.com/channel/UCDbfFyHMWTUIKn3RrtU3f4A/featured"
+                                onclick="footerLinksGAEvent('Youtube')" target="_blank" class="devtron-footer__href">
+                                <img src="https://devtron.ai/images/youtube.svg" alt="youtube" width="20" height="20" />
+                            </a>
+                        </div>
+                        <div class="square-container">
+                            <a href="https://www.facebook.com/devtronlabs" target="_blank"
+                                onclick="footerLinksGAEvent('Facebook')" class="devtron-footer__href">
+                                <img src="https://devtron.ai/images/facebook.svg" alt="facebook" width="20" height="20" />
+                            </a>
+                        </div>
+                    </article>
+                </div>
+            </div>
+            <p class="devtron-footer__copyright-text devtron-footer__copyright-text--mob">Made with
+                <span class="devtron-footer__heart">&hearts;</span>
+                in India</p>
+            <div class="devtron-footer__copyright-indent">
+                <p class="devtron-footer__copyright-text">© 2020 DevtronLabs. All rights reserved</p>
+                <p class="devtron-footer__copyright-text devtron-footer__copyright-text--desktop">
+                    Made with <span class="devtron-footer__heart">&hearts;</span> in India
+                </p>
+            </div>
+        </div>
+    </footer>
+    </div>
+
+    {{!-- The big email subscribe modal content --}}
+    {{#if @labs.members}}
+    <div class="subscribe-success-message">
+        <a class="subscribe-close" href="javascript:;"></a>
+        You've successfully subscribed to {{@site.title}}!
+    </div>
+
+    <div id="subscribe" class="subscribe-overlay">
+        <a class="subscribe-close" href="#"></a>
+        <div class="subscribe-overlay-content">
+            {{#if @site.logo}}
+                <img class="subscribe-overlay-logo" src="{{@site.logo}}" alt="{{@site.title}}" />
+            {{/if}}
+        </div>
+    </div>
+    {{/if}}
+
+    {{!-- jQuery, required for fitvids--}}
+    <script
+        src="https://code.jquery.com/jquery-3.4.1.min.js"
+        integrity="sha256-CSXorXvZcTkaix6Yvo6HppcZGetbYMGWSFlBw8HfCJo="
+        crossorigin="anonymous">
+    </script>
+
+    {{!-- Fitvids (for responsive video embeds), infinite scroll, floating header, and gallery card support --}}
+    <script src="{{asset "built/casper.js"}}"></script>
+
+    {{!-- Scripts for Members subscription --}}
+    <script>
+        // Parse the URL parameter
+        function getParameterByName(name, url) {
+            if (!url) url = window.location.href;
+            name = name.replace(/[\[\]]/g, "\\$&");
+            var regex = new RegExp("[?&]" + name + "(=([^&#]*)|&|#|$)"),
+                results = regex.exec(url);
+            if (!results) return null;
+            if (!results[2]) return '';
+            return decodeURIComponent(results[2].replace(/\+/g, " "));
+        }
+
+        // Give the parameter a variable name
+        var action = getParameterByName('action');
+
+        $(document).ready(function () {
+            if (action == 'subscribe') {
+                $('body').addClass("subscribe-success");
+            }
+
+            $('.subscribe-success-message .subscribe-close').click(function () {
+                $('.subscribe-success-message').addClass('close');
+            });
+
+            // Reset form on opening subscrion overlay
+            $('.subscribe-button').click(function() {
+                $('.subscribe-overlay form').removeClass();
+                $('.subscribe-email').val('');
+            });
+        });
+    </script>
+
+    {{!-- The #block helper will pull in data from the #contentFor other template files. In this case, there's some JavaScript which we only want to use in post.hbs, but it needs to be included down here, after jQuery has already loaded. --}}
+    {{{block "scripts"}}}
+
+    {{!-- Ghost outputs important scripts and data with this tag - it should always be the very last thing before the closing body tag --}}
+    {{ghost_foot}}
+
+</body>
+</html>

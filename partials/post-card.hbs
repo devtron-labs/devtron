@@ -1,0 +1,73 @@
+<article class="post-card {{post_class}} {{#unless feature_image}}no-image{{else}}{{#is "home"}}{{#has }}post-card-large{{/has}}{{/is}}{{/unless}}">
+
+    {{#if feature_image}}
+    <a class="post-card-image-link" href="{{url}}">
+        {{!-- This is a responsive image, it loads different sizes depending on device
+        https://medium.freecodecamp.org/a-guide-to-responsive-images-with-ready-to-use-templates-c400bd65c433 --}}
+        <img class="post-card-image"
+            srcset='{{img_url feature_image size="s"}} 300w,
+                    {{img_url feature_image size="m"}} 800w,
+                    {{img_url feature_image size="l"}} 1000w,
+                    {{img_url feature_image size="xl"}} 2000w'
+            sizes="(max-width: 1000px) 400px, 700px"
+            src="{{img_url feature_image size="m"}}"
+            alt="{{title}}"
+        />
+    </a>
+   
+    {{/if}}
+           
+
+    <div class="post-card-content">
+
+        <a class="post-card-content-link" href="{{url}}">
+
+            <header class="post-card-header">
+                {{#if primary_tag}}
+                    {{#primary_tag}}
+                    <div class="post-card-primary-tag">{{name}}</div>
+                    {{/primary_tag}}
+                {{/if}}
+                <h2 class="post-card-title">{{title}}</h2>
+            </header>
+
+            <section class="post-card-excerpt">
+                {{#if feature_image}}
+                    <p>{{excerpt words="30"}}</p>
+                {{else}}
+                    <p>{{excerpt words="44"}}</p>
+                {{/if}}
+            </section>
+
+        </a>
+
+        <footer class="post-card-meta">
+            <ul class="author-list">
+                {{#foreach authors}}
+                <li class="author-list-item">
+            
+                    <div class="author-name-tooltip">
+                        {{name}}
+                    </div>
+            
+                    {{#if profile_image}}
+                    <a href="{{url}}" class="static-avatar">
+                        <img class="author-profile-image" src="{{img_url profile_image size="xs"}}" alt="{{name}}" />
+                    </a>
+                    {{else}}
+                    <a href="{{url}}" class="static-avatar author-profile-image">
+                        <img style="-webkit-user-select: none;margin: auto;" src="https://secure.gravatar.com/avatar/943dbde009dd4a05905f54ad2865b771?s=512&amp;d=mm&amp;r=g">
+                    </a>
+                    {{/if}}
+                </li>
+                {{/foreach}}
+            </ul>
+            <div class="post-card-byline-content">
+                <span>{{#has author="count:>2"}}Multiple authors{{else}}{{authors}}{{/has}}</span>
+                <span class="post-card-byline-date"><time datetime="{{date format="YYYY-MM-DD"}}">{{date format="D MMM YYYY"}}</time> <span class="bull">&bull;</span> {{reading_time}}</span>
+            </div>
+        </footer>
+
+    </div>{{!--/.post-card-content--}}
+
+</article>
