@@ -4,6 +4,10 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/ecr"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/kubectl/pkg/cmd/create"
 	"regexp"
@@ -120,4 +124,34 @@ func SetIpsNameInValues(valuesContent []byte, ipsName string) ([]byte, error) {
 		return nil, err
 	}
 	return updatedValuesContent, nil
+}
+
+// returns username and password
+func CreateCredentialForEcr(awsRegion, awsAccessKey, awsSecretKey string) (string, string, error) {
+	creds := credentials.NewStaticCredentials(awsAccessKey, awsSecretKey, "")
+	sess, err := session.NewSession(&aws.Config{
+		Region:      &awsRegion,
+		Credentials: creds,
+	})
+	if err != nil {
+		return "", "", err
+	}
+	svc := ecr.New(sess)
+	input := &ecr.GetAuthorizationTokenInput{}
+	authData, err := svc.GetAuthorizationToken(input)
+	if err != nil {
+		return "", "", err
+	}
+
+	// decode token
+	token := authData.AuthorizationData[0].AuthorizationToken
+	decodedToken, err := base64.StdEncoding.DecodeString(*token)
+	if err != nil {
+		return "", "", err
+	}
+	credsSlice := strings.Split(string(decodedToken), ":")
+	username := credsSlice[0]
+	pwd := credsSlice[1]
+
+	return username, pwd, nil
 }

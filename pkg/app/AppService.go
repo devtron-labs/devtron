@@ -1695,6 +1695,26 @@ func (impl AppServiceImpl) handleImagePullSecretIfAccessGiven(environment *repos
 func (impl AppServiceImpl) createOrUpdateDockerRegistryImagePullSecret(clusterId int, namespace string, ipsName string, dockerRegistryBean *repository4.DockerArtifactStore) error {
 	impl.logger.Infow("creating/updating ips", "ipsName", ipsName, "clusterId", clusterId)
 
+	username := dockerRegistryBean.Username
+	password := dockerRegistryBean.Password
+	// ignore for ecr ec2_iam role
+	if dockerRegistryBean.RegistryType == repository4.REGISTRYTYPE_ECR {
+		awsAccessKeyId := dockerRegistryBean.AWSAccessKeyId
+		awsSecretAccessKey := dockerRegistryBean.AWSSecretAccessKey
+		if len(awsAccessKeyId) == 0 || len(awsSecretAccessKey) == 0 {
+			impl.logger.Info("ignoring for ecr ec2_iam role")
+			return nil
+		}
+		// create credential for ecr
+		impl.logger.Info("creating ecr credential")
+		ecrUsername, ecrPassword, err := dockerRegistry.CreateCredentialForEcr(dockerRegistryBean.AWSRegion, awsAccessKeyId, awsSecretAccessKey)
+		if err != nil {
+			impl.logger.Errorw("error in creating ecr credential", "clusterId", clusterId, "error", err)
+			return err
+		}
+		username = ecrUsername
+		password = ecrPassword
+	}
 	ipsConfig := dockerRegistryBean.IpsConfig
 
 	clusterBean, err := impl.clusterService.FindById(clusterId)
@@ -1721,7 +1741,7 @@ func (impl AppServiceImpl) createOrUpdateDockerRegistryImagePullSecret(clusterId
 		}
 		// create secret
 		impl.logger.Infow("creating ips", "ipsName", ipsName, "clusterId", clusterId)
-		ipsData := dockerRegistry.BuildIpsData(dockerRegistryBean.RegistryURL, dockerRegistryBean.Username, dockerRegistryBean.Password, string(ipsConfig.CredentialType), ipsConfig.CredentialValue)
+		ipsData := dockerRegistry.BuildIpsData(dockerRegistryBean.RegistryURL, username, password, string(ipsConfig.CredentialType), ipsConfig.CredentialValue)
 		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient)
 		if err != nil {
 			impl.logger.Errorw("error in creating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
@@ -1729,10 +1749,10 @@ func (impl AppServiceImpl) createOrUpdateDockerRegistryImagePullSecret(clusterId
 		}
 	} else {
 		// update secret if username or password changed
-		username, password := dockerRegistry.GetUsernamePasswordFromIpsSecret(dockerRegistryBean.RegistryURL, secret.Data)
-		if dockerRegistryBean.Username != username || dockerRegistryBean.Password != password {
+		secretUsername, secretPassword := dockerRegistry.GetUsernamePasswordFromIpsSecret(dockerRegistryBean.RegistryURL, secret.Data)
+		if username != secretUsername || password != secretPassword {
 			impl.logger.Infow("updating ips", "ipsName", ipsName, "clusterId", clusterId)
-			ipsData := dockerRegistry.BuildIpsData(dockerRegistryBean.RegistryURL, dockerRegistryBean.Username, dockerRegistryBean.Password, string(ipsConfig.CredentialType), ipsConfig.CredentialValue)
+			ipsData := dockerRegistry.BuildIpsData(dockerRegistryBean.RegistryURL, username, password, string(ipsConfig.CredentialType), ipsConfig.CredentialValue)
 			secret.Data = ipsData
 			_, err = impl.k8sUtil.UpdateSecret(namespace, secret, k8sClient)
 			if err != nil {
