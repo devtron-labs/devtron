@@ -28,6 +28,7 @@ import (
 	v1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
+	"strings"
 )
 
 type DockerRegistryIpsConfigService interface {
@@ -148,8 +149,10 @@ func (impl DockerRegistryIpsConfigServiceImpl) CreateOrUpdateDockerRegistryImage
 		}
 	}
 
+	registryType := dockerRegistryBean.RegistryType
+
 	// ignore for ecr ec2_iam role
-	if dockerRegistryBean.RegistryType == repository.REGISTRYTYPE_ECR {
+	if registryType == repository.REGISTRYTYPE_ECR {
 		awsAccessKeyId := dockerRegistryBean.AWSAccessKeyId
 		awsSecretAccessKey := dockerRegistryBean.AWSSecretAccessKey
 		if len(awsAccessKeyId) == 0 || len(awsSecretAccessKey) == 0 {
@@ -165,6 +168,16 @@ func (impl DockerRegistryIpsConfigServiceImpl) CreateOrUpdateDockerRegistryImage
 		}
 		username = ecrUsername
 		password = ecrPassword
+	}
+
+	// for gcr and artifact-registry, remove single quote from start and end, with this secret does not work
+	if (registryType == repository.REGISTRYTYPE_GCR || registryType == repository.REGISTRYTYPE_ARTIFACT_REGISTRY) && username == repository.JSON_KEY_USERNAME {
+		if strings.HasPrefix(password, "'") {
+			password = password[1:]
+		}
+		if strings.HasSuffix(password, "'") {
+			password = password[:len(password)-1]
+		}
 	}
 
 	clusterBean, err := impl.clusterService.FindById(clusterId)

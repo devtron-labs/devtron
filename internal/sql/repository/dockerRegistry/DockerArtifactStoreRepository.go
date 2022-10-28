@@ -26,8 +26,11 @@ import (
 )
 
 const REGISTRYTYPE_ECR = "ecr"
+const REGISTRYTYPE_GCR = "gcr"
+const REGISTRYTYPE_ARTIFACT_REGISTRY = "artifact-registry"
 const REGISTRYTYPE_OTHER = "other"
 const REGISTRYTYPE_DOCKER_HUB = "docker-hub"
+const JSON_KEY_USERNAME string = "_json_key"
 
 type RegistryType string
 
