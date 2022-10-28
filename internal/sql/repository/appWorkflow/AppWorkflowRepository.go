@@ -42,12 +42,13 @@ type AppWorkflowRepository interface {
 	FindWFAllMappingByWorkflowId(workflowId int) ([]*AppWorkflowMapping, error)
 	FindWFCIMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
-	FindWFCDMappingByCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
+	FindWFCDMappingByCDPipelineId(cdPipelineId int) (*AppWorkflowMapping, error)
 	DeleteAppWorkflowMapping(appWorkflow *AppWorkflowMapping, tx *pg.Tx) error
 	FindWFCDMappingByCIPipelineIds(ciPipelineIds []int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByParentCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
 	FindAllWFMappingsByAppId(appId int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByExternalCiId(externalCiId int) (*AppWorkflowMapping, error)
+	FindByTypeAndComponentId(wfId int, componentId int, componentType string) (*AppWorkflowMapping, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -257,13 +258,24 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCIPipelineIds(ciPipelineI
 	return appWorkflowsMapping, err
 }
 
-func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error) {
-	var appWorkflowsMapping []*AppWorkflowMapping
-
+func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByCDPipelineId(cdPipelineId int) (*AppWorkflowMapping, error) {
+	appWorkflowsMapping :=&AppWorkflowMapping{}
 	err := impl.dbConnection.Model(&appWorkflowsMapping).
 		Where("component_id = ?", cdPipelineId).
 		Where("type = ?", CDPIPELINE).
 		Where("active = ?", true).
+		Select()
+	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindByTypeAndComponentId(wfId int, componentId int, componentType string) (*AppWorkflowMapping, error) {
+	appWorkflowsMapping :=&AppWorkflowMapping{}
+	err := impl.dbConnection.Model(appWorkflowsMapping).
+		Where("app_workflow_id = ?", wfId).
+		Where("component_id = ?", componentId).
+		Where("type = ?", componentType).
+		Where("active = ?", true).
+		Limit(1).
 		Select()
 	return appWorkflowsMapping, err
 }
