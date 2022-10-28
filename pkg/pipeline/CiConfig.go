@@ -56,7 +56,7 @@ type CiConfig struct {
 	WorkflowServiceAccount         string                       `env:"WORKFLOW_SERVICE_ACCOUNT" envDefault:"ci-runner"`
 	ExternalCiApiSecret            string                       `env:"EXTERNAL_CI_API_SECRET" envDefault:"devtroncd-secret"`
 	ExternalCiWebhookUrl           string                       `env:"EXTERNAL_CI_WEB_HOOK_URL" envDefault:""`
-	ExternalCiPayload              string                       `env:"EXTERNAL_CI_PAYLOAD" envDefault:"{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/srj92/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2019-10-31T20:55:21+05:30\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"Suraj Gupta \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\",\"digest\":\"test1\",\"dataSource\":\"ext\",\"materialType\":\"git\"}"`
+	ExternalCiPayload              string                       `env:"EXTERNAL_CI_PAYLOAD" envDefault:"{\"ciProjectDetails\":[{\"gitRepository\":\"https://github.com/vikram1601/getting-started-nodejs.git\",\"checkoutPath\":\"./abc\",\"commitHash\":\"239077135f8cdeeccb7857e2851348f558cb53d3\",\"commitTime\":\"2019-10-31T20:55:21+05:30\",\"branch\":\"master\",\"message\":\"Update README.md\",\"author\":\"User Name \"}],\"dockerImage\":\"445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2\",\"digest\":\"sha256:sha256:1c96\",\"dataSource\":\"EXTERNAL\",\"materialType\":\"git\"}"`
 	CiArtifactLocationFormat       string                       `env:"CI_ARTIFACT_LOCATION_FORMAT" envDefault:"%d/%d.zip"`
 	ImageScannerEndpoint           string                       `env:"IMAGE_SCANNER_ENDPOINT" envDefault:"http://image-scanner-new-demo-devtroncd-service.devtroncd:80"`
 	CloudProvider                  blob_storage.BlobStorageType `env:"BLOB_STORAGE_PROVIDER" envDefault:"S3"`
@@ -76,8 +76,16 @@ type CiConfig struct {
 	BlobStorageGcpCredentialJson   string                       `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
 	BuildLogTTLValue               int                          `json:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
 	AzureAccountKey                string                       `env:"AZURE_ACCOUNT_KEY"`
+	IgnoreDockerCacheForCI         bool                         `env:"CI_IGNORE_DOCKER_CACHE"`
+	VolumeMountsForCiJson          string                       `env:"CI_VOLUME_MOUNTS_JSON"`
 	ClusterConfig                  *rest.Config
 	NodeLabel                      map[string]string
+}
+
+type CiVolumeMount struct {
+	Name               string `json:"name"`
+	HostMountPath      string `json:"hostMountPath"`
+	ContainerMountPath string `json:"containerMountPath"`
 }
 
 const ExternalCiWebhookPath = "orchestrator/webhook/ext-ci"

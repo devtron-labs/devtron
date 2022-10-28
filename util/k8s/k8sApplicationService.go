@@ -3,6 +3,8 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"github.com/caarlos0/env"
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
@@ -14,9 +16,15 @@ import (
 	"io"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 )
 
-const DEFAULT_CLUSTER = "default_cluster"
+const (
+	DEFAULT_CLUSTER = "default_cluster"
+)
 
 type K8sApplicationService interface {
 	GetResource(request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
@@ -29,29 +37,44 @@ type K8sApplicationService interface {
 	GetResourceInfo() (*ResourceInfo, error)
 	GetRestConfigByClusterId(clusterId int) (*rest.Config, error)
 	GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error)
+	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
+	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
+	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
 }
 type K8sApplicationServiceImpl struct {
-	logger           *zap.SugaredLogger
-	clusterService   cluster.ClusterService
-	pump             connector.Pump
-	k8sClientService application.K8sClientService
-	helmAppService   client.HelmAppService
-	K8sUtil          *util.K8sUtil
-	aCDAuthConfig    *util3.ACDAuthConfig
+	logger                      *zap.SugaredLogger
+	clusterService              cluster.ClusterService
+	pump                        connector.Pump
+	k8sClientService            application.K8sClientService
+	helmAppService              client.HelmAppService
+	K8sUtil                     *util.K8sUtil
+	aCDAuthConfig               *util3.ACDAuthConfig
+	K8sApplicationServiceConfig *K8sApplicationServiceConfig
+}
+
+type K8sApplicationServiceConfig struct {
+	BatchSize        int `env:"BATCH_SIZE" envDefault:"5"`
+	TimeOutInSeconds int `env:"TIMEOUT_IN_SECONDS" envDefault:"5"`
 }
 
 func NewK8sApplicationServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	pump connector.Pump, k8sClientService application.K8sClientService,
 	helmAppService client.HelmAppService, K8sUtil *util.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig) *K8sApplicationServiceImpl {
+	cfg := &K8sApplicationServiceConfig{}
+	err := env.Parse(cfg)
+	if err != nil {
+		Logger.Infow("error occurred while parsing K8sApplicationServiceConfig,so setting batchSize and timeOutInSeconds to default value", "err", err)
+	}
 	return &K8sApplicationServiceImpl{
-		logger:           Logger,
-		clusterService:   clusterService,
-		pump:             pump,
-		k8sClientService: k8sClientService,
-		helmAppService:   helmAppService,
-		K8sUtil:          K8sUtil,
-		aCDAuthConfig:    aCDAuthConfig,
+		logger:                      Logger,
+		clusterService:              clusterService,
+		pump:                        pump,
+		k8sClientService:            k8sClientService,
+		helmAppService:              helmAppService,
+		K8sUtil:                     K8sUtil,
+		aCDAuthConfig:               aCDAuthConfig,
+		K8sApplicationServiceConfig: cfg,
 	}
 }
 
@@ -63,6 +86,189 @@ type ResourceRequestBean struct {
 
 type ResourceInfo struct {
 	PodName string `json:"podName"`
+}
+
+type BatchResourceResponse struct {
+	ManifestResponse *application.ManifestResponse
+	Err              error
+}
+
+func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTree map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean {
+	noOfNodes := len(resourceTree["nodes"].([]interface{}))
+	for i := 0; i < noOfNodes; i++ {
+		resourceItem := resourceTree["nodes"].([]interface{})[i].(map[string]interface{})
+		kind, name, namespace := resourceItem["kind"].(string), resourceItem["name"].(string), resourceItem["namespace"].(string)
+		if appId == "" {
+			appId = strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName)
+		}
+		if strings.Compare(kind, "Service") == 0 || strings.Compare(kind, "Ingress") == 0 {
+			group := ""
+			version := ""
+			if _, ok := resourceItem["version"]; ok {
+				version = resourceItem["version"].(string)
+			}
+			if _, ok := resourceItem["group"]; ok {
+				group = resourceItem["group"].(string)
+			}
+			req := ResourceRequestBean{
+				AppId: appId,
+				AppIdentifier: &client.AppIdentifier{
+					ClusterId: appDetail.ClusterId,
+				},
+				K8sRequest: &application.K8sRequestBean{
+					ResourceIdentifier: application.ResourceIdentifier{
+						Name:      name,
+						Namespace: namespace,
+						GroupVersionKind: schema.GroupVersionKind{
+							Version: version,
+							Kind:    kind,
+							Group:   group,
+						},
+					},
+				},
+			}
+
+			validRequests = append(validRequests, req)
+		}
+	}
+	return validRequests
+}
+
+type Response struct {
+	Kind     string   `json:"kind"`
+	Name     string   `json:"name"`
+	PointsTo string   `json:"pointsTo"`
+	Urls     []string `json:"urls"`
+}
+
+func (impl *K8sApplicationServiceImpl) GetUrlsByBatch(resp []BatchResourceResponse) []interface{} {
+	result := make([]interface{}, 0)
+	for _, res := range resp {
+		err := res.Err
+		if err != nil {
+			continue
+		}
+		urlRes := impl.getUrls(res.ManifestResponse)
+		result = append(result, urlRes)
+	}
+	return result
+}
+
+func (impl *K8sApplicationServiceImpl) getUrls(manifest *application.ManifestResponse) Response {
+	var res Response
+	kind := manifest.Manifest.Object["kind"]
+	if _, ok := manifest.Manifest.Object["metadata"]; ok {
+		metadata := manifest.Manifest.Object["metadata"].(map[string]interface{})
+		if metadata != nil {
+			name := metadata["name"]
+			if name != nil {
+				res.Name = name.(string)
+			}
+		}
+	}
+
+	if kind != nil {
+		res.Kind = kind.(string)
+	}
+	res.PointsTo = ""
+	urls := make([]string, 0)
+	if res.Kind == "Ingress" {
+		if manifest.Manifest.Object["spec"] != nil {
+			spec := manifest.Manifest.Object["spec"].(map[string]interface{})
+			if spec["rules"] != nil {
+				rules := spec["rules"].([]interface{})
+				for _, rule := range rules {
+					ruleMap := rule.(map[string]interface{})
+					url := ""
+					if ruleMap["host"] != nil {
+						url = ruleMap["host"].(string)
+					}
+					var httpPaths []interface{}
+					if ruleMap["http"] != nil && ruleMap["http"].(map[string]interface{})["paths"] != nil {
+						httpPaths = ruleMap["http"].(map[string]interface{})["paths"].([]interface{})
+					} else {
+						continue
+					}
+					for _, httpPath := range httpPaths {
+						path := httpPath.(map[string]interface{})["path"]
+						if path != nil {
+							url = url + path.(string)
+						}
+						urls = append(urls, url)
+					}
+				}
+			}
+		}
+	}
+
+	if manifest.Manifest.Object["status"] != nil {
+		status := manifest.Manifest.Object["status"].(map[string]interface{})
+		if status["loadBalancer"] != nil {
+			loadBalancer := status["loadBalancer"].(map[string]interface{})
+			if loadBalancer["ingress"] != nil {
+				ingressArray := loadBalancer["ingress"].([]interface{})
+				if len(ingressArray) > 0 {
+					if hostname, ok := ingressArray[0].(map[string]interface{})["hostname"]; ok {
+						res.PointsTo = hostname.(string)
+					} else if ip, ok := ingressArray[0].(map[string]interface{})["ip"]; ok {
+						res.PointsTo = ip.(string)
+					}
+				}
+			}
+		}
+	}
+	res.Urls = urls
+	return res
+}
+
+func (impl *K8sApplicationServiceImpl) GetManifestsByBatch(ctx context.Context, requests []ResourceRequestBean) ([]BatchResourceResponse, error) {
+	ch := make(chan []BatchResourceResponse)
+	var res []BatchResourceResponse
+	ctx, cancel := context.WithTimeout(ctx, time.Duration(impl.K8sApplicationServiceConfig.TimeOutInSeconds)*time.Second)
+	defer cancel()
+	go func() {
+		ans := impl.getManifestsByBatch(requests)
+		ch <- ans
+	}()
+	select {
+	case ans := <-ch:
+		res = ans
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
+	impl.logger.Info("successfully fetched the requested manifests")
+	return res, nil
+}
+
+func (impl *K8sApplicationServiceImpl) getManifestsByBatch(requests []ResourceRequestBean) []BatchResourceResponse {
+	//total batch length
+	batchSize := impl.K8sApplicationServiceConfig.BatchSize
+	if requests == nil {
+		impl.logger.Error("Empty requests for getManifestsInBatch")
+	}
+	requestsLength := len(requests)
+	//final batch responses
+	res := make([]BatchResourceResponse, requestsLength)
+	for i := 0; i < requestsLength; {
+		//requests left to process
+		remainingBatch := requestsLength - i
+		if remainingBatch < batchSize {
+			batchSize = remainingBatch
+		}
+		var wg sync.WaitGroup
+		for j := 0; j < batchSize; j++ {
+			wg.Add(1)
+			go func(j int) {
+				resp := BatchResourceResponse{}
+				resp.ManifestResponse, resp.Err = impl.GetResource(&requests[i+j])
+				res[i+j] = resp
+				wg.Done()
+			}(j)
+		}
+		wg.Wait()
+		i += batchSize
+	}
+	return res
 }
 
 func (impl *K8sApplicationServiceImpl) GetResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {

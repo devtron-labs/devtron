@@ -28,12 +28,14 @@ type DevtronAppDeploymentRestHandler interface {
 	GetCdPipelinesForAppAndEnv(w http.ResponseWriter, r *http.Request)
 
 	GetArtifactsByCDPipeline(w http.ResponseWriter, r *http.Request)
-	GetArtifactForRollback(w http.ResponseWriter, r *http.Request)
+	GetArtifactsForRollback(w http.ResponseWriter, r *http.Request)
 
 	UpgradeForAllApps(w http.ResponseWriter, r *http.Request)
 
 	IsReadyToTrigger(w http.ResponseWriter, r *http.Request)
 	FetchCdWorkflowDetails(w http.ResponseWriter, r *http.Request)
+
+	HandleCdPipelineBulkAction(w http.ResponseWriter, r *http.Request)
 }
 
 type DevtronAppDeploymentConfigRestHandler interface {
@@ -862,29 +864,42 @@ func (handler PipelineConfigRestHandlerImpl) UpdateAppOverride(w http.ResponseWr
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 
 }
-func (handler PipelineConfigRestHandlerImpl) GetArtifactForRollback(w http.ResponseWriter, r *http.Request) {
+func (handler PipelineConfigRestHandlerImpl) GetArtifactsForRollback(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	cdPipelineId, err := strconv.Atoi(vars["cd_pipeline_id"])
 	if err != nil {
-		handler.Logger.Errorw("request err, GetArtifactForRollback", "err", err, "cdPipelineId", cdPipelineId)
+		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, "invalid request", http.StatusBadRequest)
 		return
 	}
-	handler.Logger.Infow("request payload, GetArtifactForRollback", "cdPipelineId", cdPipelineId)
+	handler.Logger.Infow("request payload, GetArtifactsForRollback", "cdPipelineId", cdPipelineId)
 	token := r.Header.Get("token")
 	deploymentPipeline, err := handler.pipelineBuilder.FindPipelineById(cdPipelineId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetArtifactForRollback", "err", err, "cdPipelineId", cdPipelineId)
+		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	app, err := handler.pipelineBuilder.GetApp(deploymentPipeline.AppId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetArtifactForRollback", "err", err, "cdPipelineId", cdPipelineId)
+		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	offsetQueryParam := r.URL.Query().Get("offset")
+	offset, err := strconv.Atoi(offsetQueryParam)
+	if offsetQueryParam == "" || err != nil {
+		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "offsetQueryParam", offsetQueryParam)
+		common.WriteJsonResp(w, err, "invalid offset", http.StatusBadRequest)
+		return
+	}
+	sizeQueryParam := r.URL.Query().Get("size")
+	limit, err := strconv.Atoi(sizeQueryParam)
+	if sizeQueryParam == "" || err != nil {
+		handler.Logger.Errorw("request err, GetArtifactsForRollback", "err", err, "sizeQueryParam", sizeQueryParam)
+		common.WriteJsonResp(w, err, "invalid size", http.StatusBadRequest)
+		return
+	}
 	//rbac block starts from here
 	object := handler.enforcerUtil.GetAppRBACName(app.AppName)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
@@ -898,9 +913,9 @@ func (handler PipelineConfigRestHandlerImpl) GetArtifactForRollback(w http.Respo
 	}
 	//rbac block ends here
 
-	ciArtifactResponse, err := handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId)
+	ciArtifactResponse, err := handler.pipelineBuilder.FetchArtifactForRollback(cdPipelineId, offset, limit)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetArtifactForRollback", "err", err, "cdPipelineId", cdPipelineId)
+		handler.Logger.Errorw("service err, GetArtifactsForRollback", "err", err, "cdPipelineId", cdPipelineId)
 		common.WriteJsonResp(w, err, "unable to fetch artifacts", http.StatusInternalServerError)
 		return
 	}
@@ -1816,4 +1831,80 @@ func (handler PipelineConfigRestHandlerImpl) UpgradeForAllApps(w http.ResponseWr
 	}
 	response["failed"] = failedIds
 	common.WriteJsonResp(w, err, response, http.StatusOK)
+}
+
+func (handler PipelineConfigRestHandlerImpl) HandleCdPipelineBulkAction(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var cdPipelineBulkActionReq bean.CdBulkActionRequestDto
+	err = decoder.Decode(&cdPipelineBulkActionReq)
+	cdPipelineBulkActionReq.UserId = userId
+	if err != nil {
+		handler.Logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	v := r.URL.Query()
+	forceDelete := false
+	forceDeleteParam := v.Get("forceDelete")
+	if len(forceDeleteParam) > 0 {
+		forceDelete, err = strconv.ParseBool(forceDeleteParam)
+		if err != nil {
+			handler.Logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	cdPipelineBulkActionReq.ForceDelete = forceDelete
+
+	dryRun := false
+	dryRunParam := v.Get("dryRun")
+	if len(dryRunParam) > 0 {
+		dryRun, err = strconv.ParseBool(dryRunParam)
+		if err != nil {
+			handler.Logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	handler.Logger.Infow("request payload, HandleCdPipelineBulkAction", "payload", cdPipelineBulkActionReq)
+	impactedPipelines, err := handler.pipelineBuilder.GetBulkActionImpactedPipelines(&cdPipelineBulkActionReq)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetBulkActionImpactedPipelines", "err", err, "payload", cdPipelineBulkActionReq)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	token := r.Header.Get("token")
+	for _, impactedPipeline := range impactedPipelines {
+		resourceName := handler.enforcerUtil.GetAppRBACName(impactedPipeline.App.AppName)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+
+		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(impactedPipeline.App.AppName, impactedPipeline.EnvironmentId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.Logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+	resp, err := handler.pipelineBuilder.PerformBulkActionOnCdPipelines(&cdPipelineBulkActionReq, impactedPipelines, ctx, dryRun)
+	if err != nil {
+		handler.Logger.Errorw("service err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }

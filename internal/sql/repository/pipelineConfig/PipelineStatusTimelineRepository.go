@@ -29,6 +29,7 @@ type PipelineStatusTimelineRepository interface {
 	FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineId int, status TimelineStatus) (*PipelineStatusTimeline, error)
 	FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error)
 	CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error)
+	FetchLatestTimelineByAppIdAndEnvId(appId, envId int) (*PipelineStatusTimeline, error)
 }
 
 type PipelineStatusTimelineRepositoryImpl struct {
@@ -146,4 +147,24 @@ func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelineP
 		return false, err
 	}
 	return exists, nil
+}
+
+func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByAppIdAndEnvId(appId, envId int) (*PipelineStatusTimeline, error) {
+	var timeline PipelineStatusTimeline
+	err := impl.dbConnection.Model(&timeline).
+		Column("pipeline_status_timeline.*").
+		Join("INNER JOIN cd_workflow_runner wfr ON wfr.id = pipeline_status_timeline.cd_workflow_runner_id").
+		Join("INNER JOIN cd_workflow cw ON cw.id=wfr.cd_workflow_id").
+		Join("INNER JOIN pipeline p ON p.id=cw.pipeline_id").
+		Where("p.app_id = ?", appId).
+		Where("p.environment_id = ?", envId).
+		Where("p.deleted = false").
+		Order("pipeline_status_timeline.id DESC").
+		Limit(1).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting timelines by pipelineId", "err", err, "appId", appId, "envId", envId)
+		return nil, err
+	}
+	return &timeline, nil
 }
