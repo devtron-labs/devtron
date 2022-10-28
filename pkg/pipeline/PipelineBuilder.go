@@ -1415,7 +1415,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	if err != nil {
 		return 0, err
 	}
-	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, false, pipeline.Namespace, tx)
+	envOverride, err := impl.propertiesConfigService.CreateIfRequired(chart, pipeline.EnvironmentId, userId, false, models.CHARTSTATUS_NEW, false, false, pipeline.Namespace, chart.IsBasicViewLocked, chart.CurrentViewEditor, tx)
 	if err != nil {
 		return 0, err
 	}
