@@ -96,6 +96,8 @@ type PipelineRepository interface {
 	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
 	GetPipelineIdsHavingStatusTimelinesPendingAfterKubectlApplyStatus(pendingSinceSeconds int) ([]int, error)
+	FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) (ids []int, err error)
+	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 }
 
 type CiArtifactDTO struct {
@@ -455,4 +457,26 @@ func (impl PipelineRepositoryImpl) GetPipelineIdsHavingStatusTimelinesPendingAft
 		return nil, err
 	}
 	return pipelineIds, nil
+}
+
+func (impl PipelineRepositoryImpl) FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) ([]int, error) {
+	var pipelineIds []int
+	query := "select id from pipeline where app_id in (?) and environment_id in (?) and deleted = ?;"
+	_, err := impl.dbConnection.Query(&pipelineIds, query, pg.In(appIds), pg.In(environmentIds), false)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipelineIds by appIds and envIds", "err", err, "appIds", appIds, "envIds", environmentIds)
+		return pipelineIds, err
+	}
+	return pipelineIds, err
+}
+
+func (impl PipelineRepositoryImpl) FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error) {
+	var pipelineIds []int
+	query := "select p.id from pipeline p inner join app a on a.id=p.app_id where a.team_id in (?) and p.environment_id in (?) and p.deleted = ? and a.active = ?;"
+	_, err := impl.dbConnection.Query(&pipelineIds, query, pg.In(projectIds), pg.In(environmentIds), false, true)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipelineIds by projectIds and envIds", "err", err, "projectIds", projectIds, "envIds", environmentIds)
+		return pipelineIds, err
+	}
+	return pipelineIds, err
 }
