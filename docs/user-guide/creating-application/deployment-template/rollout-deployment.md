@@ -5,7 +5,7 @@ Deployment configuration is the manifest of the application which defines the ru
 
 * [Chart version](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#1.-chart-version)
 * [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#2.-basic-configuration)
-* [Advanced(YAML)](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#3.-advanced-yaml)
+* [Advanced (YAML)](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#3.-advanced-yaml)
 * [Show Application Metrics](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#4.-show-application-metrics)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/deployment-template.gif)
