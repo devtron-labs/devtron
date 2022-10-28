@@ -60,11 +60,12 @@ const (
 	NEW_CI_MATERIAL_TOPIC_DURABLE     string = "NEW-CI-MATERIAL_DURABLE-1"
 	CD_SUCCESS                        string = "CD.TRIGGER"
 	WEBHOOK_EVENT_TOPIC               string = "WEBHOOK_EVENT"
-
-	DEVTRON_TEST_TOPIC    string = "Test_Topic"
-	DEVTRON_TEST_STREAM   string = "Devtron_Test_Stream"
-	DEVTRON_TEST_QUEUE    string = "Test_Topic_Queue"
-	DEVTRON_TEST_CONSUMER string = "Test_Topic_Consumer"
+	WEBHOOK_EVENT_GROUP               string = "WEBHOOK_EVENT_GROUP-1"
+	WEBHOOK_EVENT_DURABLE             string = "WEBHOOK_EVENT_DURABLE-1"
+	DEVTRON_TEST_TOPIC                string = "Test_Topic"
+	DEVTRON_TEST_STREAM               string = "Devtron_Test_Stream"
+	DEVTRON_TEST_QUEUE                string = "Test_Topic_Queue"
+	DEVTRON_TEST_CONSUMER             string = "Test_Topic_Consumer"
 )
 
 type NatsTopic struct {
@@ -80,7 +81,7 @@ var natsTopicMapping = map[string]NatsTopic{
 	BULK_DEPLOY_TOPIC:          {topicName: BULK_DEPLOY_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: BULK_DEPLOY_GROUP, consumerName: BULK_DEPLOY_DURABLE},
 	BULK_HIBERNATE_TOPIC:       {topicName: BULK_HIBERNATE_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: BULK_HIBERNATE_GROUP, consumerName: BULK_HIBERNATE_DURABLE},
 	CD_SUCCESS:                 {topicName: CD_SUCCESS, streamName: ORCHESTRATOR_STREAM},
-	WEBHOOK_EVENT_TOPIC:        {topicName: WEBHOOK_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM},
+	WEBHOOK_EVENT_TOPIC:        {topicName: WEBHOOK_EVENT_TOPIC, streamName: ORCHESTRATOR_STREAM, queueName: WEBHOOK_EVENT_GROUP, consumerName: WEBHOOK_EVENT_DURABLE},
 
 	CI_COMPLETE_TOPIC:       {topicName: CI_COMPLETE_TOPIC, streamName: CI_RUNNER_STREAM, queueName: CI_COMPLETE_GROUP, consumerName: CI_COMPLETE_DURABLE},
 	CD_STAGE_COMPLETE_TOPIC: {topicName: CD_STAGE_COMPLETE_TOPIC, streamName: CI_RUNNER_STREAM, queueName: CD_COMPLETE_GROUP, consumerName: CD_COMPLETE_DURABLE},
