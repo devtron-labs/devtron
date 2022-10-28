@@ -1732,6 +1732,8 @@ func (impl AppServiceImpl) createOrUpdateDockerRegistryImagePullSecret(clusterId
 		username, password := dockerRegistry.GetUsernamePasswordFromIpsSecret(dockerRegistryBean.RegistryURL, secret.Data)
 		if dockerRegistryBean.Username != username || dockerRegistryBean.Password != password {
 			impl.logger.Infow("updating ips", "ipsName", ipsName, "clusterId", clusterId)
+			ipsData := dockerRegistry.BuildIpsData(dockerRegistryBean.RegistryURL, dockerRegistryBean.Username, dockerRegistryBean.Password, string(ipsConfig.CredentialType), ipsConfig.CredentialValue)
+			secret.Data = ipsData
 			_, err = impl.k8sUtil.UpdateSecret(namespace, secret, k8sClient)
 			if err != nil {
 				impl.logger.Errorw("error in updating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
