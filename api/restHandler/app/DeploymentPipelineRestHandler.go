@@ -1865,7 +1865,7 @@ func (handler PipelineConfigRestHandlerImpl) HandleCdPipelineBulkAction(w http.R
 	dryRun := false
 	dryRunParam := v.Get("dryRun")
 	if len(dryRunParam) > 0 {
-		forceDelete, err = strconv.ParseBool(dryRunParam)
+		dryRun, err = strconv.ParseBool(dryRunParam)
 		if err != nil {
 			handler.Logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -1873,7 +1873,26 @@ func (handler PipelineConfigRestHandlerImpl) HandleCdPipelineBulkAction(w http.R
 		}
 	}
 	handler.Logger.Infow("request payload, HandleCdPipelineBulkAction", "payload", cdPipelineBulkActionReq)
-	//TODO : add rbac
+	impactedPipelines, err := handler.pipelineBuilder.GetBulkActionImpactedPipelines(&cdPipelineBulkActionReq)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetBulkActionImpactedPipelines", "err", err, "payload", cdPipelineBulkActionReq)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	token := r.Header.Get("token")
+	for _, impactedPipeline := range impactedPipelines {
+		resourceName := handler.enforcerUtil.GetAppRBACName(impactedPipeline.App.AppName)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+
+		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(impactedPipeline.App.AppName, impactedPipeline.EnvironmentId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
 	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
 		handler.Logger.Errorw("error in getting acd token", "err", err)
@@ -1881,7 +1900,7 @@ func (handler PipelineConfigRestHandlerImpl) HandleCdPipelineBulkAction(w http.R
 		return
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
-	resp, err := handler.pipelineBuilder.PerformBulkActionOnCdPipelines(&cdPipelineBulkActionReq, ctx, dryRun)
+	resp, err := handler.pipelineBuilder.PerformBulkActionOnCdPipelines(&cdPipelineBulkActionReq, impactedPipelines, ctx, dryRun)
 	if err != nil {
 		handler.Logger.Errorw("service err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

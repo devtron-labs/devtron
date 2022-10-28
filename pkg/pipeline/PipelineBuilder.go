@@ -109,7 +109,8 @@ type PipelineBuilder interface {
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
 	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
 
-	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, ctx context.Context, dryRun bool) ([]*bean.CdBulkActionResponseDto, error)
+	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error)
+	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool) ([]*bean.CdBulkActionResponseDto, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -2516,32 +2517,62 @@ func (impl PipelineBuilderImpl) updateGitRepoUrlInCharts(appId int, chartGitAttr
 	return nil
 }
 
-func (impl PipelineBuilderImpl) PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, ctx context.Context, dryRun bool) ([]*bean.CdBulkActionResponseDto, error) {
+func (impl PipelineBuilderImpl) PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool) ([]*bean.CdBulkActionResponseDto, error) {
 	switch dto.Action {
 	case bean.CD_BULK_DELETE:
-		bulkDeleteResp, err := impl.BulkDeleteCdPipelines(dto, ctx, dryRun)
-		if err != nil {
-			impl.logger.Errorw("error in bulk deleting cd pipelines", "err", err)
-			return nil, err
-		}
+		bulkDeleteResp := impl.BulkDeleteCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete)
 		return bulkDeleteResp, nil
 	default:
 		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "this action is not supported"}
 	}
 }
 
-func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(dto *bean.CdBulkActionRequestDto, ctx context.Context, dryRun bool) ([]*bean.CdBulkActionResponseDto, error) {
-	//getting pipeline IDs for app level deletion request
-	pipelineIdsByAppLevel, err := impl.pipelineRepository.FindIdsByAppIdsAndEnvironmentIds(dto.AppIds, dto.EnvIds)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting cd pipelines by appIds and envIds", "err", err)
-		return nil, err
+func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun, forceDelete bool) []*bean.CdBulkActionResponseDto {
+	var respDtos []*bean.CdBulkActionResponseDto
+	for _, pipeline := range impactedPipelines {
+		respDto := &bean.CdBulkActionResponseDto{
+			PipelineName:    pipeline.Name,
+			AppName:         pipeline.App.AppName,
+			EnvironmentName: pipeline.Environment.Name,
+		}
+		if !dryRun {
+			err := impl.deleteCdPipeline(pipeline, ctx, forceDelete)
+			if err != nil {
+				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
+				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
+			} else {
+				respDto.DeletionResult = "Pipeline deleted successfully."
+			}
+		}
+		respDtos = append(respDtos, respDto)
 	}
-	//getting pipeline IDs for project level deletion request
-	pipelineIdsByProjectLevel, err := impl.pipelineRepository.FindIdsByProjectIdsAndEnvironmentIds(dto.ProjectIds, dto.EnvIds)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting cd pipelines by projectIds and envIds", "err", err)
-		return nil, err
+	return respDtos
+
+}
+
+func (impl PipelineBuilderImpl) GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error) {
+	if len(dto.EnvIds) == 0 || (len(dto.AppIds) == 0 && len(dto.ProjectIds) == 0) {
+		//invalid payload, envIds are must and either of appIds or projectIds are must
+		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid payload, can not get pipelines for this filter"}
+	}
+	var pipelineIdsByAppLevel []int
+	var pipelineIdsByProjectLevel []int
+	var err error
+	if len(dto.AppIds) > 0 && len(dto.EnvIds) > 0 {
+		//getting pipeline IDs for app level deletion request
+		pipelineIdsByAppLevel, err = impl.pipelineRepository.FindIdsByAppIdsAndEnvironmentIds(dto.AppIds, dto.EnvIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting cd pipelines by appIds and envIds", "err", err)
+			return nil, err
+		}
+	}
+	if len(dto.ProjectIds) > 0 && len(dto.EnvIds) > 0 {
+		//getting pipeline IDs for project level deletion request
+		pipelineIdsByProjectLevel, err = impl.pipelineRepository.FindIdsByProjectIdsAndEnvironmentIds(dto.ProjectIds, dto.EnvIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting cd pipelines by projectIds and envIds", "err", err)
+			return nil, err
+		}
 	}
 	var pipelineIdsMerged []int
 	//it might be possible that pipelineIdsByAppLevel & pipelineIdsByProjectLevel have some same values
@@ -2557,24 +2588,5 @@ func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(dto *bean.CdBulkActionRequ
 			return nil, err
 		}
 	}
-	var respDtos []*bean.CdBulkActionResponseDto
-	for _, pipeline := range pipelines {
-		respDto := &bean.CdBulkActionResponseDto{
-			PipelineName:    pipeline.Name,
-			AppName:         pipeline.App.AppName,
-			EnvironmentName: pipeline.Environment.Name,
-		}
-		if !dryRun {
-			err = impl.deleteCdPipeline(pipeline, ctx, dto.ForceDelete)
-			if err != nil {
-				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
-				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline : %v", err)
-			} else {
-				respDto.DeletionResult = "Pipeline deleted successfully."
-			}
-		}
-		respDtos = append(respDtos, respDto)
-	}
-	return respDtos, nil
-
+	return pipelines, nil
 }
