@@ -6,36 +6,35 @@ In this section, we will provide information on the `Build Configuration`.
 
 Only one docker image can be created for multi-git repository applications as explained in the [Git Repository](git-material.md) section.
 
-![](../../.gitbook/assets/create-docker.gif)
-
 For **build configuration**, you must provide information in the sections as given below:
 
 * [Store Container Image](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration#store-container-image)
 * [Build the Container Image](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration#build-the-container-image)
 * [Advanced Options](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration#advanced-options)
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/build-configuration-latest.jpg)
+
 ## Store Container Image
 
 The following fields are provided on the **Store Container Image** section:
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/store-container-registry.jpg)
 
 | Field | Description |
 | --- | --- |
 | **Container Registry** | Select the container registry from the drop-down list or you can click **Add Container Registry**. This registry will be used to [store docker images](../global-configurations/docker-registries.md). |
 | **Container Repository** | Enter the name of your container repository, preferably in the format `username/repo-name`. The repository that you specify here will store a collection of related docker images. Whenever an image is added here, it will be stored with a new tag version. |
 
-
 **If you are using docker hub account, you need to enter the repository name along with your username. For example - If my username is *kartik579* and repo name is *devtron-trial*, then enter kartik579/devtron-trial instead of only devtron-trial.**
 
 ![](../../.gitbook/assets/docker-configuration-docker-hub.png)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/docker-build-config-container-registry1.png)
-
 
 ## Build the Container Image
 
-In order to deploy the application, we must build the docker images to configure a fully operational container environment.
+In order to deploy the application, we must build the container images to configure a fully operational container environment.
 
-You can choose one of the following options to build your docker image:
+You can choose one of the following options to build your container image:
 * **I have a Dockerfile**
 * **Create Dockerfile**
 * **Build without Dockerfile**
@@ -44,15 +43,18 @@ You can choose one of the following options to build your docker image:
 
 A `Dockerfile` is a file that you create which in turn produces a Docker image when you build it.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/i-have-a-dockerfile.png)
+
 | Field | Description |
 | --- | --- |
 | **Select repository containing Dockerfile** | Select the Git checkout path of your repository. This repository is the same which you defined on the [Git Repository](https://docs.devtron.ai/usage/applications/creating-application/git-material) section. |
-| **Docker file path (relative)** | Enter a relative file path where your docker file is located in Git repository. Ensure that the dockerfile is available on this path. |
+| **Dockerfile Path (Relative)** | Enter a relative file path where your docker file is located in Git repository. Ensure that the dockerfile is available on this path. This is a mandatory field. |
 
 ### Build Docker Image by creating Dockerfile
 
-With the option **Create Dockerfile**, you can create a `Dockerfile` from the available templates.
-You can edit any selected Dockerfile template as per your build configuration requirements.
+With the option **Create Dockerfile**, you can create a `Dockerfile` from the available templates. You can edit any selected Dockerfile template as per your build configuration requirements.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/create-dockerfile.jpg)
 
 | Field | Description |
 | --- | --- |
@@ -61,21 +63,21 @@ You can edit any selected Dockerfile template as per your build configuration re
 
 ### Build Docker Image without Dockerfile
 
-With the option **Create Dockerfile**, you can create a `Dockerfile` from the available templates.
-You can edit any selected Dockerfile template as per your build configuration requirements.
+With the option **Build without Dockerfile**, you can use buildpacks to automate the build processes for your preferred languages and frameworks.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/build-without-dockerfile.jpg)
 
 | Field | Description |
 | --- | --- |
-| **Repo containing code you want to build** | Select the Git checkout path of your repository. This repository is the same which you defined on the [Git Repository](https://docs.devtron.ai/usage/applications/creating-application/git-material) section..|
-| **Project path (relative)** | Enter a relative project path where your project is located in Git repository. Ensure that the project is available on this path. <br>**Note** For multiple projects, provide a path for the builder.</br>|
+| **Select repository containing code** | Select the Git checkout path of your repository. This repository is the same which you defined on the [Git Repository](https://docs.devtron.ai/usage/applications/creating-application/git-material) section..|
+| **Project Path (Relative)** | Enter a project path for the builder if you are working on multiple projects under a single repository (monorepo).|
 | **Language** | Select the programming language (e.g., `Java`, `Go`, `Python`, `Node` etc.) from the drop-down list you want to cbuild your container image as per the compatibility to your system.<br> **Note**: We will be adding other programming languages in the future releases.</br>|
 | **Version** | Select the version of the selected programming language. You can also select **Autodetect** to auto-select the compatible version.|
-| **Select a builder** | Select a builder which will bring a base build stack (e.g., ubuntu-18, ubuntu-20 ) along with buildpacks compatible to the selected language. <ul><li>**Heroku**</li></ul><ul><li>**GCR**</li></ul><ul><li>**Packeto**</li></ul>|
+| **Select a builder** | Select a builder to create your own buildpacks for the deployment of your application. <ul><li>**Heroku**: It compiles your deployed code and creates a slug, which is a compressed and pre-packaged copy of your app and also the runtime which is optimized for distribution to the dyno (Linux containers) manager. [Learn more](https://devcenter.heroku.com/articles/buildpacks).</li></ul><ul><li>**GCR**: GCR builder is a general purpose builder that creates container images designed to run on most platforms (e.g. Kubernetes / Anthos, Knative / Cloud Run, Container OS, etc.). It auto-detects the language of your source code, and can also build functions compatible with the Google Cloud Function Framework. [Learn more](https://github.com/GoogleCloudPlatform/buildpacks).</li></ul><ul><li>**Packeto**: Paketo buildpacks provide production-ready buildpacks for the most popular languages and frameworks to easily build your apps. Based on your application needs, you can select from `Full`, `Base` and `Tiny`. [Learn more](https://paketo.io/docs/).</li></ul>|
 
 
-#### Build Environment Arguments
+#### Build Env Arguments
 
-You can Key/Value pair by clicking **Add Parameter**.
+You can add Key/Value pair by clicking **Add argument**.
 
 | Field | Description |
 | --- | --- |
@@ -108,19 +110,18 @@ To edit the `devtron-cm` configmap in `devtroncd` namespace:
 kubectl edit configmap devtron-cm -n devtroncd 
 ```
 
-
-
 If target platform is not set, Devtron will build image for architecture and operating system of the k8s node on which CI is running.
 
 The Target Platform feature might not work in minikube & microk8s clusters as of now.
 
-
-
- Docker build arguments is a collapsed view including
+ ### Docker Build Arguments 
+  It is is a collapsed view including the following parameters:
    * Key
    * Value
 
-### Key-value
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/docker-build-arguments.jpg)
 
-This field will contain the key parameter and the value for the specified key for your [docker build](https://docs.docker.com/engine/reference/commandline/build/#options). This field is Optional. If required, this can be overridden at [CI step](../deploying-application/triggering-ci.md).
+These fields will contain the key parameter and the value for the specified key for your [docker build](https://docs.docker.com/engine/reference/commandline/build/#options). This field is Optional. If required, this can be overridden at [CI step](../deploying-application/triggering-ci.md).
+
+Click **Save Configuration**.
 
