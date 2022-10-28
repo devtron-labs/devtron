@@ -23,16 +23,11 @@ import (
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
-	repository4 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/chart"
-	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
-	v1 "k8s.io/api/core/v1"
-	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
-	"net/http"
 	"net/url"
 	"path"
 	"path/filepath"
@@ -121,11 +116,7 @@ type AppServiceImpl struct {
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
-	ciPipelineRepository                pipelineConfig.CiPipelineRepository
-	dockerArtifactStoreRepository       repository4.DockerArtifactStoreRepository
 	dockerRegistryIpsConfigService      dockerRegistry.DockerRegistryIpsConfigService
-	k8sUtil                             *K8sUtil
-	clusterService                      cluster.ClusterService
 }
 
 type AppService interface {
@@ -174,9 +165,8 @@ func NewAppService(
 	appCrudOperationService AppCrudOperationService,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
-	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	dockerArtifactStoreRepository repository4.DockerArtifactStoreRepository, dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService,
-	k8sUtil *K8sUtil, clusterService cluster.ClusterService) *AppServiceImpl {
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:         environmentConfigRepository,
 		mergeUtil:                           mergeUtil,
@@ -222,11 +212,7 @@ func NewAppService(
 		configMapHistoryRepository:          configMapHistoryRepository,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
-		ciPipelineRepository:                ciPipelineRepository,
-		dockerArtifactStoreRepository:       dockerArtifactStoreRepository,
 		dockerRegistryIpsConfigService:      dockerRegistryIpsConfigService,
-		k8sUtil:                             k8sUtil,
-		clusterService:                      clusterService,
 	}
 	return appServiceImpl
 }
@@ -1599,7 +1585,7 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
 
 	// handle image pull secret if access given
-	merged, err = impl.handleImagePullSecretIfAccessGiven(envOverride.Environment, pipeline.CiPipelineId, merged)
+	merged, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, merged)
 	if err != nil {
 		return 0, 0, "", err
 	}
@@ -1643,125 +1629,6 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	}
 	mergedValues = string(merged)
 	return override.PipelineReleaseCounter, override.Id, mergedValues, nil
-}
-
-func (impl AppServiceImpl) handleImagePullSecretIfAccessGiven(environment *repository2.Environment, ciPipelineId int, valuesFileContent []byte) ([]byte, error) {
-	clusterId := environment.ClusterId
-	impl.logger.Infow("handling ips if access given", "ciPipelineId", ciPipelineId, "clusterId", clusterId)
-
-	ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipelineId, "error", err)
-		return nil, err
-	}
-
-	dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
-	dockerRegistryBean, err := impl.dockerArtifactStoreRepository.FindOne(dockerRegistryId)
-	if err != nil {
-		impl.logger.Errorw("error in getting docker registry", "dockerRegistryId", dockerRegistryId, "error", err)
-		return nil, err
-	}
-
-	// check if access provided, if not - return
-	ipsConfig := dockerRegistryBean.IpsConfig
-	ipsAccessProvided := dockerRegistry.CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId)
-	if !ipsAccessProvided {
-		impl.logger.Infow("ips access not given", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId)
-		return valuesFileContent, nil
-	}
-
-	ipsCredentialType := string(ipsConfig.CredentialType)
-	ipsName := dockerRegistry.BuildIpsName(dockerRegistryId, ipsCredentialType, ipsConfig.CredentialValue)
-
-	// Create or update secret of credential type is not of NAME type
-	if ipsCredentialType != dockerRegistry.IPS_CREDENTIAL_TYPE_NAME {
-		err = impl.createOrUpdateDockerRegistryImagePullSecret(clusterId, environment.Namespace, ipsName, dockerRegistryBean)
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	// merge ipsName in values
-	impl.logger.Infow("setting ips name in values file", "ipsName", ipsName)
-	updatedValuesFileContent, err := dockerRegistry.SetIpsNameInValues(valuesFileContent, ipsName)
-	if err != nil {
-		impl.logger.Errorw("error in setting ips name", "ipsName", ipsName, "error", err)
-		return nil, err
-	}
-
-	return updatedValuesFileContent, nil
-}
-
-func (impl AppServiceImpl) createOrUpdateDockerRegistryImagePullSecret(clusterId int, namespace string, ipsName string, dockerRegistryBean *repository4.DockerArtifactStore) error {
-	impl.logger.Infow("creating/updating ips", "ipsName", ipsName, "clusterId", clusterId)
-
-	username := dockerRegistryBean.Username
-	password := dockerRegistryBean.Password
-	// ignore for ecr ec2_iam role
-	if dockerRegistryBean.RegistryType == repository4.REGISTRYTYPE_ECR {
-		awsAccessKeyId := dockerRegistryBean.AWSAccessKeyId
-		awsSecretAccessKey := dockerRegistryBean.AWSSecretAccessKey
-		if len(awsAccessKeyId) == 0 || len(awsSecretAccessKey) == 0 {
-			impl.logger.Info("ignoring for ecr ec2_iam role")
-			return nil
-		}
-		// create credential for ecr
-		impl.logger.Info("creating ecr credential")
-		ecrUsername, ecrPassword, err := dockerRegistry.CreateCredentialForEcr(dockerRegistryBean.AWSRegion, awsAccessKeyId, awsSecretAccessKey)
-		if err != nil {
-			impl.logger.Errorw("error in creating ecr credential", "clusterId", clusterId, "error", err)
-			return err
-		}
-		username = ecrUsername
-		password = ecrPassword
-	}
-	ipsConfig := dockerRegistryBean.IpsConfig
-
-	clusterBean, err := impl.clusterService.FindById(clusterId)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster", "clusterId", clusterId, "error", err)
-		return err
-	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
-	if err != nil {
-		impl.logger.Errorw("error in getting cluster config", "clusterId", clusterId, "error", err)
-		return err
-	}
-	k8sClient, err := impl.k8sUtil.GetClient(cfg)
-	if err != nil {
-		impl.logger.Errorw("error in getting k8s client", "clusterId", clusterId, "error", err)
-		return err
-	}
-	secret, err := impl.k8sUtil.GetSecret(namespace, ipsName, k8sClient)
-	if err != nil {
-		statusError, _ := err.(*k8sErrors.StatusError)
-		if statusError.Status().Code != http.StatusNotFound {
-			impl.logger.Errorw("error in getting secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
-			return err
-		}
-		// create secret
-		impl.logger.Infow("creating ips", "ipsName", ipsName, "clusterId", clusterId)
-		ipsData := dockerRegistry.BuildIpsData(dockerRegistryBean.RegistryURL, username, password, string(ipsConfig.CredentialType), ipsConfig.CredentialValue)
-		_, err = impl.k8sUtil.CreateSecret(namespace, ipsData, ipsName, v1.SecretTypeDockerConfigJson, k8sClient)
-		if err != nil {
-			impl.logger.Errorw("error in creating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
-			return err
-		}
-	} else {
-		// update secret if username or password changed
-		secretUsername, secretPassword := dockerRegistry.GetUsernamePasswordFromIpsSecret(dockerRegistryBean.RegistryURL, secret.Data)
-		if username != secretUsername || password != secretPassword {
-			impl.logger.Infow("updating ips", "ipsName", ipsName, "clusterId", clusterId)
-			ipsData := dockerRegistry.BuildIpsData(dockerRegistryBean.RegistryURL, username, password, string(ipsConfig.CredentialType), ipsConfig.CredentialValue)
-			secret.Data = ipsData
-			_, err = impl.k8sUtil.UpdateSecret(namespace, secret, k8sClient)
-			if err != nil {
-				impl.logger.Errorw("error in updating secret", "clusterId", clusterId, "namespace", namespace, "ipsName", ipsName, "error", err)
-				return err
-			}
-		}
-	}
-	return nil
 }
 
 func (impl AppServiceImpl) savePipelineOverride(overrideRequest *bean.ValuesOverrideRequest, envOverrideId int, triggeredAt time.Time) (override *chartConfig.PipelineOverride, err error) {

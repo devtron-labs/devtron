@@ -89,7 +89,7 @@ func TestBuildIpsData(t *testing.T) {
 	dockerRegistryUrl := "someRegistryUrl"
 	dockerRegistryUsername := "someUsername"
 	dockerRegistryPassword := "somePassword"
-	ipsData := BuildIpsData(dockerRegistryUrl, dockerRegistryUsername, dockerRegistryPassword, "", "")
+	ipsData := BuildIpsData(dockerRegistryUrl, dockerRegistryUsername, dockerRegistryPassword, "")
 	expectedIpsAuthsVal := make(map[string]interface{})
 	expectedIpsVal := make(map[string]interface{})
 	expectedIpsVal[dockerRegistryUrl] = map[string]string{
@@ -111,7 +111,7 @@ func TestDecryptIpsSecret(t *testing.T) {
 	dockerRegistryUrl := "someRegistryUrl"
 	dockerRegistryUsername := "someUsername"
 	dockerRegistryPassword := "somePassword"
-	ipsData := BuildIpsData(dockerRegistryUrl, dockerRegistryUsername, dockerRegistryPassword, "", "")
+	ipsData := BuildIpsData(dockerRegistryUrl, dockerRegistryUsername, dockerRegistryPassword, "")
 	username, password := GetUsernamePasswordFromIpsSecret(dockerRegistryUrl, ipsData)
 	assert.Equal(t, username, dockerRegistryUsername)
 	assert.Equal(t, password, dockerRegistryPassword)

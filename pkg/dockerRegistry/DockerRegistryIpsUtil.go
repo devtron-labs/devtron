@@ -24,6 +24,13 @@ const IMAGE_PULL_SECRET_DATA_KEY_IN_SECRET = ".dockerconfigjson"
 
 var nonAlphanumericRegex = regexp.MustCompile(`[^a-zA-Z0-9]+`)
 
+type DockerIpsCustomCredential struct {
+	Server   string `json:"server"`
+	Username string `json:"username"`
+	Password string `json:"password"`
+	Email    string `json:"email"`
+}
+
 func CheckIfImagePullSecretAccessProvided(appliedClusterIdsCsv string, ignoredClusterIdsCsv string, clusterId int) bool {
 	clusterIdStr := strconv.Itoa(clusterId)
 	if len(appliedClusterIdsCsv) > 0 {
@@ -55,8 +62,8 @@ func BuildIpsName(dockerRegistryId string, ipsCredentialType string, ipsCredenti
 	return fmt.Sprintf("%s-%s-%s", nonAlphanumericRegex.ReplaceAllString(dockerRegistryId, ""), "dtron", "ips")
 }
 
-func BuildIpsData(dockerRegistryUrl, dockerRegistryUsername, dockerRegistryPassword, ipsCredentialType, ipsCredentialValue string) map[string][]byte {
-	config, _ := handleDockerCfgJSONContent(dockerRegistryUrl, dockerRegistryUsername, dockerRegistryPassword)
+func BuildIpsData(dockerRegistryUrl, dockerRegistryUsername, dockerRegistryPassword, dockerRegistryEmail string) map[string][]byte {
+	config, _ := handleDockerCfgJSONContent(dockerRegistryUrl, dockerRegistryUsername, dockerRegistryPassword, dockerRegistryEmail)
 	data := make(map[string][]byte)
 	data[corev1.DockerConfigJsonKey] = config
 	return data
@@ -74,11 +81,14 @@ func GetUsernamePasswordFromIpsSecret(dockerRegistryUrl string, data map[string]
 	return "", ""
 }
 
-func handleDockerCfgJSONContent(server, username, password string) ([]byte, error) {
+func handleDockerCfgJSONContent(server, username, password, email string) ([]byte, error) {
 	dockerConfigAuth := create.DockerConfigEntry{
 		Username: username,
 		Password: password,
 		Auth:     encodeDockerConfigFieldAuth(username, password),
+	}
+	if len(email) > 0 {
+		dockerConfigAuth.Email = email
 	}
 	dockerConfigJSON := create.DockerConfigJSON{
 		Auths: map[string]create.DockerConfigEntry{server: dockerConfigAuth},
