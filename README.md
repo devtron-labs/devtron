@@ -85,7 +85,7 @@ Devtron is designed to be modular, and its functionality can be easily extended 
 * Supports pre-CI and post-CI integrations for code quality monitoring.
 * Seamlessly integrates with Clair for image vulnerability scanning.
 * Supports different deployment strategies: Blue/Green, Rolling, Canary, and Recreate.
-* Implements GitOps to manage the state of Kubernetes applications,
+* Implements GitOps to manage the state of Kubernetes applications.
 * Integrates with ArgoCD for continuous deployment.
 * Checks logs, events, and manifests or exec inside containers for debugging.
 * Provides deployment metrics like; deployment frequency, lead time, change failure rate, and mean-time recovery.
