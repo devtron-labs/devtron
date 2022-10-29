@@ -44,6 +44,7 @@ type AppWorkflowRepository interface {
 	FindWFCDMappingByCIPipelineId(ciPipelineId int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByCDPipelineId(cdPipelineId int) (*AppWorkflowMapping, error)
 	DeleteAppWorkflowMapping(appWorkflow *AppWorkflowMapping, tx *pg.Tx) error
+	DeleteAppWorkflowMappingsByCdPipelineId(pipelineId int, tx *pg.Tx) error
 	FindWFCDMappingByCIPipelineIds(ciPipelineIds []int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByParentCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
 	FindAllWFMappingsByAppId(appId int) ([]*AppWorkflowMapping, error)
@@ -309,6 +310,19 @@ func (impl AppWorkflowRepositoryImpl) FindAllWFMappingsByAppId(appId int) ([]*Ap
 		Where("app_workflow_mapping.active = ?", true).
 		Select()
 	return appWorkflowsMapping, err
+}
+
+func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflowMappingsByCdPipelineId(pipelineId int, tx *pg.Tx) error {
+	var model AppWorkflowMapping
+	_, err := tx.Model(&model).Set("active = ?", false).
+		Where("component_id = ?", pipelineId).
+		Where("type = ?", CDPIPELINE).
+		Update()
+	if err != nil {
+		impl.Logger.Errorw("error in deleting appWorkflowMapping by cdPipelineId", "err", err, "cdPipelineId", pipelineId)
+		return err
+	}
+	return nil
 }
 
 func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiId(externalCiId int) (*AppWorkflowMapping, error) {

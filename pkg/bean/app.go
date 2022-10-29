@@ -609,3 +609,25 @@ type UpdateProjectBulkAppsRequest struct {
 	TeamId int   `json:"teamId"`
 	UserId int32 `json:"-"`
 }
+
+type CdBulkAction int
+
+const (
+	CD_BULK_DELETE CdBulkAction = iota
+)
+
+type CdBulkActionRequestDto struct {
+	Action      CdBulkAction `json:"action"`
+	EnvIds      []int        `json:"envIds"`
+	AppIds      []int        `json:"appIds"`
+	ProjectIds  []int        `json:"projectIds"`
+	ForceDelete bool         `json:"forceDelete"`
+	UserId      int32        `json:"-"`
+}
+
+type CdBulkActionResponseDto struct {
+	PipelineName    string `json:"pipelineName"`
+	AppName         string `json:"appName"`
+	EnvironmentName string `json:"environmentName"`
+	DeletionResult  string `json:"deletionResult,omitempty"`
+}

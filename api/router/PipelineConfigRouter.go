@@ -70,7 +70,7 @@ func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mu
 	configRouter.Path("/cd-pipeline/patch").HandlerFunc(router.restHandler.PatchCdPipeline).Methods("POST")
 	configRouter.Path("/cd-pipeline/{appId}").HandlerFunc(router.restHandler.GetCdPipelines).Methods("GET")
 	configRouter.Path("/cd-pipeline/{appId}/env/{envId}").HandlerFunc(router.restHandler.GetCdPipelinesForAppAndEnv).Methods("GET")
-
+	configRouter.Path("/cd-pipeline/bulk-action").HandlerFunc(router.restHandler.HandleCdPipelineBulkAction).Methods("POST")
 	//save environment specific override
 	configRouter.Path("/env/{appId}/{environmentId}").HandlerFunc(router.restHandler.EnvConfigOverrideCreate).Methods("POST")
 	configRouter.Path("/env").HandlerFunc(router.restHandler.EnvConfigOverrideUpdate).Methods("PUT")
