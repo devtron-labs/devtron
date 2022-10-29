@@ -59,6 +59,28 @@
         "description": "contains environment variables needed by the containers",
         "title": "Environment Variables"
       },
+      "EnvVariablesFromFieldPath":{
+        "type": "array",
+        "description": "Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs",
+        "title": "EnvVariablesFromFieldPath",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "name":{
+                "type": "string",
+                "title": "name",
+                "description": "Env variable name to be"
+              },
+              "fieldPath":{
+                "type": "string",
+                "title": "fieldPath",
+                "description": "Path of the field to select in the specified API version"
+              }
+            }
+          }
+        ]
+      },
       "GracePeriod": {
         "type": "integer",
         "description": "time for which Kubernetes waits before terminating the pods",
