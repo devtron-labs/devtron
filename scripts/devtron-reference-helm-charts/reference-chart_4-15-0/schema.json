@@ -695,6 +695,11 @@
           }
         }
       },
+      "podExtraSpecs":{
+        "type": "object",
+        "description": "ExtraSpec for the pods to be configured",
+        "title": "podExtraSpecs"
+      },
       "podLabels": {
         "type":"object",
         "description": "key/value pairs that are attached to pods, are intended to be used to specify identifying attributes of objects that are meaningful and relevant to users, but do not directly imply semantics to the core system",
