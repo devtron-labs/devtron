@@ -356,6 +356,26 @@
             "description": "configMap containing configuration for Envoy",
             "title": "ConfigMap"
           },
+          "lifecycle":{
+            "type": "object",
+            "description": "Actions that the management system should take in response to container lifecycle events",
+            "title": "lifecycle",
+            "properties": {
+              "enabled":{
+                "type": "boolean"
+              },
+              "postStart":{
+                "type": "object",
+                "title": "postStart",
+                "description": "PostStart is called immediately after a container is created"
+              },
+              "preStop":{
+                "type": "object",
+                "title": "preStop",
+                "description": "PreStop is called immediately before a container is terminated"
+              }
+            }
+          },
           "image": {
             "type": "string",
             "description": "image of envoy to be used"
