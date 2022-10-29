@@ -3,6 +3,11 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",
     "properties": {
+      "containerExtraSpecs":{
+        "type": "object",
+        "title": "containerExtraSpecs",
+        "description": "Define container extra specs here"
+      },
       "ContainerPort": {
         "type": "array",
         "description": "defines ports on which application services will be exposed to other services",
