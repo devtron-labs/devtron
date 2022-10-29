@@ -658,7 +658,7 @@
               "postStart":{
                 "type": "object",
                 "title": "postStart",
-                "description": "PostStart is called immediately after a container is created"
+                "description": "PostStart is called immediately after a container is created.You could use this event to check that a required API is available before the container’s main work begins"
               },
               "preStop":{
                 "type": "object",
@@ -678,6 +678,22 @@
         "type":"object",
         "description": "used to attach metadata and configs in Kubernetes",
         "title": "Pod Annotations"
+      },
+      "podDisruptionBudget": {
+        "type": "object",
+        "description": "PodDisruptionBudget is an object to define the max disruption that can be caused to a collection of pods",
+        "properties": {
+          "minAvailable":{
+            "type": "string",
+            "title": "minAvailable",
+            "description": "An eviction is allowed if at least \"minAvailable\" pods selected by \"selector\" will still be available after the eviction, i.e. even in the absence of the evicted pod"
+          },
+          "maxUnavailable":{
+            "type": "string",
+            "title": "maxUnavailable",
+            "description": "An eviction is allowed if at most \"maxUnavailable\" pods selected by \"selector\" are unavailable after the eviction, i.e. even in absence of the evicted pod."
+          }
+        }
       },
       "podLabels": {
         "type":"object",
