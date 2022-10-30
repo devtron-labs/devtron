@@ -9,6 +9,8 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -37,6 +39,7 @@ type TelemetryEventClientImplExtended struct {
 	materialRepository            pipelineConfig.MaterialRepository
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	chartRepository               chartRepoRepository.ChartRepository
+	ciBuildConfigService          pipeline.CiBuildConfigService
 	*TelemetryEventClientImpl
 }
 
@@ -138,6 +141,9 @@ type TelemetryEventDto struct {
 	InstallingIntegrations               []string           `json:"installingIntegrations,omitempty"`
 	DevtronReleaseVersion                string             `json:"devtronReleaseVersion,omitempty"`
 	LastLoginTime                        time.Time          `json:"LastLoginTime,omitempty"`
+	SelfDockerfileCount                  int                `json:"selfDockerfileCount"`
+	ManagedDockerfileCount               int                `json:"managedDockerfileCount"`
+	BuildPackCount                       int                `json:"buildPackCount"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -259,6 +265,8 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		return err
 	}
 
+	selfDockerfileCount, managedDockerfileCount, buildpackCount := impl.getCiBuildTypeData()
+
 	devtronVersion := util.GetDevtronVersion()
 	payload.ProdAppCount = prodApps
 	payload.NonProdAppCount = nonProdApps
@@ -268,6 +276,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.EnvironmentCount = len(environments)
 	payload.ClusterCount = len(clusters)
 	payload.CiCountPerDay = len(ciPipeline)
+
 	payload.CdCountPerDay = len(cdPipeline)
 	payload.GitAccountsCount = len(gitAccounts)
 	payload.GitOpsCount = len(gitOps)
@@ -290,6 +299,9 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		}
 		payload.LastLoginTime = loginTime
 	}
+	payload.SelfDockerfileCount = selfDockerfileCount
+	payload.ManagedDockerfileCount = managedDockerfileCount
+	payload.BuildPackCount = buildpackCount
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -309,4 +321,9 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		return err
 	}
 	return nil
+}
+
+func (impl *TelemetryEventClientImplExtended) getCiBuildTypeData() (int, int, int) {
+	countByBuildType := impl.ciBuildConfigService.GetCountByBuildType()
+	return countByBuildType[bean.SELF_DOCKERFILE_BUILD_TYPE], countByBuildType[bean.MANAGED_DOCKERFILE_BUILD_TYPE], countByBuildType[bean.BUILDPACK_BUILD_TYPE]
 }

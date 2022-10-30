@@ -16,10 +16,16 @@ type CiBuildConfig struct {
 	sql.AuditLog
 }
 
+type BuildTypeCount struct {
+	Type  string `json:"type"`
+	Count int    `json:"count"`
+}
+
 type CiBuildConfigRepository interface {
 	Save(ciBuildConfig *CiBuildConfig) error
 	Update(ciBuildConfig *CiBuildConfig) error
 	Delete(ciBuildConfigId int) error
+	GetCountByBuildType() (map[string]int, error)
 }
 
 type CiBuildConfigRepositoryImpl struct {
@@ -57,4 +63,21 @@ func (impl CiBuildConfigRepositoryImpl) Delete(ciBuildConfigId int) error {
 		impl.logger.Errorw("error occurred while deleting ciBuildConfig", "ciBuildConfigId", ciBuildConfigId, "err", err)
 	}
 	return err
+}
+
+func (impl CiBuildConfigRepositoryImpl) GetCountByBuildType() (map[string]int, error) {
+
+	var buildTypeCounts []*BuildTypeCount
+	result := make(map[string]int)
+	query := "SELECT type, count(*) as count from ci_build_config group by type"
+	_, err := impl.dbConnection.Query(&buildTypeCounts, query)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error occurred while fetching config type vs count", "err", err)
+	} else if err == pg.ErrNoRows {
+		return result, nil
+	}
+	for _, elem := range buildTypeCounts {
+		result[elem.Type] = elem.Count
+	}
+	return result, err
 }
