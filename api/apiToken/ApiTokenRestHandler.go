@@ -38,6 +38,7 @@ type ApiTokenRestHandler interface {
 	CreateApiToken(w http.ResponseWriter, r *http.Request)
 	UpdateApiToken(w http.ResponseWriter, r *http.Request)
 	DeleteApiToken(w http.ResponseWriter, r *http.Request)
+	GetAllApiTokensForWebhook(w http.ResponseWriter, r *http.Request)
 }
 
 type ApiTokenRestHandlerImpl struct {
@@ -213,6 +214,46 @@ func (impl ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *htt
 
 func (handler ApiTokenRestHandlerImpl) checkManagerAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
+		return false
+	}
+	return true
+}
+
+func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// handle super-admin RBAC
+	token := r.Header.Get("token")
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	v := r.URL.Query()
+	projectName := v.Get("projectName")
+	environmentName := v.Get("environmentName")
+	appName := v.Get("appName")
+
+	// service call
+	res, err := impl.apiTokenService.GetAllApiTokensForWebhook(token, projectName, environmentName, appName, impl.CheckAuthorizationForWebhook)
+	if err != nil {
+		impl.logger.Errorw("service err, GetAllActiveApiTokens", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (handler ApiTokenRestHandlerImpl) CheckAuthorizationForWebhook(token string, projectObject string, envObject string) bool {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, strings.ToLower(projectObject)); !ok {
+		return false
+	}
+
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, strings.ToLower(envObject)); !ok {
 		return false
 	}
 	return true
