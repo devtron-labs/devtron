@@ -28,6 +28,7 @@ type DevtronAppBuildRestHandler interface {
 
 	GetCiPipeline(w http.ResponseWriter, r *http.Request)
 	GetExternalCi(w http.ResponseWriter, r *http.Request)
+	GetExternalCiById(w http.ResponseWriter, r *http.Request)
 	PatchCiPipelines(w http.ResponseWriter, r *http.Request)
 	TriggerCiPipeline(w http.ResponseWriter, r *http.Request)
 	GetCiPipelineMin(w http.ResponseWriter, r *http.Request)
@@ -312,6 +313,42 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCi(w http.ResponseWriter
 		return
 	}
 	ciConf, err := handler.pipelineBuilder.GetExternalCi(appId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
+}
+
+
+func (handler PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	externalCiId, err := strconv.Atoi(vars["externalCiId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	app, err := handler.pipelineBuilder.GetApp(appId)
+	if err != nil {
+		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	resourceName := handler.enforcerUtil.GetAppRBACName(app.AppName)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	ciConf, err := handler.pipelineBuilder.GetExternalCiById(appId, externalCiId)
 	if err != nil {
 		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
