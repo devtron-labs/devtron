@@ -296,7 +296,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 		return isHealthy, nil
 	}
 
-	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatus(newApp.Name)
+	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatusByAppName(newApp.Name)
 	if err != nil && !IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching deployment status", "dbApp", dbApp, "err", err)
 		return isHealthy, err

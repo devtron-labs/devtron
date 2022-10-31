@@ -67,4 +67,8 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		Queries("containerName", "{containerName}").
 		HandlerFunc(router.appListingRestHandler.RedirectToLinkouts).
 		Methods("GET")
+
+	appListingRouter.Path("/deployment-status/manual-sync/{appId}/{envId}").
+		HandlerFunc(router.appListingRestHandler.ManualSyncAcdPipelineDeploymentStatus).
+		Methods("GET")
 }

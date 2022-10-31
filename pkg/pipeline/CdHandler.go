@@ -202,7 +202,7 @@ func (impl *CdHandlerImpl) CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateI
 }
 
 func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(argoAppName string, appId, envId int, ignoreFailedWorkflowStatus bool) error {
-	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatus(argoAppName)
+	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatusByAppName(argoAppName)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching deployment status", "appName", argoAppName, "err", err)
 		return err

@@ -6,11 +6,13 @@ import (
 	"github.com/caarlos0/env"
 	client2 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
+	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	"github.com/nats-io/nats.go"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
@@ -23,6 +25,7 @@ type CdApplicationStatusUpdateHandler interface {
 	ArgoPipelineTimelineUpdate()
 	Subscribe() error
 	SyncPipelineStatusForResourceTreeCall(acdAppName string, appId, envId int) error
+	ManualSyncPipelineStatus(appId, envId int) error
 }
 
 type CdApplicationStatusUpdateHandlerImpl struct {
@@ -36,6 +39,7 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	pubsubClient                     *pubsub.PubSubClient
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	eventClient                      client2.EventClient
+	appListingRepository             repository.AppListingRepository
 }
 
 type AppStatusConfig struct {
@@ -57,7 +61,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
 	CdHandler pipeline.CdHandler, AppStatusConfig *AppStatusConfig, pubsubClient *pubsub.PubSubClient,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
-	eventClient client2.EventClient) *CdApplicationStatusUpdateHandlerImpl {
+	eventClient client2.EventClient, appListingRepository repository.AppListingRepository) *CdApplicationStatusUpdateHandlerImpl {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -72,6 +76,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		pubsubClient:                     pubsubClient,
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		eventClient:                      eventClient,
+		appListingRepository:             appListingRepository,
 	}
 	err := util.AddStream(pubsubClient.JetStrCtxt, util.ORCHESTRATOR_STREAM)
 	if err != nil {
@@ -197,4 +202,28 @@ func IsTerminalTimelineStatus(timeline pipelineConfig.TimelineStatus) bool {
 		return true
 	}
 	return false
+}
+
+func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId, envId int) error {
+	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatusForAcdPipelineByAppIdAndEnvId(appId, envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching deployment status", "err", err, "appId", appId, "envId", envId)
+		return err
+	}
+	if !util.IsTerminalStatus(deploymentStatus.Status) {
+		//create new nats event
+		statusUpdateEvent := pipeline.ArgoPipelineStatusEvent{
+			ArgoAppName:                deploymentStatus.AppName,
+			AppId:                      appId,
+			EnvId:                      envId,
+			IgnoreFailedWorkflowStatus: true,
+		}
+		//write event
+		err := impl.eventClient.WriteNatsEvent(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
+		if err != nil {
+			impl.logger.Errorw("error in writing nats event", "topic", util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
+			return err
+		}
+	}
+	return nil
 }
