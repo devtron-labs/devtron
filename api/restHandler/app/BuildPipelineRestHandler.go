@@ -303,7 +303,7 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCi(w http.ResponseWriter
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "appId", appId)
+		handler.Logger.Errorw("service err, GetExternalCi", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -314,7 +314,7 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCi(w http.ResponseWriter
 	}
 	ciConf, err := handler.pipelineBuilder.GetExternalCi(appId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "appId", appId)
+		handler.Logger.Errorw("service err, GetExternalCi", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -339,7 +339,7 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseWr
 	token := r.Header.Get("token")
 	app, err := handler.pipelineBuilder.GetApp(appId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "appId", appId)
+		handler.Logger.Errorw("service err, GetExternalCiById", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -350,7 +350,7 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseWr
 	}
 	ciConf, err := handler.pipelineBuilder.GetExternalCiById(appId, externalCiId)
 	if err != nil {
-		handler.Logger.Errorw("service err, GetCiPipeline", "err", err, "appId", appId)
+		handler.Logger.Errorw("service err, GetExternalCiById", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

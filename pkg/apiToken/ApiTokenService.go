@@ -88,12 +88,14 @@ func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(token string, projectN
 
 		//checking permission on each of the roles associated with this API Token
 		for _, rf := range userMetaData.RoleFilters {
-			projectObject := fmt.Sprintf("%s/%s", rf.Team, rf.EntityName)
-			envObject := fmt.Sprintf("%s/%s", rf.Environment, rf.EntityName)
-			isValidAuth := auth(token, projectObject, envObject)
-			if !isValidAuth {
-				impl.logger.Debugw("authentication for token failed", "apiTokenFromDb", apiTokenFromDb)
-				continue
+			if len(rf.Team) > 0 {
+				projectObject := fmt.Sprintf("%s/%s", rf.Team, rf.EntityName)
+				envObject := fmt.Sprintf("%s/%s", rf.Environment, rf.EntityName)
+				isValidAuth := auth(token, projectObject, envObject)
+				if !isValidAuth {
+					impl.logger.Debugw("authentication for token failed", "apiTokenFromDb", apiTokenFromDb)
+					continue
+				}
 			}
 		}
 

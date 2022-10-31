@@ -580,7 +580,7 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
 	}
 
-	var externalCiConfig []*bean.ExternalCiConfig
+	externalCiConfig := make([]*bean.ExternalCiConfig, 0)
 	for _, externalCiPipeline := range externalCiPipelines {
 		appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
@@ -625,7 +625,6 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 		return nil, err
 	}
-
 	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
