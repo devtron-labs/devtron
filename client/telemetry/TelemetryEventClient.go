@@ -146,7 +146,7 @@ const (
 	SIG_TERM                     TelemetryEventType = "SIG_TERM"
 )
 
-func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string, SkippedOnboarding string) {
+func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string, SkippedOnboarding string, HelmAppUpdateCounter string) {
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
@@ -196,6 +196,12 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		SkippedOnboarding = attribute.Value
 	}
 
+	attribute, err = impl.attributeRepo.FindByKey("HelmAppUpdateCounter")
+
+	if err == nil {
+		HelmAppUpdateCounter = attribute.Value
+	}
+
 	//externalHelmAppsMap := make(map[int][]int)
 
 	//req := &client.AppListRequest{}
@@ -210,11 +216,11 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	//	req.Clusters = append(req.Clusters, config)
 	//}
 	//applicatonStream, err := impl.helmAppClient.ListApplication(req)
-	//
-	//if err != nil {
-	//	return
-	//}
-	//
+
+	if err != nil {
+		return
+	}
+
 	//clusterList, err := applicatonStream.Recv()
 
 	//fmt.Println(clusterList)
@@ -226,7 +232,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		ssoSetup = true
 	}
 
-	return clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding
+	return clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter
 }
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
@@ -255,7 +261,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 		return err
 	}
 
-	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding := impl.SummaryDetailsForTelemetry()
+	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter := impl.SummaryDetailsForTelemetry()
 
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
@@ -272,6 +278,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.HelmAppAccessCounter = HelmAppAccessCount
 	payload.ChartStoreVisitCount = ChartStoreVisitCount
 	payload.SkippedOnboarding = SkippedOnboarding
+	payload.HelmAppAccessCounter = HelmAppUpdateCounter
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {

@@ -87,7 +87,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc("@every 1m", watcher.SummaryEventForTelemetry)
+	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetry)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
@@ -141,6 +141,7 @@ type TelemetryEventDto struct {
 	HelmAppAccessCounter                 string             `json:"HelmAppAccessCounter,omitempty"`
 	ChartStoreVisitCount                 string             `json:"ChartStoreVisitCount,omitempty"`
 	SkippedOnboarding                    string             `json:"SkippedOnboarding,omitempty"`
+	HelmAppUpdateCounter                 string             `json:"HelmAppUpdateCounter,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -163,7 +164,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		return err
 	}
 
-	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding := impl.SummaryDetailsForTelemetry()
+	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter := impl.SummaryDetailsForTelemetry()
 	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
@@ -287,6 +288,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.HelmAppAccessCounter = HelmAppAccessCount
 	payload.ChartStoreVisitCount = ChartStoreVisitCount
 	payload.SkippedOnboarding = SkippedOnboarding
+	payload.HelmAppUpdateCounter = HelmAppUpdateCounter
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {

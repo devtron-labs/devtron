@@ -43,6 +43,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -62,6 +63,7 @@ type AppStoreDeploymentService interface {
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
+	SaveUpdateHelmTelemetryData() error
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -80,6 +82,7 @@ type AppStoreDeploymentServiceImpl struct {
 	globalEnvVariables                   *util2.GlobalEnvVariables
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	gitOpsRepository                     repository2.GitOpsConfigRepository
+	attributesRepository                 repository2.AttributesRepository
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
@@ -89,7 +92,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	globalEnvVariables *util2.GlobalEnvVariables,
-	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository) *AppStoreDeploymentServiceImpl {
+	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesRepository repository2.AttributesRepository) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -106,6 +109,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		globalEnvVariables:                   globalEnvVariables,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		gitOpsRepository:                     gitOpsRepository,
+		attributesRepository:                 attributesRepository,
 	}
 }
 
@@ -227,7 +231,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 	return installAppVersionRequest, nil
 }
 
-//TODO - dedupe, move it to one location
+// TODO - dedupe, move it to one location
 func (impl AppStoreDeploymentServiceImpl) GetGitOpsRepoName(appName string) string {
 	var repoName string
 	if len(impl.globalEnvVariables.GitOpsRepoPrefix) == 0 {
@@ -412,7 +416,7 @@ func (impl AppStoreDeploymentServiceImpl) GetInstalledApp(id int) (*appStoreBean
 	return chartTemplate, nil
 }
 
-//converts db object to bean
+// converts db object to bean
 func (impl AppStoreDeploymentServiceImpl) chartAdaptor2(chart *repository.InstalledApps) *appStoreBean.InstallAppVersionDTO {
 	return &appStoreBean.InstallAppVersionDTO{
 		EnvironmentId:   chart.EnvironmentId,
@@ -1135,4 +1139,38 @@ func (impl AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequ
 		return installAppVersionRequest, err
 	}
 	return installAppVersionRequest, nil
+}
+
+func (impl AppStoreDeploymentServiceImpl) SaveUpdateHelmTelemetryData() error {
+
+	model, err := impl.attributesRepository.FindByKey("HelmAppUpdateCounter")
+
+	dbConnection := impl.attributesRepository.GetConnection()
+
+	tx, err := dbConnection.Begin()
+
+	defer tx.Rollback()
+
+	model.Key = "HelmAppUpdateCounter"
+
+	if err != nil {
+		return err
+	}
+	if model.Value == "" {
+		model.Value = "1"
+		model.Active = true
+	} else {
+		newValue, _ := strconv.Atoi(model.Value)
+		model.Value = strconv.Itoa(newValue + 1)
+	}
+
+	err = impl.attributesRepository.Update(model, tx)
+
+	if err == pg.ErrNoRows {
+		_, err = impl.attributesRepository.Save(model, tx)
+	}
+
+	err = tx.Commit()
+
+	return err
 }
