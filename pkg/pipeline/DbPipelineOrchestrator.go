@@ -612,36 +612,6 @@ func (impl DbPipelineOrchestratorImpl) generateExternalCiPayload(ciPipeline *bea
 	return ciPipeline
 }
 
-func (impl DbPipelineOrchestratorImpl) saveExternalCiDetails(id int, userId int32, tx *pg.Tx) (int, error) {
-	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-		Id:       id,
-		Active:   false,
-		AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-	}
-	externalCiPipeline, rows, err := impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
-	return rows, err
-}
-
-func (impl DbPipelineOrchestratorImpl) updateExternalCiDetails(id int, userId int32, tx *pg.Tx) (int, error) {
-	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-		Id:       id,
-		Active:   false,
-		AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-	}
-	externalCiPipeline, rows, err := impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
-	return rows, err
-}
-
-func (impl DbPipelineOrchestratorImpl) deleteExternalCiDetails(id int, userId int32, tx *pg.Tx) (int, error) {
-	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-		Id:       id,
-		Active:   false,
-		AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-	}
-	externalCiPipeline, rows, err := impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
-	return rows, err
-}
-
 func (impl DbPipelineOrchestratorImpl) AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error {
 	var materials []*gitSensor.CiPipelineMaterial
 	for _, ciPipelineMaterial := range pipelineMaterials {

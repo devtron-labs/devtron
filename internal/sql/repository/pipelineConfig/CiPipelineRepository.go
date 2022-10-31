@@ -53,7 +53,7 @@ type ExternalCiPipeline struct {
 	Id          int      `sql:"id,pk"`
 	AppId       int      `sql:"app_id"`
 	Active      bool     `sql:"active,notnull"`
-	AccessToken string   `sql:"access_token,notnull"`
+	AccessToken string   `sql:"access_token"`
 	sql.AuditLog
 }
 
@@ -73,7 +73,7 @@ type CiPipelineScript struct {
 type CiPipelineRepository interface {
 	Save(pipeline *CiPipeline, tx *pg.Tx) error
 	SaveExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error)
-	UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, int, error)
+	UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error)
 	FindExternalCiByCiPipelineId(ciPipelineId int) (*ExternalCiPipeline, error)
 	FindExternalCiById(id int) (*ExternalCiPipeline, error)
 	FindExternalCiByAppId(appId int) ([]*ExternalCiPipeline, error)
@@ -131,11 +131,9 @@ func (impl CiPipelineRepositoryImpl) SaveExternalCi(pipeline *ExternalCiPipeline
 	return pipeline, err
 }
 
-func (impl CiPipelineRepositoryImpl) UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, int, error) {
-	r, err := tx.Model(pipeline).Update(pipeline)
-	rowsUpdated := r.RowsAffected()
-	impl.logger.Infof("total rows updated %d", rowsUpdated)
-	return pipeline, rowsUpdated, err
+func (impl CiPipelineRepositoryImpl) UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error) {
+	err := tx.Update(pipeline)
+	return pipeline, err
 }
 
 func (impl CiPipelineRepositoryImpl) Save(pipeline *CiPipeline, tx *pg.Tx) error {

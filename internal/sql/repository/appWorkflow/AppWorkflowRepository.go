@@ -71,7 +71,7 @@ type AppWorkflow struct {
 	TableName   struct{}        `sql:"app_workflow" pg:",discard_unknown_columns"`
 	Id          int             `sql:"id,pk"`
 	Name        string          `sql:"name,notnull"`
-	Active      bool            `sql:"active"`
+	Active      bool            `sql:"active,notnull"`
 	WorkflowDAG json.RawMessage `sql:"workflow_dag"`
 	AppId       int             `sql:"app_id"`
 	sql.AuditLog
@@ -158,7 +158,7 @@ type AppWorkflowMapping struct {
 	AppWorkflowId int      `sql:"app_workflow_id"`
 	Type          string   `sql:"type,notnull"`
 	ParentId      int      `sql:"parent_id"`
-	Active        bool     `sql:"active"`
+	Active        bool     `sql:"active,notnull"`
 	ParentType    string   `sql:"parent_type,notnull"`
 	AppWorkflow   *AppWorkflow
 	sql.AuditLog

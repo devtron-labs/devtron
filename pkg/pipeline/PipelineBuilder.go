@@ -110,7 +110,7 @@ type PipelineBuilder interface {
 	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
 
 	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error)
-	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool) ([]*bean.CdBulkActionResponseDto, error)
+	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -1333,14 +1333,14 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
 			return pipelineRequest, err
 		}
-		err = impl.deleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete)
+		err = impl.deleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete, cdPipelines.UserId)
 		return pipelineRequest, err
 	default:
 		return nil, &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "operation not supported"}
 	}
 }
 
-func (impl PipelineBuilderImpl) deleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool) (err error) {
+func (impl PipelineBuilderImpl) deleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error) {
 	//getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -1382,12 +1382,15 @@ func (impl PipelineBuilderImpl) deleteCdPipeline(pipeline *pipelineConfig.Pipeli
 		return err
 	}
 	if appWorkflowMapping.ParentType == appWorkflow.WEBHOOK {
-		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-			Id:       appWorkflowMapping.ParentId,
-			Active:   false,
-			AuditLog: sql.AuditLog{UpdatedBy: 1, UpdatedOn: time.Now()},
+		externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(appWorkflowMapping.ParentId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+			return err
 		}
-		_, _, err = impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
+		externalCiPipeline.Active = false
+		externalCiPipeline.UpdatedOn = time.Now()
+		externalCiPipeline.UpdatedBy = userId
+		_, err = impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 			return err
@@ -2677,17 +2680,17 @@ func (impl PipelineBuilderImpl) updateGitRepoUrlInCharts(appId int, chartGitAttr
 	return nil
 }
 
-func (impl PipelineBuilderImpl) PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool) ([]*bean.CdBulkActionResponseDto, error) {
+func (impl PipelineBuilderImpl) PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error) {
 	switch dto.Action {
 	case bean.CD_BULK_DELETE:
-		bulkDeleteResp := impl.BulkDeleteCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete)
+		bulkDeleteResp := impl.BulkDeleteCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete, userId)
 		return bulkDeleteResp, nil
 	default:
 		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "this action is not supported"}
 	}
 }
 
-func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun, forceDelete bool) []*bean.CdBulkActionResponseDto {
+func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun, forceDelete bool, userId int32) []*bean.CdBulkActionResponseDto {
 	var respDtos []*bean.CdBulkActionResponseDto
 	for _, pipeline := range impactedPipelines {
 		respDto := &bean.CdBulkActionResponseDto{
@@ -2696,7 +2699,7 @@ func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(impactedPipelines []*pipel
 			EnvironmentName: pipeline.Environment.Name,
 		}
 		if !dryRun {
-			err := impl.deleteCdPipeline(pipeline, ctx, forceDelete)
+			err := impl.deleteCdPipeline(pipeline, ctx, forceDelete, userId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)

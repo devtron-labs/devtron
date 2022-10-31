@@ -1900,7 +1900,7 @@ func (handler PipelineConfigRestHandlerImpl) HandleCdPipelineBulkAction(w http.R
 		return
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
-	resp, err := handler.pipelineBuilder.PerformBulkActionOnCdPipelines(&cdPipelineBulkActionReq, impactedPipelines, ctx, dryRun)
+	resp, err := handler.pipelineBuilder.PerformBulkActionOnCdPipelines(&cdPipelineBulkActionReq, impactedPipelines, ctx, dryRun, userId)
 	if err != nil {
 		handler.Logger.Errorw("service err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
