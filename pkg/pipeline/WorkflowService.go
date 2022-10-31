@@ -110,7 +110,7 @@ type WorkflowRequest struct {
 	AppName                    string                            `json:"appName"`
 	TriggerByAuthor            string                            `json:"triggerByAuthor"`
 	CiBuildConfig              *bean2.CiBuildConfigBean          `json:"ciBuildConfig"`
-	CiRunnerDockerMtuValue     int                               `json:"ciRunnerDockerMtuValue"`
+	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
 }
 
 const (
