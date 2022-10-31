@@ -12,7 +12,7 @@ For **build configuration**, you must provide information in the sections as giv
 * [Build the Container Image](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration#build-the-container-image)
 * [Advanced Options](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration#advanced-options)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/build-configuration-latest.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/build-configuration-latest1.jpg)
 
 ## Store Container Image
 
@@ -64,12 +64,13 @@ With the option **Create Dockerfile**, you can create a `Dockerfile` from the av
 ### Build Docker Image without Dockerfile
 
 With the option **Build without Dockerfile**, you can use buildpacks to automate the build processes for your preferred languages and frameworks.
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/build-without-dockerfile.jpg)
 
 | Field | Description |
 | --- | --- |
 | **Select repository containing code** | Select the Git checkout path of your repository. This repository is the same which you defined on the [Git Repository](https://docs.devtron.ai/usage/applications/creating-application/git-material) section.|
-| **Project Path (Relative)** | Enter a project path for the builder if you are working on multiple projects under a single repository (monorepo).|
+| **Project Path (Relative)** | In case of monorepo, specify the path of the GIT Repo for the deployment of the project.|
 | **Language** | Select the programming language (e.g., `Java`, `Go`, `Python`, `Node` etc.) from the drop-down list you want to cbuild your container image as per the compatibility to your system.<br> **Note**: We will be adding other programming languages in the future releases.</br>|
 | **Version** | Select the version of the selected programming language. You can also select **Autodetect** to auto-select the compatible version.|
 | **Select a builder** | Select a builder to create your own buildpacks for the deployment of your application. <ul><li>**Heroku**: It compiles your deployed code and creates a slug, which is a compressed and pre-packaged copy of your app and also the runtime which is optimized for distribution to the dyno (Linux containers) manager. [Learn more](https://devcenter.heroku.com/articles/buildpacks).</li></ul><ul><li>**GCR**: GCR builder is a general purpose builder that creates container images designed to run on most platforms (e.g. Kubernetes / Anthos, Knative / Cloud Run, Container OS, etc.). It auto-detects the language of your source code, and can also build functions compatible with the Google Cloud Function Framework. [Learn more](https://github.com/GoogleCloudPlatform/buildpacks).</li></ul><ul><li>**Paketo**: Paketo buildpacks provide production-ready buildpacks for the most popular languages and frameworks to easily build your apps. Based on your application needs, you can select from `Full`, `Base` and `Tiny`. [Learn more](https://paketo.io/docs/).</li></ul>|
