@@ -275,6 +275,7 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 	}
 
 	ciBuildConfig := refCiConf.CiBuildConfig
+	ciBuildConfig.GitMaterialId = dockerfileGitMaterial
 	ciConfRequest := &bean.CiConfigRequest{
 		Id:               0,
 		AppId:            newAppId,
