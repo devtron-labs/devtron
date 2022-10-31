@@ -763,6 +763,8 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					return nil, err
 				}
 				ciBuildConfig.GitMaterialId = gitMaterial.Id
+				templateOverride.GitMaterialId = gitMaterial.Id
+				ciBuildConfig.Id = 0
 				ciPatchReq.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
 					DockerRegistry:   templateOverride.DockerRegistryId,
 					DockerRepository: templateOverride.DockerRepository,

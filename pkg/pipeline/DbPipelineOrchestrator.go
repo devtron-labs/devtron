@@ -542,8 +542,8 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				DockerRegistryId: ciPipeline.DockerConfigOverride.DockerRegistry,
 				DockerRepository: ciPipeline.DockerConfigOverride.DockerRepository,
 				//DockerfilePath:   ciPipeline.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
-				//GitMaterialId:    ciPipeline.DockerConfigOverride.DockerBuildConfig.GitMaterialId,
-				Active: true,
+				GitMaterialId: ciPipeline.DockerConfigOverride.CiBuildConfig.GitMaterialId,
+				Active:        true,
 				AuditLog: sql.AuditLog{
 					CreatedBy: createRequest.UserId,
 					CreatedOn: time.Now(),
