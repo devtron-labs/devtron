@@ -198,26 +198,26 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 
 	//externalHelmAppsMap := make(map[int][]int)
 
-	req := &client.AppListRequest{}
+	//req := &client.AppListRequest{}
+	//
+	//for _, clusterDetail := range clusters {
+	//	config := &client.ClusterConfig{
+	//		ApiServerUrl: clusterDetail.ServerUrl,
+	//		Token:        clusterDetail.Config["bearer_token"],
+	//		ClusterId:    int32(clusterDetail.Id),
+	//		ClusterName:  clusterDetail.ClusterName,
+	//	}
+	//	req.Clusters = append(req.Clusters, config)
+	//}
+	//applicatonStream, err := impl.helmAppClient.ListApplication(req)
+	//
+	//if err != nil {
+	//	return
+	//}
+	//
+	//clusterList, err := applicatonStream.Recv()
 
-	for _, clusterDetail := range clusters {
-		config := &client.ClusterConfig{
-			ApiServerUrl: "https://api.demo.devtron.info:16443",
-			Token:        clusterDetail.Config["bearer_token"],
-			ClusterId:    int32(clusterDetail.Id),
-			ClusterName:  clusterDetail.ClusterName,
-		}
-		req.Clusters = append(req.Clusters, config)
-	}
-	applicatonStream, err := impl.helmAppClient.ListApplication(req)
-
-	if err != nil {
-		return
-	}
-
-	clusterList, err := applicatonStream.Recv()
-
-	fmt.Println(clusterList)
+	//fmt.Println(clusterList)
 
 	ssoSetup = false
 
