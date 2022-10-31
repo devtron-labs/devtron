@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -44,6 +45,7 @@ type TelemetryEventClientImpl struct {
 	moduleRepository moduleRepo.ModuleRepository
 	serverDataStore  *serverDataStore.ServerDataStore
 	userAuditService user.UserAuditService
+	helmAppClient    client.HelmAppClient
 }
 
 type TelemetryEventClient interface {
@@ -58,7 +60,7 @@ type TelemetryEventClient interface {
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService) (*TelemetryEventClientImpl, error) {
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService, helmAppClient client.HelmAppClient) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -73,10 +75,11 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		moduleRepository: moduleRepository,
 		serverDataStore:  serverDataStore,
 		userAuditService: userAuditService,
+		helmAppClient:    helmAppClient,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetryEA)
+	_, err := cron.AddFunc("@every 1m", watcher.SummaryEventForTelemetryEA)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
@@ -112,6 +115,9 @@ type TelemetryEventEA struct {
 	LastLoginTime               time.Time          `json:"LastLoginTime,omitempty"`
 	InstallingIntegrations      []string           `json:"installingIntegrations,omitempty"`
 	DevtronReleaseVersion       string             `json:"devtronReleaseVersion,omitempty"`
+	HelmAppAccessCounter        string             `json:"HelmAppAccessCounter,omitempty"`
+	ChartStoreVisitCount        string             `json:"ChartStoreVisitCount,omitempty"`
+	SkippedOnboarding           string             `json:"SkippedOnboarding,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -140,7 +146,7 @@ const (
 	SIG_TERM                     TelemetryEventType = "SIG_TERM"
 )
 
-func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool) {
+func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string, SkippedOnboarding string) {
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
@@ -159,6 +165,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	}
 
 	clusters, err := impl.clusterService.FindAllActive()
+
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
 		return
@@ -171,6 +178,47 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		hostURL = true
 	}
 
+	attribute, err = impl.attributeRepo.FindByKey("HelmAppAccessCounter")
+
+	if err == nil {
+		HelmAppAccessCount = attribute.Value
+	}
+
+	attribute, err = impl.attributeRepo.FindByKey("ChartStoreVisitCount")
+
+	if err == nil {
+		ChartStoreVisitCount = attribute.Value
+	}
+
+	attribute, err = impl.attributeRepo.FindByKey("SkippedOnboarding")
+
+	if err == nil {
+		SkippedOnboarding = attribute.Value
+	}
+
+	//externalHelmAppsMap := make(map[int][]int)
+
+	req := &client.AppListRequest{}
+
+	for _, clusterDetail := range clusters {
+		config := &client.ClusterConfig{
+			ApiServerUrl: clusterDetail.ServerUrl,
+			Token:        clusterDetail.Config["bearer_token"],
+			ClusterId:    int32(clusterDetail.Id),
+			ClusterName:  clusterDetail.ClusterName,
+		}
+		req.Clusters = append(req.Clusters, config)
+	}
+	applicatonStream, err := impl.helmAppClient.ListApplication(req)
+
+	if err != nil {
+		return
+	}
+
+	clusterList, err := applicatonStream.Recv()
+
+	fmt.Println(clusterList)
+
 	ssoSetup = false
 
 	ssoConfig, err := impl.ssoLoginService.GetAll()
@@ -178,7 +226,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		ssoSetup = true
 	}
 
-	return clusters, users, k8sServerVersion, hostURL, ssoSetup
+	return clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding
 }
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
@@ -207,7 +255,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 		return err
 	}
 
-	clusters, users, k8sServerVersion, hostURL, ssoSetup := impl.SummaryDetailsForTelemetry()
+	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding := impl.SummaryDetailsForTelemetry()
 
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
@@ -221,6 +269,9 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.InstallTimedOutIntegrations = installTimedOutIntegrations
 	payload.InstallingIntegrations = installingIntegrations
 	payload.DevtronReleaseVersion = impl.serverDataStore.CurrentVersion
+	payload.HelmAppAccessCounter = HelmAppAccessCount
+	payload.ChartStoreVisitCount = ChartStoreVisitCount
+	payload.SkippedOnboarding = SkippedOnboarding
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {

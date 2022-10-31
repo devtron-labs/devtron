@@ -110,6 +110,9 @@ func (handler *ChartRepositoryRestHandlerImpl) GetChartRepoList(w http.ResponseW
 	}
 	handler.Logger.Infow("request payload, GetChartRepoList, app store")
 	res, err := handler.chartRepositoryService.GetChartRepoList()
+
+	err = handler.chartRepositoryService.ChartStoreVisitedTelemetry()
+
 	if err != nil {
 		handler.Logger.Errorw("service err, GetChartRepoList, app store", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

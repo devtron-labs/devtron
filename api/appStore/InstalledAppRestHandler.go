@@ -333,9 +333,14 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	object := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appDetail.AppName, appDetail.EnvironmentId)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-		return
 	}
 	//rback block ends here
+
+	err = handler.installedAppService.SaveExternalHelmAppTelemetry()
+
+	if err != nil {
+		handler.Logger.Errorw("error in saving telemetry logs for HelmAppAccessCounter")
+	}
 
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 {
 		handler.fetchResourceTree(w, r, &appDetail)
