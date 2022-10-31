@@ -202,7 +202,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 
 	for _, clusterDetail := range clusters {
 		config := &client.ClusterConfig{
-			ApiServerUrl: clusterDetail.ServerUrl,
+			ApiServerUrl: "https://api.demo.devtron.info:16443",
 			Token:        clusterDetail.Config["bearer_token"],
 			ClusterId:    int32(clusterDetail.Id),
 			ClusterName:  clusterDetail.ClusterName,
