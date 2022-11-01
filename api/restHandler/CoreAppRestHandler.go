@@ -498,13 +498,6 @@ func (handler CoreAppRestHandlerImpl) buildDockerConfig(appId int) (*appBean.Doc
 		DockerRepository: ciConfig.DockerRepository,
 		CiBuildConfig:    ciConfig.CiBuildConfig,
 		CheckoutPath:     gitMaterial.CheckoutPath,
-		//BuildConfig: &appBean.DockerBuildConfig{
-		//	Args:                   ciConfig.DockerBuildConfig.Args,
-		//	DockerfileRelativePath: ciConfig.DockerBuildConfig.DockerfilePath,
-		//	TargetPlatform:         ciConfig.DockerBuildConfig.TargetPlatform,
-		//  DockerBuildOptions:     ciConfig.DockerBuildConfig.DockerBuildOptions,
-		//	GitCheckoutPath:        gitMaterial.CheckoutPath,
-		//},
 	}
 
 	return dockerConfig, nil, http.StatusOK
@@ -1262,23 +1255,6 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 		return err, http.StatusInternalServerError
 	}
 
-	//dockerBuildArgs := make(map[string]string)
-	//if dockerConfig.BuildConfig.Args != nil {
-	//	dockerBuildArgs = dockerConfig.BuildConfig.Args
-	//}
-
-	//dockerBuildOptions := make(map[string]string)
-	//if dockerConfig.BuildConfig.DockerBuildOptions != nil {
-	//	dockerBuildOptions = dockerConfig.BuildConfig.DockerBuildOptions
-	//}
-
-	//dockerBuildConfigRequest := &bean.DockerBuildConfig{
-	//	GitMaterialId:  gitMaterial.Id,
-	//	DockerfilePath: dockerConfig.BuildConfig.DockerfileRelativePath,
-	//	Args:           dockerBuildArgs,
-	//	DockerBuildOptions: dockerBuildOptions,
-	//	TargetPlatform: dockerConfig.BuildConfig.TargetPlatform,
-	//}
 	ciBuildConfig := dockerConfig.CiBuildConfig
 	ciBuildConfig.GitMaterialId = gitMaterial.Id
 	createDockerConfigRequest.CiBuildConfig = ciBuildConfig

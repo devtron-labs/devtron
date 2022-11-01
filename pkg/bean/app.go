@@ -274,30 +274,6 @@ type TestExecutorImageProperties struct {
 	ReportDir string `json:"reportDir,omitempty"`
 }
 
-//type CiBuildConfigBean struct {
-//	GitMaterialId     int                `json:"gitMaterialId,omitempty" validate:"required"`
-//	CiBuildType       string             `json:"ciBuildType"`
-//	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty" validate:"required,dive"`
-//	BuildPackConfig   *BuildPackConfig   `json:"buildPackConfig"`
-//}
-//
-//type DockerBuildConfig struct {
-//	GitMaterialId  int               `json:"gitMaterialId,omitempty" validate:"required"`
-//	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
-//	Args           map[string]string `json:"args,omitempty"`
-//	TargetPlatform string            `json:"targetPlatform,omitempty"`
-//	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
-//	//Name Tag DockerfilePath RepoUrl
-//}
-//
-//type BuildPackConfig struct {
-//	BuilderId       string            `json:"builderId"`
-//	Language        string            `json:"language"`
-//	LanguageVersion string            `json:"languageVersion"`
-//	BuildPacks      []string          `json:"buildPacks"`
-//	Args            map[string]string `json:"args"`
-//}
-
 type PipelineCreateResponse struct {
 	AppName string `json:"appName,omitempty"`
 	AppId   int    `json:"appId,omitempty"`

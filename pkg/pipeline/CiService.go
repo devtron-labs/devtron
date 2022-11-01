@@ -386,11 +386,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciLevelArgs = "{}"
 	}
 
-	//mergedArgs, err := impl.mergeUtil.JsonPatch([]byte(args), []byte(ciLevelArgs))
-	//if err != nil {
-	//	impl.Logger.Errorw("err", "err", err)
-	//	return nil, err
-	//}
 	if pipeline.CiTemplate.DockerBuildOptions == "" {
 		pipeline.CiTemplate.DockerBuildOptions = "{}"
 	}

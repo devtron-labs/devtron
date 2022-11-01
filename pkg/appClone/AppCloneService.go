@@ -275,17 +275,11 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 	ciBuildConfig := refCiConf.CiBuildConfig
 	ciBuildConfig.GitMaterialId = dockerfileGitMaterial
 	ciConfRequest := &bean.CiConfigRequest{
-		Id:               0,
-		AppId:            newAppId,
-		DockerRegistry:   refCiConf.DockerRegistry,
-		DockerRepository: refCiConf.DockerRepository,
-		CiBuildConfig:    ciBuildConfig,
-		//DockerBuildConfig: &bean.DockerBuildConfig{
-		//	GitMaterialId:  dockerfileGitMaterial,
-		//	DockerfilePath: refCiConf.DockerBuildConfig.DockerfilePath,
-		//	Args:           refCiConf.DockerBuildConfig.Args,
-		//	TargetPlatform: refCiConf.DockerBuildConfig.TargetPlatform,
-		//},
+		Id:                0,
+		AppId:             newAppId,
+		DockerRegistry:    refCiConf.DockerRegistry,
+		DockerRepository:  refCiConf.DockerRepository,
+		CiBuildConfig:     ciBuildConfig,
 		DockerRegistryUrl: refCiConf.DockerRegistry,
 		CiTemplateName:    refCiConf.CiTemplateName,
 		UserId:            userId,
@@ -773,10 +767,6 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					DockerRegistry:   templateOverride.DockerRegistryId,
 					DockerRepository: templateOverride.DockerRepository,
 					CiBuildConfig:    ciBuildConfig,
-					//DockerBuildConfig: &bean.DockerBuildConfig{
-					//	DockerfilePath: templateOverride.DockerfilePath,
-					//	GitMaterialId:  gitMaterial.Id,
-					//},
 				}
 			}
 
