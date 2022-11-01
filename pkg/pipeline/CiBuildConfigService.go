@@ -12,6 +12,7 @@ type CiBuildConfigService interface {
 	Save(templateId int, overrideTemplateId int, ciBuildConfigBean *bean.CiBuildConfigBean, userId int32) error
 	UpdateOrSave(templateId int, overrideTemplateId int, ciBuildConfig *bean.CiBuildConfigBean, userId int32) (*bean.CiBuildConfigBean, error)
 	Delete(ciBuildConfigId int) error
+	GetCountByBuildType() map[bean.CiBuildType]int
 }
 
 type CiBuildConfigServiceImpl struct {
@@ -72,4 +73,16 @@ func (impl *CiBuildConfigServiceImpl) UpdateOrSave(templateId int, overrideTempl
 
 func (impl *CiBuildConfigServiceImpl) Delete(ciBuildConfigId int) error {
 	return impl.CiBuildConfigRepository.Delete(ciBuildConfigId)
+}
+
+func (impl *CiBuildConfigServiceImpl) GetCountByBuildType() map[bean.CiBuildType]int {
+	result := make(map[bean.CiBuildType]int)
+	buildTypeVsCount, err := impl.CiBuildConfigRepository.GetCountByBuildType()
+	if err != nil {
+		return result
+	}
+	for buildType, count := range buildTypeVsCount {
+		result[bean.CiBuildType(buildType)] = count
+	}
+	return result
 }

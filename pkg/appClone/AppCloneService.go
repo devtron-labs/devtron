@@ -45,9 +45,8 @@ type AppCloneServiceImpl struct {
 	appWorkflowService      appWorkflow.AppWorkflowService
 	appListingService       app.AppListingService
 	propertiesConfigService pipeline.PropertiesConfigService
-	//ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
-	pipelineStageService pipeline.PipelineStageService
-	ciTemplateService    pipeline.CiTemplateService
+	pipelineStageService    pipeline.PipelineStageService
+	ciTemplateService       pipeline.CiTemplateService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -69,9 +68,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		appWorkflowService:      appWorkflowService,
 		appListingService:       appListingService,
 		propertiesConfigService: propertiesConfigService,
-		//ciTemplateOverrideRepository: ciTemplateOverrideRepository,
-		pipelineStageService: pipelineStageService,
-		ciTemplateService:    ciTemplateService,
+		pipelineStageService:    pipelineStageService,
+		ciTemplateService:       ciTemplateService,
 	}
 }
 
@@ -275,6 +273,7 @@ func (impl *AppCloneServiceImpl) CreateCiTemplate(oldAppId, newAppId int, userId
 	}
 
 	ciBuildConfig := refCiConf.CiBuildConfig
+	ciBuildConfig.GitMaterialId = dockerfileGitMaterial
 	ciConfRequest := &bean.CiConfigRequest{
 		Id:               0,
 		AppId:            newAppId,
@@ -768,6 +767,8 @@ func (impl *AppCloneServiceImpl) CreateCiPipeline(req *cloneCiPipelineRequest) (
 					return nil, err
 				}
 				ciBuildConfig.GitMaterialId = gitMaterial.Id
+				templateOverride.GitMaterialId = gitMaterial.Id
+				ciBuildConfig.Id = 0
 				ciPatchReq.CiPipeline.DockerConfigOverride = bean.DockerConfigOverride{
 					DockerRegistry:   templateOverride.DockerRegistryId,
 					DockerRepository: templateOverride.DockerRepository,

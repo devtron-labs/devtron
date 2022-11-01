@@ -109,6 +109,7 @@ type WorkflowRequest struct {
 	AppName                    string                            `json:"appName"`
 	TriggerByAuthor            string                            `json:"triggerByAuthor"`
 	CiBuildConfig              *bean2.CiBuildConfigBean          `json:"ciBuildConfig"`
+	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
 	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
 }

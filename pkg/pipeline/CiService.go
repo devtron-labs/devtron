@@ -61,8 +61,7 @@ type CiServiceImpl struct {
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
 	userService                   user.UserService
-	//ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
-	ciTemplateService CiTemplateService
+	ciTemplateService             CiTemplateService
 	appCrudOperationService       app.AppCrudOperationService
 }
 
@@ -73,8 +72,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, appCrudOperationService app.AppCrudOperationService,
-ciTemplateService CiTemplateService) *CiServiceImpl {
+	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
 		workflowService:               workflowService,
@@ -88,8 +86,7 @@ ciTemplateService CiTemplateService) *CiServiceImpl {
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
 		userService:                   userService,
-		//ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
-		ciTemplateService: ciTemplateService,
+		ciTemplateService:             ciTemplateService,
 		appCrudOperationService:       appCrudOperationService,
 	}
 }
@@ -446,17 +443,14 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerBuildConfig.DockerfilePath = dockerfilePath
 	}
 	workflowRequest := &WorkflowRequest{
-		WorkflowNamePrefix: strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
-		PipelineName:       pipeline.Name,
-		PipelineId:         pipeline.Id,
-		DockerRegistryId:   dockerRegistry.Id,
-		DockerRegistryType: string(dockerRegistry.RegistryType),
-		DockerImageTag:     dockerImageTag,
-		DockerRegistryURL:  dockerRegistry.RegistryURL,
-		DockerRepository:   dockerRepository,
-		//DockerBuildArgs:            string(merged),
-		//DockerBuildTargetPlatform:  ciTemplate.TargetPlatform,
-		//DockerFileLocation:         dockerfilePath,
+		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
+		PipelineName:               pipeline.Name,
+		PipelineId:                 pipeline.Id,
+		DockerRegistryId:           dockerRegistry.Id,
+		DockerRegistryType:         string(dockerRegistry.RegistryType),
+		DockerImageTag:             dockerImageTag,
+		DockerRegistryURL:          dockerRegistry.RegistryURL,
+		DockerRepository:           dockerRepository,
 		CheckoutPath:               checkoutPath,
 		DockerUsername:             dockerRegistry.Username,
 		DockerPassword:             dockerRegistry.Password,
@@ -484,7 +478,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		AppName:                    pipeline.App.AppName,
 		TriggerByAuthor:            user.EmailId,
 		CiBuildConfig:              ciBuildConfigBean,
-		//DockerBuildOptions:         pipeline.CiTemplate.DockerBuildOptions,
+		CiBuildDockerMtuValue:      impl.ciConfig.CiRunnerDockerMTUValue,
 		IgnoreDockerCachePush:      impl.ciConfig.IgnoreDockerCacheForCI,
 		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI || trigger.InvalidateCache,
 	}
