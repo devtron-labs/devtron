@@ -5,7 +5,7 @@ installer:
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:fee4094b-325-11181"
+    image: "quay.io/devtron/dashboard:34ceb881-325-11346"
   devtron:
     image: "quay.io/devtron/hyperion:e3a2b505-280-11341"
     cicdImage: "quay.io/devtron/devtron:e3a2b505-326-11337"
