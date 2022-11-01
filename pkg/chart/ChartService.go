@@ -60,19 +60,21 @@ import (
 )
 
 type TemplateRequest struct {
-	Id                      int             `json:"id"  validate:"number"`
-	AppId                   int             `json:"appId,omitempty"  validate:"number,required"`
-	RefChartTemplate        string          `json:"refChartTemplate,omitempty"`
-	RefChartTemplateVersion string          `json:"refChartTemplateVersion,omitempty"`
-	ChartRepositoryId       int             `json:"chartRepositoryId,omitempty"`
-	ValuesOverride          json.RawMessage `json:"valuesOverride,omitempty" validate:"required"` //json format user value
-	DefaultAppOverride      json.RawMessage `json:"defaultAppOverride,omitempty"`                 //override values available
-	ChartRefId              int             `json:"chartRefId,omitempty"  validate:"number"`
-	Latest                  bool            `json:"latest"`
-	IsAppMetricsEnabled     bool            `json:"isAppMetricsEnabled"`
-	Schema                  json.RawMessage `json:"schema"`
-	Readme                  string          `json:"readme"`
-	UserId                  int32           `json:"-"`
+	Id                      int                         `json:"id"  validate:"number"`
+	AppId                   int                         `json:"appId,omitempty"  validate:"number,required"`
+	RefChartTemplate        string                      `json:"refChartTemplate,omitempty"`
+	RefChartTemplateVersion string                      `json:"refChartTemplateVersion,omitempty"`
+	ChartRepositoryId       int                         `json:"chartRepositoryId,omitempty"`
+	ValuesOverride          json.RawMessage             `json:"valuesOverride,omitempty" validate:"required"` //json format user value
+	DefaultAppOverride      json.RawMessage             `json:"defaultAppOverride,omitempty"`                 //override values available
+	ChartRefId              int                         `json:"chartRefId,omitempty"  validate:"number"`
+	Latest                  bool                        `json:"latest"`
+	IsAppMetricsEnabled     bool                        `json:"isAppMetricsEnabled"`
+	Schema                  json.RawMessage             `json:"schema"`
+	Readme                  string                      `json:"readme"`
+	IsBasicViewLocked       bool                        `json:"isBasicViewLocked"`
+	CurrentViewEditor       models.ChartsViewEditorType `json:"currentViewEditor"`
+	UserId                  int32                       `json:"-"`
 }
 
 type AppMetricEnableDisableRequest struct {
@@ -410,6 +412,8 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  true,
 		Previous:                false,
+		IsBasicViewLocked:       templateRequest.IsBasicViewLocked,
+		CurrentViewEditor:       templateRequest.CurrentViewEditor,
 		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
@@ -555,6 +559,8 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  false,
 		Previous:                false,
+		IsBasicViewLocked:       templateRequest.IsBasicViewLocked,
+		CurrentViewEditor:       templateRequest.CurrentViewEditor,
 		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
@@ -604,6 +610,8 @@ func (impl ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, appL
 		Latest:                  chart.Latest,
 		ChartRefId:              chart.ChartRefId,
 		IsAppMetricsEnabled:     appMetrics,
+		IsBasicViewLocked:       chart.IsBasicViewLocked,
+		CurrentViewEditor:       chart.CurrentViewEditor,
 	}, nil
 }
 
@@ -833,6 +841,8 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 	template.GlobalOverride = string(templateRequest.ValuesOverride)
 	template.Latest = true
 	template.Previous = false
+	template.IsBasicViewLocked = templateRequest.IsBasicViewLocked
+	template.CurrentViewEditor = templateRequest.CurrentViewEditor
 	err = impl.chartRepository.Update(template)
 	if err != nil {
 		return nil, err
@@ -1056,7 +1066,8 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 	templateRequest.DefaultAppOverride = newAppOverride["defaultAppOverride"].(json.RawMessage)
 	templateRequest.ValuesOverride = currentChart.DefaultAppOverride
 	templateRequest.UserId = userId
-
+	templateRequest.IsBasicViewLocked = currentChart.IsBasicViewLocked
+	templateRequest.CurrentViewEditor = currentChart.CurrentViewEditor
 	upgradedChartReq, err := impl.Create(templateRequest, ctx)
 	if err != nil {
 		impl.logger.Error(err)
@@ -1096,6 +1107,8 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			Namespace:         env.Namespace,
 			Latest:            true,
 			Previous:          false,
+			IsBasicViewLocked: envOverride.IsBasicViewLocked,
+			CurrentViewEditor: envOverride.CurrentViewEditor,
 		}
 		err = impl.envOverrideRepository.Save(envOverrideNew)
 		if err != nil {
