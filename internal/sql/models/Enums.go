@@ -45,3 +45,12 @@ const (
 func (d DeploymentType) String() string {
 	return [...]string{"DEPLOYMENTTYPE_UNKNOWN", "DEPLOYMENTTYPE_DEPLOY", "DEPLOYMENTTYPE_ROLLBACK", "DEPLOYMENTTYPE_STOP", "DEPLOYMENTTYPE_START"}[d]
 }
+
+type ChartsViewEditorType string
+
+const (
+	EDITOR_TYPE_BASIC    ChartsViewEditorType = "BASIC"
+	EDITOR_TYPE_ADVANCED ChartsViewEditorType = "ADVANCED"
+	//default value
+	EDITOR_TYPE_UNDEFINED ChartsViewEditorType = "UNDEFINED"
+)
