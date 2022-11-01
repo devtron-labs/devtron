@@ -324,10 +324,11 @@ func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflowMappingsByCdPipelineId(pi
 
 func (impl AppWorkflowRepositoryImpl) FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(envIds []int, appIds []int) ([]*AppWorkflowMapping, error) {
 	var models []*AppWorkflowMapping
-	query := `select * from app_workflow_mapping  
-				where app_id in (?) and app_workflow_id not in  
+	query := `select * from app_workflow_mapping awm inner join app_workflow aw on aw.id=awm.app_workflow_id 
+				where aw.app_id in (?) and awm.app_workflow_id not in  
 					(select app_workflow_id from app_workflow_mapping awm inner join pipeline p on p.id=awm.component_id  
-					and p.environment_id not in (?) and p.app_id in (?) and p.deleted = ? and awm.active = ?); `
+					and awm.type = ? and p.environment_id not in (?) and p.app_id in (?) and p.deleted = ? and awm.active = ?)
+				; `
 	_, err := impl.dbConnection.Query(&models, query, pg.In(appIds), CDPIPELINE, pg.In(envIds), pg.In(appIds), false, true)
 	if err != nil {
 		impl.Logger.Errorw("error, FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly", "err", err)
