@@ -253,7 +253,7 @@ func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string) ([]*App, e
 func (repo AppRepositoryImpl) FindIdsByTeamIds(teamIds []int) ([]int, error) {
 	var ids []int
 	query := "select id from app where team_id in (?) and active = ?;"
-	_, err := repo.dbConnection.Query(ids, query, pg.In(teamIds), true)
+	_, err := repo.dbConnection.Query(&ids, query, pg.In(teamIds), true)
 	if err != nil {
 		repo.logger.Errorw("error in getting appIds by teamIds", "err", err, "teamIds", teamIds)
 		return nil, err
