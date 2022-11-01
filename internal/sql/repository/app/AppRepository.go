@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
+	"go.uber.org/zap"
 )
 
 type App struct {
@@ -57,6 +58,7 @@ type AppRepository interface {
 	FindAppAndProjectByAppName(appName string) (*App, error)
 	GetConnection() *pg.DB
 	FindAllMatchesByAppName(appName string) ([]*App, error)
+	FindIdsByTeamIds(teamIds []int) ([]int, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -65,10 +67,14 @@ const ExternalApp = "ExternalApp"
 
 type AppRepositoryImpl struct {
 	dbConnection *pg.DB
+	logger       *zap.SugaredLogger
 }
 
-func NewAppRepositoryImpl(dbConnection *pg.DB) *AppRepositoryImpl {
-	return &AppRepositoryImpl{dbConnection: dbConnection}
+func NewAppRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *AppRepositoryImpl {
+	return &AppRepositoryImpl{
+		dbConnection: dbConnection,
+		logger:       logger,
+	}
 }
 
 func (repo AppRepositoryImpl) GetConnection() *pg.DB {
@@ -242,4 +248,15 @@ func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string) ([]*App, e
 	var apps []*App
 	err := repo.dbConnection.Model(&apps).Where("app_name ILIKE ?", "%"+appName+"%").Where("active = ?", true).Where("app_store = ?", false).Select()
 	return apps, err
+}
+
+func (repo AppRepositoryImpl) FindIdsByTeamIds(teamIds []int) ([]int, error) {
+	var ids []int
+	query := "select id from app where team_id in (?) and active = ?;"
+	_, err := repo.dbConnection.Query(ids, query, pg.In(teamIds), true)
+	if err != nil {
+		repo.logger.Errorw("error in getting appIds by teamIds", "err", err, "teamIds", teamIds)
+		return nil, err
+	}
+	return ids, err
 }

@@ -1167,7 +1167,7 @@ func (handler CoreAppRestHandlerImpl) deleteApp(ctx context.Context, appId int, 
 
 		// delete all workflows for app starts
 		for _, workflow := range workflowsList {
-			err = handler.appWorkflowService.DeleteAppWorkflow(appId, workflow.Id, userId)
+			err = handler.appWorkflowService.DeleteAppWorkflow(workflow.Id, userId)
 			if err != nil {
 				handler.logger.Errorw("service err, DeleteAppWorkflow ")
 				return err
