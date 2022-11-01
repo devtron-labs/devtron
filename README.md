@@ -101,6 +101,10 @@ Before you begin, you must create a [Kubernetes cluster](https://kubernetes.io/d
 
 ### 1. Install Devtron with CI/CD integration
 
+Minikube users, please execute the following command for starting a cluster:
+```bash 
+minikube start --cpus 4 --memory 8192
+```
 Run the following command to install the latest version of Devtron along with the CI/CD module:
 
 ```bash
@@ -112,6 +116,20 @@ helm install devtron devtron/devtron-operator \
 ```
 
 ### Access Devtron
+
+Minikube users, please run the following command in a separate terminal and make sure not to close that terminal:
+
+```bash
+minikube tunnel
+```
+
+(Minikube Users) For accessing the devtron-service, enter the following command, which will provide a temporary External IP address:
+
+```bash
+kubectl get svc -n devtroncd
+```
+
+Use that IP address to access Devtron.
 
 **URL**: Use the following command to get the dashboard URL:
 
