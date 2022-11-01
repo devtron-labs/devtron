@@ -30,6 +30,7 @@ import (
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"net/http"
+	"strconv"
 	"time"
 )
 
@@ -240,7 +241,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	}
 
 	loginCountValue := gjson.Get(userData, LOGIN_COUNT_CONST)
-	loginCount := loginCountValue.Value().(int)
+	loginCount, _ := strconv.Atoi(loginCountValue.Str)
 
 	if loginCount >= 2 && loginCount <= 4 {
 		SkippedOnboarding = true
