@@ -21,6 +21,7 @@ import (
 	"errors"
 	"fmt"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	"github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -60,8 +61,8 @@ type CiServiceImpl struct {
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
 	userService                   user.UserService
-	//ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
-	ciTemplateService CiTemplateService
+	ciTemplateService             CiTemplateService
+	appCrudOperationService       app.AppCrudOperationService
 }
 
 func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService,
@@ -71,7 +72,7 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	prePostCiScriptHistoryService history.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
 	userService user.UserService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciTemplateService CiTemplateService) *CiServiceImpl {
+	ciTemplateService CiTemplateService, appCrudOperationService app.AppCrudOperationService) *CiServiceImpl {
 	return &CiServiceImpl{
 		Logger:                        Logger,
 		workflowService:               workflowService,
@@ -85,8 +86,8 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
 		userService:                   userService,
-		//ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
-		ciTemplateService: ciTemplateService,
+		ciTemplateService:             ciTemplateService,
+		appCrudOperationService:       appCrudOperationService,
 	}
 }
 
@@ -147,12 +148,18 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
-	createdWf, err := impl.executeCiPipeline(workflowRequest)
+	appLabels, err := impl.appCrudOperationService.GetLabelsByAppId(pipeline.AppId)
+	if err != nil {
+		return 0, err
+	}
+
+	createdWf, err := impl.executeCiPipeline(workflowRequest, appLabels)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return 0, err
 	}
 	impl.Logger.Debugw("ci triggered", "wf name ", createdWf.Name, " pipeline ", trigger.PipelineId)
+
 	middleware.CiTriggerCounter.WithLabelValues(strconv.Itoa(pipeline.AppId), strconv.Itoa(trigger.PipelineId)).Inc()
 	go impl.WriteCITriggerEvent(trigger, pipeline, workflowRequest)
 	return savedCiWf.Id, err
@@ -253,14 +260,15 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 	return ciWorkflow, nil
 }
 
-func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error) {
-	createdWorkFlow, err := impl.workflowService.SubmitWorkflow(workflowRequest)
+func (impl *CiServiceImpl) executeCiPipeline(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error) {
+	createdWorkFlow, err := impl.workflowService.SubmitWorkflow(workflowRequest, appLabels)
 	if err != nil {
 		impl.Logger.Errorw("workflow error", "err", err)
 		return nil, err
 	}
 	return createdWorkFlow, nil
 }
+
 func (impl *CiServiceImpl) buildS3ArtifactLocation(ciWorkflowConfig *pipelineConfig.CiWorkflowConfig, savedWf *pipelineConfig.CiWorkflow) (string, string, string) {
 	ciArtifactLocationFormat := ciWorkflowConfig.CiArtifactLocationFormat
 	if ciArtifactLocationFormat == "" {
@@ -435,17 +443,14 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerBuildConfig.DockerfilePath = dockerfilePath
 	}
 	workflowRequest := &WorkflowRequest{
-		WorkflowNamePrefix: strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
-		PipelineName:       pipeline.Name,
-		PipelineId:         pipeline.Id,
-		DockerRegistryId:   dockerRegistry.Id,
-		DockerRegistryType: string(dockerRegistry.RegistryType),
-		DockerImageTag:     dockerImageTag,
-		DockerRegistryURL:  dockerRegistry.RegistryURL,
-		DockerRepository:   dockerRepository,
-		//DockerBuildArgs:            string(merged),
-		//DockerBuildTargetPlatform:  ciTemplate.TargetPlatform,
-		//DockerFileLocation:         dockerfilePath,
+		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
+		PipelineName:               pipeline.Name,
+		PipelineId:                 pipeline.Id,
+		DockerRegistryId:           dockerRegistry.Id,
+		DockerRegistryType:         string(dockerRegistry.RegistryType),
+		DockerImageTag:             dockerImageTag,
+		DockerRegistryURL:          dockerRegistry.RegistryURL,
+		DockerRepository:           dockerRepository,
 		CheckoutPath:               checkoutPath,
 		DockerUsername:             dockerRegistry.Username,
 		DockerPassword:             dockerRegistry.Password,
@@ -463,7 +468,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		WorkflowId:                 savedWf.Id,
 		TriggeredBy:                savedWf.TriggeredBy,
 		CacheLimit:                 impl.ciConfig.CacheLimit,
-		InvalidateCache:            trigger.InvalidateCache,
 		ScanEnabled:                pipeline.ScanEnabled,
 		CloudProvider:              impl.ciConfig.CloudProvider,
 		DefaultAddressPoolBaseCidr: impl.ciConfig.DefaultAddressPoolBaseCidr,
@@ -475,7 +479,8 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		TriggerByAuthor:            user.EmailId,
 		CiBuildConfig:              ciBuildConfigBean,
 		CiBuildDockerMtuValue:      impl.ciConfig.CiRunnerDockerMTUValue,
-		//DockerBuildOptions:         pipeline.CiTemplate.DockerBuildOptions,
+		IgnoreDockerCachePush:      impl.ciConfig.IgnoreDockerCacheForCI,
+		IgnoreDockerCachePull:      impl.ciConfig.IgnoreDockerCacheForCI || trigger.InvalidateCache,
 	}
 
 	if ciWorkflowConfig.LogsBucket == "" {

@@ -45,9 +45,8 @@ type AppCloneServiceImpl struct {
 	appWorkflowService      appWorkflow.AppWorkflowService
 	appListingService       app.AppListingService
 	propertiesConfigService pipeline.PropertiesConfigService
-	//ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
-	pipelineStageService pipeline.PipelineStageService
-	ciTemplateService    pipeline.CiTemplateService
+	pipelineStageService    pipeline.PipelineStageService
+	ciTemplateService       pipeline.CiTemplateService
 }
 
 func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
@@ -69,9 +68,8 @@ func NewAppCloneServiceImpl(logger *zap.SugaredLogger,
 		appWorkflowService:      appWorkflowService,
 		appListingService:       appListingService,
 		propertiesConfigService: propertiesConfigService,
-		//ciTemplateOverrideRepository: ciTemplateOverrideRepository,
-		pipelineStageService: pipelineStageService,
-		ciTemplateService:    ciTemplateService,
+		pipelineStageService:    pipelineStageService,
+		ciTemplateService:       ciTemplateService,
 	}
 }
 
@@ -306,12 +304,14 @@ func (impl *AppCloneServiceImpl) CreateDeploymentTemplate(oldAppId, newAppId int
 		return nil, err
 	}
 	templateReq := chart.TemplateRequest{
-		Id:             0,
-		AppId:          newAppId,
-		Latest:         refTemplate.Latest,
-		ValuesOverride: refTemplate.DefaultAppOverride,
-		ChartRefId:     refTemplate.ChartRefId,
-		UserId:         userId,
+		Id:                0,
+		AppId:             newAppId,
+		Latest:            refTemplate.Latest,
+		ValuesOverride:    refTemplate.DefaultAppOverride,
+		ChartRefId:        refTemplate.ChartRefId,
+		UserId:            userId,
+		IsBasicViewLocked: refTemplate.IsBasicViewLocked,
+		CurrentViewEditor: refTemplate.CurrentViewEditor,
 	}
 	templateRes, err := impl.chartService.Create(templateReq, context)
 	if err != nil {
@@ -479,15 +479,19 @@ func (impl *AppCloneServiceImpl) createEnvOverride(oldAppId, newAppId int, userI
 			AppMetrics:        refEnvProperties.EnvironmentConfig.AppMetrics,
 			ChartRefId:        refEnvProperties.EnvironmentConfig.ChartRefId,
 			IsOverride:        refEnvProperties.EnvironmentConfig.IsOverride,
+			IsBasicViewLocked: refEnvProperties.EnvironmentConfig.IsBasicViewLocked,
+			CurrentViewEditor: refEnvProperties.EnvironmentConfig.CurrentViewEditor,
 		}
 		createResp, err := impl.propertiesConfigService.CreateEnvironmentProperties(newAppId, envPropertiesReq)
 		if err != nil {
 			if err.Error() == bean2.NOCHARTEXIST {
 				templateRequest := chart.TemplateRequest{
-					AppId:          newAppId,
-					ChartRefId:     envPropertiesReq.ChartRefId,
-					ValuesOverride: []byte("{}"),
-					UserId:         userId,
+					AppId:             newAppId,
+					ChartRefId:        envPropertiesReq.ChartRefId,
+					ValuesOverride:    []byte("{}"),
+					UserId:            userId,
+					IsBasicViewLocked: envPropertiesReq.IsBasicViewLocked,
+					CurrentViewEditor: envPropertiesReq.CurrentViewEditor,
 				}
 				_, err = impl.chartService.CreateChartFromEnvOverride(templateRequest, ctx)
 				if err != nil {

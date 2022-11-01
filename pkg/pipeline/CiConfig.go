@@ -77,8 +77,16 @@ type CiConfig struct {
 	BuildLogTTLValue               int                          `json:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
 	AzureAccountKey                string                       `env:"AZURE_ACCOUNT_KEY"`
 	CiRunnerDockerMTUValue         int                          `env:"CI_RUNNER_DOCKER_MTU_VALUE" envDefault:"-1"`
+	IgnoreDockerCacheForCI         bool                         `env:"CI_IGNORE_DOCKER_CACHE"`
+	VolumeMountsForCiJson          string                       `env:"CI_VOLUME_MOUNTS_JSON"`
 	ClusterConfig                  *rest.Config
 	NodeLabel                      map[string]string
+}
+
+type CiVolumeMount struct {
+	Name               string `json:"name"`
+	HostMountPath      string `json:"hostMountPath"`
+	ContainerMountPath string `json:"containerMountPath"`
 }
 
 const ExternalCiWebhookPath = "orchestrator/webhook/ext-ci"
