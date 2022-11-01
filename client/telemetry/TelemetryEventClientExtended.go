@@ -2,10 +2,12 @@ package telemetry
 
 import (
 	"encoding/json"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
@@ -50,7 +52,8 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
-	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService) (*TelemetryEventClientImplExtended, error) {
+	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService,
+	helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository, userAttributesRepository repository.UserAttributesRepository) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain())
@@ -69,25 +72,29 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		materialRepository:            materialRepository,
 		ciTemplateRepository:          ciTemplateRepository,
 		chartRepository:               chartRepository,
+
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
-			cron:             cron,
-			logger:           logger,
-			client:           client,
-			clusterService:   clusterService,
-			K8sUtil:          K8sUtil,
-			aCDAuthConfig:    aCDAuthConfig,
-			userService:      userService,
-			attributeRepo:    attributeRepo,
-			ssoLoginService:  ssoLoginService,
-			PosthogClient:    PosthogClient,
-			moduleRepository: moduleRepository,
-			serverDataStore:  serverDataStore,
-			userAuditService: userAuditService,
+			cron:                     cron,
+			logger:                   logger,
+			client:                   client,
+			clusterService:           clusterService,
+			K8sUtil:                  K8sUtil,
+			aCDAuthConfig:            aCDAuthConfig,
+			userService:              userService,
+			attributeRepo:            attributeRepo,
+			ssoLoginService:          ssoLoginService,
+			PosthogClient:            PosthogClient,
+			moduleRepository:         moduleRepository,
+			serverDataStore:          serverDataStore,
+			userAuditService:         userAuditService,
+			helmAppClient:            helmAppClient,
+			InstalledAppRepository:   InstalledAppRepository,
+			userAttributesRepository: userAttributesRepository,
 		},
 	}
 
 	watcher.HeartbeatEventForTelemetry()
-	_, err := cron.AddFunc(SummaryCronExpr, watcher.SummaryEventForTelemetry)
+	_, err := cron.AddFunc("@every 1m", watcher.SummaryEventForTelemetry)
 	if err != nil {
 		logger.Errorw("error in starting summery event", "err", err)
 		return nil, err
@@ -140,8 +147,10 @@ type TelemetryEventDto struct {
 	LastLoginTime                        time.Time          `json:"LastLoginTime,omitempty"`
 	HelmAppAccessCounter                 string             `json:"HelmAppAccessCounter,omitempty"`
 	ChartStoreVisitCount                 string             `json:"ChartStoreVisitCount,omitempty"`
-	SkippedOnboarding                    string             `json:"SkippedOnboarding,omitempty"`
+	SkippedOnboarding                    bool               `json:"SkippedOnboarding,omitempty"`
 	HelmAppUpdateCounter                 string             `json:"HelmAppUpdateCounter,omitempty"`
+	HelmChartSuccessfulDeploymentCount   int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
+	ExternalHelmAppClusterCount          map[int32]int      `json:"ExternalHelmAppClusterCount,omitempty"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -164,7 +173,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		return err
 	}
 
-	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter := impl.SummaryDetailsForTelemetry()
+	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, HelmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.SummaryDetailsForTelemetry()
 	payload := &TelemetryEventDto{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
 
@@ -289,6 +298,8 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.ChartStoreVisitCount = ChartStoreVisitCount
 	payload.SkippedOnboarding = SkippedOnboarding
 	payload.HelmAppUpdateCounter = HelmAppUpdateCounter
+	payload.HelmChartSuccessfulDeploymentCount = HelmChartSuccessfulDeploymentCount
+	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {

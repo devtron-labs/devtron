@@ -8,6 +8,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	util2 "github.com/devtron-labs/devtron/internal/util"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	module2 "github.com/devtron-labs/devtron/pkg/module"
@@ -21,6 +22,7 @@ import (
 	"github.com/patrickmn/go-cache"
 	"github.com/posthog/posthog-go"
 	"github.com/robfig/cron/v3"
+	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -31,21 +33,26 @@ import (
 	"time"
 )
 
+const LOGIN_COUNT_CONST = "login-count"
+const ADMIN_EMAIL_ID_CONST = "admin"
+
 type TelemetryEventClientImpl struct {
-	cron             *cron.Cron
-	logger           *zap.SugaredLogger
-	client           *http.Client
-	clusterService   cluster.ClusterService
-	K8sUtil          *util2.K8sUtil
-	aCDAuthConfig    *util3.ACDAuthConfig
-	userService      user.UserService
-	attributeRepo    repository.AttributesRepository
-	ssoLoginService  sso.SSOLoginService
-	PosthogClient    *PosthogClient
-	moduleRepository moduleRepo.ModuleRepository
-	serverDataStore  *serverDataStore.ServerDataStore
-	userAuditService user.UserAuditService
-	helmAppClient    client.HelmAppClient
+	cron                     *cron.Cron
+	logger                   *zap.SugaredLogger
+	client                   *http.Client
+	clusterService           cluster.ClusterService
+	K8sUtil                  *util2.K8sUtil
+	aCDAuthConfig            *util3.ACDAuthConfig
+	userService              user.UserService
+	attributeRepo            repository.AttributesRepository
+	ssoLoginService          sso.SSOLoginService
+	PosthogClient            *PosthogClient
+	moduleRepository         moduleRepo.ModuleRepository
+	serverDataStore          *serverDataStore.ServerDataStore
+	userAuditService         user.UserAuditService
+	helmAppClient            client.HelmAppClient
+	InstalledAppRepository   repository2.InstalledAppRepository
+	userAttributesRepository repository.UserAttributesRepository
 }
 
 type TelemetryEventClient interface {
@@ -60,7 +67,7 @@ type TelemetryEventClient interface {
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService, helmAppClient client.HelmAppClient) (*TelemetryEventClientImpl, error) {
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService, helmAppClient client.HelmAppClient, InstalledAppRepository repository2.InstalledAppRepository) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -70,12 +77,13 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		client: client, clusterService: clusterService,
 		K8sUtil: K8sUtil, aCDAuthConfig: aCDAuthConfig,
 		userService: userService, attributeRepo: attributeRepo,
-		ssoLoginService:  ssoLoginService,
-		PosthogClient:    PosthogClient,
-		moduleRepository: moduleRepository,
-		serverDataStore:  serverDataStore,
-		userAuditService: userAuditService,
-		helmAppClient:    helmAppClient,
+		ssoLoginService:        ssoLoginService,
+		PosthogClient:          PosthogClient,
+		moduleRepository:       moduleRepository,
+		serverDataStore:        serverDataStore,
+		userAuditService:       userAuditService,
+		helmAppClient:          helmAppClient,
+		InstalledAppRepository: InstalledAppRepository,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -98,26 +106,28 @@ func (impl *TelemetryEventClientImpl) StopCron() {
 }
 
 type TelemetryEventEA struct {
-	UCID                        string             `json:"ucid"` //unique client id
-	Timestamp                   time.Time          `json:"timestamp"`
-	EventMessage                string             `json:"eventMessage,omitempty"`
-	EventType                   TelemetryEventType `json:"eventType"`
-	ServerVersion               string             `json:"serverVersion,omitempty"`
-	UserCount                   int                `json:"userCount,omitempty"`
-	ClusterCount                int                `json:"clusterCount,omitempty"`
-	HostURL                     bool               `json:"hostURL,omitempty"`
-	SSOLogin                    bool               `json:"ssoLogin,omitempty"`
-	DevtronVersion              string             `json:"devtronVersion,omitempty"`
-	DevtronMode                 string             `json:"devtronMode,omitempty"`
-	InstalledIntegrations       []string           `json:"installedIntegrations,omitempty"`
-	InstallFailedIntegrations   []string           `json:"installFailedIntegrations,omitempty"`
-	InstallTimedOutIntegrations []string           `json:"installTimedOutIntegrations,omitempty"`
-	LastLoginTime               time.Time          `json:"LastLoginTime,omitempty"`
-	InstallingIntegrations      []string           `json:"installingIntegrations,omitempty"`
-	DevtronReleaseVersion       string             `json:"devtronReleaseVersion,omitempty"`
-	HelmAppAccessCounter        string             `json:"HelmAppAccessCounter,omitempty"`
-	ChartStoreVisitCount        string             `json:"ChartStoreVisitCount,omitempty"`
-	SkippedOnboarding           string             `json:"SkippedOnboarding,omitempty"`
+	UCID                               string             `json:"ucid"` //unique client id
+	Timestamp                          time.Time          `json:"timestamp"`
+	EventMessage                       string             `json:"eventMessage,omitempty"`
+	EventType                          TelemetryEventType `json:"eventType"`
+	ServerVersion                      string             `json:"serverVersion,omitempty"`
+	UserCount                          int                `json:"userCount,omitempty"`
+	ClusterCount                       int                `json:"clusterCount,omitempty"`
+	HostURL                            bool               `json:"hostURL,omitempty"`
+	SSOLogin                           bool               `json:"ssoLogin,omitempty"`
+	DevtronVersion                     string             `json:"devtronVersion,omitempty"`
+	DevtronMode                        string             `json:"devtronMode,omitempty"`
+	InstalledIntegrations              []string           `json:"installedIntegrations,omitempty"`
+	InstallFailedIntegrations          []string           `json:"installFailedIntegrations,omitempty"`
+	InstallTimedOutIntegrations        []string           `json:"installTimedOutIntegrations,omitempty"`
+	LastLoginTime                      time.Time          `json:"LastLoginTime,omitempty"`
+	InstallingIntegrations             []string           `json:"installingIntegrations,omitempty"`
+	DevtronReleaseVersion              string             `json:"devtronReleaseVersion,omitempty"`
+	HelmAppAccessCounter               string             `json:"HelmAppAccessCounter,omitempty"`
+	ChartStoreVisitCount               string             `json:"ChartStoreVisitCount,omitempty"`
+	SkippedOnboarding                  bool               `json:"SkippedOnboarding,omitempty"`
+	HelmChartSuccessfulDeploymentCount int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
+	ExternalHelmAppClusterCount        map[int32]int      `json:"ExternalHelmAppClusterCount,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -146,7 +156,7 @@ const (
 	SIG_TERM                     TelemetryEventType = "SIG_TERM"
 )
 
-func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string, SkippedOnboarding string, HelmAppUpdateCounter string) {
+func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string, SkippedOnboarding bool, HelmAppUpdateCounter string, helmChartSuccessfulDeploymentCount int, ExternalHelmAppClusterCount map[int32]int) {
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
@@ -190,40 +200,53 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		ChartStoreVisitCount = attribute.Value
 	}
 
-	attribute, err = impl.attributeRepo.FindByKey("SkippedOnboarding")
-
-	if err == nil {
-		SkippedOnboarding = attribute.Value
-	}
-
 	attribute, err = impl.attributeRepo.FindByKey("HelmAppUpdateCounter")
 
 	if err == nil {
 		HelmAppUpdateCounter = attribute.Value
 	}
 
-	//externalHelmAppsMap := make(map[int][]int)
+	helmChartSuccessfulDeploymentCount, err = impl.InstalledAppRepository.GetDeploymentSuccessfulStatusCountForTelemetry()
 
-	//req := &client.AppListRequest{}
-	//
-	//for _, clusterDetail := range clusters {
-	//	config := &client.ClusterConfig{
-	//		ApiServerUrl: clusterDetail.ServerUrl,
-	//		Token:        clusterDetail.Config["bearer_token"],
-	//		ClusterId:    int32(clusterDetail.Id),
-	//		ClusterName:  clusterDetail.ClusterName,
-	//	}
-	//	req.Clusters = append(req.Clusters, config)
-	//}
-	//applicatonStream, err := impl.helmAppClient.ListApplication(req)
+	externalHelmCount := make(map[int32]int)
 
-	if err != nil {
-		return
+	for _, clusterDetail := range clusters {
+		req := &client.AppListRequest{}
+		config := &client.ClusterConfig{
+			ApiServerUrl: clusterDetail.ServerUrl,
+			Token:        clusterDetail.Config["bearer_token"],
+			ClusterId:    int32(clusterDetail.Id),
+			ClusterName:  clusterDetail.ClusterName,
+		}
+		req.Clusters = append(req.Clusters, config)
+
+		applicatonStream, err := impl.helmAppClient.ListApplication(req)
+
+		if err != nil {
+			return
+		}
+		clusterList, err := applicatonStream.Recv()
+
+		if !clusterList.Errored {
+			externalHelmCount[clusterList.ClusterId] = len(clusterList.DeployedAppDetail)
+		}
+
 	}
 
-	//clusterList, err := applicatonStream.Recv()
+	//getting userData from emailId
+	userData, err := impl.userAttributesRepository.GetUserDataByEmailId(ADMIN_EMAIL_ID_CONST)
+	if err != nil {
 
-	//fmt.Println(clusterList)
+	}
+
+	loginCountValue := gjson.Get(userData, LOGIN_COUNT_CONST)
+	loginCount := loginCountValue.Value().(int)
+
+	if loginCount >= 2 && loginCount <= 4 {
+		SkippedOnboarding = true
+	} else {
+		SkippedOnboarding = false
+	}
 
 	ssoSetup = false
 
@@ -232,7 +255,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		ssoSetup = true
 	}
 
-	return clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter
+	return clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, externalHelmCount
 }
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
@@ -261,7 +284,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 		return err
 	}
 
-	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter := impl.SummaryDetailsForTelemetry()
+	clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount := impl.SummaryDetailsForTelemetry()
 
 	payload := &TelemetryEventEA{UCID: ucid, Timestamp: time.Now(), EventType: TelemetryEventType(eventType), DevtronVersion: "v1"}
 	payload.ServerVersion = k8sServerVersion.String()
@@ -279,6 +302,8 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.ChartStoreVisitCount = ChartStoreVisitCount
 	payload.SkippedOnboarding = SkippedOnboarding
 	payload.HelmAppAccessCounter = HelmAppUpdateCounter
+	payload.HelmChartSuccessfulDeploymentCount = helmChartSuccessfulDeploymentCount
+	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
 	latestUser, err := impl.userAuditService.GetLatestUser()
 	if err == nil {
