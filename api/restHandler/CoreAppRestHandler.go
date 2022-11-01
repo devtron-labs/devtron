@@ -64,6 +64,7 @@ const (
 type CoreAppRestHandler interface {
 	GetAppAllDetail(w http.ResponseWriter, r *http.Request)
 	CreateApp(w http.ResponseWriter, r *http.Request)
+	CreateAppWorkflow(w http.ResponseWriter, r *http.Request)
 }
 
 type CoreAppRestHandlerImpl struct {
@@ -1974,4 +1975,78 @@ func ExtractErrorType(err error) int {
 		//TODO : ask and update response for this case
 		return 0
 	}
+}
+
+
+
+func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+	var createAppRequest appBean.AppWorkflowCloneDto
+	err = decoder.Decode(&createAppRequest)
+	if err != nil {
+		handler.logger.Errorw("request err, CreateApp by API", "err", err, "CreateApp", createAppRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	//to add more validations here
+	handler.logger.Infow("request payload, CreateApp by API", "CreateApp", createAppRequest)
+	err = handler.validator.Struct(createAppRequest)
+	if err != nil {
+		handler.logger.Errorw("validation err, CreateApp by API", "err", err, "CreateApp", createAppRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	object:=handler.enforcerUtil.GetAppRBACNameByAppId(createAppRequest.AppId)
+	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//rbac ends
+
+	handler.logger.Infow("creating app v2", "createAppRequest", createAppRequest)
+	var errResp *multierror.Error
+	var statusCode int
+    appId:= 1
+	//creating workflow starts
+	if createAppRequest.AppWorkflows != nil {
+		err, statusCode = handler.createWorkflows(ctx, appId, userId, createAppRequest.AppWorkflows, token, createAppRequest.Metadata.AppName)
+		if err != nil {
+			common.WriteJsonResp(w, errResp, nil, statusCode)
+			return
+		}
+	}
+	//creating workflow ends
+
+	//creating environment override starts
+	if createAppRequest.EnvironmentOverrides != nil {
+		err, statusCode = handler.createEnvOverrides(ctx, appId, userId, createAppRequest.EnvironmentOverrides, token)
+		if err != nil {
+			errResp = multierror.Append(errResp, err)
+			errInAppDelete := handler.deleteApp(ctx, appId, userId)
+			if errInAppDelete != nil {
+				errResp = multierror.Append(errResp, fmt.Errorf("%s : %w", APP_DELETE_FAILED_RESP, errInAppDelete))
+			}
+			common.WriteJsonResp(w, errResp, nil, statusCode)
+			return
+		}
+	}
+	//creating environment override ends
+
+	common.WriteJsonResp(w, nil, APP_CREATE_SUCCESSFUL_RESP, http.StatusOK)
 }
