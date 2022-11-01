@@ -1,7 +1,7 @@
 CREATE SEQUENCE IF NOT EXISTS id_seq_ci_build_config;
 
 -- Table Definition
-CREATE TABLE public.ci_build_config
+CREATE TABLE IF NOT EXISTS public.ci_build_config
 (
     "id"                      integer NOT NULL DEFAULT nextval('id_seq_ci_build_config'::regclass),
     "type"                    varchar(100),
@@ -16,16 +16,15 @@ CREATE TABLE public.ci_build_config
 );
 
 
-
 ALTER TABLE ci_template
-    ADD COLUMN ci_build_config_id integer;
+    ADD COLUMN IF NOT EXISTS ci_build_config_id integer;
 
 ALTER TABLE ONLY public.ci_template
-    ADD CONSTRAINT ci_template_ci_build_config_id_fkey FOREIGN KEY (ci_build_config_id) REFERENCES public.ci_build_config(id);
+    ADD CONSTRAINT IF NOT EXISTS ci_template_ci_build_config_id_fkey FOREIGN KEY (ci_build_config_id) REFERENCES public.ci_build_config(id);
 
 
 ALTER TABLE ci_template_override
-    ADD COLUMN ci_build_config_id integer;
+    ADD COLUMN IF NOT EXISTS ci_build_config_id integer;
 
 ALTER TABLE ONLY public.ci_template_override
-    ADD CONSTRAINT ci_template_override_ci_build_config_id_fkey FOREIGN KEY (ci_build_config_id) REFERENCES public.ci_build_config(id);
+    ADD CONSTRAINT IF NOT EXISTS ci_template_override_ci_build_config_id_fkey FOREIGN KEY (ci_build_config_id) REFERENCES public.ci_build_config(id);
