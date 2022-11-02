@@ -64,6 +64,8 @@ const (
 type CoreAppRestHandler interface {
 	GetAppAllDetail(w http.ResponseWriter, r *http.Request)
 	CreateApp(w http.ResponseWriter, r *http.Request)
+	CreateAppWorkflow(w http.ResponseWriter, r *http.Request)
+	GetAppWorkflow(w http.ResponseWriter, r *http.Request)
 }
 
 type CoreAppRestHandlerImpl struct {
@@ -1974,4 +1976,121 @@ func ExtractErrorType(err error) int {
 		//TODO : ask and update response for this case
 		return 0
 	}
+}
+
+func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+	var createAppRequest appBean.AppWorkflowCloneDto
+	err = decoder.Decode(&createAppRequest)
+	if err != nil {
+		handler.logger.Errorw("request err, CreateApp by API", "err", err, "CreateApp", createAppRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	//to add more validations here
+	handler.logger.Infow("request payload, CreateApp by API", "CreateApp", createAppRequest)
+	err = handler.validator.Struct(createAppRequest)
+	if err != nil {
+		handler.logger.Errorw("validation err, CreateApp by API", "err", err, "CreateApp", createAppRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(createAppRequest.AppId)
+	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//rbac ends
+
+	handler.logger.Infow("creating app v2", "createAppRequest", createAppRequest)
+	var errResp *multierror.Error
+	var statusCode int
+
+	app, err := handler.pipelineBuilder.GetApp(createAppRequest.AppId)
+	if err != nil {
+		common.WriteJsonResp(w, errResp, nil, statusCode)
+		return
+	}
+	appName := app.AppName
+	//creating workflow starts
+	if createAppRequest.AppWorkflows != nil {
+		err, statusCode = handler.createWorkflows(ctx, createAppRequest.AppId, userId, createAppRequest.AppWorkflows, token, appName)
+		if err != nil {
+			common.WriteJsonResp(w, errResp, nil, statusCode)
+			return
+		}
+	}
+	//creating workflow ends
+
+	//creating environment override starts
+	if createAppRequest.EnvironmentOverrides != nil {
+		err, statusCode = handler.createEnvOverrides(ctx, createAppRequest.AppId, userId, createAppRequest.EnvironmentOverrides, token)
+		if err != nil {
+			common.WriteJsonResp(w, errResp, nil, statusCode)
+			return
+		}
+	}
+	//creating environment override ends
+
+	common.WriteJsonResp(w, nil, APP_CREATE_SUCCESSFUL_RESP, http.StatusOK)
+}
+
+func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, GetAppWorkflow", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	//get/build app workflows starts
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	//get/build app workflows ends
+
+	//get/build environment override starts
+	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(appId, token)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	//get/build environment override ends
+
+	//build full object for response
+	appDetail := &appBean.AppWorkflowCloneDto{
+		AppId:                 appId,
+		AppWorkflows:             appWorkflows,
+		EnvironmentOverrides:     environmentOverrides,
+	}
+	//end
+
+	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 }

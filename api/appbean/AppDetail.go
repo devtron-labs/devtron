@@ -16,6 +16,12 @@ type AppDetail struct {
 	EnvironmentOverrides     map[string]*EnvironmentOverride `json:"environmentOverride"`
 }
 
+type AppWorkflowCloneDto struct {
+	AppId                int                             `json:"appId"`
+	AppWorkflows         []*AppWorkflow                  `json:"workflows"`
+	EnvironmentOverrides map[string]*EnvironmentOverride `json:"environmentOverride"`
+}
+
 type AppMetadata struct {
 	AppName     string      `json:"appName" validate:"required"`
 	ProjectName string      `json:"projectName" validate:"required"`
