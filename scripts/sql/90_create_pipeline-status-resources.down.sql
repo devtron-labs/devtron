@@ -1,0 +1,1 @@
+DROP TABLE "public"."pipeline_status_timeline_resources" CASCADE;
