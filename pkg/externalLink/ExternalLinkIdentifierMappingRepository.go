@@ -30,14 +30,14 @@ type ExternalLinkIdentifierMapping struct {
 	Identifier     string   `sql:"identifier,notnull"`
 	ClusterId      int      `sql:"cluster_id,notnull"`
 	Active         bool     `sql:"active, notnull"`
-	//ExternalLink   ExternalLink
+	ExternalLink   ExternalLink
 	sql.AuditLog
 }
 
 type ExternalLinkIdentifierMappingRepository interface {
 	Save(externalLinksClusters *ExternalLinkIdentifierMapping, tx *pg.Tx) error
 	//FindAllActiveByClusterId(clusterId int) ([]ExternalLinkIdentifierMapping, error)
-	FindAllActiveByLinkIdentifier(identifier LinkIdentifier) ([]ExternalLinkIdentifierMapping, error)
+	FindAllActiveByLinkIdentifier(identifier *LinkIdentifier) ([]ExternalLinkIdentifierMapping, error)
 	FindAllActive() ([]ExternalLinkIdentifierMapping, error)
 	Update(link *ExternalLinkIdentifierMapping, tx *pg.Tx) error
 	FindAllActiveByExternalLinkId(linkId int) ([]*ExternalLinkIdentifierMapping, error)
@@ -61,10 +61,10 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) Update(link *ExternalLin
 	return err
 }
 
-func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdentifier(linkIdentifier LinkIdentifier) ([]ExternalLinkIdentifierMapping, error) {
+func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdentifier(linkIdentifier *LinkIdentifier) ([]ExternalLinkIdentifierMapping, error) {
 	var links []ExternalLinkIdentifierMapping
 	err := impl.dbConnection.Model(&links).
-		Column("external_link_identifier_mapping.*").
+		Column("external_link_identifier_mapping.*", "ExternalLink").
 		Where("external_link_identifier_mapping.active = ?", true).
 		Where("external_link_identifier_mapping.cluster_id = ?", linkIdentifier.ClusterId).
 		Where("external_link_identifier_mapping.type = ?", linkIdentifier.Type).
@@ -76,7 +76,7 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdent
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActive() ([]ExternalLinkIdentifierMapping, error) {
 	var links []ExternalLinkIdentifierMapping
 	err := impl.dbConnection.Model(&links).
-		Column("external_link_identifier_mapping.*").
+		Column("external_link_identifier_mapping.*", "ExternalLink").
 		Where("external_link_identifier_mapping.active = ?", true).
 		Select()
 	return links, err
