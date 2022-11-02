@@ -18,7 +18,7 @@ paths:
   /orchestrator/external-link:
     get:
       description: Get All active External links (If query parameter is not supplied
-        then it will give all external links otherwise it will give externl links
+        then it will give all external links otherwise it will give external links
         mapped to that type and identifier)
       parameters:
         - in: query
@@ -40,7 +40,7 @@ paths:
         - in: query
           name: type
           example: devtron-app
-          description: link type,only [devtron-app,devtron-installed-app,external-helm-app,cluster] allowed
+          description: link type,only [devtron-app,devtron-installed-app,external-helm-app] allowed
           required: false
           allowEmptyValue: false
           schema:
@@ -120,6 +120,9 @@ components:
           type: string
           description: name of monitoring tool
           example: "grafana"
+        icon:
+          type: string
+          description: url of monitoring tool icon
         category:
           type: integer
           description: category of monitoring tool
@@ -172,9 +175,12 @@ components:
       properties:
         type:
           type: string
-          description: type of link identifier
+          description: type of link identifier[devtron-app,devtron-installed-app,external-helm-app,cluster]
           example: cluster
         identifier:
           type: string
-          description: identifier for this type
-          example: '1'
+          description: identifier for this type,(for cluster type this will be empty)
+          example: ''
+        clusterId:
+          type: integer
+          description: cluster-id for which you want to configure the app level external-link
