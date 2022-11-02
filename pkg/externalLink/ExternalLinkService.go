@@ -34,10 +34,10 @@ const (
 )
 
 type ExternalLinkService interface {
-	Create(requests []*ExternalLinkDto, userId int32) (*ExternalLinkApiResponse, error)
+	Create(requests []*ExternalLinkDto, userId int32, userRole string) (*ExternalLinkApiResponse, error)
 	GetAllActiveTools() ([]ExternalLinkMonitoringToolDto, error)
-	FetchAllActiveLinks(clusterIds int) ([]*ExternalLinkDto, error)
-	Update(request *ExternalLinkDto) (*ExternalLinkApiResponse, error)
+	FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int, userRole string, userId int) ([]*ExternalLinkDto, error)
+	Update(request *ExternalLinkDto, userRole string) (*ExternalLinkApiResponse, error)
 	DeleteLink(id int, userId int32) (*ExternalLinkApiResponse, error)
 }
 type ExternalLinkServiceImpl struct {
@@ -85,7 +85,7 @@ func NewExternalLinkServiceImpl(logger *zap.SugaredLogger, externalLinksToolsRep
 	}
 }
 
-func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId int32, role string) (*ExternalLinkApiResponse, error) {
+func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId int32, userRole string) (*ExternalLinkApiResponse, error) {
 	impl.logger.Debugw("external links create request", "req", requests)
 	dbConnection := impl.externalLinkRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -97,7 +97,7 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 	defer tx.Rollback()
 	for _, request := range requests {
 		//if user is admin make isEditable true ,else if user is sup_adm get it from request
-		if role == ADMIN_ROLE {
+		if userRole == ADMIN_ROLE {
 			request.IsEditable = true
 		}
 		//data storing in external links table in db
@@ -180,10 +180,16 @@ func (impl ExternalLinkServiceImpl) GetAllActiveTools() ([]ExternalLinkMonitorin
 	return response, err
 }
 
-func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier) ([]*ExternalLinkDto, error) {
+func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int, userRole string, userId int) ([]*ExternalLinkDto, error) {
+	//linkIdentifier and clusterId nil and 0 respectively to fetch links at global level(get all active links)
+	//linkIdentifier and clusterId passed to get all active links for a particular app(linkIdentifier.ClusterId will be 0)
 	var allActiveExternalLinkMappings []ExternalLinkIdentifierMapping
 	var err error
 	if linkIdentifier == nil {
+		if userRole != SUPER_ADMIN_ROLE {
+			impl.logger.Debugw("user is not super_admin", "userId", userId, "userRole", userRole)
+			return nil, fmt.Errorf("user role is not super_admin")
+		}
 		allActiveExternalLinkMappings, err = impl.externalLinkIdentifierMappingRepository.FindAllActive()
 	} else {
 		allActiveExternalLinkMappings, err = impl.externalLinkIdentifierMappingRepository.FindAllActiveByLinkIdentifier(linkIdentifier)
@@ -224,11 +230,35 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 	for _, externalLink := range response {
 		externalLinkResponse = append(externalLinkResponse, externalLink)
 	}
+	if clusterId > 0 {
+		allActiveExternalLinkMappings, err = impl.externalLinkIdentifierMappingRepository.FindAllActiveByClusterId(clusterId)
+		for _, link := range allActiveExternalLinkMappings {
+			if _, ok := response[link.ExternalLinkId]; !ok {
+				externalLink := &ExternalLinkDto{
+					Id:               link.ExternalLinkId,
+					Name:             link.ExternalLink.Name,
+					Url:              link.ExternalLink.Url,
+					Type:             CLUSTER_LEVEL_LINK,
+					IsEditable:       link.ExternalLink.IsEditable,
+					Description:      link.ExternalLink.Description,
+					Active:           link.ExternalLink.Active,
+					MonitoringToolId: link.ExternalLink.ExternalLinkMonitoringToolId,
+					UpdatedOn:        link.UpdatedOn,
+				}
+				var identifier = LinkIdentifier{}
+				identifier.ClusterId = link.ClusterId
+				identifier.Type = "cluster"
+				identifier.Identifier = ""
+				externalLink.Identifiers = append(externalLink.Identifiers, identifier)
+				externalLinkResponse = append(externalLinkResponse, externalLink)
+			}
+		}
+	}
 	return externalLinkResponse, nil
 }
 
 //start from here
-func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto) (*ExternalLinkApiResponse, error) {
+func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole string) (*ExternalLinkApiResponse, error) {
 	impl.logger.Debugw("link update request", "req", request)
 	dbConnection := impl.externalLinkRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -236,6 +266,7 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto) (*ExternalL
 		impl.logger.Errorw("error in establishing connection", "err", err)
 		return nil, err
 	}
+
 	// Rollback tx on error.
 	defer tx.Rollback()
 	externalLink, err0 := impl.externalLinkRepository.FindOne(request.Id)
@@ -245,67 +276,112 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto) (*ExternalL
 		err = &util.ApiError{InternalMessage: msg, UserMessage: msg}
 		return nil, err0
 	}
+	if userRole == ADMIN_ROLE && !externalLink.IsEditable {
+		impl.logger.Infow("app admin not allowed to update or delete the external link", "external-link-id", externalLink.Id, "user-id", request.UserId)
+		return nil, fmt.Errorf("user not allowed to perform update or delete")
+	}
 	externalLink.Name = request.Name
 	externalLink.Url = request.Url
 	externalLink.ExternalLinkMonitoringToolId = request.MonitoringToolId
 	externalLink.UpdatedBy = int32(request.UserId)
 	externalLink.UpdatedOn = time.Now()
+	externalLink.IsEditable = request.IsEditable
+	externalLink.Description = request.Description
 	err = impl.externalLinkRepository.Update(&externalLink, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating link", "data", externalLink, "err", err)
 		return nil, err
 	}
 
-	allExternalLinksMapping, err := impl.externalLinkClusterMappingRepository.FindAllByExternalLinkId(request.Id)
+	allExternalLinksMapping, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByExternalLinkId(request.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching link", "data", externalLink, "err", err)
 		return nil, err
 	}
+
 	for _, model := range allExternalLinksMapping {
 		if model.Active == true {
 			model.Active = false
 			model.UpdatedBy = int32(request.UserId)
 			model.UpdatedOn = time.Now()
-			err := impl.externalLinkClusterMappingRepository.Update(model, tx)
+			err := impl.externalLinkIdentifierMappingRepository.Update(model, tx)
 			if err != nil {
-				impl.logger.Errorw("error in updating clusters to false", "data", model, "err", err)
+				impl.logger.Errorw("error in updating external_link_identifier mappings to false", "data", model, "err", err)
 				return nil, err
 			}
 		}
 	}
-	for _, requestedClusterId := range request.ClusterIds {
-		externalLinkClusterMappingId := 0
-		var externalLinkCluster *ExternalLinkClusterMapping
-		for _, model := range allExternalLinksMapping {
-			if requestedClusterId == model.ClusterId {
-				externalLinkClusterMappingId = model.Id
-				externalLinkCluster = model
-				break
-			}
+
+	//store all the external_link_identifier_mappings fetched from db in a set
+	requestedLinkIdentifiersMap := make(map[LinkIdentifier]*ExternalLinkIdentifierMapping)
+	for _, model := range allExternalLinksMapping {
+		linkIdentifier := LinkIdentifier{
+			Type:       model.Type,
+			Identifier: model.Identifier,
+			ClusterId:  model.ClusterId,
 		}
-		if externalLinkClusterMappingId > 0 && externalLinkCluster != nil {
-			externalLinkCluster.Active = true
-			externalLinkCluster.UpdatedOn = time.Now()
-			externalLinkCluster.UpdatedBy = request.UserId
-			err = impl.externalLinkClusterMappingRepository.Update(externalLinkCluster, tx)
+		requestedLinkIdentifiersMap[linkIdentifier] = model
+	}
+	//update if request identifier present in set else save a new record
+	for _, identifier := range request.Identifiers {
+		if request.Type == APP_LEVEL_LINK {
+			identifier.ClusterId = 0
 		} else {
-			externalLinkCluster := &ExternalLinkClusterMapping{
+			identifier.Identifier = ""
+			identifier.Type = ""
+		}
+		if model, ok := requestedLinkIdentifiersMap[identifier]; ok {
+			model.Active = true
+			model.UpdatedOn = time.Now()
+			model.UpdatedBy = request.UserId
+			err = impl.externalLinkIdentifierMappingRepository.Update(model, tx)
+		} else {
+			externalLinkCluster := &ExternalLinkIdentifierMapping{
 				ExternalLinkId: request.Id,
-				ClusterId:      requestedClusterId,
+				Type:           identifier.Type,
+				Identifier:     identifier.Identifier,
+				ClusterId:      identifier.ClusterId,
 				Active:         true,
 				AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: request.UserId, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 			}
-			err = impl.externalLinkClusterMappingRepository.Save(externalLinkCluster, tx)
+			err = impl.externalLinkIdentifierMappingRepository.Save(externalLinkCluster, tx)
 		}
 		if err != nil {
-			impl.logger.Errorw("error in saving cluster id's", "data", externalLinkCluster, "err", err)
+			impl.logger.Errorw("error in saving external_link_identifier mapping", "identifier", identifier, "err", err)
 			err = &util.ApiError{
-				InternalMessage: "cluster id failed to create in db",
-				UserMessage:     "cluster id failed to create in db",
+				InternalMessage: "external_link_identifier mapping failed to create in db",
+				UserMessage:     "external_link_identifier mapping failed to create in db",
 			}
 			return nil, err
 		}
 	}
+
+	//for _, requestedLinkIdentifier := range request.Identifiers {
+	//	externalLinkClusterMappingId := 0
+	//	var externalLinkCluster *ExternalLinkIdentifierMapping
+	//	for _, model := range allExternalLinksMapping {
+	//		if requestedClusterId == model.ClusterId {
+	//			externalLinkClusterMappingId = model.Id
+	//			externalLinkCluster = model
+	//			break
+	//		}
+	//	}
+	//	if externalLinkClusterMappingId > 0 && externalLinkCluster != nil {
+	//		externalLinkCluster.Active = true
+	//		externalLinkCluster.UpdatedOn = time.Now()
+	//		externalLinkCluster.UpdatedBy = request.UserId
+	//		err = impl.externalLinkClusterMappingRepository.Update(externalLinkCluster, tx)
+	//	} else {
+	//		externalLinkCluster := &ExternalLinkClusterMapping{
+	//			ExternalLinkId: request.Id,
+	//			ClusterId:      requestedClusterId,
+	//			Active:         true,
+	//			AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: request.UserId, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
+	//		}
+	//		err = impl.externalLinkClusterMappingRepository.Save(externalLinkCluster, tx)
+	//	}
+	//}
+
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
