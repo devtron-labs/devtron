@@ -1342,7 +1342,7 @@ func (impl BulkUpdateServiceImpl) PerformBulkActionOnCdPipelines(dto *CdBulkActi
 	ctx context.Context, dryRun bool, impactedAppWfIds []int, impactedCiPipelineIds []int) (*PipelineAndWfBulkActionResponseDto, error) {
 	switch dto.Action {
 	case CD_BULK_DELETE:
-		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete, false, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
+		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete, dto.DeleteWfAndCiPipeline, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in cd pipelines bulk deletion")
 		}
