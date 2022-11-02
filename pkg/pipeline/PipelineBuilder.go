@@ -2416,6 +2416,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		DockerArgs:               dockerArgs,
 		IsManual:                 pipeline.IsManual,
 		IsExternal:               pipeline.IsExternal,
+		AppId:                    pipeline.AppId,
 		ParentCiPipeline:         pipeline.ParentCiPipeline,
 		ParentAppId:              parentCiPipeline.AppId,
 		ExternalCiConfig:         externalCiConfig,

@@ -1401,7 +1401,7 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 				deleteReq := &bean2.CiPatchRequest{
 					Action:     2, //delete
 					CiPipeline: ciPipeline,
-					AppId:      ciPipeline.ParentAppId,
+					AppId:      ciPipeline.AppId,
 				}
 				_, err = impl.pipelineBuilder.DeleteCiPipeline(deleteReq)
 				if err != nil {
