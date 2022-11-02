@@ -180,74 +180,54 @@ func (impl ExternalLinkServiceImpl) GetAllActiveTools() ([]ExternalLinkMonitorin
 	return response, err
 }
 
-// will create separate functions to get all links and links for an identifier
-func (impl ExternalLinkServiceImpl) FetchAllActiveLinks(clusterId int) ([]*ExternalLinkDto, error) {
+func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier) ([]*ExternalLinkDto, error) {
+	var allActiveExternalLinkMappings []ExternalLinkIdentifierMapping
 	var err error
-	var mappedExternalLinksIds []int
-	externalLinksMap := make(map[int]int)
-	allActiveExternalLinkMapping, err := impl.externalLinkIdentifierMappingRepository.FindAllActive()
-	if err != nil && pg.ErrNoRows != err {
-		impl.logger.Errorw("error in fetch all links", "err", err)
+	if linkIdentifier == nil {
+		allActiveExternalLinkMappings, err = impl.externalLinkIdentifierMappingRepository.FindAllActive()
+	} else {
+		allActiveExternalLinkMappings, err = impl.externalLinkIdentifierMappingRepository.FindAllActiveByLinkIdentifier(linkIdentifier)
+	}
+	if err != nil || err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
 		return nil, err
-	}
-	//here below creating map to find out unique links which are not linked with any cluster by extracting out
-	for _, link := range allActiveExternalLinkMapping {
-		externalLinksMap[link.ExternalLinkId] = link.ExternalLinkId
-	}
-	for _, externalLinksId := range externalLinksMap {
-		mappedExternalLinksIds = append(mappedExternalLinksIds, externalLinksId)
-	}
-
-	if clusterId > 0 {
-		allActiveExternalLinkMapping, err = impl.externalLinkClusterMappingRepository.FindAllActiveByClusterId(clusterId)
-		if err != nil && pg.ErrNoRows != err {
-			impl.logger.Errorw("error in fetch links by cluster id", "err", err)
-			return nil, err
-		}
 	}
 	var externalLinkResponse []*ExternalLinkDto
 	response := make(map[int]*ExternalLinkDto)
-	for _, link := range allActiveExternalLinkMapping {
+	for _, link := range allActiveExternalLinkMappings {
 		if _, ok := response[link.ExternalLinkId]; !ok {
 			response[link.ExternalLinkId] = &ExternalLinkDto{
 				Id:               link.ExternalLinkId,
 				Name:             link.ExternalLink.Name,
 				Url:              link.ExternalLink.Url,
+				IsEditable:       link.ExternalLink.IsEditable,
+				Description:      link.ExternalLink.Description,
 				Active:           link.ExternalLink.Active,
 				MonitoringToolId: link.ExternalLink.ExternalLinkMonitoringToolId,
 				UpdatedOn:        link.UpdatedOn,
 			}
 		}
-		response[link.ExternalLinkId].ClusterIds = append(response[link.ExternalLinkId].ClusterIds, link.ClusterId)
-	}
-
-	for _, v := range response {
-		externalLinkResponse = append(externalLinkResponse, v)
-	}
-
-	//now add all the links which are not mapped to any clusters
-	additionalExternalLinks, err := impl.externalLinkRepository.FindAllFilterOutByIds(mappedExternalLinksIds)
-	if err != nil && pg.ErrNoRows != err {
-		impl.logger.Errorw("error in fetch all links", "err", err)
-		return nil, err
-	}
-	for _, link := range additionalExternalLinks {
-		providerRes := &ExternalLinkDto{
-			Id:               link.Id,
-			Name:             link.Name,
-			Url:              link.Url,
-			Active:           link.Active,
-			MonitoringToolId: link.ExternalLinkMonitoringToolId,
-			ClusterIds:       []int{},
-			UpdatedOn:        link.UpdatedOn,
+		var identifier = LinkIdentifier{}
+		if link.ClusterId > 0 {
+			response[link.ExternalLinkId].Type = CLUSTER_LEVEL_LINK
+			identifier.ClusterId = link.ClusterId
+			identifier.Type = "cluster"
+			identifier.Identifier = ""
+		} else {
+			response[link.ExternalLinkId].Type = APP_LEVEL_LINK
+			identifier.ClusterId = 0
+			identifier.Type = link.Type
+			identifier.Identifier = link.Identifier
 		}
-		externalLinkResponse = append(externalLinkResponse, providerRes)
+		response[link.ExternalLinkId].Identifiers = append(response[link.ExternalLinkId].Identifiers, identifier)
 	}
-	if externalLinkResponse == nil {
-		externalLinkResponse = make([]*ExternalLinkDto, 0)
+	for _, externalLink := range response {
+		externalLinkResponse = append(externalLinkResponse, externalLink)
 	}
-	return externalLinkResponse, err
+	return externalLinkResponse, nil
 }
+
+//start from here
 func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto) (*ExternalLinkApiResponse, error) {
 	impl.logger.Debugw("link update request", "req", request)
 	dbConnection := impl.externalLinkRepository.GetConnection()
