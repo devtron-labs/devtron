@@ -33,6 +33,7 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
+	"reflect"
 	"time"
 )
 
@@ -145,8 +146,21 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 		return impl.saveModuleAsInstalled(moduleName)
 	}
 
-	// if module not enabled in helm for non enterprise-user
-	if isLegacyModule && moduleName != ModuleNameCicd {
+	if moduleName == ModuleNameCicd {
+		// check if cicd is in installing state
+		if util2.IsBaseStack() {
+			installerModulesIface := gjson.Get(releaseInfo.MergedValues, INSTALLER_MODULES_HELM_KEY).Value()
+			if installerModulesIface != nil && reflect.TypeOf(installerModulesIface).Kind() == reflect.Slice {
+				installerModules := installerModulesIface.([]interface{})
+				for _, installerModule := range installerModules {
+					if installerModule == ModuleNameCicd {
+						return impl.saveModule(moduleName, ModuleStatusInstalling)
+					}
+				}
+			}
+		}
+	} else if isLegacyModule {
+		// if module not enabled in helm for non enterprise-user
 		for _, firstReleaseModuleName := range SupportedModuleNamesListFirstReleaseExcludingCicd {
 			if moduleName != firstReleaseModuleName {
 				cicdModule, err := impl.moduleRepository.FindOne(ModuleNameCicd)
@@ -169,7 +183,6 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	}
 
 	return ModuleStatusNotInstalled, nil
-
 }
 
 func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string, moduleActionRequest *ModuleActionRequestDto) (*ActionResponse, error) {
@@ -247,7 +260,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 
 	extraValues := make(map[string]interface{})
 	extraValues["installer.release"] = moduleActionRequest.Version
-	extraValues["installer.modules"] = []interface{}{moduleName}
+	extraValues[INSTALLER_MODULES_HELM_KEY] = []interface{}{moduleName}
 	alreadyInstalledModuleNames, err := impl.moduleRepository.GetInstalledModuleNames()
 	if err != nil {
 		impl.logger.Errorw("error in getting modules with installed status ", "err", err)
@@ -291,16 +304,20 @@ func (impl ModuleServiceImpl) buildModuleMetaDataUrl(moduleName string) string {
 }
 
 func (impl ModuleServiceImpl) saveModuleAsInstalled(moduleName string) (ModuleStatus, error) {
+	return impl.saveModule(moduleName, ModuleStatusInstalled)
+}
+
+func (impl ModuleServiceImpl) saveModule(moduleName string, moduleStatus ModuleStatus) (ModuleStatus, error) {
 	module := &moduleRepo.Module{
 		Name:      moduleName,
 		Version:   impl.serverDataStore.CurrentVersion,
-		Status:    ModuleStatusInstalled,
+		Status:    moduleStatus,
 		UpdatedOn: time.Now(),
 	}
 	err := impl.moduleRepository.Save(module)
 	if err != nil {
-		impl.logger.Errorw("error in saving module with installed status ", "moduleName", moduleName, "err", err)
+		impl.logger.Errorw("error in saving module status ", "moduleName", moduleName, "moduleStatus", moduleStatus, "err", err)
 		return ModuleStatusNotInstalled, err
 	}
-	return ModuleStatusInstalled, nil
+	return moduleStatus, nil
 }

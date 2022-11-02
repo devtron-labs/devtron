@@ -63,6 +63,7 @@ type ModuleStatus = string
 type ModuleName = string
 
 const BlobStorage = "blob-storage"
+const INSTALLER_MODULES_HELM_KEY = "installer.modules"
 
 const (
 	ModuleStatusNotInstalled  ModuleStatus = "notInstalled"
