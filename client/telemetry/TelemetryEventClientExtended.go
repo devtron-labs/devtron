@@ -147,10 +147,10 @@ type TelemetryEventDto struct {
 	LastLoginTime                        time.Time          `json:"LastLoginTime,omitempty"`
 	HelmAppAccessCounter                 string             `json:"HelmAppAccessCounter,omitempty"`
 	ChartStoreVisitCount                 string             `json:"ChartStoreVisitCount,omitempty"`
-	SkippedOnboarding                    bool               `json:"SkippedOnboarding,omitempty"`
+	SkippedOnboarding                    bool               `json:"SkippedOnboarding"`
 	HelmAppUpdateCounter                 string             `json:"HelmAppUpdateCounter,omitempty"`
 	HelmChartSuccessfulDeploymentCount   int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
-	ExternalHelmAppClusterCount          map[int32]int      `json:"ExternalHelmAppClusterCount,omitempty"`
+	ExternalHelmAppClusterCount          map[int32]int      `json:"ExternalHelmAppClusterCount"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {

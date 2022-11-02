@@ -126,7 +126,7 @@ type TelemetryEventEA struct {
 	DevtronReleaseVersion              string             `json:"devtronReleaseVersion,omitempty"`
 	HelmAppAccessCounter               string             `json:"HelmAppAccessCounter,omitempty"`
 	ChartStoreVisitCount               string             `json:"ChartStoreVisitCount,omitempty"`
-	SkippedOnboarding                  bool               `json:"SkippedOnboarding,omitempty"`
+	SkippedOnboarding                  bool               `json:"SkippedOnboarding"`
 	HelmChartSuccessfulDeploymentCount int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
 	ExternalHelmAppClusterCount        map[int32]int      `json:"ExternalHelmAppClusterCount,omitempty"`
 }
@@ -157,7 +157,10 @@ const (
 	SIG_TERM                     TelemetryEventType = "SIG_TERM"
 )
 
-func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo, k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string, SkippedOnboarding bool, HelmAppUpdateCounter string, helmChartSuccessfulDeploymentCount int, ExternalHelmAppClusterCount map[int32]int) {
+func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cluster.ClusterBean, user []bean.UserInfo,
+	k8sServerVersion *version.Info, hostURL bool, ssoSetup bool, HelmAppAccessCount string, ChartStoreVisitCount string,
+	SkippedOnboarding bool, HelmAppUpdateCounter string, helmChartSuccessfulDeploymentCount int, ExternalHelmAppClusterCount map[int32]int) {
+
 	discoveryClient, err := impl.K8sUtil.GetK8sDiscoveryClientInCluster()
 	if err != nil {
 		impl.logger.Errorw("exception caught inside telemetry summary event", "err", err)
@@ -209,7 +212,8 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 
 	helmChartSuccessfulDeploymentCount, err = impl.InstalledAppRepository.GetDeploymentSuccessfulStatusCountForTelemetry()
 
-	externalHelmCount := make(map[int32]int)
+	//externalHelmCount := make(map[int32]int)
+	ExternalHelmAppClusterCount = make(map[int32]int)
 
 	for _, clusterDetail := range clusters {
 		req := &client.AppListRequest{}
@@ -223,22 +227,19 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 
 		applicatonStream, err := impl.helmAppClient.ListApplication(req)
 
-		if err != nil {
-			return
-		}
-		clusterList, err := applicatonStream.Recv()
+		if err == nil {
 
-		if !clusterList.Errored {
-			externalHelmCount[clusterList.ClusterId] = len(clusterList.DeployedAppDetail)
+			clusterList, _ := applicatonStream.Recv()
+
+			if !clusterList.Errored {
+				ExternalHelmAppClusterCount[clusterList.ClusterId] = len(clusterList.DeployedAppDetail)
+			}
 		}
 
 	}
 
 	//getting userData from emailId
 	userData, err := impl.userAttributesRepository.GetUserDataByEmailId(ADMIN_EMAIL_ID_CONST)
-	if err != nil {
-
-	}
 
 	loginCountValue := gjson.Get(userData, LOGIN_COUNT_CONST)
 	loginCount, _ := strconv.Atoi(loginCountValue.Str)
@@ -256,7 +257,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		ssoSetup = true
 	}
 
-	return clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, externalHelmCount
+	return clusters, users, k8sServerVersion, hostURL, ssoSetup, HelmAppAccessCount, ChartStoreVisitCount, SkippedOnboarding, HelmAppUpdateCounter, helmChartSuccessfulDeploymentCount, ExternalHelmAppClusterCount
 }
 
 func (impl *TelemetryEventClientImpl) SummaryEventForTelemetryEA() {
