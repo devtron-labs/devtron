@@ -18,11 +18,19 @@
 package externalLink
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"time"
+)
+
+const (
+	ADMIN_ROLE         string = "admin"
+	SUPER_ADMIN_ROLE   string = "superAdmin"
+	CLUSTER_LEVEL_LINK string = "clusterLevel"
+	APP_LEVEL_LINK     string = "appLevel"
 )
 
 type ExternalLinkService interface {
@@ -33,25 +41,34 @@ type ExternalLinkService interface {
 	DeleteLink(id int, userId int32) (*ExternalLinkApiResponse, error)
 }
 type ExternalLinkServiceImpl struct {
-	logger                               *zap.SugaredLogger
-	externalLinkMonitoringToolRepository ExternalLinkMonitoringToolRepository
-	externalLinkClusterMappingRepository ExternalLinkClusterMappingRepository
-	externalLinkRepository               ExternalLinkRepository
+	logger                                  *zap.SugaredLogger
+	externalLinkMonitoringToolRepository    ExternalLinkMonitoringToolRepository
+	externalLinkIdentifierMappingRepository ExternalLinkIdentifierMappingRepository
+	externalLinkRepository                  ExternalLinkRepository
 }
 type ExternalLinkMonitoringToolDto struct {
-	Id   int    `json:"id"`
-	Name string `json:"name"`
-	Icon string `json:"icon"`
+	Id       int    `json:"id"`
+	Name     string `json:"name"`
+	Icon     string `json:"icon"`
+	Category int    `json:"category"`
+}
+type LinkIdentifier struct {
+	Type       string `json:"type"`
+	Identifier string `json:"identifier"`
+	ClusterId  int    `json:"clusterId"`
 }
 type ExternalLinkDto struct {
-	Id               int       `json:"id"`
-	Name             string    `json:"name"`
-	Url              string    `json:"url"`
-	Active           bool      `json:"active"`
-	MonitoringToolId int       `json:"monitoringToolId"`
-	ClusterIds       []int     `json:"clusterIds"`
-	UpdatedOn        time.Time `json:"updatedOn"`
-	UserId           int32     `json:"-"`
+	Id               int              `json:"id"`
+	Name             string           `json:"name"`
+	Url              string           `json:"url"`
+	Active           bool             `json:"active"`
+	MonitoringToolId int              `json:"monitoringToolId"`
+	Type             string           `json:"type"`
+	Identifiers      []LinkIdentifier `json:"identifiers"`
+	IsEditable       bool             `json:"isEditable"`
+	Description      string           `json:"description"`
+	UpdatedOn        time.Time        `json:"updatedOn"`
+	UserId           int32            `json:"-"`
 }
 
 type ExternalLinkApiResponse struct {
@@ -59,16 +76,16 @@ type ExternalLinkApiResponse struct {
 }
 
 func NewExternalLinkServiceImpl(logger *zap.SugaredLogger, externalLinksToolsRepository ExternalLinkMonitoringToolRepository,
-	externalLinksClustersRepository ExternalLinkClusterMappingRepository, externalLinksRepository ExternalLinkRepository) *ExternalLinkServiceImpl {
+	externalLinkIdentifierMappingRepository ExternalLinkIdentifierMappingRepository, externalLinksRepository ExternalLinkRepository) *ExternalLinkServiceImpl {
 	return &ExternalLinkServiceImpl{
-		logger:                               logger,
-		externalLinkMonitoringToolRepository: externalLinksToolsRepository,
-		externalLinkClusterMappingRepository: externalLinksClustersRepository,
-		externalLinkRepository:               externalLinksRepository,
+		logger:                                  logger,
+		externalLinkMonitoringToolRepository:    externalLinksToolsRepository,
+		externalLinkIdentifierMappingRepository: externalLinkIdentifierMappingRepository,
+		externalLinkRepository:                  externalLinksRepository,
 	}
 }
 
-func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId int32) (*ExternalLinkApiResponse, error) {
+func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId int32, role string) (*ExternalLinkApiResponse, error) {
 	impl.logger.Debugw("external links create request", "req", requests)
 	dbConnection := impl.externalLinkRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -79,11 +96,18 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 	// Rollback tx on error.
 	defer tx.Rollback()
 	for _, request := range requests {
+		//if user is admin make isEditable true ,else if user is sup_adm get it from request
+		if role == ADMIN_ROLE {
+			request.IsEditable = true
+		}
+		//data storing in external links table in db
 		externalLink := &ExternalLink{
 			Name:                         request.Name,
 			Active:                       true,
 			ExternalLinkMonitoringToolId: request.MonitoringToolId,
 			Url:                          request.Url,
+			IsEditable:                   request.IsEditable,
+			Description:                  request.Description,
 			AuditLog:                     sql.AuditLog{CreatedOn: time.Now(), CreatedBy: userId, UpdatedOn: time.Now(), UpdatedBy: userId},
 		}
 		err := impl.externalLinkRepository.Save(externalLink, tx)
@@ -95,20 +119,33 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 			}
 			return nil, err
 		}
-
-		for _, clusterId := range request.ClusterIds {
-			externalLinkClusterMapping := &ExternalLinkClusterMapping{
+		//for all identifiers, check if it is clusterLevel/appLevel
+		//if appLevel, get type and identifier else get clusterId
+		//save it in external_link_type_mapping table
+		linkType := request.Type
+		for _, linkIdentifier := range request.Identifiers {
+			if linkType == CLUSTER_LEVEL_LINK {
+				linkIdentifier.Type = ""
+				linkIdentifier.Identifier = ""
+			} else if linkType == APP_LEVEL_LINK {
+				linkIdentifier.ClusterId = 0
+			} else {
+				return nil, fmt.Errorf("link is neither app level or cluster level")
+			}
+			externalLinkIdentifierMapping := &ExternalLinkIdentifierMapping{
 				ExternalLinkId: externalLink.Id,
-				ClusterId:      clusterId,
+				Type:           linkIdentifier.Type,
+				Identifier:     linkIdentifier.Identifier,
+				ClusterId:      linkIdentifier.ClusterId,
 				Active:         true,
 				AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: userId, UpdatedOn: time.Now(), UpdatedBy: userId},
 			}
-			err := impl.externalLinkClusterMappingRepository.Save(externalLinkClusterMapping, tx)
+			err := impl.externalLinkIdentifierMappingRepository.Save(externalLinkIdentifierMapping, tx)
 			if err != nil {
-				impl.logger.Errorw("error in saving cluster id's", "data", externalLinkClusterMapping, "err", err)
+				impl.logger.Errorw("error in saving external-link-identifier-mappings", "data", externalLinkIdentifierMapping, "err", err)
 				err = &util.ApiError{
-					InternalMessage: "cluster id failed to create in db",
-					UserMessage:     "cluster id failed to create in db",
+					InternalMessage: "external-link-identifier-mapping failed to create in db",
+					UserMessage:     "external-link-identifier-mapping failed to create in db",
 				}
 				return nil, err
 			}
@@ -133,20 +170,22 @@ func (impl ExternalLinkServiceImpl) GetAllActiveTools() ([]ExternalLinkMonitorin
 	var response []ExternalLinkMonitoringToolDto
 	for _, tool := range tools {
 		morningTool := ExternalLinkMonitoringToolDto{
-			Id:   tool.Id,
-			Name: tool.Name,
-			Icon: tool.Icon,
+			Id:       tool.Id,
+			Name:     tool.Name,
+			Icon:     tool.Icon,
+			Category: tool.Category,
 		}
 		response = append(response, morningTool)
 	}
 	return response, err
 }
 
+// will create separate functions to get all links and links for an identifier
 func (impl ExternalLinkServiceImpl) FetchAllActiveLinks(clusterId int) ([]*ExternalLinkDto, error) {
 	var err error
 	var mappedExternalLinksIds []int
 	externalLinksMap := make(map[int]int)
-	allActiveExternalLinkMapping, err := impl.externalLinkClusterMappingRepository.FindAllActive()
+	allActiveExternalLinkMapping, err := impl.externalLinkIdentifierMappingRepository.FindAllActive()
 	if err != nil && pg.ErrNoRows != err {
 		impl.logger.Errorw("error in fetch all links", "err", err)
 		return nil, err
