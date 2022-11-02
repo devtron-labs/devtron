@@ -701,6 +701,7 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	message := ""
 	podName := ""
 	logLocation := ""
+	impl.Logger.Infow("workflow status", "workflowStatus", workflowStatus)
 	for k, v := range workflowStatus.Nodes {
 		if v.TemplateName == CI_WORKFLOW_NAME {
 			impl.Logger.Infow("extractWorkflowStatus", "workflowName", k, "v", v)
@@ -717,16 +718,6 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 					logLocation = v.Outputs.Artifacts[0].S3.Key
 				} else if v.Outputs.Artifacts[0].GCS != nil {
 					logLocation = v.Outputs.Artifacts[0].GCS.Key
-				}
-			}
-			workflowSpec := workflowStatus.StoredWorkflowSpec
-			if workflowSpec != nil {
-				impl.Logger.Infow("workflow spec", "workflowSpec", workflowSpec)
-				workflowMetadata := workflowSpec.WorkflowMetadata
-				if workflowMetadata != nil {
-					labels := workflowMetadata.Labels
-					ciBuildType := labels["ciBuildType"]
-					impl.Logger.Infow("ci build type ", "ciBuildType", ciBuildType)
 				}
 			}
 			break
