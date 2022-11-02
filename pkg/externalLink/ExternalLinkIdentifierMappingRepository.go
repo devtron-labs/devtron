@@ -36,7 +36,7 @@ type ExternalLinkIdentifierMapping struct {
 
 type ExternalLinkIdentifierMappingRepository interface {
 	Save(externalLinksClusters *ExternalLinkIdentifierMapping, tx *pg.Tx) error
-	//FindAllActiveByClusterId(clusterId int) ([]ExternalLinkIdentifierMapping, error)
+	FindAllActiveByClusterId(clusterId int) ([]ExternalLinkIdentifierMapping, error)
 	FindAllActiveByLinkIdentifier(identifier *LinkIdentifier) ([]ExternalLinkIdentifierMapping, error)
 	FindAllActive() ([]ExternalLinkIdentifierMapping, error)
 	Update(link *ExternalLinkIdentifierMapping, tx *pg.Tx) error
@@ -60,7 +60,15 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) Update(link *ExternalLin
 	err := tx.Update(link)
 	return err
 }
-
+func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByClusterId(clusterId int) ([]ExternalLinkIdentifierMapping, error) {
+	var links []ExternalLinkIdentifierMapping
+	err := impl.dbConnection.Model(&links).
+		Column("external_link_identifier_mapping.*", "ExternalLink").
+		Where("external_link_identifier_mapping.active = ?", true).
+		Where("external_link_identifier_mapping.cluster_id = ?", clusterId).
+		Select()
+	return links, err
+}
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdentifier(linkIdentifier *LinkIdentifier) ([]ExternalLinkIdentifierMapping, error) {
 	var links []ExternalLinkIdentifierMapping
 	err := impl.dbConnection.Model(&links).
@@ -85,9 +93,9 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActive() ([]Exter
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByExternalLinkId(linkId int) ([]*ExternalLinkIdentifierMapping, error) {
 	var links []*ExternalLinkIdentifierMapping
 	err := impl.dbConnection.Model(&links).
-		Column("external_link_cluster_mapping.*").
-		Where("external_link_cluster_mapping.active = ?", true).
-		Where("external_link_cluster_mapping.external_link_id = ?", linkId).
+		Column("external_link_identifier_mapping.*").
+		Where("external_link_identifier_mapping.active = ?", true).
+		Where("external_link_identifier_mapping.external_link_id = ?", linkId).
 		Select()
 	return links, err
 }
@@ -95,8 +103,8 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByExternalL
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllByExternalLinkId(linkId int) ([]*ExternalLinkIdentifierMapping, error) {
 	var links []*ExternalLinkIdentifierMapping
 	err := impl.dbConnection.Model(&links).
-		Column("external_link_cluster_mapping.*").
-		Where("external_link_cluster_mapping.external_link_id = ?", linkId).
+		Column("external_link_identifier_mapping.*").
+		Where("external_link_identifier_mapping.external_link_id = ?", linkId).
 		Select()
 	return links, err
 }
