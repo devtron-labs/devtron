@@ -2,7 +2,6 @@ syntax = "proto3";
 
 import "google/protobuf/timestamp.proto";
 
-
 option go_package = "github.com/devtron-labs/kubelink/bean/grpc/client";
 
 message ClusterConfig {
@@ -109,6 +108,7 @@ message ResourceNode {
   bool isHibernated = 11;
   bool canBeHibernated = 12;
   repeated InfoItem info = 13;
+  string createdAt = 14;
 }
 
 message InfoItem {
