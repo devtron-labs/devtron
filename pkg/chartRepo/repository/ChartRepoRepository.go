@@ -26,28 +26,30 @@ import (
 )
 
 type Chart struct {
-	tableName               struct{}           `sql:"charts" pg:",discard_unknown_columns"`
-	Id                      int                `sql:"id,pk"`
-	AppId                   int                `sql:"app_id"`
-	ChartRepoId             int                `sql:"chart_repo_id"`
-	ChartName               string             `sql:"chart_name"` //use composite key as unique id
-	ChartVersion            string             `sql:"chart_version"`
-	ChartRepo               string             `sql:"chart_repo"`
-	ChartRepoUrl            string             `sql:"chart_repo_url"`
-	Values                  string             `sql:"values_yaml"`       //json format // used at for release. this should be always updated
-	GlobalOverride          string             `sql:"global_override"`   //json format    // global overrides visible to user only
-	ReleaseOverride         string             `sql:"release_override"`  //json format   //image descriptor template used for injecting tigger metadata injection
-	PipelineOverride        string             `sql:"pipeline_override"` //json format  // pipeline values -> strategy values
-	Status                  models.ChartStatus `sql:"status"`            //(new , deployment-in-progress, deployed-To-production, error )
-	Active                  bool               `sql:"active"`
-	GitRepoUrl              string             `sql:"git_repo_url"`   //git repository where chart is stored
-	ChartLocation           string             `sql:"chart_location"` //location within git repo where current chart is pointing
-	ReferenceTemplate       string             `sql:"reference_template"`
-	ImageDescriptorTemplate string             `sql:"image_descriptor_template"`
-	ChartRefId              int                `sql:"chart_ref_id"`
-	Latest                  bool               `sql:"latest,notnull"`
-	Previous                bool               `sql:"previous,notnull"`
-	ReferenceChart          []byte             `sql:"reference_chart"`
+	tableName               struct{}                    `sql:"charts" pg:",discard_unknown_columns"`
+	Id                      int                         `sql:"id,pk"`
+	AppId                   int                         `sql:"app_id"`
+	ChartRepoId             int                         `sql:"chart_repo_id"`
+	ChartName               string                      `sql:"chart_name"` //use composite key as unique id
+	ChartVersion            string                      `sql:"chart_version"`
+	ChartRepo               string                      `sql:"chart_repo"`
+	ChartRepoUrl            string                      `sql:"chart_repo_url"`
+	Values                  string                      `sql:"values_yaml"`       //json format // used at for release. this should be always updated
+	GlobalOverride          string                      `sql:"global_override"`   //json format    // global overrides visible to user only
+	ReleaseOverride         string                      `sql:"release_override"`  //json format   //image descriptor template used for injecting tigger metadata injection
+	PipelineOverride        string                      `sql:"pipeline_override"` //json format  // pipeline values -> strategy values
+	Status                  models.ChartStatus          `sql:"status"`            //(new , deployment-in-progress, deployed-To-production, error )
+	Active                  bool                        `sql:"active"`
+	GitRepoUrl              string                      `sql:"git_repo_url"`   //git repository where chart is stored
+	ChartLocation           string                      `sql:"chart_location"` //location within git repo where current chart is pointing
+	ReferenceTemplate       string                      `sql:"reference_template"`
+	ImageDescriptorTemplate string                      `sql:"image_descriptor_template"`
+	ChartRefId              int                         `sql:"chart_ref_id"`
+	Latest                  bool                        `sql:"latest,notnull"`
+	Previous                bool                        `sql:"previous,notnull"`
+	ReferenceChart          []byte                      `sql:"reference_chart"`
+	IsBasicViewLocked       bool                        `sql:"is_basic_view_locked,notnull"`
+	CurrentViewEditor       models.ChartsViewEditorType `sql:"current_view_editor"`
 	sql.AuditLog
 }
 
