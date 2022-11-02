@@ -1,0 +1,12 @@
+*.md
+docker-compose.yml
+.git
+.gitattributes
+.gitignore
+.gitbook.yaml
+LICENSE
+DCO
+docs
+developers-guide
+sample-docker-templates
+688
