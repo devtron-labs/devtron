@@ -146,7 +146,8 @@ type SessionMap struct {
 func (sm *SessionMap) Get(sessionId string) TerminalSession {
 	sm.Lock.RLock()
 	defer sm.Lock.RUnlock()
-	return sm.Sessions[sessionId]
+	session := sm.Sessions[sessionId]
+	return session
 }
 
 // Set store a TerminalSession to SessionMap
@@ -334,7 +335,9 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 type TerminalSessionHandler interface {
 	GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error)
 	Close(sessionId string, statusCode uint32, msg string)
+	ValidateSession(sessionId string) bool
 }
+
 type TerminalSessionHandlerImpl struct {
 	environmentService cluster.EnvironmentService
 	clusterService     cluster.ClusterService
@@ -352,6 +355,19 @@ func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService
 
 func (impl *TerminalSessionHandlerImpl) Close(sessionId string, statusCode uint32, msg string) {
 	terminalSessions.Close(sessionId, statusCode, msg)
+}
+
+func (impl *TerminalSessionHandlerImpl) ValidateSession(sessionId string) bool {
+	if sessionId == "" {
+		return false
+	}
+	terminalSession := terminalSessions.Get(sessionId)
+	sockJSSession := terminalSession.sockJSSession
+	if sockJSSession != nil {
+		sessionState := sockJSSession.GetSessionState()
+		return sessionState == sockjs.SessionActive
+	}
+	return false
 }
 
 func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error) {
