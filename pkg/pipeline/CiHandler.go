@@ -719,6 +719,16 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 					logLocation = v.Outputs.Artifacts[0].GCS.Key
 				}
 			}
+			workflowSpec := workflowStatus.StoredWorkflowSpec
+			if workflowSpec != nil {
+				impl.Logger.Infow("workflow spec", "workflowSpec", workflowSpec)
+				workflowMetadata := workflowSpec.WorkflowMetadata
+				if workflowMetadata != nil {
+					labels := workflowMetadata.Labels
+					ciBuildType := labels["ciBuildType"]
+					impl.Logger.Infow("ci build type ", "ciBuildType", ciBuildType)
+				}
+			}
 			break
 		}
 	}
