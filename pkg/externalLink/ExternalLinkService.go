@@ -391,8 +391,10 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 	}
 	return externalLinksCreateUpdateResponse, nil
 }
+
+//start from here
 func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalLinkApiResponse, error) {
-	impl.logger.Debugw("link delete request", "req", id)
+	impl.logger.Debugw("external link delete request", "external_link_id", id)
 	dbConnection := impl.externalLinkRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -401,7 +403,7 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalL
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	externalLinksClusterMapping, err := impl.externalLinkClusterMappingRepository.FindAllActiveByExternalLinkId(id)
+	externalLinksClusterMapping, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByExternalLinkId(id)
 	if err != nil {
 		return nil, err
 	}
@@ -409,9 +411,9 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalL
 		externalLink.Active = false
 		externalLink.UpdatedOn = time.Now()
 		externalLink.UpdatedBy = userId
-		err := impl.externalLinkClusterMappingRepository.Update(externalLink, tx)
+		err := impl.externalLinkIdentifierMappingRepository.Update(externalLink, tx)
 		if err != nil {
-			impl.logger.Errorw("error in deleting clusters to false", "data", externalLink, "err", err)
+			impl.logger.Errorw("error in deleting external_link_identifier mappings to false", "data", externalLink, "err", err)
 			return nil, err
 		}
 	}
@@ -425,7 +427,7 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalL
 	externalLink.UpdatedBy = userId
 	err = impl.externalLinkRepository.Update(&externalLink, tx)
 	if err != nil {
-		impl.logger.Errorw("error in update link", "data", externalLink, "err", err)
+		impl.logger.Errorw("error in update external link", "data", externalLink, "err", err)
 		return nil, err
 	}
 	err = tx.Commit()
