@@ -1316,14 +1316,17 @@ func (impl BulkUpdateServiceImpl) GetBulkActionImpactedPipelinesAndWfs(dto *CdBu
 				impl.logger.Errorw("error in getting wfs having cd pipelines from specific env only", "err", err)
 				return nil, nil, nil, err
 			}
-
+			impactedWfIdsMap := make(map[int]bool)
 			for _, appWf := range appWfs {
 				if appWf.Type == appWorkflow.CDPIPELINE {
 					impactedPipelineIds = append(impactedPipelineIds, appWf.ComponentId)
 				} else if appWf.Type == appWorkflow.CIPIPELINE {
 					impactedCiPipelineIds = append(impactedCiPipelineIds, appWf.ComponentId)
 				}
-				impactedWfIds = append(impactedWfIds, appWf.AppWorkflowId)
+				if _, ok := impactedWfIdsMap[appWf.AppWorkflowId]; !ok {
+					impactedWfIds = append(impactedWfIds, appWf.AppWorkflowId)
+					impactedWfIdsMap[appWf.AppWorkflowId] = true
+				}
 			}
 		}
 	}
