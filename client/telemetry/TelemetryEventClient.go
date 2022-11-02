@@ -125,6 +125,7 @@ type TelemetryEventEA struct {
 	InstallingIntegrations             []string           `json:"installingIntegrations,omitempty"`
 	DevtronReleaseVersion              string             `json:"devtronReleaseVersion,omitempty"`
 	HelmAppAccessCounter               string             `json:"HelmAppAccessCounter,omitempty"`
+	HelmAppUpdateCounter               string             `json:"HelmAppUpdateCounter,omitempty"`
 	ChartStoreVisitCount               string             `json:"ChartStoreVisitCount,omitempty"`
 	SkippedOnboarding                  bool               `json:"SkippedOnboarding"`
 	HelmChartSuccessfulDeploymentCount int                `json:"helmChartSuccessfulDeploymentCount,omitempty"`
@@ -303,7 +304,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.HelmAppAccessCounter = HelmAppAccessCount
 	payload.ChartStoreVisitCount = ChartStoreVisitCount
 	payload.SkippedOnboarding = SkippedOnboarding
-	payload.HelmAppAccessCounter = HelmAppUpdateCounter
+	payload.HelmAppUpdateCounter = HelmAppUpdateCounter
 	payload.HelmChartSuccessfulDeploymentCount = helmChartSuccessfulDeploymentCount
 	payload.ExternalHelmAppClusterCount = ExternalHelmAppClusterCount
 
