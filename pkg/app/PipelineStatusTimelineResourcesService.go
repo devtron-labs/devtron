@@ -46,36 +46,38 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdateCdPipelineTi
 	var timelineResourcesToBeSaved []*pipelineConfig.PipelineStatusTimelineResources
 	var timelineResourcesToBeUpdated []*pipelineConfig.PipelineStatusTimelineResources
 
-	for _, resource := range application.Status.OperationState.SyncResult.Resources {
-		if index, ok := oldTimelineResourceMap[resource.Name]; ok {
-			timelineResources[index].ResourceStatus = string(resource.HookPhase)
-			timelineResources[index].StatusMessage = resource.Message
-			timelineResources[index].UpdatedBy = userId
-			timelineResources[index].UpdatedOn = time.Now()
-			timelineResourcesToBeUpdated = append(timelineResourcesToBeUpdated, timelineResources[index])
-		} else {
-			newTimelineResource := &pipelineConfig.PipelineStatusTimelineResources{
-				CdWorkflowRunnerId: cdWfrId,
-				ResourceName:       resource.Name,
-				ResourceKind:       resource.Kind,
-				ResourceGroup:      resource.Group,
-				ResourceStatus:     string(resource.HookPhase),
-				StatusMessage:      resource.Message,
-				TimelineStage:      timelineStage,
-				AuditLog: sql.AuditLog{
-					CreatedBy: userId,
-					CreatedOn: time.Now(),
-					UpdatedBy: userId,
-					UpdatedOn: time.Now(),
-				},
-			}
-			if resource.HookType != "" {
-				newTimelineResource.ResourcePhase = string(resource.HookType)
+	if application != nil && application.Status.OperationState != nil && application.Status.OperationState.SyncResult != nil {
+		for _, resource := range application.Status.OperationState.SyncResult.Resources {
+			if index, ok := oldTimelineResourceMap[resource.Name]; ok {
+				timelineResources[index].ResourceStatus = string(resource.HookPhase)
+				timelineResources[index].StatusMessage = resource.Message
+				timelineResources[index].UpdatedBy = userId
+				timelineResources[index].UpdatedOn = time.Now()
+				timelineResourcesToBeUpdated = append(timelineResourcesToBeUpdated, timelineResources[index])
 			} else {
-				//since hookType for non-hook resources is empty and always come under sync phase, hardcoding it
-				newTimelineResource.ResourcePhase = string(common.HookTypeSync)
+				newTimelineResource := &pipelineConfig.PipelineStatusTimelineResources{
+					CdWorkflowRunnerId: cdWfrId,
+					ResourceName:       resource.Name,
+					ResourceKind:       resource.Kind,
+					ResourceGroup:      resource.Group,
+					ResourceStatus:     string(resource.HookPhase),
+					StatusMessage:      resource.Message,
+					TimelineStage:      timelineStage,
+					AuditLog: sql.AuditLog{
+						CreatedBy: userId,
+						CreatedOn: time.Now(),
+						UpdatedBy: userId,
+						UpdatedOn: time.Now(),
+					},
+				}
+				if resource.HookType != "" {
+					newTimelineResource.ResourcePhase = string(resource.HookType)
+				} else {
+					//since hookType for non-hook resources is empty and always come under sync phase, hardcoding it
+					newTimelineResource.ResourcePhase = string(common.HookTypeSync)
+				}
+				timelineResourcesToBeSaved = append(timelineResourcesToBeSaved, newTimelineResource)
 			}
-			timelineResourcesToBeSaved = append(timelineResourcesToBeSaved, newTimelineResource)
 		}
 	}
 	if len(timelineResourcesToBeSaved) > 0 {
