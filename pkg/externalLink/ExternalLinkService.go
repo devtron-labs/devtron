@@ -257,7 +257,6 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 	return externalLinkResponse, nil
 }
 
-//start from here
 func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole string) (*ExternalLinkApiResponse, error) {
 	impl.logger.Debugw("link update request", "req", request)
 	dbConnection := impl.externalLinkRepository.GetConnection()
@@ -392,7 +391,6 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 	return externalLinksCreateUpdateResponse, nil
 }
 
-//start from here
 func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalLinkApiResponse, error) {
 	impl.logger.Debugw("external link delete request", "external_link_id", id)
 	dbConnection := impl.externalLinkRepository.GetConnection()
