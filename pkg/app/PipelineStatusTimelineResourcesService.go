@@ -12,6 +12,7 @@ import (
 
 type PipelineStatusTimelineResourcesService interface {
 	SaveOrUpdateCdPipelineTimelineResources(cdWfrId int, application *v1alpha1.Application, timelineStage pipelineConfig.ResourceTimelineStage, tx *pg.Tx, userId int32) error
+	GetTimelineResourcesForATimeline(cdWfrId int, timelineStage pipelineConfig.ResourceTimelineStage) ([]*SyncStageResourceDetailDto, error)
 }
 
 type PipelineStatusTimelineResourcesServiceImpl struct {
@@ -27,6 +28,19 @@ func NewPipelineStatusTimelineResourcesServiceImpl(dbConnection *pg.DB, logger *
 		logger:       logger,
 		pipelineStatusTimelineResourcesRepository: pipelineStatusTimelineResourcesRepository,
 	}
+}
+
+type SyncStageResourceDetailDto struct {
+	Id                           int                                  `json:"id"`
+	InstalledAppVersionHistoryId int                                  `json:"installedAppVersionHistoryId,omitempty"`
+	CdWorkflowRunnerId           int                                  `json:"cdWorkflowRunnerId,omitempty"`
+	ResourceName                 string                               `json:"resourceName"`
+	ResourceKind                 string                               `json:"resourceKind"`
+	ResourceGroup                string                               `json:"resourceGroup"`
+	ResourceStatus               string                               `json:"resourceStatus"`
+	ResourcePhase                string                               `json:"resourcePhase"`
+	StatusMessage                string                               `json:"statusMessage"`
+	TimelineStage                pipelineConfig.ResourceTimelineStage `json:"timelineStage"`
 }
 
 func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdateCdPipelineTimelineResources(cdWfrId int, application *v1alpha1.Application, timelineStage pipelineConfig.ResourceTimelineStage, tx *pg.Tx, userId int32) error {
@@ -111,4 +125,28 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdateCdPipelineTi
 		}
 	}
 	return nil
+}
+
+func (impl *PipelineStatusTimelineResourcesServiceImpl) GetTimelineResourcesForATimeline(cdWfrId int, timelineStage pipelineConfig.ResourceTimelineStage) ([]*SyncStageResourceDetailDto, error) {
+	timelineResources, err := impl.pipelineStatusTimelineResourcesRepository.GetByCdWfrIdAndTimelineStage(cdWfrId, timelineStage)
+	if err != nil {
+		impl.logger.Errorw("error in getting timeline resources", "err", err, "cdWfrId", cdWfrId, "timelineStage", timelineStage)
+		return nil, err
+	}
+	var timelineResourcesDtos []*SyncStageResourceDetailDto
+	for _, timelineResource := range timelineResources {
+		dto := &SyncStageResourceDetailDto{
+			Id:                 timelineResource.Id,
+			CdWorkflowRunnerId: timelineResource.CdWorkflowRunnerId,
+			ResourceKind:       timelineResource.ResourceKind,
+			ResourceName:       timelineResource.ResourceName,
+			ResourceGroup:      timelineResource.ResourceGroup,
+			ResourceStatus:     timelineResource.ResourceStatus,
+			ResourcePhase:      timelineResource.ResourcePhase,
+			StatusMessage:      timelineResource.StatusMessage,
+			TimelineStage:      timelineResource.TimelineStage,
+		}
+		timelineResourcesDtos = append(timelineResourcesDtos, dto)
+	}
+	return timelineResourcesDtos, nil
 }
