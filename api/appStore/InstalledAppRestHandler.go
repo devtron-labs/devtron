@@ -336,6 +336,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	}
 	//rback block ends here
 
+	// saving no of time app is saved
 	err = handler.installedAppService.SaveExternalHelmAppTelemetry()
 
 	if err != nil {
