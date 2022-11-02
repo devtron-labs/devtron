@@ -69,11 +69,11 @@ With the option **Build without Dockerfile**, you can use buildpacks to automate
 
 | Field | Description |
 | --- | --- |
-| **Select repository containing code** | Select the Git checkout path of your repository. This repository is the same which you defined on the [Git Repository](https://docs.devtron.ai/usage/applications/creating-application/git-material) section.|
-| **Project Path (Relative)** | In case of monorepo, specify the path of the GIT Repo for the deployment of the project.|
-| **Language** | Select the programming language (e.g., `Java`, `Go`, `Python`, `Node` etc.) from the drop-down list you want to cbuild your container image as per the compatibility to your system.<br> **Note**: We will be adding other programming languages in the future releases.</br>|
-| **Version** | Select the version of the selected programming language. You can also select **Autodetect** to auto-select the compatible version.|
-| **Select a builder** | Select a builder to create your own buildpacks for the deployment of your application. <ul><li>**Heroku**: It compiles your deployed code and creates a slug, which is a compressed and pre-packaged copy of your app and also the runtime which is optimized for distribution to the dyno (Linux containers) manager. [Learn more](https://devcenter.heroku.com/articles/buildpacks).</li></ul><ul><li>**GCR**: GCR builder is a general purpose builder that creates container images designed to run on most platforms (e.g. Kubernetes / Anthos, Knative / Cloud Run, Container OS, etc.). It auto-detects the language of your source code, and can also build functions compatible with the Google Cloud Function Framework. [Learn more](https://github.com/GoogleCloudPlatform/buildpacks).</li></ul><ul><li>**Paketo**: Paketo buildpacks provide production-ready buildpacks for the most popular languages and frameworks to easily build your apps. Based on your application needs, you can select from `Full`, `Base` and `Tiny`. [Learn more](https://paketo.io/docs/).</li></ul>|
+| **Select repository containing code** | Select your code repository. This repository is the same which you defined on the [Git Repository](https://docs.devtron.ai/usage/applications/creating-application/git-material) section.|
+| **Project Path (Relative)** | In case of monorepo, specify the path of the project from your Git repository.|
+| **Language** | Select the programming language (e.g., `Java`, `Go`, `Python`, `Node`, `Ruby`, `PHP` etc.) from the drop-down list you want to build your container image as per the compatibility to your system.<br> **Note**: We will be adding other programming languages in the future releases.</br>|
+| **Version** | Select a language version from the drop-down list. If you do not find the version you need, then you can update the language version in `Build Env Arguments`. You can also select **Autodetect** in case if you want `Builder` to detect version by itself or its default version.|
+| **Select a builder** | A builder is an image that contains a set of buildpacks which provide your app's dependencies, a stack, and the OS layer for your app image. Select a buildpack provider from the following options:<ul><li>**Heroku**: It compiles your deployed code and creates a slug, which is a compressed and pre-packaged copy of your app and also the runtime which is optimized for distribution to the dyno (Linux containers) manager. [Learn more](https://devcenter.heroku.com/articles/buildpacks).</li></ul><ul><li>**GCR**: GCR builder is a general purpose builder that creates container images designed to run on most platforms (e.g. Kubernetes / Anthos, Knative / Cloud Run, Container OS, etc.). It auto-detects the language of your source code, and can also build functions compatible with the Google Cloud Function Framework. [Learn more](https://github.com/GoogleCloudPlatform/buildpacks).</li></ul><ul><li>**Paketo**: Paketo buildpacks provide production-ready buildpacks for the most popular languages and frameworks to easily build your apps. Based on your application needs, you can select from `Full`, `Base` and `Tiny`. [Learn more](https://paketo.io/docs/).</li></ul>|
 
 
 #### Build Env Arguments
@@ -82,8 +82,8 @@ You can add Key/Value pair by clicking **Add argument**.
 
 | Field | Description |
 | --- | --- |
-| **Key** | Define the key parameter for your [docker build](https://docs.docker.com/engine/reference/commandline/build/#options).|
-| **Value** | Define the value for the specified key for your [docker build](https://docs.docker.com/engine/reference/commandline/build/#options). |
+| **Key** | Define the key parameter as per your selected language and builder. E.g., By default `GOOGLE_RUNTIME_VERSION` for GCR buildpack.<br>**Note**: If you want to define `env arguments` for `PHP` and `Ruby` languages after selecting `Heroku` builder, please make sure to refer respective [Heroku Ruby Support](https://devcenter.heroku.com/articles/ruby-support) and [Heroku PHP Support](https://devcenter.heroku.com/articles/php-support) documentation for runtime information.</br>|
+| **Value** | Define the value for the specified key. E.g. Version no. |
    
 
 **Note** This fields are optional. If required, it can be overridden at [CI step](../deploying-application/triggering-ci.md).
