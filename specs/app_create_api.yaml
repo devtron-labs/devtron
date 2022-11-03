@@ -40,8 +40,43 @@ paths:
                 $ref: '#/components/schemas/Error'
   /orchestrator/core/v1beta1/application/workflow/{appId}:
     get:
-      description: Get all details of an app by appId. These details include - metadata(appName, projectNamr, labels), gitMaterials, docker config, templates, workflows, configMaps, secrets, environment override configurations.
+      description: fetch all the workflows and env overrides for an app.
       operationId: GetAppWorkflowsAndOverrides
+      parameters:
+        - name: appId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Successfully return all details of the app.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AppWorkflowDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/core/v1beta1/application/workflow/{appId}/sample:
+    get:
+      description:  get sample workflow and env overrides config of any app id for creating new workflow.
+      operationId: GetAppWorkflowsAndOverridesSample
       parameters:
         - name: appId
           in: path
