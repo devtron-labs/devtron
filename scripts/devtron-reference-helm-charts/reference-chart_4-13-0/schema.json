@@ -347,7 +347,13 @@
             "items": {},
             "description": "contains the commands",
             "title": "Value"
-          }
+          },
+          "workingDir": {
+            "type": "object",
+            "items": {},
+            "description": "contains the working directory",
+            "title": "Working directory"
+          }                    
         }
       },
       "containerSecurityContext": {
