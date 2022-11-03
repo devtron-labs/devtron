@@ -660,6 +660,8 @@ components:
       properties:
         appId:
           type: integer
+        appName:
+          type: string
         workflows:
           type: array
           items:

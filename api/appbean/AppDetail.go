@@ -18,6 +18,7 @@ type AppDetail struct {
 
 type AppWorkflowCloneDto struct {
 	AppId                int                             `json:"appId"`
+	AppName              string                          `json:"appName"`
 	AppWorkflows         []*AppWorkflow                  `json:"workflows"`
 	EnvironmentOverrides map[string]*EnvironmentOverride `json:"environmentOverride"`
 }
