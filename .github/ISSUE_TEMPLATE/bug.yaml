@@ -44,7 +44,7 @@ body:
     attributes:
       label: "💻 Kubernetes version"
       description: "What is your Kubernetes service and version?"
-      placeholder: EKS 1.23, KOps 1.22, AKS 1.21 etc.
+      placeholder: "EKS 1.23, KOps 1.22, AKS 1.21 etc."
     validations:
       required: true
   - type: dropdown
