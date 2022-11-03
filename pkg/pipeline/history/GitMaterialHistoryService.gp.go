@@ -34,7 +34,7 @@ func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(inputMaterial *p
 		AppId:           inputMaterial.AppId,
 		Name:            inputMaterial.Name,
 		GitProviderId:   inputMaterial.GitProviderId,
-		Active:          true,
+		Active:          inputMaterial.Active,
 		CheckoutPath:    inputMaterial.CheckoutPath,
 		FetchSubmodules: inputMaterial.FetchSubmodules,
 		AuditLog:        sql.AuditLog{UpdatedBy: inputMaterial.UpdatedBy, CreatedBy: inputMaterial.CreatedBy, UpdatedOn: inputMaterial.UpdatedOn, CreatedOn: inputMaterial.CreatedOn},
