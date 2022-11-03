@@ -289,8 +289,8 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig) (commitHash str
 
 	//extracting the latest commit hash from the paginated api response of above method, reference of api & response - https://developer.atlassian.com/bitbucket/api/2/reference/resource/repositories/%7Bworkspace%7D/%7Brepo_slug%7D/commits
 	commitHash = commits.(map[string]interface{})["values"].([]interface{})[0].(map[string]interface{})["hash"].(string)
-	commitTimeString := commits.(map[string]interface{})["values"].([]interface{})[0].(map[string]string)["date"]
-	commitTime, err = time.Parse(BITBUCKET_COMMIT_TIME_LAYOUT, commitTimeString)
+	commitTimeString := commits.(map[string]interface{})["values"].([]interface{})[0].(map[string]interface{})["date"].(string)
+	commitTime, err = time.Parse(time.RFC3339, commitTimeString)
 	if err != nil {
 		impl.logger.Errorw("error in getting commitTime", "err", err)
 		return "", time.Time{}, err
@@ -328,7 +328,7 @@ func (impl GitBitbucketClient) GetCommits(repoName, projectName string) ([]*GitC
 	for _, gitCommit := range gitCommits {
 
 		commitHash := gitCommit.(map[string]string)["hash"]
-		commitTime, err := time.Parse(BITBUCKET_COMMIT_TIME_LAYOUT, gitCommit.(map[string]string)["date"])
+		commitTime, err := time.Parse(time.RFC3339, gitCommit.(map[string]interface{})["date"].(string))
 		if err != nil {
 			impl.logger.Errorw("error in getting commitTime", "err", err, "gitCommit", gitCommit)
 			return nil, err
