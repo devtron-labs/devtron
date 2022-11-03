@@ -148,6 +148,8 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
+	err = impl.updateCiWorkflow(workflowRequest, savedCiWf)
+
 	appLabels, err := impl.appCrudOperationService.GetLabelsByAppId(pipeline.AppId)
 	if err != nil {
 		return 0, err
@@ -625,6 +627,13 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 	dockerImageTag = strings.ReplaceAll(dockerImageTag, "/", "_")
 
 	return dockerImageTag
+}
+
+func (impl *CiServiceImpl) updateCiWorkflow(request *WorkflowRequest, savedWf *pipelineConfig.CiWorkflow) error {
+	ciBuildConfig := request.CiBuildConfig
+	ciBuildType := string(ciBuildConfig.CiBuildType)
+	savedWf.CiBuildType = ciBuildType
+	return impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 }
 
 func _getTruncatedImageTag(imageTag string) string {

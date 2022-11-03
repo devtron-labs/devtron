@@ -28,3 +28,6 @@ ALTER TABLE ci_template_override
 
 ALTER TABLE ONLY public.ci_template_override
     ADD CONSTRAINT IF NOT EXISTS ci_template_override_ci_build_config_id_fkey FOREIGN KEY (ci_build_config_id) REFERENCES public.ci_build_config(id);
+
+ALTER TABLE ci_workflow
+    ADD COLUMN IF NOT EXISTS ci_build_type varchar(100);

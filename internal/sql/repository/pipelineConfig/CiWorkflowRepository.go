@@ -62,6 +62,7 @@ type CiWorkflow struct {
 	TriggeredBy        int32             `sql:"triggered_by"`
 	CiArtifactLocation string            `sql:"ci_artifact_location"`
 	PodName            string            `sql:"pod_name"`
+	CiBuildType        string            `sql:"ci_build_type"`
 	CiPipeline         *CiPipeline
 }
 
