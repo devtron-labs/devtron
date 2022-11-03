@@ -57,8 +57,8 @@ import (
 )
 
 const (
-	APP_DELETE_FAILED_RESP     = "App deletion failed, please try deleting from Devtron UI"
-	APP_CREATE_SUCCESSFUL_RESP = "App created successfully."
+	APP_DELETE_FAILED_RESP              = "App deletion failed, please try deleting from Devtron UI"
+	APP_CREATE_SUCCESSFUL_RESP          = "App created successfully."
 	APP_WORKFLOW_CREATE_SUCCESSFUL_RESP = "App workflow created successfully."
 )
 
@@ -2017,7 +2017,7 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	createAppRequest.AppId = app.AppId
 	object := fmt.Sprintf("%s/%s", app.ProjectName, app.AppName)
 	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
@@ -2092,9 +2092,9 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 
 	//build full object for response
 	appDetail := &appBean.AppWorkflowCloneDto{
-		AppId:                 appId,
-		AppWorkflows:             appWorkflows,
-		EnvironmentOverrides:     environmentOverrides,
+		AppId:                appId,
+		AppWorkflows:         appWorkflows,
+		EnvironmentOverrides: environmentOverrides,
 	}
 	//end
 
