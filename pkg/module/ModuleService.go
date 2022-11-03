@@ -142,21 +142,28 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 		return ModuleStatusNotInstalled, err
 	}
 	releaseValues := releaseInfo.MergedValues
-	isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
-	if isEnabled {
-		return impl.saveModuleAsInstalled(moduleName)
-	}
 
-	// check if cicd is in installing state
-	// if devtron is installed with cicd module, then cicd module should be shown as installing
-	if moduleName == ModuleNameCicd && util2.IsBaseStack() {
+	// if check non-cicd module status
+	if moduleName != ModuleNameCicd {
+		isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
+		if isEnabled {
+			return impl.saveModuleAsInstalled(moduleName)
+		}
+	} else if util2.IsBaseStack() {
+		// check if cicd is in installing state
+		// if devtron is installed with cicd module, then cicd module should be shown as installing
 		installerModulesIface := gjson.Get(releaseValues, INSTALLER_MODULES_HELM_KEY).Value()
-		if installerModulesIface != nil && reflect.TypeOf(installerModulesIface).Kind() == reflect.Slice {
-			installerModules := installerModulesIface.([]interface{})
-			for _, installerModule := range installerModules {
-				if installerModule == moduleName {
-					return impl.saveModule(moduleName, ModuleStatusInstalling)
+		if installerModulesIface != nil {
+			installerModulesIfaceKind := reflect.TypeOf(installerModulesIface).Kind()
+			if installerModulesIfaceKind == reflect.Slice {
+				installerModules := installerModulesIface.([]interface{})
+				for _, installerModule := range installerModules {
+					if installerModule == moduleName {
+						return impl.saveModule(moduleName, ModuleStatusInstalling)
+					}
 				}
+			} else {
+				impl.logger.Warnw("Invalid installerModulesIfaceKind expected slice", "installerModulesIfaceKind", installerModulesIfaceKind, "val", installerModulesIface)
 			}
 		}
 	}
