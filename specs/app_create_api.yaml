@@ -152,7 +152,7 @@ components:
       type: object
       properties:
         metadata:
-          $ref : '#/components/schemas/AppMetadata'
+          $ref: '#/components/schemas/AppMetadata'
         gitMaterials:
           type: array
           items:
@@ -187,7 +187,7 @@ components:
         appMetadata:
           appName: example-app-2
           projectName: devtron-demo
-          labels: ["key1":"value1", "key2":"value2"]
+          labels: [ "key1": "value1", "key2": "value2" ]
         gitMaterials:
           - gitProviderUrl: "https://github.com"
             gitRepoUrl: "https://github.com/user1/example-repo"
@@ -203,7 +203,7 @@ components:
           dockerBuildConfig:
             gitCheckoutPath: "./a"
             dockerfileRelativePath: "Dockerfile"
-            args: ["File":"*"]
+            args: [ "File": "*" ]
         globalDeploymentTemplate:
           chartRefId: 13
           showAppMetrics: true
@@ -217,11 +217,11 @@ components:
               servicePort: 80
               supportStreaming: true
               useHTTP2: true
-            EnvVariables: []
+            EnvVariables: [ ]
             GracePeriod: 30
             LivenessProbe:
               Path: ""
-              command: []
+              command: [ ]
               failureThreshold: 3
               httpHeader:
                 name: ""
@@ -247,7 +247,7 @@ components:
                 - type: "SOURCE_TYPE_BRANCH_FIXED"
                   value: "main"
                   checkoutPath: "./a"
-              dockerBuildArgs: ["File":"*"]
+              dockerBuildArgs: [ "File": "*" ]
             cdPipelines:
               - name: "cd-pipeline-1"
                 environmentName: "devtron-demo"
@@ -281,11 +281,11 @@ components:
                   triggerType: "AUTO"
                   config: "version: 0.0.1\ncdPipelineConf:\n- afterStages:\n- name: test-1\n script: |\n date > test.report\necho 'hello'\noutputLocation: ./test.report\n - name: test-2\nscript: |\n date > test2.report\n outputLocation: ./test2.report;"
                 preStageConfigMapSecretNames:
-                  - configMaps: ["cm-1"]
-                  - secrets: ["secret-env-1"]
+                  - configMaps: [ "cm-1" ]
+                  - secrets: [ "secret-env-1" ]
                 postStageConfigMapSecretNames:
-                  - configMaps: ["cm-env-1"]
-                  - secrets: ["secret-1"]
+                  - configMaps: [ "cm-env-1" ]
+                  - secrets: [ "secret-1" ]
                 runPreStageInEnv: true
                 runPostStageInEnv: true
                 isClusterCdActive: true
@@ -293,7 +293,7 @@ components:
           - name: "cm-1"
             isExternal: false
             usageType: "volume"
-            data: ["abc":"xyz"]
+            data: [ "abc": "xyz" ]
             dataVolumeUsageConfig:
               mountPath: "/cm"
               filePermission: "600"
@@ -302,7 +302,7 @@ components:
           - name: "secret-1"
             isExternal: false
             usageType: "environment"
-            data: ["user1":"password1"]
+            data: [ "user1": "password1" ]
         environmentOverrides:
           - name: "devtron-demo"
             values:
@@ -319,11 +319,11 @@ components:
                     servicePort: 80
                     supportStreaming: true
                     useHTTP2: true
-                  EnvVariables: []
+                  EnvVariables: [ ]
                   GracePeriod: 35
                   LivenessProbe:
                     Path: ""
-                    command: []
+                    command: [ ]
                     failureThreshold: 4
                     httpHeader:
                       name: ""
@@ -339,12 +339,12 @@ components:
                 - name: "cm-env-1"
                   isExternal: false
                   usageType: "environment"
-                  data: ["userName":"new-user"]
+                  data: [ "userName": "new-user" ]
               secrets:
                 - name: "secret-env-1"
                   isExternal: false
                   usageType: "volume"
-                  data: ["new-user":"devtron123"]
+                  data: [ "new-user": "devtron123" ]
                   dataVolumeUsageConfig:
                     mountPath: "/secret"
                     filePermission: "400"
@@ -660,6 +660,8 @@ components:
       properties:
         appId:
           type: integer
+        appName:
+          type: string
         workflows:
           type: array
           items:

@@ -57,8 +57,9 @@ import (
 )
 
 const (
-	APP_DELETE_FAILED_RESP     = "App deletion failed, please try deleting from Devtron UI"
-	APP_CREATE_SUCCESSFUL_RESP = "App created successfully."
+	APP_DELETE_FAILED_RESP              = "App deletion failed, please try deleting from Devtron UI"
+	APP_CREATE_SUCCESSFUL_RESP          = "App created successfully."
+	APP_WORKFLOW_CREATE_SUCCESSFUL_RESP = "App workflow created successfully."
 )
 
 type CoreAppRestHandler interface {
@@ -66,6 +67,7 @@ type CoreAppRestHandler interface {
 	CreateApp(w http.ResponseWriter, r *http.Request)
 	CreateAppWorkflow(w http.ResponseWriter, r *http.Request)
 	GetAppWorkflow(w http.ResponseWriter, r *http.Request)
+	GetAppWorkflowAndOverridesSample(w http.ResponseWriter, r *http.Request)
 }
 
 type CoreAppRestHandlerImpl struct {
@@ -2009,8 +2011,14 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	app, err := handler.appCrudOperationService.GetAppMetaInfoByAppName(createAppRequest.AppName)
+	if err != nil {
+		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppAllDetail", "err", err, "appName", createAppRequest.AppName)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
-	object := handler.enforcerUtil.GetAppRBACNameByAppId(createAppRequest.AppId)
+	object := fmt.Sprintf("%s/%s", app.ProjectName, app.AppName)
 	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
@@ -2018,19 +2026,17 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 	}
 	//rbac ends
 
-	handler.logger.Infow("creating app v2", "createAppRequest", createAppRequest)
+	handler.logger.Infow("creating app workflow created ", "createAppRequest", createAppRequest)
 	var errResp *multierror.Error
 	var statusCode int
 
-	app, err := handler.pipelineBuilder.GetApp(createAppRequest.AppId)
-	if err != nil {
-		common.WriteJsonResp(w, errResp, nil, statusCode)
-		return
-	}
-	appName := app.AppName
 	//creating workflow starts
 	if createAppRequest.AppWorkflows != nil {
-		err, statusCode = handler.createWorkflows(ctx, createAppRequest.AppId, userId, createAppRequest.AppWorkflows, token, appName)
+		if len(createAppRequest.AppWorkflows) != 1 {
+			common.WriteJsonResp(w, err, "please provide only one workflow at one time", http.StatusBadRequest)
+			return
+		}
+		err, statusCode = handler.createWorkflows(ctx, createAppRequest.AppId, userId, createAppRequest.AppWorkflows, token, app.AppName)
 		if err != nil {
 			common.WriteJsonResp(w, errResp, nil, statusCode)
 			return
@@ -2039,7 +2045,7 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 	//creating workflow ends
 
 	//creating environment override starts
-	if createAppRequest.EnvironmentOverrides != nil {
+	if createAppRequest.EnvironmentOverrides != nil && len(createAppRequest.EnvironmentOverrides) > 0 {
 		err, statusCode = handler.createEnvOverrides(ctx, createAppRequest.AppId, userId, createAppRequest.EnvironmentOverrides, token)
 		if err != nil {
 			common.WriteJsonResp(w, errResp, nil, statusCode)
@@ -2048,7 +2054,7 @@ func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r
 	}
 	//creating environment override ends
 
-	common.WriteJsonResp(w, nil, APP_CREATE_SUCCESSFUL_RESP, http.StatusOK)
+	common.WriteJsonResp(w, nil, APP_WORKFLOW_CREATE_SUCCESSFUL_RESP, http.StatusOK)
 }
 
 func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *http.Request) {
@@ -2086,10 +2092,73 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 
 	//build full object for response
 	appDetail := &appBean.AppWorkflowCloneDto{
-		AppId:                 appId,
-		AppWorkflows:             appWorkflows,
-		EnvironmentOverrides:     environmentOverrides,
+		AppId:                appId,
+		AppWorkflows:         appWorkflows,
+		EnvironmentOverrides: environmentOverrides,
 	}
+	//end
+
+	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
+}
+
+func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, GetAppWorkflow", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	app, err := handler.appCrudOperationService.GetAppMetaInfo(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppAllDetail", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	//get/build app workflows starts
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	//get/build app workflows ends
+
+	//get/build environment override starts
+	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(appId, token)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	//get/build environment override ends
+
+	//build full object for response
+	appDetail := &appBean.AppWorkflowCloneDto{
+		AppId:   appId,
+		AppName: app.AppName,
+	}
+	if appWorkflows != nil && len(appWorkflows) > 0 {
+		aw := make([]*appBean.AppWorkflow, 0)
+		aw = append(aw, appWorkflows[0])
+		appDetail.AppWorkflows = aw
+	}
+
+	if environmentOverrides != nil && len(environmentOverrides) > 0 {
+		eo := make(map[string]*appBean.EnvironmentOverride)
+		for k, v := range environmentOverrides {
+			eo[k] = v
+			break
+		}
+		appDetail.EnvironmentOverrides = eo
+	}
+
 	//end
 
 	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
