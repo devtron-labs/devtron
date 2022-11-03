@@ -144,6 +144,12 @@ type TelemetryEventDto struct {
 	SelfDockerfileCount                  int                `json:"selfDockerfileCount"`
 	ManagedDockerfileCount               int                `json:"managedDockerfileCount"`
 	BuildPackCount                       int                `json:"buildPackCount"`
+	SelfDockerfileSuccessCount           int                `json:"selfDockerfileSuccessCount"`
+	SelfDockerfileFailureCount           int                `json:"selfDockerfileFailureCount"`
+	ManagedDockerfileSuccessCount        int                `json:"managedDockerfileSuccessCount"`
+	ManagedDockerfileFailureCount        int                `json:"managedDockerfileFailureCount"`
+	BuildPackSuccessCount                int                `json:"buildPackSuccessCount"`
+	BuildPackFailureCount                int                `json:"buildPackFailureCount"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -267,6 +273,8 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 
 	selfDockerfileCount, managedDockerfileCount, buildpackCount := impl.getCiBuildTypeData()
 
+	successCount, failureCount := impl.getCiBuildTypeVsStatusVsCount()
+
 	devtronVersion := util.GetDevtronVersion()
 	payload.ProdAppCount = prodApps
 	payload.NonProdAppCount = nonProdApps
@@ -299,9 +307,18 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		}
 		payload.LastLoginTime = loginTime
 	}
+
 	payload.SelfDockerfileCount = selfDockerfileCount
+	payload.SelfDockerfileSuccessCount = successCount[bean.SELF_DOCKERFILE_BUILD_TYPE]
+	payload.SelfDockerfileFailureCount = failureCount[bean.SELF_DOCKERFILE_BUILD_TYPE]
+
 	payload.ManagedDockerfileCount = managedDockerfileCount
+	payload.ManagedDockerfileSuccessCount = successCount[bean.MANAGED_DOCKERFILE_BUILD_TYPE]
+	payload.ManagedDockerfileFailureCount = failureCount[bean.MANAGED_DOCKERFILE_BUILD_TYPE]
+
 	payload.BuildPackCount = buildpackCount
+	payload.BuildPackSuccessCount = successCount[bean.BUILDPACK_BUILD_TYPE]
+	payload.BuildPackFailureCount = failureCount[bean.BUILDPACK_BUILD_TYPE]
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -326,4 +343,24 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 func (impl *TelemetryEventClientImplExtended) getCiBuildTypeData() (int, int, int) {
 	countByBuildType := impl.ciBuildConfigService.GetCountByBuildType()
 	return countByBuildType[bean.SELF_DOCKERFILE_BUILD_TYPE], countByBuildType[bean.MANAGED_DOCKERFILE_BUILD_TYPE], countByBuildType[bean.BUILDPACK_BUILD_TYPE]
+}
+
+func (impl *TelemetryEventClientImplExtended) getCiBuildTypeVsStatusVsCount() (successCount map[bean.CiBuildType]int, failureCount map[bean.CiBuildType]int) {
+	successCount = make(map[bean.CiBuildType]int)
+	failureCount = make(map[bean.CiBuildType]int)
+	buildTypeAndStatusVsCount := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
+	for _, buildTypeCount := range buildTypeAndStatusVsCount {
+		if buildTypeCount == nil {
+			continue
+		}
+		if buildTypeCount.Type == "" {
+			buildTypeCount.Type = string(bean.SELF_DOCKERFILE_BUILD_TYPE)
+		}
+		if buildTypeCount.Status == "Succeeded" {
+			successCount[bean.CiBuildType(buildTypeCount.Type)] = buildTypeCount.Count
+		} else {
+			failureCount[bean.CiBuildType(buildTypeCount.Type)] = buildTypeCount.Count
+		}
+	}
+	return successCount, failureCount
 }
