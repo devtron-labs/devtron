@@ -264,6 +264,32 @@
           }
         }
       },
+      "hostAliases":{
+        "type": "array",
+        "title": "hostAliases",
+        "description": "HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the pod's hosts file",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "ip":{
+                "type": "string",
+                "title": "IP",
+                "description": "IP address of the host file entry"
+              },
+              "hostnames":{
+                "type": "array",
+                "description": "Hostnames for the above IP address",
+                "items": [
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },            
       "autoscaling": {
         "type": "object",
         "description": "connected to HPA and controls scaling up and down in response to request load",
