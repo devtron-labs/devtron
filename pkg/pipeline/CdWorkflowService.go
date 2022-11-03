@@ -104,6 +104,7 @@ type CdWorkflowRequest struct {
 	DefaultAddressPoolSize     int                               `json:"defaultAddressPoolSize"`
 	DeploymentTriggeredBy      string                            `json:"deploymentTriggeredBy,omitempty"`
 	DeploymentTriggerTime      time.Time                         `json:"deploymentTriggerTime,omitempty"`
+	DeploymentReleaseCounter   int                               `json:"deploymentReleaseCounter,omitempty"`
 }
 
 const PRE = "PRE"
