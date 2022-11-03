@@ -13,7 +13,7 @@ type TerminalAccessRepository interface {
 	FetchAllTemplates() ([]*models.TerminalAccessTemplates, error)
 	GetUserTerminalAccessData(id int) (*models.UserTerminalAccessData, error)
 	GetUserTerminalAccessDataByUser(userId int32) ([]*models.UserTerminalAccessData, error)
-	GetAllUserTerminalAccessData() ([]*models.UserTerminalAccessData, error)
+	GetAllRunningUserTerminalData() ([]*models.UserTerminalAccessData, error)
 	SaveUserTerminalAccessData(data *models.UserTerminalAccessData) error
 	UpdateUserTerminalAccessData(data *models.UserTerminalAccessData) error
 	UpdateUserTerminalStatus(id int, status string) error
@@ -41,7 +41,7 @@ func (impl TerminalAccessRepositoryImpl) FetchTerminalAccessTemplate(templateNam
 		template = &models.TerminalAccessTemplates{
 			TemplateName:     models.TerminalAccessPodTemplateName,
 			TemplateKindData: "{\"group\":\"\", \"version\":\"v1\", \"kind\":\"Pod\"}",
-			TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"terminal-access-service-account\",\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}",
+			TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"terminal-access-service-account\",\"nodeSelector\":{\"kubernetes.io/hostname\":\"${node_name}\"},\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}",
 		}
 	}
 	err = nil //TODO remove this
@@ -65,17 +65,17 @@ func (impl TerminalAccessRepositoryImpl) FetchAllTemplates() ([]*models.Terminal
 	templates = append(templates, &models.TerminalAccessTemplates{
 		TemplateName:     models.TerminalAccessServiceAccountTemplateName,
 		TemplateKindData: "{\"version\":\"v1\", \"kind\":\"ServiceAccount\"}",
-		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"name\":\"terminal-access-service-account\",\"namespace\":\"default\"}}",
+		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"name\":\"terminal-access-service-account\",\"namespace\":\"${default_namespace}\"}}",
 	})
 	templates = append(templates, &models.TerminalAccessTemplates{
 		TemplateName:     models.TerminalAccessRoleBindingTemplateName,
 		TemplateKindData: "{\"group\":\"rbac.authorization.k8s.io\",\"version\":\"v1\",\"kind\":\"ClusterRoleBinding\"}",
-		TemplateData:     "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"terminal-access-role-binding\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"terminal-access-service-account\",\"namespace\":\"default\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}",
+		TemplateData:     "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"terminal-access-role-binding\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"terminal-access-service-account\",\"namespace\":\"${default_namespace}\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}",
 	})
 	templates = append(templates, &models.TerminalAccessTemplates{
 		TemplateName:     models.TerminalAccessPodTemplateName,
 		TemplateKindData: "{\"group\":\"\", \"version\":\"v1\", \"kind\":\"Pod\"}",
-		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"terminal-access-service-account\",\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}",
+		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"terminal-access-service-account\",\"nodeSelector\":{\"kubernetes.io/hostname\":\"${node_name}\"},\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}",
 	})
 
 	return templates, err
@@ -131,7 +131,7 @@ func (impl TerminalAccessRepositoryImpl) UpdateUserTerminalStatus(id int, status
 	return err
 }
 
-func (impl TerminalAccessRepositoryImpl) GetAllUserTerminalAccessData() ([]*models.UserTerminalAccessData, error) {
+func (impl TerminalAccessRepositoryImpl) GetAllRunningUserTerminalData() ([]*models.UserTerminalAccessData, error) {
 	var accessDataArray []*models.UserTerminalAccessData
 	err := impl.dbConnection.Model(&accessDataArray).
 		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
@@ -145,5 +145,4 @@ func (impl TerminalAccessRepositoryImpl) GetAllUserTerminalAccessData() ([]*mode
 		err = nil
 	}
 	return accessDataArray, err
-
 }

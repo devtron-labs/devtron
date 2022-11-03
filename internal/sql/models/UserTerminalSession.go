@@ -10,9 +10,10 @@ type UserTerminalSessionRequest struct {
 }
 
 type UserTerminalSessionConfig struct {
-	MaxSessionPerUser               int    `env:"MAX_SESSION_PER_USER" envDefault:"50"`
-	TerminalPodStatusSyncTimeInSecs int    `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"5"`
-	TerminalPodDefaultNamespace     string `env:"TERMINAL_POD_DEFAULT_NAMESPACE" envDefault:"default"`
+	MaxSessionPerUser                 int    `env:"MAX_SESSION_PER_USER" envDefault:"50"`
+	TerminalPodStatusSyncTimeInSecs   int    `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"5"`
+	TerminalPodDefaultNamespace       string `env:"TERMINAL_POD_DEFAULT_NAMESPACE" envDefault:"default"`
+	TerminalPodInActiveDurationInMins int    `env:"TERMINAL_POD_INACTIVE_DURATION_IN_MINS" envDefault:"60"`
 }
 
 type UserTerminalSessionResponse struct {
@@ -28,7 +29,9 @@ const TerminalAccessClusterIdTemplateVar = "${cluster_id}"
 const TerminalAccessUserIdTemplateVar = "${user_id}"
 const TerminalAccessRandomIdVar = "${random_id}"
 const TerminalAccessPodNameVar = "${pod_name}"
+const TerminalAccessNodeNameVar = "${node_name}"
 const TerminalAccessBaseImageVar = "${base_image}"
+const TerminalAccessNamespaceVar = "${default_namespace}"
 const TerminalAccessPodTemplateName = "terminal-access-pod"
 const TerminalAccessRoleTemplateName = "terminal-access-role"
 const TerminalAccessRoleBindingTemplateName = "terminal-access-role-binding"
