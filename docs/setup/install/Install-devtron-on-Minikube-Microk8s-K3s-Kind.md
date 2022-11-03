@@ -9,7 +9,7 @@ You can install and try Devtron on a high-end machine or on a Cloud VM. If you i
 ## Before you begin
 Before we get started and install Devtron, we need to set up the cluster in our servers & install required tools
  * Create cluster using [Minikube](https://minikube.sigs.k8s.io/docs/start/) or [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/) or [K3s](https://rancher.com/docs/k3s/latest/en/installation/)
- * Install [Helm3](https://helm.sh/docs/intro/install/)
+ * Install [Helm](https://helm.sh/docs/intro/install/)
  * Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
 
 
