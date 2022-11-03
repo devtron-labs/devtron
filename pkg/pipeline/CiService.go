@@ -148,6 +148,8 @@ func (impl *CiServiceImpl) TriggerCiPipeline(trigger Trigger) (int, error) {
 		return 0, err
 	}
 
+	err = impl.updateCiWorkflow(workflowRequest, savedCiWf)
+
 	appLabels, err := impl.appCrudOperationService.GetLabelsByAppId(pipeline.AppId)
 	if err != nil {
 		return 0, err
@@ -386,11 +388,6 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciLevelArgs = "{}"
 	}
 
-	//mergedArgs, err := impl.mergeUtil.JsonPatch([]byte(args), []byte(ciLevelArgs))
-	//if err != nil {
-	//	impl.Logger.Errorw("err", "err", err)
-	//	return nil, err
-	//}
 	if pipeline.CiTemplate.DockerBuildOptions == "" {
 		pipeline.CiTemplate.DockerBuildOptions = "{}"
 	}
@@ -441,6 +438,10 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
 		dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
 		dockerBuildConfig.DockerfilePath = dockerfilePath
+		checkoutPath = dockerfilePath[:strings.LastIndex(dockerfilePath, "/")+1]
+	} else if ciBuildConfigBean.CiBuildType == bean2.BUILDPACK_BUILD_TYPE {
+		buildPackConfig := ciBuildConfigBean.BuildPackConfig
+		checkoutPath = filepath.Join(checkoutPath, buildPackConfig.ProjectPath)
 	}
 	workflowRequest := &WorkflowRequest{
 		WorkflowNamePrefix:         strconv.Itoa(savedWf.Id) + "-" + savedWf.Name,
@@ -626,6 +627,13 @@ func (impl *CiServiceImpl) buildImageTag(commitHashes map[int]bean.GitCommit, id
 	dockerImageTag = strings.ReplaceAll(dockerImageTag, "/", "_")
 
 	return dockerImageTag
+}
+
+func (impl *CiServiceImpl) updateCiWorkflow(request *WorkflowRequest, savedWf *pipelineConfig.CiWorkflow) error {
+	ciBuildConfig := request.CiBuildConfig
+	ciBuildType := string(ciBuildConfig.CiBuildType)
+	savedWf.CiBuildType = ciBuildType
+	return impl.ciWorkflowRepository.UpdateWorkFlow(savedWf)
 }
 
 func _getTruncatedImageTag(imageTag string) string {
