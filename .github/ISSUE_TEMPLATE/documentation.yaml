@@ -1,6 +1,6 @@
 name: "📚 Documentation"
 description: "Report an issue related to documentation"
-assignees: ["SNe789"]
+assignees: ["SNe789","prakarsh_dt"]
 title: "Doc: "
 labels: [documentation]
 body:
