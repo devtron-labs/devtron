@@ -9,8 +9,8 @@ import (
 
 type GitMaterialHistoryService interface {
 	CreateMaterialHistory(inputMaterial *pipelineConfig.GitMaterial) error
-	//UpdateMaterialHistory(updateMaterialDTO *pipelineConfig.GitMaterial) error
 	CreateDeleteMaterialHistory(materials []*pipelineConfig.GitMaterial) error
+	MarkMaterialDeletedAndCreateHistory(material *pipelineConfig.GitMaterial) error
 }
 
 type GitMaterialHistoryServiceImpl struct {
@@ -51,30 +51,6 @@ func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(inputMaterial *p
 
 }
 
-//func (impl GitMaterialHistoryServiceImpl) UpdateMaterialHistory(updateMaterialDTO *pipelineConfig.GitMaterial) error {
-//
-//	updateMaterial := &repository.GitMaterialHistory{
-//		Id:              updateMaterialDTO.Id,
-//		AppId:           updateMaterialDTO.AppId,
-//		GitProviderId:   updateMaterialDTO.GitProviderId,
-//		Active:          updateMaterialDTO.Active,
-//		Url:             updateMaterialDTO.Url,
-//		Name:            updateMaterialDTO.Name,
-//		CheckoutPath:    updateMaterialDTO.CheckoutPath,
-//		FetchSubmodules: updateMaterialDTO.FetchSubmodules,
-//		AuditLog:        sql.AuditLog{UpdatedBy: updateMaterialDTO.AuditLog.UpdatedBy, CreatedBy: updateMaterialDTO.AuditLog.CreatedBy, UpdatedOn: time.Now(), CreatedOn: time.Now()},
-//	}
-//
-//	err := impl.gitMaterialHistoryRepository.Sa(updateMaterial)
-//
-//	if err != nil {
-//		impl.logger.Errorw("Error in saving history of update action on git material")
-//		return err
-//	}
-//
-//	return nil
-//}
-
 func (impl GitMaterialHistoryServiceImpl) CreateDeleteMaterialHistory(materials []*pipelineConfig.GitMaterial) error {
 
 	materialsHistory := []*repository.GitMaterialHistory{}
@@ -104,6 +80,21 @@ func (impl GitMaterialHistoryServiceImpl) CreateDeleteMaterialHistory(materials 
 
 	if err != nil {
 		impl.logger.Errorw("Error in saving delete history for git material Repository")
+		return err
+	}
+
+	return nil
+
+}
+
+func (impl GitMaterialHistoryServiceImpl) MarkMaterialDeletedAndCreateHistory(material *pipelineConfig.GitMaterial) error {
+
+	material.Active = false
+
+	err := impl.CreateMaterialHistory(material)
+
+	if err != nil {
+		impl.logger.Errorw("error in saving delete history for git material repository")
 		return err
 	}
 

@@ -155,6 +155,7 @@ type PipelineBuilderImpl struct {
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
 	userService                      user.UserService
 	ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
+	gitMaterialHistoryService        history.GitMaterialHistoryService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -193,7 +194,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	userService user.UserService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *PipelineBuilderImpl {
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
+	gitMaterialHistoryService history.GitMaterialHistoryService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                           logger,
 		dbPipelineOrchestrator:           dbPipelineOrchestrator,
@@ -236,6 +238,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
 		userService:                      userService,
 		ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
+		gitMaterialHistoryService:        gitMaterialHistoryService,
 	}
 }
 
@@ -303,11 +306,15 @@ func (impl PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) 
 	}
 	existingMaterial.UpdatedOn = time.Now()
 	existingMaterial.UpdatedBy = request.UserId
+
 	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial)
+
 	if err != nil {
 		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
 		return err
 	}
+	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(existingMaterial)
+
 	return nil
 }
 
