@@ -42,9 +42,19 @@ body:
   - type: textarea
     id: kuberentes-version
     attributes:
-      label: "💻 Kubernetes version"
+      label: "☸ Kubernetes version"
       description: "What is your Kubernetes service and version?"
       placeholder: "EKS 1.23, KOps 1.22, AKS 1.21 etc."
+    validations:
+      required: true
+  - type: textarea
+    id: cloudProvider
+    attributes:
+      label: "Cloud provider"
+      value: |
+        <details>
+
+        </details>
     validations:
       required: true
   - type: dropdown
