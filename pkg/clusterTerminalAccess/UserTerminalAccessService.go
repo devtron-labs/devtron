@@ -79,33 +79,50 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 
 func (impl UserTerminalAccessServiceImpl) StartTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	userId := request.UserId
-	terminalAccessDataList, err := impl.TerminalAccessRepository.GetUserTerminalAccessDataByUser(userId)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while getting terminal access data for user id", "userId", userId, "err", err)
-		return nil, err
-	}
+	//terminalAccessDataList, err := impl.TerminalAccessRepository.GetUserTerminalAccessDataByUser(userId)
+	//if err != nil {
+	//	impl.Logger.Errorw("error occurred while getting terminal access data for user id", "userId", userId, "err", err)
+	//	return nil, err
+	//}
 	// check for max session check
 	maxSessionPerUser := impl.Config.MaxSessionPerUser
-	userRunningSessionCount := len(terminalAccessDataList)
+	activeSessionList := impl.getUserActiveSessionList(userId)
+	userRunningSessionCount := len(activeSessionList)
 	if userRunningSessionCount >= maxSessionPerUser {
 		errStr := fmt.Sprintf("cannot start new session more than configured %s", strconv.Itoa(maxSessionPerUser))
 		impl.Logger.Errorw(errStr, "req", request)
 		return nil, errors.New(errStr)
 	}
-	maxIdForUser := getMaxId(terminalAccessDataList)
+	maxIdForUser := impl.getMaxIdForUser(userId)
 	podName, err := impl.startTerminalPod(request, maxIdForUser)
 	return impl.createTerminalEntity(request, podName, err)
 }
 
-func getMaxId(userAccessList []*models.UserTerminalAccessData) int {
+func (impl UserTerminalAccessServiceImpl) getMaxIdForUser(userId int32) int {
+	accessSessionDataMap := impl.TerminalAccessSessionDataMap
 	maxId := 0
-	for _, accessData := range userAccessList {
-		accessId := accessData.Id
-		if accessId > maxId {
-			maxId = accessId
+	for _, userTerminalAccessSessionData := range *accessSessionDataMap {
+		terminalAccessDataEntity := userTerminalAccessSessionData.terminalAccessDataEntity
+		if terminalAccessDataEntity.UserId == userId {
+			accessId := terminalAccessDataEntity.Id
+			if accessId > maxId {
+				maxId = accessId
+			}
 		}
 	}
 	return maxId
+}
+
+func (impl UserTerminalAccessServiceImpl) getUserActiveSessionList(userId int32) []*UserTerminalAccessSessionData {
+	var userTerminalAccessSessionDataArray []*UserTerminalAccessSessionData
+	accessSessionDataMap := impl.TerminalAccessSessionDataMap
+	for _, userTerminalAccessSessionData := range *accessSessionDataMap {
+		terminalAccessDataEntity := userTerminalAccessSessionData.terminalAccessDataEntity
+		if terminalAccessDataEntity.UserId == userId && userTerminalAccessSessionData.sessionId != "" {
+			userTerminalAccessSessionDataArray = append(userTerminalAccessSessionDataArray, userTerminalAccessSessionData)
+		}
+	}
+	return userTerminalAccessSessionDataArray
 }
 
 func (impl UserTerminalAccessServiceImpl) createTerminalEntity(request *models.UserTerminalSessionRequest, podName string, err error) (*models.UserTerminalSessionResponse, error) {
@@ -154,12 +171,12 @@ func (impl UserTerminalAccessServiceImpl) UpdateTerminalSession(request *models.
 		return nil, err
 	}
 	userId := request.UserId
-	terminalAccessDataList, err := impl.TerminalAccessRepository.GetUserTerminalAccessDataByUser(userId)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while getting terminal access data for user id", "userId", userId, "err", err)
-		return nil, err
-	}
-	maxId := getMaxId(terminalAccessDataList)
+	//terminalAccessDataList, err := impl.TerminalAccessRepository.GetUserTerminalAccessDataByUser(userId)
+	//if err != nil {
+	//	impl.Logger.Errorw("error occurred while getting terminal access data for user id", "userId", userId, "err", err)
+	//	return nil, err
+	//}
+	maxId := impl.getMaxIdForUser(userId)
 	podName = impl.createPodName(request, maxId)
 	err = impl.applyTemplateData(request, podName, terminalAccessPodTemplate)
 	if err != nil {
@@ -184,10 +201,10 @@ func (impl UserTerminalAccessServiceImpl) checkTerminalExists(userTerminalSessio
 }
 
 func (impl UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminalAccessId int) error {
-	terminalAccessData, err := impl.checkTerminalExists(userTerminalAccessId)
-	if err != nil {
-		return err
-	}
+	//terminalAccessData, err := impl.checkTerminalExists(userTerminalAccessId)
+	//if err != nil {
+	//	return err
+	//}
 	// disconnect session first
 	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
 	accessSessionData, present := accessSessionDataMap[userTerminalAccessId]
@@ -195,13 +212,13 @@ func (impl UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminal
 		impl.Logger.Infow("closing socket connection", "userTerminalAccessId", userTerminalAccessId)
 		impl.terminalSessionHandler.Close(accessSessionData.sessionId, 1, "Process exited")
 	}
-	// handle already terminated/not found cases
-	err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while stopping terminal pod", "userTerminalAccessId", userTerminalAccessId, "err", err)
-		return err
-	}
-	return err
+	//// handle already terminated/not found cases
+	//err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
+	//if err != nil {
+	//	impl.Logger.Errorw("error occurred while stopping terminal pod", "userTerminalAccessId", userTerminalAccessId, "err", err)
+	//	return err
+	//}
+	return nil
 }
 
 func (impl UserTerminalAccessServiceImpl) extractMetadataString(request *models.UserTerminalSessionRequest) string {
@@ -369,7 +386,6 @@ func (impl UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessDat
 
 func (impl UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error) {
 
-	// check for existing session id and its state, if active then return this sessionId only
 	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
 	terminalAccessSessionData, present := terminalAccessDataMap[terminalAccessId]
 	var terminalSessionId = ""
@@ -382,6 +398,7 @@ func (impl UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId i
 		}
 	}
 	if terminalAccessData == nil {
+		//TODO need to check if max session limit for this user
 		terminalAccessPodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessPodTemplateName)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while fetching template", "template", models.TerminalAccessPodTemplateName, "err", err)
