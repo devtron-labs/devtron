@@ -24,6 +24,7 @@ import (
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
+	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
@@ -40,10 +41,11 @@ type ModuleCronServiceImpl struct {
 	moduleRepository moduleRepo.ModuleRepository
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	helmAppService   client.HelmAppService
+	serverDataStore  *serverDataStore.ServerDataStore
 }
 
 func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *ModuleEnvConfig, moduleRepository moduleRepo.ModuleRepository,
-	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService) (*ModuleCronServiceImpl, error) {
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, serverDataStore *serverDataStore.ServerDataStore) (*ModuleCronServiceImpl, error) {
 
 	moduleCronServiceImpl := &ModuleCronServiceImpl{
 		logger:           logger,
@@ -51,6 +53,7 @@ func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *Module
 		moduleRepository: moduleRepository,
 		serverEnvConfig:  serverEnvConfig,
 		helmAppService:   helmAppService,
+		serverDataStore:  serverDataStore,
 	}
 
 	// if devtron user type is OSS_HELM then only cron to update module status is useful
@@ -97,17 +100,24 @@ func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
 			// timeout case
 			impl.updateModuleStatus(module, ModuleStatusTimeout)
 		} else if !util.IsBaseStack() {
-			// check if helm release is healthy or not
-			appIdentifier := client.AppIdentifier{
-				ClusterId:   1,
-				Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
-				ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
-			}
-			appDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), &appIdentifier)
-			if err != nil {
-				impl.logger.Errorw("Error occurred while fetching helm application detail to check if module is installed", "moduleName", module.Name, "err", err)
-			} else if appDetail.ApplicationStatus == serverBean.AppHealthStatusHealthy {
-				impl.updateModuleStatus(module, ModuleStatusInstalled)
+			// if module is cicd then check for installer applied status
+			if module.Name == ModuleNameCicd {
+				if impl.serverDataStore.InstallerCrdObjectStatus == serverBean.InstallerCrdObjectStatusApplied {
+					impl.updateModuleStatus(module, ModuleStatusInstalled)
+				}
+			} else {
+				// check if helm release is healthy or not for non cicd apps
+				appIdentifier := client.AppIdentifier{
+					ClusterId:   1,
+					Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
+					ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
+				}
+				appDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), &appIdentifier)
+				if err != nil {
+					impl.logger.Errorw("Error occurred while fetching helm application detail to check if module is installed", "moduleName", module.Name, "err", err)
+				} else if appDetail.ApplicationStatus == serverBean.AppHealthStatusHealthy {
+					impl.updateModuleStatus(module, ModuleStatusInstalled)
+				}
 			}
 		}
 	}
