@@ -134,8 +134,14 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 			return
 		}
 		common.WriteJsonResp(w, err, res, http.StatusOK)
+		return
 
 	} else if len(identifier) != 0 && len(linkType) != 0 && len(clusterId) != 0 {
+		//if user access level for this app
+		//if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, "*"); !ok {
+		//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		//	return
+		//}
 		id, err := strconv.Atoi(clusterId)
 		if err != nil {
 			impl.logger.Errorw("error occurred while parsing cluster_id", "clusterId", clusterId, "err", err)
@@ -154,6 +160,7 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 			return
 		}
 		common.WriteJsonResp(w, err, res, http.StatusOK)
+		return
 	}
 
 	impl.logger.Errorw("invalid request, FetchAllActive external links", "err", err)
