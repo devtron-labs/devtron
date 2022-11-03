@@ -454,7 +454,7 @@
           "default": "nginx"
         },
         "labels": {
-          "type": "string",
+          "type": "object",
           "description": "labels for ingress",
           "title": "Ingress labels",
           "default": ""
