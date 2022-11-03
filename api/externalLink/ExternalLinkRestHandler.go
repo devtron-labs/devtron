@@ -70,7 +70,7 @@ func (impl ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
+	//get user role and if admin, enforce applevel controlling else global level controlling
 	token := r.Header.Get("token")
 	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
@@ -108,33 +108,52 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	v := r.URL.Query()
-	id := v.Get("clusterId")
-	clusterId := 0
-	if len(id) > 0 {
-		clusterId, err = strconv.Atoi(id)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-	}
 
-	//apply auth only in case when requested for all links
-	if clusterId == 0 {
+	v := r.URL.Query()
+	clusterId := v.Get("clusterId")
+	linkType := v.Get("type")
+	identifier := v.Get("identifier")
+
+	if len(identifier) == 0 && len(linkType) == 0 && len(clusterId) == 0 {
 		token := r.Header.Get("token")
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
+		id, err := strconv.Atoi(clusterId)
+		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, id, externalLink.SUPER_ADMIN_ROLE, int(userId))
+		if err != nil {
+			impl.logger.Errorw("service err, FetchAllActive", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, err, res, http.StatusOK)
+
+	} else if len(identifier) != 0 && len(linkType) != 0 && len(clusterId) != 0 {
+		id, err := strconv.Atoi(clusterId)
+		if err != nil {
+			impl.logger.Errorw("error occurred while parsing cluster_id", "clusterId", clusterId, "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		linkIdentifier := &externalLink.LinkIdentifier{
+			Type:       linkType,
+			Identifier: identifier,
+			ClusterId:  0,
+		}
+		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifier, id, externalLink.SUPER_ADMIN_ROLE, int(userId))
+		if err != nil {
+			impl.logger.Errorw("service err, FetchAllActive", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+			return
+		}
+		common.WriteJsonResp(w, err, res, http.StatusOK)
 	}
 
-	res, err := impl.externalLinkService.FetchAllActiveLinks(clusterId)
-	if err != nil {
-		impl.logger.Errorw("service err, FetchAllActive", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	impl.logger.Errorw("invalid request, FetchAllActive external links", "err", err)
+	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	return
+
 }
 func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter, r *http.Request) {
 	userId, err := impl.userService.GetLoggedInUser(r)
