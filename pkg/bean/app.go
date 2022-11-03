@@ -135,10 +135,13 @@ type CiScript struct {
 }
 
 type ExternalCiConfig struct {
-	Id         int    `json:"id"`
-	WebhookUrl string `json:"webhookUrl"`
-	Payload    string `json:"payload"`
-	AccessKey  string `json:"accessKey"`
+	Id            int                    `json:"id"`
+	WebhookUrl    string                 `json:"webhookUrl"`
+	Payload       string                 `json:"payload"`
+	AccessKey     string                 `json:"accessKey"`
+	PayloadOption map[string]interface{} `json:"payloadOption"`
+	Schema        map[string]interface{} `json:"schema"`
+	Responses     []ResponseSchemaObject `json:"responses"`
 	ExternalCiConfigRole
 }
 
@@ -630,4 +633,16 @@ type CdBulkActionResponseDto struct {
 	AppName         string `json:"appName"`
 	EnvironmentName string `json:"environmentName"`
 	DeletionResult  string `json:"deletionResult,omitempty"`
+}
+
+type SchemaObject struct {
+	Description string `json:"description"`
+	DataType    string `json:"dataType"`
+	Example     string `json:"example"`
+	Optional    bool   `json:"optional"`
+}
+
+type ResponseSchemaObject struct {
+	Description map[string]interface{} `json:"description"`
+	Code        string                 `json:"code"`
 }

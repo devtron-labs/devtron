@@ -50,4 +50,5 @@ func (impl WebhookRouterImpl) intWebhookRouter(configRouter *mux.Router) {
 	configRouter.Path("/ci/workflow").HandlerFunc(impl.pipelineRestHandler.HandleWorkflowWebhook).Methods("POST")
 	configRouter.Path("/ext-ci/{api-key}").HandlerFunc(impl.externalCiRestHandler.HandleExternalCiWebhook).Methods("POST")
 	configRouter.Path("/msg/nats").HandlerFunc(impl.pubSubClientRestHandler.PublishEventsToNats).Methods("POST")
+	configRouter.Path("/ext-ci").HandlerFunc(impl.externalCiRestHandler.HandleExternalCiWebhookByApiToken).Methods("POST")
 }

@@ -43,13 +43,13 @@ type CiEventHandlerImpl struct {
 type CiCompleteEvent struct {
 	CiProjectDetails []pipeline.CiProjectDetails `json:"ciProjectDetails"`
 	DockerImage      string                      `json:"dockerImage" validate:"required"`
-	Digest           string                      `json:"digest" validate:"required"`
+	Digest           string                      `json:"digest"`
 	PipelineId       int                         `json:"pipelineId"`
 	WorkflowId       *int                        `json:"workflowId"`
 	TriggeredBy      int32                       `json:"triggeredBy"`
 	PipelineName     string                      `json:"pipelineName"`
 	DataSource       string                      `json:"dataSource"`
-	MaterialType     string                      `json:"materialType" validate:"required"`
+	MaterialType     string                      `json:"materialType"`
 }
 
 func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, webhookService pipeline.WebhookService) *CiEventHandlerImpl {
@@ -101,7 +101,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 }
 
 func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*pipeline.CiArtifactWebhookRequest, error) {
-	var ciMaterialInfos []repository.CiMaterialInfo
+	ciMaterialInfos := make([]repository.CiMaterialInfo, 0)
 	for _, p := range event.CiProjectDetails {
 		var modifications []repository.Modification
 
