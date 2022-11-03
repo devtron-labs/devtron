@@ -194,11 +194,11 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 	} else {
 		allActiveExternalLinkMappings, err = impl.externalLinkIdentifierMappingRepository.FindAllActiveByLinkIdentifier(linkIdentifier)
 	}
-	if err != nil || err != pg.ErrNoRows {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
 		return nil, err
 	}
-	var externalLinkResponse []*ExternalLinkDto
+	var externalLinkResponse = make([]*ExternalLinkDto, 0)
 	response := make(map[int]*ExternalLinkDto)
 	for _, link := range allActiveExternalLinkMappings {
 		if _, ok := response[link.ExternalLinkId]; !ok {
