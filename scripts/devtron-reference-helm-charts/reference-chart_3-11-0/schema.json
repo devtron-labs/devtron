@@ -464,6 +464,12 @@
             }
           }
         },
+        "labels": {
+          "type": "string",
+          "description": "labels for ingress",
+          "title": "Ingress labels",
+          "default": ""
+        },        
         "enabled": {
           "type": "boolean",
           "description": "used to enable or disable ingress",
