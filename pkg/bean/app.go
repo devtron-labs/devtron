@@ -139,7 +139,7 @@ type ExternalCiConfig struct {
 	WebhookUrl    string                 `json:"webhookUrl"`
 	Payload       string                 `json:"payload"`
 	AccessKey     string                 `json:"accessKey"`
-	PayloadOption map[string]interface{} `json:"payloadOption"`
+	PayloadOption []PayloadOptionObject  `json:"payloadOption"`
 	Schema        map[string]interface{} `json:"schema"`
 	Responses     []ResponseSchemaObject `json:"responses"`
 	ExternalCiConfigRole
@@ -636,10 +636,18 @@ type CdBulkActionResponseDto struct {
 }
 
 type SchemaObject struct {
-	Description string `json:"description"`
-	DataType    string `json:"dataType"`
-	Example     string `json:"example"`
-	Optional    bool   `json:"optional"`
+	Description string                   `json:"description"`
+	DataType    string                   `json:"dataType"`
+	Example     string                   `json:"example"`
+	Optional    bool                     `json:"optional"`
+	Child       []map[string]interface{} `json:"child"`
+}
+
+type PayloadOptionObject struct {
+	Key       string   `json:"key"`
+	KeyObject []string `json:"keyObject"`
+	Label     string   `json:"label"`
+	Selected  bool     `json:"Selected"`
 }
 
 type ResponseSchemaObject struct {

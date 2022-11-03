@@ -57,7 +57,7 @@ import (
 )
 
 type WorkflowDagExecutor interface {
-	HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error
+	HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32, externalCiId int) error
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(gitHash string, pipelineOverrideId int) error
 	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error
@@ -228,24 +228,29 @@ func (impl *WorkflowDagExecutorImpl) Subscribe() error {
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error {
+func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32, externalCiId int) error {
 	//1. get cd pipelines
 	//2. get config
 	//3. trigger wf/ deployment
-	pipelines, err := impl.pipelineRepository.FindByParentCiPipelineId(artifact.PipelineId)
+
+	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
 		return err
 	}
-	for _, pipeline := range pipelines {
-		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
-			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
-			continue
-		}
-		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, async, triggeredBy)
-		if err != nil {
-			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
-		}
+	pipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.Id)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
+		return err
+	}
+	if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
+		impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
+		return nil
+	}
+
+	err = impl.triggerStage(nil, pipeline, artifact, applyAuth, async, triggeredBy)
+	if err != nil {
+		impl.logger.Debugw("error on trigger cd pipeline", "err", err)
 	}
 	return nil
 }

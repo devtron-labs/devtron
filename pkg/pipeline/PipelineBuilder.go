@@ -601,7 +601,7 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 
 		externalCiConfig = append(externalCiConfig, &bean.ExternalCiConfig{
 			Id:         externalCiPipeline.Id,
-			WebhookUrl: impl.ciConfig.ExternalCiWebhookUrl,
+			WebhookUrl: fmt.Sprintf("%s/%s", impl.ciConfig.ExternalCiWebhookUrl, externalCiPipeline.Id),
 			Payload:    impl.ciConfig.ExternalCiPayload,
 			AccessKey:  "",
 			ExternalCiConfigRole: bean.ExternalCiConfigRole{
@@ -653,7 +653,7 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 
 	externalCiConfig := &bean.ExternalCiConfig{
 		Id:         externalCiPipeline.Id,
-		WebhookUrl: impl.ciConfig.ExternalCiWebhookUrl,
+		WebhookUrl: fmt.Sprintf("%s/%s", impl.ciConfig.ExternalCiWebhookUrl, externalCiId),
 		Payload:    impl.ciConfig.ExternalCiPayload,
 		AccessKey:  "",
 		ExternalCiConfigRole: bean.ExternalCiConfigRole{
@@ -678,37 +678,52 @@ func (impl PipelineBuilderImpl) buildExternalCiWebhookSchema() map[string]interf
 	schema["dockerImage"] = &bean.SchemaObject{Description: "docker image of your application", DataType: "String", Example: "test-docker-repo/test:b150cc81-5-20", Optional: false}
 	schema["digest"] = &bean.SchemaObject{Description: "docker image sha1 digest", DataType: "String", Example: "sha256:94180dead8336237430e848ef8145f060b51", Optional: true}
 	schema["materialType"] = &bean.SchemaObject{Description: "git", DataType: "String", Example: "git", Optional: true}
-	ciProjectDetails := make(map[string]interface{})
-	ciProjectDetails["commitHash"] = &bean.SchemaObject{Description: "commit hash is git commit", DataType: "String", Example: "dg46f67559dbsdfdfdfdsfba47901caf47f8b7e", Optional: true}
-	ciProjectDetails["commitTime"] = &bean.SchemaObject{Description: "commit date time, when code has pushed", DataType: "String", Example: "2022-10-11T20:55:21+05:30", Optional: true}
-	ciProjectDetails["message"] = &bean.SchemaObject{Description: "commit message", DataType: "String", Example: "commit message", Optional: true}
-	ciProjectDetails["author"] = &bean.SchemaObject{Description: "author or user name or email id who have done git commit", DataType: "String", Example: "Devtron User", Optional: true}
-	schema["ciProjectDetails"] = ciProjectDetails
+
+	ciProjectDetails := make([]map[string]interface{}, 0)
+	ciProjectDetail := make(map[string]interface{})
+	ciProjectDetail["commitHash"] = &bean.SchemaObject{Description: "commit hash is git commit", DataType: "String", Example: "dg46f67559dbsdfdfdfdsfba47901caf47f8b7e", Optional: true}
+	ciProjectDetail["commitTime"] = &bean.SchemaObject{Description: "commit date time, when code has pushed", DataType: "String", Example: "2022-10-11T20:55:21+05:30", Optional: true}
+	ciProjectDetail["message"] = &bean.SchemaObject{Description: "commit message", DataType: "String", Example: "commit message", Optional: true}
+	ciProjectDetail["author"] = &bean.SchemaObject{Description: "author or user name or email id who have done git commit", DataType: "String", Example: "Devtron User", Optional: true}
+	ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
+
+	schema["ciProjectDetails"] = &bean.SchemaObject{Description: "project and git commit details", DataType: "Object", Example: "", Optional: true, Child: ciProjectDetails}
 	return schema
 }
 
-func (impl PipelineBuilderImpl) buildPayloadOption() map[string]interface{} {
-	payloadOption := make(map[string]interface{})
-	containerImageTag := make(map[string]interface{})
-	containerImageTag["dockerImage"] = ""
-	containerImageTag["digest"] = ""
-	containerImageTag["materialType"] = ""
-	payloadOption["containerImageTag"] = containerImageTag
+func (impl PipelineBuilderImpl) buildPayloadOption() []bean.PayloadOptionObject {
+	payloadOption := make([]bean.PayloadOptionObject, 0)
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:       "dockerImage",
+		KeyObject: []string{"dockerImage", "digest", "materialType"},
+		Label:     "Container image tag",
+		Selected:  true,
+	})
 
-	commitHash := make(map[string]interface{})
-	commitHash["ciProjectDetails.commitHash"] = ""
-	payloadOption["commitHash"] = commitHash
-
-	commitMessage := make(map[string]interface{})
-	commitMessage["ciProjectDetails.message"] = ""
-	payloadOption["commitMessage"] = commitMessage
-
-	author := make(map[string]interface{})
-	author["ciProjectDetails.author"] = ""
-	payloadOption["author"] = author
-	dateTime := make(map[string]interface{})
-	dateTime["ciProjectDetails.commitTime"] = ""
-	payloadOption["dateTime"] = dateTime
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:       "commitHash",
+		KeyObject: []string{"ciProjectDetails.commitHash"},
+		Label:     "Commit hash",
+		Selected:  true,
+	})
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:       "message",
+		KeyObject: []string{"ciProjectDetails.message"},
+		Label:     "Commit message",
+		Selected:  true,
+	})
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:       "author",
+		KeyObject: []string{"ciProjectDetails.author"},
+		Label:     "Author",
+		Selected:  true,
+	})
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:       "commitTime",
+		KeyObject: []string{"ciProjectDetails.commitTime"},
+		Label:     "Date & time of commit",
+		Selected:  true,
+	})
 	return payloadOption
 }
 

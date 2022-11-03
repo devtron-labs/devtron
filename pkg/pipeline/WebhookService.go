@@ -46,7 +46,7 @@ type CiArtifactWebhookRequest struct {
 
 type WebhookService interface {
 	AuthenticateExternalCiWebhook(apiKey string) (int, error)
-	SaveCiArtifactWebhook(ciPipelineId int, request *CiArtifactWebhookRequest) (id int, err error)
+	SaveCiArtifactWebhook(externalCiId int, request *CiArtifactWebhookRequest) (id int, err error)
 }
 
 type WebhookServiceImpl struct {
@@ -110,7 +110,7 @@ func (impl WebhookServiceImpl) AuthenticateExternalCiWebhook(apiKey string) (int
 	return id, nil
 }
 
-func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *CiArtifactWebhookRequest) (id int, err error) {
+func (impl WebhookServiceImpl) SaveCiArtifactWebhook(externalCiId int, request *CiArtifactWebhookRequest) (id int, err error) {
 	impl.logger.Infow("webhook for artifact save", "req", request)
 
 	if request.DataSource == "" {
@@ -158,7 +158,7 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *
 
 	async := false
 	for _, ciArtifact := range ciArtifactArr {
-		err = impl.workflowDagExecutor.HandleCiSuccessEvent(ciArtifact, isCiManual, async, request.UserId)
+		err = impl.workflowDagExecutor.HandleCiSuccessEvent(ciArtifact, isCiManual, async, request.UserId, externalCiId)
 		if err != nil {
 			impl.logger.Errorw("error on handle  ci success event", "err", err)
 			return 0, err

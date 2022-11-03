@@ -26,6 +26,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"net/http"
+	"strconv"
 )
 
 type ExternalCiRestHandler interface {
@@ -92,9 +93,15 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 }
 
 func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	externalCiId, err := strconv.Atoi(vars["externalCiId"])
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 	decoder := json.NewDecoder(r.Body)
 	var req pubsub.CiCompleteEvent
-	err := decoder.Decode(&req)
+	err = decoder.Decode(&req)
 	if err != nil {
 		impl.logger.Errorw("request err, HandleExternalCiWebhookByApiToken", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -109,7 +116,7 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.R
 		return
 	}
 
-	_, err = impl.webhookService.SaveCiArtifactWebhook(0, ciArtifactReq)
+	_, err = impl.webhookService.SaveCiArtifactWebhook(externalCiId, ciArtifactReq)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
