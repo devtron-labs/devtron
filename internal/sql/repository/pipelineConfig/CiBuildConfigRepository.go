@@ -17,8 +17,9 @@ type CiBuildConfig struct {
 }
 
 type BuildTypeCount struct {
-	Type  string `json:"type"`
-	Count int    `json:"count"`
+	Status string `json:"status"`
+	Type   string `json:"type"`
+	Count  int    `json:"count"`
 }
 
 type CiBuildConfigRepository interface {
