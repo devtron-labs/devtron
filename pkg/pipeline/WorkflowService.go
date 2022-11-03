@@ -570,9 +570,8 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 				TTLStrategy: &v1alpha1.TTLStrategy{
 					SecondsAfterCompletion: &ttl,
 				},
-				Templates:        templates,
-				Volumes:          volumes,
-				WorkflowMetadata: &v1alpha1.WorkflowMetadata{Labels: map[string]string{"ciBuildType": string(workflowRequest.CiBuildConfig.CiBuildType)}},
+				Templates: templates,
+				Volumes:   volumes,
 			},
 		}
 	)

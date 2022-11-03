@@ -701,7 +701,6 @@ func (impl *CiHandlerImpl) extractWorkfowStatus(workflowStatus v1alpha1.Workflow
 	message := ""
 	podName := ""
 	logLocation := ""
-	impl.Logger.Infow("workflow status", "workflowStatus", workflowStatus)
 	for k, v := range workflowStatus.Nodes {
 		if v.TemplateName == CI_WORKFLOW_NAME {
 			impl.Logger.Infow("extractWorkflowStatus", "workflowName", k, "v", v)
