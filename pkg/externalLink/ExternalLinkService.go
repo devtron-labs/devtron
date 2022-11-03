@@ -38,7 +38,7 @@ type ExternalLinkService interface {
 	GetAllActiveTools() ([]ExternalLinkMonitoringToolDto, error)
 	FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int, userRole string, userId int) ([]*ExternalLinkDto, error)
 	Update(request *ExternalLinkDto, userRole string) (*ExternalLinkApiResponse, error)
-	DeleteLink(id int, userId int32) (*ExternalLinkApiResponse, error)
+	DeleteLink(id int, userId int32, userRole string) (*ExternalLinkApiResponse, error)
 }
 type ExternalLinkServiceImpl struct {
 	logger                                  *zap.SugaredLogger
@@ -391,7 +391,7 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 	return externalLinksCreateUpdateResponse, nil
 }
 
-func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalLinkApiResponse, error) {
+func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32, userRole string) (*ExternalLinkApiResponse, error) {
 	impl.logger.Debugw("external link delete request", "external_link_id", id)
 	dbConnection := impl.externalLinkRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -401,24 +401,14 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalL
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	externalLinksClusterMapping, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByExternalLinkId(id)
-	if err != nil {
-		return nil, err
-	}
-	for _, externalLink := range externalLinksClusterMapping {
-		externalLink.Active = false
-		externalLink.UpdatedOn = time.Now()
-		externalLink.UpdatedBy = userId
-		err := impl.externalLinkIdentifierMappingRepository.Update(externalLink, tx)
-		if err != nil {
-			impl.logger.Errorw("error in deleting external_link_identifier mappings to false", "data", externalLink, "err", err)
-			return nil, err
-		}
-	}
-
+	// mark the link inactive if user has edit access
 	externalLink, err := impl.externalLinkRepository.FindOne(id)
 	if err != nil {
 		return nil, err
+	}
+	if userRole == ADMIN_ROLE && !externalLink.IsEditable {
+		impl.logger.Infow("app admin not allowed to update or delete the external link", "external-link-id", externalLink.Id, "user-id", userId)
+		return nil, fmt.Errorf("user not allowed to perform update or delete")
 	}
 	externalLink.Active = false
 	externalLink.UpdatedOn = time.Now()
@@ -428,6 +418,23 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalL
 		impl.logger.Errorw("error in update external link", "data", externalLink, "err", err)
 		return nil, err
 	}
+
+	externalLinksClusterMapping, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByExternalLinkId(id)
+	if err != nil {
+		return nil, err
+	}
+	//mark all the mappings inactive
+	for _, externalLinkMapping := range externalLinksClusterMapping {
+		externalLinkMapping.Active = false
+		externalLinkMapping.UpdatedOn = time.Now()
+		externalLinkMapping.UpdatedBy = userId
+		err := impl.externalLinkIdentifierMappingRepository.Update(externalLinkMapping, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting external_link_identifier mappings to false", "data", externalLink, "err", err)
+			return nil, err
+		}
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		return nil, err
@@ -435,5 +442,6 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32) (*ExternalL
 	externalLinksCreateUpdateResponse := &ExternalLinkApiResponse{
 		Success: true,
 	}
+
 	return externalLinksCreateUpdateResponse, nil
 }
