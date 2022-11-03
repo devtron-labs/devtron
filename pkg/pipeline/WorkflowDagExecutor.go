@@ -572,14 +572,16 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	var stageYaml string
 	var deployStageWfr pipelineConfig.CdWorkflowRunner
 	deployStageTriggeredByUser := &bean.UserInfo{}
+	var pipelineReleaseCounter int
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 		stageYaml = cdPipeline.PreStageConfig
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 		stageYaml = cdPipeline.PostStageConfig
 		//getting deployment pipeline latest wfr by pipelineId
-		deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(cdPipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		pipelineId := cdPipeline.Id
+		deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil {
-			impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", cdPipeline.Id)
+			impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
 			return nil, err
 		}
 		deployStageTriggeredByUser, err = impl.user.GetById(deployStageWfr.TriggeredBy)
@@ -587,6 +589,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("error in getting userDetails by id", "err", err, "userId", deployStageWfr.TriggeredBy)
 			return nil, err
 		}
+		pipelineReleaseCounter, err = impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineId)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching latest release counter for pipeline", "pipelineId", pipelineId, "err", err)
+			return nil, err
+		}
+
 	} else {
 		return nil, fmt.Errorf("unsupported workflow triggerd")
 	}
@@ -631,6 +639,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	if deployStageTriggeredByUser != nil {
 		cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
 		cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUser.EmailId
+	}
+	if pipelineReleaseCounter > 0 {
+		cdStageWorkflowRequest.DeploymentReleaseCounter = pipelineReleaseCounter
 	}
 	if cdWorkflowConfig.CdCacheRegion == "" {
 		cdWorkflowConfig.CdCacheRegion = impl.cdConfig.DefaultCdLogsBucketRegion
