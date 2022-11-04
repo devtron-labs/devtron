@@ -94,6 +94,11 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 		}
 	}
 
+	if ciPipeline.IsExternal && ciPipeline.ParentCiPipeline == 0 {
+		impl.logger.Warn("Ignoring for external ci")
+		return valuesFileContent, nil
+	}
+
 	if ciPipeline.CiTemplate == nil {
 		impl.logger.Warn("returning as ciPipeline.CiTemplate is found nil")
 		return valuesFileContent, nil

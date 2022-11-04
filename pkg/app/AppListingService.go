@@ -642,7 +642,8 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 	appDetailContainer.ClusterId = clusterId
 	appDetailContainer.ClusterName = envModel.Cluster.ClusterName
 
-	// get ci-pipeline for this ciPipelineId
+	// set ifIpsAccess provided and relevant data
+	appDetailContainer.IsExternalCi = true
 	ciPipelineId := appDetailContainer.CiPipelineId
 	if ciPipelineId > 0 {
 		ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
@@ -651,11 +652,12 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 			return bean.AppDetailContainer{}, err
 		}
 
-		// set ifIpsAccess provided and relevant data
 		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(ciPipeline.CiTemplate.DockerRegistryId) > 0 {
 			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
 			appDetailContainer.DockerRegistryId = dockerRegistryId
-			appDetailContainer.IsExternalCi = ciPipeline.IsExternal
+			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 {
+				appDetailContainer.IsExternalCi = false
+			}
 
 			// check ips access provided to this docker registry for that cluster
 			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(dockerRegistryId, clusterId)
