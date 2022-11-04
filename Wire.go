@@ -682,6 +682,12 @@ func InitializeApp() (*App, error) {
 		repository3.NewGitMaterialHistoryRepositoyImpl,
 		wire.Bind(new(repository3.GitMaterialHistoryRepository), new(*repository3.GitMaterialHistoryRepositoryImpl)),
 
+		history3.NewCiTemplateHistoryServiceImpl,
+		wire.Bind(new(history3.CiTemplateHistoryService), new(*history3.CiTemplateHistoryServiceImpl)),
+
+		repository3.NewCiTemplateHistoryRepositoryImpl,
+		wire.Bind(new(repository3.CiTemplateHistoryRepository), new(*repository3.CiTemplateHistoryRepositoryImpl)),
+
 		history3.NewPrePostCdScriptHistoryServiceImpl,
 		wire.Bind(new(history3.PrePostCdScriptHistoryService), new(*history3.PrePostCdScriptHistoryServiceImpl)),
 		history3.NewPrePostCiScriptHistoryServiceImpl,
