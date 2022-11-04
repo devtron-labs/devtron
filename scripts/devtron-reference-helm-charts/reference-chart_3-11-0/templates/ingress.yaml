@@ -29,7 +29,7 @@ spec:
           - path: {{ .Values.ingress.path }}
             backend:
               serviceName: {{ $svcName }}
-              servicePort: {{ $svcPort }}        
+              servicePort: {{ $svcPort }}
   {{- end }}
   {{- if .Values.ingress.hosts }}
   {{- range .Values.ingress.hosts }}
