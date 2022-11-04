@@ -92,8 +92,8 @@ sudo installer -pkg AWSCLIV2.pkg -target /
 
 ```bash
 aws configure
-AWS Access Key ID [None]: AKIAWPTCEWL56ZRO5U4Z
-AWS Secret Access Key [None]: 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
+AWS Access Key ID [None]: AKIAIOSFODNN7EXAMPLE
+AWS Secret Access Key [None]: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
 Default region name [None]: region-code
 Default output format [None]: json
 ```
