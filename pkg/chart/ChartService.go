@@ -1017,18 +1017,7 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 		if len(result.Name) == 0 {
 			result.Name = "Rollout Deployment"
 		}
-
-		chartDescription := result.ChartDescription
-		//if len(chartDescription) == 0 {
-		//	chartDescription = chartRefResponse.ChartsMetadata[result.Name].ChartDescription
-		//	//for _, resultMetadata := range resultsMetadata {
-		//	//	if result.Name == resultMetadata.ChartName {
-		//	//		chartDescription = resultMetadata.ChartDescription
-		//	//		break
-		//	//	}
-		//	//}
-		//}
-		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name, Description: chartDescription, UserUploaded: result.UserUploaded})
+		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name, Description: result.ChartDescription, UserUploaded: result.UserUploaded})
 		if result.Default == true {
 			LatestAppChartRef = result.Id
 		}
