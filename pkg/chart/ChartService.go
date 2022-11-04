@@ -944,11 +944,16 @@ type chartRef struct {
 	UserUploaded bool   `json:"userUploaded"`
 }
 
+type chartRefMetaData struct {
+	ChartDescription string
+}
+
 type chartRefResponse struct {
-	ChartRefs         []chartRef `json:"chartRefs"`
-	LatestChartRef    int        `json:"latestChartRef"`
-	LatestAppChartRef int        `json:"latestAppChartRef"`
-	LatestEnvChartRef int        `json:"latestEnvChartRef,omitempty"`
+	ChartRefs         []chartRef                  `json:"chartRefs"`
+	LatestChartRef    int                         `json:"latestChartRef"`
+	LatestAppChartRef int                         `json:"latestAppChartRef"`
+	LatestEnvChartRef int                         `json:"latestEnvChartRef,omitempty"`
+	ChartsMetadata    map[string]chartRefMetaData `json:"chartMetadata"`
 }
 
 type ChartYamlStruct struct {
@@ -990,33 +995,45 @@ func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error) {
 	chartRefResponse := &chartRefResponse{}
 	var chartRefs []chartRef
-	results, err := impl.chartRefRepository.GetAll()
-	resultsMetadata, err2 := impl.chartRefRepository.GetAllChartMetadata()
+	var chartRefMetadata chartRefMetaData
 
-	if err != nil || err2 != nil {
+	results, err := impl.chartRefRepository.GetAll()
+	if err != nil {
 		impl.logger.Errorw("error in fetching chart config", "err", err)
 		return chartRefResponse, err
 	}
 
+	resultsMetadata, err := impl.chartRefRepository.GetAllChartMetadata()
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart metadata", "err", err)
+		return chartRefResponse, err
+	}
+	for _, resultMetadata := range resultsMetadata {
+		chartRefMetadata.ChartDescription = resultMetadata.ChartDescription
+		chartRefResponse.ChartsMetadata[resultMetadata.ChartName] = chartRefMetadata
+	}
 	var LatestAppChartRef int
 	for _, result := range results {
 		if len(result.Name) == 0 {
 			result.Name = "Rollout Deployment"
 		}
-		if len(result.ChartDescription) != 0 {
-			chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name, Description: result.ChartDescription, UserUploaded: result.UserUploaded})
-		} else {
-			for _, resultMetadata := range resultsMetadata {
-				if result.Name == resultMetadata.ChartName {
-					chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name, Description: resultMetadata.ChartDescription, UserUploaded: result.UserUploaded})
-					break
-				}
-			}
-		}
+
+		chartDescription := result.ChartDescription
+		//if len(chartDescription) == 0 {
+		//	chartDescription = chartRefResponse.ChartsMetadata[result.Name].ChartDescription
+		//	//for _, resultMetadata := range resultsMetadata {
+		//	//	if result.Name == resultMetadata.ChartName {
+		//	//		chartDescription = resultMetadata.ChartDescription
+		//	//		break
+		//	//	}
+		//	//}
+		//}
+		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name, Description: chartDescription, UserUploaded: result.UserUploaded})
 		if result.Default == true {
 			LatestAppChartRef = result.Id
 		}
 	}
+
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching latest chart", "err", err)

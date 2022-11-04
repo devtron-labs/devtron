@@ -334,8 +334,9 @@ type ChartRef struct {
 }
 
 type ChartRefMetaData struct {
-	ChartName        string `sql:"chart_name,pk"`
-	ChartDescription string `sql:"chart_description"`
+	tableName        struct{} `sql:"chart_ref_metadata" pg:",discard_unknown_columns"`
+	ChartName        string   `sql:"chart_name,pk"`
+	ChartDescription string   `sql:"chart_description"`
 }
 
 type ChartRefRepository interface {
