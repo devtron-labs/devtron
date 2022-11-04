@@ -1,14 +1,14 @@
 installer:
-  release: "v0.6.4"
+  release: "v0.6.5"
   image: "quay.io/devtron/inception"
   tag: "1d2b87e5-185-11095"
   
 components:
   dashboard:
-    image: "quay.io/devtron/dashboard:34ceb881-325-11349"
+    image: "quay.io/devtron/dashboard:3325d508-325-11388"
   devtron:
-    image: "quay.io/devtron/hyperion:e6990572-280-11348"
-    cicdImage: "quay.io/devtron/devtron:e6990572-326-11347"
+    image: "quay.io/devtron/hyperion:6421edd9-280-11386"
+    cicdImage: "quay.io/devtron/devtron:6421edd9-326-11385"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
@@ -24,10 +24,10 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "e69905726c4abd14e090fd6d784c3a5821ab0a29"
+        GIT_HASH: "6421edd9394a7e26f4c2d4f3f1ef3503dd6f37ae"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "e69905726c4abd14e090fd6d784c3a5821ab0a29"
+        GIT_HASH: "6421edd9394a7e26f4c2d4f3f1ef3503dd6f37ae"
         
 argo-cd:
   global:
