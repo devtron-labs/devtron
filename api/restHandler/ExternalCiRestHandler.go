@@ -93,6 +93,7 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 }
 
 func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.ResponseWriter, r *http.Request) {
+	setupResponse(&w, r)
 	vars := mux.Vars(r)
 	externalCiId, err := strconv.Atoi(vars["externalCiId"])
 	if err != nil {
@@ -109,14 +110,14 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.R
 	}
 	impl.logger.Infow("request payload, HandleExternalCiWebhookByApiToken", "payload", req)
 
-	ciArtifactReq, err := impl.ciEventHandler.BuildCiArtifactRequest(req)
+	ciArtifactReq, err := impl.ciEventHandler.BuildCiArtifactRequestForWebhook(req)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhookByApiToken", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
-	_, err = impl.webhookService.SaveCiArtifactWebhook(externalCiId, ciArtifactReq)
+	_, err = impl.webhookService.SaveCiArtifactWebhookExternalCi(externalCiId, ciArtifactReq)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
