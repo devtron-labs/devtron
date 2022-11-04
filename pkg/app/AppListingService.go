@@ -644,23 +644,24 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 
 	// get ci-pipeline for this ciPipelineId
 	ciPipelineId := appDetailContainer.CiPipelineId
-	ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
-	if err != nil {
-		impl.Logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipelineId, "error", err)
-		return bean.AppDetailContainer{}, err
-	}
-	dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
-	appDetailContainer.DockerRegistryId = dockerRegistryId
-	appDetailContainer.IsExternalCi = ciPipeline.IsExternal
+	if ciPipelineId > 0 {
+		ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
+		if err != nil {
+			impl.Logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipelineId, "error", err)
+			return bean.AppDetailContainer{}, err
+		}
+		dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
+		appDetailContainer.DockerRegistryId = dockerRegistryId
+		appDetailContainer.IsExternalCi = ciPipeline.IsExternal
 
-	// check ips access provided to this docker registry for that cluster
-	ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(dockerRegistryId, clusterId)
-	if err != nil {
-		impl.Logger.Errorw("error in checking if docker registry ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId, "error", err)
-		return bean.AppDetailContainer{}, err
+		// check ips access provided to this docker registry for that cluster
+		ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(dockerRegistryId, clusterId)
+		if err != nil {
+			impl.Logger.Errorw("error in checking if docker registry ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId, "error", err)
+			return bean.AppDetailContainer{}, err
+		}
+		appDetailContainer.IpsAccessProvided = ipsAccessProvided
 	}
-	appDetailContainer.IpsAccessProvided = ipsAccessProvided
-
 	return appDetailContainer, nil
 }
 
