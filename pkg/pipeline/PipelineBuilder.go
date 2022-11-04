@@ -19,6 +19,7 @@ package pipeline
 
 import (
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -85,6 +86,7 @@ type PipelineBuilder interface {
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
+	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool) (err error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
@@ -111,6 +113,7 @@ type PipelineBuilder interface {
 
 	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error)
 	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error)
+	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 }
 
 type PipelineBuilderImpl struct {
@@ -1096,7 +1099,7 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	case bean.UPDATE_SOURCE:
 		return impl.patchCiPipelineUpdateSource(ciConfig, request.CiPipeline)
 	case bean.DELETE:
-		pipeline, err := impl.deletePipeline(request)
+		pipeline, err := impl.DeleteCiPipeline(request)
 		if err != nil {
 			return nil, err
 		}
@@ -1159,10 +1162,10 @@ func (impl PipelineBuilderImpl) PatchRegexCiPipeline(request *bean.CiRegexPatchR
 	}
 	return nil
 }
-func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error) {
-
+func (impl PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error) {
+	ciPipelineId := request.CiPipeline.Id
 	//wf validation
-	workflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCIPipelineId(request.CiPipeline.Id)
+	workflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCIPipelineId(ciPipelineId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching workflow mapping for ci validation", "err", err)
 		return nil, err
@@ -1174,12 +1177,13 @@ func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*b
 			UserMessage:       fmt.Sprintf("cd pipeline exists for this CI")}
 	}
 
-	pipeline, err := impl.ciPipelineRepository.FindById(request.CiPipeline.Id)
+	pipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
 	if err != nil {
-		impl.logger.Errorw("pipeline fetch err", "id", request.CiPipeline.Id, "err", err)
+		impl.logger.Errorw("pipeline fetch err", "id", ciPipelineId, "err", err)
 	}
-	if pipeline.AppId != request.AppId {
-		return nil, fmt.Errorf("invalid appid: %d pipelineId: %d mapping", request.AppId, request.CiPipeline.Id)
+	appId := request.AppId
+	if pipeline.AppId != appId {
+		return nil, fmt.Errorf("invalid appid: %d pipelineId: %d mapping", appId, ciPipelineId)
 	}
 
 	dbConnection := impl.pipelineRepository.GetConnection()
@@ -1215,7 +1219,7 @@ func (impl PipelineBuilderImpl) deletePipeline(request *bean.CiPatchRequest) (*b
 	}
 	if request.CiPipeline.PostBuildStage != nil && request.CiPipeline.PostBuildStage.Id > 0 {
 		//deleting post stage
-		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PreBuildStage, request.UserId, tx)
+		err = impl.pipelineStageService.DeleteCiStage(request.CiPipeline.PostBuildStage, request.UserId, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting post stage", "err", err, "postBuildStage", request.CiPipeline.PostBuildStage)
 			return nil, err
@@ -1401,14 +1405,14 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
 			return pipelineRequest, err
 		}
-		err = impl.deleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete, cdPipelines.UserId)
+		err = impl.DeleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete)
 		return pipelineRequest, err
 	default:
 		return nil, &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "operation not supported"}
 	}
 }
 
-func (impl PipelineBuilderImpl) deleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error) {
+func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool) (err error) {
 	//getting children CD pipeline details
 	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
@@ -2647,6 +2651,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		DockerArgs:               dockerArgs,
 		IsManual:                 pipeline.IsManual,
 		IsExternal:               pipeline.IsExternal,
+		AppId:                    pipeline.AppId,
 		ParentCiPipeline:         pipeline.ParentCiPipeline,
 		ParentAppId:              parentCiPipeline.AppId,
 		ExternalCiConfig:         externalCiConfig,
