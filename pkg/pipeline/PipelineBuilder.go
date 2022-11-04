@@ -603,7 +603,7 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 
 		externalCiConfig = append(externalCiConfig, &bean.ExternalCiConfig{
 			Id:         externalCiPipeline.Id,
-			WebhookUrl: fmt.Sprintf("%s/%s", impl.ciConfig.ExternalCiWebhookUrl, externalCiPipeline.Id),
+			WebhookUrl: fmt.Sprintf("%s/%d", impl.ciConfig.ExternalCiWebhookUrl, externalCiPipeline.Id),
 			Payload:    impl.ciConfig.ExternalCiPayload,
 			AccessKey:  "",
 			ExternalCiConfigRole: bean.ExternalCiConfigRole{
@@ -655,7 +655,7 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 
 	externalCiConfig := &bean.ExternalCiConfig{
 		Id:         externalCiPipeline.Id,
-		WebhookUrl: fmt.Sprintf("%s/%s", impl.ciConfig.ExternalCiWebhookUrl, externalCiId),
+		WebhookUrl: fmt.Sprintf("%s/%d", impl.ciConfig.ExternalCiWebhookUrl, externalCiId),
 		Payload:    impl.ciConfig.ExternalCiPayload,
 		AccessKey:  "",
 		ExternalCiConfigRole: bean.ExternalCiConfigRole{
@@ -731,14 +731,40 @@ func (impl PipelineBuilderImpl) buildPayloadOption() []bean.PayloadOptionObject 
 
 func (impl PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
 	responseSchemaObjects := make([]bean.ResponseSchemaObject, 0)
-
-	description200 := make(map[string]interface{})
-
-	responseSchemaObject := bean.ResponseSchemaObject{
-		Description: description200,
+	schema := make(map[string]interface{})
+	schema["success"] = &bean.SchemaObject{Description: "success desc", DataType: "String", Example: "true/false", Optional: false}
+	schema["result"] = &bean.SchemaObject{Description: "detail page url", DataType: "String", Example: "url", Optional: true}
+	error := make(map[string]interface{})
+	error["code"] = &bean.SchemaObject{Description: "http status code", DataType: "Integer", Example: "200/400/403", Optional: true}
+	error["message"] = &bean.SchemaObject{Description: "http status message", DataType: "String", Example: "message", Optional: true}
+	schema["error"] = &bean.SchemaObject{Description: "error desc", DataType: "Object", Example: "{}", Optional: true, Child: error}
+	description := bean.ResponseDescriptionSchemaObject{
+		Description: "sample description",
+		ExampleValue: bean.ExampleValueDto{
+			Success: true,
+			Error: bean.ErrorDto{
+				Code:    400,
+				Message: "Bad request",
+			},
+			Result: "app detail page url",
+		},
+		Schema: schema,
+	}
+	response200 := bean.ResponseSchemaObject{
+		Description: description,
 		Code:        "200",
 	}
-	responseSchemaObjects = append(responseSchemaObjects, responseSchemaObject)
+	response400 := bean.ResponseSchemaObject{
+		Description: description,
+		Code:        "400",
+	}
+	response401 := bean.ResponseSchemaObject{
+		Description: description,
+		Code:        "401",
+	}
+	responseSchemaObjects = append(responseSchemaObjects, response200)
+	responseSchemaObjects = append(responseSchemaObjects, response400)
+	responseSchemaObjects = append(responseSchemaObjects, response401)
 	return responseSchemaObjects
 }
 

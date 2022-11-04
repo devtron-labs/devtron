@@ -637,11 +637,11 @@ type CdBulkActionResponseDto struct {
 }
 
 type SchemaObject struct {
-	Description string                   `json:"description"`
-	DataType    string                   `json:"dataType"`
-	Example     string                   `json:"example"`
-	Optional    bool                     `json:"optional"`
-	Child       []map[string]interface{} `json:"child"`
+	Description string      `json:"description"`
+	DataType    string      `json:"dataType"`
+	Example     string      `json:"example"`
+	Optional    bool        `json:"optional"`
+	Child       interface{} `json:"child"`
 }
 
 type PayloadOptionObject struct {
@@ -652,6 +652,23 @@ type PayloadOptionObject struct {
 }
 
 type ResponseSchemaObject struct {
-	Description map[string]interface{} `json:"description"`
-	Code        string                 `json:"code"`
+	Description ResponseDescriptionSchemaObject `json:"description"`
+	Code        string                          `json:"code"`
+}
+
+type ResponseDescriptionSchemaObject struct {
+	Description  string                 `json:"description"`
+	ExampleValue ExampleValueDto        `json:"exampleValue"`
+	Schema       map[string]interface{} `json:"schema"`
+}
+
+type ErrorDto struct {
+	Code    int `json:"code"`
+	Message string `json:"message"`
+}
+
+type ExampleValueDto struct {
+	Success bool     `json:"success"`
+	Error   ErrorDto `json:"error,omitempty"`
+	Result  string   `json:"result"`
 }

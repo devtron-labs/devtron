@@ -238,7 +238,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
 		return err
 	}
-	pipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.Id)
+	pipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
 		return err
