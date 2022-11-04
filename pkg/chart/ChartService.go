@@ -996,6 +996,7 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 	chartRefResponse := &chartRefResponse{}
 	var chartRefs []chartRef
 	var chartRefMetadata chartRefMetaData
+	chartRefResponse.ChartsMetadata = make(map[string]chartRefMetaData)
 
 	results, err := impl.chartRefRepository.GetAll()
 	if err != nil {
