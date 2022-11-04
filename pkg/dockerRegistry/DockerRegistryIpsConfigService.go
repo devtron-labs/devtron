@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	v1 "k8s.io/api/core/v1"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
@@ -33,7 +34,6 @@ import (
 
 type DockerRegistryIpsConfigService interface {
 	IsImagePullSecretAccessProvided(dockerRegistryId string, clusterId int) (bool, error)
-	CreateOrUpdateDockerRegistryImagePullSecret(clusterId int, namespace string, ipsName string, dockerRegistryBean *repository.DockerArtifactStore) error
 	HandleImagePullSecretOnApplicationDeployment(environment *repository2.Environment, ciPipelineId int, valuesFileContent []byte) ([]byte, error)
 }
 
@@ -65,7 +65,11 @@ func (impl DockerRegistryIpsConfigServiceImpl) IsImagePullSecretAccessProvided(d
 	ipsConfig, err := impl.dockerRegistryIpsConfigRepository.FindByDockerRegistryId(dockerRegistryId)
 	if err != nil {
 		impl.logger.Errorw("Error while getting docker registry ips config", "dockerRegistryId", dockerRegistryId, "err", err)
-		return false, err
+		if err == pg.ErrNoRows {
+			return false, nil
+		} else {
+			return false, err
+		}
 	}
 	isAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId)
 	return isAccessProvided, nil
@@ -75,21 +79,49 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 	clusterId := environment.ClusterId
 	impl.logger.Infow("handling ips if access given", "ciPipelineId", ciPipelineId, "clusterId", clusterId)
 
+	if ciPipelineId == 0 {
+		impl.logger.Warn("returning as ciPipelineId is found 0")
+		return valuesFileContent, nil
+	}
+
 	ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipelineId, "error", err)
-		return nil, err
+		if err == pg.ErrNoRows {
+			return valuesFileContent, nil
+		} else {
+			return nil, err
+		}
+	}
+
+	if ciPipeline.CiTemplate == nil {
+		impl.logger.Warn("returning as ciPipeline.CiTemplate is found nil")
+		return valuesFileContent, nil
 	}
 
 	dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
+	if len(dockerRegistryId) == 0 {
+		impl.logger.Warn("returning as dockerRegistryId is found empty")
+		return valuesFileContent, nil
+	}
+
 	dockerRegistryBean, err := impl.dockerArtifactStoreRepository.FindOne(dockerRegistryId)
 	if err != nil {
 		impl.logger.Errorw("error in getting docker registry", "dockerRegistryId", dockerRegistryId, "error", err)
-		return nil, err
+		if err == pg.ErrNoRows {
+			return valuesFileContent, nil
+		} else {
+			return nil, err
+		}
 	}
 
 	// check if access provided, if not - return
 	ipsConfig := dockerRegistryBean.IpsConfig
+	if ipsConfig == nil {
+		impl.logger.Warn("returning as ipsConfig is found nil")
+		return valuesFileContent, nil
+	}
+
 	ipsAccessProvided := CheckIfImagePullSecretAccessProvided(ipsConfig.AppliedClusterIdsCsv, ipsConfig.IgnoredClusterIdsCsv, clusterId)
 	if !ipsAccessProvided {
 		impl.logger.Infow("ips access not given", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId)
@@ -101,7 +133,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 
 	// Create or update secret of credential type is not of NAME type
 	if ipsCredentialType != IPS_CREDENTIAL_TYPE_NAME {
-		err = impl.CreateOrUpdateDockerRegistryImagePullSecret(clusterId, environment.Namespace, ipsName, dockerRegistryBean)
+		err = impl.createOrUpdateDockerRegistryImagePullSecret(clusterId, environment.Namespace, ipsName, dockerRegistryBean)
 		if err != nil {
 			return nil, err
 		}
@@ -118,7 +150,7 @@ func (impl DockerRegistryIpsConfigServiceImpl) HandleImagePullSecretOnApplicatio
 	return updatedValuesFileContent, nil
 }
 
-func (impl DockerRegistryIpsConfigServiceImpl) CreateOrUpdateDockerRegistryImagePullSecret(clusterId int, namespace string, ipsName string, dockerRegistryBean *repository.DockerArtifactStore) error {
+func (impl DockerRegistryIpsConfigServiceImpl) createOrUpdateDockerRegistryImagePullSecret(clusterId int, namespace string, ipsName string, dockerRegistryBean *repository.DockerArtifactStore) error {
 	impl.logger.Infow("creating/updating ips", "ipsName", ipsName, "clusterId", clusterId)
 
 	username := dockerRegistryBean.Username
