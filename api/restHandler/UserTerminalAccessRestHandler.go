@@ -142,7 +142,7 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectTerminalSession(w htt
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	err = handler.UserTerminalAccessService.DisconnectTerminalSession(terminalAccessId)
+	err = handler.UserTerminalAccessService.StopTerminalSession(terminalAccessId)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateTerminalSession", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

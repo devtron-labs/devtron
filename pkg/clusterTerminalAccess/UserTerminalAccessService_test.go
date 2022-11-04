@@ -57,7 +57,7 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		}
 		fmt.Println("SessionId: ", sessionId)
 
-		err = terminalAccessServiceImpl.DisconnectTerminalSession(startTerminalSession.TerminalAccessId)
+		err = terminalAccessServiceImpl.StopTerminalSession(startTerminalSession.TerminalAccessId)
 		if err != nil {
 			fmt.Println(err)
 		}

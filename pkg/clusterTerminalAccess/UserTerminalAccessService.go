@@ -25,6 +25,7 @@ type UserTerminalAccessService interface {
 	StartTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error)
+	StopTerminalSession(userTerminalSessionId int) error
 	DisconnectTerminalSession(userTerminalSessionId int) error
 	DisconnectAllSessionsForUser(userId int32)
 }
@@ -170,7 +171,7 @@ func (impl UserTerminalAccessServiceImpl) UpdateTerminalSession(request *models.
 		return nil, err
 	}
 	podName := terminalAccessData.PodName
-	err = impl.DisconnectTerminalSession(userTerminalAccessId)
+	err = impl.StopTerminalSession(userTerminalAccessId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while deleting terminal pod", "userTerminalAccessId", userTerminalAccessId, "err", err)
 		return nil, err
@@ -236,7 +237,23 @@ func (impl UserTerminalAccessServiceImpl) checkTerminalExists(userTerminalSessio
 	return terminalAccessData, nil
 }
 
-func (impl UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminalAccessId int) error {
+func (impl UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminalSessionId int) error {
+	err := impl.StopTerminalSession(userTerminalSessionId)
+	if err != nil {
+		return err
+	}
+	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
+	accessSessionData := accessSessionDataMap[userTerminalSessionId]
+	terminalAccessData := accessSessionData.terminalAccessDataEntity
+	err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while stopping terminal pod", "userTerminalAccessId", userTerminalSessionId, "err", err)
+		return err
+	}
+	return err
+}
+
+func (impl UserTerminalAccessServiceImpl) StopTerminalSession(userTerminalAccessId int) error {
 	//terminalAccessData, err := impl.checkTerminalExists(userTerminalAccessId)
 	//if err != nil {
 	//	return err
