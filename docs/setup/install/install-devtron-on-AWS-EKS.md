@@ -48,32 +48,32 @@ A standard Kubernetes cluster in AWS is a prerequisite of installing Devtron.
 
 9. If you want to configure add-ons that provide advanced networking functionalities on the cluster, you can configure them on the **Networking add-ons** page and click **Next**. Or you can skip this step.
 
-9. On the **Configure logging** page, click **Next**. By default, each log type is Disabled. You can optionally choose which log types that you want to enable. For more information, see [Amazon EKS control plane logging](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html).
+10. On the **Configure logging** page, click **Next**. By default, each log type is Disabled. You can optionally choose which log types that you want to enable. For more information, see [Amazon EKS control plane logging](https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html).
 
-10. On the **Review and create** page, review the information that you entered or selected on the previous pages. Click **Edit** if you need to make changes to any of your selections. Once you verify your settings, click **Create**. 
+11. On the **Review and create** page, review the information that you entered or selected on the previous pages. Click **Edit** if you need to make changes to any of your selections. Once you verify your settings, click **Create**. 
 
  **Note**: 
  * The **Status** field shows as **Creating** for several minutes until the cluster provisioning process completes. Do not continue to the next step until the status is **Active**. 
  * If you want to modify the endpoint access for an existing cluster, refer [Modifying cluster endpoint access](https://docs.aws.amazon.com/eks/latest/userguide/cluster-endpoint.html#modify-endpoint-access).
 
-11. Once the cluster provisioning is completed (status: `Active`), save the `API server endpoint` and `Certificate authority` values from the **Overview** details. These are used in your kubectl configuration.
+12. Once the cluster provisioning is completed (status: `Active`), save the `API server endpoint` and `Certificate authority` values from the **Overview** details. These are used in your kubectl configuration.
 
-12. Go to the **Compute** section, on the **Node groups**, click **Add node group** to define a minimum of 2 nodes in your cluster.
+13. Go to the **Compute** section, on the **Node groups**, click **Add node group** to define a minimum of 2 nodes in your cluster.
 
-13. On the **Configure node group** page, provide the information in the following fields and click **Next**.
+14. On the **Configure node group** page, provide the information in the following fields and click **Next**.
 
-    | Fields | Description |
+| Fields | Description |
 | --- | --- |
 | **Name** | Enter a unique name for this node group. E.g., ks-nodes.|
 | **Node IAM role** | Select the IAM role that will be used by the nodes. To create a new role, go to the [IAM console](https://us-east-2.console.aws.amazon.com/iam/home?#roles). |
 
-13. On the **Set compute and scaling configuration**, you can leave settings at their default values and click **Next**.
+15. On the **Set compute and scaling configuration**, you can leave settings at their default values and click **Next**.
 
-14. On the **Specify networking** page, you can leave the settings at their default values and click **Next**.
+16. On the **Specify networking** page, you can leave the settings at their default values and click **Next**.
 
-15. On the **Review and Create** page, verify the information that you entered or selected on the previous pages and click **Create**.
+17. On the **Review and Create** page, verify the information that you entered or selected on the previous pages and click **Create**.
 
-16. You will see the message **The Node group creation in progress**. As soon as the nodes creation are completed, the EKS cluster is ready and you can connect to the cluster with `kubectl`.
+18. You will see the message **The Node group creation in progress**. As soon as the nodes creation are completed, the EKS cluster is ready and you can connect to the cluster with `kubectl`.
 
 
 
@@ -115,7 +115,7 @@ brew install kubectl
     Below is an example for macOS.
 
 ```bash
-brew install helm
+brew install helmq
 ```
 
 6. If you have installed the Kubernetes version higher than `v1.22`, then you must run the following command to get the CSI driver:
