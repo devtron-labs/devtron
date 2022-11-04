@@ -79,7 +79,6 @@ type InstalledAppService interface {
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
 	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
-	SaveExternalHelmAppTelemetry() error
 }
 
 type InstalledAppServiceImpl struct {
@@ -945,38 +944,4 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		}
 	}
 	return *appDetail
-}
-
-func (impl InstalledAppServiceImpl) SaveExternalHelmAppTelemetry() error {
-
-	model, err := impl.attributesRepository.FindByKey("HelmAppAccessCounter")
-
-	dbConnection := impl.attributesRepository.GetConnection()
-
-	tx, err := dbConnection.Begin()
-
-	defer tx.Rollback()
-
-	model.Key = "HelmAppAccessCounter"
-
-	if err != nil {
-		return err
-	}
-	if model.Value == "" {
-		model.Value = "1"
-		model.Active = true
-	} else {
-		newValue, _ := strconv.Atoi(model.Value)
-		model.Value = strconv.Itoa(newValue + 1)
-	}
-
-	err = impl.attributesRepository.Update(model, tx)
-
-	if err == pg.ErrNoRows {
-		_, err = impl.attributesRepository.Save(model, tx)
-	}
-
-	err = tx.Commit()
-
-	return err
 }

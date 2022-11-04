@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -34,6 +35,9 @@ type HelmAppRestHandler interface {
 	TemplateChart(w http.ResponseWriter, r *http.Request)
 }
 
+const HELM_APP_ACCESS_COUNTER = "HelmAppAccessCounter"
+const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
+
 type HelmAppRestHandlerImpl struct {
 	logger                          *zap.SugaredLogger
 	helmAppService                  HelmAppService
@@ -42,12 +46,13 @@ type HelmAppRestHandlerImpl struct {
 	enforcerUtil                    rbac.EnforcerUtilHelm
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	userAuthService                 user.UserService
+	attributesService               attributes.AttributesService
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	helmAppService HelmAppService, enforcer casbin.Enforcer,
 	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	userAuthService user.UserService) *HelmAppRestHandlerImpl {
+	userAuthService user.UserService, attributesService attributes.AttributesService) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
 		logger:                          logger,
 		helmAppService:                  helmAppService,
@@ -56,6 +61,7 @@ func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcerUtil:                    enforcerUtil,
 		appStoreDeploymentCommonService: appStoreDeploymentCommonService,
 		userAuthService:                 userAuthService,
+		attributesService:               attributesService,
 	}
 }
 
@@ -113,6 +119,8 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 		AppDetail:        appdetail,
 		InstalledAppInfo: convertToInstalledAppInfo(installedApp),
 	}
+
+	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_ACCESS_COUNTER)
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
@@ -305,6 +313,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_UPDATE_COUNTER)
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 

@@ -22,6 +22,7 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
@@ -36,6 +37,7 @@ import (
 )
 
 const CHART_REPO_DELETE_SUCCESS_RESP = "Chart repo deleted successfully."
+const CHART_STORE_VISITED_COUNTER = "ChartStoreVisitCount"
 
 type ChartBinary struct {
 	Version        string         `json:"binaryVersion"  validate:"required"`
@@ -62,11 +64,12 @@ type ChartRepositoryRestHandlerImpl struct {
 	deleteService          delete2.DeleteService
 	chartRefRepository     chartRepoRepository.ChartRefRepository
 	refChartDir            chartRepoRepository.RefChartDir
+	attributesService      attributes.AttributesService
 }
 
 func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService, chartRepositoryService chartRepo.ChartRepositoryService,
 	enforcer casbin.Enforcer, validator *validator.Validate, deleteService delete2.DeleteService,
-	chartRefRepository chartRepoRepository.ChartRefRepository, refChartDir chartRepoRepository.RefChartDir) *ChartRepositoryRestHandlerImpl {
+	chartRefRepository chartRepoRepository.ChartRefRepository, refChartDir chartRepoRepository.RefChartDir, attributesService attributes.AttributesService) *ChartRepositoryRestHandlerImpl {
 	return &ChartRepositoryRestHandlerImpl{
 		Logger:                 Logger,
 		chartRepositoryService: chartRepositoryService,
@@ -76,6 +79,7 @@ func NewChartRepositoryRestHandlerImpl(Logger *zap.SugaredLogger, userAuthServic
 		deleteService:          deleteService,
 		chartRefRepository:     chartRefRepository,
 		refChartDir:            refChartDir,
+		attributesService:      attributesService,
 	}
 }
 
@@ -111,7 +115,7 @@ func (handler *ChartRepositoryRestHandlerImpl) GetChartRepoList(w http.ResponseW
 	handler.Logger.Infow("request payload, GetChartRepoList, app store")
 	res, err := handler.chartRepositoryService.GetChartRepoList()
 
-	err = handler.chartRepositoryService.ChartStoreVisitedTelemetry()
+	err = handler.attributesService.UpdateKeyValueByOne(CHART_STORE_VISITED_COUNTER)
 
 	if err != nil {
 		handler.Logger.Errorw("service err, GetChartRepoList, app store", "err", err, "userId", userId)

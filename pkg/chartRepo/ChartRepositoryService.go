@@ -29,7 +29,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	"github.com/ghodss/yaml"
-	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"io"
 	"io/ioutil"
@@ -39,7 +38,6 @@ import (
 	"k8s.io/helm/pkg/version"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 	"time"
 )
@@ -55,31 +53,28 @@ type ChartRepositoryService interface {
 	ValidateAndUpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error, *DetailedErrorHelmRepoValidation)
 	TriggerChartSyncManual() error
 	DeleteChartRepo(request *ChartRepoDto) error
-	ChartStoreVisitedTelemetry() error
 }
 
 type ChartRepositoryServiceImpl struct {
-	logger               *zap.SugaredLogger
-	repoRepository       chartRepoRepository.ChartRepoRepository
-	K8sUtil              *util.K8sUtil
-	clusterService       cluster.ClusterService
-	aCDAuthConfig        *util2.ACDAuthConfig
-	client               *http.Client
-	serverEnvConfig      *serverEnvConfig.ServerEnvConfig
-	attributesRepository repository.AttributesRepository
+	logger          *zap.SugaredLogger
+	repoRepository  chartRepoRepository.ChartRepoRepository
+	K8sUtil         *util.K8sUtil
+	clusterService  cluster.ClusterService
+	aCDAuthConfig   *util2.ACDAuthConfig
+	client          *http.Client
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig
 }
 
 func NewChartRepositoryServiceImpl(logger *zap.SugaredLogger, repoRepository chartRepoRepository.ChartRepoRepository, K8sUtil *util.K8sUtil, clusterService cluster.ClusterService,
-	aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, serverEnvConfig *serverEnvConfig.ServerEnvConfig, attributesRepository repository.AttributesRepository) *ChartRepositoryServiceImpl {
+	aCDAuthConfig *util2.ACDAuthConfig, client *http.Client, serverEnvConfig *serverEnvConfig.ServerEnvConfig) *ChartRepositoryServiceImpl {
 	return &ChartRepositoryServiceImpl{
-		logger:               logger,
-		repoRepository:       repoRepository,
-		K8sUtil:              K8sUtil,
-		clusterService:       clusterService,
-		aCDAuthConfig:        aCDAuthConfig,
-		client:               client,
-		serverEnvConfig:      serverEnvConfig,
-		attributesRepository: attributesRepository,
+		logger:          logger,
+		repoRepository:  repoRepository,
+		K8sUtil:         K8sUtil,
+		clusterService:  clusterService,
+		aCDAuthConfig:   aCDAuthConfig,
+		client:          client,
+		serverEnvConfig: serverEnvConfig,
 	}
 }
 
@@ -583,39 +578,4 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 		return err
 	}
 	return nil
-}
-
-func (impl *ChartRepositoryServiceImpl) ChartStoreVisitedTelemetry() error {
-
-	model, err := impl.attributesRepository.FindByKey("ChartStoreVisitCount")
-
-	dbConnection := impl.attributesRepository.GetConnection()
-
-	tx, err := dbConnection.Begin()
-
-	defer tx.Rollback()
-
-	model.Key = "ChartStoreVisitCount"
-
-	if err != nil {
-		return err
-	}
-	if model.Value == "" {
-		model.Value = "1"
-		model.Active = true
-	} else {
-		newValue, _ := strconv.Atoi(model.Value)
-		model.Value = strconv.Itoa(newValue + 1)
-	}
-
-	err = impl.attributesRepository.Update(model, tx)
-
-	if err == pg.ErrNoRows {
-		_, err = impl.attributesRepository.Save(model, tx)
-	}
-
-	err = tx.Commit()
-
-	return err
-
 }

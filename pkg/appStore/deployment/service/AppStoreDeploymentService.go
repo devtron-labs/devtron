@@ -34,6 +34,7 @@ import (
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	cluster2 "github.com/devtron-labs/devtron/pkg/cluster"
@@ -43,7 +44,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
-	"strconv"
 	"time"
 )
 
@@ -63,7 +63,6 @@ type AppStoreDeploymentService interface {
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
-	SaveUpdateHelmTelemetryData() error
 }
 
 type AppStoreDeploymentServiceImpl struct {
@@ -82,7 +81,6 @@ type AppStoreDeploymentServiceImpl struct {
 	globalEnvVariables                   *util2.GlobalEnvVariables
 	installedAppRepositoryHistory        repository.InstalledAppVersionHistoryRepository
 	gitOpsRepository                     repository2.GitOpsConfigRepository
-	attributesRepository                 repository2.AttributesRepository
 }
 
 func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRepository repository.InstalledAppRepository,
@@ -92,7 +90,7 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	appStoreDeploymentArgoCdService appStoreDeploymentGitopsTool.AppStoreDeploymentArgoCdService, environmentService cluster.EnvironmentService,
 	clusterService cluster.ClusterService, helmAppService client.HelmAppService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
 	globalEnvVariables *util2.GlobalEnvVariables,
-	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesRepository repository2.AttributesRepository) *AppStoreDeploymentServiceImpl {
+	installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, gitOpsRepository repository2.GitOpsConfigRepository, attributesService attributes.AttributesService) *AppStoreDeploymentServiceImpl {
 	return &AppStoreDeploymentServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -109,7 +107,6 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 		globalEnvVariables:                   globalEnvVariables,
 		installedAppRepositoryHistory:        installedAppRepositoryHistory,
 		gitOpsRepository:                     gitOpsRepository,
-		attributesRepository:                 attributesRepository,
 	}
 }
 
@@ -1139,38 +1136,4 @@ func (impl AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequ
 		return installAppVersionRequest, err
 	}
 	return installAppVersionRequest, nil
-}
-
-func (impl AppStoreDeploymentServiceImpl) SaveUpdateHelmTelemetryData() error {
-
-	model, err := impl.attributesRepository.FindByKey("HelmAppUpdateCounter")
-
-	dbConnection := impl.attributesRepository.GetConnection()
-
-	tx, err := dbConnection.Begin()
-
-	defer tx.Rollback()
-
-	model.Key = "HelmAppUpdateCounter"
-
-	if err != nil {
-		return err
-	}
-	if model.Value == "" {
-		model.Value = "1"
-		model.Active = true
-	} else {
-		newValue, _ := strconv.Atoi(model.Value)
-		model.Value = strconv.Itoa(newValue + 1)
-	}
-
-	err = impl.attributesRepository.Update(model, tx)
-
-	if err == pg.ErrNoRows {
-		_, err = impl.attributesRepository.Save(model, tx)
-	}
-
-	err = tx.Commit()
-
-	return err
 }
