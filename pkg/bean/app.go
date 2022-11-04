@@ -645,10 +645,10 @@ type SchemaObject struct {
 }
 
 type PayloadOptionObject struct {
-	Key       string   `json:"key"`
-	KeyObject []string `json:"keyObject"`
-	Label     string   `json:"label"`
-	Selected  bool     `json:"Selected"`
+	Key        string   `json:"key"`
+	PayloadKey []string `json:"payloadKey"`
+	Label      string   `json:"label"`
+	Mandatory  bool     `json:"mandatory"`
 }
 
 type ResponseSchemaObject struct {

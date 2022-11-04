@@ -689,42 +689,42 @@ func (impl PipelineBuilderImpl) buildExternalCiWebhookSchema() map[string]interf
 	ciProjectDetail["author"] = &bean.SchemaObject{Description: "author or user name or email id who have done git commit", DataType: "String", Example: "Devtron User", Optional: true}
 	ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
 
-	schema["ciProjectDetails"] = &bean.SchemaObject{Description: "project and git commit details", DataType: "Object", Example: "", Optional: true, Child: ciProjectDetails}
+	schema["ciProjectDetails"] = &bean.SchemaObject{Description: "project and git commit details", DataType: "Array", Example: "[{}]", Optional: true, Child: ciProjectDetails}
 	return schema
 }
 
 func (impl PipelineBuilderImpl) buildPayloadOption() []bean.PayloadOptionObject {
 	payloadOption := make([]bean.PayloadOptionObject, 0)
 	payloadOption = append(payloadOption, bean.PayloadOptionObject{
-		Key:       "dockerImage",
-		KeyObject: []string{"dockerImage", "digest", "materialType"},
-		Label:     "Container image tag",
-		Selected:  true,
+		Key:        "dockerImage",
+		PayloadKey: []string{"dockerImage", "digest", "materialType"},
+		Label:      "Container image tag",
+		Mandatory:  true,
 	})
 
 	payloadOption = append(payloadOption, bean.PayloadOptionObject{
-		Key:       "commitHash",
-		KeyObject: []string{"ciProjectDetails.commitHash"},
-		Label:     "Commit hash",
-		Selected:  true,
+		Key:        "commitHash",
+		PayloadKey: []string{"ciProjectDetails.commitHash"},
+		Label:      "Commit hash",
+		Mandatory:  false,
 	})
 	payloadOption = append(payloadOption, bean.PayloadOptionObject{
-		Key:       "message",
-		KeyObject: []string{"ciProjectDetails.message"},
-		Label:     "Commit message",
-		Selected:  true,
+		Key:        "message",
+		PayloadKey: []string{"ciProjectDetails.message"},
+		Label:      "Commit message",
+		Mandatory:  false,
 	})
 	payloadOption = append(payloadOption, bean.PayloadOptionObject{
-		Key:       "author",
-		KeyObject: []string{"ciProjectDetails.author"},
-		Label:     "Author",
-		Selected:  true,
+		Key:        "author",
+		PayloadKey: []string{"ciProjectDetails.author"},
+		Label:      "Author",
+		Mandatory:  false,
 	})
 	payloadOption = append(payloadOption, bean.PayloadOptionObject{
-		Key:       "commitTime",
-		KeyObject: []string{"ciProjectDetails.commitTime"},
-		Label:     "Date & time of commit",
-		Selected:  true,
+		Key:        "commitTime",
+		PayloadKey: []string{"ciProjectDetails.commitTime"},
+		Label:      "Date & time of commit",
+		Mandatory:  false,
 	})
 	return payloadOption
 }
