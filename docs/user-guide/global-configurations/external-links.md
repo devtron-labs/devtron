@@ -76,7 +76,7 @@ Before you begin, configure an application in the Devtron dashboard.
 
 > Note: To add multiple links, select **+ Add another** at the top-left corner.
 
-Select **Save**.
+Click **Save**.
 
 ## Access an external link
 
