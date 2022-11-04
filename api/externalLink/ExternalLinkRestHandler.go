@@ -61,7 +61,7 @@ func NewExternalLinkRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcerUtil:        enforcerUtil,
 	}
 }
-func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r *http.Request) (int32, string, error) {
+func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r *http.Request, action string) (int32, string, error) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -73,7 +73,7 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 	envId := v.Get("envId")
 	token := r.Header.Get("token")
 	if len(appId) == 0 && len(envId) == 0 {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, action, "*"); !ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return userId, "", fmt.Errorf("unauthorized error")
 		}
@@ -87,7 +87,7 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 			return userId, "", err
 		}
 		object := impl.enforcerUtil.GetEnvRBACNameByAppId(appIdInt, envIdInt)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, object); ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return userId, "", fmt.Errorf("unauthorized error")
 		}
@@ -104,7 +104,7 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 	return userId, userRole, nil
 }
 func (impl ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
-	userId, userRole, err := impl.roleCheckHelper(w, r)
+	userId, userRole, err := impl.roleCheckHelper(w, r, casbin.ActionCreate)
 	if err != nil {
 		return
 	}
@@ -197,7 +197,7 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 }
 
 func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter, r *http.Request) {
-	userId, userRole, err := impl.roleCheckHelper(w, r)
+	userId, userRole, err := impl.roleCheckHelper(w, r, casbin.ActionUpdate)
 	if err != nil {
 		return
 	}
@@ -221,7 +221,7 @@ func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter
 }
 
 func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter, r *http.Request) {
-	userId, userRole, err := impl.roleCheckHelper(w, r)
+	userId, userRole, err := impl.roleCheckHelper(w, r, casbin.ActionDelete)
 	if err != nil {
 		return
 	}
