@@ -22,16 +22,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/devtron-labs/devtron/internal/constants"
+
 	//"github.com/devtron-labs/devtron/pkg/pipeline"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 
-	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	dirCopy "github.com/otiai10/copy"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -40,6 +39,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	dirCopy "github.com/otiai10/copy"
 
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -988,7 +991,9 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 	chartRefResponse := &chartRefResponse{}
 	var chartRefs []chartRef
 	results, err := impl.chartRefRepository.GetAll()
-	if err != nil {
+	resultsMetadata, err2 := impl.chartRefRepository.GetAllChartMetadata()
+
+	if err != nil || err2 != nil {
 		impl.logger.Errorw("error in fetching chart config", "err", err)
 		return chartRefResponse, err
 	}
@@ -998,7 +1003,16 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 		if len(result.Name) == 0 {
 			result.Name = "Rollout Deployment"
 		}
-		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name, Description: result.ChartDescription, UserUploaded: result.UserUploaded})
+		if len(result.ChartDescription) != 0 {
+			chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name, Description: result.ChartDescription, UserUploaded: result.UserUploaded})
+		} else {
+			for _, resultMetadata := range resultsMetadata {
+				if result.Name == resultMetadata.ChartName {
+					chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name, Description: resultMetadata.ChartDescription, UserUploaded: result.UserUploaded})
+					break
+				}
+			}
+		}
 		if result.Default == true {
 			LatestAppChartRef = result.Id
 		}

@@ -18,11 +18,12 @@
 package chartRepoRepository
 
 import (
+	"strings"
+
 	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
-	"strings"
 )
 
 type Chart struct {
@@ -332,11 +333,17 @@ type ChartRef struct {
 	sql.AuditLog
 }
 
+type ChartRefMetaData struct {
+	ChartName        string `sql:"chart_name,pk"`
+	ChartDescription string `sql:"chart_description"`
+}
+
 type ChartRefRepository interface {
 	Save(chartRepo *ChartRef) error
 	GetDefault() (*ChartRef, error)
 	FindById(id int) (*ChartRef, error)
 	GetAll() ([]*ChartRef, error)
+	GetAllChartMetadata() ([]*ChartRefMetaData, error)
 	FindByVersionAndName(name, version string) (*ChartRef, error)
 	CheckIfDataExists(name string, version string) (bool, error)
 	FetchChart(name string) ([]*ChartRef, error)
@@ -393,6 +400,12 @@ func (impl ChartRefRepositoryImpl) GetAll() ([]*ChartRef, error) {
 	err := impl.dbConnection.Model(&chartRefs).
 		Where("active = ?", true).Select()
 	return chartRefs, err
+}
+
+func (impl ChartRefRepositoryImpl) GetAllChartMetadata() ([]*ChartRefMetaData, error) {
+	var chartRefMetaDatas []*ChartRefMetaData
+	err := impl.dbConnection.Model(&chartRefMetaDatas).Select()
+	return chartRefMetaDatas, err
 }
 
 func (impl ChartRefRepositoryImpl) CheckIfDataExists(name string, version string) (bool, error) {
