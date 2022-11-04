@@ -355,32 +355,6 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 		}
 	}
 
-	//for _, requestedLinkIdentifier := range request.Identifiers {
-	//	externalLinkClusterMappingId := 0
-	//	var externalLinkCluster *ExternalLinkIdentifierMapping
-	//	for _, model := range allExternalLinksMapping {
-	//		if requestedClusterId == model.ClusterId {
-	//			externalLinkClusterMappingId = model.Id
-	//			externalLinkCluster = model
-	//			break
-	//		}
-	//	}
-	//	if externalLinkClusterMappingId > 0 && externalLinkCluster != nil {
-	//		externalLinkCluster.Active = true
-	//		externalLinkCluster.UpdatedOn = time.Now()
-	//		externalLinkCluster.UpdatedBy = request.UserId
-	//		err = impl.externalLinkClusterMappingRepository.Update(externalLinkCluster, tx)
-	//	} else {
-	//		externalLinkCluster := &ExternalLinkClusterMapping{
-	//			ExternalLinkId: request.Id,
-	//			ClusterId:      requestedClusterId,
-	//			Active:         true,
-	//			AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: request.UserId, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
-	//		}
-	//		err = impl.externalLinkClusterMappingRepository.Save(externalLinkCluster, tx)
-	//	}
-	//}
-
 	err = tx.Commit()
 	if err != nil {
 		return nil, err

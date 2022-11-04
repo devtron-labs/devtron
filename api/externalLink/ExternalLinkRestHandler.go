@@ -104,34 +104,6 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 	return userId, userRole, nil
 }
 func (impl ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
-
-	//if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); ok {
-	//	userRole = externalLink.SUPER_ADMIN_ROLE
-	//} else if ok = impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, "*"); ok {
-	//	//manager role
-	//	userRole = externalLink.ADMIN_ROLE
-	//} else {
-	//
-	//}
-	//if userRole == "" {
-	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-	//	return
-	//}
-
-	//impl.enforcerUtil.GetEnvRBACNameByAppId()
-	//go to every link if the link is app-level and not external helm app apply enforcer to check the app_level link
-	//for installed helm app
-	//object := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appDetail.AppName, appDetail.EnvironmentId)
-	//if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
-	//	common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-	//	return
-	//}
-	//for devtron-app
-	//object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	//if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-	//	common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-	//	return
-	//}
 	userId, userRole, err := impl.roleCheckHelper(w, r)
 	if err != nil {
 		return
@@ -197,11 +169,6 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 		return
 
 	} else if len(identifier) != 0 && len(linkType) != 0 && len(clusterId) != 0 {
-		//if user access level for this app
-		//if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, "*"); !ok {
-		//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		//	return
-		//}
 		id, err := strconv.Atoi(clusterId)
 		if err != nil {
 			impl.logger.Errorw("error occurred while parsing cluster_id", "clusterId", clusterId, "err", err)
@@ -230,11 +197,6 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 }
 
 func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter, r *http.Request) {
-	//userId, err := impl.userService.GetLoggedInUser(r)
-	//if userId == 0 || err != nil {
-	//	common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-	//	return
-	//}
 	userId, userRole, err := impl.roleCheckHelper(w, r)
 	if err != nil {
 		return
@@ -248,18 +210,6 @@ func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter
 		return
 	}
 	bean.UserId = userId
-	//find user role
-	//userRole := ""
-	//token := r.Header.Get("token")
-	//if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); ok {
-	//	userRole = externalLink.SUPER_ADMIN_ROLE
-	//} else if ok = impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, "*"); ok {
-	//	userRole = externalLink.ADMIN_ROLE
-	//}
-	//if userRole == "" {
-	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-	//	return
-	//}
 
 	res, err := impl.externalLinkService.Update(&bean, userRole)
 	if err != nil {
@@ -271,11 +221,6 @@ func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter
 }
 
 func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter, r *http.Request) {
-	//userId, err := impl.userService.GetLoggedInUser(r)
-	//if userId == 0 || err != nil {
-	//	common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
-	//	return
-	//}
 	userId, userRole, err := impl.roleCheckHelper(w, r)
 	if err != nil {
 		return
@@ -289,19 +234,6 @@ func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter
 		return
 	}
 
-	//token := r.Header.Get("token")
-	//userRole := ""
-	////find user role
-	//if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionDelete, "*"); ok {
-	//	userRole = externalLink.SUPER_ADMIN_ROLE
-	//} else if ok = impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, "*"); ok {
-	//	userRole = externalLink.ADMIN_ROLE
-	//}
-	//if userRole == "" {
-	//	common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-	//	return
-	//}
-	//request for delete link
 	res, err := impl.externalLinkService.DeleteLink(linkId, userId, userRole)
 	if err != nil {
 		impl.logger.Errorw("service err, delete Links", "err", err, "linkId", linkId)
