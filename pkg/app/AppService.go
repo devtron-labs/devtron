@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
@@ -115,6 +116,7 @@ type AppServiceImpl struct {
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
+	dockerRegistryIpsConfigService      dockerRegistry.DockerRegistryIpsConfigService
 }
 
 type AppService interface {
@@ -163,7 +165,8 @@ func NewAppService(
 	appCrudOperationService AppCrudOperationService,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
-	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository) *AppServiceImpl {
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:         environmentConfigRepository,
 		mergeUtil:                           mergeUtil,
@@ -209,6 +212,7 @@ func NewAppService(
 		configMapHistoryRepository:          configMapHistoryRepository,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
+		dockerRegistryIpsConfigService:      dockerRegistryIpsConfigService,
 	}
 	return appServiceImpl
 }
@@ -1581,6 +1585,12 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
+
+	// handle image pull secret if access given
+	merged, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, merged)
+	if err != nil {
+		return 0, 0, "", err
+	}
 
 	commitHash := ""
 	commitTime := time.Time{}
