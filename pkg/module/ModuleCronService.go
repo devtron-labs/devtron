@@ -97,17 +97,22 @@ func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
 			// timeout case
 			impl.updateModuleStatus(module, ModuleStatusTimeout)
 		} else if !util.IsBaseStack() {
-			// check if helm release is healthy or not
-			appIdentifier := client.AppIdentifier{
-				ClusterId:   1,
-				Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
-				ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
-			}
-			appDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), &appIdentifier)
-			if err != nil {
-				impl.logger.Errorw("Error occurred while fetching helm application detail to check if module is installed", "moduleName", module.Name, "err", err)
-			} else if appDetail.ApplicationStatus == serverBean.AppHealthStatusHealthy {
+			// if module is cicd then insert as installed
+			if module.Name == ModuleNameCicd {
 				impl.updateModuleStatus(module, ModuleStatusInstalled)
+			} else {
+				// check if helm release is healthy or not for non cicd apps
+				appIdentifier := client.AppIdentifier{
+					ClusterId:   1,
+					Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
+					ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
+				}
+				appDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), &appIdentifier)
+				if err != nil {
+					impl.logger.Errorw("Error occurred while fetching helm application detail to check if module is installed", "moduleName", module.Name, "err", err)
+				} else if appDetail.ApplicationStatus == serverBean.AppHealthStatusHealthy {
+					impl.updateModuleStatus(module, ModuleStatusInstalled)
+				}
 			}
 		}
 	}
