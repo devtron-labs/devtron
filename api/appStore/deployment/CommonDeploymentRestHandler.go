@@ -144,13 +144,21 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 	installedAppDto.UserId = userId
 	//rbac block starts from here
 	var rbacObject string
+	var rbacObject2 string
 	token := r.Header.Get("token")
 	if util2.IsHelmApp(appOfferingMode) {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedAppDto.ClusterId, installedAppDto.Namespace, installedAppDto.AppName)
 	} else {
-		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)
+		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)
 	}
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+
+	var ok bool
+	if rbacObject2 == "" {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
+	} else {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
+	}
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
@@ -190,13 +198,23 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 	}
 	//rbac block starts from here
 	var rbacObject string
+	var rbacObject2 string
 	token := r.Header.Get("token")
 	if util2.IsHelmApp(appOfferingMode) {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedAppDto.ClusterId, installedAppDto.Namespace, installedAppDto.AppName)
 	} else {
-		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)
+		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)
 	}
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+
+	var ok bool
+
+	if rbacObject2 == "" {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
+	} else {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
+	}
+
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
@@ -248,13 +266,20 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	installedAppDto.UserId = userId
 	//rbac block starts from here
 	var rbacObject string
+	var rbacObject2 string
 	token := r.Header.Get("token")
 	if util2.IsHelmApp(appOfferingMode) {
 		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(installedAppDto.ClusterId, installedAppDto.Namespace, installedAppDto.AppName)
 	} else {
-		rbacObject = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)
+		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedAppDto.AppName, installedAppDto.EnvironmentId)
 	}
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
+	var ok bool
+	if rbacObject2 == "" {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
+	} else {
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+	}
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}

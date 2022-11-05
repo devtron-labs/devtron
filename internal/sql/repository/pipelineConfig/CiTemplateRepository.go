@@ -42,10 +42,12 @@ type CiTemplate struct {
 	Active             bool     `sql:"active,notnull"`
 	GitMaterialId      int      `sql:"git_material_id"`
 	DockerBuildOptions string   `sql:"docker_build_options"` //json string format of map[string]string
+	CiBuildConfigId    int      `sql:"ci_build_config_id"`
 	sql.AuditLog
 	App            *app.App
 	DockerRegistry *repository.DockerArtifactStore
 	GitMaterial    *GitMaterial
+	CiBuildConfig  *CiBuildConfig
 }
 
 type CiTemplateRepository interface {
@@ -81,7 +83,7 @@ func (impl CiTemplateRepositoryImpl) FindByAppId(appId int) (ciTemplate *CiTempl
 	template := &CiTemplate{}
 	err = impl.dbConnection.Model(template).
 		Where("app_id =? ", appId).
-		Column("ci_template.*", "App", "DockerRegistry").
+		Column("ci_template.*", "App", "DockerRegistry", "CiBuildConfig").
 		Select()
 	if pg.ErrNoRows == err {
 		return nil, errors.NotFoundf(err.Error())
