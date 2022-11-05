@@ -85,11 +85,6 @@ func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB,
 	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder}
 }
 
-/*
-*
-It will return the list of filtered apps with details related to each env
-*/
-
 func (impl AppListingRepositoryImpl) FetchAllActiveInstalledAppsWithAppIdAndName() ([]AppNameTypeIdContainerDBResponse, error) {
 	impl.Logger.Debug("reached at Fetch All Active Installed Apps With AppId And Name")
 	var apps []AppNameTypeIdContainerDBResponse
@@ -101,6 +96,7 @@ func (impl AppListingRepositoryImpl) FetchAllActiveInstalledAppsWithAppIdAndName
 	}
 	return apps, nil
 }
+
 func (impl AppListingRepositoryImpl) FetchAllActiveDevtronAppsWithAppIdAndName() ([]AppNameTypeIdContainerDBResponse, error) {
 	impl.Logger.Debug("reached at Fetch All Active Devtron Apps With AppId And Name:")
 	var apps []AppNameTypeIdContainerDBResponse
@@ -112,6 +108,12 @@ func (impl AppListingRepositoryImpl) FetchAllActiveDevtronAppsWithAppIdAndName()
 	}
 	return apps, nil
 }
+
+/*
+*
+It will return the list of filtered apps with details related to each env
+*/
+
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	var appEnvArr []*bean.AppEnvironmentContainer
