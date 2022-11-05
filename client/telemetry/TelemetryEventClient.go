@@ -30,11 +30,11 @@ import (
 	v12 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/version"
 	"net/http"
-	"strconv"
 	"time"
 )
 
 const LOGIN_COUNT_CONST = "login-count"
+const SKIPPED_ONBOARDING_CONST = "SkippedOnboarding"
 const ADMIN_EMAIL_ID_CONST = "admin"
 
 type TelemetryEventClientImpl struct {
@@ -242,10 +242,9 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 	//getting userData from emailId
 	userData, err := impl.userAttributesRepository.GetUserDataByEmailId(ADMIN_EMAIL_ID_CONST)
 
-	loginCountValue := gjson.Get(userData, LOGIN_COUNT_CONST)
-	loginCount, _ := strconv.Atoi(loginCountValue.Str)
+	SkippedOnboardingValue := gjson.Get(userData, SKIPPED_ONBOARDING_CONST).Str
 
-	if loginCount >= 2 && loginCount <= 4 {
+	if SkippedOnboardingValue == "true" {
 		SkippedOnboarding = true
 	} else {
 		SkippedOnboarding = false

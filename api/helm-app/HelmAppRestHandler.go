@@ -33,6 +33,7 @@ type HelmAppRestHandler interface {
 	DeleteApplication(w http.ResponseWriter, r *http.Request)
 	UpdateApplication(w http.ResponseWriter, r *http.Request)
 	TemplateChart(w http.ResponseWriter, r *http.Request)
+	SaveHelmAppDetailsViewedTelemetryData(w http.ResponseWriter, r *http.Request)
 }
 
 const HELM_APP_ACCESS_COUNTER = "HelmAppAccessCounter"
@@ -119,8 +120,6 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 		AppDetail:        appdetail,
 		InstalledAppInfo: convertToInstalledAppInfo(installedApp),
 	}
-
-	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_ACCESS_COUNTER)
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
@@ -350,6 +349,36 @@ func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string
 		return false
 	}
 	return true
+}
+
+func (handler *HelmAppRestHandlerImpl) SaveHelmAppDetailsViewedTelemetryData(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	clusterIdString := vars["appId"]
+
+	appIdentifier, err := handler.helmAppService.DecodeAppId(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer ends
+	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_ACCESS_COUNTER)
+
+	if err != nil {
+		handler.logger.Errorw("error in saving external helm apps details visited count")
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
+
 }
 
 func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) *InstalledAppInfo {
