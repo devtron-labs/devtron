@@ -92,14 +92,7 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 		}
 		userRole = externalLink.ADMIN_ROLE
 	}
-	//find user role
-	//if len(appName) > 0 {
-	//	userRole = externalLink.ADMIN_ROLE
-	//} else {
-	//	impl.logger.Errorw("invalid request params, unable to parse", "appId", appName, "envId", envId)
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return userId, "", fmt.Errorf("invalid request param error")
-	//}
+
 	return userId, userRole, nil
 }
 func (impl ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
