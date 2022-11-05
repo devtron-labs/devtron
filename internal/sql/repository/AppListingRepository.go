@@ -93,7 +93,7 @@ It will return the list of filtered apps with details related to each env
 func (impl AppListingRepositoryImpl) FetchAllActiveInstalledAppsWithAppIdAndName() ([]AppNameTypeIdContainerDBResponse, error) {
 	impl.Logger.Debug("reached at Fetch All Active Installed Apps With AppId And Name")
 	var apps []AppNameTypeIdContainerDBResponse
-	query := "select id,app_name " + "from app where app_store=false and active=true;"
+	query := "select installed_apps.id,app.app_name " + "from app INNER JOIN installed_apps  on app.id = installed_apps.app_id where app.active=true;"
 	_, err := impl.dbConnection.Query(&apps, query)
 	if err != nil {
 		impl.Logger.Errorw("error while fetching installed apps With AppId And Name")
@@ -104,7 +104,7 @@ func (impl AppListingRepositoryImpl) FetchAllActiveInstalledAppsWithAppIdAndName
 func (impl AppListingRepositoryImpl) FetchAllActiveDevtronAppsWithAppIdAndName() ([]AppNameTypeIdContainerDBResponse, error) {
 	impl.Logger.Debug("reached at Fetch All Active Devtron Apps With AppId And Name:")
 	var apps []AppNameTypeIdContainerDBResponse
-	query := "select installed_apps.id,app.app_name " + "from app INNER JOIN installed_apps  on app.id = installed_apps.app_id where app.active=true;"
+	query := "select id,app_name " + "from app where app_store=false and active=true;"
 	_, err := impl.dbConnection.Query(&apps, query)
 	if err != nil {
 		impl.Logger.Errorw("error while fetching active Devtron apps With AppId And Name")
