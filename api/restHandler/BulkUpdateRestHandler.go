@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/appClone"
 	"github.com/devtron-labs/devtron/pkg/appWorkflow"
+	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	request "github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
@@ -24,6 +25,7 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"strconv"
 	"strings"
 )
 
@@ -35,13 +37,16 @@ type BulkUpdateRestHandler interface {
 	BulkHibernate(w http.ResponseWriter, r *http.Request)
 	BulkUnHibernate(w http.ResponseWriter, r *http.Request)
 	BulkDeploy(w http.ResponseWriter, r *http.Request)
+	BulkBuildTrigger(w http.ResponseWriter, r *http.Request)
+
+	HandleCdPipelineBulkAction(w http.ResponseWriter, r *http.Request)
 }
 type BulkUpdateRestHandlerImpl struct {
 	pipelineBuilder         pipeline.PipelineBuilder
 	ciPipelineRepository    pipelineConfig.CiPipelineRepository
 	ciHandler               pipeline.CiHandler
 	logger                  *zap.SugaredLogger
-	bulkUpdateService       pipeline.BulkUpdateService
+	bulkUpdateService       bulkAction.BulkUpdateService
 	chartService            chart.ChartService
 	propertiesConfigService pipeline.PropertiesConfigService
 	dbMigrationService      pipeline.DbMigrationService
@@ -66,7 +71,7 @@ type BulkUpdateRestHandlerImpl struct {
 }
 
 func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logger *zap.SugaredLogger,
-	bulkUpdateService pipeline.BulkUpdateService,
+	bulkUpdateService bulkAction.BulkUpdateService,
 	chartService chart.ChartService,
 	propertiesConfigService pipeline.PropertiesConfigService,
 	dbMigrationService pipeline.DbMigrationService,
@@ -128,7 +133,7 @@ func (handler BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWri
 		return
 	}
 	//auth free, only login required
-	var responseArr []*pipeline.BulkUpdateSeeExampleResponse
+	var responseArr []*bulkAction.BulkUpdateSeeExampleResponse
 	responseArr = append(responseArr, response)
 	common.WriteJsonResp(w, nil, responseArr, http.StatusOK)
 }
@@ -150,7 +155,7 @@ func (handler BulkUpdateRestHandlerImpl) CheckAuthForImpactedObjects(AppId int, 
 }
 func (handler BulkUpdateRestHandlerImpl) GetImpactedAppsName(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var script pipeline.BulkUpdateScript
+	var script bulkAction.BulkUpdateScript
 	err := decoder.Decode(&script)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -205,7 +210,7 @@ func (handler BulkUpdateRestHandlerImpl) CheckAuthForBulkUpdate(AppId int, EnvId
 }
 func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var script pipeline.BulkUpdateScript
+	var script bulkAction.BulkUpdateScript
 	err := decoder.Decode(&script)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -254,7 +259,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkHibernate(w http.ResponseWriter, r 
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request pipeline.BulkApplicationForEnvironmentPayload
+	var request bulkAction.BulkApplicationForEnvironmentPayload
 	err = decoder.Decode(&request)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -291,7 +296,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUnHibernate(w http.ResponseWriter, 
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request pipeline.BulkApplicationForEnvironmentPayload
+	var request bulkAction.BulkApplicationForEnvironmentPayload
 	err = decoder.Decode(&request)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -328,7 +333,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
-	var request pipeline.BulkApplicationForEnvironmentPayload
+	var request bulkAction.BulkApplicationForEnvironmentPayload
 	err = decoder.Decode(&request)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -357,6 +362,42 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
+func (handler BulkUpdateRestHandlerImpl) BulkBuildTrigger(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var request bulkAction.BulkApplicationForEnvironmentPayload
+	err = decoder.Decode(&request)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	request.UserId = userId
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.logger.Errorw("validation err", "err", err, "request", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+	token := r.Header.Get("token")
+	response, err := handler.bulkUpdateService.BulkBuildTrigger(&request, ctx, w, token, handler.checkAuthForBulkActions)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
+}
+
 func (handler BulkUpdateRestHandlerImpl) checkAuthForBulkActions(token string, appObject string, envObject string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, strings.ToLower(appObject)); !ok {
 		return false
@@ -365,4 +406,86 @@ func (handler BulkUpdateRestHandlerImpl) checkAuthForBulkActions(token string, a
 		return false
 	}
 	return true
+}
+
+func (handler BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var cdPipelineBulkActionReq bulkAction.CdBulkActionRequestDto
+	err = decoder.Decode(&cdPipelineBulkActionReq)
+	cdPipelineBulkActionReq.UserId = userId
+	if err != nil {
+		handler.logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	v := r.URL.Query()
+	forceDelete := false
+	forceDeleteParam := v.Get("forceDelete")
+	if len(forceDeleteParam) > 0 {
+		forceDelete, err = strconv.ParseBool(forceDeleteParam)
+		if err != nil {
+			handler.logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	cdPipelineBulkActionReq.ForceDelete = forceDelete
+
+	dryRun := false
+	dryRunParam := v.Get("dryRun")
+	if len(dryRunParam) > 0 {
+		dryRun, err = strconv.ParseBool(dryRunParam)
+		if err != nil {
+			handler.logger.Errorw("request err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+	}
+	handler.logger.Infow("request payload, HandleCdPipelineBulkAction", "payload", cdPipelineBulkActionReq)
+	impactedPipelines, impactedAppWfIds, impactedCiPipelineIds, err := handler.bulkUpdateService.GetBulkActionImpactedPipelinesAndWfs(&cdPipelineBulkActionReq)
+	if err != nil {
+		handler.logger.Errorw("service err, GetBulkActionImpactedPipelinesAndWfs", "err", err, "payload", cdPipelineBulkActionReq)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	token := r.Header.Get("token")
+
+	appsHavingRbacChecked := make(map[string]bool)
+	for _, impactedPipeline := range impactedPipelines {
+		//check to avoid same rbac matching multiple times
+		if _, ok := appsHavingRbacChecked[impactedPipeline.App.AppName]; !ok {
+			resourceName := handler.enforcerUtil.GetAppRBACName(impactedPipeline.App.AppName)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
+				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+				return
+			} else {
+				appsHavingRbacChecked[impactedPipeline.App.AppName] = true
+			}
+		}
+		object := handler.enforcerUtil.GetAppRBACByAppNameAndEnvId(impactedPipeline.App.AppName, impactedPipeline.EnvironmentId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+	resp, err := handler.bulkUpdateService.PerformBulkActionOnCdPipelines(&cdPipelineBulkActionReq, impactedPipelines, ctx, dryRun, impactedAppWfIds, impactedCiPipelineIds)
+	if err != nil {
+		handler.logger.Errorw("service err, HandleCdPipelineBulkAction", "err", err, "payload", cdPipelineBulkActionReq)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
