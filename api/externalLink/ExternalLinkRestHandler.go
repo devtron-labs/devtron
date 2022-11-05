@@ -86,7 +86,7 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 			return userId, "", err
 		}
 		object := impl.enforcerUtil.GetAppRBACByAppNameAndEnvId(appName, envIdInt)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, object); ok {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, object); !ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return userId, "", fmt.Errorf("unauthorized error")
 		}
