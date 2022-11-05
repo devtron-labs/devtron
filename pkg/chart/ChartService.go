@@ -954,8 +954,8 @@ type chartRef struct {
 	UserUploaded bool   `json:"userUploaded"`
 }
 
-type chartRefMetaData struct {
-	ChartDescription string
+type ChartRefMetaData struct {
+	ChartDescription string `json:"chartDescription"`
 }
 
 type chartRefResponse struct {
@@ -963,7 +963,7 @@ type chartRefResponse struct {
 	LatestChartRef    int                         `json:"latestChartRef"`
 	LatestAppChartRef int                         `json:"latestAppChartRef"`
 	LatestEnvChartRef int                         `json:"latestEnvChartRef,omitempty"`
-	ChartsMetadata    map[string]chartRefMetaData `json:"chartMetadata"`
+	ChartsMetadata    map[string]ChartRefMetaData `json:"chartMetadata"` // chartName vs Metadata
 }
 
 type ChartYamlStruct struct {
@@ -1003,10 +1003,10 @@ func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 }
 
 func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error) {
-	chartRefResponse := &chartRefResponse{}
+	chartRefResponse := &chartRefResponse{
+		ChartsMetadata: make(map[string]ChartRefMetaData),
+	}
 	var chartRefs []chartRef
-	var chartRefMetadata chartRefMetaData
-	chartRefResponse.ChartsMetadata = make(map[string]chartRefMetaData)
 
 	results, err := impl.chartRefRepository.GetAll()
 	if err != nil {
@@ -1020,7 +1020,9 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 		return chartRefResponse, err
 	}
 	for _, resultMetadata := range resultsMetadata {
-		chartRefMetadata.ChartDescription = resultMetadata.ChartDescription
+		chartRefMetadata := ChartRefMetaData{
+			ChartDescription: resultMetadata.ChartDescription,
+		}
 		chartRefResponse.ChartsMetadata[resultMetadata.ChartName] = chartRefMetadata
 	}
 	var LatestAppChartRef int
