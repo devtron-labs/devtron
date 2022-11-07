@@ -38,7 +38,7 @@ type AppWorkflowService interface {
 	CreateAppWorkflow(req AppWorkflowDto) (AppWorkflowDto, error)
 	FindAppWorkflows(appId int) ([]AppWorkflowDto, error)
 	FindAppWorkflowById(Id int, appId int) (AppWorkflowDto, error)
-	DeleteAppWorkflow(appId, appWorkflowId int, userId int32) error
+	DeleteAppWorkflow(appWorkflowId int, userId int32) error
 
 	SaveAppWorkflowMapping(wf AppWorkflowMappingDto) (AppWorkflowMappingDto, error)
 	FindAppWorkflowMapping(workflowId int) ([]AppWorkflowMappingDto, error)
@@ -172,9 +172,9 @@ func (impl AppWorkflowServiceImpl) FindAppWorkflowById(Id int, appId int) (AppWo
 	return *appWorkflowDto, err
 }
 
-func (impl AppWorkflowServiceImpl) DeleteAppWorkflow(appId, appWorkflowId int, userId int32) error {
+func (impl AppWorkflowServiceImpl) DeleteAppWorkflow(appWorkflowId int, userId int32) error {
 	impl.Logger.Debugw("Deleting app-workflow: ", "appWorkflowId", appWorkflowId)
-	wf, err := impl.appWorkflowRepository.FindByIdAndAppId(appWorkflowId, appId)
+	wf, err := impl.appWorkflowRepository.FindById(appWorkflowId)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
 		return err

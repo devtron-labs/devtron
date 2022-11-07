@@ -87,6 +87,7 @@ type CiPipeline struct {
 	IsExternal               bool                   `json:"isExternal"`
 	ParentCiPipeline         int                    `json:"parentCiPipeline"`
 	ParentAppId              int                    `json:"parentAppId"`
+	AppId                    int                    `json:"appId"`
 	ExternalCiConfig         ExternalCiConfig       `json:"externalCiConfig"`
 	CiMaterial               []*CiMaterial          `json:"ciMaterial,omitempty" validate:"dive,min=1"`
 	Name                     string                 `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
@@ -110,9 +111,10 @@ type CiPipeline struct {
 }
 
 type DockerConfigOverride struct {
-	DockerRegistry    string             `json:"dockerRegistry,omitempty"`
-	DockerRepository  string             `json:"dockerRepository,omitempty"`
-	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
+	DockerRegistry   string                  `json:"dockerRegistry,omitempty"`
+	DockerRepository string                  `json:"dockerRepository,omitempty"`
+	CiBuildConfig    *bean.CiBuildConfigBean `json:"ciBuildConfig,omitEmpty"`
+	//DockerBuildConfig *DockerBuildConfig  `json:"dockerBuildConfig,omitempty"`
 }
 
 type CiPipelineMin struct {
@@ -249,22 +251,22 @@ type Material struct {
 }
 
 type CiConfigRequest struct {
-	Id                int                `json:"id,omitempty" validate:"number"` //ciTemplateId
-	AppId             int                `json:"appId,omitempty" validate:"required,number"`
-	DockerRegistry    string             `json:"dockerRegistry,omitempty" `  //repo id example ecr mapped one-one with gocd registry entry
-	DockerRepository  string             `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
-	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty" validate:"required,dive"`
-	CiPipelines       []*CiPipeline      `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
-	AppName           string             `json:"appName,omitempty"`
-	Version           string             `json:"version,omitempty"` //gocd etag used for edit purpose
-	DockerRegistryUrl string             `json:"-"`
-	CiTemplateName    string             `json:"-"`
-	UserId            int32              `json:"-"`
-	Materials         []Material         `json:"materials"`
-	AppWorkflowId     int                `json:"appWorkflowId,omitempty"`
-	BeforeDockerBuild []*Task            `json:"beforeDockerBuild,omitempty" validate:"dive"`
-	AfterDockerBuild  []*Task            `json:"afterDockerBuild,omitempty" validate:"dive"`
-	ScanEnabled       bool               `json:"scanEnabled,notnull"`
+	Id                int                     `json:"id,omitempty" validate:"number"` //ciTemplateId
+	AppId             int                     `json:"appId,omitempty" validate:"required,number"`
+	DockerRegistry    string                  `json:"dockerRegistry,omitempty" `  //repo id example ecr mapped one-one with gocd registry entry
+	DockerRepository  string                  `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
+	CiBuildConfig     *bean.CiBuildConfigBean `json:"ciBuildConfig"`
+	CiPipelines       []*CiPipeline           `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
+	AppName           string                  `json:"appName,omitempty"`
+	Version           string                  `json:"version,omitempty"` //gocd etag used for edit purpose
+	DockerRegistryUrl string                  `json:"-"`
+	CiTemplateName    string                  `json:"-"`
+	UserId            int32                   `json:"-"`
+	Materials         []Material              `json:"materials"`
+	AppWorkflowId     int                     `json:"appWorkflowId,omitempty"`
+	BeforeDockerBuild []*Task                 `json:"beforeDockerBuild,omitempty" validate:"dive"`
+	AfterDockerBuild  []*Task                 `json:"afterDockerBuild,omitempty" validate:"dive"`
+	ScanEnabled       bool                    `json:"scanEnabled,notnull"`
 	CreatedOn         time.Time          `sql:"created_on,type:timestamptz"`
 	CreatedBy         int32              `sql:"created_by,type:integer"`
 	UpdatedOn         time.Time          `sql:"updated_on,type:timestamptz"`
@@ -275,15 +277,6 @@ type TestExecutorImageProperties struct {
 	ImageName string `json:"imageName,omitempty"`
 	Arg       string `json:"arg,omitempty"`
 	ReportDir string `json:"reportDir,omitempty"`
-}
-
-type DockerBuildConfig struct {
-	GitMaterialId      int               `json:"gitMaterialId,omitempty" validate:"required"`
-	DockerfilePath     string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
-	Args               map[string]string `json:"args,omitempty"`
-	TargetPlatform     string            `json:"targetPlatform"`
-	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
-	//Name Tag DockerfilePath RepoUrl
 }
 
 type PipelineCreateResponse struct {
@@ -601,26 +594,4 @@ type UpdateProjectBulkAppsRequest struct {
 	AppIds []int `json:"appIds"`
 	TeamId int   `json:"teamId"`
 	UserId int32 `json:"-"`
-}
-
-type CdBulkAction int
-
-const (
-	CD_BULK_DELETE CdBulkAction = iota
-)
-
-type CdBulkActionRequestDto struct {
-	Action      CdBulkAction `json:"action"`
-	EnvIds      []int        `json:"envIds"`
-	AppIds      []int        `json:"appIds"`
-	ProjectIds  []int        `json:"projectIds"`
-	ForceDelete bool         `json:"forceDelete"`
-	UserId      int32        `json:"-"`
-}
-
-type CdBulkActionResponseDto struct {
-	PipelineName    string `json:"pipelineName"`
-	AppName         string `json:"appName"`
-	EnvironmentName string `json:"environmentName"`
-	DeletionResult  string `json:"deletionResult,omitempty"`
 }

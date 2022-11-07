@@ -38,6 +38,7 @@ type AppCrudOperationService interface {
 	GetLabelsByAppId(appId int) (map[string]string, error)
 	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
+	GetAppMetaInfoByAppName(appName string) (*bean.AppMetaInfoDto, error)
 }
 type AppCrudOperationServiceImpl struct {
 	logger             *zap.SugaredLogger
@@ -320,4 +321,21 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppId(appId int) (map[string]
 		labelsDto[label.Key] = label.Value
 	}
 	return labelsDto, nil
+}
+
+func (impl AppCrudOperationServiceImpl) GetAppMetaInfoByAppName(appName string) (*bean.AppMetaInfoDto, error) {
+	app, err := impl.appRepository.FindAppAndProjectByAppName(appName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching GetAppMetaInfoByAppName", "error", err)
+		return nil, err
+	}
+	info := &bean.AppMetaInfoDto{
+		AppId:       app.Id,
+		AppName:     app.AppName,
+		ProjectId:   app.TeamId,
+		ProjectName: app.Team.Name,
+		CreatedOn:   app.CreatedOn,
+		Active:      app.Active,
+	}
+	return info, nil
 }
