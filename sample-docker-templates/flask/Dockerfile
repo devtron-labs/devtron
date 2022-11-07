@@ -29,8 +29,10 @@ ADD . /app/
 #Installing dependencies
 RUN pip3 install -r requirements.txt
 
+# Refer https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/flask/nginx.default for sample nginx.default file
 COPY nginx.default /etc/nginx/sites-available/default
 
+#Refer https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/flask/start.sh for sample start.sh file
 #Making start.sh executable
 RUN chmod +x ./start.sh
 

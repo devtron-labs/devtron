@@ -1,4 +1,4 @@
-package pipeline
+package bulkAction
 
 import (
 	"context"
@@ -7,121 +7,32 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
-	"github.com/devtron-labs/devtron/internal/sql/repository/app"
-	bean2 "github.com/devtron-labs/devtron/pkg/bean"
-	"github.com/devtron-labs/devtron/pkg/chart"
-	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/pipeline/history"
-	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
-	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/go-pg/pg"
-	"net/http"
-
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
+	bean2 "github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/chart"
+	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
+	pipeline1 "github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/history"
+	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
+	"github.com/devtron-labs/devtron/util/rbac"
 	jsonpatch "github.com/evanphx/json-patch"
+	"github.com/go-pg/pg"
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"go.uber.org/zap"
+	"net/http"
+	"sort"
 )
-
-type NameIncludesExcludes struct {
-	Names []string `json:"names"`
-}
-
-type DeploymentTemplateSpec struct {
-	PatchJson string `json:"patchJson"`
-}
-type DeploymentTemplateTask struct {
-	Spec *DeploymentTemplateSpec `json:"spec"`
-}
-type CmAndSecretSpec struct {
-	Names     []string `json:"names"`
-	PatchJson string   `json:"patchJson"`
-}
-type CmAndSecretTask struct {
-	Spec *CmAndSecretSpec `json:"spec"`
-}
-type BulkUpdatePayload struct {
-	Includes           *NameIncludesExcludes   `json:"includes"`
-	Excludes           *NameIncludesExcludes   `json:"excludes"`
-	EnvIds             []int                   `json:"envIds"`
-	Global             bool                    `json:"global"`
-	DeploymentTemplate *DeploymentTemplateTask `json:"deploymentTemplate"`
-	ConfigMap          *CmAndSecretTask        `json:"configMap"`
-	Secret             *CmAndSecretTask        `json:"secret"`
-}
-type BulkUpdateScript struct {
-	ApiVersion string             `json:"apiVersion" validate:"required"`
-	Kind       string             `json:"kind" validate:"required"`
-	Spec       *BulkUpdatePayload `json:"spec" validate:"required"`
-}
-type BulkUpdateSeeExampleResponse struct {
-	Operation string            `json:"operation"`
-	Script    *BulkUpdateScript `json:"script" validate:"required"`
-	ReadMe    string            `json:"readme"`
-}
-type ImpactedObjectsResponse struct {
-	DeploymentTemplate []*DeploymentTemplateImpactedObjectsResponseForOneApp `json:"deploymentTemplate"`
-	ConfigMap          []*CmAndSecretImpactedObjectsResponseForOneApp        `json:"configMap"`
-	Secret             []*CmAndSecretImpactedObjectsResponseForOneApp        `json:"secret"`
-}
-type DeploymentTemplateImpactedObjectsResponseForOneApp struct {
-	AppId   int    `json:"appId"`
-	AppName string `json:"appName"`
-	EnvId   int    `json:"envId"`
-}
-type CmAndSecretImpactedObjectsResponseForOneApp struct {
-	AppId   int      `json:"appId"`
-	AppName string   `json:"appName"`
-	EnvId   int      `json:"envId"`
-	Names   []string `json:"names"`
-}
-type DeploymentTemplateBulkUpdateResponseForOneApp struct {
-	AppId   int    `json:"appId"`
-	AppName string `json:"appName"`
-	EnvId   int    `json:"envId"`
-	Message string `json:"message"`
-}
-type CmAndSecretBulkUpdateResponseForOneApp struct {
-	AppId   int      `json:"appId"`
-	AppName string   `json:"appName"`
-	EnvId   int      `json:"envId"`
-	Names   []string `json:"names"`
-	Message string   `json:"message"`
-}
-type BulkUpdateResponse struct {
-	DeploymentTemplate *DeploymentTemplateBulkUpdateResponse `json:"deploymentTemplate"`
-	ConfigMap          *CmAndSecretBulkUpdateResponse        `json:"configMap"`
-	Secret             *CmAndSecretBulkUpdateResponse        `json:"secret"`
-}
-type DeploymentTemplateBulkUpdateResponse struct {
-	Message    []string                                         `json:"message"`
-	Failure    []*DeploymentTemplateBulkUpdateResponseForOneApp `json:"failure"`
-	Successful []*DeploymentTemplateBulkUpdateResponseForOneApp `json:"successful"`
-}
-type CmAndSecretBulkUpdateResponse struct {
-	Message    []string                                  `json:"message"`
-	Failure    []*CmAndSecretBulkUpdateResponseForOneApp `json:"failure"`
-	Successful []*CmAndSecretBulkUpdateResponseForOneApp `json:"successful"`
-}
-
-type BulkApplicationForEnvironmentPayload struct {
-	AppIdIncludes []int `json:"appIdIncludes,omitempty"`
-	AppIdExcludes []int `json:"appIdExcludes,omitempty"`
-	EnvId         int   `json:"envId"`
-	UserId        int32 `json:"-"`
-}
-
-type BulkApplicationForEnvironmentResponse struct {
-	BulkApplicationForEnvironmentPayload
-	Response map[string]map[string]bool `json:"response"`
-}
 
 type BulkUpdateService interface {
 	FindBulkUpdateReadme(operation string) (response *BulkUpdateSeeExampleResponse, err error)
@@ -136,6 +47,9 @@ type BulkUpdateService interface {
 	BulkUnHibernate(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
 	BulkDeploy(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
 	BulkBuildTrigger(request *BulkApplicationForEnvironmentPayload, ctx context.Context, w http.ResponseWriter, token string, checkAuthForBulkActions func(token string, appObject string, envObject string) bool) (*BulkApplicationForEnvironmentResponse, error)
+
+	GetBulkActionImpactedPipelinesAndWfs(dto *CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, []int, []int, error)
+	PerformBulkActionOnCdPipelines(dto *CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, impactedAppWfIds []int, impactedCiPipelineIds []int) (*PipelineAndWfBulkActionResponseDto, error)
 }
 
 type BulkUpdateServiceImpl struct {
@@ -159,14 +73,16 @@ type BulkUpdateServiceImpl struct {
 	appRepository                    app.AppRepository
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService
 	configMapHistoryService          history.ConfigMapHistoryService
-	workflowDagExecutor              WorkflowDagExecutor
+	workflowDagExecutor              pipeline.WorkflowDagExecutor
 	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
-	pipelineBuilder                  PipelineBuilder
+	pipelineBuilder                  pipeline.PipelineBuilder
 	helmAppService                   client.HelmAppService
 	enforcerUtil                     rbac.EnforcerUtil
 	enforcerUtilHelm                 rbac.EnforcerUtilHelm
-	ciHandler                        CiHandler
+	ciHandler                        pipeline.CiHandler
 	ciPipelineRepository             pipelineConfig.CiPipelineRepository
+	appWorkflowRepository            appWorkflow.AppWorkflowRepository
+	appWorkflowService               appWorkflow2.AppWorkflowService
 }
 
 func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateRepository,
@@ -188,10 +104,13 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 	client *http.Client,
 	appRepository app.AppRepository,
 	deploymentTemplateHistoryService history.DeploymentTemplateHistoryService,
-	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor WorkflowDagExecutor,
-	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, pipelineBuilder PipelineBuilder,
+	configMapHistoryService history.ConfigMapHistoryService, workflowDagExecutor pipeline.WorkflowDagExecutor,
+	cdWorkflowRepository pipelineConfig.CdWorkflowRepository, pipelineBuilder pipeline.PipelineBuilder,
 	helmAppService client.HelmAppService, enforcerUtil rbac.EnforcerUtil,
-	enforcerUtilHelm rbac.EnforcerUtilHelm, ciHandler CiHandler, ciPipelineRepository pipelineConfig.CiPipelineRepository) *BulkUpdateServiceImpl {
+	enforcerUtilHelm rbac.EnforcerUtilHelm, ciHandler pipeline.CiHandler,
+	ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	appWorkflowRepository appWorkflow.AppWorkflowRepository,
+	appWorkflowService appWorkflow2.AppWorkflowService) *BulkUpdateServiceImpl {
 	return &BulkUpdateServiceImpl{
 		bulkUpdateRepository:             bulkUpdateRepository,
 		chartRepository:                  chartRepository,
@@ -221,6 +140,8 @@ func NewBulkUpdateServiceImpl(bulkUpdateRepository bulkUpdate.BulkUpdateReposito
 		enforcerUtilHelm:                 enforcerUtilHelm,
 		ciHandler:                        ciHandler,
 		ciPipelineRepository:             ciPipelineRepository,
+		appWorkflowRepository:            appWorkflowRepository,
+		appWorkflowService:               appWorkflowService,
 	}
 }
 
@@ -1079,11 +1000,11 @@ func (impl BulkUpdateServiceImpl) BulkHibernate(request *BulkApplicationForEnvir
 		}
 
 		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-			stopRequest := &StopAppRequest{
+			stopRequest := &pipeline1.StopAppRequest{
 				AppId:         pipeline.AppId,
 				EnvironmentId: pipeline.EnvironmentId,
 				UserId:        request.UserId,
-				RequestType:   STOP,
+				RequestType:   pipeline1.STOP,
 			}
 			_, err := impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
 			if err != nil {
@@ -1144,11 +1065,11 @@ func (impl BulkUpdateServiceImpl) BulkUnHibernate(request *BulkApplicationForEnv
 		}
 
 		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-			stopRequest := &StopAppRequest{
+			stopRequest := &pipeline1.StopAppRequest{
 				AppId:         pipeline.AppId,
 				EnvironmentId: pipeline.EnvironmentId,
 				UserId:        request.UserId,
-				RequestType:   START,
+				RequestType:   pipeline1.START,
 			}
 			_, err := impl.workflowDagExecutor.StopStartApp(stopRequest, ctx)
 			if err != nil {
@@ -1359,4 +1280,162 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 	bulkOperationResponse.BulkApplicationForEnvironmentPayload = *request
 	bulkOperationResponse.Response = response
 	return bulkOperationResponse, nil
+}
+
+func (impl BulkUpdateServiceImpl) GetBulkActionImpactedPipelinesAndWfs(dto *CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, []int, []int, error) {
+	var err error
+	if len(dto.EnvIds) == 0 || (len(dto.AppIds) == 0 && len(dto.ProjectIds) == 0) {
+		//invalid payload, envIds are must and either of appIds or projectIds are must
+		return nil, nil, nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid payload, can not get pipelines for this filter"}
+	}
+
+	if len(dto.ProjectIds) > 0 {
+		appIdsInProjects, err := impl.appRepository.FindIdsByTeamIds(dto.ProjectIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting appIds by projectIds", "err", err, "projectIds", dto.ProjectIds)
+			return nil, nil, nil, err
+		}
+		dto.AppIds = append(dto.AppIds, appIdsInProjects...)
+	}
+	var impactedWfIds []int
+	var impactedPipelineIds []int
+	var impactedCiPipelineIds []int
+	if len(dto.AppIds) > 0 && len(dto.EnvIds) > 0 {
+		if !dto.DeleteWfAndCiPipeline {
+			//getting pipeline IDs for app level deletion request
+			impactedPipelineIds, err = impl.pipelineRepository.FindIdsByAppIdsAndEnvironmentIds(dto.AppIds, dto.EnvIds)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting cd pipelines by appIds and envIds", "err", err)
+				return nil, nil, nil, err
+			}
+
+		} else {
+			//getting all workflows in given apps which do not have pipelines of other than given environments
+			appWfs, err := impl.appWorkflowRepository.FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(dto.EnvIds, dto.AppIds)
+			if err != nil && err != pg.ErrNoRows {
+				impl.logger.Errorw("error in getting wfs having cd pipelines from specific env only", "err", err)
+				return nil, nil, nil, err
+			}
+			impactedWfIdsMap := make(map[int]bool)
+			for _, appWf := range appWfs {
+				if appWf.Type == appWorkflow.CDPIPELINE {
+					impactedPipelineIds = append(impactedPipelineIds, appWf.ComponentId)
+				} else if appWf.Type == appWorkflow.CIPIPELINE {
+					impactedCiPipelineIds = append(impactedCiPipelineIds, appWf.ComponentId)
+				}
+				if _, ok := impactedWfIdsMap[appWf.AppWorkflowId]; !ok {
+					impactedWfIds = append(impactedWfIds, appWf.AppWorkflowId)
+					impactedWfIdsMap[appWf.AppWorkflowId] = true
+				}
+			}
+		}
+	}
+	var pipelines []*pipelineConfig.Pipeline
+	if len(impactedPipelineIds) > 0 {
+		pipelines, err = impl.pipelineRepository.FindByIdsIn(impactedPipelineIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting cd pipelines by ids", "err", err, "ids", impactedPipelineIds)
+			return nil, nil, nil, err
+		}
+	}
+	return pipelines, impactedWfIds, impactedCiPipelineIds, nil
+}
+
+func (impl BulkUpdateServiceImpl) PerformBulkActionOnCdPipelines(dto *CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline,
+	ctx context.Context, dryRun bool, impactedAppWfIds []int, impactedCiPipelineIds []int) (*PipelineAndWfBulkActionResponseDto, error) {
+	switch dto.Action {
+	case CD_BULK_DELETE:
+		bulkDeleteResp, err := impl.PerformBulkDeleteActionOnCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete, dto.DeleteWfAndCiPipeline, impactedAppWfIds, impactedCiPipelineIds, dto.UserId)
+		if err != nil {
+			impl.logger.Errorw("error in cd pipelines bulk deletion")
+		}
+		return bulkDeleteResp, nil
+	default:
+		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "this action is not supported"}
+	}
+}
+
+func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context,
+	dryRun, forceDelete, deleteWfAndCiPipeline bool, impactedAppWfIds, impactedCiPipelineIds []int, userId int32) (*PipelineAndWfBulkActionResponseDto, error) {
+	var cdPipelineRespDtos []*CdBulkActionResponseDto
+	var wfRespDtos []*WfBulkActionResponseDto
+	var ciPipelineRespDtos []*CiBulkActionResponseDto
+	//sorting pipelines in decreasing order to tackle problem of sequential pipelines
+	//here we are assuming that for now sequential pipelines can only be made through UI and pipelines can not be moved
+	//(thus ids in decreasing order should not create problems when deleting)
+	//also sorting does not guarantee deletion because impacted pipelines can be sequential but not necessarily linked to each other
+	//TODO: implement stack type solution to order pipeline by index in appWfs if pipeline moving is introduced
+	if impactedPipelines != nil {
+		sort.SliceStable(impactedPipelines, func(i, j int) bool {
+			return impactedPipelines[i].Id > impactedPipelines[j].Id
+		})
+	}
+	for _, pipeline := range impactedPipelines {
+		respDto := &CdBulkActionResponseDto{
+			PipelineName:    pipeline.Name,
+			AppName:         pipeline.App.AppName,
+			EnvironmentName: pipeline.Environment.Name,
+		}
+		if !dryRun {
+			err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, forceDelete)
+			if err != nil {
+				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
+				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
+			} else {
+				respDto.DeletionResult = "Pipeline deleted successfully."
+			}
+		}
+		cdPipelineRespDtos = append(cdPipelineRespDtos, respDto)
+	}
+	if deleteWfAndCiPipeline {
+		for _, impactedCiPipelineId := range impactedCiPipelineIds {
+			ciPipeline, err := impl.pipelineBuilder.GetCiPipelineById(impactedCiPipelineId)
+			if err != nil {
+				impl.logger.Errorw("error in getting ciPipeline by id", "err", err, "id", impactedCiPipelineId)
+				return nil, err
+			}
+			respDto := &CiBulkActionResponseDto{
+				PipelineName: ciPipeline.Name,
+			}
+			if !dryRun {
+				deleteReq := &bean2.CiPatchRequest{
+					Action:     2, //delete
+					CiPipeline: ciPipeline,
+					AppId:      ciPipeline.AppId,
+				}
+				_, err = impl.pipelineBuilder.DeleteCiPipeline(deleteReq)
+				if err != nil {
+					impl.logger.Errorw("error in deleting ci pipeline", "err", err, "pipelineId", impactedCiPipelineId)
+					respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
+				} else {
+					respDto.DeletionResult = "Pipeline deleted successfully."
+				}
+			}
+			ciPipelineRespDtos = append(ciPipelineRespDtos, respDto)
+		}
+
+		for _, impactedAppWfId := range impactedAppWfIds {
+			respDto := &WfBulkActionResponseDto{
+				WorkflowId: impactedAppWfId,
+			}
+			if !dryRun {
+				err := impl.appWorkflowService.DeleteAppWorkflow(impactedAppWfId, userId)
+				if err != nil {
+					impl.logger.Errorw("error in deleting appWf", "err", err, "appWfId", impactedAppWfId)
+					respDto.DeletionResult = fmt.Sprintf("Not able to delete workflow, %v", err)
+				} else {
+					respDto.DeletionResult = "Workflow deleted successfully."
+				}
+			}
+			wfRespDtos = append(wfRespDtos, respDto)
+		}
+
+	}
+	respDto := &PipelineAndWfBulkActionResponseDto{
+		CdPipelinesRespDtos: cdPipelineRespDtos,
+		CiPipelineRespDtos:  ciPipelineRespDtos,
+		AppWfRespDtos:       wfRespDtos,
+	}
+	return respDto, nil
+
 }

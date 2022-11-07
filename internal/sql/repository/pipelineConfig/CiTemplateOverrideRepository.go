@@ -16,9 +16,11 @@ type CiTemplateOverride struct {
 	DockerfilePath   string   `sql:"dockerfile_path"`
 	GitMaterialId    int      `sql:"git_material_id"`
 	Active           bool     `sql:"active,notnull"`
+	CiBuildConfigId  int      `sql:"ci_build_config_id"`
 	sql.AuditLog
 	GitMaterial    *GitMaterial
 	DockerRegistry *repository.DockerArtifactStore
+	CiBuildConfig  *CiBuildConfig
 }
 
 type CiTemplateOverrideRepository interface {
@@ -62,7 +64,9 @@ func (repo *CiTemplateOverrideRepositoryImpl) Update(templateOverrideConfig *CiT
 func (repo *CiTemplateOverrideRepositoryImpl) FindByAppId(appId int) ([]*CiTemplateOverride, error) {
 	var ciTemplateOverrides []*CiTemplateOverride
 	err := repo.dbConnection.Model(&ciTemplateOverrides).
+		Column("ci_template_override.*", "CiBuildConfig").
 		Join("INNER JOIN ci_pipeline cp on cp.id=ci_template_override.ci_pipeline_id").
+		Join("INNER JOIN ci_build_config cbc on cbc.id=ci_template_override.ci_build_config_id").
 		Where("app_id = ?", appId).
 		Where("is_docker_config_overridden = ?", true).
 		Where("ci_template_override.active = ?", true).
@@ -78,13 +82,13 @@ func (repo *CiTemplateOverrideRepositoryImpl) FindByAppId(appId int) ([]*CiTempl
 func (repo *CiTemplateOverrideRepositoryImpl) FindByCiPipelineId(ciPipelineId int) (*CiTemplateOverride, error) {
 	ciTemplateOverride := &CiTemplateOverride{}
 	err := repo.dbConnection.Model(ciTemplateOverride).
-		Column("ci_template_override.*", "GitMaterial", "DockerRegistry").
+		Column("ci_template_override.*", "GitMaterial", "DockerRegistry", "CiBuildConfig").
 		Where("ci_pipeline_id = ?", ciPipelineId).
 		Where("ci_template_override.active = ?", true).
 		Select()
 	if err != nil {
 		repo.logger.Errorw("error in getting ciTemplateOverride by ciPipelineId", "err", err, "ciPipelineId", ciPipelineId)
-		return nil, err
+		return ciTemplateOverride, err
 	}
 	return ciTemplateOverride, nil
 }

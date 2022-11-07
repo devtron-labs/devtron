@@ -10,6 +10,8 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -38,6 +40,7 @@ type TelemetryEventClientImplExtended struct {
 	materialRepository            pipelineConfig.MaterialRepository
 	ciTemplateRepository          pipelineConfig.CiTemplateRepository
 	chartRepository               chartRepoRepository.ChartRepository
+	ciBuildConfigService          pipeline.CiBuildConfigService
 	*TelemetryEventClientImpl
 }
 
@@ -51,7 +54,9 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
-	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService) (*TelemetryEventClientImplExtended, error) {
+	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository,
+	serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService,
+	ciBuildConfigService pipeline.CiBuildConfigService) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain())
@@ -70,6 +75,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		materialRepository:            materialRepository,
 		ciTemplateRepository:          ciTemplateRepository,
 		chartRepository:               chartRepository,
+		ciBuildConfigService:          ciBuildConfigService,
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
 			cron:             cron,
 			logger:           logger,
@@ -139,6 +145,15 @@ type TelemetryEventDto struct {
 	InstallingIntegrations               []string           `json:"installingIntegrations,omitempty"`
 	DevtronReleaseVersion                string             `json:"devtronReleaseVersion,omitempty"`
 	LastLoginTime                        time.Time          `json:"LastLoginTime,omitempty"`
+	SelfDockerfileCount                  int                `json:"selfDockerfileCount"`
+	ManagedDockerfileCount               int                `json:"managedDockerfileCount"`
+	BuildPackCount                       int                `json:"buildPackCount"`
+	SelfDockerfileSuccessCount           int                `json:"selfDockerfileSuccessCount"`
+	SelfDockerfileFailureCount           int                `json:"selfDockerfileFailureCount"`
+	ManagedDockerfileSuccessCount        int                `json:"managedDockerfileSuccessCount"`
+	ManagedDockerfileFailureCount        int                `json:"managedDockerfileFailureCount"`
+	BuildPackSuccessCount                int                `json:"buildPackSuccessCount"`
+	BuildPackFailureCount                int                `json:"buildPackFailureCount"`
 }
 
 func (impl *TelemetryEventClientImplExtended) SummaryEventForTelemetry() {
@@ -260,6 +275,10 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		return err
 	}
 
+	selfDockerfileCount, managedDockerfileCount, buildpackCount := impl.getCiBuildTypeData()
+
+	successCount, failureCount := impl.getCiBuildTypeVsStatusVsCount()
+
 	devtronVersion := util.GetDevtronVersion()
 	payload.ProdAppCount = prodApps
 	payload.NonProdAppCount = nonProdApps
@@ -269,6 +288,7 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 	payload.EnvironmentCount = len(environments)
 	payload.ClusterCount = len(clusters)
 	payload.CiCountPerDay = len(ciPipeline)
+
 	payload.CdCountPerDay = len(cdPipeline)
 	payload.GitAccountsCount = len(gitAccounts)
 	payload.GitOpsCount = len(gitOps)
@@ -292,6 +312,18 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		payload.LastLoginTime = loginTime
 	}
 
+	payload.SelfDockerfileCount = selfDockerfileCount
+	payload.SelfDockerfileSuccessCount = successCount[bean.SELF_DOCKERFILE_BUILD_TYPE]
+	payload.SelfDockerfileFailureCount = failureCount[bean.SELF_DOCKERFILE_BUILD_TYPE]
+
+	payload.ManagedDockerfileCount = managedDockerfileCount
+	payload.ManagedDockerfileSuccessCount = successCount[bean.MANAGED_DOCKERFILE_BUILD_TYPE]
+	payload.ManagedDockerfileFailureCount = failureCount[bean.MANAGED_DOCKERFILE_BUILD_TYPE]
+
+	payload.BuildPackCount = buildpackCount
+	payload.BuildPackSuccessCount = successCount[bean.BUILDPACK_BUILD_TYPE]
+	payload.BuildPackFailureCount = failureCount[bean.BUILDPACK_BUILD_TYPE]
+
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
 		impl.logger.Errorw("SummaryEventForTelemetry, payload marshal error", "error", err)
@@ -310,4 +342,29 @@ func (impl *TelemetryEventClientImplExtended) SendSummaryEvent(eventType string)
 		return err
 	}
 	return nil
+}
+
+func (impl *TelemetryEventClientImplExtended) getCiBuildTypeData() (int, int, int) {
+	countByBuildType := impl.ciBuildConfigService.GetCountByBuildType()
+	return countByBuildType[bean.SELF_DOCKERFILE_BUILD_TYPE], countByBuildType[bean.MANAGED_DOCKERFILE_BUILD_TYPE], countByBuildType[bean.BUILDPACK_BUILD_TYPE]
+}
+
+func (impl *TelemetryEventClientImplExtended) getCiBuildTypeVsStatusVsCount() (successCount map[bean.CiBuildType]int, failureCount map[bean.CiBuildType]int) {
+	successCount = make(map[bean.CiBuildType]int)
+	failureCount = make(map[bean.CiBuildType]int)
+	buildTypeAndStatusVsCount := impl.ciWorkflowRepository.FindBuildTypeAndStatusDataOfLast1Day()
+	for _, buildTypeCount := range buildTypeAndStatusVsCount {
+		if buildTypeCount == nil {
+			continue
+		}
+		if buildTypeCount.Type == "" {
+			buildTypeCount.Type = string(bean.SELF_DOCKERFILE_BUILD_TYPE)
+		}
+		if buildTypeCount.Status == "Succeeded" {
+			successCount[bean.CiBuildType(buildTypeCount.Type)] = buildTypeCount.Count
+		} else {
+			failureCount[bean.CiBuildType(buildTypeCount.Type)] = buildTypeCount.Count
+		}
+	}
+	return successCount, failureCount
 }
