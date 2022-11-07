@@ -47,7 +47,7 @@ spec:
         paths:
           - path: {{ .Values.ingress.path }}
             {{- if and .Values.ingress.pathType (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
-            pathType: {{ $.Values.ingress.pathType }}
+            pathType: {{ $.Values.ingress.pathType | default "ImplementationSpecific" }}
             {{- end }}
             backend:
               {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
@@ -60,6 +60,7 @@ spec:
               servicePort: {{ $svcPort }}
               {{- end }}
   {{- end }}
+  {{- if .Values.ingress.hosts }}
   {{- range .Values.ingress.hosts }}
     {{ $outer := . -}}
     - host: {{ .host | quote }}
@@ -68,7 +69,7 @@ spec:
         {{- range .paths }}
           - path: {{ . }}
             {{- if (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
-            pathType: {{ $outer.pathType | quote }}
+            pathType: {{ $outer.pathType | default "ImplementationSpecific" | quote }}
             {{- end }}
             backend:
               {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
@@ -81,6 +82,7 @@ spec:
               servicePort: {{ $svcPort }}
               {{- end }}
         {{- end }}
+  {{- end }}
   {{- end }}
   {{- if .Values.ingress.tls }}
   tls:
@@ -135,6 +137,7 @@ spec:
               {{- end }}
   {{- end }}
   {{- range .Values.ingressInternal.hosts }}
+  {{- range .Values.ingressInternal.hosts }}
     {{ $outer := . -}}
     - host: {{ .host | quote }}
       http:
@@ -142,7 +145,7 @@ spec:
         {{- range .paths }}
           - path: {{ . }}
             {{- if (semverCompare ">=1.18-0" $.Capabilities.KubeVersion.GitVersion) }}
-            pathType: {{ $outer.pathType | quote }}
+            pathType: {{ $outer.pathType | default "ImplementationSpecific" | quote }}
             {{- end }}
             backend:
               {{- if semverCompare ">=1.19-0" $.Capabilities.KubeVersion.GitVersion }}
@@ -155,6 +158,7 @@ spec:
               servicePort: {{ $svcPort }}
               {{- end }}
         {{- end }}
+  {{- end }}
   {{- end }}
   {{- if .Values.ingressInternal.tls }}
   tls:
