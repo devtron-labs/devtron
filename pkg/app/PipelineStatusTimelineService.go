@@ -54,7 +54,7 @@ type PipelineStatusTimelineDto struct {
 	Status                       pipelineConfig.TimelineStatus `json:"status"`
 	StatusDetail                 string                        `json:"statusDetail"`
 	StatusTime                   time.Time                     `json:"statusTime"`
-	ResourceDetails              []*SyncStageResourceDetailDto `json:"resourceDetails"`
+	ResourceDetails              []*SyncStageResourceDetailDto `json:"resourceDetails,omitempty"`
 }
 
 func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrId int) (*PipelineTimelineDetailDto, error) {
@@ -97,7 +97,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	var timelineDtos []*PipelineStatusTimelineDto
 	for _, timeline := range timelines {
 		var timelineResourceDetails []*SyncStageResourceDetailDto
-		if timeline.Status == pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED || timeline.Status == pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED {
+		if timeline.Status == pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED {
 			timelineResourceDetails, err = impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(timeline.CdWorkflowRunnerId)
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error in getting timeline resources details", "err", err, "cdWfrId", timeline.CdWorkflowRunnerId)
