@@ -19,7 +19,6 @@ package pipeline
 
 import (
 	"context"
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -36,7 +35,6 @@ import (
 	"net/http"
 	"net/url"
 	"sort"
-	"strconv"
 	"strings"
 	"time"
 
@@ -81,12 +79,14 @@ type PipelineBuilder interface {
 	DeleteMaterial(request *bean.UpdateMaterialDTO) error
 	DeleteApp(appId int, userId int32) error
 	GetCiPipeline(appId int) (ciConfig *bean.CiConfigRequest, err error)
+	GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error)
+	GetExternalCiById(appId int, externalCiId int) (ciConfig *bean.ExternalCiConfig, err error)
 	UpdateCiTemplate(updateRequest *bean.CiConfigRequest) (*bean.CiConfigRequest, error)
 	PatchCiPipeline(request *bean.CiPatchRequest) (ciConfig *bean.CiConfigRequest, err error)
 	CreateCdPipelines(cdPipelines *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error)
 	GetApp(appId int) (application *bean.CreateAppDTO, err error)
 	PatchCdPipelines(cdPipelines *bean.CDPatchRequest, ctx context.Context) (*bean.CdPipelines, error)
-	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool) (err error)
+	DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
 	/*	CreateCdPipelines(cdPipelines bean.CdPipelines) (*bean.CdPipelines, error)*/
@@ -110,6 +110,9 @@ type PipelineBuilder interface {
 	FindAllMatchesByAppName(appName string) ([]*AppBean, error)
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
 	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
+
+	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error)
+	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
 }
 
@@ -479,14 +482,6 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		}
 
 		var externalCiConfig bean.ExternalCiConfig
-		if pipeline.ExternalCiPipeline != nil {
-			externalCiConfig = bean.ExternalCiConfig{
-				Id:         pipeline.ExternalCiPipeline.Id,
-				AccessKey:  pipeline.ExternalCiPipeline.AccessToken,
-				WebhookUrl: impl.ciConfig.ExternalCiWebhookUrl,
-				Payload:    impl.ciConfig.ExternalCiPayload,
-			}
-		}
 
 		ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(pipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
@@ -566,6 +561,208 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 	ciConfig.CiPipelines = ciPipelineResp
 	//--------pipeline population end
 	return ciConfig, err
+}
+
+func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.ExternalCiConfig, err error) {
+	externalCiPipelines, err := impl.ciPipelineRepository.FindExternalCiByAppId(appId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+		return nil, err
+	}
+
+	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	if err != nil {
+		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+		return nil, err
+	}
+	if hostUrl != nil {
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+	}
+
+	externalCiConfig := make([]*bean.ExternalCiConfig, 0)
+	for _, externalCiPipeline := range externalCiPipelines {
+		appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+			return nil, err
+		}
+		cdPipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+			return nil, err
+		}
+
+		app, err := impl.appRepo.FindAppAndProjectByAppId(cdPipeline.AppId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+			return nil, err
+		}
+
+		externalCiConfig = append(externalCiConfig, &bean.ExternalCiConfig{
+			Id:         externalCiPipeline.Id,
+			WebhookUrl: fmt.Sprintf("%s/%d", impl.ciConfig.ExternalCiWebhookUrl, externalCiPipeline.Id),
+			Payload:    impl.ciConfig.ExternalCiPayload,
+			AccessKey:  "",
+			ExternalCiConfigRole: bean.ExternalCiConfigRole{
+				ProjectId:       app.TeamId,
+				ProjectName:     app.Team.Name,
+				EnvironmentId:   cdPipeline.EnvironmentId,
+				EnvironmentName: cdPipeline.Environment.Name,
+				AppId:           cdPipeline.AppId,
+				AppName:         cdPipeline.App.AppName,
+				Role:            "Build and deploy",
+			},
+		})
+	}
+	//--------pipeline population end
+	return externalCiConfig, err
+}
+
+func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (ciConfig *bean.ExternalCiConfig, err error) {
+	externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(externalCiId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+		return nil, err
+	}
+	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
+	if err != nil {
+		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+		return nil, err
+	}
+	if hostUrl != nil {
+		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
+	}
+
+	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+		return nil, err
+	}
+	cdPipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+		return nil, err
+	}
+
+	app, err := impl.appRepo.FindAppAndProjectByAppId(cdPipeline.AppId)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+		return nil, err
+	}
+
+	externalCiConfig := &bean.ExternalCiConfig{
+		Id:         externalCiPipeline.Id,
+		WebhookUrl: fmt.Sprintf("%s/%d", impl.ciConfig.ExternalCiWebhookUrl, externalCiId),
+		Payload:    impl.ciConfig.ExternalCiPayload,
+		AccessKey:  "",
+		ExternalCiConfigRole: bean.ExternalCiConfigRole{
+			ProjectId:       app.TeamId,
+			ProjectName:     app.Team.Name,
+			EnvironmentId:   cdPipeline.EnvironmentId,
+			EnvironmentName: cdPipeline.Environment.Name,
+			AppId:           cdPipeline.AppId,
+			AppName:         cdPipeline.App.AppName,
+			Role:            "Build and deploy",
+		},
+	}
+	externalCiConfig.Schema = impl.buildExternalCiWebhookSchema()
+	externalCiConfig.PayloadOption = impl.buildPayloadOption()
+	externalCiConfig.Responses = impl.buildResponses()
+	//--------pipeline population end
+	return externalCiConfig, err
+}
+
+func (impl PipelineBuilderImpl) buildExternalCiWebhookSchema() map[string]interface{} {
+	schema := make(map[string]interface{})
+	schema["dockerImage"] = &bean.SchemaObject{Description: "docker image of your application", DataType: "String", Example: "test-docker-repo/test:b150cc81-5-20", Optional: false}
+	schema["digest"] = &bean.SchemaObject{Description: "docker image sha1 digest", DataType: "String", Example: "sha256:94180dead8336237430e848ef8145f060b51", Optional: true}
+	schema["materialType"] = &bean.SchemaObject{Description: "git", DataType: "String", Example: "git", Optional: true}
+
+	ciProjectDetails := make([]map[string]interface{}, 0)
+	ciProjectDetail := make(map[string]interface{})
+	ciProjectDetail["commitHash"] = &bean.SchemaObject{Description: "commit hash is git commit", DataType: "String", Example: "dg46f67559dbsdfdfdfdsfba47901caf47f8b7e", Optional: true}
+	ciProjectDetail["commitTime"] = &bean.SchemaObject{Description: "commit date time, when code has pushed", DataType: "String", Example: "2022-10-11T20:55:21+05:30", Optional: true}
+	ciProjectDetail["message"] = &bean.SchemaObject{Description: "commit message", DataType: "String", Example: "commit message", Optional: true}
+	ciProjectDetail["author"] = &bean.SchemaObject{Description: "author or user name or email id who have done git commit", DataType: "String", Example: "Devtron User", Optional: true}
+	ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
+
+	schema["ciProjectDetails"] = &bean.SchemaObject{Description: "project and git commit details", DataType: "Array", Example: "[{}]", Optional: true, Child: ciProjectDetails}
+	return schema
+}
+
+func (impl PipelineBuilderImpl) buildPayloadOption() []bean.PayloadOptionObject {
+	payloadOption := make([]bean.PayloadOptionObject, 0)
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:        "dockerImage",
+		PayloadKey: []string{"dockerImage", "digest", "materialType"},
+		Label:      "Container image tag",
+		Mandatory:  true,
+	})
+
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:        "commitHash",
+		PayloadKey: []string{"ciProjectDetails.commitHash"},
+		Label:      "Commit hash",
+		Mandatory:  false,
+	})
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:        "message",
+		PayloadKey: []string{"ciProjectDetails.message"},
+		Label:      "Commit message",
+		Mandatory:  false,
+	})
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:        "author",
+		PayloadKey: []string{"ciProjectDetails.author"},
+		Label:      "Author",
+		Mandatory:  false,
+	})
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:        "commitTime",
+		PayloadKey: []string{"ciProjectDetails.commitTime"},
+		Label:      "Date & time of commit",
+		Mandatory:  false,
+	})
+	return payloadOption
+}
+
+func (impl PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
+	responseSchemaObjects := make([]bean.ResponseSchemaObject, 0)
+	schema := make(map[string]interface{})
+	schema["success"] = &bean.SchemaObject{Description: "success desc", DataType: "String", Example: "true/false", Optional: false}
+	schema["result"] = &bean.SchemaObject{Description: "detail page url", DataType: "String", Example: "url", Optional: true}
+	error := make(map[string]interface{})
+	error["code"] = &bean.SchemaObject{Description: "http status code", DataType: "Integer", Example: "200/400/403", Optional: true}
+	error["message"] = &bean.SchemaObject{Description: "http status message", DataType: "String", Example: "message", Optional: true}
+	schema["error"] = &bean.SchemaObject{Description: "error desc", DataType: "Object", Example: "{}", Optional: true, Child: error}
+	description := bean.ResponseDescriptionSchemaObject{
+		Description: "sample description",
+		ExampleValue: bean.ExampleValueDto{
+			Success: true,
+			Error: bean.ErrorDto{
+				Code:    400,
+				Message: "Bad request",
+			},
+			Result: "app detail page url",
+		},
+		Schema: schema,
+	}
+	response200 := bean.ResponseSchemaObject{
+		Description: description,
+		Code:        "200",
+	}
+	response400 := bean.ResponseSchemaObject{
+		Description: description,
+		Code:        "400",
+	}
+	response401 := bean.ResponseSchemaObject{
+		Description: description,
+		Code:        "401",
+	}
+	responseSchemaObjects = append(responseSchemaObjects, response200)
+	responseSchemaObjects = append(responseSchemaObjects, response400)
+	responseSchemaObjects = append(responseSchemaObjects, response401)
+	return responseSchemaObjects
 }
 
 func (impl PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipelineMin, error) {
@@ -1235,20 +1432,20 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
 			return pipelineRequest, err
 		}
-		err = impl.DeleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete)
+		err = impl.DeleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete, cdPipelines.UserId)
 		return pipelineRequest, err
 	default:
 		return nil, &util.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "operation not supported"}
 	}
 }
 
-func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool) (err error) {
+func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeline, ctx context.Context, forceDelete bool, userId int32) (err error) {
 	//getting children CD pipeline details
-	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
+	childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByParentCDPipelineId(pipeline.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting children cd details", "err", err)
 		return err
-	} else if len(appWorkflowMapping) > 0 {
+	} else if len(childNodes) > 0 {
 		impl.logger.Debugw("cannot delete cd pipeline, contains children cd")
 		return fmt.Errorf("Please delete children CD pipelines before deleting this pipeline.")
 	}
@@ -1278,7 +1475,38 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 	}
 
 	//delete app workflow mapping
-	err = impl.appWorkflowRepository.DeleteAppWorkflowMappingsByCdPipelineId(pipeline.Id, tx)
+	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(pipeline.Id)
+	if err != nil {
+		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+		return err
+	}
+	if appWorkflowMapping.ParentType == appWorkflow.WEBHOOK {
+		externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(appWorkflowMapping.ParentId)
+		if err != nil {
+			impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+			return err
+		}
+		externalCiPipeline.Active = false
+		externalCiPipeline.UpdatedOn = time.Now()
+		externalCiPipeline.UpdatedBy = userId
+		_, err = impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+			return err
+		}
+
+		webhookWorkflowMapping, err := impl.appWorkflowRepository.FindByTypeAndComponentId(appWorkflowMapping.AppWorkflowId, appWorkflowMapping.ParentId, appWorkflow.WEBHOOK)
+		if err != nil {
+			impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+			return err
+		}
+		err = impl.appWorkflowRepository.DeleteAppWorkflowMapping(webhookWorkflowMapping, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+			return err
+		}
+	}
+	err = impl.appWorkflowRepository.DeleteAppWorkflowMapping(appWorkflowMapping, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 		return err
@@ -1413,6 +1641,40 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	// Rollback tx on error.
 	defer tx.Rollback()
 
+	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
+		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
+			AppId:       app.Id,
+			AccessToken: "",
+			Active:      true,
+			AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+		}
+		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
+		wf := &appWorkflow.AppWorkflow{
+			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
+			AppId:    app.Id,
+			Active:   true,
+			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+		}
+		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
+		if err != nil {
+			impl.logger.Errorw("err", err)
+			return 0, err
+		}
+		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
+			AppWorkflowId: savedAppWf.Id,
+			ComponentId:   externalCiPipeline.Id,
+			Type:          "WEBHOOK",
+			Active:        true,
+			AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+		}
+		appWorkflowMap, err = impl.appWorkflowRepository.SaveAppWorkflowMapping(appWorkflowMap, tx)
+		if err != nil {
+			return 0, err
+		}
+		pipeline.ParentPipelineId = externalCiPipeline.Id
+		pipeline.AppWorkflowId = savedAppWf.Id
+	}
+
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 	if err != nil {
 		return 0, err
@@ -1430,12 +1692,12 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		return 0, err
 	}
 
-	//adding ci pipeline to workflow
-	appWorkflowModel, err := impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
+	//adding pipeline to workflow
+	_, err = impl.appWorkflowRepository.FindByIdAndAppId(pipeline.AppWorkflowId, app.Id)
 	if err != nil && err != pg.ErrNoRows {
 		return 0, err
 	}
-	if appWorkflowModel.Id > 0 {
+	if pipeline.AppWorkflowId > 0 {
 		var parentPipelineId int
 		var parentPipelineType string
 		if pipeline.ParentPipelineId == 0 {
@@ -1446,7 +1708,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 			parentPipelineType = pipeline.ParentPipelineType
 		}
 		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-			AppWorkflowId: appWorkflowModel.Id,
+			AppWorkflowId: pipeline.AppWorkflowId,
 			ParentId:      parentPipelineId,
 			ParentType:    parentPipelineType,
 			ComponentId:   pipelineId,
@@ -1721,6 +1983,10 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 				deploymentTemplate = item.Strategy
 			}
 		}
+		appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(dbPipeline.Id)
+		if err != nil {
+			return nil, err
+		}
 		pipeline := &bean.CDPipelineConfigObject{
 			Id:                            dbPipeline.Id,
 			Name:                          dbPipeline.Name,
@@ -1737,6 +2003,8 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 			RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 			DeploymentAppType:             dbPipeline.DeploymentAppType,
+			ParentPipelineType:            appWorkflowMapping.ParentType,
+			ParentPipelineId:              appWorkflowMapping.ParentId,
 		}
 		pipelines = append(pipelines, pipeline)
 	}
@@ -1806,11 +2074,8 @@ func (impl PipelineBuilderImpl) GetCdParentDetails(cdPipelineId int) (parentId i
 	if err != nil {
 		return 0, "", err
 	}
-	if len(appWorkflowMapping) != 1 || appWorkflowMapping == nil {
-		return 0, "", fmt.Errorf("improper mapping found for cd pipeline")
-	}
-	parentId = appWorkflowMapping[0].ParentId
-	if appWorkflowMapping[0].ParentType == appWorkflow.CDPIPELINE {
+	parentId = appWorkflowMapping.ParentId
+	if appWorkflowMapping.ParentType == appWorkflow.CDPIPELINE {
 		pipeline, err := impl.pipelineRepository.FindById(parentId)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("Error in fetching cd pipeline details", err, "pipelineId", parentId)
@@ -2310,7 +2575,10 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 			return nil, err
 		}
 	}
-
+	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(pipelineId)
+	if err != nil {
+		return nil, err
+	}
 	cdPipeline = &bean.CDPipelineConfigObject{
 		Id:                            dbPipeline.Id,
 		Name:                          dbPipeline.Name,
@@ -2327,6 +2595,8 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 		RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 		CdArgoSetup:                   environment.Cluster.CdArgoSetup,
+		ParentPipelineId:              appWorkflowMapping.ParentId,
+		ParentPipelineType:            appWorkflowMapping.ParentType,
 	}
 
 	return cdPipeline, err
@@ -2370,17 +2640,7 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		}
 	}
 
-	ciPipelineIdByte := []byte(strconv.Itoa(pipeline.Id))
-	base64EncodedCiPipelineId := base64.StdEncoding.EncodeToString(ciPipelineIdByte)
 	var externalCiConfig bean.ExternalCiConfig
-	if pipeline.ExternalCiPipeline != nil {
-		externalCiConfig = bean.ExternalCiConfig{
-			Id:         pipeline.ExternalCiPipeline.Id,
-			AccessKey:  fmt.Sprintf("%s.%s", base64EncodedCiPipelineId, pipeline.ExternalCiPipeline.AccessToken),
-			WebhookUrl: impl.ciConfig.ExternalCiWebhookUrl,
-			Payload:    impl.ciConfig.ExternalCiPayload,
-		}
-	}
 
 	ciPipelineScripts, err := impl.ciPipelineRepository.FindCiScriptsByCiPipelineId(pipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
@@ -2520,4 +2780,78 @@ func (impl PipelineBuilderImpl) updateGitRepoUrlInCharts(appId int, chartGitAttr
 		}
 	}
 	return nil
+}
+
+func (impl PipelineBuilderImpl) PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error) {
+	switch dto.Action {
+	case bean.CD_BULK_DELETE:
+		bulkDeleteResp := impl.BulkDeleteCdPipelines(impactedPipelines, ctx, dryRun, dto.ForceDelete, userId)
+		return bulkDeleteResp, nil
+	default:
+		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "this action is not supported"}
+	}
+}
+
+func (impl PipelineBuilderImpl) BulkDeleteCdPipelines(impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun, forceDelete bool, userId int32) []*bean.CdBulkActionResponseDto {
+	var respDtos []*bean.CdBulkActionResponseDto
+	for _, pipeline := range impactedPipelines {
+		respDto := &bean.CdBulkActionResponseDto{
+			PipelineName:    pipeline.Name,
+			AppName:         pipeline.App.AppName,
+			EnvironmentName: pipeline.Environment.Name,
+		}
+		if !dryRun {
+			err := impl.DeleteCdPipeline(pipeline, ctx, forceDelete, userId)
+			if err != nil {
+				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
+				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
+			} else {
+				respDto.DeletionResult = "Pipeline deleted successfully."
+			}
+		}
+		respDtos = append(respDtos, respDto)
+	}
+	return respDtos
+
+}
+
+func (impl PipelineBuilderImpl) GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error) {
+	if len(dto.EnvIds) == 0 || (len(dto.AppIds) == 0 && len(dto.ProjectIds) == 0) {
+		//invalid payload, envIds are must and either of appIds or projectIds are must
+		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid payload, can not get pipelines for this filter"}
+	}
+	var pipelineIdsByAppLevel []int
+	var pipelineIdsByProjectLevel []int
+	var err error
+	if len(dto.AppIds) > 0 && len(dto.EnvIds) > 0 {
+		//getting pipeline IDs for app level deletion request
+		pipelineIdsByAppLevel, err = impl.pipelineRepository.FindIdsByAppIdsAndEnvironmentIds(dto.AppIds, dto.EnvIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting cd pipelines by appIds and envIds", "err", err)
+			return nil, err
+		}
+	}
+	if len(dto.ProjectIds) > 0 && len(dto.EnvIds) > 0 {
+		//getting pipeline IDs for project level deletion request
+		pipelineIdsByProjectLevel, err = impl.pipelineRepository.FindIdsByProjectIdsAndEnvironmentIds(dto.ProjectIds, dto.EnvIds)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting cd pipelines by projectIds and envIds", "err", err)
+			return nil, err
+		}
+	}
+	var pipelineIdsMerged []int
+	//it might be possible that pipelineIdsByAppLevel & pipelineIdsByProjectLevel have some same values
+	//we are still appending them to save operation cost of checking same ids as we will get pipelines from
+	//in clause which gives correct results even if some values are repeating
+	pipelineIdsMerged = append(pipelineIdsMerged, pipelineIdsByAppLevel...)
+	pipelineIdsMerged = append(pipelineIdsMerged, pipelineIdsByProjectLevel...)
+	var pipelines []*pipelineConfig.Pipeline
+	if len(pipelineIdsMerged) > 0 {
+		pipelines, err = impl.pipelineRepository.FindByIdsIn(pipelineIdsMerged)
+		if err != nil {
+			impl.logger.Errorw("error in getting cd pipelines by ids", "err", err, "ids", pipelineIdsMerged)
+			return nil, err
+		}
+	}
+	return pipelines, nil
 }

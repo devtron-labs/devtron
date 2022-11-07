@@ -33,7 +33,7 @@ import (
 type CiArtifact struct {
 	tableName        struct{}  `sql:"ci_artifact" pg:",discard_unknown_columns"`
 	Id               int       `sql:"id,pk"`
-	PipelineId       int       `sql:"pipeline_id,notnull"` //id of the ci pipeline from which this webhook was triggered
+	PipelineId       int       `sql:"pipeline_id"` //id of the ci pipeline from which this webhook was triggered
 	Image            string    `sql:"image,notnull"`
 	ImageDigest      string    `sql:"image_digest,notnull"`
 	MaterialInfo     string    `sql:"material_info"` //git material metadata json array string

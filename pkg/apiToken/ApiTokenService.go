@@ -38,6 +38,7 @@ type ApiTokenService interface {
 	CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32, managerAuth func(token string, object string) bool) (*openapi.CreateApiTokenResponse, error)
 	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.UpdateApiTokenResponse, error)
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
+	GetAllApiTokensForWebhook(token string, projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error)
 }
 
 type ApiTokenServiceImpl struct {
@@ -66,6 +67,54 @@ var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
 type ApiTokenCustomClaims struct {
 	Email string `json:"email"`
 	jwt.RegisteredClaims
+}
+
+func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(token string, projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error) {
+	impl.logger.Info("Getting active api tokens")
+	apiTokensFromDb, err := impl.apiTokenRepository.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error while getting all active api tokens from DB", "error", err)
+		return nil, err
+	}
+
+	var apiTokens []*openapi.ApiToken
+	for _, apiTokenFromDb := range apiTokensFromDb {
+		userId := apiTokenFromDb.User.Id
+		userMetaData, err := impl.userService.GetById(userId)
+		if err != nil {
+			impl.logger.Errorw("error while getting latest audit log", "error", err)
+			return nil, err
+		}
+
+		//checking permission on each of the roles associated with this API Token
+		for _, rf := range userMetaData.RoleFilters {
+			if len(rf.Team) > 0 {
+				projectObject := fmt.Sprintf("%s/%s", rf.Team, rf.EntityName)
+				envObject := fmt.Sprintf("%s/%s", rf.Environment, rf.EntityName)
+				isValidAuth := auth(token, projectObject, envObject)
+				if !isValidAuth {
+					impl.logger.Debugw("authentication for token failed", "apiTokenFromDb", apiTokenFromDb)
+					continue
+				}
+			}
+		}
+
+		apiTokenIdI32 := int32(apiTokenFromDb.Id)
+		updatedAtStr := apiTokenFromDb.UpdatedOn.String()
+		apiToken := &openapi.ApiToken{
+			Id:             &apiTokenIdI32,
+			UserId:         &userId,
+			UserIdentifier: &apiTokenFromDb.User.EmailId,
+			Name:           &apiTokenFromDb.Name,
+			Description:    &apiTokenFromDb.Description,
+			ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
+			Token:          &apiTokenFromDb.Token,
+			UpdatedAt:      &updatedAtStr,
+		}
+		apiTokens = append(apiTokens, apiToken)
+	}
+
+	return apiTokens, nil
 }
 
 func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, error) {
