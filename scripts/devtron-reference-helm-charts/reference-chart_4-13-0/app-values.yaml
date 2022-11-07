@@ -1,4 +1,8 @@
 # Mandatory configs
+
+rolloutLabels: {}
+rolloutAnnotations: {}
+
 replicaCount: 1
 MinReadySeconds: 60
 GracePeriod: 30

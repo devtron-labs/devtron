@@ -287,13 +287,13 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
-		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "err", err, "appId", appId)
+		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificTrigger", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	pipelineId, err := strconv.Atoi(vars["pipelineId"])
 	if err != nil {
-		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "err", err, "pipelineId", pipelineId)
+		handler.logger.Errorw("request err, GetAllDeployedConfigurationHistoryForSpecificTrigger", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -309,7 +309,7 @@ func (handler PipelineTriggerRestHandlerImpl) GetAllLatestDeploymentConfiguratio
 	userHasAdminAccess := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName)
 	allDeploymentconfig, err := handler.deploymentConfigService.GetLatestDeploymentConfigurationByPipelineId(pipelineId, userHasAdminAccess)
 	if err != nil {
-		handler.logger.Errorw("error in getting latest deployment config, GetAllDeployedConfigurationHistoryForSpecificWfrIdForPipeline", "err", err, "pipelineId", pipelineId)
+		handler.logger.Errorw("error in getting latest deployment config, GetAllDeployedConfigurationHistoryForSpecificTrigger", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

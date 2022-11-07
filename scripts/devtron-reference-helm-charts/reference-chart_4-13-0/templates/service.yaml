@@ -27,7 +27,11 @@ spec:
       {{- else }}
     - port: {{ .port }}
        {{- end }}
+      {{- if .targetPort }}
+      targetPort: {{ .targetPort }}
+      {{- else }}
       targetPort: {{ .name }}
+      {{- end }}
       protocol: TCP
       name: {{ .name }}
     {{- end }}

@@ -70,52 +70,53 @@ import (
 )
 
 type AppServiceImpl struct {
-	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
-	pipelineOverrideRepository          chartConfig.PipelineOverrideRepository
-	mergeUtil                           *MergeUtil
-	logger                              *zap.SugaredLogger
-	ciArtifactRepository                repository.CiArtifactRepository
-	pipelineRepository                  pipelineConfig.PipelineRepository
-	gitFactory                          *GitFactory
-	dbMigrationConfigRepository         pipelineConfig.DbMigrationConfigRepository
-	eventClient                         client.EventClient
-	eventFactory                        client.EventFactory
-	acdClient                           application.ServiceClient
-	tokenCache                          *util3.TokenCache
-	acdAuthConfig                       *util3.ACDAuthConfig
-	enforcer                            casbin.Enforcer
-	enforcerUtil                        rbac.EnforcerUtil
-	user                                user.UserService
-	appListingRepository                repository.AppListingRepository
-	appRepository                       app.AppRepository
-	envRepository                       repository2.EnvironmentRepository
-	pipelineConfigRepository            chartConfig.PipelineConfigRepository
-	configMapRepository                 chartConfig.ConfigMapRepository
-	chartRepository                     chartRepoRepository.ChartRepository
-	appRepo                             app.AppRepository
-	appLevelMetricsRepository           repository.AppLevelMetricsRepository
-	envLevelMetricsRepository           repository.EnvLevelAppMetricsRepository
-	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
-	commonService                       commonService.CommonService
-	imageScanDeployInfoRepository       security.ImageScanDeployInfoRepository
-	imageScanHistoryRepository          security.ImageScanHistoryRepository
-	ArgoK8sClient                       argocdServer.ArgoK8sClient
-	gitOpsRepository                    repository.GitOpsConfigRepository
-	pipelineStrategyHistoryService      history2.PipelineStrategyHistoryService
-	configMapHistoryService             history2.ConfigMapHistoryService
-	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
-	chartTemplateService                ChartTemplateService
-	refChartDir                         chartRepoRepository.RefChartDir
-	helmAppClient                       client2.HelmAppClient
-	chartRefRepository                  chartRepoRepository.ChartRefRepository
-	chartService                        chart.ChartService
-	argoUserService                     argo.ArgoUserService
-	cdPipelineStatusTimelineRepo        pipelineConfig.PipelineStatusTimelineRepository
-	appCrudOperationService          AppCrudOperationService
+	environmentConfigRepository      chartConfig.EnvConfigOverrideRepository
+	pipelineOverrideRepository       chartConfig.PipelineOverrideRepository
+	mergeUtil                        *MergeUtil
+	logger                           *zap.SugaredLogger
+	ciArtifactRepository             repository.CiArtifactRepository
+	pipelineRepository               pipelineConfig.PipelineRepository
+	gitFactory                       *GitFactory
+	dbMigrationConfigRepository      pipelineConfig.DbMigrationConfigRepository
+	eventClient                      client.EventClient
+	eventFactory                     client.EventFactory
+	acdClient                        application.ServiceClient
+	tokenCache                       *util3.TokenCache
+	acdAuthConfig                    *util3.ACDAuthConfig
+	enforcer                         casbin.Enforcer
+	enforcerUtil                     rbac.EnforcerUtil
+	user                             user.UserService
+	appListingRepository             repository.AppListingRepository
+	appRepository                    app.AppRepository
+	envRepository                    repository2.EnvironmentRepository
+	pipelineConfigRepository         chartConfig.PipelineConfigRepository
+	configMapRepository              chartConfig.ConfigMapRepository
+	chartRepository                  chartRepoRepository.ChartRepository
+	appRepo                          app.AppRepository
+	appLevelMetricsRepository        repository.AppLevelMetricsRepository
+	envLevelMetricsRepository        repository.EnvLevelAppMetricsRepository
+	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository             pipelineConfig.CdWorkflowRepository
+	commonService                    commonService.CommonService
+	imageScanDeployInfoRepository    security.ImageScanDeployInfoRepository
+	imageScanHistoryRepository       security.ImageScanHistoryRepository
+	ArgoK8sClient                    argocdServer.ArgoK8sClient
+	gitOpsRepository                 repository.GitOpsConfigRepository
+	pipelineStrategyHistoryService   history2.PipelineStrategyHistoryService
+	configMapHistoryService          history2.ConfigMapHistoryService
+	deploymentTemplateHistoryService history2.DeploymentTemplateHistoryService
+	chartTemplateService             ChartTemplateService
+	refChartDir                      chartRepoRepository.RefChartDir
+	helmAppClient                    client2.HelmAppClient
+	chartRefRepository               chartRepoRepository.ChartRefRepository
+	chartService                     chart.ChartService
+	argoUserService                  argo.ArgoUserService
+	cdPipelineStatusTimelineRepo     pipelineConfig.PipelineStatusTimelineRepository
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
+	deploymentEventHandler              DeploymentEventHandler
+	appCrudOperationService          AppCrudOperationService
 }
 
 type AppService interface {
@@ -161,56 +162,57 @@ func NewAppService(
 	chartService chart.ChartService, helmAppClient client2.HelmAppClient,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	appCrudOperationService          AppCrudOperationService,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
-	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository) *AppServiceImpl {
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
+	deploymentEventHandler DeploymentEventHandler, appCrudOperationService AppCrudOperationService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
-		environmentConfigRepository:         environmentConfigRepository,
-		mergeUtil:                           mergeUtil,
-		pipelineOverrideRepository:          pipelineOverrideRepository,
-		logger:                              logger,
-		ciArtifactRepository:                ciArtifactRepository,
-		pipelineRepository:                  pipelineRepository,
-		dbMigrationConfigRepository:         dbMigrationConfigRepository,
-		eventClient:                         eventClient,
-		eventFactory:                        eventFactory,
-		acdClient:                           acdClient,
-		tokenCache:                          cache,
-		acdAuthConfig:                       authConfig,
-		enforcer:                            enforcer,
-		enforcerUtil:                        enforcerUtil,
-		user:                                user,
-		appListingRepository:                appListingRepository,
-		appRepository:                       appRepository,
-		envRepository:                       envRepository,
-		pipelineConfigRepository:            pipelineConfigRepository,
-		configMapRepository:                 configMapRepository,
-		chartRepository:                     chartRepository,
-		appLevelMetricsRepository:           appLevelMetricsRepository,
-		envLevelMetricsRepository:           envLevelMetricsRepository,
-		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
-		cdWorkflowRepository:                cdWorkflowRepository,
-		commonService:                       commonService,
-		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
-		imageScanHistoryRepository:          imageScanHistoryRepository,
-		ArgoK8sClient:                       ArgoK8sClient,
-		gitFactory:                          gitFactory,
-		gitOpsRepository:                    gitOpsRepository,
-		pipelineStrategyHistoryService:      pipelineStrategyHistoryService,
-		configMapHistoryService:             configMapHistoryService,
-		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
-		chartTemplateService:                chartTemplateService,
-		refChartDir:                         refChartDir,
-		chartRefRepository:                  chartRefRepository,
-		chartService:                        chartService,
-		helmAppClient:                       helmAppClient,
-		argoUserService:                     argoUserService,
-		cdPipelineStatusTimelineRepo:        cdPipelineStatusTimelineRepo,
-		appCrudOperationService:                     appCrudOperationService,
+		environmentConfigRepository:      environmentConfigRepository,
+		mergeUtil:                        mergeUtil,
+		pipelineOverrideRepository:       pipelineOverrideRepository,
+		logger:                           logger,
+		ciArtifactRepository:             ciArtifactRepository,
+		pipelineRepository:               pipelineRepository,
+		dbMigrationConfigRepository:      dbMigrationConfigRepository,
+		eventClient:                      eventClient,
+		eventFactory:                     eventFactory,
+		acdClient:                        acdClient,
+		tokenCache:                       cache,
+		acdAuthConfig:                    authConfig,
+		enforcer:                         enforcer,
+		enforcerUtil:                     enforcerUtil,
+		user:                             user,
+		appListingRepository:             appListingRepository,
+		appRepository:                    appRepository,
+		envRepository:                    envRepository,
+		pipelineConfigRepository:         pipelineConfigRepository,
+		configMapRepository:              configMapRepository,
+		chartRepository:                  chartRepository,
+		appLevelMetricsRepository:        appLevelMetricsRepository,
+		envLevelMetricsRepository:        envLevelMetricsRepository,
+		ciPipelineMaterialRepository:     ciPipelineMaterialRepository,
+		cdWorkflowRepository:             cdWorkflowRepository,
+		commonService:                    commonService,
+		imageScanDeployInfoRepository:    imageScanDeployInfoRepository,
+		imageScanHistoryRepository:       imageScanHistoryRepository,
+		ArgoK8sClient:                    ArgoK8sClient,
+		gitFactory:                       gitFactory,
+		gitOpsRepository:                 gitOpsRepository,
+		pipelineStrategyHistoryService:   pipelineStrategyHistoryService,
+		configMapHistoryService:          configMapHistoryService,
+		deploymentTemplateHistoryService: deploymentTemplateHistoryService,
+		chartTemplateService:             chartTemplateService,
+		refChartDir:                      refChartDir,
+		chartRefRepository:               chartRefRepository,
+		chartService:                     chartService,
+		helmAppClient:                    helmAppClient,
+		argoUserService:                  argoUserService,
+		cdPipelineStatusTimelineRepo:     cdPipelineStatusTimelineRepo,
 		configMapHistoryRepository:          configMapHistoryRepository,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
+		deploymentEventHandler:              deploymentEventHandler,
+		appCrudOperationService:          appCrudOperationService,
 	}
 	return appServiceImpl
 }
@@ -374,7 +376,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 				if string(application.Healthy) == newDeploymentStatus.Status {
 					isHealthy = true
 					impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "newDeploymentStatus", newDeploymentStatus)
-					go impl.WriteCDSuccessEvent(newDeploymentStatus.AppId, newDeploymentStatus.EnvId, pipelineOverride)
+					go impl.deploymentEventHandler.WriteCDSuccessEvent(pipelineOverride.PipelineId, newDeploymentStatus.AppId, newDeploymentStatus.EnvId)
 				}
 			} else {
 				impl.logger.Debug("event received for older triggered revision: " + gitHash)
@@ -516,16 +518,6 @@ func (impl *AppServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(cdWork
 		latestTimeline = timeline
 	}
 	return latestTimeline, nil
-}
-
-func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
-	event := impl.eventFactory.Build(util.Success, &override.PipelineId, appId, &envId, util.CD)
-	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event, "override", override)
-	event = impl.eventFactory.BuildExtraCDData(event, nil, override.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
-	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-	if evtErr != nil {
-		impl.logger.Errorw("error in writing event", "event", event, "err", evtErr)
-	}
 }
 
 func (impl *AppServiceImpl) BuildCDSuccessPayload(appName string, environmentName string) *client.Payload {
@@ -694,28 +686,28 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	}
 	envOverride := &chartConfig.EnvConfigOverride{}
 	var appMetrics *bool
-	strategy := &chartConfig.PipelineStrategy{}
+	var strategy *chartConfig.PipelineStrategy
+	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LATEST_TRIGGER {
+		//in case of deployment with the latest trigger, getting latest wfr and updating deployment with config type
+		//because latest trigger is also a specific trigger
+		wfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(overrideRequest.PipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		if err != nil {
+			impl.logger.Errorw("error in getting latest deploy stage wfr by pipelineId", "err", err, "pipelineId", overrideRequest.PipelineId)
+			return 0, err
+		}
+		overrideRequest.DeploymentWithConfig = bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER
+		overrideRequest.WfrIdForDeploymentWithSpecificTrigger = wfr.Id
+	}
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
 		deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 		if err != nil {
 			impl.logger.Errorw("error in getting deployed deployment template history by pipelineId and wfrId", "err", err, "pipelineId", &overrideRequest, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 			return 0, err
 		}
-		templateName := deploymentTemplateHistory.TemplateName
-		templateVersion := deploymentTemplateHistory.TemplateVersion
-		if templateName == "Rollout Deployment" {
-			templateName = ""
-		}
-		//getting chart_ref by id
-		chartRef, err := impl.chartRefRepository.FindByVersionAndName(templateName, templateVersion)
-		if err != nil {
-			impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", templateVersion, "name", templateName)
-			return 0, err
-		}
 		//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
-		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(pipeline.AppId, pipeline.EnvironmentId, chartRef.Id)
+		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartVersion(pipeline.AppId, pipeline.EnvironmentId, deploymentTemplateHistory.TemplateVersion)
 		if err != nil {
-			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "chartRefId", chartRef.Id)
+			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "chartVersion", deploymentTemplateHistory.TemplateVersion)
 			return 0, err
 		}
 		//updating historical data in envConfigOverride and appMetrics flag
@@ -729,7 +721,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		}
 		strategy.Strategy = strategyHistory.Strategy
 		strategy.Config = strategyHistory.Config
-		strategy.PipelineId = pipeline.Id
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
 		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
 		if err != nil {
@@ -1543,6 +1534,13 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 
 	if configMapJson != nil {
 		merged, err = impl.mergeUtil.JsonPatch(merged, configMapJson)
+		if err != nil {
+			return 0, 0, "", err
+		}
+	}
+
+	if appLabelJsonByte != nil {
+		merged, err = impl.mergeUtil.JsonPatch(merged, appLabelJsonByte)
 		if err != nil {
 			return 0, 0, "", err
 		}

@@ -20,11 +20,16 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	"k8s.io/apimachinery/pkg/util/intstr"
+	"net/url"
+	"strconv"
+	"time"
+
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
-	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -33,10 +38,7 @@ import (
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
-	"net/url"
-	"strconv"
 )
 
 type WorkflowService interface {
@@ -71,10 +73,8 @@ type WorkflowRequest struct {
 	DockerRegistryURL          string                            `json:"dockerRegistryURL"`
 	DockerConnection           string                            `json:"dockerConnection"`
 	DockerCert                 string                            `json:"dockerCert"`
-	DockerBuildArgs            string                            `json:"dockerBuildArgs"`
-	DockerBuildTargetPlatform  string                            `json:"dockerBuildTargetPlatform"`
 	DockerRepository           string                            `json:"dockerRepository"`
-	DockerFileLocation         string                            `json:"dockerfileLocation"`
+	CheckoutPath               string                            `json:"checkoutPath"`
 	DockerUsername             string                            `json:"dockerUsername"`
 	DockerPassword             string                            `json:"dockerPassword"`
 	AwsRegion                  string                            `json:"awsRegion"`
@@ -111,7 +111,7 @@ type WorkflowRequest struct {
 	RefPlugins                 []*bean2.RefPluginObject          `json:"refPlugins"`
 	AppName                    string                            `json:"appName"`
 	TriggerByAuthor            string                            `json:"triggerByAuthor"`
-	DockerBuildOptions         string                            `json:"dockerBuildOptions"`
+	CiBuildConfig              *bean2.CiBuildConfigBean          `json:"ciBuildConfig"`
 }
 
 const (
@@ -155,7 +155,7 @@ type CiProjectDetails struct {
 	FetchSubmodules bool      `json:"fetchSubmodules"`
 	CommitHash      string    `json:"commitHash"`
 	GitTag          string    `json:"gitTag"`
-	CommitTime      string `json:"commitTime"`
+	CommitTime      time.Time `json:"commitTime"`
 	//Branch        string          `json:"branch"`
 	Type        string                    `json:"type"`
 	Message     string                    `json:"message"`

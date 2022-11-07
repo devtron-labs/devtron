@@ -80,7 +80,7 @@ type CdHandlerImpl struct {
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	application                      application.ServiceClient
 	argoUserService                  argo.ArgoUserService
-	deploymentFailureHandler         app.DeploymentFailureHandler
+	deploymentEventHandler           app.DeploymentEventHandler
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -97,7 +97,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	appListingService app.AppListingService, appListingRepository repository.AppListingRepository,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	application application.ServiceClient, argoUserService argo.ArgoUserService,
-	deploymentFailureHandler app.DeploymentFailureHandler) *CdHandlerImpl {
+	deploymentFailureHandler app.DeploymentEventHandler) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                           Logger,
 		cdConfig:                         cdConfig,
@@ -119,7 +119,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		application:                      application,
 		argoUserService:                  argoUserService,
-		deploymentFailureHandler:         deploymentFailureHandler,
+		deploymentEventHandler:           deploymentFailureHandler,
 	}
 }
 
@@ -165,10 +165,15 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDe
 			},
 		}
 		timelines = append(timelines, timeline)
-		//writing pipeline failure event
-		impl.deploymentFailureHandler.WriteCDFailureEvent(cdWfr.CdWorkflow.PipelineId, deploymentStatus.AppId, deploymentStatus.EnvId)
-	}
+		if appStatus == string(health.HealthStatusHealthy) {
+			//writing pipeline success event
+			impl.deploymentEventHandler.WriteCDFailureEvent(cdWfr.CdWorkflow.PipelineId, deploymentStatus.AppId, deploymentStatus.EnvId)
+		} else if appStatus == WorkflowFailed {
+			//writing pipeline failure event
+			impl.deploymentEventHandler.WriteCDFailureEvent(cdWfr.CdWorkflow.PipelineId, deploymentStatus.AppId, deploymentStatus.EnvId)
+		}
 
+	}
 	dbConnection := impl.cdWorkflowRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {

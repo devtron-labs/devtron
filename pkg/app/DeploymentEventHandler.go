@@ -29,28 +29,29 @@ import (
 	"go.uber.org/zap"
 )
 
-type DeploymentFailureHandler interface {
+type DeploymentEventHandler interface {
 	WriteCDFailureEvent(pipelineId, appId, envId int)
+	WriteCDSuccessEvent(pipelineId, appId, envId int)
 }
 
-type DeploymentFailureHandlerImpl struct {
+type DeploymentEventHandlerImpl struct {
 	logger            *zap.SugaredLogger
 	appListingService AppListingService
 	eventFactory      client.EventFactory
 	eventClient       client.EventClient
 }
 
-func NewDeploymentFailureHandlerImpl(logger *zap.SugaredLogger, appListingService AppListingService, eventClient client.EventClient, eventFactory client.EventFactory) *DeploymentFailureHandlerImpl {
-	deploymentFailureHandlerImpl := &DeploymentFailureHandlerImpl{
+func NewDeploymentEventHandlerImpl(logger *zap.SugaredLogger, appListingService AppListingService, eventClient client.EventClient, eventFactory client.EventFactory) *DeploymentEventHandlerImpl {
+	deploymentEventHandlerImpl := &DeploymentEventHandlerImpl{
 		logger:            logger,
 		appListingService: appListingService,
 		eventClient:       eventClient,
 		eventFactory:      eventFactory,
 	}
-	return deploymentFailureHandlerImpl
+	return deploymentEventHandlerImpl
 }
 
-func (impl *DeploymentFailureHandlerImpl) WriteCDFailureEvent(pipelineId, appId, envId int) {
+func (impl *DeploymentEventHandlerImpl) WriteCDFailureEvent(pipelineId, appId, envId int) {
 	event := impl.eventFactory.Build(util.Fail, &pipelineId, appId, &envId, util.CD)
 	impl.logger.Debugw("event WriteCDFailureEvent", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, 0, bean.CD_WORKFLOW_TYPE_DEPLOY)
@@ -60,7 +61,17 @@ func (impl *DeploymentFailureHandlerImpl) WriteCDFailureEvent(pipelineId, appId,
 	}
 }
 
-func (impl *DeploymentFailureHandlerImpl) BuildPayload(appName string, deploymentFailureTime time.Time) *client.Payload {
+func (impl *DeploymentEventHandlerImpl) WriteCDSuccessEvent(pipelineId, appId, envId int) {
+	event := impl.eventFactory.Build(util.Success, &pipelineId, appId, &envId, util.CD)
+	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event)
+	event = impl.eventFactory.BuildExtraCDData(event, nil, 0, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+	if evtErr != nil {
+		impl.logger.Errorw("error in writing event", "err", evtErr)
+	}
+}
+
+func (impl *DeploymentEventHandlerImpl) BuildPayload(appName string, deploymentFailureTime time.Time) *client.Payload {
 	applicationName := appName[:strings.LastIndex(appName, "-")]
 	evnName := appName[strings.LastIndex(appName, "-")+1:]
 	payload := &client.Payload{}
@@ -70,6 +81,6 @@ func (impl *DeploymentFailureHandlerImpl) BuildPayload(appName string, deploymen
 	return payload
 }
 
-func (impl *DeploymentFailureHandlerImpl) isDeploymentFailed(ds repository.DeploymentStatus) bool {
+func (impl *DeploymentEventHandlerImpl) isDeploymentFailed(ds repository.DeploymentStatus) bool {
 	return ds.Status == application.Degraded && time.Since(ds.UpdatedOn) > 5*time.Minute
 }
