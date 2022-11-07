@@ -33,6 +33,22 @@ const (
 	APP_LEVEL_LINK     string = "appLevel"
 )
 
+type AppIdentifier int
+
+const (
+	CLUSTER AppIdentifier = iota
+	DEVTRON_APP
+	DEVTRON_INSTALLED_APP
+	EXTERNAL_HELM_APP
+)
+
+var typeMappings = map[string]AppIdentifier{
+	"cluster":               CLUSTER,
+	"devtron-app":           DEVTRON_APP,
+	"devtron-installed-app": DEVTRON_INSTALLED_APP,
+	"external-helm-app":     EXTERNAL_HELM_APP,
+}
+
 type ExternalLinkService interface {
 	Create(requests []*ExternalLinkDto, userId int32, userRole string) (*ExternalLinkApiResponse, error)
 	GetAllActiveTools() ([]ExternalLinkMonitoringToolDto, error)
@@ -75,6 +91,14 @@ type ExternalLinkApiResponse struct {
 	Success bool `json:"success"`
 }
 
+func getType(identifier AppIdentifier) string {
+	for key, val := range typeMappings {
+		if val == identifier {
+			return key
+		}
+	}
+	return ""
+}
 func NewExternalLinkServiceImpl(logger *zap.SugaredLogger, externalLinksToolsRepository ExternalLinkMonitoringToolRepository,
 	externalLinkIdentifierMappingRepository ExternalLinkIdentifierMappingRepository, externalLinksRepository ExternalLinkRepository) *ExternalLinkServiceImpl {
 	return &ExternalLinkServiceImpl{
@@ -125,7 +149,7 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 		linkType := request.Type
 		for _, linkIdentifier := range request.Identifiers {
 			if linkType == CLUSTER_LEVEL_LINK {
-				linkIdentifier.Type = ""
+				//linkIdentifier.Type = ""
 				linkIdentifier.Identifier = ""
 			} else if linkType == APP_LEVEL_LINK {
 				linkIdentifier.ClusterId = 0
@@ -134,7 +158,7 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 			}
 			externalLinkIdentifierMapping := &ExternalLinkIdentifierMapping{
 				ExternalLinkId: externalLink.Id,
-				Type:           linkIdentifier.Type,
+				Type:           typeMappings[linkIdentifier.Type],
 				Identifier:     linkIdentifier.Identifier,
 				ClusterId:      linkIdentifier.ClusterId,
 				Active:         true,
@@ -222,7 +246,7 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 		} else {
 			response[link.ExternalLinkId].Type = APP_LEVEL_LINK
 			identifier.ClusterId = 0
-			identifier.Type = link.Type
+			identifier.Type = getType(link.Type)
 			identifier.Identifier = link.Identifier
 		}
 		response[link.ExternalLinkId].Identifiers = append(response[link.ExternalLinkId].Identifiers, identifier)
@@ -298,6 +322,7 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 		return nil, err
 	}
 
+	//make all the existing mappings of this external link inactive
 	for _, model := range allExternalLinksMapping {
 		if model.Active == true {
 			model.Active = false
@@ -315,7 +340,7 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 	requestedLinkIdentifiersMap := make(map[LinkIdentifier]*ExternalLinkIdentifierMapping)
 	for _, model := range allExternalLinksMapping {
 		linkIdentifier := LinkIdentifier{
-			Type:       model.Type,
+			Type:       getType(model.Type),
 			Identifier: model.Identifier,
 			ClusterId:  model.ClusterId,
 		}
@@ -335,15 +360,15 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 			model.UpdatedBy = request.UserId
 			err = impl.externalLinkIdentifierMappingRepository.Update(model, tx)
 		} else {
-			externalLinkCluster := &ExternalLinkIdentifierMapping{
+			externalLinkIdentifier := &ExternalLinkIdentifierMapping{
 				ExternalLinkId: request.Id,
-				Type:           identifier.Type,
+				Type:           typeMappings[identifier.Type],
 				Identifier:     identifier.Identifier,
 				ClusterId:      identifier.ClusterId,
 				Active:         true,
 				AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: request.UserId, UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 			}
-			err = impl.externalLinkIdentifierMappingRepository.Save(externalLinkCluster, tx)
+			err = impl.externalLinkIdentifierMappingRepository.Save(externalLinkIdentifier, tx)
 		}
 		if err != nil {
 			impl.logger.Errorw("error in saving external_link_identifier mapping", "identifier", identifier, "err", err)
