@@ -965,7 +965,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 		return nil
 		//update current WF with error status
 	} else {
-		//update n-1th  deploy status as aborted if not termainal(Healthy, Degraded)
+		//update n-1th  deploy status as aborted if not terminal(Healthy, Degraded)
 		terminalStatus := []string{string(health.HealthStatusHealthy), string(health.HealthStatusDegraded), WorkflowAborted, WorkflowFailed}
 		previousNonTerminalRunners, err := impl.cdWorkflowRepository.FindPreviousCdWfRunnerByStatus(pipelineId, currentRunner.Id, terminalStatus)
 		if err != nil {

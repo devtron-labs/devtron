@@ -95,7 +95,7 @@ type PipelineRepository interface {
 	UpdateCdPipeline(pipeline *Pipeline) error
 	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
-	GetPipelineIdsHavingStatusTimelinesPendingAfterKubectlApplyStatus(pendingSinceSeconds int) ([]int, error)
+	GetPipelineIdsHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]int, error)
 	FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) (ids []int, err error)
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 }
@@ -440,7 +440,7 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) GetPipelineIdsHavingStatusTimelinesPendingAfterKubectlApplyStatus(pendingSinceSeconds int) ([]int, error) {
+func (impl PipelineRepositoryImpl) GetPipelineIdsHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]int, error) {
 	var pipelineIds []int
 	queryString := `select p.id from pipeline p inner join app a on p.app_id = a.id  
     inner join environment e on p.environment_id = e.id inner join cd_workflow cw on cw.pipeline_id = p.id  
@@ -449,11 +449,14 @@ func (impl PipelineRepositoryImpl) GetPipelineIdsHavingStatusTimelinesPendingAft
 					where id in  
 						(select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline 
 							group by cd_workflow_runner_id, id order by cd_workflow_runner_id,id desc)  
-					and status='KUBECTL_APPLY_SYNCED' and status_time < NOW() - INTERVAL '? seconds')  
-    and p.deleted=false group by p.id, a.app_name, e.environment_name;`
-	_, err := impl.dbConnection.Query(&pipelineIds, queryString, pendingSinceSeconds)
+					and status in (?) and status_time < NOW() - INTERVAL '? seconds')  
+    and cwr.started_on > NOW() - INTERVAL '? minutes' and p.deleted=? group by p.id, a.app_name, e.environment_name;`
+	_, err := impl.dbConnection.Query(&pipelineIds, queryString,
+		pg.In([]TimelineStatus{TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
+			TIMELINE_STATUS_FETCH_TIMED_OUT, TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
+		pendingSinceSeconds, timeForDegradation, false)
 	if err != nil {
-		impl.logger.Errorw("error in GetPipelinesHavingStatusTimelinesPendingAfterKubectlApplyStatus", "err", err)
+		impl.logger.Errorw("error in GetPipelineIdsHavingTriggersStuckInLastPossibleNonTerminalTimelines", "err", err)
 		return nil, err
 	}
 	return pipelineIds, nil

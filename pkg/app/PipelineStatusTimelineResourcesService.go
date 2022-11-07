@@ -11,8 +11,8 @@ import (
 )
 
 type PipelineStatusTimelineResourcesService interface {
-	SaveOrUpdateCdPipelineTimelineResources(cdWfrId int, application *v1alpha1.Application, timelineStage pipelineConfig.ResourceTimelineStage, tx *pg.Tx, userId int32) error
-	GetTimelineResourcesForATimeline(cdWfrId int, timelineStage pipelineConfig.ResourceTimelineStage) ([]*SyncStageResourceDetailDto, error)
+	SaveOrUpdateCdPipelineTimelineResources(cdWfrId int, application *v1alpha1.Application, tx *pg.Tx, userId int32) error
+	GetTimelineResourcesForATimeline(cdWfrId int) ([]*SyncStageResourceDetailDto, error)
 }
 
 type PipelineStatusTimelineResourcesServiceImpl struct {
@@ -40,12 +40,12 @@ type SyncStageResourceDetailDto struct {
 	ResourceStatus               string                               `json:"resourceStatus"`
 	ResourcePhase                string                               `json:"resourcePhase"`
 	StatusMessage                string                               `json:"statusMessage"`
-	TimelineStage                pipelineConfig.ResourceTimelineStage `json:"timelineStage"`
+	TimelineStage                pipelineConfig.ResourceTimelineStage `json:"timelineStage,omitempty"`
 }
 
-func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdateCdPipelineTimelineResources(cdWfrId int, application *v1alpha1.Application, timelineStage pipelineConfig.ResourceTimelineStage, tx *pg.Tx, userId int32) error {
+func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdateCdPipelineTimelineResources(cdWfrId int, application *v1alpha1.Application, tx *pg.Tx, userId int32) error {
 	//getting all timeline resources by cdWfrId
-	timelineResources, err := impl.pipelineStatusTimelineResourcesRepository.GetByCdWfrIdAndTimelineStage(cdWfrId, timelineStage)
+	timelineResources, err := impl.pipelineStatusTimelineResourcesRepository.GetByCdWfrIdAndTimelineStage(cdWfrId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting timelineResources", "err", err)
 		return err
@@ -62,35 +62,36 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdateCdPipelineTi
 
 	if application != nil && application.Status.OperationState != nil && application.Status.OperationState.SyncResult != nil {
 		for _, resource := range application.Status.OperationState.SyncResult.Resources {
-			if index, ok := oldTimelineResourceMap[resource.Name]; ok {
-				timelineResources[index].ResourceStatus = string(resource.HookPhase)
-				timelineResources[index].StatusMessage = resource.Message
-				timelineResources[index].UpdatedBy = userId
-				timelineResources[index].UpdatedOn = time.Now()
-				timelineResourcesToBeUpdated = append(timelineResourcesToBeUpdated, timelineResources[index])
-			} else {
-				newTimelineResource := &pipelineConfig.PipelineStatusTimelineResources{
-					CdWorkflowRunnerId: cdWfrId,
-					ResourceName:       resource.Name,
-					ResourceKind:       resource.Kind,
-					ResourceGroup:      resource.Group,
-					ResourceStatus:     string(resource.HookPhase),
-					StatusMessage:      resource.Message,
-					TimelineStage:      timelineStage,
-					AuditLog: sql.AuditLog{
-						CreatedBy: userId,
-						CreatedOn: time.Now(),
-						UpdatedBy: userId,
-						UpdatedOn: time.Now(),
-					},
-				}
-				if resource.HookType != "" {
-					newTimelineResource.ResourcePhase = string(resource.HookType)
+			if resource != nil {
+				if index, ok := oldTimelineResourceMap[resource.Name]; ok {
+					timelineResources[index].ResourceStatus = string(resource.HookPhase)
+					timelineResources[index].StatusMessage = resource.Message
+					timelineResources[index].UpdatedBy = userId
+					timelineResources[index].UpdatedOn = time.Now()
+					timelineResourcesToBeUpdated = append(timelineResourcesToBeUpdated, timelineResources[index])
 				} else {
-					//since hookType for non-hook resources is empty and always come under sync phase, hardcoding it
-					newTimelineResource.ResourcePhase = string(common.HookTypeSync)
+					newTimelineResource := &pipelineConfig.PipelineStatusTimelineResources{
+						CdWorkflowRunnerId: cdWfrId,
+						ResourceName:       resource.Name,
+						ResourceKind:       resource.Kind,
+						ResourceGroup:      resource.Group,
+						ResourceStatus:     string(resource.HookPhase),
+						StatusMessage:      resource.Message,
+						AuditLog: sql.AuditLog{
+							CreatedBy: userId,
+							CreatedOn: time.Now(),
+							UpdatedBy: userId,
+							UpdatedOn: time.Now(),
+						},
+					}
+					if resource.HookType != "" {
+						newTimelineResource.ResourcePhase = string(resource.HookType)
+					} else {
+						//since hookType for non-hook resources is empty and always come under sync phase, hard-coding it
+						newTimelineResource.ResourcePhase = string(common.HookTypeSync)
+					}
+					timelineResourcesToBeSaved = append(timelineResourcesToBeSaved, newTimelineResource)
 				}
-				timelineResourcesToBeSaved = append(timelineResourcesToBeSaved, newTimelineResource)
 			}
 		}
 	}
@@ -127,10 +128,10 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdateCdPipelineTi
 	return nil
 }
 
-func (impl *PipelineStatusTimelineResourcesServiceImpl) GetTimelineResourcesForATimeline(cdWfrId int, timelineStage pipelineConfig.ResourceTimelineStage) ([]*SyncStageResourceDetailDto, error) {
-	timelineResources, err := impl.pipelineStatusTimelineResourcesRepository.GetByCdWfrIdAndTimelineStage(cdWfrId, timelineStage)
+func (impl *PipelineStatusTimelineResourcesServiceImpl) GetTimelineResourcesForATimeline(cdWfrId int) ([]*SyncStageResourceDetailDto, error) {
+	timelineResources, err := impl.pipelineStatusTimelineResourcesRepository.GetByCdWfrIdAndTimelineStage(cdWfrId)
 	if err != nil {
-		impl.logger.Errorw("error in getting timeline resources", "err", err, "cdWfrId", cdWfrId, "timelineStage", timelineStage)
+		impl.logger.Errorw("error in getting timeline resources", "err", err, "cdWfrId", cdWfrId)
 		return nil, err
 	}
 	var timelineResourcesDtos []*SyncStageResourceDetailDto
@@ -144,7 +145,6 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) GetTimelineResourcesForA
 			ResourceStatus:     timelineResource.ResourceStatus,
 			ResourcePhase:      timelineResource.ResourcePhase,
 			StatusMessage:      timelineResource.StatusMessage,
-			TimelineStage:      timelineResource.TimelineStage,
 		}
 		timelineResourcesDtos = append(timelineResourcesDtos, dto)
 	}

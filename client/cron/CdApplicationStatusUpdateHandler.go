@@ -43,8 +43,9 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 }
 
 type AppStatusConfig struct {
-	CdPipelineStatusCronTime string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
-	PipelineDegradedTime     string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"` //in minutes
+	CdPipelineStatusCronTime        string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
+	CdPipelineStatusTimeoutDuration string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"` //in minutes
+	PipelineDegradedTime            string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`              //in minutes
 }
 
 func GetAppStatusConfig() (*AppStatusConfig, error) {
@@ -116,7 +117,12 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			return
 		}
 		impl.logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "subscribeDataUnmarshal", "data", statusUpdateEvent)
-		err = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(statusUpdateEvent.ArgoAppName, statusUpdateEvent.AppId, statusUpdateEvent.EnvId, statusUpdateEvent.IgnoreFailedWorkflowStatus)
+		timeoutDuration, err := strconv.Atoi(impl.AppStatusConfig.CdPipelineStatusTimeoutDuration)
+		if err != nil {
+			impl.logger.Errorw("error in converting string to int", "err", err)
+			return
+		}
+		err = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(statusUpdateEvent.ArgoAppName, statusUpdateEvent.AppId, statusUpdateEvent.EnvId, statusUpdateEvent.IgnoreFailedWorkflowStatus, timeoutDuration)
 		if err != nil {
 			impl.logger.Errorw("error on argo pipeline status update", "err", err, "msg", string(msg.Data))
 			return
@@ -159,7 +165,12 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoApplicationStatusUpdate() 
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoPipelineTimelineUpdate() {
-	err := impl.CdHandler.CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(30)
+	degradedTime, err := strconv.Atoi(impl.AppStatusConfig.PipelineDegradedTime)
+	if err != nil {
+		impl.logger.Errorw("error in converting string to int", "err", err)
+		return
+	}
+	err = impl.CdHandler.CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(30, degradedTime)
 	if err != nil {
 		impl.logger.Errorw("error argo app status update - cron job", "err", err)
 		return

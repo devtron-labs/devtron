@@ -441,9 +441,9 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			return err
 		}
 		//saving timeline resource details
-		err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY, nil, 1)
+		err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, nil, 1)
 		if err != nil {
-			impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY)
+			impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id)
 		}
 		if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
 			timeline.Id = 0
@@ -456,7 +456,11 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 				return err
 			}
 			impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "data", string(b), "status", timeline.Status)
-
+			//saving timeline resource details
+			err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, nil, 1)
+			if err != nil {
+				impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id)
+			}
 			if currrentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
 				haveNewTimeline := false
 				timeline.Id = 0
@@ -478,11 +482,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 						return err
 					}
 					impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "data", string(b), "status", timeline.Status)
-					//saving timeline resource details
-					err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, pipelineConfig.TIMELINE_RESOURCE_STAGE_APP_HEALTH, nil, 1)
-					if err != nil {
-						impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_APP_HEALTH)
-					}
 				}
 			}
 		}
@@ -497,9 +496,9 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 				return err
 			}
 			//saving timeline resource details
-			err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY, nil, 1)
+			err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, nil, 1)
 			if err != nil {
-				impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY)
+				impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id)
 			}
 		} else if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
 			timeline.Id = 0
@@ -514,9 +513,9 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 			}
 			impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "data", string(b), "status", timeline.Status)
 			//saving timeline resource details
-			err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY, nil, 1)
+			err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, nil, 1)
 			if err != nil {
-				impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY)
+				impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id)
 			}
 			if currentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
 				haveNewTimeline := false
@@ -539,11 +538,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 						return err
 					}
 					impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "data", string(b), "status", timeline.Status)
-					//saving timeline resource details
-					err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, pipelineConfig.TIMELINE_RESOURCE_STAGE_APP_HEALTH, nil, 1)
-					if err != nil {
-						impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_APP_HEALTH)
-					}
 				}
 			}
 		}
@@ -1630,6 +1624,9 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 			impl.logger.Errorw("error in git commit", "err", err)
 			return 0, 0, "", err
 		}
+	}
+	if commitTime.IsZero() {
+		commitTime = time.Now()
 	}
 	pipelineOverride := &chartConfig.PipelineOverride{
 		Id:                     override.Id,

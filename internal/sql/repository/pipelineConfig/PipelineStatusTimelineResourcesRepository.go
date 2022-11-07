@@ -10,7 +10,6 @@ type ResourceTimelineStage string
 
 const (
 	TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY ResourceTimelineStage = "KUBECTL_APPLY"
-	TIMELINE_RESOURCE_STAGE_APP_HEALTH    ResourceTimelineStage = "APP_HEALTH"
 )
 
 type PipelineStatusTimelineResourcesRepository interface {
@@ -18,7 +17,7 @@ type PipelineStatusTimelineResourcesRepository interface {
 	SaveTimelineResourcesWithTxn(timelineResources []*PipelineStatusTimelineResources, tx *pg.Tx) error
 	UpdateTimelineResources(timelineResources []*PipelineStatusTimelineResources) error
 	UpdateTimelineResourcesWithTxn(timelineResources []*PipelineStatusTimelineResources, tx *pg.Tx) error
-	GetByCdWfrIdAndTimelineStage(cdWfrId int, timelineStage ResourceTimelineStage) ([]*PipelineStatusTimelineResources, error)
+	GetByCdWfrIdAndTimelineStage(cdWfrId int) ([]*PipelineStatusTimelineResources, error)
 }
 
 type PipelineStatusTimelineResourcesRepositoryImpl struct {
@@ -85,11 +84,10 @@ func (impl *PipelineStatusTimelineResourcesRepositoryImpl) UpdateTimelineResourc
 	return nil
 }
 
-func (impl *PipelineStatusTimelineResourcesRepositoryImpl) GetByCdWfrIdAndTimelineStage(cdWfrId int, timelineStage ResourceTimelineStage) ([]*PipelineStatusTimelineResources, error) {
+func (impl *PipelineStatusTimelineResourcesRepositoryImpl) GetByCdWfrIdAndTimelineStage(cdWfrId int) ([]*PipelineStatusTimelineResources, error) {
 	var timelineResources []*PipelineStatusTimelineResources
 	err := impl.dbConnection.Model(&timelineResources).
 		Where("cd_workflow_runner_id = ?", cdWfrId).
-		Where("timeline_stage = ?", timelineStage).
 		Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timeline resources by cdWfrId and timeline stage", "err", err, "cdWfrId", cdWfrId, "timelineStage", timelineResources)

@@ -93,15 +93,9 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 	for _, timeline := range timelines {
 		var timelineResourceDetails []*SyncStageResourceDetailDto
 		if timeline.Status == pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED || timeline.Status == pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED {
-			timelineResourceDetails, err = impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(timeline.CdWorkflowRunnerId, pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY)
+			timelineResourceDetails, err = impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(timeline.CdWorkflowRunnerId)
 			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error in getting timeline resources details", "err", err, "cdWfrId", timeline.CdWorkflowRunnerId, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_KUBECTL_APPLY)
-				return nil, err
-			}
-		} else if timeline.Status == pipelineConfig.TIMELINE_STATUS_APP_HEALTHY || timeline.Status == pipelineConfig.TIMELINE_STATUS_APP_DEGRADED {
-			timelineResourceDetails, err = impl.pipelineStatusTimelineResourcesService.GetTimelineResourcesForATimeline(timeline.CdWorkflowRunnerId, pipelineConfig.TIMELINE_RESOURCE_STAGE_APP_HEALTH)
-			if err != nil && err != pg.ErrNoRows {
-				impl.logger.Errorw("error in getting timeline resources details", "err", err, "cdWfrId", timeline.CdWorkflowRunnerId, "timelineStage", pipelineConfig.TIMELINE_RESOURCE_STAGE_APP_HEALTH)
+				impl.logger.Errorw("error in getting timeline resources details", "err", err, "cdWfrId", timeline.CdWorkflowRunnerId)
 				return nil, err
 			}
 		}

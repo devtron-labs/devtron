@@ -10,7 +10,7 @@ CREATE TABLE public.pipeline_status_timeline_resources (
 "resource_phase"                    text,
 "resource_status"                   text,
 "status_message"                    text,
-"timeline_stage"                    text,
+"timeline_stage"                    text DEFAULT 'KUBECTL_APPLY',
 "created_on"                        timestamptz,
 "created_by"                        int4,
 "updated_on"                        timestamptz,
