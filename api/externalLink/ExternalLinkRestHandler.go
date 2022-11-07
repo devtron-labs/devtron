@@ -79,13 +79,15 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 		}
 		userRole = externalLink.SUPER_ADMIN_ROLE
 	} else if len(appName) > 0 && len(envId) > 0 {
-		envIdInt, err := strconv.Atoi(envId)
+		//can be used in future
+		_, err := strconv.Atoi(envId)
 		if err != nil {
 			impl.logger.Errorw("invalid request params, unable to parse", "appId", appName, "envId", envId)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return userId, "", err
 		}
-		object := impl.enforcerUtil.GetAppRBACByAppNameAndEnvId(appName, envIdInt)
+		//currently enforcing rbac with appName // can enforce with appName and envId in future
+		object := impl.enforcerUtil.GetAppRBACName(appName)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, object); !ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return userId, "", fmt.Errorf("unauthorized error")

@@ -23,13 +23,14 @@ import (
 )
 
 type ExternalLinkIdentifierMapping struct {
-	tableName      struct{} `sql:"external_link_identifier_mapping"`
-	Id             int      `sql:"id,pk"`
-	ExternalLinkId int      `sql:"external_link_id,notnull"`
-	Type           string   `sql:"type,notnull"`
-	Identifier     string   `sql:"identifier,notnull"`
-	ClusterId      int      `sql:"cluster_id,notnull"`
-	Active         bool     `sql:"active, notnull"`
+	tableName      struct{}      `sql:"external_link_identifier_mapping"`
+	Id             int           `sql:"id,pk"`
+	ExternalLinkId int           `sql:"external_link_id,notnull"`
+	Type           AppIdentifier `sql:"type,notnull"`
+	Identifier     string        `sql:"identifier,notnull"`
+	EnvId          int           `sql:"env_id"`
+	ClusterId      int           `sql:"cluster_id,notnull"`
+	Active         bool          `sql:"active, notnull"`
 	ExternalLink   ExternalLink
 	sql.AuditLog
 }
