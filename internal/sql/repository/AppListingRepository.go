@@ -48,8 +48,9 @@ type AppListingRepository interface {
 
 	SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error
 	SaveNewDeploymentsWithTxn(deploymentStatuses []DeploymentStatus, tx *pg.Tx) error
-	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
-	FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error)
+	FindLastDeployedStatusByAppName(appName string) (DeploymentStatus, error)
+	FindLastDeployedStatusForAcdPipelineByAppIdAndEnvId(appId, envId int) (DeploymentStatus, error)
+	FindLastDeployedStatusesByAppNames(appNames []string) ([]DeploymentStatus, error)
 	FindLastDeployedStatusesForAllApps() ([]DeploymentStatus, error)
 	FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(deployedBeforeMinutes int) ([]DeploymentStatus, error)
 	DeploymentDetailByArtifactId(ciArtifactId int) (bean.DeploymentDetailContainer, error)
@@ -463,7 +464,7 @@ func (impl AppListingRepositoryImpl) SaveNewDeploymentsWithTxn(deploymentStatuse
 	return err
 }
 
-func (impl AppListingRepositoryImpl) FindLastDeployedStatus(appName string) (DeploymentStatus, error) {
+func (impl AppListingRepositoryImpl) FindLastDeployedStatusByAppName(appName string) (DeploymentStatus, error) {
 	var deployment DeploymentStatus
 	err := impl.dbConnection.Model(&deployment).
 		Where("app_name = ?", appName).
@@ -473,7 +474,21 @@ func (impl AppListingRepositoryImpl) FindLastDeployedStatus(appName string) (Dep
 	return deployment, err
 }
 
-func (impl AppListingRepositoryImpl) FindLastDeployedStatuses(appNames []string) ([]DeploymentStatus, error) {
+func (impl AppListingRepositoryImpl) FindLastDeployedStatusForAcdPipelineByAppIdAndEnvId(appId, envId int) (DeploymentStatus, error) {
+	var deployment DeploymentStatus
+	err := impl.dbConnection.Model(&deployment).
+		Join("pipeline p on p.app_id=deployment_status.app_id").
+		Where("p.deleted = ?", false).
+		Where("p.deployment_app_type='argo_cd'").
+		Where("deployment_status.app_id = ?", appId).
+		Where("deployment_status.env_id = ?", envId).
+		Order("id Desc").
+		Limit(1).
+		Select()
+	return deployment, err
+}
+
+func (impl AppListingRepositoryImpl) FindLastDeployedStatusesByAppNames(appNames []string) ([]DeploymentStatus, error) {
 	if len(appNames) == 0 {
 		return []DeploymentStatus{}, nil
 	}

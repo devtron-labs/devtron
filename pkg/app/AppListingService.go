@@ -491,7 +491,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 }
 
 func (impl AppListingServiceImpl) GetLastDeploymentStatusesByAppNames(appNames []string) ([]repository.DeploymentStatus, error) {
-	deploymentStatuses, err := impl.appListingRepository.FindLastDeployedStatuses(appNames)
+	deploymentStatuses, err := impl.appListingRepository.FindLastDeployedStatusesByAppNames(appNames)
 	if err != nil {
 		return []repository.DeploymentStatus{}, err
 	}
