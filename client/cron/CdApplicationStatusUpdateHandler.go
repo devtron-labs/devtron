@@ -25,7 +25,7 @@ type CdApplicationStatusUpdateHandler interface {
 	ArgoPipelineTimelineUpdate()
 	Subscribe() error
 	SyncPipelineStatusForResourceTreeCall(acdAppName string, appId, envId int) error
-	ManualSyncPipelineStatus(appId, envId int) error
+	ManualSyncPipelineStatus(appId, envId int, userId int32) error
 }
 
 type CdApplicationStatusUpdateHandlerImpl struct {
@@ -110,7 +110,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, util.ARGO_PIPELINE_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("received argo pipeline status update request")
 		defer msg.Ack()
-		statusUpdateEvent := pipeline.ArgoPipelineStatusEvent{}
+		statusUpdateEvent := pipeline.ArgoPipelineStatusSyncEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &statusUpdateEvent)
 		if err != nil {
 			impl.logger.Errorw("unmarshal error on argo pipeline status update event", "err", err)
@@ -122,7 +122,8 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error in converting string to int", "err", err)
 			return
 		}
-		err = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(statusUpdateEvent.ArgoAppName, statusUpdateEvent.AppId, statusUpdateEvent.EnvId, statusUpdateEvent.IgnoreFailedWorkflowStatus, timeoutDuration)
+		err = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(statusUpdateEvent.ArgoAppName, statusUpdateEvent.AppId, statusUpdateEvent.EnvId,
+			statusUpdateEvent.IgnoreFailedWorkflowStatus, timeoutDuration, statusUpdateEvent.UserId)
 		if err != nil {
 			impl.logger.Errorw("error on argo pipeline status update", "err", err, "msg", string(msg.Data))
 			return
@@ -187,11 +188,12 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceT
 
 	if !IsTerminalTimelineStatus(timeline.Status) {
 		//create new nats event
-		statusUpdateEvent := pipeline.ArgoPipelineStatusEvent{
+		statusUpdateEvent := pipeline.ArgoPipelineStatusSyncEvent{
 			ArgoAppName:                acdAppName,
 			AppId:                      appId,
 			EnvId:                      envId,
 			IgnoreFailedWorkflowStatus: true,
+			UserId:                     1,
 		}
 		//write event
 		err := impl.eventClient.WriteNatsEvent(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
@@ -214,7 +216,7 @@ func IsTerminalTimelineStatus(timeline pipelineConfig.TimelineStatus) bool {
 	return false
 }
 
-func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId, envId int) error {
+func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId, envId int, userId int32) error {
 	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatusForAcdPipelineByAppIdAndEnvId(appId, envId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching deployment status", "err", err, "appId", appId, "envId", envId)
@@ -222,11 +224,12 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId
 	}
 	if !util.IsTerminalStatus(deploymentStatus.Status) {
 		//create new nats event
-		statusUpdateEvent := pipeline.ArgoPipelineStatusEvent{
+		statusUpdateEvent := pipeline.ArgoPipelineStatusSyncEvent{
 			ArgoAppName:                deploymentStatus.AppName,
 			AppId:                      appId,
 			EnvId:                      envId,
 			IgnoreFailedWorkflowStatus: true,
+			UserId:                     userId,
 		}
 		//write event
 		err := impl.eventClient.WriteNatsEvent(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)

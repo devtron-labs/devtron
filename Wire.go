@@ -763,6 +763,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.PipelineStatusTimelineResourcesService), new(*app.PipelineStatusTimelineResourcesServiceImpl)),
 		pipelineConfig.NewPipelineStatusTimelineResourcesRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineStatusTimelineResourcesRepository), new(*pipelineConfig.PipelineStatusTimelineResourcesRepositoryImpl)),
+
+		app.NewPipelineStatusFetchDetailServiceImpl,
+		wire.Bind(new(app.PipelineStatusFetchDetailService), new(*app.PipelineStatusFetchDetailServiceImpl)),
+		pipelineConfig.NewPipelineStatusFetchDetailRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusFetchDetailRepository), new(*pipelineConfig.PipelineStatusFetchDetailRepositoryImpl)),
 	)
 	return &App{}, nil
 }

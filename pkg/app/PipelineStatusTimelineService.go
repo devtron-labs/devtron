@@ -18,6 +18,7 @@ type PipelineStatusTimelineServiceImpl struct {
 	cdWorkflowRepository                   pipelineConfig.CdWorkflowRepository
 	userService                            user.UserService
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService
+	pipelineStatusFetchDetailService       PipelineStatusFetchDetailService
 }
 
 func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
@@ -25,6 +26,7 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	userService user.UserService,
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService,
+	pipelineStatusFetchDetailService PipelineStatusFetchDetailService,
 ) *PipelineStatusTimelineServiceImpl {
 	return &PipelineStatusTimelineServiceImpl{
 		logger:                                 logger,
@@ -32,6 +34,7 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 		cdWorkflowRepository:                   cdWorkflowRepository,
 		userService:                            userService,
 		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
+		pipelineStatusFetchDetailService:       pipelineStatusFetchDetailService,
 	}
 }
 
@@ -40,6 +43,8 @@ type PipelineTimelineDetailDto struct {
 	DeploymentFinishedOn time.Time                    `json:"deploymentFinishedOn"`
 	TriggeredBy          string                       `json:"triggeredBy"`
 	Timelines            []*PipelineStatusTimelineDto `json:"timelines"`
+	StatusLastFetchedAt  time.Time                    `json:"statusLastFetchedAt"`
+	StatusFetchCount     int                          `json:"statusFetchCount"`
 }
 
 type PipelineStatusTimelineDto struct {
@@ -109,11 +114,17 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		}
 		timelineDtos = append(timelineDtos, timelineDto)
 	}
+	statusLastFetchedAt, statusFetchCount, err := impl.pipelineStatusFetchDetailService.GetFetchTimeAndCountByCdWfrId(wfrId)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipeline status fetchTime and fetchCount by cdWfrId", "err", err, "cdWfrId", wfrId)
+	}
 	timelineDetail := &PipelineTimelineDetailDto{
 		TriggeredBy:          triggeredByUser.EmailId,
 		DeploymentStartedOn:  deploymentStartedOn,
 		DeploymentFinishedOn: deploymentFinishedOn,
 		Timelines:            timelineDtos,
+		StatusLastFetchedAt:  statusLastFetchedAt,
+		StatusFetchCount:     statusFetchCount,
 	}
 	return timelineDetail, nil
 }
