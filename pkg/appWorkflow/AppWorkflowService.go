@@ -180,16 +180,16 @@ func (impl AppWorkflowServiceImpl) DeleteAppWorkflow(appWorkflowId int, userId i
 		return err
 	}
 
-	mappingForCI, err := impl.appWorkflowRepository.FindWFCIMappingByWorkflowId(wf.Id)
+	mappingForCI, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(wf.Id)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
 		return err
 	}
 	if len(mappingForCI) > 0 {
 		return &util.ApiError{
-			InternalMessage:   "workflow has ci pipeline",
-			UserDetailMessage: fmt.Sprintf("workflow has ci pipeline"),
-			UserMessage:       fmt.Sprintf("workflow has ci pipeline")}
+			InternalMessage:   "workflow has nodes attached, pleaes delete them first",
+			UserDetailMessage: fmt.Sprintf("workflow has nodes attached, pleaes delete them first"),
+			UserMessage:       fmt.Sprintf("workflow has nodes attached, pleaes delete them first")}
 	}
 
 	dbConnection := impl.pipelineRepository.GetConnection()
