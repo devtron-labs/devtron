@@ -36,6 +36,7 @@ const DEFAULT_CLUSTER = "default_cluster"
 type HelmAppService interface {
 	ListHelmApplications(clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
 	GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error)
+	GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error)
 	HibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	UnHibernateApplication(ctx context.Context, app *AppIdentifier, hibernateRequest *openapi.HibernateRequest) ([]*openapi.HibernateStatus, error)
 	DecodeAppId(appId string) (*AppIdentifier, error)
@@ -232,15 +233,24 @@ func (impl *HelmAppServiceImpl) GetClusterConf(clusterId int) (*ClusterConfig, e
 }
 
 func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *AppIdentifier) (*AppDetail, error) {
+	return impl.getApplicationDetail(ctx, app, nil)
+}
+
+func (impl *HelmAppServiceImpl) GetApplicationDetailWithFilter(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error) {
+	return impl.getApplicationDetail(ctx, app, resourceTreeFilter)
+}
+
+func (impl *HelmAppServiceImpl) getApplicationDetail(ctx context.Context, app *AppIdentifier, resourceTreeFilter *ResourceTreeFilter) (*AppDetail, error) {
 	config, err := impl.GetClusterConf(app.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cluster detail", "err", err)
 		return nil, err
 	}
 	req := &AppDetailRequest{
-		ClusterConfig: config,
-		Namespace:     app.Namespace,
-		ReleaseName:   app.ReleaseName,
+		ClusterConfig:      config,
+		Namespace:          app.Namespace,
+		ReleaseName:        app.ReleaseName,
+		ResourceTreeFilter: resourceTreeFilter,
 	}
 	appdetail, err := impl.helmAppClient.GetAppDetail(ctx, req)
 	if err != nil {
@@ -264,7 +274,6 @@ func (impl *HelmAppServiceImpl) GetApplicationDetail(ctx context.Context, app *A
 		}
 	}
 	return appdetail, err
-
 }
 
 func (impl *HelmAppServiceImpl) GetDeploymentHistory(ctx context.Context, app *AppIdentifier) (*HelmAppDeploymentHistory, error) {

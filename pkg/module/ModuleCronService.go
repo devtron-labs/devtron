@@ -26,7 +26,9 @@ import (
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/robfig/cron/v3"
+	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"time"
 )
 
@@ -40,10 +42,11 @@ type ModuleCronServiceImpl struct {
 	moduleRepository moduleRepo.ModuleRepository
 	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
 	helmAppService   client.HelmAppService
+	moduleService    ModuleService
 }
 
 func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *ModuleEnvConfig, moduleRepository moduleRepo.ModuleRepository,
-	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService) (*ModuleCronServiceImpl, error) {
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleService ModuleService) (*ModuleCronServiceImpl, error) {
 
 	moduleCronServiceImpl := &ModuleCronServiceImpl{
 		logger:           logger,
@@ -51,6 +54,7 @@ func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *Module
 		moduleRepository: moduleRepository,
 		serverEnvConfig:  serverEnvConfig,
 		helmAppService:   helmAppService,
+		moduleService:    moduleService,
 	}
 
 	// if devtron user type is OSS_HELM then only cron to update module status is useful
@@ -98,12 +102,17 @@ func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
 			impl.updateModuleStatus(module, ModuleStatusTimeout)
 		} else if !util.IsBaseStack() {
 			// check if helm release is healthy or not
+
+			resourceTreeFilter, err := impl.buildResourceTreeFilter(module.Name)
+			if err != nil {
+				continue
+			}
 			appIdentifier := client.AppIdentifier{
 				ClusterId:   1,
 				Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
 				ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
 			}
-			appDetail, err := impl.helmAppService.GetApplicationDetail(context.Background(), &appIdentifier)
+			appDetail, err := impl.helmAppService.GetApplicationDetailWithFilter(context.Background(), &appIdentifier, resourceTreeFilter)
 			if err != nil {
 				impl.logger.Errorw("Error occurred while fetching helm application detail to check if module is installed", "moduleName", module.Name, "err", err)
 			} else if appDetail.ApplicationStatus == serverBean.AppHealthStatusHealthy {
@@ -112,6 +121,44 @@ func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
 		}
 	}
 
+}
+
+func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*client.ResourceTreeFilter, error) {
+	moduleMetaData, err := impl.moduleService.GetModuleMetadata(moduleName)
+	if err != nil {
+		impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
+		return nil, err
+	}
+
+	moduleMetaDataStr := string(moduleMetaData)
+	resourceIdentifiersIface := gjson.Get(moduleMetaDataStr, "result.resourceIdentifiers").Value()
+
+	if resourceIdentifiersIface == nil {
+		return nil, nil
+	}
+	resourceIdentifiersIfaceValues, ok := resourceIdentifiersIface.(map[schema.GroupVersionKind]ResourceFilter)
+	if !ok {
+		return nil, nil
+	}
+
+	var resourceTreeFilter *client.ResourceTreeFilter
+	var resourceFilters []*client.ResourceFilter
+
+	for gvk, resourceIdentifiersIfaceValue := range resourceIdentifiersIfaceValues {
+		resourceFilters = append(resourceFilters, &client.ResourceFilter{
+			Gvk: &client.Gvk{
+				Group:   gvk.Group,
+				Version: gvk.Version,
+				Kind:    gvk.Kind,
+			},
+			Labels: resourceIdentifiersIfaceValue.Labels,
+		})
+	}
+	resourceTreeFilter = &client.ResourceTreeFilter{
+		ResourceFilters: resourceFilters,
+	}
+
+	return resourceTreeFilter, nil
 }
 
 func (impl *ModuleCronServiceImpl) updateModuleStatus(module moduleRepo.Module, status ModuleStatus) {

@@ -40,6 +40,7 @@ type ModuleService interface {
 	GetModuleInfo(name string) (*ModuleInfoDto, error)
 	GetModuleConfig(name string) (*ModuleConfigDto, error)
 	HandleModuleAction(userId int32, moduleName string, moduleActionRequest *ModuleActionRequestDto) (*ActionResponse, error)
+	GetModuleMetadata(moduleName string) ([]byte, error)
 }
 
 type ModuleServiceImpl struct {
@@ -116,7 +117,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	//// (continuation of above line) if legacy -> check if cicd is installed with <= 0.5.3 from DB and moduleName != argo-cd -> then mark as installed in db and return as installed. otherwise return as not installed
 
 	// central-api call
-	moduleMetaData, err := util2.ReadFromUrlWithRetry(impl.buildModuleMetaDataUrl(moduleName))
+	moduleMetaData, err := impl.GetModuleMetadata(moduleName)
 	if err != nil {
 		impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
 		return ModuleStatusNotInstalled, err
@@ -284,6 +285,11 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	return &ActionResponse{
 		Success: true,
 	}, nil
+}
+
+func (impl ModuleServiceImpl) GetModuleMetadata(moduleName string) ([]byte, error) {
+	moduleMetaData, err := util2.ReadFromUrlWithRetry(impl.buildModuleMetaDataUrl(moduleName))
+	return moduleMetaData, err
 }
 
 func (impl ModuleServiceImpl) buildModuleMetaDataUrl(moduleName string) string {

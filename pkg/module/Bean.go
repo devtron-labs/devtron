@@ -81,3 +81,7 @@ const (
 )
 
 var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair, ModuleNameNotification, ModuleNameMonitoringGrafana}
+
+type ResourceFilter struct {
+	Labels map[string]string `json:"labels"`
+}
