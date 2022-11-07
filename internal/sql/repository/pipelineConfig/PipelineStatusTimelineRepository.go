@@ -16,7 +16,6 @@ const (
 	TIMELINE_STATUS_KUBECTL_APPLY_STARTED  TimelineStatus = "KUBECTL_APPLY_STARTED"
 	TIMELINE_STATUS_KUBECTL_APPLY_SYNCED   TimelineStatus = "KUBECTL_APPLY_SYNCED"
 	TIMELINE_STATUS_APP_HEALTHY            TimelineStatus = "HEALTHY"
-	TIMELINE_STATUS_APP_DEGRADED           TimelineStatus = "DEGRADED"
 	TIMELINE_STATUS_DEPLOYMENT_FAILED      TimelineStatus = "FAILED"
 	TIMELINE_STATUS_FETCH_TIMED_OUT        TimelineStatus = "TIMED_OUT"
 	TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS TimelineStatus = "UNABLE_TO_FETCH_STATUS"
@@ -139,7 +138,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatus(
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error) {
-	terminalStatus := []string{string(TIMELINE_STATUS_APP_HEALTHY), string(TIMELINE_STATUS_APP_DEGRADED), string(TIMELINE_STATUS_DEPLOYMENT_FAILED), string(TIMELINE_STATUS_GIT_COMMIT_FAILED)}
+	terminalStatus := []string{string(TIMELINE_STATUS_APP_HEALTHY), string(TIMELINE_STATUS_DEPLOYMENT_FAILED), string(TIMELINE_STATUS_GIT_COMMIT_FAILED)}
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
 		Where("cd_workflow_runner_id = ?", wfrId).

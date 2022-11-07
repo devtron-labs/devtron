@@ -469,10 +469,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 					haveNewTimeline = true
 					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
 					timeline.StatusDetail = "App status is Healthy."
-				} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
-					haveNewTimeline = true
-					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
-					timeline.StatusDetail = "App status is Degraded."
 				}
 				if haveNewTimeline {
 					//not checking if this status is already present or not because already checked for terminal status existence earlier
@@ -525,10 +521,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 					haveNewTimeline = true
 					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
 					timeline.StatusDetail = "App status is Healthy."
-				} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
-					haveNewTimeline = true
-					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
-					timeline.StatusDetail = "App status is Degraded."
 				}
 				if haveNewTimeline {
 					//not checking if this status is already present or not because already checked for terminal status existence earlier

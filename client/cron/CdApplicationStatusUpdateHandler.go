@@ -207,7 +207,6 @@ func IsTerminalTimelineStatus(timeline pipelineConfig.TimelineStatus) bool {
 	switch timeline {
 	case
 		pipelineConfig.TIMELINE_STATUS_APP_HEALTHY,
-		pipelineConfig.TIMELINE_STATUS_APP_DEGRADED,
 		pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
 		pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED:
 		return true

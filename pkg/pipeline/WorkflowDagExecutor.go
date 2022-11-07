@@ -965,8 +965,8 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 		return nil
 		//update current WF with error status
 	} else {
-		//update n-1th  deploy status as aborted if not terminal(Healthy, Degraded)
-		terminalStatus := []string{string(health.HealthStatusHealthy), string(health.HealthStatusDegraded), WorkflowAborted, WorkflowFailed}
+		//update [n,n-1] statuses as failed if not terminal
+		terminalStatus := []string{string(health.HealthStatusHealthy), WorkflowAborted, WorkflowFailed, WorkflowSucceeded}
 		previousNonTerminalRunners, err := impl.cdWorkflowRepository.FindPreviousCdWfRunnerByStatus(pipelineId, currentRunner.Id, terminalStatus)
 		if err != nil {
 			impl.logger.Errorw("error fetching previous wf runner, updating cd wf runner status,", "err", err, "currentRunner", currentRunner)
@@ -977,7 +977,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 		}
 		for _, previousRunner := range previousNonTerminalRunners {
 			if previousRunner.Status == string(health.HealthStatusHealthy) ||
-				previousRunner.Status == string(health.HealthStatusDegraded) ||
+				previousRunner.Status == WorkflowSucceeded ||
 				previousRunner.Status == WorkflowAborted ||
 				previousRunner.Status == WorkflowFailed {
 				//terminal status return
@@ -987,7 +987,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			impl.logger.Infow("updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 			previousRunner.FinishedOn = triggeredAt
 			previousRunner.Message = "triggered new deployment"
-			previousRunner.Status = WorkflowAborted
+			previousRunner.Status = WorkflowFailed
 		}
 
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunners(previousNonTerminalRunners)
