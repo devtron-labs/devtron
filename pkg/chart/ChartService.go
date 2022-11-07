@@ -22,16 +22,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/devtron-labs/devtron/internal/constants"
+
 	//"github.com/devtron-labs/devtron/pkg/pipeline"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 
-	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	dirCopy "github.com/otiai10/copy"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -40,6 +39,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	dirCopy "github.com/otiai10/copy"
 
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -951,11 +954,16 @@ type chartRef struct {
 	UserUploaded bool   `json:"userUploaded"`
 }
 
+type ChartRefMetaData struct {
+	ChartDescription string `json:"chartDescription"`
+}
+
 type chartRefResponse struct {
-	ChartRefs         []chartRef `json:"chartRefs"`
-	LatestChartRef    int        `json:"latestChartRef"`
-	LatestAppChartRef int        `json:"latestAppChartRef"`
-	LatestEnvChartRef int        `json:"latestEnvChartRef,omitempty"`
+	ChartRefs         []chartRef                  `json:"chartRefs"`
+	LatestChartRef    int                         `json:"latestChartRef"`
+	LatestAppChartRef int                         `json:"latestAppChartRef"`
+	LatestEnvChartRef int                         `json:"latestEnvChartRef,omitempty"`
+	ChartsMetadata    map[string]ChartRefMetaData `json:"chartMetadata"` // chartName vs Metadata
 }
 
 type ChartYamlStruct struct {
@@ -995,14 +1003,28 @@ func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 }
 
 func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error) {
-	chartRefResponse := &chartRefResponse{}
+	chartRefResponse := &chartRefResponse{
+		ChartsMetadata: make(map[string]ChartRefMetaData),
+	}
 	var chartRefs []chartRef
+
 	results, err := impl.chartRefRepository.GetAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart config", "err", err)
 		return chartRefResponse, err
 	}
 
+	resultsMetadata, err := impl.chartRefRepository.GetAllChartMetadata()
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart metadata", "err", err)
+		return chartRefResponse, err
+	}
+	for _, resultMetadata := range resultsMetadata {
+		chartRefMetadata := ChartRefMetaData{
+			ChartDescription: resultMetadata.ChartDescription,
+		}
+		chartRefResponse.ChartsMetadata[resultMetadata.ChartName] = chartRefMetadata
+	}
 	var LatestAppChartRef int
 	for _, result := range results {
 		if len(result.Name) == 0 {
@@ -1013,6 +1035,7 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 			LatestAppChartRef = result.Id
 		}
 	}
+
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching latest chart", "err", err)
