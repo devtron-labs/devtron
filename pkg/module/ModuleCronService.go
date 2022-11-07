@@ -25,6 +25,7 @@ import (
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	"github.com/robfig/cron/v3"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
@@ -36,25 +37,27 @@ type ModuleCronService interface {
 }
 
 type ModuleCronServiceImpl struct {
-	logger           *zap.SugaredLogger
-	cron             *cron.Cron
-	moduleEnvConfig  *ModuleEnvConfig
-	moduleRepository moduleRepo.ModuleRepository
-	serverEnvConfig  *serverEnvConfig.ServerEnvConfig
-	helmAppService   client.HelmAppService
-	moduleService    ModuleService
+	logger                         *zap.SugaredLogger
+	cron                           *cron.Cron
+	moduleEnvConfig                *ModuleEnvConfig
+	moduleRepository               moduleRepo.ModuleRepository
+	serverEnvConfig                *serverEnvConfig.ServerEnvConfig
+	helmAppService                 client.HelmAppService
+	moduleServiceHelper            ModuleServiceHelper
+	moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository
 }
 
 func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *ModuleEnvConfig, moduleRepository moduleRepo.ModuleRepository,
-	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleService ModuleService) (*ModuleCronServiceImpl, error) {
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleServiceHelper ModuleServiceHelper, moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository) (*ModuleCronServiceImpl, error) {
 
 	moduleCronServiceImpl := &ModuleCronServiceImpl{
-		logger:           logger,
-		moduleEnvConfig:  moduleEnvConfig,
-		moduleRepository: moduleRepository,
-		serverEnvConfig:  serverEnvConfig,
-		helmAppService:   helmAppService,
-		moduleService:    moduleService,
+		logger:                         logger,
+		moduleEnvConfig:                moduleEnvConfig,
+		moduleRepository:               moduleRepository,
+		serverEnvConfig:                serverEnvConfig,
+		helmAppService:                 helmAppService,
+		moduleServiceHelper:            moduleServiceHelper,
+		moduleResourceStatusRepository: moduleResourceStatusRepository,
 	}
 
 	// if devtron user type is OSS_HELM then only cron to update module status is useful
@@ -115,16 +118,97 @@ func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
 			appDetail, err := impl.helmAppService.GetApplicationDetailWithFilter(context.Background(), &appIdentifier, resourceTreeFilter)
 			if err != nil {
 				impl.logger.Errorw("Error occurred while fetching helm application detail to check if module is installed", "moduleName", module.Name, "err", err)
+				continue
 			} else if appDetail.ApplicationStatus == serverBean.AppHealthStatusHealthy {
 				impl.updateModuleStatus(module, ModuleStatusInstalled)
+			}
+
+			// save module resources status
+			err = impl.saveModuleResourcesStatus(module.Id, appDetail)
+			if err != nil {
+				continue
 			}
 		}
 	}
 
 }
 
+func (impl *ModuleCronServiceImpl) saveModuleResourcesStatus(moduleId int, appDetail *client.AppDetail) error {
+	impl.logger.Infow("updating module resources status", "moduleId", moduleId)
+	if appDetail == nil || appDetail.ResourceTreeResponse == nil {
+		return nil
+	}
+	moduleResourcesStatus, err := impl.moduleResourceStatusRepository.FindAllActiveByModuleId(moduleId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("Error in getting module statues from DB", "moduleId", moduleId, "err", err)
+		return err
+	}
+
+	// build new data to save
+	var moduleResourcesStatusToSave []*moduleRepo.ModuleResourceStatus
+	nodes := appDetail.ResourceTreeResponse.Nodes
+	if nodes != nil {
+		for _, node := range nodes {
+			moduleResourceStatusToSave := &moduleRepo.ModuleResourceStatus{
+				ModuleId:  moduleId,
+				Group:     node.Group,
+				Version:   node.Version,
+				Kind:      node.Kind,
+				Name:      node.Name,
+				Active:    true,
+				CreatedOn: time.Now(),
+			}
+			nodeHealth := node.Health
+			if nodeHealth != nil {
+				moduleResourceStatusToSave.HealthStatus = nodeHealth.Status
+				moduleResourceStatusToSave.HealthMessage = nodeHealth.Message
+			}
+			moduleResourcesStatusToSave = append(moduleResourcesStatusToSave, moduleResourceStatusToSave)
+		}
+	}
+
+	// initiate tx
+	dbConnection := impl.moduleResourceStatusRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in initiating db tx", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	// mark inactive if length > 0
+	if len(moduleResourcesStatus) > 0 {
+		for _, moduleResourceStatus := range moduleResourcesStatus {
+			moduleResourceStatus.Active = false
+			moduleResourceStatus.UpdatedOn = time.Now()
+			err = impl.moduleResourceStatusRepository.Update(moduleResourceStatus, tx)
+			if err != nil {
+				impl.logger.Errorw("error in updating module resources status in DB", "err", err)
+				return err
+			}
+		}
+	}
+
+	// insert if length > 0
+	if len(moduleResourcesStatusToSave) > 0 {
+		err = impl.moduleResourceStatusRepository.Save(moduleResourcesStatusToSave, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving module resources status in DB", "err", err)
+			return err
+		}
+	}
+
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing db tx", "err", err)
+		return err
+	}
+	return nil
+}
+
 func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*client.ResourceTreeFilter, error) {
-	moduleMetaData, err := impl.moduleService.GetModuleMetadata(moduleName)
+	moduleMetaData, err := impl.moduleServiceHelper.GetModuleMetadata(moduleName)
 	if err != nil {
 		impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
 		return nil, err
