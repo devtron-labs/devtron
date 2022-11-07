@@ -155,11 +155,11 @@ type PipelineBuilderImpl struct {
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
 	//ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
 	//ciBuildConfigService CiBuildConfigService
-	ciTemplateService CiTemplateService
-	userService       user.UserService
-	ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
-	gitMaterialHistoryService        history.GitMaterialHistoryService
-	CiTemplateHistoryService         history.CiTemplateHistoryService
+	ciTemplateService            CiTemplateService
+	userService                  user.UserService
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
+	gitMaterialHistoryService    history.GitMaterialHistoryService
+	CiTemplateHistoryService     history.CiTemplateHistoryService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -198,6 +198,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	userService user.UserService,
+	ciTemplateService CiTemplateService,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	gitMaterialHistoryService history.GitMaterialHistoryService,
 	CiTemplateHistoryService history.CiTemplateHistoryService) *PipelineBuilderImpl {
@@ -244,10 +245,10 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciTemplateService:                ciTemplateService,
 		//ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
 		//ciBuildConfigService: ciBuildConfigService,
-		userService: userService,
-		ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
-		gitMaterialHistoryService:        gitMaterialHistoryService,
-		CiTemplateHistoryService:         CiTemplateHistoryService,
+		userService:                  userService,
+		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
+		gitMaterialHistoryService:    gitMaterialHistoryService,
+		CiTemplateHistoryService:     CiTemplateHistoryService,
 	}
 }
 
