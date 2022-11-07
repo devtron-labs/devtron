@@ -1,14 +1,14 @@
 package history
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
 )
 
 type CiTemplateHistoryService interface {
-	SaveHistory(material *pipelineConfig.CiTemplate) error
+	SaveHistory(material *bean.CiTemplateBean) error
 }
 
 type CiTemplateHistoryServiceImpl struct {
@@ -25,29 +25,40 @@ func NewCiTemplateHistoryServiceImpl(CiTemplateHistoryRepository repository.CiTe
 	}
 }
 
-func (impl CiTemplateHistoryServiceImpl) SaveHistory(material *pipelineConfig.CiTemplate) error {
+func (impl CiTemplateHistoryServiceImpl) SaveHistory(ciTemplateBean *bean.CiTemplateBean) error {
+
+	ciTemplate := ciTemplateBean.CiTemplate
+	ciBuildConfig := ciTemplateBean.CiBuildConfig
+
+	ciTemplateId := 0
+	ciTemplateOverrideId := 0
+
+	ciBuildConfigDbEntity, err := bean.ConvertBuildConfigBeanToDbEntity(ciTemplateId, ciTemplateOverrideId, ciBuildConfig, ciTemplateBean.UserId)
 
 	materialHistory := &repository.CiTemplateHistory{
-		Id:                 material.Id,
-		AppId:              material.AppId,
-		DockerRegistryId:   material.DockerRegistryId,
-		DockerRepository:   material.DockerRepository,
-		DockerfilePath:     material.DockerfilePath,
-		Args:               material.Args,
-		TargetPlatform:     material.TargetPlatform,
-		BeforeDockerBuild:  material.BeforeDockerBuild,
-		AfterDockerBuild:   material.AfterDockerBuild,
-		TemplateName:       material.TemplateName,
-		Version:            material.Version,
-		Active:             material.Active,
-		GitMaterialId:      material.GitMaterialId,
-		DockerBuildOptions: material.DockerBuildOptions,
-		AuditLog:           sql.AuditLog{CreatedOn: material.CreatedOn, CreatedBy: material.CreatedBy, UpdatedBy: material.UpdatedBy, UpdatedOn: material.UpdatedOn},
-		App:                material.App,
-		DockerRegistry:     material.DockerRegistry,
+		CiTemplateId:       ciTemplate.Id,
+		AppId:              ciTemplate.AppId,
+		DockerRegistryId:   ciTemplate.DockerRegistryId,
+		DockerRepository:   ciTemplate.DockerRepository,
+		DockerfilePath:     ciTemplate.DockerfilePath, //in
+		Args:               ciTemplate.Args,
+		TargetPlatform:     ciTemplate.TargetPlatform,
+		BeforeDockerBuild:  ciTemplate.BeforeDockerBuild,
+		AfterDockerBuild:   ciTemplate.AfterDockerBuild,
+		TemplateName:       ciTemplate.TemplateName,
+		Version:            ciTemplate.Version,
+		Active:             ciTemplate.Active,
+		GitMaterialId:      ciTemplate.GitMaterialId,
+		DockerBuildOptions: ciTemplate.DockerBuildOptions,
+		App:                ciTemplate.App,
+		DockerRegistry:     ciTemplate.DockerRegistry,
+		CiBuildConfigId:    ciBuildConfigDbEntity.Id,
+		BuildMetaDataType:  ciBuildConfigDbEntity.Type,
+		BuildMetadata:      ciBuildConfigDbEntity.BuildMetadata,
+		AuditLog:           sql.AuditLog{CreatedOn: ciTemplate.CreatedOn, CreatedBy: ciTemplate.CreatedBy, UpdatedBy: ciTemplate.UpdatedBy, UpdatedOn: ciTemplate.UpdatedOn},
 	}
 
-	err := impl.CiTemplateHistoryRepository.Save(materialHistory)
+	err = impl.CiTemplateHistoryRepository.Save(materialHistory)
 
 	if err != nil {
 		impl.logger.Errorw("unable to save history for ci template repository")

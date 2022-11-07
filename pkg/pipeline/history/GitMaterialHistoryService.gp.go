@@ -30,6 +30,7 @@ func NewGitMaterialHistoryServiceImpl(gitMaterialHistoryRepository repository.Gi
 func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(inputMaterial *pipelineConfig.GitMaterial) error {
 
 	material := &repository.GitMaterialHistory{
+		GitMaterialId:   inputMaterial.Id,
 		Url:             inputMaterial.Url,
 		AppId:           inputMaterial.AppId,
 		Name:            inputMaterial.Name,
@@ -58,7 +59,7 @@ func (impl GitMaterialHistoryServiceImpl) CreateDeleteMaterialHistory(materials 
 	for _, material := range materials {
 
 		materialHistory := repository.GitMaterialHistory{
-			Id:              material.Id,
+			GitMaterialId:   material.Id,
 			AppId:           material.AppId,
 			GitProviderId:   material.GitProviderId,
 			Active:          material.Active,

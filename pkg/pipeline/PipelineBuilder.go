@@ -719,7 +719,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 
 	originalCiConf.CiBuildConfig = ciBuildConfig
 
-	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplate)
+	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean)
 	return originalCiConf, nil
 }
 
@@ -806,7 +806,7 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 
 	//-- template config end
 
-	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplate)
+	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean)
 
 	if err != nil {
 		impl.logger.Errorw("error in saving audit logs of ci Template")

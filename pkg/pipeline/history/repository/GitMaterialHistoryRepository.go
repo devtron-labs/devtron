@@ -8,6 +8,7 @@ import (
 type GitMaterialHistory struct {
 	tableName       struct{} `sql:"git_material_history" pg:",discard_unknown_columns"`
 	Id              int      `sql:"id,pk"`
+	GitMaterialId   int      `sql:"git_material_id"`
 	AppId           int      `sql:"app_id,notnull"`
 	GitProviderId   int      `sql:"git_provider_id,notnull"`
 	Active          bool     `sql:"active,notnull"`

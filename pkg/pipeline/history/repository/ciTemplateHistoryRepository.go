@@ -10,7 +10,8 @@ import (
 
 type CiTemplateHistory struct {
 	tableName          struct{} `sql:"ci_template_history" pg:",discard_unknown_columns"`
-	Id                 int      `sql:"id"`
+	Id                 int      `sql:"id,pk"`
+	CiTemplateId       int      `sql:"ci_template_id"`
 	AppId              int      `sql:"app_id"`             //foreign key of app
 	DockerRegistryId   string   `sql:"docker_registry_id"` //foreign key of registry
 	DockerRepository   string   `sql:"docker_repository"`
@@ -24,6 +25,9 @@ type CiTemplateHistory struct {
 	Active             bool     `sql:"active,notnull"`
 	GitMaterialId      int      `sql:"git_material_id"`
 	DockerBuildOptions string   `sql:"docker_build_options"` //json string format of map[string]string
+	CiBuildConfigId    int      `sql:"ci_build_config_id"`
+	BuildMetaDataType  string   `sql:"build_meta_data_type"`
+	BuildMetadata      string   `sql:"build_metadata"`
 	sql.AuditLog
 	App            *app.App
 	DockerRegistry *repository.DockerArtifactStore
