@@ -68,7 +68,7 @@ func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *Module
 		cron.Start()
 
 		// add function into cron
-		_, err := cron.AddFunc(fmt.Sprintf("@every %dm", moduleEnvConfig.ModuleStatusHandlingCronDurationInMin), moduleCronServiceImpl.HandleModuleStatus)
+		_, err := cron.AddFunc(fmt.Sprintf("@every %ds", moduleEnvConfig.ModuleStatusHandlingCronDurationInSec), moduleCronServiceImpl.HandleModuleStatus)
 		if err != nil {
 			fmt.Println("error in adding cron function into module cron service")
 			return nil, err

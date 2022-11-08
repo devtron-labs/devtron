@@ -47,7 +47,7 @@ type ActionResponse struct {
 }
 
 type ModuleEnvConfig struct {
-	ModuleStatusHandlingCronDurationInMin int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"3"` // default 3 mins
+	ModuleStatusHandlingCronDurationInSec int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_SEC" envDefault:"30"` // default 30 seconds
 }
 
 type ModuleResourceStatusDto struct {
