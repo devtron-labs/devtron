@@ -59,6 +59,7 @@ type ExternalLinkIdentifierMappingRepository interface {
 	Update(link *ExternalLinkIdentifierMapping, tx *pg.Tx) error
 	FindAllActiveByExternalLinkId(linkId int) ([]*ExternalLinkIdentifierMapping, error)
 	FindAllByExternalLinkId(linkId int) ([]*ExternalLinkIdentifierMapping, error)
+	FindAllActiveByJoin() ([]ExternalLinkExternalMappingJoinResponse, error)
 }
 type ExternalLinkIdentifierMappingRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -98,6 +99,15 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdent
 	return links, err
 }
 
+func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByJoin() ([]ExternalLinkExternalMappingJoinResponse, error) {
+	var links []ExternalLinkExternalMappingJoinResponse
+	query := "select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description," +
+		"elim.id as mapping_id,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
+		"FROM external_link el" +
+		"LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id"
+	_, err := impl.dbConnection.Query(&links, query)
+	return links, err
+}
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActive() ([]ExternalLinkIdentifierMapping, error) {
 	var links []ExternalLinkIdentifierMapping
 	err := impl.dbConnection.Model(&links).

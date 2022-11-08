@@ -221,6 +221,9 @@ func (impl ExternalLinkServiceImpl) FindAllActiveByLinkIdentifierByJoin(linkIden
 		impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
 		return nil, err
 	}
+	return impl.processResult(records)
+}
+func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkExternalMappingJoinResponse) ([]*ExternalLinkDto, error) {
 	var externalLinkResponse = make([]*ExternalLinkDto, 0)
 	responseMap := make(map[int]*ExternalLinkDto)
 	for _, record := range records {
@@ -251,57 +254,23 @@ func (impl ExternalLinkServiceImpl) FindAllActiveByLinkIdentifierByJoin(linkIden
 	}
 	return externalLinkResponse, nil
 }
-func (impl ExternalLinkServiceImpl) processResult(allActiveExternalLinkMappings []ExternalLinkIdentifierMapping) []*ExternalLinkDto {
-	var externalLinkResponse = make([]*ExternalLinkDto, 0)
-	response := make(map[int]*ExternalLinkDto)
-	for _, link := range allActiveExternalLinkMappings {
-		if _, ok := response[link.ExternalLinkId]; !ok {
-			response[link.ExternalLinkId] = &ExternalLinkDto{
-				Id:               link.ExternalLinkId,
-				Name:             link.ExternalLink.Name,
-				Url:              link.ExternalLink.Url,
-				IsEditable:       link.ExternalLink.IsEditable,
-				Description:      link.ExternalLink.Description,
-				Active:           link.ExternalLink.Active,
-				MonitoringToolId: link.ExternalLink.ExternalLinkMonitoringToolId,
-				UpdatedOn:        link.UpdatedOn,
-			}
-		}
-		var identifier = LinkIdentifier{}
-		if link.ClusterId > 0 {
-			response[link.ExternalLinkId].Type = CLUSTER_LEVEL_LINK
-			identifier.ClusterId = link.ClusterId
-			identifier.Type = getType(CLUSTER)
-			identifier.Identifier = ""
-		} else {
-			response[link.ExternalLinkId].Type = APP_LEVEL_LINK
-			identifier.ClusterId = 0
-			identifier.Type = getType(link.Type)
-			identifier.Identifier = link.Identifier
-		}
-		response[link.ExternalLinkId].Identifiers = append(response[link.ExternalLinkId].Identifiers, identifier)
-	}
-	for _, externalLink := range response {
-		externalLinkResponse = append(externalLinkResponse, externalLink)
-	}
-	return externalLinkResponse
-}
 func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int, userRole string, userId int) ([]*ExternalLinkDto, error) {
 	//linkIdentifier and clusterId nil and 0 respectively to fetch links at global level(get all active links)
 	//linkIdentifier and clusterId passed to get all active links for a particular app(linkIdentifier.ClusterId will be 0)
-	var allActiveExternalLinkMappings []ExternalLinkIdentifierMapping
+	//var allActiveExternalLinkMappings []ExternalLinkIdentifierMapping
 	var err error
 	if linkIdentifier == nil {
 		if userRole != SUPER_ADMIN_ROLE {
 			impl.logger.Debugw("user is not super_admin", "userId", userId, "userRole", userRole)
 			return nil, fmt.Errorf("user role is not super_admin")
 		}
-		allActiveExternalLinkMappings, err = impl.externalLinkIdentifierMappingRepository.FindAllActive()
+
+		records, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByJoin()
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
 			return nil, err
 		}
-		return impl.processResult(allActiveExternalLinkMappings), err
+		return impl.processResult(records)
 	}
 
 	if linkIdentifier.Type == getType(DEVTRON_APP) || linkIdentifier.Type == getType(DEVTRON_INSTALLED_APP) {
@@ -313,8 +282,12 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 		linkIdentifier.AppId = appId
 	}
 	linkIdentifier.ClusterId = 0
-	res, err := impl.FindAllActiveByLinkIdentifierByJoin(linkIdentifier, clusterId)
-	return res, err
+	records, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByLinkIdentifier(linkIdentifier, clusterId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
+		return nil, err
+	}
+	return impl.processResult(records)
 }
 
 func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole string) (*ExternalLinkApiResponse, error) {
