@@ -758,6 +758,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.GlobalCMCSService), new(*pipeline.GlobalCMCSServiceImpl)),
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
+
+		chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
+		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
+		chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl,
+		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository), new(*chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepositoryImpl)),
 	)
 	return &App{}, nil
 }

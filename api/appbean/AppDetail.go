@@ -2,6 +2,7 @@ package appbean
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
 
@@ -88,24 +89,24 @@ type BuildScript struct {
 }
 
 type CdPipelineDetails struct {
-	Name                          string                            `json:"name"` //pipelineName
-	EnvironmentName               string                            `json:"environmentName" `
-	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType" validate:"required"`
-	DeploymentType                pipelineConfig.DeploymentTemplate `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
-	DeploymentStrategies          []*DeploymentStrategy             `json:"deploymentStrategies"`
-	PreStage                      *CdStage                          `json:"preStage"`
-	PostStage                     *CdStage                          `json:"postStage"`
-	PreStageConfigMapSecretNames  *CdStageConfigMapSecretNames      `json:"preStageConfigMapSecretNames"`
-	PostStageConfigMapSecretNames *CdStageConfigMapSecretNames      `json:"postStageConfigMapSecretNames"`
-	RunPreStageInEnv              bool                              `json:"runPreStageInEnv"`
-	RunPostStageInEnv             bool                              `json:"runPostStageInEnv"`
-	IsClusterCdActive             bool                              `json:"isClusterCdActive"`
+	Name                          string                                 `json:"name"` //pipelineName
+	EnvironmentName               string                                 `json:"environmentName" `
+	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType" validate:"required"`
+	DeploymentType                chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
+	DeploymentStrategies          []*DeploymentStrategy                  `json:"deploymentStrategies"`
+	PreStage                      *CdStage                               `json:"preStage"`
+	PostStage                     *CdStage                               `json:"postStage"`
+	PreStageConfigMapSecretNames  *CdStageConfigMapSecretNames           `json:"preStageConfigMapSecretNames"`
+	PostStageConfigMapSecretNames *CdStageConfigMapSecretNames           `json:"postStageConfigMapSecretNames"`
+	RunPreStageInEnv              bool                                   `json:"runPreStageInEnv"`
+	RunPostStageInEnv             bool                                   `json:"runPostStageInEnv"`
+	IsClusterCdActive             bool                                   `json:"isClusterCdActive"`
 }
 
 type DeploymentStrategy struct {
-	DeploymentType pipelineConfig.DeploymentTemplate `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
-	Config         map[string]interface{}            `json:"config,omitempty" validate:"string"`
-	IsDefault      bool                              `json:"isDefault" validate:"required"`
+	DeploymentType chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
+	Config         map[string]interface{}                 `json:"config,omitempty" validate:"string"`
+	IsDefault      bool                                   `json:"isDefault" validate:"required"`
 }
 
 type CdStage struct {
