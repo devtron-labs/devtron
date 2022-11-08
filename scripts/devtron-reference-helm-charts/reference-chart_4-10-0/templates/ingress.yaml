@@ -61,7 +61,7 @@ spec:
               {{- end }}
   {{- end }}
   {{- if .Values.ingress.hosts }}
-  {{- range .Values.ingress.hosts }}
+  {{- if and ($.Values.ingress.hosts) (not ($.Values.ingress.host )) }}
     {{ $outer := . -}}
     - host: {{ .host | quote }}
       http:
@@ -136,7 +136,7 @@ spec:
               servicePort: {{ $svcPort }}
               {{- end }}
   {{- end }}
-  {{- if .Values.ingressInternal.hosts }}
+  {{- if and ($.Values.ingressInternal.hosts) (not ($.Values.ingressInternal.host )) }}
   {{- range .Values.ingressInternal.hosts }}
     {{ $outer := . -}}
     - host: {{ .host | quote }}
