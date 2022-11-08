@@ -103,29 +103,32 @@ func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
 			// timeout case
 			impl.updateModuleStatus(module, ModuleStatusTimeout)
 		} else if !util.IsBaseStack() {
-			// check if helm release is healthy or not
-
-			resourceTreeFilter, err := impl.buildResourceTreeFilter(module.Name)
-			if err != nil {
-				continue
-			}
-			appIdentifier := client.AppIdentifier{
-				ClusterId:   1,
-				Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
-				ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
-			}
-			appDetail, err := impl.helmAppService.GetApplicationDetailWithFilter(context.Background(), &appIdentifier, resourceTreeFilter)
-			if err != nil {
-				impl.logger.Errorw("Error occurred while fetching helm application detail to check if module is installed", "moduleName", module.Name, "err", err)
-				continue
-			} else if appDetail.ApplicationStatus == serverBean.AppHealthStatusHealthy {
+			// if module is cicd then insert as installed
+			if module.Name == ModuleNameCicd {
 				impl.updateModuleStatus(module, ModuleStatusInstalled)
-			}
+			} else {
+				resourceTreeFilter, err := impl.buildResourceTreeFilter(module.Name)
+				if err != nil {
+					continue
+				}
+				appIdentifier := client.AppIdentifier{
+					ClusterId:   1,
+					Namespace:   impl.serverEnvConfig.DevtronHelmReleaseNamespace,
+					ReleaseName: impl.serverEnvConfig.DevtronHelmReleaseName,
+				}
+				appDetail, err := impl.helmAppService.GetApplicationDetailWithFilter(context.Background(), &appIdentifier, resourceTreeFilter)
+				if err != nil {
+					impl.logger.Errorw("Error occurred while fetching helm application detail to check if module is installed", "moduleName", module.Name, "err", err)
+					continue
+				} else if appDetail.ApplicationStatus == serverBean.AppHealthStatusHealthy {
+					impl.updateModuleStatus(module, ModuleStatusInstalled)
+				}
 
-			// save module resources status
-			err = impl.saveModuleResourcesStatus(module.Id, appDetail)
-			if err != nil {
-				continue
+				// save module resources status
+				err = impl.saveModuleResourcesStatus(module.Id, appDetail)
+				if err != nil {
+					continue
+				}
 			}
 		}
 	}

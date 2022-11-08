@@ -76,6 +76,7 @@ type CiConfig struct {
 	BlobStorageGcpCredentialJson   string                       `env:"BLOB_STORAGE_GCP_CREDENTIALS_JSON"`
 	BuildLogTTLValue               int                          `json:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
 	AzureAccountKey                string                       `env:"AZURE_ACCOUNT_KEY"`
+	CiRunnerDockerMTUValue         int                          `env:"CI_RUNNER_DOCKER_MTU_VALUE" envDefault:"-1"`
 	IgnoreDockerCacheForCI         bool                         `env:"CI_IGNORE_DOCKER_CACHE"`
 	VolumeMountsForCiJson          string                       `env:"CI_VOLUME_MOUNTS_JSON"`
 	ClusterConfig                  *rest.Config

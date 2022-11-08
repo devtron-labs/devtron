@@ -38,6 +38,7 @@ type CiWorkflowRepository interface {
 	FindLastTriggeredWorkflowByCiIds(pipelineId []int) (ciWorkflow []*CiWorkflow, err error)
 	FindLastTriggeredWorkflowByArtifactId(ciArtifactId int) (ciWorkflow *CiWorkflow, err error)
 	ExistsByStatus(status string) (bool, error)
+	FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount
 }
 
 type CiWorkflowRepositoryImpl struct {
@@ -62,6 +63,7 @@ type CiWorkflow struct {
 	TriggeredBy        int32             `sql:"triggered_by"`
 	CiArtifactLocation string            `sql:"ci_artifact_location"`
 	PodName            string            `sql:"pod_name"`
+	CiBuildType        string            `sql:"ci_build_type"`
 	CiPipeline         *CiPipeline
 }
 
@@ -84,6 +86,7 @@ type WorkflowWithArtifact struct {
 	CiArtifactLocation string            `json:"ci_artifact_location"`
 	CiArtifactId       int               `json:"ci_artifact_d"`
 	BlobStorageEnabled bool              `json:"blobStorageEnabled"`
+	CiBuildType        string            `json:"ci_build_type"`
 }
 
 type GitCommit struct {
@@ -227,4 +230,14 @@ func (impl *CiWorkflowRepositoryImpl) ExistsByStatus(status string) (bool, error
 		Where("status =?", status).
 		Exists()
 	return exists, err
+}
+
+func (impl *CiWorkflowRepositoryImpl) FindBuildTypeAndStatusDataOfLast1Day() []*BuildTypeCount {
+	var buildTypeCounts []*BuildTypeCount
+	query := "select status,ci_build_type as type, count(*) from ci_workflow where status in ('Succeeded','Failed') and started_on > ? group by (ci_build_type, status)"
+	_, err := impl.dbConnection.Query(&buildTypeCounts, query, time.Now().AddDate(0, 0, -1))
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching build type vs status vs count data", "err", err)
+	}
+	return buildTypeCounts
 }

@@ -18,7 +18,7 @@ SERVER_MODE_EA_ONLY=EA_ONLY
 include $(ENV_FILE)
 export
 
-build: clean wire
+build: clean wire test
 	$(ENVVAR) GOOS=$(GOOS) go build -o devtron \
 			-ldflags="-X 'github.com/devtron-labs/devtron/util.GitCommit=${GIT_COMMIT}' \
 			-X 'github.com/devtron-labs/devtron/util.BuildTime=${BUILD_TIME}' \
@@ -29,6 +29,9 @@ wire:
 
 clean:
 	rm -f devtron
+
+test:
+	go test ./pkg/pipeline
 
 run: build
 	./devtron

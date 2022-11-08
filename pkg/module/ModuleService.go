@@ -32,6 +32,7 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
+	"reflect"
 	"time"
 )
 
@@ -168,9 +169,31 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 		impl.logger.Errorw("Error in getting values yaml for devtron operator helm release", "moduleName", moduleName, "err", err)
 		return ModuleStatusNotInstalled, err
 	}
-	isEnabled := gjson.Get(releaseInfo.MergedValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
-	if isEnabled {
-		return impl.saveModuleAsInstalled(moduleName)
+	releaseValues := releaseInfo.MergedValues
+
+	// if check non-cicd module status
+	if moduleName != ModuleNameCicd {
+		isEnabled := gjson.Get(releaseValues, moduleUtil.BuildModuleEnableKey(moduleName)).Bool()
+		if isEnabled {
+			return impl.saveModuleAsInstalled(moduleName)
+		}
+	} else if util2.IsBaseStack() {
+		// check if cicd is in installing state
+		// if devtron is installed with cicd module, then cicd module should be shown as installing
+		installerModulesIface := gjson.Get(releaseValues, INSTALLER_MODULES_HELM_KEY).Value()
+		if installerModulesIface != nil {
+			installerModulesIfaceKind := reflect.TypeOf(installerModulesIface).Kind()
+			if installerModulesIfaceKind == reflect.Slice {
+				installerModules := installerModulesIface.([]interface{})
+				for _, installerModule := range installerModules {
+					if installerModule == moduleName {
+						return impl.saveModule(moduleName, ModuleStatusInstalling)
+					}
+				}
+			} else {
+				impl.logger.Warnw("Invalid installerModulesIfaceKind expected slice", "installerModulesIfaceKind", installerModulesIfaceKind, "val", installerModulesIface)
+			}
+		}
 	}
 
 	// if module not enabled in helm for non enterprise-user
@@ -275,7 +298,7 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 
 	extraValues := make(map[string]interface{})
 	extraValues["installer.release"] = moduleActionRequest.Version
-	extraValues["installer.modules"] = []interface{}{moduleName}
+	extraValues[INSTALLER_MODULES_HELM_KEY] = []interface{}{moduleName}
 	alreadyInstalledModuleNames, err := impl.moduleRepository.GetInstalledModuleNames()
 	if err != nil {
 		impl.logger.Errorw("error in getting modules with installed status ", "err", err)
@@ -315,16 +338,20 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 }
 
 func (impl ModuleServiceImpl) saveModuleAsInstalled(moduleName string) (ModuleStatus, error) {
+	return impl.saveModule(moduleName, ModuleStatusInstalled)
+}
+
+func (impl ModuleServiceImpl) saveModule(moduleName string, moduleStatus ModuleStatus) (ModuleStatus, error) {
 	module := &moduleRepo.Module{
 		Name:      moduleName,
 		Version:   impl.serverDataStore.CurrentVersion,
-		Status:    ModuleStatusInstalled,
+		Status:    moduleStatus,
 		UpdatedOn: time.Now(),
 	}
 	err := impl.moduleRepository.Save(module)
 	if err != nil {
-		impl.logger.Errorw("error in saving module with installed status ", "moduleName", moduleName, "err", err)
+		impl.logger.Errorw("error in saving module status ", "moduleName", moduleName, "moduleStatus", moduleStatus, "err", err)
 		return ModuleStatusNotInstalled, err
 	}
-	return ModuleStatusInstalled, nil
+	return moduleStatus, nil
 }
