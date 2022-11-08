@@ -29,7 +29,6 @@ import (
 	"github.com/robfig/cron/v3"
 	"github.com/tidwall/gjson"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"time"
 )
 
@@ -215,33 +214,46 @@ func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*
 	}
 
 	moduleMetaDataStr := string(moduleMetaData)
-	resourceIdentifiersIface := gjson.Get(moduleMetaDataStr, "result.resourceIdentifiers").Value()
+	resourceFilterIface := gjson.Get(moduleMetaDataStr, "result.resourceFilter").Value()
 
-	if resourceIdentifiersIface == nil {
+	if resourceFilterIface == nil {
 		return nil, nil
 	}
-	resourceIdentifiersIfaceValues, ok := resourceIdentifiersIface.(map[schema.GroupVersionKind]ResourceFilter)
+	resourceFilterIfaceValue, ok := resourceFilterIface.(ResourceFilter)
 	if !ok {
 		return nil, nil
 	}
 
 	var resourceTreeFilter *client.ResourceTreeFilter
-	var resourceFilters []*client.ResourceFilter
 
-	for gvk, resourceIdentifiersIfaceValue := range resourceIdentifiersIfaceValues {
+	// handle global filter
+	globalFilter := resourceFilterIfaceValue.GlobalFilter
+	if globalFilter != nil {
+		resourceTreeFilter = &client.ResourceTreeFilter{
+			GlobalFilter: &client.ResourceIdentifier{
+				Labels: globalFilter.Labels,
+			},
+		}
+		return resourceTreeFilter, nil
+	}
+
+	// otherwise handle gvk level
+	var resourceFilters []*client.ResourceFilter
+	for gvk, resourceIdentifier := range resourceFilterIfaceValue.GvkLevelFilter {
 		resourceFilters = append(resourceFilters, &client.ResourceFilter{
 			Gvk: &client.Gvk{
 				Group:   gvk.Group,
 				Version: gvk.Version,
 				Kind:    gvk.Kind,
 			},
-			Labels: resourceIdentifiersIfaceValue.Labels,
+			ResourceIdentifier: &client.ResourceIdentifier{
+				Labels: resourceIdentifier.Labels,
+			},
 		})
 	}
 	resourceTreeFilter = &client.ResourceTreeFilter{
 		ResourceFilters: resourceFilters,
 	}
-
 	return resourceTreeFilter, nil
 }
 

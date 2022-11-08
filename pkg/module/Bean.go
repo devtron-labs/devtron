@@ -20,6 +20,7 @@ package module
 import (
 	"fmt"
 	"github.com/caarlos0/env"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type ModuleInfoDto struct {
@@ -93,5 +94,10 @@ const (
 var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair, ModuleNameNotification, ModuleNameMonitoringGrafana}
 
 type ResourceFilter struct {
+	GlobalFilter   *ResourceIdentifier                            `json:"globalFilter"`
+	GvkLevelFilter map[schema.GroupVersionKind]ResourceIdentifier `json:"gvkLevelFilter"`
+}
+
+type ResourceIdentifier struct {
 	Labels map[string]string `json:"labels"`
 }

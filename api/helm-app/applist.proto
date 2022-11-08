@@ -283,9 +283,14 @@ message Gvk {
 
 message ResourceFilter {
   Gvk gvk = 1;
-  map<string, string> labels = 2;
+  ResourceIdentifier resourceIdentifier = 2;
+}
+
+message ResourceIdentifier {
+  map<string, string> labels = 1;
 }
 
 message ResourceTreeFilter {
-  repeated ResourceFilter resourceFilters = 1;
+  ResourceIdentifier globalFilter = 1;
+  repeated ResourceFilter resourceFilters = 2;
 }
