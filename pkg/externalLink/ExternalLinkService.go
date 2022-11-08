@@ -171,6 +171,7 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 				ExternalLinkId: externalLink.Id,
 				Type:           typeMappings[linkIdentifier.Type],
 				Identifier:     linkIdentifier.Identifier,
+				AppId:          linkIdentifier.AppId,
 				ClusterId:      linkIdentifier.ClusterId,
 				Active:         true,
 				AuditLog:       sql.AuditLog{CreatedOn: time.Now(), CreatedBy: userId, UpdatedOn: time.Now(), UpdatedBy: userId},
