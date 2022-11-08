@@ -92,9 +92,10 @@ type DbPipelineOrchestratorImpl struct {
 	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
 	//ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
-	ciTemplateService CiTemplateService
-	ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
-	gitMaterialHistoryService     history3.GitMaterialHistoryService
+	ciTemplateService            CiTemplateService
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
+	gitMaterialHistoryService    history3.GitMaterialHistoryService
+	ciPipelineHistoryService     history3.CiPipelineHistoryService
 }
 
 func NewDbPipelineOrchestrator(
@@ -115,7 +116,8 @@ func NewDbPipelineOrchestrator(
 	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
-	gitMaterialHistoryService history3.GitMaterialHistoryService) *DbPipelineOrchestratorImpl {
+	gitMaterialHistoryService history3.GitMaterialHistoryService,
+	ciPipelineHistoryService history3.CiPipelineHistoryService, ciTemplateService CiTemplateService) *DbPipelineOrchestratorImpl {
 	return &DbPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -136,6 +138,8 @@ func NewDbPipelineOrchestrator(
 		pipelineStageService:          pipelineStageService,
 		ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
 		gitMaterialHistoryService:     gitMaterialHistoryService,
+		ciPipelineHistoryService:      ciPipelineHistoryService,
+		ciTemplateService:             ciTemplateService,
 	}
 }
 
@@ -331,6 +335,13 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			if err != nil {
 				return nil, err
 			}
+
+			err = impl.ciPipelineHistoryService.SaveHistory(materials, ciTemplateBean, true)
+
+			if err != nil {
+				impl.logger.Errorw("error in saving history of ci pipeline material")
+			}
+
 		} else {
 			ciTemplateBean := &bean2.CiTemplateBean{
 				CiTemplateOverride: templateOverrideReq,
@@ -341,8 +352,41 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			if err != nil {
 				return nil, err
 			}
+
+			err = impl.ciPipelineHistoryService.SaveHistory(materials, ciTemplateBean, true)
+
+			if err != nil {
+				impl.logger.Errorw("error in saving history of ci pipeline material")
+			}
+
+		}
+	} else {
+
+		ciTemplateBean := &bean2.CiTemplateBean{
+			CiTemplateOverride: &pipelineConfig.CiTemplateOverride{
+				Id:               0,
+				CiPipelineId:     createRequest.Id,
+				DockerRegistryId: "",
+				DockerRepository: "",
+				DockerfilePath:   "",
+				GitMaterialId:    0,
+				Active:           false,
+				CiBuildConfigId:  0,
+				AuditLog:         sql.AuditLog{},
+				GitMaterial:      nil,
+				DockerRegistry:   nil,
+				CiBuildConfig:    nil,
+			},
+			CiBuildConfig: nil,
+			UserId:        userId,
+		}
+		err = impl.ciPipelineHistoryService.SaveHistory(materials, ciTemplateBean, false)
+
+		if err != nil {
+			impl.logger.Errorw("error in saving history of ci pipeline material")
 		}
 	}
+
 	if len(childrenCiPipelineIds) > 0 {
 
 		ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(childrenCiPipelineIds)
@@ -422,6 +466,7 @@ func (impl DbPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig
 		}
 	}
 	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+
 	return err
 }
 
@@ -563,7 +608,42 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			if err != nil {
 				return nil, err
 			}
+
+			err = impl.ciPipelineHistoryService.SaveHistory(pipelineMaterials, ciTemplateBean, true)
+
+			if err != nil {
+				impl.logger.Errorw("error in saving history for ci pipeline")
+			}
+
+		} else {
+
+			ciTemplateBean := &bean2.CiTemplateBean{
+				CiTemplateOverride: &pipelineConfig.CiTemplateOverride{
+					Id:               0,
+					CiPipelineId:     ciPipeline.Id,
+					DockerRegistryId: "",
+					DockerRepository: "",
+					DockerfilePath:   "",
+					GitMaterialId:    0,
+					Active:           false,
+					CiBuildConfigId:  0,
+					AuditLog:         sql.AuditLog{},
+					GitMaterial:      nil,
+					DockerRegistry:   nil,
+					CiBuildConfig:    nil,
+				},
+				CiBuildConfig: nil,
+				UserId:        createRequest.UserId,
+			}
+
+			err = impl.ciPipelineHistoryService.SaveHistory(pipelineMaterials, ciTemplateBean, false)
+
+			if err != nil {
+				impl.logger.Errorw("error in saving history for ci pipeline")
+			}
+
 		}
+
 		//creating ci stages after tx commit due to FK constraints
 		if ciPipeline.PreBuildStage != nil && len(ciPipeline.PreBuildStage.Steps) > 0 {
 			//creating pre stage

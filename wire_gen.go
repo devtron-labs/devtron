@@ -353,16 +353,18 @@ func InitializeApp() (*App, error) {
 	ciTemplateOverrideRepositoryImpl := pipelineConfig.NewCiTemplateOverrideRepositoryImpl(db, sugaredLogger)
 	gitMaterialHistoryRepositoryImpl := repository5.NewGitMaterialHistoryRepositoyImpl(db)
 	gitMaterialHistoryServiceImpl := history.NewGitMaterialHistoryServiceImpl(gitMaterialHistoryRepositoryImpl, sugaredLogger)
-	dbPipelineOrchestratorImpl := pipeline.NewDbPipelineOrchestrator(appRepositoryImpl, sugaredLogger, materialRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ciPipelineMaterialRepositoryImpl, gitSensorClientImpl, ciConfig, appWorkflowRepositoryImpl, environmentRepositoryImpl, attributesServiceImpl, appListingRepositoryImpl, appCrudOperationServiceImpl, userAuthServiceImpl, prePostCdScriptHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, pipelineStageServiceImpl, ciTemplateOverrideRepositoryImpl, gitMaterialHistoryServiceImpl)
-	propertiesConfigServiceImpl := pipeline.NewPropertiesConfigServiceImpl(sugaredLogger, envConfigOverrideRepositoryImpl, chartRepositoryImpl, utilMergeUtil, environmentRepositoryImpl, dbPipelineOrchestratorImpl, applicationServiceClientImpl, envLevelAppMetricsRepositoryImpl, appLevelMetricsRepositoryImpl, deploymentTemplateHistoryServiceImpl)
+	ciPipelineHistoryRepositoryImpl := repository5.NewCiPipelineHistoryRepositoryImpl(db, sugaredLogger)
+	ciPipelineHistoryServiceImpl := history.NewCiPipelineHistoryServiceImpl(ciPipelineHistoryRepositoryImpl, sugaredLogger)
+	ciBuildConfigRepositoryImpl := pipelineConfig.NewCiBuildConfigRepositoryImpl(db, sugaredLogger)
+	ciBuildConfigServiceImpl := pipeline.NewCiBuildConfigServiceImpl(sugaredLogger, ciBuildConfigRepositoryImpl)
 	ciTemplateRepositoryImpl := pipelineConfig.NewCiTemplateRepositoryImpl(db, sugaredLogger)
+	ciTemplateServiceImpl := pipeline.NewCiTemplateServiceImpl(sugaredLogger, ciBuildConfigServiceImpl, ciTemplateRepositoryImpl, ciTemplateOverrideRepositoryImpl)
+	dbPipelineOrchestratorImpl := pipeline.NewDbPipelineOrchestrator(appRepositoryImpl, sugaredLogger, materialRepositoryImpl, pipelineRepositoryImpl, ciPipelineRepositoryImpl, ciPipelineMaterialRepositoryImpl, gitSensorClientImpl, ciConfig, appWorkflowRepositoryImpl, environmentRepositoryImpl, attributesServiceImpl, appListingRepositoryImpl, appCrudOperationServiceImpl, userAuthServiceImpl, prePostCdScriptHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, pipelineStageServiceImpl, ciTemplateOverrideRepositoryImpl, gitMaterialHistoryServiceImpl, ciPipelineHistoryServiceImpl, ciTemplateServiceImpl)
+	propertiesConfigServiceImpl := pipeline.NewPropertiesConfigServiceImpl(sugaredLogger, envConfigOverrideRepositoryImpl, chartRepositoryImpl, utilMergeUtil, environmentRepositoryImpl, dbPipelineOrchestratorImpl, applicationServiceClientImpl, envLevelAppMetricsRepositoryImpl, appLevelMetricsRepositoryImpl, deploymentTemplateHistoryServiceImpl)
 	ecrConfig, err := pipeline.GetEcrConfig()
 	if err != nil {
 		return nil, err
 	}
-	ciBuildConfigRepositoryImpl := pipelineConfig.NewCiBuildConfigRepositoryImpl(db, sugaredLogger)
-	ciBuildConfigServiceImpl := pipeline.NewCiBuildConfigServiceImpl(sugaredLogger, ciBuildConfigRepositoryImpl)
-	ciTemplateServiceImpl := pipeline.NewCiTemplateServiceImpl(sugaredLogger, ciBuildConfigServiceImpl, ciTemplateRepositoryImpl, ciTemplateOverrideRepositoryImpl)
 	ciTemplateHistoryRepositoryImpl := repository5.NewCiTemplateHistoryRepositoryImpl(db, sugaredLogger)
 	ciTemplateHistoryServiceImpl := history.NewCiTemplateHistoryServiceImpl(ciTemplateHistoryRepositoryImpl, sugaredLogger)
 	pipelineBuilderImpl := pipeline.NewPipelineBuilderImpl(sugaredLogger, dbPipelineOrchestratorImpl, dockerArtifactStoreRepositoryImpl, materialRepositoryImpl, appRepositoryImpl, pipelineRepositoryImpl, propertiesConfigServiceImpl, ciTemplateRepositoryImpl, ciPipelineRepositoryImpl, applicationServiceClientImpl, chartRepositoryImpl, ciArtifactRepositoryImpl, ecrConfig, envConfigOverrideRepositoryImpl, environmentRepositoryImpl, pipelineConfigRepositoryImpl, utilMergeUtil, appWorkflowRepositoryImpl, ciConfig, cdWorkflowRepositoryImpl, appServiceImpl, imageScanResultRepositoryImpl, argoK8sClientImpl, gitFactory, attributesServiceImpl, acdAuthConfig, gitOpsConfigRepositoryImpl, pipelineStrategyHistoryServiceImpl, prePostCiScriptHistoryServiceImpl, prePostCdScriptHistoryServiceImpl, deploymentTemplateHistoryServiceImpl, appLevelMetricsRepositoryImpl, pipelineStageServiceImpl, chartRefRepositoryImpl, chartTemplateServiceImpl, chartServiceImpl, helmAppServiceImpl, deploymentGroupRepositoryImpl, ciPipelineMaterialRepositoryImpl, userServiceImpl, ciTemplateServiceImpl, ciTemplateOverrideRepositoryImpl, gitMaterialHistoryServiceImpl, ciTemplateHistoryServiceImpl)

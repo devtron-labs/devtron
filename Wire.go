@@ -689,6 +689,12 @@ func InitializeApp() (*App, error) {
 		repository3.NewCiTemplateHistoryRepositoryImpl,
 		wire.Bind(new(repository3.CiTemplateHistoryRepository), new(*repository3.CiTemplateHistoryRepositoryImpl)),
 
+		history3.NewCiPipelineHistoryServiceImpl,
+		wire.Bind(new(history3.CiPipelineHistoryService), new(*history3.CiPipelineHistoryServiceImpl)),
+
+		repository3.NewCiPipelineHistoryRepositoryImpl,
+		wire.Bind(new(repository3.CiPipelineHistoryRepository), new(*repository3.CiPipelineHistoryRepositoryImpl)),
+
 		history3.NewPrePostCdScriptHistoryServiceImpl,
 		wire.Bind(new(history3.PrePostCdScriptHistoryService), new(*history3.PrePostCdScriptHistoryServiceImpl)),
 		history3.NewPrePostCiScriptHistoryServiceImpl,

@@ -24,7 +24,6 @@ CREATE TABLE public.ci_template_history (
     build_meta_data_type  varchar(100),
     build_metadata       text,
     PRIMARY KEY ("id")
-
-)
+);
 
 ALTER TABLE public.ci_template OWNER TO postgres;
