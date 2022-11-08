@@ -540,6 +540,12 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				CiBuildConfig:    ciTemplateBean.CiBuildConfig,
 			}
 		}
+		//var GitMaterialId []int
+		//for _, gitMaterial := range ciConfig.Materials {
+		//	//check if ciMaterial is in the ciConfig.Materials, if there is then only we apply 559 line
+		//	//ciMaterial.GitMaterialId
+		//	GitMaterialId = append(GitMaterialId, gitMaterial.GitMaterialId)
+		//}
 		for _, material := range pipeline.CiPipelineMaterials {
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
@@ -553,6 +559,12 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				IsRegex:         material.Regex != "",
 				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 			}
+			//for _, gitMaterialId := range GitMaterialId {
+			//	if ciMaterial.GitMaterialId == gitMaterialId {
+			//		ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+			//		break
+			//	}
+			//}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
 

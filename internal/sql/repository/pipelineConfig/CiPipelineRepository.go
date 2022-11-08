@@ -170,6 +170,7 @@ func (impl CiPipelineRepositoryImpl) FindByAppId(appId int) (pipelines []*CiPipe
 		Column("ci_pipeline.*", "CiPipelineMaterials", "ExternalCiPipeline", "CiPipelineMaterials.GitMaterial").
 		Where("app_id =?", appId).
 		Where("deleted =? ", false).
+		//Where("active =?", true).
 		Select()
 	return pipelines, err
 }
