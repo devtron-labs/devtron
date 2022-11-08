@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"strconv"
 	"time"
 )
 
@@ -71,6 +72,8 @@ type ExternalLinkMonitoringToolDto struct {
 type LinkIdentifier struct {
 	Type       string `json:"type"`
 	Identifier string `json:"identifier"`
+	EnvId      int    `json:"envId"`
+	AppId      int    `json:"appId"`
 	ClusterId  int    `json:"clusterId"`
 }
 type ExternalLinkDto struct {
@@ -149,9 +152,17 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 		linkType := request.Type
 		for _, linkIdentifier := range request.Identifiers {
 			if linkType == CLUSTER_LEVEL_LINK {
-				//linkIdentifier.Type = ""
+				linkIdentifier.Type = getType(CLUSTER)
 				linkIdentifier.Identifier = ""
 			} else if linkType == APP_LEVEL_LINK {
+				if linkIdentifier.Type == getType(DEVTRON_APP) || linkIdentifier.Type == getType(DEVTRON_INSTALLED_APP) {
+					appId, err := strconv.Atoi(linkIdentifier.Identifier)
+					if err != nil {
+						impl.logger.Errorw("error while parsing appId", "appId", appId, "err", err)
+						return nil, err
+					}
+					linkIdentifier.AppId = appId
+				}
 				linkIdentifier.ClusterId = 0
 			} else {
 				return nil, fmt.Errorf("link is neither app level or cluster level")
@@ -203,25 +214,43 @@ func (impl ExternalLinkServiceImpl) GetAllActiveTools() ([]ExternalLinkMonitorin
 	}
 	return response, err
 }
-
-func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int, userRole string, userId int) ([]*ExternalLinkDto, error) {
-	//linkIdentifier and clusterId nil and 0 respectively to fetch links at global level(get all active links)
-	//linkIdentifier and clusterId passed to get all active links for a particular app(linkIdentifier.ClusterId will be 0)
-	var allActiveExternalLinkMappings []ExternalLinkIdentifierMapping
-	var err error
-	if linkIdentifier == nil {
-		if userRole != SUPER_ADMIN_ROLE {
-			impl.logger.Debugw("user is not super_admin", "userId", userId, "userRole", userRole)
-			return nil, fmt.Errorf("user role is not super_admin")
-		}
-		allActiveExternalLinkMappings, err = impl.externalLinkIdentifierMappingRepository.FindAllActive()
-	} else {
-		allActiveExternalLinkMappings, err = impl.externalLinkIdentifierMappingRepository.FindAllActiveByLinkIdentifier(linkIdentifier)
-	}
+func (impl ExternalLinkServiceImpl) FindAllActiveByLinkIdentifierByJoin(linkIdentifier *LinkIdentifier, clusterId int) ([]*ExternalLinkDto, error) {
+	records, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByLinkIdentifier(linkIdentifier, clusterId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
 		return nil, err
 	}
+	var externalLinkResponse = make([]*ExternalLinkDto, 0)
+	responseMap := make(map[int]*ExternalLinkDto)
+	for _, record := range records {
+		_, ok := responseMap[record.Id]
+		if !ok {
+			externalLinkDto := &ExternalLinkDto{
+				Id:               record.Id,
+				Name:             record.Name,
+				Url:              record.Url,
+				Active:           true,
+				MonitoringToolId: record.ExternalLinkMonitoringToolId,
+				IsEditable:       record.IsEditable,
+				Description:      record.Description,
+				Identifiers:      []LinkIdentifier{},
+			}
+			responseMap[externalLinkDto.Id] = externalLinkDto
+		}
+		identifier := LinkIdentifier{
+			Type:       getType(record.Type),
+			Identifier: record.Identifier,
+			AppId:      record.AppId,
+			ClusterId:  record.ClusterId,
+		}
+		responseMap[record.Id].Identifiers = append(responseMap[record.Id].Identifiers, identifier)
+	}
+	for _, res := range responseMap {
+		externalLinkResponse = append(externalLinkResponse, res)
+	}
+	return externalLinkResponse, nil
+}
+func (impl ExternalLinkServiceImpl) processResult(allActiveExternalLinkMappings []ExternalLinkIdentifierMapping) []*ExternalLinkDto {
 	var externalLinkResponse = make([]*ExternalLinkDto, 0)
 	response := make(map[int]*ExternalLinkDto)
 	for _, link := range allActiveExternalLinkMappings {
@@ -241,7 +270,7 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 		if link.ClusterId > 0 {
 			response[link.ExternalLinkId].Type = CLUSTER_LEVEL_LINK
 			identifier.ClusterId = link.ClusterId
-			identifier.Type = "cluster"
+			identifier.Type = getType(CLUSTER)
 			identifier.Identifier = ""
 		} else {
 			response[link.ExternalLinkId].Type = APP_LEVEL_LINK
@@ -254,31 +283,37 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 	for _, externalLink := range response {
 		externalLinkResponse = append(externalLinkResponse, externalLink)
 	}
-	if clusterId > 0 {
-		allActiveExternalLinkMappings, err = impl.externalLinkIdentifierMappingRepository.FindAllActiveByClusterId(clusterId)
-		for _, link := range allActiveExternalLinkMappings {
-			if _, ok := response[link.ExternalLinkId]; !ok {
-				externalLink := &ExternalLinkDto{
-					Id:               link.ExternalLinkId,
-					Name:             link.ExternalLink.Name,
-					Url:              link.ExternalLink.Url,
-					Type:             CLUSTER_LEVEL_LINK,
-					IsEditable:       link.ExternalLink.IsEditable,
-					Description:      link.ExternalLink.Description,
-					Active:           link.ExternalLink.Active,
-					MonitoringToolId: link.ExternalLink.ExternalLinkMonitoringToolId,
-					UpdatedOn:        link.UpdatedOn,
-				}
-				var identifier = LinkIdentifier{}
-				identifier.ClusterId = link.ClusterId
-				identifier.Type = "cluster"
-				identifier.Identifier = ""
-				externalLink.Identifiers = append(externalLink.Identifiers, identifier)
-				externalLinkResponse = append(externalLinkResponse, externalLink)
-			}
+	return externalLinkResponse
+}
+func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int, userRole string, userId int) ([]*ExternalLinkDto, error) {
+	//linkIdentifier and clusterId nil and 0 respectively to fetch links at global level(get all active links)
+	//linkIdentifier and clusterId passed to get all active links for a particular app(linkIdentifier.ClusterId will be 0)
+	var allActiveExternalLinkMappings []ExternalLinkIdentifierMapping
+	var err error
+	if linkIdentifier == nil {
+		if userRole != SUPER_ADMIN_ROLE {
+			impl.logger.Debugw("user is not super_admin", "userId", userId, "userRole", userRole)
+			return nil, fmt.Errorf("user role is not super_admin")
 		}
+		allActiveExternalLinkMappings, err = impl.externalLinkIdentifierMappingRepository.FindAllActive()
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
+			return nil, err
+		}
+		return impl.processResult(allActiveExternalLinkMappings), err
 	}
-	return externalLinkResponse, nil
+
+	if linkIdentifier.Type == getType(DEVTRON_APP) || linkIdentifier.Type == getType(DEVTRON_INSTALLED_APP) {
+		appId, err := strconv.Atoi(linkIdentifier.Identifier)
+		if err != nil {
+			impl.logger.Errorw("error while parsing appId", "appId", appId, "err", err)
+			return nil, err
+		}
+		linkIdentifier.AppId = appId
+	}
+	linkIdentifier.ClusterId = 0
+	res, err := impl.FindAllActiveByLinkIdentifierByJoin(linkIdentifier, clusterId)
+	return res, err
 }
 
 func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole string) (*ExternalLinkApiResponse, error) {
@@ -341,6 +376,8 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 	for _, model := range allExternalLinksMapping {
 		linkIdentifier := LinkIdentifier{
 			Type:       getType(model.Type),
+			AppId:      model.AppId,
+			EnvId:      model.EnvId,
 			Identifier: model.Identifier,
 			ClusterId:  model.ClusterId,
 		}
@@ -349,10 +386,18 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 	//update if request identifier present in set else save a new record
 	for _, identifier := range request.Identifiers {
 		if request.Type == APP_LEVEL_LINK {
+			if identifier.Type == getType(DEVTRON_APP) || identifier.Type == getType(DEVTRON_INSTALLED_APP) {
+				appId, err := strconv.Atoi(identifier.Identifier)
+				if err != nil {
+					impl.logger.Errorw("error while parsing appId", "appId", appId, "err", err)
+					return nil, err
+				}
+				identifier.AppId = appId
+			}
 			identifier.ClusterId = 0
 		} else {
 			identifier.Identifier = ""
-			identifier.Type = ""
+			identifier.Type = getType(CLUSTER)
 		}
 		if model, ok := requestedLinkIdentifiersMap[identifier]; ok {
 			model.Active = true
@@ -363,6 +408,8 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 			externalLinkIdentifier := &ExternalLinkIdentifierMapping{
 				ExternalLinkId: request.Id,
 				Type:           typeMappings[identifier.Type],
+				AppId:          identifier.AppId,
+				EnvId:          identifier.EnvId,
 				Identifier:     identifier.Identifier,
 				ClusterId:      identifier.ClusterId,
 				Active:         true,
