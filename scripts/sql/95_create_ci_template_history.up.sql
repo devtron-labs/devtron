@@ -14,7 +14,7 @@ CREATE TABLE public.ci_template_history (
     version character varying(250),
     target_platform VARCHAR(1000) NOT NULL DEFAULT '',
     docker_build_options text,
-    active boolean,
+    active bool,
     created_on timestamp with time zone NOT NULL,
     created_by integer NOT NULL,
     updated_on timestamp with time zone NOT NULL,
