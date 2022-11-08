@@ -2169,12 +2169,6 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		impl.logger.Errorf("invalid state", "err", err, "appId", appId)
 		return pipelineStrategiesResponse, err
 	}
-	chartInfo, err := impl.chartRefRepository.FindById(chart.ChartRefId)
-	if err != nil {
-		impl.logger.Errorf("invalid chart", "err", err, "appId", appId)
-		return pipelineStrategiesResponse, err
-	}
-
 	if chart.Id == 0 {
 		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
 	}
@@ -2184,36 +2178,10 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting global strategies", "err", err)
 		return pipelineStrategiesResponse, err
-	} else if chartInfo.UserUploaded {
-		impl.logger.Infow("no strategies configured for custom chart:", "id", chart.ChartRefId)
-		return pipelineStrategiesResponse, err
-	} else {
-		globalStrategies = []*chartRepoRepository.GlobalStrategyMetadata{
-			{
-				Name: chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING,
-			},
-			{
-				Name: chartRepoRepository.DEPLOYMENT_STRATEGY_BLUE_GREEN,
-			},
-		}
-		chartVersion := chart.ChartVersion
-		chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
-		if err != nil {
-			impl.logger.Errorw("chart version parsing", "err", err)
-			return pipelineStrategiesResponse, err
-		}
-		if !(chartMajorVersion <= 3 && chartMinorVersion < 2) {
-			globalStrategies = append(globalStrategies, []*chartRepoRepository.GlobalStrategyMetadata{
-				{
-					Name: chartRepoRepository.DEPLOYMENT_STRATEGY_CANARY,
-				},
-				{
-					Name: chartRepoRepository.DEPLOYMENT_STRATEGY_RECREATE,
-				},
-			}...)
-		}
+	} else if err == pg.ErrNoRows {
+		impl.logger.Infow("no strategies configured for chart", "chartRefId", chart.ChartRefId)
+		return pipelineStrategiesResponse, nil
 	}
-
 	pipelineOverride := chart.PipelineOverride
 	for _, globalStrategy := range globalStrategies {
 		config, err := impl.filterDeploymentTemplate(globalStrategy.Name, pipelineOverride)
