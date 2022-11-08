@@ -740,6 +740,44 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	v := r.URL.Query()
+	appName := v.Get("appName")
+	if len(appName) > 0 {
+		result := make(map[string]interface{})
+		var isSuperAdmin, isAdmin, isManager, isTrigger bool
+		for _, role := range roles {
+			if role == bean.SUPERADMIN {
+				isSuperAdmin = true
+				break
+			}
+			frags := strings.Split(role, "_")
+			n := len(frags)
+			if n >= 2 && frags[n-1] == appName {
+				if frags[0] == "manager" {
+					isManager = true
+				} else if frags[0] == "admin" {
+					isAdmin = true
+				} else if frags[0] == "trigger" {
+					isTrigger = true
+				}
+			}
+		}
+		if isSuperAdmin {
+			result["role"] = "SuperAdmin"
+		} else if isManager {
+			result["role"] = "Manager"
+		} else if isAdmin {
+			result["role"] = "Admin"
+		} else if isTrigger {
+			result["role"] = "Trigger"
+		} else {
+			result["role"] = "View"
+		}
+
+		common.WriteJsonResp(w, err, result, http.StatusOK)
+		return
+	}
 	result := make(map[string]interface{})
 	result["roles"] = roles
 	result["superAdmin"] = true
