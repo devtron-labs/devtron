@@ -254,14 +254,15 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhookExternalCi(externalCiId int,
 	}
 	materialJson = dst.Bytes()
 	artifact := &repository.CiArtifact{
-		Image:        request.Image,
-		ImageDigest:  request.ImageDigest,
-		MaterialInfo: string(materialJson),
-		DataSource:   request.DataSource,
-		WorkflowId:   request.WorkflowId,
-		ScanEnabled:  false,
-		Scanned:      false,
-		AuditLog:     sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
+		Image:                request.Image,
+		ImageDigest:          request.ImageDigest,
+		MaterialInfo:         string(materialJson),
+		DataSource:           request.DataSource,
+		WorkflowId:           request.WorkflowId,
+		ExternalCiPipelineId: externalCiId,
+		ScanEnabled:          false,
+		Scanned:              false,
+		AuditLog:             sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
 	}
 	if err = impl.ciArtifactRepository.Save(artifact); err != nil {
 		impl.logger.Errorw("error in saving material", "err", err)

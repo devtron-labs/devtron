@@ -30,6 +30,7 @@ const (
 	CD_WORKFLOW_TYPE_POST             WorkflowType                = "POST"
 	CD_WORKFLOW_TYPE_DEPLOY           WorkflowType                = "DEPLOY"
 	CI_WORKFLOW_TYPE                  WorkflowType                = "CI"
+	WEBHOOK_WORKFLOW_TYPE             WorkflowType                = "WEBHOOK"
 	DEPLOYMENT_CONFIG_TYPE_LAST_SAVED DeploymentConfigurationType = "LAST_SAVED_CONFIG"
 	//latest trigger is not being used because this is being handled at FE and we anyhow identify latest trigger as
 	//last deployed wfr which is also a specific trigger
