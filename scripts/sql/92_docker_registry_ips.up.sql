@@ -10,7 +10,8 @@ CREATE TABLE "public"."docker_registry_ips_config"
     "credential_value"         text,
     "applied_cluster_ids_csv"  varchar(256),
     "ignored_cluster_ids_csv"  varchar(256),
-    PRIMARY KEY ("id")
+    PRIMARY KEY ("id"),
+    UNIQUE("docker_artifact_store_id")
 );
 
 -- add foreign key
