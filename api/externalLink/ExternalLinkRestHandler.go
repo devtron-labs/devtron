@@ -61,6 +61,40 @@ func NewExternalLinkRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcerUtil:        enforcerUtil,
 	}
 }
+
+type AppIdDto struct {
+	AppId int
+}
+type RoleCheckResponse struct {
+	Access bool
+}
+
+func (impl ExternalLinkRestHandlerImpl) RoleCheck(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if err != nil || userId == 0 {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	var appIdDto AppIdDto
+	decoder := json.NewDecoder(r.Body)
+	err = decoder.Decode(&appIdDto)
+	if err != nil {
+		impl.logger.Errorw("invalid payload to the role check api")
+		common.WriteJsonResp(w, err, "invalid request", http.StatusBadRequest)
+		return
+	}
+	res := RoleCheckResponse{
+		Access: false,
+	}
+	token := r.Header.Get("token")
+	object := impl.enforcerUtil.GetAppRBACNameByAppId(appIdDto.AppId)
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, "*", object); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), res, http.StatusOK)
+		return
+	}
+	common.WriteJsonResp(w, errors.New("unauthorized"), res, http.StatusForbidden)
+}
+
 func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r *http.Request, action string) (int32, string, error) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
