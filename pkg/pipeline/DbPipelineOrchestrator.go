@@ -92,7 +92,10 @@ type DbPipelineOrchestratorImpl struct {
 	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
 	//ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
-	ciTemplateService CiTemplateService
+	ciTemplateService            CiTemplateService
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
+	gitMaterialHistoryService    history3.GitMaterialHistoryService
+	ciPipelineHistoryService     history3.CiPipelineHistoryService
 }
 
 func NewDbPipelineOrchestrator(
@@ -112,7 +115,9 @@ func NewDbPipelineOrchestrator(
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService,
 	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciTemplateService CiTemplateService) *DbPipelineOrchestratorImpl {
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
+	gitMaterialHistoryService history3.GitMaterialHistoryService,
+	ciPipelineHistoryService history3.CiPipelineHistoryService, ciTemplateService CiTemplateService) *DbPipelineOrchestratorImpl {
 	return &DbPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -131,8 +136,10 @@ func NewDbPipelineOrchestrator(
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
-		//ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
-		ciTemplateService: ciTemplateService,
+		ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
+		gitMaterialHistoryService:     gitMaterialHistoryService,
+		ciPipelineHistoryService:      ciPipelineHistoryService,
+		ciTemplateService:             ciTemplateService,
 	}
 }
 
@@ -324,6 +331,13 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			if err != nil {
 				return nil, err
 			}
+
+			err = impl.ciPipelineHistoryService.SaveHistory(materials, ciTemplateBean, true)
+
+			if err != nil {
+				impl.logger.Errorw("error in saving history of ci pipeline material")
+			}
+
 		} else {
 			ciTemplateBean := &bean2.CiTemplateBean{
 				CiTemplateOverride: templateOverrideReq,
@@ -334,8 +348,41 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			if err != nil {
 				return nil, err
 			}
+
+			err = impl.ciPipelineHistoryService.SaveHistory(materials, ciTemplateBean, true)
+
+			if err != nil {
+				impl.logger.Errorw("error in saving history of ci pipeline material")
+			}
+
+		}
+	} else {
+
+		ciTemplateBean := &bean2.CiTemplateBean{
+			CiTemplateOverride: &pipelineConfig.CiTemplateOverride{
+				Id:               0,
+				CiPipelineId:     createRequest.Id,
+				DockerRegistryId: "",
+				DockerRepository: "",
+				DockerfilePath:   "",
+				GitMaterialId:    0,
+				Active:           false,
+				CiBuildConfigId:  0,
+				AuditLog:         sql.AuditLog{},
+				GitMaterial:      nil,
+				DockerRegistry:   nil,
+				CiBuildConfig:    nil,
+			},
+			CiBuildConfig: nil,
+			UserId:        userId,
+		}
+		err = impl.ciPipelineHistoryService.SaveHistory(materials, ciTemplateBean, false)
+
+		if err != nil {
+			impl.logger.Errorw("error in saving history of ci pipeline material")
 		}
 	}
+
 	if len(childrenCiPipelineIds) > 0 {
 
 		ciPipelineMaterials, err := impl.ciPipelineMaterialRepository.FindByCiPipelineIdsIn(childrenCiPipelineIds)
@@ -408,6 +455,7 @@ func (impl DbPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig
 	}
 
 	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
+
 	return err
 }
 
@@ -545,7 +593,42 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			if err != nil {
 				return nil, err
 			}
+
+			err = impl.ciPipelineHistoryService.SaveHistory(pipelineMaterials, ciTemplateBean, true)
+
+			if err != nil {
+				impl.logger.Errorw("error in saving history for ci pipeline")
+			}
+
+		} else {
+
+			ciTemplateBean := &bean2.CiTemplateBean{
+				CiTemplateOverride: &pipelineConfig.CiTemplateOverride{
+					Id:               0,
+					CiPipelineId:     ciPipeline.Id,
+					DockerRegistryId: "",
+					DockerRepository: "",
+					DockerfilePath:   "",
+					GitMaterialId:    0,
+					Active:           false,
+					CiBuildConfigId:  0,
+					AuditLog:         sql.AuditLog{},
+					GitMaterial:      nil,
+					DockerRegistry:   nil,
+					CiBuildConfig:    nil,
+				},
+				CiBuildConfig: nil,
+				UserId:        createRequest.UserId,
+			}
+
+			err = impl.ciPipelineHistoryService.SaveHistory(pipelineMaterials, ciTemplateBean, false)
+
+			if err != nil {
+				impl.logger.Errorw("error in saving history for ci pipeline")
+			}
+
 		}
+
 		//creating ci stages after tx commit due to FK constraints
 		if ciPipeline.PreBuildStage != nil && len(ciPipeline.PreBuildStage.Steps) > 0 {
 			//creating pre stage
@@ -708,10 +791,13 @@ func (impl DbPipelineOrchestratorImpl) DeleteApp(appId int, userId int32) error 
 		materials[i].UpdatedBy = userId
 	}
 	err = impl.materialRepository.Update(materials)
+
 	if err != nil {
 		impl.logger.Errorw("could not delete materials ", "err", err)
 		return err
 	}
+
+	err = impl.gitMaterialHistoryService.CreateDeleteMaterialHistory(materials)
 
 	impl.logger.Debug("deleting materials in git_sensor")
 	for _, m := range materials {
@@ -956,10 +1042,14 @@ func (impl DbPipelineOrchestratorImpl) updateMaterial(updateMaterialDTO *bean.Up
 	currentMaterial.AuditLog = sql.AuditLog{UpdatedBy: updateMaterialDTO.UserId, CreatedBy: currentMaterial.CreatedBy, UpdatedOn: time.Now(), CreatedOn: currentMaterial.CreatedOn}
 
 	err = impl.materialRepository.UpdateMaterial(currentMaterial)
+
 	if err != nil {
 		impl.logger.Errorw("error in updating material", "material", currentMaterial, "err", err)
 		return nil, err
 	}
+
+	err = impl.gitMaterialHistoryService.CreateMaterialHistory(currentMaterial)
+
 	return currentMaterial, nil
 }
 
@@ -977,10 +1067,14 @@ func (impl DbPipelineOrchestratorImpl) createMaterial(inputMaterial *bean.GitMat
 		AuditLog:        sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err := impl.materialRepository.SaveMaterial(material)
+
 	if err != nil {
 		impl.logger.Errorw("error in saving material", "material", material, "err", err)
 		return nil, err
 	}
+
+	err = impl.gitMaterialHistoryService.CreateMaterialHistory(material)
+
 	return material, err
 }
 

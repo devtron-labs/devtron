@@ -116,6 +116,7 @@ type AppServiceImpl struct {
 	strategyHistoryRepository              repository3.PipelineStrategyHistoryRepository
 	deploymentTemplateHistoryRepository    repository3.DeploymentTemplateHistoryRepository
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService
+	pipelineStatusFetchDetailService       PipelineStatusFetchDetailService
 }
 
 type AppService interface {
@@ -165,7 +166,8 @@ func NewAppService(
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
-	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService) *AppServiceImpl {
+	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService,
+	pipelineStatusFetchDetailService PipelineStatusFetchDetailService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:            environmentConfigRepository,
 		mergeUtil:                              mergeUtil,
@@ -212,6 +214,7 @@ func NewAppService(
 		strategyHistoryRepository:              strategyHistoryRepository,
 		deploymentTemplateHistoryRepository:    deploymentTemplateHistoryRepository,
 		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
+		pipelineStatusFetchDetailService:       pipelineStatusFetchDetailService,
 	}
 	return appServiceImpl
 }
@@ -417,6 +420,10 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 	if terminalStatusExists {
 		impl.logger.Infow("terminal status timeline exists for cdWfr, skipping more timeline changes", "wfrId", cdWfr.Id)
 		return nil
+	}
+	err = impl.pipelineStatusFetchDetailService.SaveOrUpdateFetchDetail(cdWfr.Id, 1)
+	if err != nil {
+		impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "cdWfrId", cdWfr.Id)
 	}
 	// creating cd pipeline status timeline
 	timeline := &pipelineConfig.PipelineStatusTimeline{

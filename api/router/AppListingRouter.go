@@ -71,4 +71,7 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 	appListingRouter.Path("/deployment-status/manual-sync/{appId}/{envId}").
 		HandlerFunc(router.appListingRestHandler.ManualSyncAcdPipelineDeploymentStatus).
 		Methods("GET")
+
+	appListingRouter.Path("/allApps").HandlerFunc(router.appListingRestHandler.FetchAllDevtronManagedApps).
+		Methods("GET")
 }

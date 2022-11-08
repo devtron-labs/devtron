@@ -158,8 +158,11 @@ type PipelineBuilderImpl struct {
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
 	//ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
 	//ciBuildConfigService CiBuildConfigService
-	ciTemplateService CiTemplateService
-	userService       user.UserService
+	ciTemplateService            CiTemplateService
+	userService                  user.UserService
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
+	gitMaterialHistoryService    history.GitMaterialHistoryService
+	CiTemplateHistoryService     history.CiTemplateHistoryService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -198,7 +201,10 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	userService user.UserService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciTemplateService CiTemplateService) *PipelineBuilderImpl {
+	ciTemplateService CiTemplateService,
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
+	gitMaterialHistoryService history.GitMaterialHistoryService,
+	CiTemplateHistoryService history.CiTemplateHistoryService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		dbPipelineOrchestrator:        dbPipelineOrchestrator,
@@ -242,7 +248,10 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciTemplateService:                ciTemplateService,
 		//ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
 		//ciBuildConfigService: ciBuildConfigService,
-		userService: userService,
+		userService:                  userService,
+		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
+		gitMaterialHistoryService:    gitMaterialHistoryService,
+		CiTemplateHistoryService:     CiTemplateHistoryService,
 	}
 }
 
@@ -313,11 +322,15 @@ func (impl PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) 
 	}
 	existingMaterial.UpdatedOn = time.Now()
 	existingMaterial.UpdatedBy = request.UserId
+
 	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial)
+
 	if err != nil {
 		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
 		return err
 	}
+	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(existingMaterial)
+
 	return nil
 }
 
@@ -431,6 +444,10 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		Version:        template.Version,
 		CiTemplateName: template.TemplateName,
 		Materials:      materials,
+		UpdatedOn:      template.UpdatedOn,
+		UpdatedBy:      template.UpdatedBy,
+		CreatedBy:      template.CreatedBy,
+		CreatedOn:      template.CreatedOn,
 	}
 	return ciConfig, err
 }
@@ -878,6 +895,12 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		DockerRepository:  originalCiConf.DockerRepository,
 		DockerRegistryId:  originalCiConf.DockerRegistry,
 		Active:            true,
+		AuditLog: sql.AuditLog{
+			CreatedOn: originalCiConf.CreatedOn,
+			CreatedBy: originalCiConf.CreatedBy,
+			UpdatedOn: originalCiConf.UpdatedOn,
+			UpdatedBy: originalCiConf.UpdatedBy,
+		},
 	}
 
 	ciBuildConfig.Id = originalCiBuildConfig.Id
@@ -890,7 +913,10 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	if err != nil {
 		return nil, err
 	}
+
 	originalCiConf.CiBuildConfig = ciBuildConfig
+
+	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean)
 	return originalCiConf, nil
 }
 
@@ -976,6 +1002,13 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	}
 
 	//-- template config end
+
+	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean)
+
+	if err != nil {
+		impl.logger.Errorw("error in saving audit logs of ci Template")
+	}
+
 	createRequest.Id = ciTemplate.Id
 	createRequest.CiTemplateName = ciTemplate.TemplateName
 	if len(createRequest.CiPipelines) > 0 {

@@ -54,7 +54,7 @@ import (
 type AppListingRestHandler interface {
 	FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request)
 	FetchAppDetails(w http.ResponseWriter, r *http.Request)
-
+	FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request)
 	FetchAppTriggerView(w http.ResponseWriter, r *http.Request)
 	FetchAppStageStatus(w http.ResponseWriter, r *http.Request)
 
@@ -129,7 +129,24 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) {
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	(*w).Header().Set("Content-Type", "text/html; charset=utf-8")
 }
-
+func (handler AppListingRestHandlerImpl) FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	handler.logger.Infow("got request to fetch all devtron managed apps ", "userId", userId)
+	//RBAC starts
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		handler.logger.Infow("user forbidden to fetch all devtron managed apps", "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//RBAC ends
+	res, err := handler.appListingService.FetchAllDevtronManagedApps()
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
 func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Allow CORS here By * or specific origin
 	setupResponse(&w, r)
@@ -766,6 +783,11 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
 		handler.logger.Errorw("request err, ManualSyncAcdPipelineDeploymentStatus", "err", err, "appId", appId)
@@ -791,7 +813,7 @@ func (handler AppListingRestHandlerImpl) ManualSyncAcdPipelineDeploymentStatus(w
 		return
 	}
 	//RBAC enforcer Ends
-	err = handler.cdApplicationStatusUpdateHandler.ManualSyncPipelineStatus(appId, envId)
+	err = handler.cdApplicationStatusUpdateHandler.ManualSyncPipelineStatus(appId, envId, userId)
 	if err != nil {
 		handler.logger.Errorw("service err, ManualSyncAcdPipelineDeploymentStatus", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
