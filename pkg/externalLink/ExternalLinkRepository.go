@@ -28,6 +28,8 @@ type ExternalLink struct {
 	ExternalLinkMonitoringToolId int      `sql:"external_link_monitoring_tool_id, notnull"`
 	Name                         string   `sql:"name,notnull"`
 	Url                          string   `sql:"url,notnull"`
+	IsEditable                   bool     `sql:"is_editable,notnull"`
+	Description                  string   `sql:"description"`
 	Active                       bool     `sql:"active,notnull"`
 	sql.AuditLog
 }
