@@ -6,7 +6,7 @@ CREATE TABLE public.git_material_history (
     "id" integer  NOT NULL DEFAULT nextval('id_seq_git_material_history'::regclass),
     "app_id" integer,
     "git_provider_id" integer,
-    "active" boolean NOT NULL,
+    "active" bool NOT NULL,
     "name" character varying(250),
     "url" character varying(250),
     "created_on" timestamp with time zone NOT NULL,
@@ -14,7 +14,7 @@ CREATE TABLE public.git_material_history (
     "updated_on" timestamp with time zone NOT NULL,
     "updated_by" integer NOT NULL,
     "checkout_path" character varying(250),
-    "fetch_submodules" boolean NOT NULL,
+    "fetch_submodules" bool NOT NULL,
     PRIMARY KEY ("id")
 );
 
