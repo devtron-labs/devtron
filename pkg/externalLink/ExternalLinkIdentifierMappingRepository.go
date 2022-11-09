@@ -20,6 +20,7 @@ package externalLink
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"time"
 )
 
 type ExternalLinkIdentifierMapping struct {
@@ -49,6 +50,7 @@ type ExternalLinkExternalMappingJoinResponse struct {
 	EnvId                        int           `sql:"env_id"`
 	AppId                        int           `sql:"app_id"`
 	ClusterId                    int           `sql:"cluster_id,notnull"`
+	UpdatedOn                    time.Time     `sql:"updated_on"`
 }
 
 type ExternalLinkIdentifierMappingRepository interface {
@@ -93,9 +95,9 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdent
 		"elim.id as mapping_id,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
 		" FROM external_link el" +
 		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id" +
-		" WHERE el.active = true and elim.active = true and ( ((elim.type = ? and elim.identifier = ? and elim.app_id = ? and elim.cluster_id = ?) or (elim.type == 'cluster' and elim.identifier = '' and elim.app_id = 0 and elim.cluster_id = ?)) " +
+		" WHERE el.active = true and elim.active = true and ( ((elim.type = ? and elim.identifier = ? and elim.app_id = ? and elim.cluster_id = ?) or (elim.type = 0 and elim.identifier = '' and elim.app_id = 0 and elim.cluster_id = ?)) " +
 		" or (elim.type = 0 and elim.identifier = '' and elim.cluster_id = 0 and elim.app_id = 0 and elim.env_id = 0) );"
-	_, err := impl.dbConnection.Query(&links, query, linkIdentifier.Type, linkIdentifier.Identifier, linkIdentifier.AppId, linkIdentifier.ClusterId, clusterId)
+	_, err := impl.dbConnection.Query(&links, query, TypeMappings[linkIdentifier.Type], linkIdentifier.Identifier, linkIdentifier.AppId, linkIdentifier.ClusterId, clusterId)
 	return links, err
 }
 
