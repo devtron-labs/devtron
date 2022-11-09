@@ -22,16 +22,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+
 	"github.com/devtron-labs/devtron/internal/constants"
+
 	//"github.com/devtron-labs/devtron/pkg/pipeline"
 
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 
-	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
-	dirCopy "github.com/otiai10/copy"
 	"io/ioutil"
 	"net/http"
 	"os"
@@ -40,6 +39,10 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	repository4 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/sql"
+	dirCopy "github.com/otiai10/copy"
 
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
@@ -60,19 +63,21 @@ import (
 )
 
 type TemplateRequest struct {
-	Id                      int             `json:"id"  validate:"number"`
-	AppId                   int             `json:"appId,omitempty"  validate:"number,required"`
-	RefChartTemplate        string          `json:"refChartTemplate,omitempty"`
-	RefChartTemplateVersion string          `json:"refChartTemplateVersion,omitempty"`
-	ChartRepositoryId       int             `json:"chartRepositoryId,omitempty"`
-	ValuesOverride          json.RawMessage `json:"valuesOverride,omitempty" validate:"required"` //json format user value
-	DefaultAppOverride      json.RawMessage `json:"defaultAppOverride,omitempty"`                 //override values available
-	ChartRefId              int             `json:"chartRefId,omitempty"  validate:"number"`
-	Latest                  bool            `json:"latest"`
-	IsAppMetricsEnabled     bool            `json:"isAppMetricsEnabled"`
-	Schema                  json.RawMessage `json:"schema"`
-	Readme                  string          `json:"readme"`
-	UserId                  int32           `json:"-"`
+	Id                      int                         `json:"id"  validate:"number"`
+	AppId                   int                         `json:"appId,omitempty"  validate:"number,required"`
+	RefChartTemplate        string                      `json:"refChartTemplate,omitempty"`
+	RefChartTemplateVersion string                      `json:"refChartTemplateVersion,omitempty"`
+	ChartRepositoryId       int                         `json:"chartRepositoryId,omitempty"`
+	ValuesOverride          json.RawMessage             `json:"valuesOverride,omitempty" validate:"required"` //json format user value
+	DefaultAppOverride      json.RawMessage             `json:"defaultAppOverride,omitempty"`                 //override values available
+	ChartRefId              int                         `json:"chartRefId,omitempty"  validate:"number"`
+	Latest                  bool                        `json:"latest"`
+	IsAppMetricsEnabled     bool                        `json:"isAppMetricsEnabled"`
+	Schema                  json.RawMessage             `json:"schema"`
+	Readme                  string                      `json:"readme"`
+	IsBasicViewLocked       bool                        `json:"isBasicViewLocked"`
+	CurrentViewEditor       models.ChartsViewEditorType `json:"currentViewEditor"`
+	UserId                  int32                       `json:"-"`
 }
 
 type AppMetricEnableDisableRequest struct {
@@ -410,6 +415,8 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  true,
 		Previous:                false,
+		IsBasicViewLocked:       templateRequest.IsBasicViewLocked,
+		CurrentViewEditor:       templateRequest.CurrentViewEditor,
 		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
@@ -555,6 +562,8 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		ChartRefId:              templateRequest.ChartRefId,
 		Latest:                  false,
 		Previous:                false,
+		IsBasicViewLocked:       templateRequest.IsBasicViewLocked,
+		CurrentViewEditor:       templateRequest.CurrentViewEditor,
 		AuditLog:                sql.AuditLog{CreatedBy: templateRequest.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: templateRequest.UserId},
 	}
 
@@ -604,6 +613,8 @@ func (impl ChartServiceImpl) chartAdaptor(chart *chartRepoRepository.Chart, appL
 		Latest:                  chart.Latest,
 		ChartRefId:              chart.ChartRefId,
 		IsAppMetricsEnabled:     appMetrics,
+		IsBasicViewLocked:       chart.IsBasicViewLocked,
+		CurrentViewEditor:       chart.CurrentViewEditor,
 	}, nil
 }
 
@@ -833,6 +844,8 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 	template.GlobalOverride = string(templateRequest.ValuesOverride)
 	template.Latest = true
 	template.Previous = false
+	template.IsBasicViewLocked = templateRequest.IsBasicViewLocked
+	template.CurrentViewEditor = templateRequest.CurrentViewEditor
 	err = impl.chartRepository.Update(template)
 	if err != nil {
 		return nil, err
@@ -941,11 +954,16 @@ type chartRef struct {
 	UserUploaded bool   `json:"userUploaded"`
 }
 
+type ChartRefMetaData struct {
+	ChartDescription string `json:"chartDescription"`
+}
+
 type chartRefResponse struct {
-	ChartRefs         []chartRef `json:"chartRefs"`
-	LatestChartRef    int        `json:"latestChartRef"`
-	LatestAppChartRef int        `json:"latestAppChartRef"`
-	LatestEnvChartRef int        `json:"latestEnvChartRef,omitempty"`
+	ChartRefs         []chartRef                  `json:"chartRefs"`
+	LatestChartRef    int                         `json:"latestChartRef"`
+	LatestAppChartRef int                         `json:"latestAppChartRef"`
+	LatestEnvChartRef int                         `json:"latestEnvChartRef,omitempty"`
+	ChartsMetadata    map[string]ChartRefMetaData `json:"chartMetadata"` // chartName vs Metadata
 }
 
 type ChartYamlStruct struct {
@@ -985,14 +1003,28 @@ func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 }
 
 func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error) {
-	chartRefResponse := &chartRefResponse{}
+	chartRefResponse := &chartRefResponse{
+		ChartsMetadata: make(map[string]ChartRefMetaData),
+	}
 	var chartRefs []chartRef
+
 	results, err := impl.chartRefRepository.GetAll()
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart config", "err", err)
 		return chartRefResponse, err
 	}
 
+	resultsMetadata, err := impl.chartRefRepository.GetAllChartMetadata()
+	if err != nil {
+		impl.logger.Errorw("error in fetching chart metadata", "err", err)
+		return chartRefResponse, err
+	}
+	for _, resultMetadata := range resultsMetadata {
+		chartRefMetadata := ChartRefMetaData{
+			ChartDescription: resultMetadata.ChartDescription,
+		}
+		chartRefResponse.ChartsMetadata[resultMetadata.ChartName] = chartRefMetadata
+	}
 	var LatestAppChartRef int
 	for _, result := range results {
 		if len(result.Name) == 0 {
@@ -1003,6 +1035,7 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 			LatestAppChartRef = result.Id
 		}
 	}
+
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching latest chart", "err", err)
@@ -1056,7 +1089,8 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 	templateRequest.DefaultAppOverride = newAppOverride["defaultAppOverride"].(json.RawMessage)
 	templateRequest.ValuesOverride = currentChart.DefaultAppOverride
 	templateRequest.UserId = userId
-
+	templateRequest.IsBasicViewLocked = currentChart.IsBasicViewLocked
+	templateRequest.CurrentViewEditor = currentChart.CurrentViewEditor
 	upgradedChartReq, err := impl.Create(templateRequest, ctx)
 	if err != nil {
 		impl.logger.Error(err)
@@ -1096,6 +1130,8 @@ func (impl ChartServiceImpl) UpgradeForApp(appId int, chartRefId int, newAppOver
 			Namespace:         env.Namespace,
 			Latest:            true,
 			Previous:          false,
+			IsBasicViewLocked: envOverride.IsBasicViewLocked,
+			CurrentViewEditor: envOverride.CurrentViewEditor,
 		}
 		err = impl.envOverrideRepository.Save(envOverrideNew)
 		if err != nil {

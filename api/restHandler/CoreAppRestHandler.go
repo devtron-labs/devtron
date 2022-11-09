@@ -38,6 +38,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -57,13 +58,17 @@ import (
 )
 
 const (
-	APP_DELETE_FAILED_RESP     = "App deletion failed, please try deleting from Devtron UI"
-	APP_CREATE_SUCCESSFUL_RESP = "App created successfully."
+	APP_DELETE_FAILED_RESP              = "App deletion failed, please try deleting from Devtron UI"
+	APP_CREATE_SUCCESSFUL_RESP          = "App created successfully."
+	APP_WORKFLOW_CREATE_SUCCESSFUL_RESP = "App workflow created successfully."
 )
 
 type CoreAppRestHandler interface {
 	GetAppAllDetail(w http.ResponseWriter, r *http.Request)
 	CreateApp(w http.ResponseWriter, r *http.Request)
+	CreateAppWorkflow(w http.ResponseWriter, r *http.Request)
+	GetAppWorkflow(w http.ResponseWriter, r *http.Request)
+	GetAppWorkflowAndOverridesSample(w http.ResponseWriter, r *http.Request)
 }
 
 type CoreAppRestHandlerImpl struct {
@@ -498,13 +503,6 @@ func (handler CoreAppRestHandlerImpl) buildDockerConfig(appId int) (*appBean.Doc
 		DockerRepository: ciConfig.DockerRepository,
 		CiBuildConfig:    ciConfig.CiBuildConfig,
 		CheckoutPath:     gitMaterial.CheckoutPath,
-		//BuildConfig: &appBean.DockerBuildConfig{
-		//	Args:                   ciConfig.DockerBuildConfig.Args,
-		//	DockerfileRelativePath: ciConfig.DockerBuildConfig.DockerfilePath,
-		//	TargetPlatform:         ciConfig.DockerBuildConfig.TargetPlatform,
-		//  DockerBuildOptions:     ciConfig.DockerBuildConfig.DockerBuildOptions,
-		//	GitCheckoutPath:        gitMaterial.CheckoutPath,
-		//},
 	}
 
 	return dockerConfig, nil, http.StatusOK
@@ -1169,7 +1167,7 @@ func (handler CoreAppRestHandlerImpl) deleteApp(ctx context.Context, appId int, 
 
 		// delete all workflows for app starts
 		for _, workflow := range workflowsList {
-			err = handler.appWorkflowService.DeleteAppWorkflow(appId, workflow.Id, userId)
+			err = handler.appWorkflowService.DeleteAppWorkflow(workflow.Id, userId)
 			if err != nil {
 				handler.logger.Errorw("service err, DeleteAppWorkflow ")
 				return err
@@ -1247,7 +1245,18 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 // create docker config
 func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig *appBean.DockerConfig, userId int32) (error, int) {
 	handler.logger.Infow("Create App - creating docker config", "appId", appId, "DockerConfig", dockerConfig)
-
+	dockerBuildConfig := dockerConfig.DockerBuildConfig
+	if dockerBuildConfig != nil {
+		dockerConfig.CheckoutPath = dockerBuildConfig.GitCheckoutPath
+		dockerConfig.CiBuildConfig = &bean2.CiBuildConfigBean{
+			DockerBuildConfig: &bean2.DockerBuildConfig{
+				DockerfilePath:     dockerBuildConfig.DockerfileRelativePath,
+				DockerBuildOptions: dockerBuildConfig.DockerBuildOptions,
+				Args:               dockerBuildConfig.Args,
+				TargetPlatform:     dockerBuildConfig.TargetPlatform,
+			},
+		}
+	}
 	createDockerConfigRequest := &bean.CiConfigRequest{
 		AppId:            appId,
 		UserId:           userId,
@@ -1262,23 +1271,6 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 		return err, http.StatusInternalServerError
 	}
 
-	//dockerBuildArgs := make(map[string]string)
-	//if dockerConfig.BuildConfig.Args != nil {
-	//	dockerBuildArgs = dockerConfig.BuildConfig.Args
-	//}
-
-	//dockerBuildOptions := make(map[string]string)
-	//if dockerConfig.BuildConfig.DockerBuildOptions != nil {
-	//	dockerBuildOptions = dockerConfig.BuildConfig.DockerBuildOptions
-	//}
-
-	//dockerBuildConfigRequest := &bean.DockerBuildConfig{
-	//	GitMaterialId:  gitMaterial.Id,
-	//	DockerfilePath: dockerConfig.BuildConfig.DockerfileRelativePath,
-	//	Args:           dockerBuildArgs,
-	//	DockerBuildOptions: dockerBuildOptions,
-	//	TargetPlatform: dockerConfig.BuildConfig.TargetPlatform,
-	//}
 	ciBuildConfig := dockerConfig.CiBuildConfig
 	ciBuildConfig.GitMaterialId = gitMaterial.Id
 	createDockerConfigRequest.CiBuildConfig = ciBuildConfig
@@ -1980,4 +1972,188 @@ func ExtractErrorType(err error) int {
 		//TODO : ask and update response for this case
 		return 0
 	}
+}
+
+func (handler CoreAppRestHandlerImpl) CreateAppWorkflow(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	token := r.Header.Get("token")
+	acdToken, err := handler.argoUserService.GetLatestDevtronArgoCdUserToken()
+	if err != nil {
+		handler.logger.Errorw("error in getting acd token", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	ctx := context.WithValue(r.Context(), "token", acdToken)
+	var createAppRequest appBean.AppWorkflowCloneDto
+	err = decoder.Decode(&createAppRequest)
+	if err != nil {
+		handler.logger.Errorw("request err, CreateApp by API", "err", err, "CreateApp", createAppRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	//to add more validations here
+	handler.logger.Infow("request payload, CreateApp by API", "CreateApp", createAppRequest)
+	err = handler.validator.Struct(createAppRequest)
+	if err != nil {
+		handler.logger.Errorw("validation err, CreateApp by API", "err", err, "CreateApp", createAppRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	app, err := handler.appCrudOperationService.GetAppMetaInfoByAppName(createAppRequest.AppName)
+	if err != nil {
+		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppAllDetail", "err", err, "appName", createAppRequest.AppName)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	createAppRequest.AppId = app.AppId
+	object := fmt.Sprintf("%s/%s", app.ProjectName, app.AppName)
+	// with admin roles, you have to access for all the apps of the project to create new app. (admin or manager with specific app permission can't create app.)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+		return
+	}
+	//rbac ends
+
+	handler.logger.Infow("creating app workflow created ", "createAppRequest", createAppRequest)
+	var errResp *multierror.Error
+	var statusCode int
+
+	//creating workflow starts
+	if createAppRequest.AppWorkflows != nil {
+		if len(createAppRequest.AppWorkflows) != 1 {
+			common.WriteJsonResp(w, err, "please provide only one workflow at one time", http.StatusBadRequest)
+			return
+		}
+		err, statusCode = handler.createWorkflows(ctx, createAppRequest.AppId, userId, createAppRequest.AppWorkflows, token, app.AppName)
+		if err != nil {
+			common.WriteJsonResp(w, errResp, nil, statusCode)
+			return
+		}
+	}
+	//creating workflow ends
+
+	//creating environment override starts
+	if createAppRequest.EnvironmentOverrides != nil && len(createAppRequest.EnvironmentOverrides) > 0 {
+		err, statusCode = handler.createEnvOverrides(ctx, createAppRequest.AppId, userId, createAppRequest.EnvironmentOverrides, token)
+		if err != nil {
+			common.WriteJsonResp(w, errResp, nil, statusCode)
+			return
+		}
+	}
+	//creating environment override ends
+
+	common.WriteJsonResp(w, nil, APP_WORKFLOW_CREATE_SUCCESSFUL_RESP, http.StatusOK)
+}
+
+func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, GetAppWorkflow", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	//get/build app workflows starts
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	//get/build app workflows ends
+
+	//get/build environment override starts
+	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(appId, token)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	//get/build environment override ends
+
+	//build full object for response
+	appDetail := &appBean.AppWorkflowCloneDto{
+		AppId:                appId,
+		AppWorkflows:         appWorkflows,
+		EnvironmentOverrides: environmentOverrides,
+	}
+	//end
+
+	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
+}
+
+func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	appId, err := strconv.Atoi(vars["appId"])
+	if err != nil {
+		handler.logger.Errorw("request err, GetAppWorkflow", "err", err, "appId", appId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	app, err := handler.appCrudOperationService.GetAppMetaInfo(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, GetAppMetaInfo in GetAppAllDetail", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	token := r.Header.Get("token")
+	//get/build app workflows starts
+	appWorkflows, err, statusCode := handler.buildAppWorkflows(appId)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	//get/build app workflows ends
+
+	//get/build environment override starts
+	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(appId, token)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, statusCode)
+		return
+	}
+	//get/build environment override ends
+
+	//build full object for response
+	appDetail := &appBean.AppWorkflowCloneDto{
+		AppId:   appId,
+		AppName: app.AppName,
+	}
+	if appWorkflows != nil && len(appWorkflows) > 0 {
+		aw := make([]*appBean.AppWorkflow, 0)
+		aw = append(aw, appWorkflows[0])
+		appDetail.AppWorkflows = aw
+	}
+
+	if environmentOverrides != nil && len(environmentOverrides) > 0 {
+		eo := make(map[string]*appBean.EnvironmentOverride)
+		for k, v := range environmentOverrides {
+			eo[k] = v
+			break
+		}
+		appDetail.EnvironmentOverrides = eo
+	}
+
+	//end
+
+	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 }

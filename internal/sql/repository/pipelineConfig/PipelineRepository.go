@@ -95,6 +95,9 @@ type PipelineRepository interface {
 	UpdateCdPipeline(pipeline *Pipeline) error
 	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
+	GetPipelineIdsHavingStatusTimelinesPendingAfterKubectlApplyStatus(pendingSinceSeconds int) ([]int, error)
+	FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) (ids []int, err error)
+	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
 }
 
 type CiArtifactDTO struct {
@@ -123,7 +126,11 @@ func (impl PipelineRepositoryImpl) GetConnection() *pg.DB {
 func (impl PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
-		Where("id in (?)", pg.In(ids)).
+		Column("pipeline.*", "App.app_name", "Environment.environment_name").
+		Join("inner join app a on pipeline.app_id = a.id").
+		Join("inner join environment e on pipeline.environment_id = e.id").
+		Where("pipeline.id in (?)", pg.In(ids)).
+		Where("pipeline.deleted = false").
 		Select()
 	if err != nil {
 		impl.logger.Errorw("error on fetching pipelines", "ids", ids)
@@ -431,4 +438,45 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 		Where("pipeline.deployment_app_type = ?", deploymentAppType).
 		Select()
 	return pipelines, err
+}
+
+func (impl PipelineRepositoryImpl) GetPipelineIdsHavingStatusTimelinesPendingAfterKubectlApplyStatus(pendingSinceSeconds int) ([]int, error) {
+	var pipelineIds []int
+	queryString := `select p.id from pipeline p inner join app a on p.app_id = a.id  
+    inner join environment e on p.environment_id = e.id inner join cd_workflow cw on cw.pipeline_id = p.id  
+    inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
+    where cwr.id in (select cd_workflow_runner_id from pipeline_status_timeline  
+					where id in  
+						(select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline 
+							group by cd_workflow_runner_id, id order by cd_workflow_runner_id,id desc)  
+					and status='KUBECTL_APPLY_SYNCED' and status_time < NOW() - INTERVAL '? seconds')  
+    and p.deleted=false group by p.id, a.app_name, e.environment_name;`
+	_, err := impl.dbConnection.Query(&pipelineIds, queryString, pendingSinceSeconds)
+	if err != nil {
+		impl.logger.Errorw("error in GetPipelinesHavingStatusTimelinesPendingAfterKubectlApplyStatus", "err", err)
+		return nil, err
+	}
+	return pipelineIds, nil
+}
+
+func (impl PipelineRepositoryImpl) FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) ([]int, error) {
+	var pipelineIds []int
+	query := "select id from pipeline where app_id in (?) and environment_id in (?) and deleted = ?;"
+	_, err := impl.dbConnection.Query(&pipelineIds, query, pg.In(appIds), pg.In(environmentIds), false)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipelineIds by appIds and envIds", "err", err, "appIds", appIds, "envIds", environmentIds)
+		return pipelineIds, err
+	}
+	return pipelineIds, err
+}
+
+func (impl PipelineRepositoryImpl) FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error) {
+	var pipelineIds []int
+	query := "select p.id from pipeline p inner join app a on a.id=p.app_id where a.team_id in (?) and p.environment_id in (?) and p.deleted = ? and a.active = ?;"
+	_, err := impl.dbConnection.Query(&pipelineIds, query, pg.In(projectIds), pg.In(environmentIds), false, true)
+	if err != nil {
+		impl.logger.Errorw("error in getting pipelineIds by projectIds and envIds", "err", err, "projectIds", projectIds, "envIds", environmentIds)
+		return pipelineIds, err
+	}
+	return pipelineIds, err
 }

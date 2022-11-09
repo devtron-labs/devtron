@@ -87,6 +87,7 @@ type CiPipeline struct {
 	IsExternal               bool                   `json:"isExternal"`
 	ParentCiPipeline         int                    `json:"parentCiPipeline"`
 	ParentAppId              int                    `json:"parentAppId"`
+	AppId                    int                    `json:"appId"`
 	ExternalCiConfig         ExternalCiConfig       `json:"externalCiConfig"`
 	CiMaterial               []*CiMaterial          `json:"ciMaterial,omitempty" validate:"dive,min=1"`
 	Name                     string                 `json:"name,omitempty" validate:"name-component,max=100"` //name suffix of corresponding pipeline. required, unique, validation corresponding to gocd pipelineName will be applicable
@@ -273,30 +274,6 @@ type TestExecutorImageProperties struct {
 	Arg       string `json:"arg,omitempty"`
 	ReportDir string `json:"reportDir,omitempty"`
 }
-
-//type CiBuildConfigBean struct {
-//	GitMaterialId     int                `json:"gitMaterialId,omitempty" validate:"required"`
-//	CiBuildType       string             `json:"ciBuildType"`
-//	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty" validate:"required,dive"`
-//	BuildPackConfig   *BuildPackConfig   `json:"buildPackConfig"`
-//}
-//
-//type DockerBuildConfig struct {
-//	GitMaterialId  int               `json:"gitMaterialId,omitempty" validate:"required"`
-//	DockerfilePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
-//	Args           map[string]string `json:"args,omitempty"`
-//	TargetPlatform string            `json:"targetPlatform,omitempty"`
-//	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
-//	//Name Tag DockerfilePath RepoUrl
-//}
-//
-//type BuildPackConfig struct {
-//	BuilderId       string            `json:"builderId"`
-//	Language        string            `json:"language"`
-//	LanguageVersion string            `json:"languageVersion"`
-//	BuildPacks      []string          `json:"buildPacks"`
-//	Args            map[string]string `json:"args"`
-//}
 
 type PipelineCreateResponse struct {
 	AppName string `json:"appName,omitempty"`

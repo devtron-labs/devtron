@@ -29,6 +29,8 @@ type DockerBuildConfig struct {
 	DockerfileContent  string            `json:"dockerfileContent"`
 	Args               map[string]string `json:"args,omitempty"`
 	TargetPlatform     string            `json:"targetPlatform,omitempty"`
+	Language           string            `json:"language,omitempty"`
+	LanguageFramework  string            `json:"languageFramework,omitempty"`
 	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
 }
 
@@ -38,6 +40,7 @@ type BuildPackConfig struct {
 	LanguageVersion string            `json:"languageVersion"`
 	BuildPacks      []string          `json:"buildPacks"`
 	Args            map[string]string `json:"args"`
+	ProjectPath     string            `json:"projectPath,omitempty"`
 }
 
 func ConvertBuildConfigBeanToDbEntity(templateId int, overrideTemplateId int, ciBuildConfigBean *CiBuildConfigBean, userId int32) (*pipelineConfig.CiBuildConfig, error) {

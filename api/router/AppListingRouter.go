@@ -38,8 +38,10 @@ func NewAppListingRouterImpl(appListingRestHandler restHandler.AppListingRestHan
 }
 
 func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Router) {
-	appListingRouter.Path("/allApps").HandlerFunc(router.appListingRestHandler.FetchAllDevtronManagedApps).
-		Methods("GET")
+
+	appListingRouter.Path("/resource/urls").Queries("envId", "{envId}").
+		HandlerFunc(router.appListingRestHandler.GetHostUrlsByBatch).Methods("GET")
+
 	appListingRouter.Path("/list").
 		HandlerFunc(router.appListingRestHandler.FetchAppsByEnvironment).
 		Methods("POST")

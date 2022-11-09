@@ -16,6 +16,13 @@ type AppDetail struct {
 	EnvironmentOverrides     map[string]*EnvironmentOverride `json:"environmentOverride"`
 }
 
+type AppWorkflowCloneDto struct {
+	AppId                int                             `json:"appId"`
+	AppName              string                          `json:"appName"`
+	AppWorkflows         []*AppWorkflow                  `json:"workflows"`
+	EnvironmentOverrides map[string]*EnvironmentOverride `json:"environmentOverride"`
+}
+
 type AppMetadata struct {
 	AppName     string      `json:"appName" validate:"required"`
 	ProjectName string      `json:"projectName" validate:"required"`
@@ -35,10 +42,19 @@ type GitMaterial struct {
 }
 
 type DockerConfig struct {
-	DockerRegistry   string                  `json:"dockerRegistry" validate:"required"`
-	DockerRepository string                  `json:"dockerRepository" validate:"required"`
-	CiBuildConfig    *bean.CiBuildConfigBean `json:"ciBuildConfig" validate:"required"`
-	CheckoutPath     string                  `json:"checkoutPath"`
+	DockerRegistry    string                  `json:"dockerRegistry" validate:"required"`
+	DockerRepository  string                  `json:"dockerRepository" validate:"required"`
+	CiBuildConfig     *bean.CiBuildConfigBean `json:"ciBuildConfig"`
+	DockerBuildConfig *DockerBuildConfig      `json:"dockerBuildConfig,omitempty"` // Deprecated, should use CiBuildConfig for development
+	CheckoutPath      string                  `json:"checkoutPath"`
+}
+
+type DockerBuildConfig struct {
+	GitCheckoutPath        string            `json:"gitCheckoutPath,omitempty" validate:"required"`
+	DockerfileRelativePath string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
+	Args                   map[string]string `json:"args,omitempty"`
+	TargetPlatform         string            `json:"targetPlatform"`
+	DockerBuildOptions     map[string]string `json:"dockerBuildOptions,omitempty"`
 }
 
 type DeploymentTemplate struct {

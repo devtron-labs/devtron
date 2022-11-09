@@ -26,6 +26,22 @@ func (_m *CiBuildConfigService) Delete(ciBuildConfigId int) error {
 	return r0
 }
 
+// GetCountByBuildType provides a mock function with given fields:
+func (_m *CiBuildConfigService) GetCountByBuildType() map[bean.CiBuildType]int {
+	ret := _m.Called()
+
+	var r0 map[bean.CiBuildType]int
+	if rf, ok := ret.Get(0).(func() map[bean.CiBuildType]int); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[bean.CiBuildType]int)
+		}
+	}
+
+	return r0
+}
+
 // Save provides a mock function with given fields: templateId, overrideTemplateId, ciBuildConfigBean, userId
 func (_m *CiBuildConfigService) Save(templateId int, overrideTemplateId int, ciBuildConfigBean *bean.CiBuildConfigBean, userId int32) error {
 	ret := _m.Called(templateId, overrideTemplateId, ciBuildConfigBean, userId)

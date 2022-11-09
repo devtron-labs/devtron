@@ -1,7 +1,10 @@
 package k8s
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/connector"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -31,6 +34,7 @@ type K8sApplicationRestHandler interface {
 	GetPodLogs(w http.ResponseWriter, r *http.Request)
 	GetTerminalSession(w http.ResponseWriter, r *http.Request)
 	GetResourceInfo(w http.ResponseWriter, r *http.Request)
+	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 }
 type K8sApplicationRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
@@ -115,6 +119,61 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	}
 
 	common.WriteJsonResp(w, nil, resource, http.StatusOK)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
+	clusterIdString := vars["appId"]
+	if clusterIdString == "" {
+		common.WriteJsonResp(w, fmt.Errorf("empty appid in request"), nil, http.StatusBadRequest)
+		return
+	}
+	appIdentifier, err := handler.helmAppService.DecodeAppId(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, ""); !ok {
+		common.WriteJsonResp(w, fmt.Errorf("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	//RBAC enforcer Ends
+	appDetail, err := handler.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	k8sAppDetail := bean.AppDetailContainer{
+		DeploymentDetailContainer: bean.DeploymentDetailContainer{
+			ClusterId: appIdentifier.ClusterId,
+			Namespace: appIdentifier.Namespace,
+		},
+	}
+	validRequests := make([]ResourceRequestBean, 0)
+	var resourceTreeInf map[string]interface{}
+	bytes, _ := json.Marshal(appDetail.ResourceTreeResponse)
+	err = json.Unmarshal(bytes, &resourceTreeInf)
+	if err != nil {
+		common.WriteJsonResp(w, fmt.Errorf("unmarshal error of resource tree response"), nil, http.StatusInternalServerError)
+		return
+	}
+	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(resourceTreeInf, validRequests, k8sAppDetail, clusterIdString)
+	if len(validRequests) == 0 {
+		handler.logger.Error("neither service nor ingress found for this app", "appId", clusterIdString)
+		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
+		return
+	}
+
+	resp, err := handler.k8sApplicationService.GetManifestsByBatch(r.Context(), validRequests)
+	if err != nil {
+		handler.logger.Errorw("error in getting manifests in batch", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	result := handler.k8sApplicationService.GetUrlsByBatch(resp)
+	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
 func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWriter, r *http.Request) {
@@ -380,7 +439,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceInfo(w http.ResponseWri
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	
+
 	// this is auth free api
 	response, err := handler.k8sApplicationService.GetResourceInfo()
 	if err != nil {

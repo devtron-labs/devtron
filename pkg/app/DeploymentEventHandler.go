@@ -30,8 +30,7 @@ import (
 )
 
 type DeploymentEventHandler interface {
-	WriteCDFailureEvent(pipelineId, appId, envId int)
-	WriteCDSuccessEvent(pipelineId, appId, envId int)
+	WriteCDDeploymentEvent(pipelineId, appId, envId int, eventType util.EventType)
 }
 
 type DeploymentEventHandlerImpl struct {
@@ -51,19 +50,9 @@ func NewDeploymentEventHandlerImpl(logger *zap.SugaredLogger, appListingService 
 	return deploymentEventHandlerImpl
 }
 
-func (impl *DeploymentEventHandlerImpl) WriteCDFailureEvent(pipelineId, appId, envId int) {
-	event := impl.eventFactory.Build(util.Fail, &pipelineId, appId, &envId, util.CD)
-	impl.logger.Debugw("event WriteCDFailureEvent", "event", event)
-	event = impl.eventFactory.BuildExtraCDData(event, nil, 0, bean.CD_WORKFLOW_TYPE_DEPLOY)
-	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
-	if evtErr != nil {
-		impl.logger.Errorw("error in writing event", "err", evtErr)
-	}
-}
-
-func (impl *DeploymentEventHandlerImpl) WriteCDSuccessEvent(pipelineId, appId, envId int) {
-	event := impl.eventFactory.Build(util.Success, &pipelineId, appId, &envId, util.CD)
-	impl.logger.Debugw("event WriteCDSuccessEvent", "event", event)
+func (impl *DeploymentEventHandlerImpl) WriteCDDeploymentEvent(pipelineId, appId, envId int, eventType util.EventType) {
+	event := impl.eventFactory.Build(eventType, &pipelineId, appId, &envId, util.CD)
+	impl.logger.Debugw("event WriteCDDeploymentEvent", "event", event)
 	event = impl.eventFactory.BuildExtraCDData(event, nil, 0, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	_, evtErr := impl.eventClient.WriteNotificationEvent(event)
 	if evtErr != nil {
