@@ -132,16 +132,43 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 	externalLinkMonitoringToolRepository := mocks2.NewExternalLinkMonitoringToolRepository(t)
 
 	externalLinkService := NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
-}
+	linkIdentifierInput := &LinkIdentifier{}
 
-func TestExternalLinkServiceImpl_FindAllActiveByLinkIdentifierByJoin(t *testing.T) {
-	logger, err := util.NewSugardLogger()
-	assert.Nil(t, err)
-	externalLinkRepositoryMocked := mocks2.NewExternalLinkRepository(t)
-	externalLinkIdentifierMappingRepositoryMocked := mocks2.NewExternalLinkIdentifierMappingRepository(t)
-	externalLinkMonitoringToolRepository := mocks2.NewExternalLinkMonitoringToolRepository(t)
+	mockLinks := make([]ExternalLinkExternalMappingJoinResponse, 0)
+	mockLinks = append(mockLinks, ExternalLinkExternalMappingJoinResponse{
+		Id:                           1,
+		ExternalLinkMonitoringToolId: 1,
+		Name:                         "name1",
+		Url:                          "test-url1",
+		IsEditable:                   true,
+		MappingId:                    1,
+		Type:                         0,
+		ClusterId:                    1,
+	})
+	mockLinks = append(mockLinks, ExternalLinkExternalMappingJoinResponse{
+		Id:                           1,
+		ExternalLinkMonitoringToolId: 1,
+		Name:                         "name2",
+		Url:                          "test-url2",
+		IsEditable:                   true,
+		MappingId:                    1,
+		Type:                         1,
+		AppId:                        1,
+		Identifier:                   "1",
+	})
+	mockLinks = append(mockLinks, ExternalLinkExternalMappingJoinResponse{
+		Id:                           1,
+		ExternalLinkMonitoringToolId: 1,
+		Name:                         "name3",
+		Url:                          "test-url3",
+		IsEditable:                   true,
+		MappingId:                    1,
+		Type:                         3,
+		Identifier:                   "ext-helm-1",
+	})
+	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByJoin").Return(mockLinks)
 
-	externalLinkService := NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
+	testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifierInput, 0, SUPER_ADMIN_ROLE, 2)
 }
 
 func TestExternalLinkServiceImpl_GetAllActiveTools(t *testing.T) {
