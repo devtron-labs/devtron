@@ -60,8 +60,8 @@ spec:
               servicePort: {{ $svcPort }}
               {{- end }}
   {{- end }}
-  {{- if .Values.ingress.hosts }}
   {{- if and ($.Values.ingress.hosts) (not ($.Values.ingress.host )) }}
+  {{- range .Values.ingress.hosts }}
     {{ $outer := . -}}
     - host: {{ .host | quote }}
       http:
