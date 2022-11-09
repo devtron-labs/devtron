@@ -37,10 +37,10 @@ const (
 type AppIdentifier int
 
 const (
-	CLUSTER AppIdentifier = iota
-	DEVTRON_APP
-	DEVTRON_INSTALLED_APP
-	EXTERNAL_HELM_APP
+	CLUSTER               AppIdentifier = 0
+	DEVTRON_APP           AppIdentifier = 1
+	DEVTRON_INSTALLED_APP AppIdentifier = 2
+	EXTERNAL_HELM_APP     AppIdentifier = 3
 )
 
 var typeMappings = map[string]AppIdentifier{
