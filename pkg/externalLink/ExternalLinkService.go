@@ -43,7 +43,7 @@ const (
 	EXTERNAL_HELM_APP
 )
 
-var typeMappings = map[string]AppIdentifier{
+var TypeMappings = map[string]AppIdentifier{
 	"cluster":               CLUSTER,
 	"devtron-app":           DEVTRON_APP,
 	"devtron-installed-app": DEVTRON_INSTALLED_APP,
@@ -95,7 +95,7 @@ type ExternalLinkApiResponse struct {
 }
 
 func getType(identifier AppIdentifier) string {
-	for key, val := range typeMappings {
+	for key, val := range TypeMappings {
 		if val == identifier {
 			return key
 		}
@@ -169,7 +169,7 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 			}
 			externalLinkIdentifierMapping := &ExternalLinkIdentifierMapping{
 				ExternalLinkId: externalLink.Id,
-				Type:           typeMappings[linkIdentifier.Type],
+				Type:           TypeMappings[linkIdentifier.Type],
 				Identifier:     linkIdentifier.Identifier,
 				AppId:          linkIdentifier.AppId,
 				ClusterId:      linkIdentifier.ClusterId,
@@ -381,7 +381,7 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 		} else {
 			externalLinkIdentifier := &ExternalLinkIdentifierMapping{
 				ExternalLinkId: request.Id,
-				Type:           typeMappings[identifier.Type],
+				Type:           TypeMappings[identifier.Type],
 				AppId:          identifier.AppId,
 				EnvId:          identifier.EnvId,
 				Identifier:     identifier.Identifier,
