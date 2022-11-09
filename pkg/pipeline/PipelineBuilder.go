@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -43,7 +44,6 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -1641,28 +1641,37 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
-		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-			AppId:       app.Id,
-			AccessToken: "",
-			Active:      true,
-			AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-		}
-		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
-		wf := &appWorkflow.AppWorkflow{
-			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
-			AppId:    app.Id,
-			Active:   true,
-			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-		}
-		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
-		if err != nil {
-			impl.logger.Errorw("err", err)
-			return 0, err
+	if pipeline.ParentPipelineType == "WEBHOOK" {
+		componentId := 0
+		appWorkflowId := 0
+		if pipeline.AppWorkflowId == 0 {
+			externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
+				AppId:       app.Id,
+				AccessToken: "",
+				Active:      true,
+				AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+			}
+			externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
+			wf := &appWorkflow.AppWorkflow{
+				Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
+				AppId:    app.Id,
+				Active:   true,
+				AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+			}
+			savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
+			if err != nil {
+				impl.logger.Errorw("err", err)
+				return 0, err
+			}
+			appWorkflowId = savedAppWf.Id
+			componentId = externalCiPipeline.Id
+		} else {
+			componentId = pipeline.ParentPipelineId
+			appWorkflowId = pipeline.AppWorkflowId
 		}
 		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-			AppWorkflowId: savedAppWf.Id,
-			ComponentId:   externalCiPipeline.Id,
+			AppWorkflowId: appWorkflowId,
+			ComponentId:   componentId,
 			Type:          "WEBHOOK",
 			Active:        true,
 			AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
@@ -1671,8 +1680,8 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		if err != nil {
 			return 0, err
 		}
-		pipeline.ParentPipelineId = externalCiPipeline.Id
-		pipeline.AppWorkflowId = savedAppWf.Id
+		pipeline.ParentPipelineId = componentId
+		pipeline.AppWorkflowId = appWorkflowId
 	}
 
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
@@ -2208,7 +2217,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 // method for building artifacts for parent CI
 
 func (impl PipelineBuilderImpl) BuildArtifactsForCIParent(cdPipelineId int, parentId int, parentType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, limit int) ([]bean.CiArtifactBean, error) {
-	artifacts, err := impl.ciArtifactRepository.GetArtifactsByCDPipeline(cdPipelineId, limit, parentId,parentType)
+	artifacts, err := impl.ciArtifactRepository.GetArtifactsByCDPipeline(cdPipelineId, limit, parentId, parentType)
 	if err != nil {
 		impl.logger.Errorw("error in getting artifacts for ci", "err", err)
 		return ciArtifacts, err
