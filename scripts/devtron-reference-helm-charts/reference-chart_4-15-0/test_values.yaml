@@ -200,7 +200,7 @@ prometheusRule:
 
 
 ingress:
-  enabled: false
+  enabled: true
   className: nginx
   annotations: {}
 #    nginx.ingress.kubernetes.io/rewrite-target: /
@@ -209,6 +209,11 @@ ingress:
 #    kubernetes.io/tls-acme: "true"
 #    nginx.ingress.kubernetes.io/canary: "true"
 #    nginx.ingress.kubernetes.io/canary-weight: "10"
+#    Old Ingress Format
+#  host: "ingress-example.com"
+#  path: "/app"
+
+#    New Ingress Format
   hosts:
     - host: chart-example1.local
       pathType: "ImplementationSpecific"
@@ -236,7 +241,6 @@ ingressInternal:
  #    kubernetes.io/tls-acme: "true"
  #    nginx.ingress.kubernetes.io/canary: "true"
  #    nginx.ingress.kubernetes.io/canary-weight: "10"
-
   hosts:
     - host: chart-example1.internal
       pathType: "ImplementationSpecific"

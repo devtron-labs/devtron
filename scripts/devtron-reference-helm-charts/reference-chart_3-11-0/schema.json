@@ -316,6 +316,16 @@
           "description": "used for enabling/disabling autoscaling",
           "title": "Enabled"
         },
+        "labels": {
+          "type": "object",
+          "description": "labels for HPA",
+          "title": "labels"
+        },
+        "annotations": {
+          "type": "object",
+          "description": "used to configure some options for HPA",
+          "title": "annotations"
+        },                
         "extraMetrics": {
           "type": "array",
           "items": {},
@@ -464,6 +474,12 @@
             }
           }
         },
+        "labels": {
+          "type": "object",
+          "description": "labels for ingress",
+          "title": "Ingress labels",
+          "default": ""
+        },        
         "enabled": {
           "type": "boolean",
           "description": "used to enable or disable ingress",
