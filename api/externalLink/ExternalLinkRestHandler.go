@@ -187,12 +187,15 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, res, http.StatusOK)
 		return
 
-	} else if len(identifier) != 0 && len(linkType) != 0 && len(clusterId) != 0 {
-		id, err := strconv.Atoi(clusterId)
-		if err != nil {
-			impl.logger.Errorw("error occurred while parsing cluster_id", "clusterId", clusterId, "err", err)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
+	} else if len(identifier) != 0 && len(linkType) != 0 {
+		id := 0
+		if len(clusterId) != 0 {
+			id, err = strconv.Atoi(clusterId)
+			if err != nil {
+				impl.logger.Errorw("error occurred while parsing cluster_id", "clusterId", clusterId, "err", err)
+				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+				return
+			}
 		}
 		linkIdentifier := &externalLink.LinkIdentifier{
 			Type:       linkType,
