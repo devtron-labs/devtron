@@ -6,3 +6,4 @@ CREATE TABLE public.ci_pipeline_history(
     ci_template_override_history text,
     ci_pipeline_material_history text
 );
+
