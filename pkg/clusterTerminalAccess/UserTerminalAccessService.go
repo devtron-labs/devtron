@@ -605,7 +605,7 @@ func (impl UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataSt
 		_, err = impl.k8sClientService.CreateResource(restConfig, k8sRequest, templateData)
 	}
 	if err != nil {
-		if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason != "AlreadyExists" {
+		if errStatus, ok := err.(*k8sErrors.StatusError); !(ok && errStatus.Status().Reason == "AlreadyExists") {
 			impl.Logger.Errorw("error in creating resource", "err", err, "request", k8sRequest)
 			return err
 		}
