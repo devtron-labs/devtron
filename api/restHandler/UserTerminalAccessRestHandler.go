@@ -18,7 +18,9 @@ type UserTerminalAccessRestHandler interface {
 	StartTerminalSession(w http.ResponseWriter, r *http.Request)
 	UpdateTerminalSession(w http.ResponseWriter, r *http.Request)
 	FetchTerminalStatus(w http.ResponseWriter, r *http.Request)
+	StopTerminalSession(w http.ResponseWriter, r *http.Request)
 	DisconnectTerminalSession(w http.ResponseWriter, r *http.Request)
+	DisconnectAllTerminalSessionAndRetry(w http.ResponseWriter, r *http.Request)
 }
 
 type UserTerminalAccessRestHandlerImpl struct {
@@ -51,6 +53,7 @@ func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.Res
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	request.UserId = userId
 
 	token := r.Header.Get("token")
 	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
@@ -80,6 +83,7 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalSession(w http.Re
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	request.UserId = userId
 
 	token := r.Header.Get("token")
 	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
@@ -116,7 +120,7 @@ func (handler UserTerminalAccessRestHandlerImpl) FetchTerminalStatus(w http.Resp
 	}
 	sessionResponse, err := handler.UserTerminalAccessService.FetchTerminalStatus(terminalAccessId)
 	if err != nil {
-		handler.Logger.Errorw("service err, UpdateTerminalSession", "err", err)
+		handler.Logger.Errorw("service err, FetchTerminalStatus", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -132,7 +136,35 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectTerminalSession(w htt
 	vars := mux.Vars(r)
 	terminalAccessId, err := strconv.Atoi(vars["terminalAccessId"])
 	if err != nil {
-		handler.Logger.Errorw("request err, FetchTerminalStatus", "err", err)
+		handler.Logger.Errorw("request err, DisconnectTerminalSession", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	err = handler.UserTerminalAccessService.DisconnectTerminalSession(terminalAccessId)
+	if err != nil {
+		handler.Logger.Errorw("service err, DisconnectTerminalSession", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+}
+
+func (handler UserTerminalAccessRestHandlerImpl) StopTerminalSession(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.UserService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	terminalAccessId, err := strconv.Atoi(vars["terminalAccessId"])
+	if err != nil {
+		handler.Logger.Errorw("request err, StopTerminalSession", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -144,9 +176,40 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectTerminalSession(w htt
 	}
 	err = handler.UserTerminalAccessService.StopTerminalSession(terminalAccessId)
 	if err != nil {
-		handler.Logger.Errorw("service err, UpdateTerminalSession", "err", err)
+		handler.Logger.Errorw("service err, StopTerminalSession", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, nil, http.StatusOK)
+}
+
+func (handler UserTerminalAccessRestHandlerImpl) DisconnectAllTerminalSessionAndRetry(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.UserService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var request models.UserTerminalSessionRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, DisconnectAllTerminalSessionAndRetry", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	request.UserId = userId
+
+	token := r.Header.Get("token")
+	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	handler.UserTerminalAccessService.DisconnectAllSessionsForUser(userId)
+	sessionResponse, err := handler.UserTerminalAccessService.StartTerminalSession(&request)
+	if err != nil {
+		handler.Logger.Errorw("service err, DisconnectAllTerminalSessionAndRetry", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, sessionResponse, http.StatusOK)
 }
