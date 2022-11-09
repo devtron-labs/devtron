@@ -891,6 +891,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		GitMaterialId: ciBuildConfig.GitMaterialId,
 		//Args:              string(argByte),
 		//TargetPlatform:    originalCiConf.DockerBuildConfig.TargetPlatform,
+		AppId:             originalCiConf.AppId,
 		BeforeDockerBuild: string(beforeByte),
 		AfterDockerBuild:  string(afterByte),
 		Version:           originalCiConf.Version,
@@ -919,7 +920,12 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 
 	originalCiConf.CiBuildConfig = ciBuildConfig
 
-	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean)
+	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean, "update")
+
+	if err != nil {
+		impl.logger.Errorw("error in saving update history for ci template", "error", err)
+	}
+
 	return originalCiConf, nil
 }
 
@@ -1006,10 +1012,10 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 
 	//-- template config end
 
-	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean)
+	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean, "add")
 
 	if err != nil {
-		impl.logger.Errorw("error in saving audit logs of ci Template")
+		impl.logger.Errorw("error in saving audit logs of ci Template", "error", err)
 	}
 
 	createRequest.Id = ciTemplate.Id
