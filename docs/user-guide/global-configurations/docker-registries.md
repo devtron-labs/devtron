@@ -1,17 +1,22 @@
 # Container Registries
 
-Container registries are used to store images built by the CI Pipeline. Here you can configure the container registry you want to use for storing images.
+Container registries are used for storing images built by the CI Pipeline. You can configure the container registry using any different cloud provider of your choice. It allows you to build, deploy and manage your container images with easy-to-use UI. 
 
-When configuring an application, you can choose which registry and repository it should use in the App Configuration > [Docker Build Config](../creating-application/deployment-template.md) section.
+When configuring an application, you can choose the specific container registry and repository in the App Configuration > [Docker Build Config](user-guide/creating-application/docker-build-configuration.md) section.
 
-## Add Container Registry configuration:
+## Add Container Registry:
 
-Go to the `Container Registry` section of `Global Configuration`. Click on `Add container registry`.
+Go to the `Container Registry` section of `Global Configuration`. Click **Add Container Registry**.
 
 You will see below the input fields to configure the container registry.
 
+| Fields | Description |
+| --- | --- |
+| **Container Registry** | Select the container registry from the drop-down list. |
+| **Container Repository** | Enter the name of the container repository. |
+
 * Name
-* Registry type
+* Registry Type
   * ecr
     * AWS region
     * Access key ID
@@ -31,7 +36,7 @@ You will see below the input fields to configure the container registry.
 
 Provide a name to your registry, this name will be shown to you in Docker Build Config as a drop-down.
 
-### Registry type
+### Registry Type
 
 Here you can select the type of the Registry. We are supporting three types- `docker hub`, `ecr` and `others`. You can select any one of them from the drop-down. By default, this value is `ecr`. If you select ecr then you have to provide some information like- `AWS region, Access Key`, and `Secret Key`. If you select docker hub then you have to provide `Username` and `Password`. And if you select others then you have to provide the `Username` and `Password`.
 
@@ -135,3 +140,69 @@ secrets:
 ```     
 
 The `name` that you provide in values.yaml ie. `regcred` is name of the secret that will be used as `imagePullSecrets` to pull the image from docker hub to deploy. To know how `imagePullSecrets` will be used in the deployment-template, please follow the [documentation](https://docs.devtron.ai/devtron/user-guide/creating-application/deployment-template/rollout-deployment#imagepullsecrets).
+
+
+## Pull an Image from a Private Registry
+
+You can create a Pod that uses a `Secret` to pull an image from a private container image registry or repository. There are many private registries in use. This task uses [Docker Hub](https://www.docker.com/products/docker-hub) as an example registry.
+
+Super admin users can decide if they want to auto-inject registry credentials or use a secret to pull an image for deployment to environments on specific clusters.
+
+To manage the access of registry credentials, click **Manage**.
+
+There are two options to manage the access of registry credentials:
+
+| Fields | Description |
+| --- | --- |
+| **Do not inject credentials to clusters** | Select the clusters for which you do not want to inject credentials. |
+| **Auto-inject credentials to clusters** | Select the clusters for which you want to inject credentials. |
+
+You can choose one of the three options for defining credentials:
+
+### Use Registry Credentials
+
+If you select **Use Registry Credentials**, the clusters will be auto-injected with the registry credentials of your registry type. As an example: If you select `Docker` as Registry Type and `docker.io` as Registry URL, the registry credentials of the clusters will be the `username` and `password` which you define.
+Click **Save**.
+
+
+### Specify Image Pull Secret
+
+You can create a Secret by providing credentials on the command line.
+
+Create this Secret, naming it `regcred`:
+
+```bash
+kubectl create -n <namespace> secret docker-registry regcred --docker-server=<your-registry-server> --docker-username=<your-name> --docker-password=<your-pword> --docker-email=<your-email>
+```
+
+where:
+* <namespace> is your virtual cluster. E.g., devtron-demo
+* <your-registry-server> is your Private Docker Registry FQDN. Use https://index.docker.io/v1/ for DockerHub.
+* <your-name> is your Docker username.
+* <your-pword> is your Docker password.
+* <your-email> is your Docker email.
+
+You have successfully set your Docker credentials in the cluster as a Secret called `regcred`.
+
+**Note**: Typing secrets on the command line may store them in your shell history unprotected, and those secrets might also be visible to other users on your PC during the time when kubectl is running.
+
+Enter the `Secret` name in the **Name** field and click **Save**.
+
+### Create Image Pull Secret
+
+With this option, you can define the following fields to create image pull secret:
+
+| Fields | Description |
+| --- | --- |
+| **Registry URL** | The URL of your registry. E.g., `docker.io` |
+| **Username** | Username of the registry hub account you used for creating registry. |
+| **Email** | Email address of the registry hub account you used for creating registry. This field is optional. |
+| **Password** | Password corresponding to your registry hub account. |
+
+**Note**: If you leave all the fields blank, then the clusters will be auto-injected with the registry credentials which you define on the **Registry Type**.
+
+
+
+
+
+
