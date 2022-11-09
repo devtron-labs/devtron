@@ -742,7 +742,7 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 	}
 	result := make(map[string]interface{})
 	result["roles"] = roles
-	result["superAdmin"] = true
+	result["superAdmin"] = false
 	for _, item := range roles {
 		if item == bean.SUPERADMIN {
 			result["superAdmin"] = true
