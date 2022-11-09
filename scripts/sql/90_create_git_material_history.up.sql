@@ -6,6 +6,7 @@ CREATE TABLE public.git_material_history (
     "id" integer  NOT NULL DEFAULT nextval('id_seq_git_material_history'::regclass),
     "app_id" integer,
     "git_provider_id" integer,
+    "git_material_id" integer,
     "active" boolean NOT NULL,
     "name" character varying(250),
     "url" character varying(250),

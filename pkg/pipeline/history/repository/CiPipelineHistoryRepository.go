@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -15,6 +16,25 @@ type CiPipelineTemplateOverrideHistoryDTO struct {
 	BuildMetaDataType     string `json:"build_meta_data_type"`
 	BuildMetadata         string `json:"build_metadata"`
 	IsCiTemplateOverriden bool   `json:"is_ci_template_overriden"`
+	sql.AuditLog
+}
+
+type CiPipelineMaterialHistoryDTO struct {
+	tableName     struct{} `json:"ci_pipeline_material"`
+	Id            int      `json:"id"`
+	GitMaterialId int      `json:"git_material_id"` //id stored in db GitMaterial( foreign key)
+	CiPipelineId  int      `json:"ci_pipeline_id"`
+	Path          string   `json:"path"` // defaults to root of git repo
+	//depricated was used in gocd remove this
+	CheckoutPath string          `json:"checkout_path"` //path where code will be checked out for single source `./` default for multiSource configured by user
+	Type         bean.SourceType `json:"type"`
+	Value        string          `json:"value"`
+	ScmId        string          `json:"scm_id"`      //id of gocd object
+	ScmName      string          `json:"scm_name"`    //gocd scm name
+	ScmVersion   string          `json:"scm_version"` //gocd scm version
+	Active       bool            `json:"active,notnull"`
+	Regex        string          `json:"regex"`
+	GitTag       string          `json:"-"`
 	sql.AuditLog
 }
 
@@ -41,6 +61,7 @@ type CiPipelineHistory struct {
 	CiPipelineId              int      `sql:"ci_pipeline_id"`
 	CiTemplateOverrideHistory string   `sql:"ci_template_override_history"`
 	CiPipelineMaterialHistory string   `sql:"ci_pipeline_material_history"`
+	Trigger                   string   `sql:"trigger"`
 }
 
 type CiPipelineHistoryRepository interface {
