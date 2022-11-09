@@ -27,6 +27,7 @@ import (
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository4 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	repository5 "github.com/devtron-labs/devtron/pkg/pipeline/repository"
@@ -90,7 +91,8 @@ type DbPipelineOrchestratorImpl struct {
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService
 	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
-	ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
+	//ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
+	ciTemplateService CiTemplateService
 }
 
 func NewDbPipelineOrchestrator(
@@ -110,7 +112,7 @@ func NewDbPipelineOrchestrator(
 	prePostCdScriptHistoryService history3.PrePostCdScriptHistoryService,
 	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService,
 	pipelineStageService PipelineStageService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository) *DbPipelineOrchestratorImpl {
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciTemplateService CiTemplateService) *DbPipelineOrchestratorImpl {
 	return &DbPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -129,7 +131,8 @@ func NewDbPipelineOrchestrator(
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 		prePostCiScriptHistoryService: prePostCiScriptHistoryService,
 		pipelineStageService:          pipelineStageService,
-		ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
+		//ciTemplateOverrideRepository:  ciTemplateOverrideRepository,
+		ciTemplateService: ciTemplateService,
 	}
 }
 
@@ -290,18 +293,19 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 	}
 	if !createRequest.IsExternal && createRequest.IsDockerConfigOverridden {
 		//get override
-		savedTemplateOverride, err := impl.ciTemplateOverrideRepository.FindByCiPipelineId(createRequest.Id)
+		savedTemplateOverrideBean, err := impl.ciTemplateService.FindTemplateOverrideByCiPipelineId(createRequest.Id)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting templateOverride by ciPipelineId", "err", err, "ciPipelineId", createRequest.Id)
 			return nil, err
 		}
+		ciBuildConfigBean := createRequest.DockerConfigOverride.CiBuildConfig
 		templateOverrideReq := &pipelineConfig.CiTemplateOverride{
 			CiPipelineId:     createRequest.Id,
 			DockerRegistryId: createRequest.DockerConfigOverride.DockerRegistry,
 			DockerRepository: createRequest.DockerConfigOverride.DockerRepository,
-			DockerfilePath:   createRequest.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
-			GitMaterialId:    createRequest.DockerConfigOverride.DockerBuildConfig.GitMaterialId,
-			Active:           true,
+			//DockerfilePath:   createRequest.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
+			GitMaterialId: ciBuildConfigBean.GitMaterialId,
+			Active:        true,
 			AuditLog: sql.AuditLog{
 				CreatedOn: time.Now(),
 				CreatedBy: userId,
@@ -309,19 +313,29 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 				UpdatedBy: userId,
 			},
 		}
+		savedTemplateOverride := savedTemplateOverrideBean.CiTemplateOverride
 		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
+			ciBuildConfigBean.Id = savedTemplateOverride.CiBuildConfigId
 			templateOverrideReq.Id = savedTemplateOverride.Id
 			templateOverrideReq.CreatedOn = savedTemplateOverride.CreatedOn
 			templateOverrideReq.CreatedBy = savedTemplateOverride.CreatedBy
-			_, err = impl.ciTemplateOverrideRepository.Update(templateOverrideReq)
+			ciTemplateBean := &bean2.CiTemplateBean{
+				CiTemplateOverride: templateOverrideReq,
+				CiBuildConfig:      ciBuildConfigBean,
+				UserId:             userId,
+			}
+			err = impl.ciTemplateService.Update(ciTemplateBean)
 			if err != nil {
-				impl.logger.Errorw("error in updating template override", "err", err, "templateOverrideConfig", templateOverrideReq)
 				return nil, err
 			}
 		} else {
-			_, err = impl.ciTemplateOverrideRepository.Save(templateOverrideReq)
+			ciTemplateBean := &bean2.CiTemplateBean{
+				CiTemplateOverride: templateOverrideReq,
+				CiBuildConfig:      ciBuildConfigBean,
+				UserId:             userId,
+			}
+			err := impl.ciTemplateService.Save(ciTemplateBean)
 			if err != nil {
-				impl.logger.Errorw("error in saving template override", "err", err, "templateOverrideConfig", templateOverrideReq)
 				return nil, err
 			}
 		}
@@ -527,9 +541,9 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				CiPipelineId:     ciPipeline.Id,
 				DockerRegistryId: ciPipeline.DockerConfigOverride.DockerRegistry,
 				DockerRepository: ciPipeline.DockerConfigOverride.DockerRepository,
-				DockerfilePath:   ciPipeline.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
-				GitMaterialId:    ciPipeline.DockerConfigOverride.DockerBuildConfig.GitMaterialId,
-				Active:           true,
+				//DockerfilePath:   ciPipeline.DockerConfigOverride.DockerBuildConfig.DockerfilePath,
+				GitMaterialId: ciPipeline.DockerConfigOverride.CiBuildConfig.GitMaterialId,
+				Active:        true,
 				AuditLog: sql.AuditLog{
 					CreatedBy: createRequest.UserId,
 					CreatedOn: time.Now(),
@@ -537,9 +551,13 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 					UpdatedOn: time.Now(),
 				},
 			}
-			_, err = impl.ciTemplateOverrideRepository.Save(templateOverride)
+			ciTemplateBean := &bean2.CiTemplateBean{
+				CiTemplateOverride: templateOverride,
+				CiBuildConfig:      ciPipeline.DockerConfigOverride.CiBuildConfig,
+				UserId:             createRequest.UserId,
+			}
+			err := impl.ciTemplateService.Save(ciTemplateBean)
 			if err != nil {
-				impl.logger.Errorw("error in saving template override", "err", err, "templateOverrideConfig", templateOverride)
 				return nil, err
 			}
 		}

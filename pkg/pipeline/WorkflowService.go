@@ -20,16 +20,11 @@ package pipeline
 import (
 	"context"
 	"encoding/json"
-	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"net/url"
-	"strconv"
-	"time"
-
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned"
 	v1alpha12 "github.com/argoproj/argo-workflows/v3/pkg/client/clientset/versioned/typed/workflow/v1alpha1"
 	"github.com/argoproj/argo-workflows/v3/workflow/util"
+	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -38,11 +33,14 @@ import (
 	v12 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/rest"
+	"net/url"
+	"strconv"
 )
 
 type WorkflowService interface {
-	SubmitWorkflow(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error)
+	SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error)
 	DeleteWorkflow(wfName string, namespace string) error
 	GetWorkflow(name string, namespace string) (*v1alpha1.Workflow, error)
 	ListAllWorkflows(namespace string) (*v1alpha1.WorkflowList, error)
@@ -73,10 +71,8 @@ type WorkflowRequest struct {
 	DockerRegistryURL          string                            `json:"dockerRegistryURL"`
 	DockerConnection           string                            `json:"dockerConnection"`
 	DockerCert                 string                            `json:"dockerCert"`
-	DockerBuildArgs            string                            `json:"dockerBuildArgs"`
-	DockerBuildTargetPlatform  string                            `json:"dockerBuildTargetPlatform"`
 	DockerRepository           string                            `json:"dockerRepository"`
-	DockerFileLocation         string                            `json:"dockerfileLocation"`
+	CheckoutPath               string                            `json:"checkoutPath"`
 	DockerUsername             string                            `json:"dockerUsername"`
 	DockerPassword             string                            `json:"dockerPassword"`
 	AwsRegion                  string                            `json:"awsRegion"`
@@ -99,7 +95,6 @@ type WorkflowRequest struct {
 	CiArtifactBucket           string                            `json:"ciArtifactBucket"`
 	CiArtifactFileName         string                            `json:"ciArtifactFileName"`
 	CiArtifactRegion           string                            `json:"ciArtifactRegion"`
-	InvalidateCache            bool                              `json:"invalidateCache"`
 	ScanEnabled                bool                              `json:"scanEnabled"`
 	CloudProvider              blob_storage.BlobStorageType      `json:"cloudProvider"`
 	BlobStorageConfigured      bool                              `json:"blobStorageConfigured"`
@@ -113,16 +108,20 @@ type WorkflowRequest struct {
 	RefPlugins                 []*bean2.RefPluginObject          `json:"refPlugins"`
 	AppName                    string                            `json:"appName"`
 	TriggerByAuthor            string                            `json:"triggerByAuthor"`
-	DockerBuildOptions         string                   `json:"dockerBuildOptions"`
+	CiBuildConfig              *bean2.CiBuildConfigBean          `json:"ciBuildConfig"`
+	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
+	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
+	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
 }
 
 const (
-	BLOB_STORAGE_AZURE      = "AZURE"
-	BLOB_STORAGE_S3         = "S3"
-	BLOB_STORAGE_GCP        = "GCP"
-	BLOB_STORAGE_MINIO      = "MINIO"
-	CI_WORKFLOW_NAME        = "ci"
-	CI_WORKFLOW_WITH_STAGES = "ci-stages-with-env"
+	BLOB_STORAGE_AZURE             = "AZURE"
+	BLOB_STORAGE_S3                = "S3"
+	BLOB_STORAGE_GCP               = "GCP"
+	BLOB_STORAGE_MINIO             = "MINIO"
+	CI_WORKFLOW_NAME               = "ci"
+	CI_WORKFLOW_WITH_STAGES        = "ci-stages-with-env"
+	CI_NODE_SELECTOR_APP_LABEL_KEY = "devtron.ai/node-selector"
 )
 
 type ContainerResources struct {
@@ -151,13 +150,13 @@ type ContainerResources struct {
 }*/
 
 type CiProjectDetails struct {
-	GitRepository   string    `json:"gitRepository"`
-	MaterialName    string    `json:"materialName"`
-	CheckoutPath    string    `json:"checkoutPath"`
-	FetchSubmodules bool      `json:"fetchSubmodules"`
-	CommitHash      string    `json:"commitHash"`
-	GitTag          string    `json:"gitTag"`
-	CommitTime      time.Time `json:"commitTime"`
+	GitRepository   string `json:"gitRepository"`
+	MaterialName    string `json:"materialName"`
+	CheckoutPath    string `json:"checkoutPath"`
+	FetchSubmodules bool   `json:"fetchSubmodules"`
+	CommitHash      string `json:"commitHash"`
+	GitTag          string `json:"gitTag"`
+	CommitTime      string `json:"commitTime"`
 	//Branch        string          `json:"branch"`
 	Type        string                    `json:"type"`
 	Message     string                    `json:"message"`
@@ -189,7 +188,7 @@ func NewWorkflowServiceImpl(Logger *zap.SugaredLogger, ciConfig *CiConfig,
 const ciEvent = "CI"
 const cdStage = "CD"
 
-func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest) (*v1alpha1.Workflow, error) {
+func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest, appLabels map[string]string) (*v1alpha1.Workflow, error) {
 	containerEnvVariables := []v12.EnvVar{{Name: "IMAGE_SCANNER_ENDPOINT", Value: impl.ciConfig.ImageScannerEndpoint}}
 	if impl.ciConfig.CloudProvider == BLOB_STORAGE_S3 && impl.ciConfig.BlobStorageS3AccessKey != "" {
 		miniCred := []v12.EnvVar{{Name: "AWS_ACCESS_KEY_ID", Value: impl.ciConfig.BlobStorageS3AccessKey}, {Name: "AWS_SECRET_ACCESS_KEY", Value: impl.ciConfig.BlobStorageS3SecretKey}}
@@ -515,6 +514,47 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 		}
 	}
 
+	// volume mount
+	volumeMountsForCiJson := impl.ciConfig.VolumeMountsForCiJson
+	if len(volumeMountsForCiJson) > 0 {
+		var volumeMountsForCi []CiVolumeMount
+		// Unmarshal or Decode the JSON to the interface.
+		err = json.Unmarshal([]byte(volumeMountsForCiJson), &volumeMountsForCi)
+		if err != nil {
+			impl.Logger.Errorw("err in unmarshalling volumeMountsForCiJson", "err", err, "val", volumeMountsForCiJson)
+			return nil, err
+		}
+
+		for _, volumeMountsForCi := range volumeMountsForCi {
+			hostPathDirectoryOrCreate := v12.HostPathDirectoryOrCreate
+			ciTemplate.Volumes = append(ciTemplate.Volumes, v12.Volume{
+				Name: volumeMountsForCi.Name,
+				VolumeSource: v12.VolumeSource{
+					HostPath: &v12.HostPathVolumeSource{
+						Path: volumeMountsForCi.HostMountPath,
+						Type: &hostPathDirectoryOrCreate,
+					},
+				},
+			})
+			ciTemplate.Container.VolumeMounts = append(ciTemplate.Container.VolumeMounts, v12.VolumeMount{
+				Name:      volumeMountsForCi.Name,
+				MountPath: volumeMountsForCi.ContainerMountPath,
+			})
+		}
+	}
+
+	// node selector
+	if val, ok := appLabels[CI_NODE_SELECTOR_APP_LABEL_KEY]; ok {
+		var nodeSelectors map[string]string
+		// Unmarshal or Decode the JSON to the interface.
+		err = json.Unmarshal([]byte(val), &nodeSelectors)
+		if err != nil {
+			impl.Logger.Errorw("err in unmarshalling nodeSelectors", "err", err, "val", val)
+			return nil, err
+		}
+		ciTemplate.NodeSelector = nodeSelectors
+	}
+
 	templates = append(templates, ciTemplate)
 	var (
 		ciWorkflow = v1alpha1.Workflow{
@@ -535,6 +575,7 @@ func (impl *WorkflowServiceImpl) SubmitWorkflow(workflowRequest *WorkflowRequest
 			},
 		}
 	)
+
 	if impl.ciConfig.TaintKey != "" || impl.ciConfig.TaintValue != "" {
 		ciWorkflow.Spec.Tolerations = []v12.Toleration{{Key: impl.ciConfig.TaintKey, Value: impl.ciConfig.TaintValue, Operator: v12.TolerationOpEqual, Effect: v12.TaintEffectNoSchedule}}
 	}

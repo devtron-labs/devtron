@@ -136,6 +136,10 @@ spec:
               name: "devtron-custom-cm"
           - secretRef:
               name: "devtron-custom-secret"
+          {{- if .resources }}   
+          resources:
+          {{- toYaml .resources | nindent 12 }}
+          {{- end }}
   revisionHistoryLimit: 3
 ---
 {{- if .serviceMonitor.enabled }}

@@ -238,9 +238,13 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 		return err
 	}
 	for _, pipeline := range pipelines {
+		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
+			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
+			continue
+		}
 		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, async, triggeredBy)
 		if err != nil {
-			impl.logger.Debugw("err", "err", err)
+			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
 		}
 	}
 	return nil
@@ -438,16 +442,19 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 	}
 	cdStageWorkflowRequest, err := impl.buildWFRequest(runner, cdWf, pipeline, triggeredBy)
 	if err != nil {
+		impl.logger.Errorw("error in building wfRequest", "err", err, "runner", runner, "cdWf", cdWf, "pipeline", pipeline)
 		return err
 	}
 	cdStageWorkflowRequest.StageType = POST
 	_, err = impl.cdWorkflowService.SubmitWorkflow(cdStageWorkflowRequest, pipeline, env)
 	if err != nil {
+		impl.logger.Errorw("error in submitting workflow", "err", err, "cdStageWorkflowRequest", cdStageWorkflowRequest, "pipeline", pipeline, "env", env)
 		return err
 	}
 
 	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(cdWf.Id, bean.CD_WORKFLOW_TYPE_POST)
 	if err != nil {
+		impl.logger.Errorw("error in getting wfr by workflowId and runnerType", "err", err, "wfId", cdWf.Id)
 		return err
 	}
 
@@ -543,7 +550,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			if err != nil {
 				return nil, err
 			}
-			ciProjectDetail.CommitTime = *commitTime
+			ciProjectDetail.CommitTime = commitTime.Format(bean2.LayoutRFC3339)
 		} else {
 			impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
 			return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
@@ -565,14 +572,16 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	var stageYaml string
 	var deployStageWfr pipelineConfig.CdWorkflowRunner
 	deployStageTriggeredByUser := &bean.UserInfo{}
+	var pipelineReleaseCounter int
 	if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_PRE {
 		stageYaml = cdPipeline.PreStageConfig
 	} else if runner.WorkflowType == bean.CD_WORKFLOW_TYPE_POST {
 		stageYaml = cdPipeline.PostStageConfig
 		//getting deployment pipeline latest wfr by pipelineId
-		deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(cdPipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		pipelineId := cdPipeline.Id
+		deployStageWfr, err = impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(pipelineId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil {
-			impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", cdPipeline.Id)
+			impl.logger.Errorw("error in getting latest status of deploy type wfr by pipelineId", "err", err, "pipelineId", pipelineId)
 			return nil, err
 		}
 		deployStageTriggeredByUser, err = impl.user.GetById(deployStageWfr.TriggeredBy)
@@ -580,6 +589,12 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			impl.logger.Errorw("error in getting userDetails by id", "err", err, "userId", deployStageWfr.TriggeredBy)
 			return nil, err
 		}
+		pipelineReleaseCounter, err = impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineId)
+		if err != nil {
+			impl.logger.Errorw("error occurred while fetching latest release counter for pipeline", "pipelineId", pipelineId, "err", err)
+			return nil, err
+		}
+
 	} else {
 		return nil, fmt.Errorf("unsupported workflow triggerd")
 	}
@@ -624,6 +639,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	if deployStageTriggeredByUser != nil {
 		cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
 		cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUser.EmailId
+	}
+	if pipelineReleaseCounter > 0 {
+		cdStageWorkflowRequest.DeploymentReleaseCounter = pipelineReleaseCounter
 	}
 	if cdWorkflowConfig.CdCacheRegion == "" {
 		cdWorkflowConfig.CdCacheRegion = impl.cdConfig.DefaultCdLogsBucketRegion
@@ -723,16 +741,16 @@ func (impl *WorkflowDagExecutorImpl) HandleDeploymentSuccessEvent(gitHash string
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_STOP &&
 			pipelineOverride.DeploymentType != models.DEPLOYMENTTYPE_START {
 
-			err := impl.TriggerPostStage(cdWorkflow, pipelineOverride.Pipeline, 1)
+			err = impl.TriggerPostStage(cdWorkflow, pipelineOverride.Pipeline, 1)
 			if err != nil {
-				impl.logger.Errorw("error in triggering post stage after successful deployment event", "cdWorkflow", cdWorkflow)
+				impl.logger.Errorw("error in triggering post stage after successful deployment event", "err", err, "cdWorkflow", cdWorkflow)
 				return err
 			}
 		}
 	} else {
 		// to trigger next pre/cd, if any
 		// finding children cd by pipeline id
-		err := impl.HandlePostStageSuccessEvent(cdWorkflow.Id, pipelineOverride.PipelineId, 1)
+		err = impl.HandlePostStageSuccessEvent(cdWorkflow.Id, pipelineOverride.PipelineId, 1)
 		if err != nil {
 			impl.logger.Errorw("error in triggering children cd after successful deployment event", "parentCdPipelineId", pipelineOverride.PipelineId)
 			return err

@@ -134,6 +134,13 @@ spec:
             configMapKeyRef:
               name: devtron-operator-cm
               key: DEVTRON_HELM_RELEASE_NAME
+        resources:
+          limits:
+            cpu: "50m"
+            memory: 50Mi
+          requests:
+            cpu: "50m"
+            memory: 50Mi
         volumeMounts:
           - name: apply-helm-labels
             mountPath: /apply-labels.sh

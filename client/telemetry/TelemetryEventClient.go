@@ -11,6 +11,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	module2 "github.com/devtron-labs/devtron/pkg/module"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	serverDataStore "github.com/devtron-labs/devtron/pkg/server/store"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
@@ -41,6 +42,8 @@ type TelemetryEventClientImpl struct {
 	ssoLoginService  sso.SSOLoginService
 	PosthogClient    *PosthogClient
 	moduleRepository moduleRepo.ModuleRepository
+	serverDataStore  *serverDataStore.ServerDataStore
+	userAuditService user.UserAuditService
 }
 
 type TelemetryEventClient interface {
@@ -55,7 +58,7 @@ type TelemetryEventClient interface {
 func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client, clusterService cluster.ClusterService,
 	K8sUtil *util2.K8sUtil, aCDAuthConfig *util3.ACDAuthConfig, userService user.UserService,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService,
-	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository) (*TelemetryEventClientImpl, error) {
+	PosthogClient *PosthogClient, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService) (*TelemetryEventClientImpl, error) {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
@@ -68,6 +71,8 @@ func NewTelemetryEventClientImpl(logger *zap.SugaredLogger, client *http.Client,
 		ssoLoginService:  ssoLoginService,
 		PosthogClient:    PosthogClient,
 		moduleRepository: moduleRepository,
+		serverDataStore:  serverDataStore,
+		userAuditService: userAuditService,
 	}
 
 	watcher.HeartbeatEventForTelemetry()
@@ -104,6 +109,9 @@ type TelemetryEventEA struct {
 	InstalledIntegrations       []string           `json:"installedIntegrations,omitempty"`
 	InstallFailedIntegrations   []string           `json:"installFailedIntegrations,omitempty"`
 	InstallTimedOutIntegrations []string           `json:"installTimedOutIntegrations,omitempty"`
+	LastLoginTime               time.Time          `json:"LastLoginTime,omitempty"`
+	InstallingIntegrations      []string           `json:"installingIntegrations,omitempty"`
+	DevtronReleaseVersion       string             `json:"devtronReleaseVersion,omitempty"`
 }
 
 const DevtronUniqueClientIdConfigMap = "devtron-ucid"
@@ -194,7 +202,7 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	}
 
 	// build integrations data
-	installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, err := impl.buildIntegrationsList()
+	installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, installingIntegrations, err := impl.buildIntegrationsList()
 	if err != nil {
 		return err
 	}
@@ -211,6 +219,17 @@ func (impl *TelemetryEventClientImpl) SendSummaryEvent(eventType string) error {
 	payload.InstalledIntegrations = installedIntegrations
 	payload.InstallFailedIntegrations = installFailedIntegrations
 	payload.InstallTimedOutIntegrations = installTimedOutIntegrations
+	payload.InstallingIntegrations = installingIntegrations
+	payload.DevtronReleaseVersion = impl.serverDataStore.CurrentVersion
+
+	latestUser, err := impl.userAuditService.GetLatestUser()
+	if err == nil {
+		loginTime := latestUser.UpdatedOn
+		if loginTime.IsZero() {
+			loginTime = latestUser.CreatedOn
+		}
+		payload.LastLoginTime = loginTime
+	}
 
 	reqBody, err := json.Marshal(payload)
 	if err != nil {
@@ -554,19 +573,20 @@ func (impl *TelemetryEventClientImpl) retryPosthogClient(PosthogApiKey string, P
 	return client, err
 }
 
-// returns installedIntegrations, installFailedIntegrations, installTimedOutIntegrations
-func (impl *TelemetryEventClientImpl) buildIntegrationsList() ([]string, []string, []string, error) {
+// returns installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, installingIntegrations
+func (impl *TelemetryEventClientImpl) buildIntegrationsList() ([]string, []string, []string, []string, error) {
 	impl.logger.Info("building integrations list for telemetry")
 
 	modules, err := impl.moduleRepository.FindAll()
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while getting integrations list", "err", err)
-		return nil, nil, nil, err
+		return nil, nil, nil, nil, err
 	}
 
 	var installedIntegrations []string
 	var installFailedIntegrations []string
 	var installTimedOutIntegrations []string
+	var installingIntegrations []string
 
 	for _, module := range modules {
 		integrationName := module.Name
@@ -577,9 +597,11 @@ func (impl *TelemetryEventClientImpl) buildIntegrationsList() ([]string, []strin
 			installFailedIntegrations = append(installFailedIntegrations, integrationName)
 		case module2.ModuleStatusTimeout:
 			installTimedOutIntegrations = append(installTimedOutIntegrations, integrationName)
+		case module2.ModuleStatusInstalling:
+			installingIntegrations = append(installingIntegrations, integrationName)
 		}
 	}
 
-	return installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, nil
+	return installedIntegrations, installFailedIntegrations, installTimedOutIntegrations, installingIntegrations, nil
 
 }
