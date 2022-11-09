@@ -649,18 +649,19 @@ type ResponseSchemaObject struct {
 }
 
 type ResponseDescriptionSchemaObject struct {
-	Description  string                 `json:"description"`
-	ExampleValue ExampleValueDto        `json:"exampleValue"`
-	Schema       map[string]interface{} `json:"schema"`
+	Description  string                 `json:"description,omitempty"`
+	ExampleValue ExampleValueDto        `json:"exampleValue,omitempty"`
+	Schema       map[string]interface{} `json:"schema,omitempty"`
 }
 
 type ErrorDto struct {
 	Code    int    `json:"code"`
-	Message string `json:"message"`
+	UserMessage string `json:"userMessage"`
 }
 
 type ExampleValueDto struct {
-	Success bool     `json:"success"`
-	Error   ErrorDto `json:"error,omitempty"`
-	Result  string   `json:"result"`
+	Code   int        `json:"code,omitempty"`
+	Errors []ErrorDto `json:"errors,omitempty"`
+	Result string     `json:"result,omitempty"`
+	Status string     `json:"status,omitempty"`
 }
