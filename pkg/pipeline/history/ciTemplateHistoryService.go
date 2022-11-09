@@ -8,7 +8,7 @@ import (
 )
 
 type CiTemplateHistoryService interface {
-	SaveHistory(material *bean.CiTemplateBean) error
+	SaveHistory(material *bean.CiTemplateBean, trigger string) error
 }
 
 type CiTemplateHistoryServiceImpl struct {
@@ -25,7 +25,7 @@ func NewCiTemplateHistoryServiceImpl(CiTemplateHistoryRepository repository.CiTe
 	}
 }
 
-func (impl CiTemplateHistoryServiceImpl) SaveHistory(ciTemplateBean *bean.CiTemplateBean) error {
+func (impl CiTemplateHistoryServiceImpl) SaveHistory(ciTemplateBean *bean.CiTemplateBean, trigger string) error {
 
 	ciTemplate := ciTemplateBean.CiTemplate
 	ciBuildConfig := ciTemplateBean.CiBuildConfig
@@ -55,13 +55,14 @@ func (impl CiTemplateHistoryServiceImpl) SaveHistory(ciTemplateBean *bean.CiTemp
 		CiBuildConfigId:    ciBuildConfigDbEntity.Id,
 		BuildMetaDataType:  ciBuildConfigDbEntity.Type,
 		BuildMetadata:      ciBuildConfigDbEntity.BuildMetadata,
+		Trigger:            trigger,
 		AuditLog:           sql.AuditLog{CreatedOn: ciTemplate.CreatedOn, CreatedBy: ciTemplate.CreatedBy, UpdatedBy: ciTemplate.UpdatedBy, UpdatedOn: ciTemplate.UpdatedOn},
 	}
 
 	err = impl.CiTemplateHistoryRepository.Save(materialHistory)
 
 	if err != nil {
-		impl.logger.Errorw("unable to save history for ci template repository")
+		impl.logger.Errorw("unable to save history for ci template repository", "error", err)
 		return err
 	}
 
