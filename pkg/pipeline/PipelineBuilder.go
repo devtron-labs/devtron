@@ -163,6 +163,7 @@ type PipelineBuilderImpl struct {
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
 	gitMaterialHistoryService    history.GitMaterialHistoryService
 	CiTemplateHistoryService     history.CiTemplateHistoryService
+	CiPipelineHistoryService     history.CiPipelineHistoryService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -204,7 +205,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciTemplateService CiTemplateService,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	gitMaterialHistoryService history.GitMaterialHistoryService,
-	CiTemplateHistoryService history.CiTemplateHistoryService) *PipelineBuilderImpl {
+	CiTemplateHistoryService history.CiTemplateHistoryService,
+	CiPipelineHistoryService history.CiPipelineHistoryService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		dbPipelineOrchestrator:        dbPipelineOrchestrator,
@@ -252,6 +254,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
 		gitMaterialHistoryService:    gitMaterialHistoryService,
 		CiTemplateHistoryService:     CiTemplateHistoryService,
+		CiPipelineHistoryService:     CiPipelineHistoryService,
 	}
 }
 
@@ -1254,7 +1257,7 @@ func (impl PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	err = impl.dbPipelineOrchestrator.DeleteCiPipeline(pipeline, request.UserId, tx)
+	err = impl.dbPipelineOrchestrator.DeleteCiPipeline(pipeline, request, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting pipeline db")
 		return nil, err
