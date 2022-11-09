@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
-	"github.com/devtron-labs/devtron/internal/sql/models"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -44,6 +43,7 @@ import (
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
@@ -1677,10 +1677,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	if pipeline.ParentPipelineType == "WEBHOOK" {
-		componentId := 0
-		appWorkflowId := 0
-		if pipeline.AppWorkflowId == 0 {
+	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
 			externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
 				AppId:       app.Id,
 				AccessToken: "",
@@ -1699,15 +1696,9 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 				impl.logger.Errorw("err", err)
 				return 0, err
 			}
-			appWorkflowId = savedAppWf.Id
-			componentId = externalCiPipeline.Id
-		} else {
-			componentId = pipeline.ParentPipelineId
-			appWorkflowId = pipeline.AppWorkflowId
-		}
 		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
-			AppWorkflowId: appWorkflowId,
-			ComponentId:   componentId,
+			AppWorkflowId: savedAppWf.Id,
+			ComponentId:   externalCiPipeline.Id,
 			Type:          "WEBHOOK",
 			Active:        true,
 			AuditLog:      sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
@@ -1716,8 +1707,8 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 		if err != nil {
 			return 0, err
 		}
-		pipeline.ParentPipelineId = componentId
-		pipeline.AppWorkflowId = appWorkflowId
+		pipeline.ParentPipelineId = externalCiPipeline.Id
+		pipeline.AppWorkflowId = savedAppWf.Id
 	}
 
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
