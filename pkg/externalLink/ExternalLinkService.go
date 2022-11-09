@@ -216,14 +216,7 @@ func (impl ExternalLinkServiceImpl) GetAllActiveTools() ([]ExternalLinkMonitorin
 	}
 	return response, err
 }
-func (impl ExternalLinkServiceImpl) FindAllActiveByLinkIdentifierByJoin(linkIdentifier *LinkIdentifier, clusterId int) ([]*ExternalLinkDto, error) {
-	records, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByLinkIdentifier(linkIdentifier, clusterId)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
-		return nil, err
-	}
-	return impl.processResult(records)
-}
+
 func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkExternalMappingJoinResponse) ([]*ExternalLinkDto, error) {
 	var externalLinkResponse = make([]*ExternalLinkDto, 0)
 	responseMap := make(map[int]*ExternalLinkDto)
