@@ -187,9 +187,9 @@ func (impl AppWorkflowServiceImpl) DeleteAppWorkflow(appWorkflowId int, userId i
 	}
 	if len(mappingForCI) > 0 {
 		return &util.ApiError{
-			InternalMessage:   "workflow has nodes attached, please delete them first",
-			UserDetailMessage: fmt.Sprintf("workflow has nodes attached, please delete them first"),
-			UserMessage:       fmt.Sprintf("workflow has nodes attached, please delete them first")}
+			InternalMessage:   "Workflow contains pipelines. First delete all pipelines in the workflow.",
+			UserDetailMessage: fmt.Sprintf("Workflow contains pipelines. First delete all pipelines in the workflow."),
+			UserMessage:       fmt.Sprintf("Workflow contains pipelines. First delete all pipelines in the workflow.")}
 	}
 
 	dbConnection := impl.pipelineRepository.GetConnection()
