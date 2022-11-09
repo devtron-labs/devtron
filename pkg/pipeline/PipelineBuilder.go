@@ -1522,29 +1522,42 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 		return err
 	}
 	if appWorkflowMapping.ParentType == appWorkflow.WEBHOOK {
-		externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(appWorkflowMapping.ParentId)
-		if err != nil {
-			impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+		childNodes, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(appWorkflowMapping.ParentId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching external ci", "err", err)
 			return err
 		}
-		externalCiPipeline.Active = false
-		externalCiPipeline.UpdatedOn = time.Now()
-		externalCiPipeline.UpdatedBy = userId
-		_, err = impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
-		if err != nil {
-			impl.logger.Errorw("error in deleting workflow mapping", "err", err)
-			return err
+		noOtherChildNodes := true
+		for _, item := range childNodes {
+			if pipeline.Id != item.ComponentId {
+				noOtherChildNodes = false
+			}
 		}
+		if noOtherChildNodes {
+			externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(appWorkflowMapping.ParentId)
+			if err != nil {
+				impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+				return err
+			}
+			externalCiPipeline.Active = false
+			externalCiPipeline.UpdatedOn = time.Now()
+			externalCiPipeline.UpdatedBy = userId
+			_, err = impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
+			if err != nil {
+				impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+				return err
+			}
 
-		webhookWorkflowMapping, err := impl.appWorkflowRepository.FindByTypeAndComponentId(appWorkflowMapping.AppWorkflowId, appWorkflowMapping.ParentId, appWorkflow.WEBHOOK)
-		if err != nil {
-			impl.logger.Errorw("error in deleting workflow mapping", "err", err)
-			return err
-		}
-		err = impl.appWorkflowRepository.DeleteAppWorkflowMapping(webhookWorkflowMapping, tx)
-		if err != nil {
-			impl.logger.Errorw("error in deleting workflow mapping", "err", err)
-			return err
+			webhookWorkflowMapping, err := impl.appWorkflowRepository.FindByTypeAndComponentId(appWorkflowMapping.AppWorkflowId, appWorkflowMapping.ParentId, appWorkflow.WEBHOOK)
+			if err != nil {
+				impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+				return err
+			}
+			err = impl.appWorkflowRepository.DeleteAppWorkflowMapping(webhookWorkflowMapping, tx)
+			if err != nil {
+				impl.logger.Errorw("error in deleting workflow mapping", "err", err)
+				return err
+			}
 		}
 	}
 	err = impl.appWorkflowRepository.DeleteAppWorkflowMapping(appWorkflowMapping, tx)
