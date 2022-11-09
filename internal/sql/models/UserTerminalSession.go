@@ -2,7 +2,7 @@ package models
 
 type UserTerminalSessionRequest struct {
 	Id        int    `json:"id"`
-	UserId    int32  `json:"userId" validate:"required"`
+	UserId    int32  `json:"userId"`
 	ClusterId int    `json:"clusterId" validate:"required"`
 	NodeName  string `json:"nodeName" validate:"required"`
 	BaseImage string `json:"baseImage" validate:"required"`
@@ -10,10 +10,10 @@ type UserTerminalSessionRequest struct {
 }
 
 type UserTerminalSessionConfig struct {
-	MaxSessionPerUser                 int    `env:"MAX_SESSION_PER_USER" envDefault:"50"`
+	MaxSessionPerUser                 int    `env:"MAX_SESSION_PER_USER" envDefault:"5"`
 	TerminalPodStatusSyncTimeInSecs   int    `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"500"`
 	TerminalPodDefaultNamespace       string `env:"TERMINAL_POD_DEFAULT_NAMESPACE" envDefault:"default"`
-	TerminalPodInActiveDurationInMins int    `env:"TERMINAL_POD_INACTIVE_DURATION_IN_MINS" envDefault:"60"`
+	TerminalPodInActiveDurationInMins int    `env:"TERMINAL_POD_INACTIVE_DURATION_IN_MINS" envDefault:"10"`
 }
 
 type UserTerminalSessionResponse struct {

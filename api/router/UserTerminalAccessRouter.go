@@ -28,4 +28,8 @@ func (router UserTerminalAccessRouterImpl) InitTerminalAccessRouter(userTerminal
 		HandlerFunc(router.userTerminalAccessRestHandler.FetchTerminalStatus).Queries("terminalAccessId", "{terminalAccessId}").Methods("GET")
 	userTerminalAccessRouter.Path("/disconnect").
 		HandlerFunc(router.userTerminalAccessRestHandler.DisconnectTerminalSession).Queries("terminalAccessId", "{terminalAccessId}").Methods("POST")
+	userTerminalAccessRouter.Path("/stop").
+		HandlerFunc(router.userTerminalAccessRestHandler.StopTerminalSession).Queries("terminalAccessId", "{terminalAccessId}").Methods("POST")
+	userTerminalAccessRouter.Path("/disconnectAndRetry").
+		HandlerFunc(router.userTerminalAccessRestHandler.DisconnectAllTerminalSessionAndRetry).Methods("POST")
 }
