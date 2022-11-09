@@ -943,7 +943,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		AuditLog: sql.AuditLog{
 			CreatedOn: originalCiConf.CreatedOn,
 			CreatedBy: originalCiConf.CreatedBy,
-			UpdatedOn: originalCiConf.UpdatedOn,
+			UpdatedOn: time.Now(),
 			UpdatedBy: originalCiConf.UpdatedBy,
 		},
 	}
