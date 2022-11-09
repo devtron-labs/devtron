@@ -387,7 +387,7 @@ func (impl UserTerminalAccessServiceImpl) SyncPodStatus() {
 			terminalPodStatusString := existingStatus
 			err := impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
 			if err != nil {
-				if err.(*k8sErrors.StatusError).Status().Reason == "NotFound" {
+				if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == "NotFound" {
 					terminalPodStatusString = string(models.TerminalPodTerminated)
 				} else {
 					continue
@@ -604,9 +604,11 @@ func (impl UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataSt
 	} else {
 		_, err = impl.k8sClientService.CreateResource(restConfig, k8sRequest, templateData)
 	}
-	if err != nil && err.(*k8sErrors.StatusError).Status().Reason != "AlreadyExists" {
-		impl.Logger.Errorw("error in creating resource", "err", err, "request", k8sRequest)
-		return err
+	if err != nil {
+		if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason != "AlreadyExists" {
+			impl.Logger.Errorw("error in creating resource", "err", err, "request", k8sRequest)
+			return err
+		}
 	}
 	return nil
 }
@@ -637,7 +639,7 @@ func (impl UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName st
 	}
 	response, err := impl.k8sApplicationService.GetResource(request)
 	if err != nil {
-		if err.(*k8sErrors.StatusError).Status().Reason == "NotFound" {
+		if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == "NotFound" {
 			return string(models.TerminalPodTerminated), nil
 		} else {
 			impl.Logger.Errorw("error occurred while fetching resource info for pod", "podName", podName)
