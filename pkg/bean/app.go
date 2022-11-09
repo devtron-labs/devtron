@@ -150,7 +150,7 @@ type ExternalCiConfig struct {
 type ExternalCiConfigRole struct {
 	ProjectId       int    `json:"projectId"`
 	ProjectName     string `json:"projectName"`
-	EnvironmentId   int    `json:"environmentId"`
+	EnvironmentId   string `json:"environmentId"`
 	EnvironmentName string `json:"environmentName"`
 	AppId           int    `json:"appId"`
 	AppName         string `json:"appName"`
@@ -659,7 +659,7 @@ type ResponseDescriptionSchemaObject struct {
 }
 
 type ErrorDto struct {
-	Code    int `json:"code"`
+	Code    int    `json:"code"`
 	Message string `json:"message"`
 }
 

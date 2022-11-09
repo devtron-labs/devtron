@@ -50,7 +50,7 @@ type AppWorkflowRepository interface {
 	FindWFCDMappingByCIPipelineIds(ciPipelineIds []int) ([]*AppWorkflowMapping, error)
 	FindWFCDMappingByParentCDPipelineId(cdPipelineId int) ([]*AppWorkflowMapping, error)
 	FindAllWFMappingsByAppId(appId int) ([]*AppWorkflowMapping, error)
-	FindWFCDMappingByExternalCiId(externalCiId int) (*AppWorkflowMapping, error)
+	FindWFCDMappingByExternalCiId(externalCiId int) ([]*AppWorkflowMapping, error)
 	FindByTypeAndComponentId(wfId int, componentId int, componentType string) (*AppWorkflowMapping, error)
 	FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(envIds []int, appIds []int) ([]*AppWorkflowMapping, error)
 }
@@ -360,13 +360,13 @@ func (impl AppWorkflowRepositoryImpl) FindAllWfsHavingCdPipelinesFromSpecificEnv
 	return models, nil
 }
 
-func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiId(externalCiId int) (*AppWorkflowMapping, error) {
-	appWorkflowsMapping := &AppWorkflowMapping{}
-	err := impl.dbConnection.Model(appWorkflowsMapping).
+func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiId(externalCiId int) ([]*AppWorkflowMapping, error) {
+	var models []*AppWorkflowMapping
+	err := impl.dbConnection.Model(&models).
 		Where("parent_id = ?", externalCiId).
 		Where("parent_type = ?", WEBHOOK).
 		Where("type = ?", CDPIPELINE).
 		Where("active = ?", true).
 		Select()
-	return appWorkflowsMapping, err
+	return models, err
 }
