@@ -242,7 +242,8 @@ func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*
 
 	// otherwise handle gvk level
 	var resourceFilters []*client.ResourceFilter
-	for gvk, resourceIdentifier := range resourceFilterIfaceValue.GvkLevelFilter {
+	for _, gvkLevelFilters := range resourceFilterIfaceValue.GvkLevelFilters {
+		gvk := gvkLevelFilters.Gvk
 		resourceFilters = append(resourceFilters, &client.ResourceFilter{
 			Gvk: &client.Gvk{
 				Group:   gvk.Group,
@@ -250,7 +251,7 @@ func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*
 				Kind:    gvk.Kind,
 			},
 			ResourceIdentifier: &client.ResourceIdentifier{
-				Labels: resourceIdentifier.Labels,
+				Labels: gvkLevelFilters.ResourceIdentifier.Labels,
 			},
 		})
 	}

@@ -95,8 +95,13 @@ const (
 var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair, ModuleNameNotification, ModuleNameMonitoringGrafana}
 
 type ResourceFilter struct {
-	GlobalFilter   *ResourceIdentifier                            `json:"globalFilter"`
-	GvkLevelFilter map[schema.GroupVersionKind]ResourceIdentifier `json:"gvkLevelFilter"`
+	GlobalFilter    *ResourceIdentifier `json:"globalFilter,omitempty"`
+	GvkLevelFilters []*GvkLevelFilter   `json:"gvkLevelFilters,omitempty"`
+}
+
+type GvkLevelFilter struct {
+	Gvk                *schema.GroupVersionKind `json:"gvk"`
+	ResourceIdentifier *ResourceIdentifier      `json:"filter"`
 }
 
 type ResourceIdentifier struct {
