@@ -91,10 +91,10 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdent
 	var links []ExternalLinkExternalMappingJoinResponse
 	query := "select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description," +
 		"elim.id as mapping_id,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
-		"FROM external_link el" +
-		"LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id" +
-		"WHERE el.active = true and elim.active = true and ( ((elim.type = ? and elim.identifier = ? and elim.app_id = ? and elim.cluster_id = ?) or (elim.type == 'cluster' and elim.identifier = '' and elim.app_id = 0 and elim.cluster_id = ?)) " +
-		"or (elim.type = 0 and elim.identifier = '' and elim.cluster_id = 0 and elim.app_id = 0 and elim.env_id = 0) );"
+		" FROM external_link el" +
+		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id" +
+		" WHERE el.active = true and elim.active = true and ( ((elim.type = ? and elim.identifier = ? and elim.app_id = ? and elim.cluster_id = ?) or (elim.type == 'cluster' and elim.identifier = '' and elim.app_id = 0 and elim.cluster_id = ?)) " +
+		" or (elim.type = 0 and elim.identifier = '' and elim.cluster_id = 0 and elim.app_id = 0 and elim.env_id = 0) );"
 	_, err := impl.dbConnection.Query(&links, query, linkIdentifier.Type, linkIdentifier.Identifier, linkIdentifier.AppId, linkIdentifier.ClusterId, clusterId)
 	return links, err
 }
