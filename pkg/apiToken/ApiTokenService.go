@@ -30,6 +30,7 @@ import (
 	"go.uber.org/zap"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -80,22 +81,15 @@ func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(token string, projectN
 	var apiTokens []*openapi.ApiToken
 	for _, apiTokenFromDb := range apiTokensFromDb {
 		userId := apiTokenFromDb.User.Id
-		userMetaData, err := impl.userService.GetById(userId)
-		if err != nil {
-			impl.logger.Errorw("error while getting latest audit log", "error", err)
-			return nil, err
-		}
-
 		//checking permission on each of the roles associated with this API Token
-		for _, rf := range userMetaData.RoleFilters {
-			if len(rf.Team) > 0 {
-				projectObject := fmt.Sprintf("%s/%s", rf.Team, rf.EntityName)
-				envObject := fmt.Sprintf("%s/%s", rf.Environment, rf.EntityName)
-				isValidAuth := auth(token, projectObject, envObject)
-				if !isValidAuth {
-					impl.logger.Debugw("authentication for token failed", "apiTokenFromDb", apiTokenFromDb)
-					continue
-				}
+		environmentNames := strings.Split(environmentName, ",")
+		for _, environment := range environmentNames {
+			projectObject := fmt.Sprintf("%s/%s", projectName, appName)
+			envObject := fmt.Sprintf("%s/%s", environment, appName)
+			isValidAuth := auth(apiTokenFromDb.Token, projectObject, envObject)
+			if !isValidAuth {
+				impl.logger.Debugw("authentication for token failed", "apiTokenFromDb", apiTokenFromDb)
+				continue
 			}
 		}
 
