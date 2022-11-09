@@ -28,6 +28,7 @@ type CiTemplateHistory struct {
 	CiBuildConfigId    int      `sql:"ci_build_config_id"`
 	BuildMetaDataType  string   `sql:"build_meta_data_type"`
 	BuildMetadata      string   `sql:"build_metadata"`
+	Trigger            string   `sql:"trigger"`
 	sql.AuditLog
 	App            *app.App
 	DockerRegistry *repository.DockerArtifactStore
