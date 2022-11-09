@@ -4,7 +4,7 @@ type UserTerminalSessionRequest struct {
 	Id        int    `json:"id"`
 	UserId    int32  `json:"userId" validate:"required"`
 	ClusterId int    `json:"clusterId" validate:"required"`
-	NodeName  string `json:"nodeName"`
+	NodeName  string `json:"nodeName" validate:"required"`
 	BaseImage string `json:"baseImage" validate:"required"`
 	ShellName string `json:"shellName" validate:"required"`
 }
