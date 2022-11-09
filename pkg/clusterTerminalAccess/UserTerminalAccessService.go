@@ -510,6 +510,9 @@ func (impl UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId i
 			return nil, err
 		}
 		terminalAccessData = existingTerminalAccessData
+		if existingTerminalAccessData.Status == string(models.TerminalPodTerminated) {
+			return nil, errors.New("pod-terminated")
+		}
 		err = impl.checkMaxSessionLimit(existingTerminalAccessData.UserId)
 		if err != nil {
 			return nil, err
