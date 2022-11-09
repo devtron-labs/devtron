@@ -103,7 +103,7 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdent
 
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByJoin() ([]ExternalLinkExternalMappingJoinResponse, error) {
 	var links []ExternalLinkExternalMappingJoinResponse
-	query := "select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description," +
+	query := "select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on," +
 		"elim.id as mapping_id,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
 		" FROM external_link el" +
 		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id"
