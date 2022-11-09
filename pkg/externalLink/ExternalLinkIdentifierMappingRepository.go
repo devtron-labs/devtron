@@ -20,6 +20,7 @@ package externalLink
 import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"time"
 )
 
 type ExternalLinkIdentifierMapping struct {
@@ -49,6 +50,7 @@ type ExternalLinkExternalMappingJoinResponse struct {
 	EnvId                        int           `sql:"env_id"`
 	AppId                        int           `sql:"app_id"`
 	ClusterId                    int           `sql:"cluster_id,notnull"`
+	UpdatedOn                    time.Time     `sql:"updated_on"`
 }
 
 type ExternalLinkIdentifierMappingRepository interface {
