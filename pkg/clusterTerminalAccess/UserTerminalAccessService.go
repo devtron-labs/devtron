@@ -521,6 +521,7 @@ func (impl UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId i
 		impl.TerminalAccessDataArrayMutex.Lock()
 		terminalAccessSessionData.sessionId = terminalSessionId
 		terminalAccessSessionData.terminalAccessDataEntity = existingTerminalAccessData
+		terminalAccessDataMap[terminalAccessId] = terminalAccessSessionData
 		impl.TerminalAccessDataArrayMutex.Unlock()
 	}
 	terminalAccessDataId := terminalAccessData.Id
