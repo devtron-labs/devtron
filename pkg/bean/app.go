@@ -659,7 +659,7 @@ type ResponseDescriptionSchemaObject struct {
 }
 
 type ErrorDto struct {
-	Code        int    `json:"code"`
+	Code    int    `json:"code"`
 	UserMessage string `json:"userMessage"`
 }
 
