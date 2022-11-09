@@ -132,7 +132,7 @@ func (handler AppWorkflowRestHandlerImpl) DeleteAppWorkflow(w http.ResponseWrite
 	}
 	//rback block ends here
 
-	err = handler.appWorkflowService.DeleteAppWorkflow(appId, appWorkflowId, userId)
+	err = handler.appWorkflowService.DeleteAppWorkflow(appWorkflowId, userId)
 	if err != nil {
 		if _, ok := err.(*util.ApiError); ok {
 			handler.Logger.Warnw("error on deleting", "err", err)
