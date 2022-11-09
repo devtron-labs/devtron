@@ -315,6 +315,8 @@ func (impl PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) 
 		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
 		return err
 	}
+	//TODO: delete ci_pipeline_materials
+
 	return nil
 }
 
@@ -540,6 +542,10 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				CiBuildConfig:    ciTemplateBean.CiBuildConfig,
 			}
 		}
+		var gitMaterials []int
+		for _, gitMaterial := range ciConfig.Materials {
+			gitMaterials = append(gitMaterials, gitMaterial.GitMaterialId)
+		}
 		for _, material := range pipeline.CiPipelineMaterials {
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
@@ -553,7 +559,13 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				IsRegex:         material.Regex != "",
 				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 			}
-			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+			for _, gitId := range gitMaterials {
+				if gitId == ciMaterial.GitMaterialId {
+					ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+					break
+				}
+			}
+
 		}
 
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
