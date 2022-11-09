@@ -315,6 +315,8 @@ func (impl PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) 
 		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
 		return err
 	}
+	//TODO: delete ci_pipeline_materials
+
 	return nil
 }
 
