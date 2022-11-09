@@ -238,6 +238,7 @@ func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkExternal
 				IsEditable:       record.IsEditable,
 				Description:      record.Description,
 				Identifiers:      []LinkIdentifier{},
+				UpdatedOn:        record.UpdatedOn,
 			}
 			responseMap[externalLinkDto.Id] = externalLinkDto
 		}
