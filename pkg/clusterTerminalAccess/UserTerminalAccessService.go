@@ -504,22 +504,23 @@ func (impl UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId i
 		}
 	}
 	if terminalAccessData == nil {
-		terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(terminalAccessId)
+		existingTerminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(terminalAccessId)
 		if err != nil {
 			impl.Logger.Errorw("error occurred while fetching terminal status", "terminalAccessId", terminalAccessId, "err", err)
 			return nil, err
 		}
-		err = impl.checkMaxSessionLimit(terminalAccessData.UserId)
+		terminalAccessData = existingTerminalAccessData
+		err = impl.checkMaxSessionLimit(existingTerminalAccessData.UserId)
 		if err != nil {
 			return nil, err
 		}
-		terminalSessionId, err = impl.checkAndStartSession(terminalAccessData)
+		terminalSessionId, err = impl.checkAndStartSession(existingTerminalAccessData)
 		if err != nil {
 			return nil, err
 		}
 		impl.TerminalAccessDataArrayMutex.Lock()
 		terminalAccessSessionData.sessionId = terminalSessionId
-		terminalAccessSessionData.terminalAccessDataEntity = terminalAccessData
+		terminalAccessSessionData.terminalAccessDataEntity = existingTerminalAccessData
 		impl.TerminalAccessDataArrayMutex.Unlock()
 	}
 	terminalAccessDataId := terminalAccessData.Id
