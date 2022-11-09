@@ -256,24 +256,26 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 	//2. get config
 	//3. trigger wf/ deployment
 
-	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiId)
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
 		return err
 	}
-	pipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
-	if err != nil {
-		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
-		return err
-	}
-	if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
-		impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
-		return nil
-	}
+	for _, appWorkflowMapping := range appWorkflowMappings {
+		pipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
+			return err
+		}
+		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
+			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
+			return nil
+		}
 
-	err = impl.triggerStage(nil, pipeline, artifact, applyAuth, async, triggeredBy)
-	if err != nil {
-		impl.logger.Debugw("error on trigger cd pipeline", "err", err)
+		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, async, triggeredBy)
+		if err != nil {
+			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
+		}
 	}
 	return nil
 }

@@ -579,43 +579,65 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
 	}
 
-	externalCiConfig := make([]*bean.ExternalCiConfig, 0)
+	externalCiConfigs := make([]*bean.ExternalCiConfig, 0)
 	for _, externalCiPipeline := range externalCiPipelines {
-		appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
-			return nil, err
-		}
-		cdPipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
-			return nil, err
-		}
-
-		app, err := impl.appRepo.FindAppAndProjectByAppId(cdPipeline.AppId)
-		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
-			return nil, err
-		}
-
-		externalCiConfig = append(externalCiConfig, &bean.ExternalCiConfig{
+		externalCiConfig := &bean.ExternalCiConfig{
 			Id:         externalCiPipeline.Id,
 			WebhookUrl: fmt.Sprintf("%s/%d", impl.ciConfig.ExternalCiWebhookUrl, externalCiPipeline.Id),
 			Payload:    impl.ciConfig.ExternalCiPayload,
 			AccessKey:  "",
-			ExternalCiConfigRole: bean.ExternalCiConfigRole{
-				ProjectId:       app.TeamId,
-				ProjectName:     app.Team.Name,
-				EnvironmentId:   cdPipeline.EnvironmentId,
-				EnvironmentName: cdPipeline.Environment.Name,
-				AppId:           cdPipeline.AppId,
-				AppName:         cdPipeline.App.AppName,
-				Role:            "Build and deploy",
-			},
-		})
+		}
+
+		appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+			return nil, err
+		}
+
+		roleData := make(map[string]interface{})
+		for _, appWorkflowMapping := range appWorkflowMappings {
+			cdPipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+				return nil, err
+			}
+			if _, ok := roleData["TeamId"]; !ok {
+				app, err := impl.appRepo.FindAppAndProjectByAppId(cdPipeline.AppId)
+				if err != nil && !util.IsErrNoRows(err) {
+					impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+					return nil, err
+				}
+				roleData["teamId"] = app.TeamId
+				roleData["teamName"] = app.Team.Name
+			}
+			roleData["appId"] = cdPipeline.AppId
+			roleData["appName"] = cdPipeline.App.AppName
+			if _, ok := roleData["environmentId"]; !ok {
+				roleData["environmentId"] = cdPipeline.Environment.Name
+			} else {
+				roleData["environmentId"] = fmt.Sprintf("%s,%s", roleData["environmentId"], cdPipeline.Environment.Name)
+			}
+			if _, ok := roleData["environmentName"]; !ok {
+				roleData["environmentName"] = cdPipeline.Environment.Name
+			} else {
+				roleData["environmentName"] = fmt.Sprintf("%s,%s", roleData["environmentName"], cdPipeline.Environment.Name)
+			}
+
+		}
+
+		externalCiConfig.ExternalCiConfigRole = bean.ExternalCiConfigRole{
+			ProjectId:       roleData["teamId"].(int),
+			ProjectName:     roleData["teamName"].(string),
+			AppId:           roleData["appId"].(int),
+			AppName:         roleData["appName"].(string),
+			EnvironmentId:   roleData["environmentId"].(string),
+			EnvironmentName: roleData["environmentName"].(string),
+			Role:            "Build and deploy",
+		}
+		externalCiConfigs = append(externalCiConfigs, externalCiConfig)
 	}
 	//--------pipeline population end
-	return externalCiConfig, err
+	return externalCiConfigs, err
 }
 
 func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (ciConfig *bean.ExternalCiConfig, err error) {
@@ -633,21 +655,40 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 		impl.ciConfig.ExternalCiWebhookUrl = fmt.Sprintf("%s/%s", hostUrl.Value, ExternalCiWebhookPath)
 	}
 
-	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
-		return nil, err
-	}
-	cdPipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiPipeline.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 		return nil, err
 	}
 
-	app, err := impl.appRepo.FindAppAndProjectByAppId(cdPipeline.AppId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
-		return nil, err
+	roleData := make(map[string]interface{})
+	for _, appWorkflowMapping := range appWorkflowMappings {
+		cdPipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
+		if err != nil && !util.IsErrNoRows(err) {
+			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+			return nil, err
+		}
+		if _, ok := roleData["TeamId"]; !ok {
+			app, err := impl.appRepo.FindAppAndProjectByAppId(cdPipeline.AppId)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
+				return nil, err
+			}
+			roleData["teamId"] = app.TeamId
+			roleData["teamName"] = app.Team.Name
+		}
+		roleData["appId"] = cdPipeline.AppId
+		roleData["appName"] = cdPipeline.App.AppName
+		if _, ok := roleData["environmentId"]; !ok {
+			roleData["environmentId"] = cdPipeline.Environment.Name
+		} else {
+			roleData["environmentId"] = fmt.Sprintf("%s,%s", roleData["environmentId"], cdPipeline.Environment.Name)
+		}
+		if _, ok := roleData["environmentName"]; !ok {
+			roleData["environmentName"] = cdPipeline.Environment.Name
+		} else {
+			roleData["environmentName"] = fmt.Sprintf("%s,%s", roleData["environmentName"], cdPipeline.Environment.Name)
+		}
 	}
 
 	externalCiConfig := &bean.ExternalCiConfig{
@@ -655,15 +696,15 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 		WebhookUrl: fmt.Sprintf("%s/%d", impl.ciConfig.ExternalCiWebhookUrl, externalCiId),
 		Payload:    impl.ciConfig.ExternalCiPayload,
 		AccessKey:  "",
-		ExternalCiConfigRole: bean.ExternalCiConfigRole{
-			ProjectId:       app.TeamId,
-			ProjectName:     app.Team.Name,
-			EnvironmentId:   cdPipeline.EnvironmentId,
-			EnvironmentName: cdPipeline.Environment.Name,
-			AppId:           cdPipeline.AppId,
-			AppName:         cdPipeline.App.AppName,
-			Role:            "Build and deploy",
-		},
+	}
+	externalCiConfig.ExternalCiConfigRole = bean.ExternalCiConfigRole{
+		ProjectId:       roleData["teamId"].(int),
+		ProjectName:     roleData["teamName"].(string),
+		AppId:           roleData["appId"].(int),
+		AppName:         roleData["appName"].(string),
+		EnvironmentId:   roleData["environmentId"].(string),
+		EnvironmentName: roleData["environmentName"].(string),
+		Role:            "Build and deploy",
 	}
 	externalCiConfig.Schema = impl.buildExternalCiWebhookSchema()
 	externalCiConfig.PayloadOption = impl.buildPayloadOption()
@@ -1642,24 +1683,24 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 	defer tx.Rollback()
 
 	if pipeline.AppWorkflowId == 0 && pipeline.ParentPipelineType == "WEBHOOK" {
-			externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-				AppId:       app.Id,
-				AccessToken: "",
-				Active:      true,
-				AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-			}
-			externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
-			wf := &appWorkflow.AppWorkflow{
-				Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
-				AppId:    app.Id,
-				Active:   true,
-				AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
-			}
-			savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
-			if err != nil {
-				impl.logger.Errorw("err", err)
-				return 0, err
-			}
+		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
+			AppId:       app.Id,
+			AccessToken: "",
+			Active:      true,
+			AuditLog:    sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+		}
+		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
+		wf := &appWorkflow.AppWorkflow{
+			Name:     fmt.Sprintf("wf-%d-%s", app.Id, util2.Generate(4)),
+			AppId:    app.Id,
+			Active:   true,
+			AuditLog: sql.AuditLog{CreatedBy: userId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: userId},
+		}
+		savedAppWf, err := impl.appWorkflowRepository.SaveAppWorkflowWithTx(wf, tx)
+		if err != nil {
+			impl.logger.Errorw("err", err)
+			return 0, err
+		}
 		appWorkflowMap := &appWorkflow.AppWorkflowMapping{
 			AppWorkflowId: savedAppWf.Id,
 			ComponentId:   externalCiPipeline.Id,
