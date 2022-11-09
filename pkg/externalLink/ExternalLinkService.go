@@ -122,6 +122,9 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
+	externalLinksCreateUpdateResponse := &ExternalLinkApiResponse{
+		Success: false,
+	}
 	for _, request := range requests {
 		//if user is admin make isEditable true ,else if user is sup_adm get it from request
 		if userRole == ADMIN_ROLE {
@@ -144,7 +147,7 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 				InternalMessage: "external link failed to create in db",
 				UserMessage:     "external link failed to create in db",
 			}
-			return nil, err
+			return externalLinksCreateUpdateResponse, err
 		}
 		//for all identifiers, check if it is clusterLevel/appLevel
 		//if appLevel, get type and identifier else get clusterId
@@ -159,7 +162,7 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 					appId, err := strconv.Atoi(linkIdentifier.Identifier)
 					if err != nil {
 						impl.logger.Errorw("error while parsing appId", "appId", appId, "err", err)
-						return nil, err
+						return externalLinksCreateUpdateResponse, err
 					}
 					linkIdentifier.AppId = appId
 				}
@@ -183,7 +186,7 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 					InternalMessage: "external-link-identifier-mapping failed to create in db",
 					UserMessage:     "external-link-identifier-mapping failed to create in db",
 				}
-				return nil, err
+				return externalLinksCreateUpdateResponse, err
 			}
 		}
 	}
@@ -191,9 +194,7 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 	if err != nil {
 		return nil, err
 	}
-	externalLinksCreateUpdateResponse := &ExternalLinkApiResponse{
-		Success: true,
-	}
+	externalLinksCreateUpdateResponse.Success = true
 	return externalLinksCreateUpdateResponse, nil
 }
 
