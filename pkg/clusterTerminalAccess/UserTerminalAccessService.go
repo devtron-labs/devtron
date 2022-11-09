@@ -351,7 +351,7 @@ func (impl UserTerminalAccessServiceImpl) applyTemplateData(request *models.User
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessUserIdTemplateVar, strconv.FormatInt(int64(request.UserId), 10))
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessNodeNameVar, request.NodeName)
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessBaseImageVar, request.BaseImage)
-	templateData = strings.ReplaceAll(templateData, models.TerminalAccessNamespaceVar, request.BaseImage)
+	templateData = strings.ReplaceAll(templateData, models.TerminalAccessNamespaceVar, impl.Config.TerminalPodDefaultNamespace)
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessPodNameVar, podNameVar)
 	err := impl.applyTemplate(clusterId, terminalTemplate.TemplateKindData, templateData, isUpdate)
 	if err != nil {
