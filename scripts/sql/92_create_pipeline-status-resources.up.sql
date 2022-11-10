@@ -27,7 +27,7 @@ CREATE TABLE public.pipeline_status_fetch_detail (
 "id"                                integer NOT NULL DEFAULT nextval('id_seq_pipeline_status_fetch_detail'::regclass),
 "installed_app_version_history_id"  integer,
 "cd_workflow_runner_id"             integer,
-"last_fetched_at"                   timestampz,
+"last_fetched_at"                   timestamptz,
 "fetch_count"                       integer,
 "created_on"                        timestamptz,
 "created_by"                        int4,
