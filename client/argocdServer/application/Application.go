@@ -415,7 +415,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 
 // fill the health status in node from app resources
 func (c ServiceClientImpl) updateNodeHealthStatus(resp *v1alpha1.ApplicationTree, appResp *v1alpha1.ApplicationWatchEvent) {
-	if resp == nil || len(resp.Nodes) == 0 || len(appResp.Application.Status.Resources) == 0 {
+	if resp == nil || len(resp.Nodes) == 0 || appResp == nil || len(appResp.Application.Status.Resources) == 0 {
 		return
 	}
 
