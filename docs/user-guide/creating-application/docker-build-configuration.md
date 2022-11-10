@@ -41,7 +41,7 @@ You can choose one of the following options to build your container image:
 
 ### Build Docker Image when you have a Dockerfile
 
-A `Dockerfile` is a file that you create which in turn produces a Docker image when you build it.
+A `Dockerfile` is a text document that contains all the commands which you can call on the command line to build an image.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/i-have-a-dockerfile.png)
 
@@ -63,7 +63,7 @@ With the option **Create Dockerfile**, you can create a `Dockerfile` from the av
 
 ### Build Docker Image without Dockerfile
 
-With the option **Build without Dockerfile**, you can use buildpacks to automate the build processes for your preferred languages and frameworks.
+With the option **Build without Dockerfile**, you can use Buildpacks to automatically build the image for your preferred language and framework.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/docker-build-configuration/build-without-dockerfile.jpg)
 
