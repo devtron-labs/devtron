@@ -20,7 +20,7 @@ To add container registry, go to the `Container Registry` section of `Global Con
 | **Name** | Provide a name to your registry, this name will be shown to you in Build Configuration in the drop-down list. |
 | **Registry Type** | Select the registry type from the drop-down list. E.g., Docker. |
 | **Registry URL** | Provide the URL of your registry. |
-| **Set as default Registry** | Enable this field to set as default registry hub for your images. |
+| **Set as default registry** | Enable this field to set as default registry hub for your images. |
 
 * For each **Registry Type**, the credential input fields are different. Please see the table below to know the required credential inputs as per the selected registry type.
 
@@ -175,24 +175,27 @@ You have successfully set your Docker credentials in the cluster as a Secret cal
 Enter the `Secret` name in the field and click **Save**.
 
 
-## How to resolve when Deployment Status shows Failed or Degraded
+## How to resolve if Deployment Status shows Failed or Degraded
 
 If the deployment status shows `Failed` or `Degraded`, then the cluster is not able to pull container image from the private registry. In that case, the status of pod shows `ImagePullBackOff`.
-
-You can resolve the `ImagePullBackOff` issue by clicking **How to resolve?** which will take you to the **App Details** page.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/how-to-resolve-latest1.png)
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/manage-access-latest.jpg)
 
 The failure of deployment can be one of the following reasons:
 
 * Provided credentials may not have permission to pull container image from registry.
 * Provided credentials may be invalid.
 
+You can resolve the `ImagePullBackOff` issue by clicking **How to resolve?** which will take you to the **App Details** page.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/how-to-resolve-latest1.png)
+
+
 To provide the auto-inject credentials to the specific clusters for pulling the image from the private repository, click **Manage Access** which will take you to the **Container Registries** page. 
 
-1. Select the docker registry and click **Manage**.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/manage-access-latest.jpg)
+
+1. On the **Container Registries** page, select the docker registry and click **Manage**.
 2. In the **Auto-inject credentials to clusters**, click **Confirm to edit** to select the specific cluster or all clusters for which you want to auto-inject the credentials to and click **Save**.
+3. Redeploy the application after allowing the access.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/auto-inject-to-clusters.jpg)
 
