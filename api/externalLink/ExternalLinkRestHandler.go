@@ -62,13 +62,6 @@ func NewExternalLinkRestHandlerImpl(logger *zap.SugaredLogger,
 	}
 }
 
-type AppIdDto struct {
-	AppId int
-}
-type RoleCheckResponse struct {
-	Access bool
-}
-
 func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r *http.Request, action string) (int32, string, error) {
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
