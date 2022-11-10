@@ -2,6 +2,7 @@
 - fix: health fix for nodes in resource tree for missing state (#2606)
 ## Enhancements
 ## Documentation
+- docs: updated doc for aws secret manager  (#2591)
 - docs: Added buildpack doc (#2543)
 ## Others
 - chore: Release action update for new release process (#2610)
