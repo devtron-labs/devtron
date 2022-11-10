@@ -28,6 +28,7 @@ jobs:
         BUG_SECTION=${BUG_SECTION:=Bugs}
         OTHER_SECTION=${OTHER_SECTION:=Others}
         FILE_NAME=${FILE_NAME:=beta-releasenotes.md}
+        RELEASE_NOTES_BRANCH=${RELEASE_NOTES_BRANCH:=release-bot}
         echo "Cloned repository $REPO_NAME"
         cd $REPO_NAME
         git config --global user.email "${GIT_CONFIG_EMAIL}" && git config --global user.name "${GIT_CONFIG_NAME}"
@@ -59,4 +60,3 @@ jobs:
         GH_TOKEN: ${{ secrets.GIT_TOKEN }}
         GIT_CONFIG_NAME: ${{ secrets.GIT_TARGET_USERNAME }}
         GIT_CONFIG_EMAIL: ${{ secrets.GIT_TARGET_EMAIL }}
-        RELEASE_NOTES_BRANCH: ${{ secrets.RELEASE_NOTES_BRANCH }}
