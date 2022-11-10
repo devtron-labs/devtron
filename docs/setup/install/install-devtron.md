@@ -1,6 +1,6 @@
 # Install Devtron
 
-Are you installing Devtron on Minikube, Microk8s, K3s, Kind? See Instructions [here](./Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
+Are you installing Devtron on Minikube, Microk8s, K3s, Kind? See Instructions [here](Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
 
 This page helps you to install Devtron without any integrations. Integrations can be added later using [Devtron Stack Manager](./../../user-guide/stack-manager.md).
 
