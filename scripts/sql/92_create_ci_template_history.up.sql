@@ -23,7 +23,21 @@ CREATE TABLE public.ci_template_history (
     ci_build_config_id   integer,
     build_meta_data_type  varchar(100),
     build_metadata       text,
-    PRIMARY KEY ("id")
+    trigger character varying(100),
+    PRIMARY KEY ("id"),
+    CONSTRAINT ci_template_history_ci_template_id_fkey
+        FOREIGN KEY (ci_template_id)
+            REFERENCES public.ci_template(id),
+    CONSTRAINT ci_template_history_docker_registry_id_fkey
+        FOREIGN KEY(docker_registry_id)
+            REFERENCES public.docker_artifact_store(id),
+    CONSTRAINT ci_template_history_app_id_fkey
+        FOREIGN KEY(app_id)
+            REFERENCES public.app(id),
+    CONSTRAINT ci_template_git_material_history_id_fkey
+        FOREIGN KEY(git_material_id)
+            REFERENCES public.git_material(id)
 );
+
 
 ALTER TABLE public.ci_template OWNER TO postgres;
