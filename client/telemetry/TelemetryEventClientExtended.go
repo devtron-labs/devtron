@@ -53,7 +53,9 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
-	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService) (*TelemetryEventClientImplExtended, error) {
+	chartRepository chartRepoRepository.ChartRepository, moduleRepository moduleRepo.ModuleRepository,
+	serverDataStore *serverDataStore.ServerDataStore, userAuditService user.UserAuditService,
+	ciBuildConfigService pipeline.CiBuildConfigService) (*TelemetryEventClientImplExtended, error) {
 
 	cron := cron.New(
 		cron.WithChain())
@@ -72,6 +74,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 		materialRepository:            materialRepository,
 		ciTemplateRepository:          ciTemplateRepository,
 		chartRepository:               chartRepository,
+		ciBuildConfigService:          ciBuildConfigService,
 		TelemetryEventClientImpl: &TelemetryEventClientImpl{
 			cron:             cron,
 			logger:           logger,
