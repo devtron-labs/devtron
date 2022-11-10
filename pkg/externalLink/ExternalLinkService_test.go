@@ -302,5 +302,42 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 	externalLinkIdentifierMappingRepositoryMocked := mocks2.NewExternalLinkIdentifierMappingRepository(t)
 	externalLinkMonitoringToolRepository := mocks2.NewExternalLinkMonitoringToolRepository(t)
 
+	activeMappings := []LinkIdentifier{
+		{
+			Type:      "cluster",
+			ClusterId: 1,
+		},
+		{
+			Type:      "cluster",
+			ClusterId: 4,
+		},
+	}
+	externalLinkDtoInput := ExternalLinkDto{
+		Id:               1,
+		Name:             "name2",
+		Url:              "test-url1",
+		IsEditable:       true,
+		MonitoringToolId: 1,
+		Identifiers:      activeMappings,
+	}
+
+	externalLinkOutput := ExternalLink{
+		Id:                           1,
+		Name:                         "name1",
+		Url:                          "test-url1",
+		IsEditable:                   true,
+		ExternalLinkMonitoringToolId: 1,
+	}
 	externalLinkService := NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
+	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByExternalLinkId").Return(activeMappings)
+	externalLinkIdentifierMappingRepositoryMocked.On("Update").Return(nil)
+	externalLinkIdentifierMappingRepositoryMocked.On("Save").Return(nil)
+	externalLinkRepositoryMocked.On("FindOne", 1).Return(externalLinkOutput)
+	externalLinkRepositoryMocked.On("Update").Return(nil)
+
+	res, err := externalLinkService.Update(&externalLinkDtoInput, SUPER_ADMIN_ROLE)
+	assert.Nil(t, err)
+	assert.NotNil(t, res)
+	assert.Equal(t, res.Success, true)
+
 }
