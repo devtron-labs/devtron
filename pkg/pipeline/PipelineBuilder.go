@@ -790,7 +790,7 @@ func (impl PipelineBuilderImpl) buildPayloadOption() []bean.PayloadOptionObject 
 func (impl PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
 	responseSchemaObjects := make([]bean.ResponseSchemaObject, 0)
 	schema := make(map[string]interface{})
-	schema["success"] = &bean.SchemaObject{Description: "success desc", DataType: "boolean", Example: "true/false", Optional: false}
+	schema["code"] = &bean.SchemaObject{Description: "http status code", DataType: "integer", Example: "200/400/401", Optional: false}
 	schema["result"] = &bean.SchemaObject{Description: "detail page url", DataType: "string", Example: "url", Optional: true}
 	schema["status"] = &bean.SchemaObject{Description: "result message", DataType: "string", Example: "url", Optional: true}
 
@@ -1589,8 +1589,8 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 			return err
 		}
 		noOtherChildNodes := true
-		for _, item := range childNodes {
-			if pipeline.Id != item.ComponentId {
+		for _, childNode := range childNodes {
+			if appWorkflowMapping.Id != childNode.Id {
 				noOtherChildNodes = false
 			}
 		}
@@ -1609,12 +1609,12 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 				return err
 			}
 
-			webhookWorkflowMapping, err := impl.appWorkflowRepository.FindByTypeAndComponentId(appWorkflowMapping.AppWorkflowId, appWorkflowMapping.ParentId, appWorkflow.WEBHOOK)
+			appWorkflow, err := impl.appWorkflowRepository.FindById(appWorkflowMapping.AppWorkflowId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 				return err
 			}
-			err = impl.appWorkflowRepository.DeleteAppWorkflowMapping(webhookWorkflowMapping, tx)
+			err = impl.appWorkflowRepository.DeleteAppWorkflow(appWorkflow, tx)
 			if err != nil {
 				impl.logger.Errorw("error in deleting workflow mapping", "err", err)
 				return err
