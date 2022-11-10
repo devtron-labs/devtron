@@ -67,7 +67,7 @@ jobs:
     # Send notification on discord
     - name: discord-notify
       run: |
-        RELEASE_FILE_CONTENTS=$(curl -L -s  "https://raw.githubusercontent.com/$REPO/$GIT_BRANCH/$RELEASE_FILE" )
+        RELEASE_FILE_CONTENTS=$(curl -L -s  "https://raw.githubusercontent.com/$REPO/$GIT_BRANCH/manifests/release.txt" )
         RELEASE_TYPE=$(echo $RELEASE_FILE_CONTENTS | awk '{print $1}')
         if [[ "$RELEASE_TYPE" == "stable" ]]
         then
