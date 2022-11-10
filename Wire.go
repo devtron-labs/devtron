@@ -764,10 +764,10 @@ func InitializeApp() (*App, error) {
 		pipelineConfig.NewPipelineStatusTimelineResourcesRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineStatusTimelineResourcesRepository), new(*pipelineConfig.PipelineStatusTimelineResourcesRepositoryImpl)),
 
-		app.NewPipelineStatusFetchDetailServiceImpl,
-		wire.Bind(new(app.PipelineStatusFetchDetailService), new(*app.PipelineStatusFetchDetailServiceImpl)),
-		pipelineConfig.NewPipelineStatusFetchDetailRepositoryImpl,
-		wire.Bind(new(pipelineConfig.PipelineStatusFetchDetailRepository), new(*pipelineConfig.PipelineStatusFetchDetailRepositoryImpl)),
+		app.NewPipelineStatusSyncDetailServiceImpl,
+		wire.Bind(new(app.PipelineStatusSyncDetailService), new(*app.PipelineStatusSyncDetailServiceImpl)),
+		pipelineConfig.NewPipelineStatusSyncDetailRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusSyncDetailRepository), new(*pipelineConfig.PipelineStatusSyncDetailRepositoryImpl)),
 	)
 	return &App{}, nil
 }

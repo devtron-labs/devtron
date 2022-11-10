@@ -88,7 +88,7 @@ type CdHandlerImpl struct {
 	deploymentEventHandler                 app.DeploymentEventHandler
 	eventClient                            client2.EventClient
 	pipelineStatusTimelineResourcesService app.PipelineStatusTimelineResourcesService
-	pipelineStatusFetchDetailService       app.PipelineStatusFetchDetailService
+	pipelineStatusSyncDetailService        app.PipelineStatusSyncDetailService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -108,7 +108,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	deploymentEventHandler app.DeploymentEventHandler,
 	eventClient client2.EventClient,
 	pipelineStatusTimelineResourcesService app.PipelineStatusTimelineResourcesService,
-	pipelineStatusFetchDetailService app.PipelineStatusFetchDetailService) *CdHandlerImpl {
+	pipelineStatusSyncDetailService app.PipelineStatusSyncDetailService) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                                 Logger,
 		cdConfig:                               cdConfig,
@@ -133,7 +133,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		deploymentEventHandler:                 deploymentEventHandler,
 		eventClient:                            eventClient,
 		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
-		pipelineStatusFetchDetailService:       pipelineStatusFetchDetailService,
+		pipelineStatusSyncDetailService:        pipelineStatusSyncDetailService,
 	}
 }
 
@@ -249,7 +249,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		impl.Logger.Errorw("found error, skipping argo apps status update for this trigger", "appId", appId, "envId", envId, "err", err)
 		return err
 	}
-	err = impl.pipelineStatusFetchDetailService.SaveOrUpdateFetchDetail(cdWfr.Id, userId)
+	err = impl.pipelineStatusSyncDetailService.SaveOrUpdateSyncDetail(cdWfr.Id, userId)
 	if err != nil {
 		impl.Logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "cdWfrId", cdWfr.Id)
 	}

@@ -18,7 +18,7 @@ type PipelineStatusTimelineServiceImpl struct {
 	cdWorkflowRepository                   pipelineConfig.CdWorkflowRepository
 	userService                            user.UserService
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService
-	pipelineStatusFetchDetailService       PipelineStatusFetchDetailService
+	pipelineStatusSyncDetailService        PipelineStatusSyncDetailService
 }
 
 func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
@@ -26,7 +26,7 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 	cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	userService user.UserService,
 	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService,
-	pipelineStatusFetchDetailService PipelineStatusFetchDetailService,
+	pipelineStatusSyncDetailService PipelineStatusSyncDetailService,
 ) *PipelineStatusTimelineServiceImpl {
 	return &PipelineStatusTimelineServiceImpl{
 		logger:                                 logger,
@@ -34,7 +34,7 @@ func NewPipelineStatusTimelineServiceImpl(logger *zap.SugaredLogger,
 		cdWorkflowRepository:                   cdWorkflowRepository,
 		userService:                            userService,
 		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
-		pipelineStatusFetchDetailService:       pipelineStatusFetchDetailService,
+		pipelineStatusSyncDetailService:        pipelineStatusSyncDetailService,
 	}
 }
 
@@ -114,7 +114,7 @@ func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrI
 		}
 		timelineDtos = append(timelineDtos, timelineDto)
 	}
-	statusLastFetchedAt, statusFetchCount, err := impl.pipelineStatusFetchDetailService.GetFetchTimeAndCountByCdWfrId(wfrId)
+	statusLastFetchedAt, statusFetchCount, err := impl.pipelineStatusSyncDetailService.GetSyncTimeAndCountByCdWfrId(wfrId)
 	if err != nil {
 		impl.logger.Errorw("error in getting pipeline status fetchTime and fetchCount by cdWfrId", "err", err, "cdWfrId", wfrId)
 	}
