@@ -132,7 +132,10 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 	externalLinkMonitoringToolRepository := mocks2.NewExternalLinkMonitoringToolRepository(t)
 
 	externalLinkService := NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
-	linkIdentifierInput := &LinkIdentifier{}
+	linkIdentifierInput := &LinkIdentifier{
+		Type:       "external-helm-app",
+		Identifier: "ext-helm-1",
+	}
 
 	mockLinks := make([]ExternalLinkExternalMappingJoinResponse, 0)
 	mockLinks = append(mockLinks, ExternalLinkExternalMappingJoinResponse{
@@ -148,27 +151,99 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 	mockLinks = append(mockLinks, ExternalLinkExternalMappingJoinResponse{
 		Id:                           1,
 		ExternalLinkMonitoringToolId: 1,
+		Name:                         "name1",
+		Url:                          "test-url1",
+		IsEditable:                   true,
+		MappingId:                    2,
+		Type:                         0,
+		ClusterId:                    4,
+	})
+	mockLinks = append(mockLinks, ExternalLinkExternalMappingJoinResponse{
+		Id:                           2,
+		ExternalLinkMonitoringToolId: 1,
 		Name:                         "name2",
 		Url:                          "test-url2",
 		IsEditable:                   true,
-		MappingId:                    1,
-		Type:                         1,
-		AppId:                        1,
-		Identifier:                   "1",
-	})
-	mockLinks = append(mockLinks, ExternalLinkExternalMappingJoinResponse{
-		Id:                           1,
-		ExternalLinkMonitoringToolId: 1,
-		Name:                         "name3",
-		Url:                          "test-url3",
-		IsEditable:                   true,
-		MappingId:                    1,
+		MappingId:                    3,
 		Type:                         3,
 		Identifier:                   "ext-helm-1",
 	})
 	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByJoin").Return(mockLinks)
+	expectedResultLinks := make([]ExternalLinkDto, 0)
+	expectedResultLinks = append(expectedResultLinks, ExternalLinkDto{
+		Id:               1,
+		Name:             "name1",
+		Url:              "test-url1",
+		IsEditable:       true,
+		MonitoringToolId: 1,
+		Identifiers: []LinkIdentifier{
+			{
+				Type:      "cluster",
+				ClusterId: 1,
+			},
+			{
+				Type:      "cluster",
+				ClusterId: 4,
+			},
+		},
+	})
+	expectedResultLinks = append(expectedResultLinks, ExternalLinkDto{
+		Id:         2,
+		Name:       "name2",
+		Url:        "test-url2",
+		IsEditable: true,
+		Identifiers: []LinkIdentifier{
+			{
+				Type:       "external-helm-app",
+				Identifier: "ext-helm-1",
+			},
+		},
+	})
 
-	testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifierInput, 0, SUPER_ADMIN_ROLE, 2)
+	testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, SUPER_ADMIN_ROLE, 2)
+	assert.Nil(t, err)
+	for i, testLink := range testResult {
+		assert.Equal(t, testLink.Id, expectedResultLinks[i].Id)
+		assert.Equal(t, testLink.MonitoringToolId, expectedResultLinks[i].MonitoringToolId)
+		assert.Equal(t, testLink.Name, expectedResultLinks[i].Name)
+		assert.Equal(t, testLink.Url, expectedResultLinks[i].Url)
+		assert.Equal(t, testLink.IsEditable, expectedResultLinks[i].IsEditable)
+		assert.Equal(t, testLink.Description, expectedResultLinks[i].Description)
+		for j, identifier := range expectedResultLinks[i].Identifiers {
+			assert.NotNil(t, testLink.Identifiers[j])
+			assert.Equal(t, identifier.Type, testLink.Identifiers[j].Type)
+			assert.Equal(t, identifier.Identifier, testLink.Identifiers[j].Identifier)
+			assert.Equal(t, identifier.AppId, testLink.Identifiers[j].AppId)
+			assert.Equal(t, identifier.ClusterId, testLink.Identifiers[j].ClusterId)
+			assert.Equal(t, identifier.EnvId, testLink.Identifiers[j].EnvId)
+		}
+	}
+
+	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByLinkIdentifier").Return([]ExternalLinkExternalMappingJoinResponse{mockLinks[2]})
+	testResult, err = externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, ADMIN_ROLE, 2)
+	assert.Nil(t, testResult)
+	assert.NotNil(t, err)
+	assert.Equal(t, err, fmt.Errorf("user role is not super_admin"))
+
+	testResult, err = externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifierInput, 0, ADMIN_ROLE, 2)
+	assert.Nil(t, err)
+	assert.NotNil(t, testResult)
+	assert.Equal(t, 1, len(testResult))
+	assert.Equal(t, testResult[0].Id, expectedResultLinks[1].Id)
+	assert.Equal(t, testResult[0].MonitoringToolId, expectedResultLinks[1].MonitoringToolId)
+	assert.Equal(t, testResult[0].Name, expectedResultLinks[1].Name)
+	assert.Equal(t, testResult[0].Url, expectedResultLinks[1].Url)
+	assert.Equal(t, testResult[0].IsEditable, expectedResultLinks[1].IsEditable)
+	assert.Equal(t, testResult[0].Description, expectedResultLinks[1].Description)
+	for j, identifier := range expectedResultLinks[1].Identifiers {
+		assert.NotNil(t, testResult[0].Identifiers[j])
+		assert.Equal(t, identifier.Type, testResult[0].Identifiers[j].Type)
+		assert.Equal(t, identifier.Identifier, testResult[0].Identifiers[j].Identifier)
+		assert.Equal(t, identifier.AppId, testResult[0].Identifiers[j].AppId)
+		assert.Equal(t, identifier.ClusterId, testResult[0].Identifiers[j].ClusterId)
+		assert.Equal(t, identifier.EnvId, testResult[0].Identifiers[j].EnvId)
+	}
+
 }
 
 func TestExternalLinkServiceImpl_GetAllActiveTools(t *testing.T) {
