@@ -89,7 +89,7 @@ Second section is ***configs*** and has following properties
 |----------:|:------------|:--------|
 | **BASE_URL_SCHEME** | either of http or https | http |
 | **BASE_URL** | url without scheme and trailing slash (required) `eg. devtron.ai` | `change-me` |
-| **DEX_CONFIG** | dex config if you want to integrate login with SSO (optional) for more information check [Argocd documentation](https://argoproj.github.io/argo-cd/operator-manual/user-management/) | 
+| **DEX_CONFIG** | dex config if you want to integrate login with SSO (optional) for more information check [Argocd documentation](https://argo-cd.readthedocs.io/en/stable/operator-manual/user-management/) | 
 | **GIT_PROVIDER** | git provider for storing config files for gitops, currently only GITHUB and GITLAB are supported | `GITHUB` | |
 | **GITLAB_NAMESPACE_ID** | if GIT_PROVIDER is GITLAB | | 
 | **GITLAB_NAMESPACE_NAME** | if GIT_PROVIDER is GITLAB | |
