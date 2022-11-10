@@ -1,4 +1,5 @@
 ## Bugs
+- fix: health fix for nodes in resource tree for missing state (#2606)
 ## Enhancements
 ## Documentation
 - docs: Added buildpack doc (#2543)
