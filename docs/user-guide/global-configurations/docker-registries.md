@@ -2,7 +2,7 @@
 
 Container registries are used for storing images built by the CI Pipeline. You can configure the container registry using any different cloud provider of your choice. It allows you to build, deploy and manage your container images with easy-to-use UI. 
 
-When configuring an application, you can choose the specific container registry and repository in the App Configuration > [Docker Build Config](user-guide/creating-application/docker-build-configuration.md) section.
+When configuring an application, you can choose the specific container registry and repository in the App Configuration > [Build Configuration](user-guide/creating-application/docker-build-configuration.md) section.
 
 ## Add Container Registry:
 
@@ -30,7 +30,8 @@ You will see below the input fields to configure the container registry.
 * Registry URL
 * Set as default
 
-![](../../user-guide/global-configurations/images/Container_Registry.jpg)
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/add-container-registry.jpg)
 
 ### Name
 
@@ -157,17 +158,21 @@ There are two options to manage the access of registry credentials:
 | **Do not inject credentials to clusters** | Select the clusters for which you do not want to inject credentials. |
 | **Auto-inject credentials to clusters** | Select the clusters for which you want to inject credentials. |
 
-You can choose one of the three options for defining credentials:
+You can choose one of the two options for defining credentials:
 
 ### Use Registry Credentials
 
 If you select **Use Registry Credentials**, the clusters will be auto-injected with the registry credentials of your registry type. As an example: If you select `Docker` as Registry Type and `docker.io` as Registry URL, the registry credentials of the clusters will be the `username` and `password` which you define.
 Click **Save**.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/use-registry-credentials.jpg)
+
 
 ### Specify Image Pull Secret
 
 You can create a Secret by providing credentials on the command line.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/specify-image-pull-secret.jpg)
 
 Create this Secret, naming it `regcred`:
 
@@ -186,20 +191,37 @@ You have successfully set your Docker credentials in the cluster as a Secret cal
 
 **Note**: Typing secrets on the command line may store them in your shell history unprotected, and those secrets might also be visible to other users on your PC during the time when kubectl is running.
 
-Enter the `Secret` name in the **Name** field and click **Save**.
+Enter the `Secret` name in the field and click **Save**.
 
-### Create Image Pull Secret
 
-With this option, you can define the following fields to create image pull secret:
+## How to resolve when Deployment Status shows Failed or Degraded
 
-| Fields | Description |
-| --- | --- |
-| **Registry URL** | The URL of your registry. E.g., `docker.io` |
-| **Username** | Username of the registry hub account you used for creating registry. |
-| **Email** | Email address of the registry hub account you used for creating registry. This field is optional. |
-| **Password** | Password corresponding to your registry hub account. |
+If the deployment status shows `Failed` or `Degraded`, then the cluster is not able to pull container image from the private registry. In that case, the status of pod shows `ImagePullBackOff`.
 
-**Note**: If you leave all the fields blank, then the clusters will be auto-injected with the registry credentials which you define on the **Registry Type**.
+You can resolve the `ImagePullBackOff` issue by clicking **How to resolve?** which will take you to the **App Details** page.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/how-to-resolve-latest1.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/manage-access-latest.jpg)
+
+The failure of deployment can be one of the following reasons:
+
+* Provided credentials may not have permission to pull container image from registry.
+* Provided credentials may be invalid.
+
+To provide the auto-inject credentials to the specific clusters for pulling the image from the private repository, click **Manage Access** which will take you to the **Container Registries** page. 
+
+1. Select the docker registry and click **Manage**.
+2. In the **Auto-inject credentials to clusters**, click **Confirm to edit** to select the specific cluster or all clusters for which you want to auto-inject the credentials to and click **Save**.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/auto-inject-to-clusters.jpg)
+
+
+
+
+
+
+
+
 
 
 
