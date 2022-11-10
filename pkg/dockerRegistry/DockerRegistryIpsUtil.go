@@ -55,10 +55,16 @@ func CheckIfImagePullSecretAccessProvided(appliedClusterIdsCsv string, ignoredCl
 
 // eg: quayio-dtron-ips
 func BuildIpsName(dockerRegistryId string, ipsCredentialType string, ipsCredentialValue string) string {
+	var ipsName string
 	if ipsCredentialType == IPS_CREDENTIAL_TYPE_NAME {
-		return ipsCredentialValue
+		ipsName = ipsCredentialValue
+	} else {
+		ipsName = fmt.Sprintf("%s-%s-%s", nonAlphanumericRegex.ReplaceAllString(dockerRegistryId, ""), "dtron", "ips")
 	}
-	return fmt.Sprintf("%s-%s-%s", nonAlphanumericRegex.ReplaceAllString(dockerRegistryId, ""), "dtron", "ips")
+	if len(ipsName) > 0 {
+		ipsName = strings.ToLower(ipsName)
+	}
+	return ipsName
 }
 
 func BuildIpsData(dockerRegistryUrl, dockerRegistryUsername, dockerRegistryPassword, dockerRegistryEmail string) map[string][]byte {
