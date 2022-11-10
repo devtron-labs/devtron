@@ -742,8 +742,9 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 	}
 
 	v := r.URL.Query()
-	appName := v.Get("appName")
-	if len(appName) > 0 {
+
+	if v.Has("appName") {
+		appName := v.Get("appName")
 		result := make(map[string]interface{})
 		var isSuperAdmin, isAdmin, isManager, isTrigger bool
 		for _, role := range roles {
