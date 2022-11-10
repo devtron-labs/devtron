@@ -46,7 +46,7 @@ jobs:
         then
         sed -i "/${BUG_SECTION}/a $closed_pr" "$FILE_NAME"
         # Update Features/Enhancements PRs in enhancement section
-        elif [[ "$closed_pr_lower" == *"feat:"* || "$closed_pr_lower" == *"feature:"* || "$closed_pr_lower" == *"enhancement:"* ]]
+        elif [[ "$closed_pr_lower" == *"feat:"* || "$closed_pr_lower" == *"feature:"* || "$closed_pr_lower" == *"enhancement:"* || "$closed_pr_lower" == *"perf:"* ]]
         then
         sed -i "/${FEAT_SECTION}/a $closed_pr" "$FILE_NAME"
         else
