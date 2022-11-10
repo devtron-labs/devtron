@@ -6,7 +6,7 @@ name: Create Release
 # or on push in charts directory of main branch.
 on:
   push:
-    branches: [ main ]
+    branches: [ test-release ]
 
     paths:
       - 'charts/**'
@@ -25,22 +25,52 @@ jobs:
     # Runs series of commands to create a release
     - name: create-release
       run: |
-        gh repo clone $GITHUB_REPOSITORY
-        cd devtron
-        tag=$(git tag --sort=committerdate | tail -1)
-        echo $tag
-        echo $RELEASE_BRANCH
-        echo $GITHUB_REPOSITORY
-        gh release create $tag --target $RELEASE_BRANCH -R $GITHUB_REPOSITORY
-        sudo apt install nodejs npm -y
-        npm install github-release-notes -g
-        gren release --data-source issues --include-messages all --override --token ${{ secrets.GIT_TOKEN }} --tags $tag --username devtron-labs --repo devtron
+        RELEASE_FILE_CONTENTS=$(curl -L -s  "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/${RELEASE_BRANCH}/manifests/release.txt" )
+        RELEASE_TYPE=$(echo $RELEASE_FILE_CONTENTS | awk '{print $1}')
+        FILE_NAME=${FILE_NAME:=releasenotes.md}
+        echo $RELEASE_TYPE
+        if [[ "$RELEASE_TYPE" == "stable" ]]
+          then
+            echo $GITHUB_REPOSITORY
+            gh repo clone $GITHUB_REPOSITORY
+            cd devtron
+            tag=$(git tag --sort=committerdate | tail -1)
+            echo $tag
+            echo $RELEASE_BRANCH
+            echo $GITHUB_REPOSITORY
+            gh release create $tag --target $RELEASE_BRANCH -R $GITHUB_REPOSITORY -F $FILE_NAME
+            git checkout -b release-bot
+            touch CHANGELOG/release-notes-${tag}.md
+            cat $FILE_NAME > CHANGELOG/release-notes-${tag}.md
+            ls CHANGELOG
+            git config --global user.email "$GIT_CONFIG_EMAIL"
+            git config --global user.name "$GIT_CONFIG_NAME"
+            rm -f $FILE_NAME
+            touch $FILE_NAME
+            echo "## Bugs" > beta-releasenotes.md
+            echo "## Enhancements" >> beta-releasenotes.md
+            echo "## Documentation" >> beta-releasenotes.md
+            echo "## Others" >> beta-releasenotes.md
+            echo "beta -1 $tag" > manifests/release.txt
+            git add .
+            git commit -am "Updated release-notes files"
+            git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} release-bot
+        elif [[ "$RELEASE_TYPE" == "beta" ]]
+          then
+            echo "Not creating release due to beta"
+        fi
       env:
         GH_TOKEN: ${{ secrets.GIT_TOKEN }}
         RELEASE_BRANCH: ${{ secrets.RELEASE_BRANCH }}
+        GIT_CONFIG_NAME: ${{ secrets.GIT_TARGET_USERNAME }}
+        GIT_CONFIG_EMAIL: ${{ secrets.GIT_TARGET_EMAIL }}
     # Send notification on discord
     - name: discord-notify
       run: |
+        RELEASE_FILE_CONTENTS=$(curl -L -s  "https://raw.githubusercontent.com/$REPO/$GIT_BRANCH/$RELEASE_FILE" )
+        RELEASE_TYPE=$(echo $RELEASE_FILE_CONTENTS | awk '{print $1}')
+        if [[ "$RELEASE_TYPE" == "stable" ]]
+        then
         sudo apt install python3 python3-pip -y
         pip install discord-webhook
         export repo=$GITHUB_REPOSITORY
@@ -48,3 +78,7 @@ jobs:
         curl -O https://raw.githubusercontent.com/pawan-59/scripts/main/python/release-note-discord.py
         ls
         python3 release-note-discord.py
+        elif [[ "$RELEASE_TYPE" == "beta" ]]
+        then
+        echo "Not sending notification due to beta"
+        fi
