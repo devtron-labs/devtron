@@ -6,7 +6,7 @@ name: Create Release
 # or on push in charts directory of main branch.
 on:
   push:
-    branches: [ test-release ]
+    branches: [ main ]
 
     paths:
       - 'charts/**'
