@@ -158,7 +158,7 @@ spec:
       serviceAccountName: devtron
       containers:
         - name: devtron
-          image: "quay.io/devtron/devtron:6421edd9-326-11385"
+          image: "quay.io/devtron/devtron:737f4889-326-11450"
           imagePullPolicy: IfNotPresent
           lifecycle:
             preStop:
