@@ -20,5 +20,5 @@ CREATE TABLE "public"."module_resource_status"
 
 -- add foreign key
 ALTER TABLE "public"."module_resource_status"
-    ADD FOREIGN KEY ("module_resource_status_module_id_fk") REFERENCES "public"."module" ("id");
+    ADD FOREIGN KEY ("module_id") REFERENCES "public"."module" ("id");
 
