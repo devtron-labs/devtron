@@ -39,9 +39,9 @@ type ModuleResourceStatus struct {
 
 type ModuleResourceStatusRepository interface {
 	GetConnection() *pg.DB
-	FindAllActiveByModuleId(moduleId int) ([]*ModuleResourceStatus, error)
-	Update(status *ModuleResourceStatus, tx *pg.Tx) error
-	Save(statuses []*ModuleResourceStatus, tx *pg.Tx) error
+	FindAllActiveByModuleId(moduleId int) ([]ModuleResourceStatus, error)
+	Update(status ModuleResourceStatus, tx *pg.Tx) error
+	Save(statuses []ModuleResourceStatus, tx *pg.Tx) error
 }
 
 type ModuleResourceStatusRepositoryImpl struct {
@@ -56,19 +56,19 @@ func (impl ModuleResourceStatusRepositoryImpl) GetConnection() *pg.DB {
 	return impl.dbConnection
 }
 
-func (impl ModuleResourceStatusRepositoryImpl) FindAllActiveByModuleId(moduleId int) ([]*ModuleResourceStatus, error) {
-	var moduleResourcesStatus []*ModuleResourceStatus
-	err := impl.dbConnection.Model(&moduleResourcesStatus).
+func (impl ModuleResourceStatusRepositoryImpl) FindAllActiveByModuleId(moduleId int) ([]ModuleResourceStatus, error) {
+	var moduleResourcesStatus []ModuleResourceStatus
+	err := impl.dbConnection.Model(moduleResourcesStatus).
 		Where("module_id = ?", moduleId).
 		Where("active = ?", true).
 		Select()
 	return moduleResourcesStatus, err
 }
 
-func (impl ModuleResourceStatusRepositoryImpl) Update(status *ModuleResourceStatus, tx *pg.Tx) error {
+func (impl ModuleResourceStatusRepositoryImpl) Update(status ModuleResourceStatus, tx *pg.Tx) error {
 	return tx.Update(status)
 }
 
-func (impl ModuleResourceStatusRepositoryImpl) Save(statuses []*ModuleResourceStatus, tx *pg.Tx) error {
+func (impl ModuleResourceStatusRepositoryImpl) Save(statuses []ModuleResourceStatus, tx *pg.Tx) error {
 	return tx.Insert(statuses)
 }
