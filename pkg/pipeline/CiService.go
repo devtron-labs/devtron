@@ -409,12 +409,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
 		templateOverride := templateOverrideBean.CiTemplateOverride
 		checkoutPath = templateOverride.GitMaterial.CheckoutPath
-		dockerfilePath = filepath.Join(checkoutPath, templateOverride.DockerfilePath)
+		dockerfilePath = templateOverride.DockerfilePath
 		dockerRepository = templateOverride.DockerRepository
 		dockerRegistry = templateOverride.DockerRegistry
 	} else {
 		checkoutPath = ciTemplate.GitMaterial.CheckoutPath
-		dockerfilePath = filepath.Join(checkoutPath, ciTemplate.DockerfilePath)
+		dockerfilePath = ciTemplate.DockerfilePath
 		dockerRegistry = ciTemplate.DockerRegistry
 		dockerRepository = ciTemplate.DockerRepository
 		ciBuildConfigEntity := ciTemplate.CiBuildConfig
@@ -436,7 +436,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	}
 	if ciBuildConfigBean.CiBuildType == bean2.SELF_DOCKERFILE_BUILD_TYPE || ciBuildConfigBean.CiBuildType == bean2.MANAGED_DOCKERFILE_BUILD_TYPE {
 		dockerBuildConfig := ciBuildConfigBean.DockerBuildConfig
-		//dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
+		dockerfilePath = filepath.Join(checkoutPath, dockerBuildConfig.DockerfilePath)
 		dockerBuildConfig.DockerfilePath = dockerfilePath
 		checkoutPath = dockerfilePath[:strings.LastIndex(dockerfilePath, "/")+1]
 	} else if ciBuildConfigBean.CiBuildType == bean2.BUILDPACK_BUILD_TYPE {
