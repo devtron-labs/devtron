@@ -1,6 +1,7 @@
 ## Bugs
 ## Enhancements
 ## Documentation
+- doc: broken hyperlinks in doc fix (#2621)
 - docs: fix in gcp installation and configuration command (#2614)
 ## Others
 - chore: Updated stable to beta for nightly release (#2619)
