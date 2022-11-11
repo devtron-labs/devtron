@@ -122,7 +122,7 @@ type PipelineBuilderImpl struct {
 	appRepo                       app2.AppRepository
 	pipelineRepository            pipelineConfig.PipelineRepository
 	propertiesConfigService       PropertiesConfigService
-	//ciTemplateRepository             pipelineConfig.CiTemplateRepository
+	//	ciTemplateRepository             pipelineConfig.CiTemplateRepository
 	ciPipelineRepository             pipelineConfig.CiPipelineRepository
 	application                      application.ServiceClient
 	chartRepository                  chartRepoRepository.ChartRepository

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
+	"strings"
 	"testing"
 )
 
@@ -58,7 +59,7 @@ func TestClusterAccessNotProvidedInIgnored(t *testing.T) {
 func TestIpsNameForNameType(t *testing.T) {
 	ipsVal := "someName"
 	ipsName := BuildIpsName("", IPS_CREDENTIAL_TYPE_NAME, ipsVal)
-	assert.Equal(t, ipsVal, ipsName)
+	assert.Equal(t, strings.ToLower(ipsVal), ipsName)
 }
 
 func TestIpsNameForNonNameTypeWithHyphen(t *testing.T) {
@@ -82,7 +83,7 @@ func TestIpsNameForNonNameTypeWithDot(t *testing.T) {
 func TestIpsNameForNonNameTypeWithCase(t *testing.T) {
 	dockerRegistryId := "Devtron quay"
 	ipsName := BuildIpsName(dockerRegistryId, IPS_CREDENTIAL_TYPE_SAME_AS_REGISTRY, "")
-	assert.Equal(t, "Devtronquay-dtron-ips", ipsName)
+	assert.Equal(t, "devtronquay-dtron-ips", ipsName)
 }
 
 func TestBuildIpsData(t *testing.T) {
