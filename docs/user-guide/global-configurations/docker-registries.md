@@ -141,6 +141,9 @@ There are two options to manage the access of registry credentials:
 
 You can choose one of the two options for defining credentials:
 
+* [User Registry Credentials](https://docs.devtron.ai/v/v0.6/getting-started/global-configurations/docker-registries#user-registry-credentials)
+* [Specify Image Pull Secret](https://docs.devtron.ai/v/v0.6/getting-started/global-configurations/docker-registries#specify-image-pull-secret) 
+
 ### Use Registry Credentials
 
 If you select **Use Registry Credentials**, the clusters will be auto-injected with the registry credentials of your registry type. As an example: If you select `Docker` as Registry Type and `docker.io` as Registry URL, the registry credentials of the clusters will be the `username` and `password` which you define.
