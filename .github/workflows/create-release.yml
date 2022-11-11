@@ -35,9 +35,6 @@ jobs:
             echo $GITHUB_REPOSITORY
             gh release create $tag --target $RELEASE_BRANCH -R $GITHUB_REPOSITORY -F $FILE_NAME
             git checkout -b release-bot
-            touch CHANGELOG/release-notes-${tag}.md
-            cat $FILE_NAME > CHANGELOG/release-notes-${tag}.md
-            ls CHANGELOG
             git config --global user.email "$GIT_CONFIG_EMAIL"
             git config --global user.name "$GIT_CONFIG_NAME"
             rm -f $FILE_NAME
