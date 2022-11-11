@@ -31,7 +31,10 @@ RUN pip install -r requirements.txt
 
 # install nginx
 RUN apt-get update && apt-get install nginx vim -y --no-install-recommends
+
+#Refer https://github.com/devtron-labs/devtron/blob/main/sample-docker-templates/django/nginx.default for sample nginx.default file
 COPY nginx.default /etc/nginx/sites-available/default
+
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
     && ln -sf /dev/stderr /var/log/nginx/error.log
 
@@ -41,4 +44,5 @@ EXPOSE 8000
 
 STOPSIGNAL SIGTERM
 
+# Refer https://github.com/devtron-labs/devtron/blob/main/sample-docker-templates/django/start-server.sh for sample start-server.sh file
 CMD ["/app/start-server.sh"]
