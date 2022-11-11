@@ -107,6 +107,11 @@ type DeploymentDetailContainer struct {
 	CiArtifactId                  int             `json:"ciArtifactId"`
 	ClusterId                     int             `json:"clusterId"`
 	DeploymentAppType             string          `json:"deploymentAppType"`
+	CiPipelineId                  int             `json:"-"`
+	IsExternalCi                  bool            `json:"externalCi"`
+	ClusterName                   string          `json:"clusterName,omitempty"`
+	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
+	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
 }
 
 type AppDetailContainer struct {

@@ -29,6 +29,7 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util2 "github.com/devtron-labs/devtron/util"
@@ -41,6 +42,8 @@ import (
 	"strconv"
 	"strings"
 )
+
+const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
 
 type AppStoreDeploymentRestHandler interface {
 	InstallApp(w http.ResponseWriter, r *http.Request)
@@ -63,12 +66,13 @@ type AppStoreDeploymentRestHandlerImpl struct {
 	helmAppService             client.HelmAppService
 	helmAppRestHandler         client.HelmAppRestHandler
 	argoUserService            argo.ArgoUserService
+	attributesService          attributes.AttributesService
 }
 
 func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService user.UserService,
 	enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil, enforcerUtilHelm rbac.EnforcerUtilHelm, appStoreDeploymentService service.AppStoreDeploymentService,
 	validator *validator.Validate, helmAppService client.HelmAppService, appStoreDeploymentServiceC appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	argoUserService argo.ArgoUserService) *AppStoreDeploymentRestHandlerImpl {
+	argoUserService argo.ArgoUserService, attributesService attributes.AttributesService) *AppStoreDeploymentRestHandlerImpl {
 	return &AppStoreDeploymentRestHandlerImpl{
 		Logger:                     Logger,
 		userAuthService:            userAuthService,
@@ -80,6 +84,7 @@ func NewAppStoreDeploymentRestHandlerImpl(Logger *zap.SugaredLogger, userAuthSer
 		helmAppService:             helmAppService,
 		appStoreDeploymentServiceC: appStoreDeploymentServiceC,
 		argoUserService:            argoUserService,
+		attributesService:          attributesService,
 	}
 }
 
@@ -451,6 +456,9 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_UPDATE_COUNTER)
+
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
