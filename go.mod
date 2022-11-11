@@ -15,7 +15,7 @@ require (
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
 	github.com/devtron-labs/authenticator v0.4.31-0.20220913121257-aecda79359cc
-	github.com/devtron-labs/common-lib v0.0.0-20221028123910-ac349a64526a
+	github.com/devtron-labs/common-lib v0.0.0-20221111092855-6dae5a34a041
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
 	github.com/go-pg/pg v6.15.1+incompatible
@@ -36,7 +36,7 @@ require (
 	github.com/ktrysmt/go-bitbucket v0.9.40
 	github.com/lib/pq v1.10.4
 	github.com/microsoft/azure-devops-go-api/azuredevops v1.0.0-b5
-	github.com/nats-io/nats.go v1.15.0
+	github.com/nats-io/nats.go v1.19.0
 	github.com/otiai10/copy v1.0.2
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/pkg/errors v0.9.1

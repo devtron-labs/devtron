@@ -68,6 +68,10 @@ const (
 	DEVTRON_TEST_STREAM               string = "Devtron_Test_Stream"
 	DEVTRON_TEST_QUEUE                string = "Test_Topic_Queue"
 	DEVTRON_TEST_CONSUMER             string = "Test_Topic_Consumer"
+	TOPIC_CI_SCAN                     string = "CI-SCAN"
+	TOPIC_CI_SCAN_GRP                 string = "CI-SCAN-GRP-1"
+	TOPIC_CI_SCAN_DURABLE             string = "CI-SCAN-DURABLE-1"
+	IMAGE_SCANNER_STREAM              string = "IMAGE-SCANNER"
 )
 
 type NatsTopic struct {
@@ -96,6 +100,7 @@ var natsTopicMapping = map[string]NatsTopic{
 	NEW_CI_MATERIAL_TOPIC: {topicName: NEW_CI_MATERIAL_TOPIC, streamName: GIT_SENSOR_STREAM, queueName: NEW_CI_MATERIAL_TOPIC_GROUP, consumerName: NEW_CI_MATERIAL_TOPIC_DURABLE},
 
 	DEVTRON_TEST_TOPIC: {topicName: DEVTRON_TEST_TOPIC, streamName: DEVTRON_TEST_STREAM, queueName: DEVTRON_TEST_QUEUE, consumerName: DEVTRON_TEST_CONSUMER},
+	TOPIC_CI_SCAN:      {topicName: TOPIC_CI_SCAN, streamName: IMAGE_SCANNER_STREAM, queueName: TOPIC_CI_SCAN_GRP, consumerName: TOPIC_CI_SCAN_DURABLE},
 }
 
 func GetNatsTopic(topicName string) NatsTopic {
