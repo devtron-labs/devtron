@@ -4,14 +4,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
+	pubsub "github.com/devtron-labs/common-lib/pubsub-lib"
 	client2 "github.com/devtron-labs/devtron/client/events"
-	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
-	"github.com/devtron-labs/devtron/util"
-	"github.com/nats-io/nats.go"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 	"strconv"
@@ -33,7 +31,7 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	installedAppService              service.InstalledAppService
 	CdHandler                        pipeline.CdHandler
 	AppStatusConfig                  *AppStatusConfig
-	pubsubClient                     *pubsub.PubSubClient
+	pubsubClient                     *pubsub.PubSubClientServiceImpl
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	eventClient                      client2.EventClient
 }
@@ -55,7 +53,7 @@ func GetAppStatusConfig() (*AppStatusConfig, error) {
 
 func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
-	CdHandler pipeline.CdHandler, AppStatusConfig *AppStatusConfig, pubsubClient *pubsub.PubSubClient,
+	CdHandler pipeline.CdHandler, AppStatusConfig *AppStatusConfig, pubsubClient *pubsub.PubSubClientServiceImpl,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	eventClient client2.EventClient) *CdApplicationStatusUpdateHandlerImpl {
 	cron := cron.New(
@@ -73,11 +71,11 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		eventClient:                      eventClient,
 	}
-	err := util.AddStream(pubsubClient.JetStrCtxt, util.ORCHESTRATOR_STREAM)
-	if err != nil {
-		return nil
-	}
-	err = impl.Subscribe()
+	//err := util.AddStream(pubsubClient.JetStrCtxt, util.ORCHESTRATOR_STREAM)
+	//if err != nil {
+	//	return nil
+	//}
+	err := impl.Subscribe()
 	if err != nil {
 		logger.Errorw("error on subscribe", "err", err)
 		return nil
@@ -101,9 +99,9 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, util.ARGO_PIPELINE_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
+	callback := func(msg *pubsub.PubSubMsg) {
 		impl.logger.Debug("received argo pipeline status update request")
-		defer msg.Ack()
+		//defer msg.Ack()
 		statusUpdateEvent := pipeline.ArgoPipelineStatusEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &statusUpdateEvent)
 		if err != nil {
@@ -116,7 +114,8 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error on argo pipeline status update", "err", err, "msg", string(msg.Data))
 			return
 		}
-	}, nats.Durable(util.ARGO_PIPELINE_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
+	}
+	err := impl.pubsubClient.Subscribe(pubsub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, callback)
 	if err != nil {
 		impl.logger.Error("error in subscribing to argo application status update topic", "err", err)
 		return err
@@ -178,9 +177,9 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceT
 			IgnoreFailedWorkflowStatus: true,
 		}
 		//write event
-		err := impl.eventClient.WriteNatsEvent(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
+		err := impl.eventClient.WriteNatsEvent(pubsub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
 		if err != nil {
-			impl.logger.Errorw("error in writing nats event", "topic", util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
+			impl.logger.Errorw("error in writing nats event", "topic", pubsub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
 			return err
 		}
 	}
