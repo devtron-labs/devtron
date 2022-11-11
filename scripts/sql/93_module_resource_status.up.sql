@@ -12,7 +12,7 @@ CREATE TABLE "public"."module_resource_status"
     "name"           varchar(250) NOT NULL,
     "health_status"  varchar(50),
     "health_message" varchar(1024),
-    "active"         bool         NOT NULL,
+    "active"         bool,
     "created_on"     timestamptz  NOT NULL,
     "updated_on"     timestamptz,
     PRIMARY KEY ("id")

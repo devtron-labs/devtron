@@ -58,7 +58,7 @@ func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *Module
 		moduleServiceHelper:            moduleServiceHelper,
 		moduleResourceStatusRepository: moduleResourceStatusRepository,
 	}
-
+	
 	// if devtron user type is OSS_HELM then only cron to update module status is useful
 	if serverEnvConfig.DevtronInstallationType == serverBean.DevtronInstallationTypeOssHelm {
 		// cron job to update module status
@@ -149,11 +149,11 @@ func (impl *ModuleCronServiceImpl) saveModuleResourcesStatus(moduleId int, appDe
 	}
 
 	// build new data to save
-	var moduleResourcesStatusToSave []moduleRepo.ModuleResourceStatus
+	var moduleResourcesStatusToSave []*moduleRepo.ModuleResourceStatus
 	nodes := appDetail.ResourceTreeResponse.Nodes
 	if nodes != nil {
 		for _, node := range nodes {
-			moduleResourceStatusToSave := moduleRepo.ModuleResourceStatus{
+			moduleResourceStatusToSave := &moduleRepo.ModuleResourceStatus{
 				ModuleId:  moduleId,
 				Group:     node.Group,
 				Version:   node.Version,
