@@ -79,6 +79,8 @@ Use this option to mount an existing Kuberentes Secret in your application pods.
 
 ### External Secret Operator (ESO)
 
+> **Prerequisites:** Chart version should be > 4.14.0
+
 External Secrets Operator is a Kubernetes operator that integrates external secret management systems like AWS Secrets Manager, HashiCorp Vault, Google Secrets Manager, Azure Key Vault and many more. The operator reads information from external APIs and automatically injects the values into a Kubernetes Secret.
 
 #### AWS Secret Manager
@@ -128,7 +130,7 @@ To add secrets from AWS secret manager, navigate to `Secrets` of the application
 
 1. Click on `Add Secret` to add a new secret.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-secret-manager.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-secret.png)
 
 2. Select `AWS Secret Manager` from dropdown of `Data type`.
 
