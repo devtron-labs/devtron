@@ -26,6 +26,7 @@ import (
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
+	pubub "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
@@ -155,9 +156,9 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDe
 			IgnoreFailedWorkflowStatus: false,
 		}
 		//write event
-		err = impl.eventClient.WriteNatsEvent(util3.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
+		err = impl.eventClient.WriteNatsEvent(pubub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
 		if err != nil {
-			impl.Logger.Errorw("error in writing nats event", "topic", util3.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
+			impl.Logger.Errorw("error in writing nats event", "topic", pubub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
 			continue
 		}
 	}
@@ -189,9 +190,9 @@ func (impl *CdHandlerImpl) CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateI
 			IgnoreFailedWorkflowStatus: true,
 		}
 		//write event
-		err = impl.eventClient.WriteNatsEvent(util3.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
+		err = impl.eventClient.WriteNatsEvent(pubub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
 		if err != nil {
-			impl.Logger.Errorw("error in writing nats event", "topic", util3.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
+			impl.Logger.Errorw("error in writing nats event", "topic", pubub.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
 			continue
 		}
 	}

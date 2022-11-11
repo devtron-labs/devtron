@@ -71,10 +71,7 @@ func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appServi
 		pipelineStatusTimelineRepository: pipelineStatusTimelineRepository,
 		eventClient:                      eventClient,
 	}
-	//err := util.AddStream(pubsubClient.JetStrCtxt, util.ORCHESTRATOR_STREAM)
-	//if err != nil {
-	//	return nil
-	//}
+
 	err := impl.Subscribe()
 	if err != nil {
 		logger.Errorw("error on subscribe", "err", err)
