@@ -84,6 +84,10 @@ components:
           type: string
           description: status of the module
           example: "notInstalled|installed|installing|installFailed|timeout"
+        moduleResourcesStatus:
+          type: array
+          items:
+            $ref: "#/components/schemas/ModuleResourceStatusDto"
     ModuleActionRequest:
       type: object
       properties:
@@ -132,3 +136,30 @@ components:
           type: boolean
           description: success or failure
           example: true
+    ModuleResourceStatusDto:
+      type: object
+      properties:
+        group:
+          type: string
+          description: group of the api-resource
+          example: "apiextensions.k8s.io"
+        version:
+          type: string
+          description: version of the api-resource
+          example: "v1"
+        kind:
+          type: string
+          description: kind of the api-resource
+          example: "pod"
+        name:
+          type: string
+          description: name of the resource
+          example: "devtron"
+        healthStatus:
+          type: string
+          description: health status of the resource
+          example: "healthy"
+        healthMessage:
+          type: string
+          description: health message of the resource
+          example: "some mssage"
