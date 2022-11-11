@@ -153,7 +153,7 @@ Click **Save**.
 
 You can create a Secret by providing credentials on the command line.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/specify-image-pull-secret.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/specify-image-pull-secret-latest.png)
 
 Create this Secret, naming it `regcred`:
 
