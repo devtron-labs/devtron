@@ -480,9 +480,10 @@ type Strategy struct {
 }
 
 type CdPipelines struct {
-	Pipelines []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
-	AppId     int                       `json:"appId,omitempty"  validate:"number,required" `
-	UserId    int32                     `json:"-"`
+	Pipelines         []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
+	AppId             int                       `json:"appId,omitempty"  validate:"number,required" `
+	UserId            int32                     `json:"-"`
+	DeploymentAppType string                    `json:"deploymentAppType"`
 }
 
 type CDPatchRequest struct {
