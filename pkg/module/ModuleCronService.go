@@ -19,6 +19,7 @@ package module
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
@@ -107,9 +108,7 @@ func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
 			if module.Name == ModuleNameCicd {
 				impl.updateModuleStatus(module, ModuleStatusInstalled)
 			} else {
-				impl.logger.Info("building resource tree filter")
 				resourceTreeFilter, err := impl.buildResourceTreeFilter(module.Name)
-				impl.logger.Infow("resourceTreeFilter", "resourceTreeFilter", resourceTreeFilter)
 				if err != nil {
 					continue
 				}
@@ -219,15 +218,17 @@ func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*
 	}
 
 	moduleMetaDataStr := string(moduleMetaData)
-	resourceFilterIface := gjson.Get(moduleMetaDataStr, "result.resourceFilter").Value()
-	impl.logger.Infow("resourceFilterIface", "resourceFilterIface", resourceFilterIface)
+	resourceFilterIface := gjson.Get(moduleMetaDataStr, "result.resourceFilter").String()
 
-	if resourceFilterIface == nil {
+	if len(resourceFilterIface) == 0 {
 		return nil, nil
 	}
-	resourceFilterIfaceValue, ok := resourceFilterIface.(ResourceFilter)
-	if !ok {
-		return nil, nil
+
+	resourceFilterIfaceValue := ResourceFilter{}
+	err = json.Unmarshal([]byte(resourceFilterIface), &resourceFilterIfaceValue)
+	if err != nil {
+		impl.logger.Errorw("Error while unmarshalling resourceFilterIface", "resourceFilterIface", resourceFilterIface, "err", err)
+		return nil, err
 	}
 
 	var resourceTreeFilter *client.ResourceTreeFilter
