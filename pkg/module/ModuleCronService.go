@@ -107,7 +107,9 @@ func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
 			if module.Name == ModuleNameCicd {
 				impl.updateModuleStatus(module, ModuleStatusInstalled)
 			} else {
+				impl.logger.Info("building resource tree filter")
 				resourceTreeFilter, err := impl.buildResourceTreeFilter(module.Name)
+				impl.logger.Infow("resourceTreeFilter", "resourceTreeFilter", resourceTreeFilter)
 				if err != nil {
 					continue
 				}
@@ -218,6 +220,7 @@ func (impl *ModuleCronServiceImpl) buildResourceTreeFilter(moduleName string) (*
 
 	moduleMetaDataStr := string(moduleMetaData)
 	resourceFilterIface := gjson.Get(moduleMetaDataStr, "result.resourceFilter").Value()
+	impl.logger.Infow("resourceFilterIface", "resourceFilterIface", resourceFilterIface)
 
 	if resourceFilterIface == nil {
 		return nil, nil
