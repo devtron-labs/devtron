@@ -23,7 +23,7 @@ import (
 	"time"
 
 	"github.com/devtron-labs/devtron/internal/constants"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/util"
 	"go.uber.org/zap"
 )
@@ -39,37 +39,60 @@ type DockerRegistryConfig interface {
 }
 
 type DockerArtifactStoreBean struct {
-	Id                 string                  `json:"id,omitempty" validate:"required"`
-	PluginId           string                  `json:"pluginId,omitempty" validate:"required"`
-	RegistryURL        string                  `json:"registryUrl,omitempty"`
-	RegistryType       repository.RegistryType `json:"registryType,omitempty" validate:"required"`
-	AWSAccessKeyId     string                  `json:"awsAccessKeyId,omitempty"`
-	AWSSecretAccessKey string                  `json:"awsSecretAccessKey,omitempty"`
-	AWSRegion          string                  `json:"awsRegion,omitempty"`
-	Username           string                  `json:"username,omitempty"`
-	Password           string                  `json:"password,omitempty"`
-	IsDefault          bool                    `json:"isDefault"`
-	Connection         string                  `json:"connection"`
-	Cert               string                  `json:"cert"`
-	Active             bool                    `json:"active"`
-	User               int32                   `json:"-"`
+	Id                      string                       `json:"id,omitempty" validate:"required"`
+	PluginId                string                       `json:"pluginId,omitempty" validate:"required"`
+	RegistryURL             string                       `json:"registryUrl,omitempty"`
+	RegistryType            repository.RegistryType      `json:"registryType,omitempty" validate:"required"`
+	AWSAccessKeyId          string                       `json:"awsAccessKeyId,omitempty"`
+	AWSSecretAccessKey      string                       `json:"awsSecretAccessKey,omitempty"`
+	AWSRegion               string                       `json:"awsRegion,omitempty"`
+	Username                string                       `json:"username,omitempty"`
+	Password                string                       `json:"password,omitempty"`
+	IsDefault               bool                         `json:"isDefault"`
+	Connection              string                       `json:"connection"`
+	Cert                    string                       `json:"cert"`
+	Active                  bool                         `json:"active"`
+	User                    int32                        `json:"-"`
+	DockerRegistryIpsConfig *DockerRegistryIpsConfigBean `json:"ipsConfig,notnull,omitempty" validate:"required"`
+}
+
+type DockerRegistryIpsConfigBean struct {
+	Id                   int                                        `json:"id"`
+	CredentialType       repository.DockerRegistryIpsCredentialType `json:"credentialType,omitempty" validate:"oneof=SAME_AS_REGISTRY NAME CUSTOM_CREDENTIAL"`
+	CredentialValue      string                                     `json:"credentialValue,omitempty"`
+	AppliedClusterIdsCsv string                                     `json:"appliedClusterIdsCsv,omitempty"`
+	IgnoredClusterIdsCsv string                                     `json:"ignoredClusterIdsCsv,omitempty"`
 }
 
 type DockerRegistryConfigImpl struct {
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
-	logger                        *zap.SugaredLogger
+	logger                            *zap.SugaredLogger
+	dockerArtifactStoreRepository     repository.DockerArtifactStoreRepository
+	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository
 }
 
-func NewDockerRegistryConfigImpl(dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
-	logger *zap.SugaredLogger) *DockerRegistryConfigImpl {
+func NewDockerRegistryConfigImpl(logger *zap.SugaredLogger, dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
+	dockerRegistryIpsConfigRepository repository.DockerRegistryIpsConfigRepository) *DockerRegistryConfigImpl {
 	return &DockerRegistryConfigImpl{
-		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
-		logger:                        logger,
+		logger:                            logger,
+		dockerArtifactStoreRepository:     dockerArtifactStoreRepository,
+		dockerRegistryIpsConfigRepository: dockerRegistryIpsConfigRepository,
 	}
 }
 
 func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error) {
 	impl.logger.Debugw("docker registry create request", "request", bean)
+
+	// 1- initiate DB transaction
+	dbConnection := impl.dockerArtifactStoreRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in initiating db tx", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	// 2- insert docker_registry_config
 	store := &repository.DockerArtifactStore{
 		Id:                 bean.Id,
 		PluginId:           bean.PluginId,
@@ -86,7 +109,7 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 		Active:             true,
 		AuditLog:           sql.AuditLog{CreatedBy: bean.User, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: bean.User},
 	}
-	err := impl.dockerArtifactStoreRepository.Save(store)
+	err = impl.dockerArtifactStoreRepository.Save(store, tx)
 	if err != nil {
 		impl.logger.Errorw("error in saving registry config", "config", store, "err", err)
 		err = &util.ApiError{
@@ -98,6 +121,36 @@ func (impl DockerRegistryConfigImpl) Create(bean *DockerArtifactStoreBean) (*Doc
 	}
 	impl.logger.Infow("created repository ", "repository", store)
 	bean.Id = store.Id
+
+	// 3- insert imagePullSecretConfig for this docker registry
+	dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
+	ipsConfig := &repository.DockerRegistryIpsConfig{
+		DockerArtifactStoreId: store.Id,
+		CredentialType:        dockerRegistryIpsConfig.CredentialType,
+		CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
+		AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
+		IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
+	}
+	err = impl.dockerRegistryIpsConfigRepository.Save(ipsConfig, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving registry config ips", "ipsConfig", ipsConfig, "err", err)
+		err = &util.ApiError{
+			Code:            constants.DockerRegCreateFailedInDb,
+			InternalMessage: "docker registry ips config to create in db",
+			UserMessage:     fmt.Sprintf("requested by %d", bean.User),
+		}
+		return nil, err
+	}
+	impl.logger.Infow("created ips config for this docker repository ", "ipsConfig", ipsConfig)
+	dockerRegistryIpsConfig.Id = ipsConfig.Id
+
+	// 4- now commit transaction
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err)
+		return nil, err
+	}
+
 	return bean, nil
 }
 
@@ -134,6 +187,7 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 	}
 	var storeBeans []DockerArtifactStoreBean
 	for _, store := range stores {
+		ipsConfig := store.IpsConfig
 		storeBean := DockerArtifactStoreBean{
 			Id:                 store.Id,
 			PluginId:           store.PluginId,
@@ -148,6 +202,13 @@ func (impl DockerRegistryConfigImpl) FetchAllDockerAccounts() ([]DockerArtifactS
 			Connection:         store.Connection,
 			Cert:               store.Cert,
 			Active:             store.Active,
+			DockerRegistryIpsConfig: &DockerRegistryIpsConfigBean{
+				Id:                   ipsConfig.Id,
+				CredentialType:       ipsConfig.CredentialType,
+				CredentialValue:      ipsConfig.CredentialValue,
+				AppliedClusterIdsCsv: ipsConfig.AppliedClusterIdsCsv,
+				IgnoredClusterIdsCsv: ipsConfig.IgnoredClusterIdsCsv,
+			},
 		}
 		storeBeans = append(storeBeans, storeBean)
 	}
@@ -166,6 +227,7 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 		return nil, err
 	}
 
+	ipsConfig := store.IpsConfig
 	storeBean := &DockerArtifactStoreBean{
 		Id:                 store.Id,
 		PluginId:           store.PluginId,
@@ -180,6 +242,13 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 		Connection:         store.Connection,
 		Cert:               store.Cert,
 		Active:             store.Active,
+		DockerRegistryIpsConfig: &DockerRegistryIpsConfigBean{
+			Id:                   ipsConfig.Id,
+			CredentialType:       ipsConfig.CredentialType,
+			CredentialValue:      ipsConfig.CredentialValue,
+			AppliedClusterIdsCsv: ipsConfig.AppliedClusterIdsCsv,
+			IgnoredClusterIdsCsv: ipsConfig.IgnoredClusterIdsCsv,
+		},
 	}
 
 	return storeBean, err
@@ -187,11 +256,25 @@ func (impl DockerRegistryConfigImpl) FetchOneDockerAccount(storeId string) (*Doc
 
 func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*DockerArtifactStoreBean, error) {
 	impl.logger.Debugw("docker registry update request", "request", bean)
+
+	// 1- find by id, if err - return error
 	existingStore, err0 := impl.dockerArtifactStoreRepository.FindOne(bean.Id)
 	if err0 != nil {
 		impl.logger.Errorw("no matching entry found of update ..", "err", err0)
 		return nil, err0
 	}
+
+	// 2- initiate DB transaction
+	dbConnection := impl.dockerArtifactStoreRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error in initiating db tx", "err", err)
+		return nil, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	// 3- update docker_registry_config
 	store := &repository.DockerArtifactStore{
 		Id:                 bean.Id,
 		PluginId:           existingStore.PluginId,
@@ -208,7 +291,7 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		Active:             true, // later it will change
 		AuditLog:           sql.AuditLog{CreatedBy: existingStore.CreatedBy, CreatedOn: existingStore.CreatedOn, UpdatedOn: time.Now(), UpdatedBy: bean.User},
 	}
-	err := impl.dockerArtifactStoreRepository.Update(store)
+	err = impl.dockerArtifactStoreRepository.Update(store, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating registry config in db", "config", store, "err", err)
 		err = &util.ApiError{
@@ -218,9 +301,38 @@ func (impl DockerRegistryConfigImpl) Update(bean *DockerArtifactStoreBean) (*Doc
 		}
 		return nil, err
 	}
-
 	impl.logger.Infow("updated repository ", "repository", store)
 	bean.Id = store.Id
+
+	// 4- update imagePullSecretConfig for this docker registry
+	dockerRegistryIpsConfig := bean.DockerRegistryIpsConfig
+	ipsConfig := &repository.DockerRegistryIpsConfig{
+		Id:                    dockerRegistryIpsConfig.Id,
+		DockerArtifactStoreId: store.Id,
+		CredentialType:        dockerRegistryIpsConfig.CredentialType,
+		CredentialValue:       dockerRegistryIpsConfig.CredentialValue,
+		AppliedClusterIdsCsv:  dockerRegistryIpsConfig.AppliedClusterIdsCsv,
+		IgnoredClusterIdsCsv:  dockerRegistryIpsConfig.IgnoredClusterIdsCsv,
+	}
+	err = impl.dockerRegistryIpsConfigRepository.Update(ipsConfig, tx)
+	if err != nil {
+		impl.logger.Errorw("error in updating registry config ips", "ipsConfig", ipsConfig, "err", err)
+		err = &util.ApiError{
+			Code:            constants.DockerRegUpdateFailedInDb,
+			InternalMessage: "docker registry ips config failed to update in db",
+			UserMessage:     "docker registry ips config failed to update in db",
+		}
+		return nil, err
+	}
+	impl.logger.Infow("updated ips config for this docker repository ", "ipsConfig", ipsConfig)
+
+	// 5- now commit transaction
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error in committing transaction", "err", err)
+		return nil, err
+	}
+
 	return bean, nil
 }
 

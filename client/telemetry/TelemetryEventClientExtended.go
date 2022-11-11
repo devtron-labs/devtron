@@ -5,6 +5,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	util2 "github.com/devtron-labs/devtron/internal/util"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -34,7 +35,7 @@ type TelemetryEventClientImplExtended struct {
 	pipelineRepository            pipelineConfig.PipelineRepository
 	gitOpsConfigRepository        repository.GitOpsConfigRepository
 	gitProviderRepository         repository.GitProviderRepository
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	appRepository                 app.AppRepository
 	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
 	cdWorkflowRepository          pipelineConfig.CdWorkflowRepository
@@ -53,7 +54,7 @@ func NewTelemetryEventClientImplExtended(logger *zap.SugaredLogger, client *http
 	gitOpsConfigRepository repository.GitOpsConfigRepository, gitProviderRepository repository.GitProviderRepository,
 	attributeRepo repository.AttributesRepository, ssoLoginService sso.SSOLoginService, appRepository app.AppRepository,
 	ciWorkflowRepository pipelineConfig.CiWorkflowRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	materialRepository pipelineConfig.MaterialRepository, ciTemplateRepository pipelineConfig.CiTemplateRepository,
 	chartRepository chartRepoRepository.ChartRepository, userAuditService user.UserAuditService,
 	ciBuildConfigService pipeline.CiBuildConfigService, moduleRepository moduleRepo.ModuleRepository, serverDataStore *serverDataStore.ServerDataStore,
