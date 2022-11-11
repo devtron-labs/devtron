@@ -123,6 +123,15 @@ Provide the Password/Token corresponding to the username of your registry.
 
 If you enable the `Set as default registry` option, then the registry name will be set as default in the `Container Registry` section on the App Configuration >`Build Configuration` page. This field is optional. You can keep it disabled.
 
+### Advance Registry URL Connection Options:
+
+* If you enable the `Allow Only Secure Connection` option, then this registry allows only secure connections.
+* If you enable the `Allow Secure Connection With CA Certificate` option, then you have to upload/provide private CA certificate (ca.crt).
+* If the container registry is insecure (for eg : SSL certificate is expired), then you enable the `Allow Insecure Connection` option.
+
+### Note:
+You can use any registry which can be authenticated using `docker login -u <username> -p <password> <registry-url>`. However these registries might provide a more secured way for authentication, which we will support later.
+
 
 ## Pull an Image from a Private Registry
 
