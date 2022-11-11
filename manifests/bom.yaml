@@ -1,1 +1,40 @@
-
+installer:
+  release: "issue_2582_img"
+  image: "quay.io/devtron/inception"
+  tag: "1d2b87e5-185-11095"
+  
+components:
+  dashboard:
+    image: "quay.io/devtron/test:9a670dd9-3233-4032"
+  devtron:
+    image: "quay.io/devtron/test:33315f8e-3263-4037"
+    cicdImage: "quay.io/devtron/test:33315f8e-3260-4038"
+  argocdDexServer:
+    image: "ghcr.io/dexidp/dex:v2.30.2"
+    initContainer:
+      authenticator: "quay.io/devtron/authenticator:aecda793-393-11109"
+  kubelink:
+    image: "quay.io/devtron/test:7b6fb83c-4876-4029"
+  postgres:
+    image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
+    armImage: "quay.io/devtron/postgres:11.9"
+  
+  migrator:
+    image: "quay.io/devtron/migrator:71748de9-149-11112"
+    envVars:
+      devtron:
+        GIT_BRANCH: "main"
+        GIT_HASH: "33315f8ebfaefdbf4f37e9d81e67921c574345ad"
+      casbin:
+        GIT_BRANCH: "main"
+        GIT_HASH: "657fc69621f2da81d7fdb123d63013fd1045e9c4"
+        
+argo-cd:
+  global:
+    image:
+      repository: quay.io/argoproj/argocd
+      tag: "v2.4.0"
+      imagePullPolicy: IfNotPresent
+      
+notifier:
+  image: "quay.io/devtron/notifier:6c7a356a-372-11107"
