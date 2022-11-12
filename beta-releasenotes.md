@@ -1,4 +1,5 @@
 ## Bugs
+- fix: updated devtron-reference-chart directory (#2603)
 ## Enhancements
 ## Documentation
 - doc: broken hyperlinks in doc fix (#2621)
