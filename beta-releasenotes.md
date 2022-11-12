@@ -1,4 +1,5 @@
 ## Bugs
+- fix: corrected health url in auth whitelist list (#2629)
 - fix: updated devtron-reference-chart directory (#2603)
 ## Enhancements
 ## Documentation
