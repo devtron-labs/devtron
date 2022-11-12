@@ -98,6 +98,7 @@ type WorkflowDagExecutorImpl struct {
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
 	argoUserService               argo.ArgoUserService
 	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
+	CiTemplateRepository          pipelineConfig.CiTemplateRepository
 }
 
 type CiArtifactDTO struct {
@@ -143,7 +144,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,
 	argoUserService argo.ArgoUserService,
-	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository) *WorkflowDagExecutorImpl {
+	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
+	CiTemplateRepository pipelineConfig.CiTemplateRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -170,6 +172,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 		argoUserService:               argoUserService,
 		cdPipelineStatusTimelineRepo:  cdPipelineStatusTimelineRepo,
+		CiTemplateRepository:          CiTemplateRepository,
 	}
 	err := util4.AddStream(wde.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM, util4.CI_RUNNER_STREAM)
 	if err != nil {
@@ -671,6 +674,23 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.SecretKey = ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey
 		cdStageWorkflowRequest.DockerRegistryType = string(ciPipeline.CiTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciPipeline.CiTemplate.DockerRegistry.RegistryURL
+	} else if cdPipeline.AppId > 0 {
+		ciTemplate, err := impl.CiTemplateRepository.FindByAppId(cdPipeline.AppId)
+		if err != nil {
+			return nil, err
+		}
+		extraEnvVariables := make(map[string]string)
+		extraEnvVariables["APP_NAME"] = ciTemplate.App.AppName
+		cdStageWorkflowRequest.ExtraEnvironmentVariables = extraEnvVariables
+		cdStageWorkflowRequest.DockerUsername = ciTemplate.DockerRegistry.Username
+		cdStageWorkflowRequest.DockerPassword = ciTemplate.DockerRegistry.Password
+		cdStageWorkflowRequest.AwsRegion = ciTemplate.DockerRegistry.AWSRegion
+		cdStageWorkflowRequest.DockerConnection = ciTemplate.DockerRegistry.Connection
+		cdStageWorkflowRequest.DockerCert = ciTemplate.DockerRegistry.Cert
+		cdStageWorkflowRequest.AccessKey = ciTemplate.DockerRegistry.AWSAccessKeyId
+		cdStageWorkflowRequest.SecretKey = ciTemplate.DockerRegistry.AWSSecretAccessKey
+		cdStageWorkflowRequest.DockerRegistryType = string(ciTemplate.DockerRegistry.RegistryType)
+		cdStageWorkflowRequest.DockerRegistryURL = ciTemplate.DockerRegistry.RegistryURL
 	}
 
 	if deployStageTriggeredByUser != nil {
