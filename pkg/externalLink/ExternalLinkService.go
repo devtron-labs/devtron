@@ -236,13 +236,20 @@ func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkExternal
 			}
 			responseMap[externalLinkDto.Id] = externalLinkDto
 		}
-		identifier := LinkIdentifier{
-			Type:       getType(record.Type),
-			Identifier: record.Identifier,
-			AppId:      record.AppId,
-			ClusterId:  record.ClusterId,
+
+		if record.Type == 0 && record.Identifier == "" && record.AppId == 0 && record.ClusterId == 0 {
+			responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
+		} else {
+			identifier := LinkIdentifier{
+				Type:       getType(record.Type),
+				Identifier: record.Identifier,
+				AppId:      record.AppId,
+				ClusterId:  record.ClusterId,
+			}
+			responseMap[record.Id].Type = identifier.Type
+			responseMap[record.Id].Identifiers = append(responseMap[record.Id].Identifiers, identifier)
 		}
-		responseMap[record.Id].Identifiers = append(responseMap[record.Id].Identifiers, identifier)
+
 	}
 	for _, res := range responseMap {
 		externalLinkResponse = append(externalLinkResponse, res)
