@@ -27,6 +27,8 @@ spec:
         - name: postgresql-migrate-{{ .name }}
           image: {{ .image }}
           env:
+            - name: GIT_HASH
+              value: {{ substr 0 8 $.Values.server.deployment.image_tag }}
             {{- range .envValues }}
             - name: {{ .key}}
               value: {{ .value  | quote }}
