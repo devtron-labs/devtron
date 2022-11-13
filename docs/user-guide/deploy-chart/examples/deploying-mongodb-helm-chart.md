@@ -2,24 +2,24 @@
 
 ## Introduction
 
-Let's assume that you are creating an application and want to use mongodb to store data of your application. You can deploy mongodb using `stable/mongodb-replicaset` Helm chart and connect it to your application.
+Let's assume that you are creating an application and want to use mongodb to store data of your application. You can deploy mongodb using `bitnami/mongodb` Helm chart and connect it to your application.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mongodb-helm-chart/mongodb-1.jpg)
+![](../../../images/deploy-chart/examples/mongodb/mongodb.png)
 
 This guide will introduce you to how to deploy the mongoDB's Helm chart.
 
 ## 1. Discover the Chart from the Chart Store
 
-Visit the `Chart Store` page by clicking on `Charts` present on left panel and find `stable/mongodb-replicaset` Helm Chart.
+Visit the `Chart Store` page by clicking on `Charts` present on left panel and find `bitnami/mongodb` Helm Chart.
 You also can search mongodb chart using the search bar.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mongodb-helm-chart/mongodb-2.jpg)
+![](../../../images/deploy-chart/examples/mongodb/mongodbseach.png)
 
 ## 2. Configure the Chart
 
-After selecting the `stable/mongodb` Helm chart, click on `Deploy`.
+After selecting the `bitnami/mongodb` Helm chart, click on `Deploy`.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mongodb-helm-chart/mongodb-3.jpg)
+![](../../../images/deploy-chart/examples/mongodb/mongodbdeploy.png)
 
 Enter the following details before deploying the mongoDB chart:
 
@@ -36,7 +36,7 @@ Enter the following details before deploying the mongoDB chart:
 You can configure the `values.yaml` according to your project's requirements.
 To learn about different parameters used in the chart, you can check [Documentation of mongodb Helm chart](https://hub.helm.sh/charts/bitnami/mongodb)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mongodb-helm-chart/mongodb-4.jpg)
+![](../../../images/deploy-chart/examples/mongodb/mongodbyaml.png)
 
 Click on `Deploy Chart` once you have finished configuring the chart.
 
@@ -44,7 +44,7 @@ Click on `Deploy Chart` once you have finished configuring the chart.
 
 After clicking on `Deploy Chart`, you will be redirected to `App Details` page that shows the deployment status of the chart. The Status of the chart should be `Healthy`. It might take few seconds after initiating the deployment.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mongodb-helm-chart/mongodb-5.jpg)
+![](../../../images/deploy-chart/examples/mongodb/mongodbstatus.png)
 
 In case the status of the deployment is `Degraded` or takes a long time to get deployed, click on `Status` or check the logs of the pods to debug the issue.
 
@@ -52,5 +52,5 @@ In case the status of the deployment is `Degraded` or takes a long time to get d
 
 Copy the service name, it will be used to connect your application to mongoDB.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mongodb-helm-chart/mongodb-6.jpg)
+![](../../../images/deploy-chart/examples/mongodb/mongodbservice.png)
 
