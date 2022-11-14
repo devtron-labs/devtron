@@ -1081,6 +1081,9 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int) (*Git
 		for _, m := range ciMaterials {
 			var history []*gitSensor.GitCommit
 			_gitTrigger := workflow.GitTriggers[m.Id]
+			if len(_gitTrigger.Commit) == 0 && _gitTrigger.WebhookData.Id == 0 {
+				continue
+			}
 
 			_gitCommit := &gitSensor.GitCommit{
 				Message: _gitTrigger.Message,
