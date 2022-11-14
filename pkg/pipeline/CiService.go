@@ -296,6 +296,9 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	var ciProjectDetails []CiProjectDetails
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
+		if !ciMaterial.GitMaterial.Active {
+			continue
+		}
 		commitHashForPipelineId := commitHashes[ciMaterial.Id]
 		ciProjectDetail := CiProjectDetails{
 			GitRepository:   ciMaterial.GitMaterial.Url,
