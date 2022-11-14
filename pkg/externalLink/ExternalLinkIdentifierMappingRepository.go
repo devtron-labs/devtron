@@ -45,6 +45,7 @@ type ExternalLinkExternalMappingJoinResponse struct {
 	IsEditable                   bool          `sql:"is_editable,notnull"`
 	Description                  string        `sql:"description"`
 	MappingId                    int           `sql:"mapping_id"`
+	Active                       bool          `sql:"active"`
 	Type                         AppIdentifier `sql:"type,notnull"`
 	Identifier                   string        `sql:"identifier,notnull"`
 	EnvId                        int           `sql:"env_id"`
@@ -92,7 +93,7 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByClusterId
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int) ([]ExternalLinkExternalMappingJoinResponse, error) {
 	var links []ExternalLinkExternalMappingJoinResponse
 	query := "select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on," +
-		"elim.id as mapping_id,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
+		"elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
 		" FROM external_link el" +
 		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id" +
 		" WHERE el.active = true and elim.active = true and ( ((elim.type = ? and elim.identifier = ? and elim.app_id = ? and elim.cluster_id = ?) or (elim.type = 0 and elim.identifier = '' and elim.app_id = 0 and elim.cluster_id = ?)) " +
@@ -106,7 +107,7 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByJoin() ([
 	query := "select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on," +
 		"elim.id as mapping_id,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
 		" FROM external_link el" +
-		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id Where el.active=true and elim.active=true;"
+		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id Where el.active=true;"
 	_, err := impl.dbConnection.Query(&links, query)
 	return links, err
 }

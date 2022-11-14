@@ -239,7 +239,7 @@ func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkExternal
 
 		if record.Type == 0 && record.Identifier == "" && record.AppId == 0 && record.ClusterId == 0 {
 			responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
-		} else {
+		} else if record.Active {
 			identifier := LinkIdentifier{
 				Type:       getType(record.Type),
 				Identifier: record.Identifier,
