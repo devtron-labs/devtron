@@ -83,6 +83,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
@@ -686,6 +687,20 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository3.PrePostCdScriptHistoryRepository), new(*repository3.PrePostCdScriptHistoryRepositoryImpl)),
 		repository3.NewPipelineStrategyHistoryRepositoryImpl,
 		wire.Bind(new(repository3.PipelineStrategyHistoryRepository), new(*repository3.PipelineStrategyHistoryRepositoryImpl)),
+		repository3.NewGitMaterialHistoryRepositoyImpl,
+		wire.Bind(new(repository3.GitMaterialHistoryRepository), new(*repository3.GitMaterialHistoryRepositoryImpl)),
+
+		history3.NewCiTemplateHistoryServiceImpl,
+		wire.Bind(new(history3.CiTemplateHistoryService), new(*history3.CiTemplateHistoryServiceImpl)),
+
+		repository3.NewCiTemplateHistoryRepositoryImpl,
+		wire.Bind(new(repository3.CiTemplateHistoryRepository), new(*repository3.CiTemplateHistoryRepositoryImpl)),
+
+		history3.NewCiPipelineHistoryServiceImpl,
+		wire.Bind(new(history3.CiPipelineHistoryService), new(*history3.CiPipelineHistoryServiceImpl)),
+
+		repository3.NewCiPipelineHistoryRepositoryImpl,
+		wire.Bind(new(repository3.CiPipelineHistoryRepository), new(*repository3.CiPipelineHistoryRepositoryImpl)),
 
 		history3.NewPrePostCdScriptHistoryServiceImpl,
 		wire.Bind(new(history3.PrePostCdScriptHistoryService), new(*history3.PrePostCdScriptHistoryServiceImpl)),
@@ -697,6 +712,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history3.ConfigMapHistoryService), new(*history3.ConfigMapHistoryServiceImpl)),
 		history3.NewPipelineStrategyHistoryServiceImpl,
 		wire.Bind(new(history3.PipelineStrategyHistoryService), new(*history3.PipelineStrategyHistoryServiceImpl)),
+		history3.NewGitMaterialHistoryServiceImpl,
+		wire.Bind(new(history3.GitMaterialHistoryService), new(*history3.GitMaterialHistoryServiceImpl)),
 
 		history3.NewDeployedConfigurationHistoryServiceImpl,
 		wire.Bind(new(history3.DeployedConfigurationHistoryService), new(*history3.DeployedConfigurationHistoryServiceImpl)),
@@ -764,6 +781,25 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.GlobalCMCSService), new(*pipeline.GlobalCMCSServiceImpl)),
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
+
+		app.NewPipelineStatusTimelineResourcesServiceImpl,
+		wire.Bind(new(app.PipelineStatusTimelineResourcesService), new(*app.PipelineStatusTimelineResourcesServiceImpl)),
+		pipelineConfig.NewPipelineStatusTimelineResourcesRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusTimelineResourcesRepository), new(*pipelineConfig.PipelineStatusTimelineResourcesRepositoryImpl)),
+
+		app.NewPipelineStatusFetchDetailServiceImpl,
+		wire.Bind(new(app.PipelineStatusFetchDetailService), new(*app.PipelineStatusFetchDetailServiceImpl)),
+		pipelineConfig.NewPipelineStatusFetchDetailRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusFetchDetailRepository), new(*pipelineConfig.PipelineStatusFetchDetailRepositoryImpl)),
+
+		router.NewUserTerminalAccessRouterImpl,
+		wire.Bind(new(router.UserTerminalAccessRouter), new(*router.UserTerminalAccessRouterImpl)),
+		restHandler.NewUserTerminalAccessRestHandlerImpl,
+		wire.Bind(new(restHandler.UserTerminalAccessRestHandler), new(*restHandler.UserTerminalAccessRestHandlerImpl)),
+		clusterTerminalAccess.NewUserTerminalAccessServiceImpl,
+		wire.Bind(new(clusterTerminalAccess.UserTerminalAccessService), new(*clusterTerminalAccess.UserTerminalAccessServiceImpl)),
+		repository.NewTerminalAccessRepositoryImpl,
+		wire.Bind(new(repository.TerminalAccessRepository), new(*repository.TerminalAccessRepositoryImpl)),
 	)
 	return &App{}, nil
 }
