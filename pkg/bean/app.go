@@ -434,7 +434,7 @@ type CDPipelineConfigObject struct {
 	Id                            int                               `json:"id,omitempty"  validate:"number" `
 	EnvironmentId                 int                               `json:"environmentId,omitempty"  validate:"number,required" `
 	EnvironmentName               string                            `json:"environmentName,omitempty" `
-	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number,required"`
+	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number"`
 	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                            `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
 	Strategies                    []Strategy                        `json:"strategies,omitempty"`
@@ -480,10 +480,9 @@ type Strategy struct {
 }
 
 type CdPipelines struct {
-	Pipelines         []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
-	AppId             int                       `json:"appId,omitempty"  validate:"number,required" `
-	UserId            int32                     `json:"-"`
-	DeploymentAppType string                    `json:"deploymentAppType"`
+	Pipelines []*CDPipelineConfigObject `json:"pipelines,omitempty" validate:"dive"`
+	AppId     int                       `json:"appId,omitempty"  validate:"number,required" `
+	UserId    int32                     `json:"-"`
 }
 
 type CDPatchRequest struct {

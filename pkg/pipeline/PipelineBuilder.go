@@ -1111,7 +1111,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		isGitOpsConfigured = true
 	}
 
-	if isGitOpsConfigured == false && pipelineCreateRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if isGitOpsConfigured == false && pipelineCreateRequest.Pipelines[0].DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		impl.logger.Errorw("Gitops not configured but selected in creating cd pipeline")
 	}
 
@@ -1164,7 +1164,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		}
 	}
 
-	if isGitOpsConfigured && pipelineCreateRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if isGitOpsConfigured && pipelineCreateRequest.Pipelines[0].DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		//if gitops configured create GIT repository and register into ACD
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 		if err != nil && pg.ErrNoRows != err {
@@ -1208,11 +1208,11 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 
-		if pipelineCreateRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
-			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-		} else {
-			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-		}
+		//if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		//	pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+		//} else {
+		//	pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		//}
 		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating pipeline", "name", pipeline.Name, "err", err)
@@ -2334,6 +2334,7 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 		RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 		CdArgoSetup:                   environment.Cluster.CdArgoSetup,
+		DeploymentAppType:             dbPipeline.DeploymentAppType,
 	}
 
 	return cdPipeline, err
