@@ -1,8 +1,8 @@
 package repository
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -31,7 +31,7 @@ type CiTemplateHistory struct {
 	Trigger            string   `sql:"trigger"`
 	sql.AuditLog
 	App            *app.App
-	DockerRegistry *repository.DockerArtifactStore
+	DockerRegistry *dockerRegistryRepository.DockerArtifactStore
 }
 
 type CiTemplateHistoryRepository interface {

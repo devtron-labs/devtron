@@ -53,7 +53,7 @@ import (
 type AppListingService interface {
 	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
-	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
+
 	FetchAppDetails(appId int, envId int) (bean.AppDetailContainer, error)
 
 	PodCountByAppLabel(appLabel string, namespace string, env string, proEndpoint string) int
@@ -106,11 +106,6 @@ type FetchAppListingRequest struct {
 	DeploymentGroupId int              `json:"deploymentGroupId"`
 	Namespaces        []string         `json:"namespaces"` //{clusterId}_{namespace}
 
-}
-type AppNameTypeIdContainer struct {
-	AppName string `json:"appName"`
-	Type    string `json:"type"`
-	AppId   int    `json:"appId"`
 }
 
 func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
@@ -191,37 +186,6 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 const AcdInvalidAppErr = "invalid acd app name and env"
 const NotDeployed = "Not Deployed"
 
-func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error) {
-	impl.Logger.Debug("reached at FetchAllDevtronManagedApps:")
-	apps := make([]AppNameTypeIdContainer, 0)
-	res, err := impl.appListingRepository.FetchAllActiveDevtronAppsWithAppIdAndName()
-	if err != nil {
-		impl.Logger.Errorw("failed to fetch devtron apps", "err", err)
-		return nil, err
-	}
-	for _, r := range res {
-		appContainer := AppNameTypeIdContainer{
-			AppId:   r.AppId,
-			AppName: r.AppName,
-			Type:    "devtron-app",
-		}
-		apps = append(apps, appContainer)
-	}
-	res, err = impl.appListingRepository.FetchAllActiveInstalledAppsWithAppIdAndName()
-	if err != nil {
-		impl.Logger.Errorw("failed to fetch devtron installed apps", "err", err)
-		return nil, err
-	}
-	for _, r := range res {
-		appContainer := AppNameTypeIdContainer{
-			AppId:   r.AppId,
-			AppName: r.AppName,
-			Type:    "devtron-installed-app",
-		}
-		apps = append(apps, appContainer)
-	}
-	return apps, nil
-}
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	// TODO: check statuses
@@ -533,7 +497,7 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 }
 
 func (impl AppListingServiceImpl) GetLastDeploymentStatusesByAppNames(appNames []string) ([]repository.DeploymentStatus, error) {
-	deploymentStatuses, err := impl.appListingRepository.FindLastDeployedStatusesByAppNames(appNames)
+	deploymentStatuses, err := impl.appListingRepository.FindLastDeployedStatuses(appNames)
 	if err != nil {
 		return []repository.DeploymentStatus{}, err
 	}
@@ -1481,12 +1445,6 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(appId int) ([]*bean.Envi
 		return envs, err
 	}
 	for _, env := range envs {
-		detail, err := impl.appListingRepository.FetchAppDetail(appId, env.EnvironmentId)
-		if err != nil {
-			impl.Logger.Errorw("unable to fetch app details", "appId", appId, "envId", env.EnvironmentId)
-			return envs, err
-		}
-		env.LastDeployed = detail.LastDeployedTime
 		envOverride, err := impl.envOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, env.EnvironmentId)
 		if err != nil && !errors2.IsNotFound(err) {
 			impl.Logger.Errorw("error in fetching latest chart by appId and envId", "err", err, "appId", appId, "envId", env.EnvironmentId)
