@@ -541,6 +541,9 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			}
 		}
 		for _, material := range pipeline.CiPipelineMaterials {
+			if !material.GitMaterial.Active {
+				continue
+			}
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
 				CheckoutPath:    material.CheckoutPath,
@@ -2445,6 +2448,9 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		}
 	}
 	for _, material := range pipeline.CiPipelineMaterials {
+		if !material.GitMaterial.Active {
+			continue
+		}
 		ciMaterial := &bean.CiMaterial{
 			Id:              material.Id,
 			CheckoutPath:    material.CheckoutPath,
