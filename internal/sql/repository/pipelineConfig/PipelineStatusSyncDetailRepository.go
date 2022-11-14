@@ -56,7 +56,7 @@ func (impl *PipelineStatusSyncDetailRepositoryImpl) Update(model *PipelineStatus
 
 func (impl *PipelineStatusSyncDetailRepositoryImpl) GetByCdWfrId(cdWfrId int) (*PipelineStatusSyncDetail, error) {
 	var model PipelineStatusSyncDetail
-	_, err := impl.dbConnection.Model(&model).Where("cd_workflow_runner_id = ?", cdWfrId).Exists()
+	err := impl.dbConnection.Model(&model).Where("cd_workflow_runner_id = ?", cdWfrId).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting cd pipeline status sync detail by cdWfrId", "err", err, "cdWfrId", cdWfrId)
 		return nil, err
