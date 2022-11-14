@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"github.com/gorilla/mux"
 	"github.com/juju/errors"
 	"go.uber.org/zap"
@@ -103,7 +104,7 @@ func (impl ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWrite
 		return
 	}
 	res, err := impl.externalLinkService.Create(beans, userId, userRole)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("service err, SaveLink", "err", err, "payload", beans)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -119,7 +120,7 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinkMonitoringTools(w http.Re
 
 	// auth free api as we are using this for multiple places
 	res, err := impl.externalLinkService.GetAllActiveTools()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("service err, GetAllActiveTools", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -146,7 +147,7 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 		}
 		id, err := strconv.Atoi(clusterId)
 		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, id, externalLink.SUPER_ADMIN_ROLE, int(userId))
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("service err, FetchAllActive", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
@@ -170,7 +171,7 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 			ClusterId:  0,
 		}
 		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifier, id, externalLink.ADMIN_ROLE, int(userId))
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("service err, FetchAllActive", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
@@ -201,7 +202,7 @@ func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter
 	bean.UserId = userId
 
 	res, err := impl.externalLinkService.Update(&bean, userRole)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("service err, Update Links", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -224,7 +225,7 @@ func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter
 	}
 
 	res, err := impl.externalLinkService.DeleteLink(linkId, userId, userRole)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("service err, delete Links", "err", err, "linkId", linkId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
