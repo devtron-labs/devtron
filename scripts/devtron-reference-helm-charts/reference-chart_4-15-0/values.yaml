@@ -402,6 +402,7 @@ topologySpreadConstraints: []
 
 envoyproxy:
  image: quay.io/devtron/envoy:v1.14.1
+ lifecycle: {}
  configMapName: ""
  resources:
    limits:
@@ -410,6 +411,18 @@ envoyproxy:
    requests:
      cpu: 50m
      memory: 50Mi
+    
+containerSpec:
+  lifecycle: 
+    enabled: false
+    preStop:
+      exec: 
+        command: ["sleep","10"]
+    postStart:
+      httpGet:
+        host: example.com
+        path: /example
+        port: 90
 
 podDisruptionBudget: {}
 #  minAvailable: 1
