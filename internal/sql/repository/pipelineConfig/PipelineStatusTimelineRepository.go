@@ -24,7 +24,7 @@ const (
 
 type PipelineStatusTimelineRepository interface {
 	SaveTimeline(timeline *PipelineStatusTimeline) error
-	SaveTimelinesWithTxn(timelines []PipelineStatusTimeline, tx *pg.Tx) error
+	SaveTimelinesWithTxn(timelines []*PipelineStatusTimeline, tx *pg.Tx) error
 	UpdateTimeline(timeline *PipelineStatusTimeline) error
 	UpdateTimelinesWithTxn(timelines []*PipelineStatusTimeline, tx *pg.Tx) error
 	FetchTimelinesByPipelineId(pipelineId int) ([]*PipelineStatusTimeline, error)
@@ -33,6 +33,8 @@ type PipelineStatusTimelineRepository interface {
 	FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error)
 	CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error)
 	FetchLatestTimelineByAppIdAndEnvId(appId, envId int) (*PipelineStatusTimeline, error)
+	DeleteByCdWfrIdAndTimelineStatuses(cdWfrId int, status []TimelineStatus) error
+	DeleteByCdWfrIdAndTimelineStatusesWithTxn(cdWfrId int, status []TimelineStatus, tx *pg.Tx) error
 }
 
 type PipelineStatusTimelineRepositoryImpl struct {
@@ -68,7 +70,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimeline(timeline *Pipelin
 	return nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimelinesWithTxn(timelines []PipelineStatusTimeline, tx *pg.Tx) error {
+func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimelinesWithTxn(timelines []*PipelineStatusTimeline, tx *pg.Tx) error {
 	err := tx.Insert(&timelines)
 	if err != nil {
 		impl.logger.Errorw("error in saving timelines of cd pipeline status", "err", err, "timelines", timelines)
@@ -178,4 +180,28 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByAppIdAndE
 		return nil, err
 	}
 	return &timeline, nil
+}
+
+func (impl *PipelineStatusTimelineRepositoryImpl) DeleteByCdWfrIdAndTimelineStatuses(cdWfrId int, status []TimelineStatus) error {
+	var timeline PipelineStatusTimeline
+	_, err := impl.dbConnection.Model(&timeline).
+		Where("cd_workflow_runner_id = ?", cdWfrId).
+		Where("status in (?)", pg.In(status)).Delete()
+	if err != nil {
+		impl.logger.Errorw("error in deleting pipeline status timeline by cdWfrId and status", "err", err, "cdWfrId", cdWfrId, "status", status)
+		return err
+	}
+	return nil
+}
+
+func (impl *PipelineStatusTimelineRepositoryImpl) DeleteByCdWfrIdAndTimelineStatusesWithTxn(cdWfrId int, status []TimelineStatus, tx *pg.Tx) error {
+	var timeline PipelineStatusTimeline
+	_, err := tx.Model(&timeline).
+		Where("cd_workflow_runner_id = ?", cdWfrId).
+		Where("status in (?)", pg.In(status)).Delete()
+	if err != nil {
+		impl.logger.Errorw("error in deleting pipeline status timeline by cdWfrId and status", "err", err, "cdWfrId", cdWfrId, "status", status)
+		return err
+	}
+	return nil
 }

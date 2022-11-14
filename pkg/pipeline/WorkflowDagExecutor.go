@@ -97,6 +97,7 @@ type WorkflowDagExecutorImpl struct {
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
 	argoUserService               argo.ArgoUserService
 	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
+	pipelineStatusTimelineService app.PipelineStatusTimelineService
 }
 
 type CiArtifactDTO struct {
@@ -142,7 +143,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,
 	argoUserService argo.ArgoUserService,
-	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository) *WorkflowDagExecutorImpl {
+	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
+	pipelineStatusTimelineService app.PipelineStatusTimelineService) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -169,6 +171,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 		argoUserService:               argoUserService,
 		cdPipelineStatusTimelineRepo:  cdPipelineStatusTimelineRepo,
+		pipelineStatusTimelineService: pipelineStatusTimelineService,
 	}
 	err := util4.AddStream(wde.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM, util4.CI_RUNNER_STREAM)
 	if err != nil {
@@ -854,7 +857,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 			UpdatedOn: time.Now(),
 		},
 	}
-	err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+	err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 	if err != nil {
 		impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
 	}
@@ -910,7 +913,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 				UpdatedOn: time.Now(),
 			},
 		}
-		err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment fail - cve policy violation", "err", err, "timeline", timeline)
 		}
@@ -948,7 +951,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 					UpdatedOn: time.Now(),
 				},
 			}
-			timelineErr = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+			timelineErr = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if timelineErr != nil {
 				impl.logger.Errorw("error in creating timeline status for deployment fail", "err", timelineErr, "timeline", timeline)
 			}
@@ -1017,7 +1020,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			impl.logger.Errorw("error updating cd wf runner status", "err", err, "previousNonTerminalRunners", previousNonTerminalRunners)
 			return err
 		}
-		err = impl.cdPipelineStatusTimelineRepo.UpdateTimelinesWithTxn(timelines, tx)
+		err = impl.cdPipelineStatusTimelineRepo.SaveTimelinesWithTxn(timelines, tx)
 		if err != nil {
 			impl.logger.Errorw("error updating pipeline status timelines", "err", err, "timelines", timelines)
 			return err
@@ -1172,7 +1175,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				UpdatedOn: time.Now(),
 			},
 		}
-		err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status for deployment initiation", "err", err, "timeline", timeline)
 		}
@@ -1232,7 +1235,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 					UpdatedOn: time.Now(),
 				},
 			}
-			err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+			err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status for deployment fail - cve policy violation", "err", err, "timeline", timeline)
 			}

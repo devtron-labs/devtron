@@ -9,6 +9,7 @@ import (
 )
 
 type PipelineStatusTimelineService interface {
+	SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error
 	FetchTimelines(appId, envId, wfrId int) (*PipelineTimelineDetailDto, error)
 }
 
@@ -57,6 +58,34 @@ type PipelineStatusTimelineDto struct {
 	ResourceDetails              []*SyncStageResourceDetailDto `json:"resourceDetails,omitempty"`
 }
 
+func (impl *PipelineStatusTimelineServiceImpl) SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error {
+	if tx == nil {
+		//delete unable to fetch or timed out timelines
+		err := impl.pipelineStatusTimelineRepository.DeleteByCdWfrIdAndTimelineStatuses(timeline.CdWorkflowRunnerId,
+			[]pipelineConfig.TimelineStatus{pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS, pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT})
+		if err != nil {
+			impl.logger.Errorw("error in deleting timelines by cdWfrId and timeline status", "err", err)
+		}
+		err = impl.pipelineStatusTimelineRepository.SaveTimeline(timeline)
+		if err != nil {
+			impl.logger.Errorw("error in saving timeline", "err", err, "timeline", timeline)
+			return err
+		}
+	} else {
+		//delete unable to fetch or timed out timelines
+		err := impl.pipelineStatusTimelineRepository.DeleteByCdWfrIdAndTimelineStatusesWithTxn(timeline.CdWorkflowRunnerId,
+			[]pipelineConfig.TimelineStatus{pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS, pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT}, tx)
+		if err != nil {
+			impl.logger.Errorw("error in deleting timelines by cdWfrId and timeline status", "err", err)
+		}
+		err = impl.pipelineStatusTimelineRepository.SaveTimelinesWithTxn([]*pipelineConfig.PipelineStatusTimeline{timeline}, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving timeline status ", "err", err, "timeline", timeline)
+			return err
+		}
+	}
+	return nil
+}
 func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrId int) (*PipelineTimelineDetailDto, error) {
 	var triggeredBy int32
 	var deploymentStartedOn time.Time

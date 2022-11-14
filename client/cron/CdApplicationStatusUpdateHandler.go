@@ -122,8 +122,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("error in converting string to int", "err", err)
 			return
 		}
-		err = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(statusUpdateEvent.ArgoAppName, statusUpdateEvent.AppId, statusUpdateEvent.EnvId,
-			statusUpdateEvent.IgnoreFailedWorkflowStatus, timeoutDuration, statusUpdateEvent.UserId)
+		err, _ = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(statusUpdateEvent.ArgoAppName, statusUpdateEvent.AppId, statusUpdateEvent.EnvId, timeoutDuration, statusUpdateEvent.UserId)
 		if err != nil {
 			impl.logger.Errorw("error on argo pipeline status update", "err", err, "msg", string(msg.Data))
 			return
@@ -189,11 +188,10 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceT
 	if !IsTerminalTimelineStatus(timeline.Status) {
 		//create new nats event
 		statusUpdateEvent := pipeline.ArgoPipelineStatusSyncEvent{
-			ArgoAppName:                acdAppName,
-			AppId:                      appId,
-			EnvId:                      envId,
-			IgnoreFailedWorkflowStatus: true,
-			UserId:                     1,
+			ArgoAppName: acdAppName,
+			AppId:       appId,
+			EnvId:       envId,
+			UserId:      1,
 		}
 		//write event
 		err := impl.eventClient.WriteNatsEvent(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
@@ -224,19 +222,18 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId
 		return err
 	}
 	if !util.IsTerminalStatus(deploymentStatus.Status) {
-		//create new nats event
-		statusUpdateEvent := pipeline.ArgoPipelineStatusSyncEvent{
-			ArgoAppName:                deploymentStatus.AppName,
-			AppId:                      appId,
-			EnvId:                      envId,
-			IgnoreFailedWorkflowStatus: true,
-			UserId:                     userId,
-		}
-		//write event
-		err := impl.eventClient.WriteNatsEvent(util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
+		timeoutDuration, err := strconv.Atoi(impl.AppStatusConfig.CdPipelineStatusTimeoutDuration)
 		if err != nil {
-			impl.logger.Errorw("error in writing nats event", "topic", util.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
+			impl.logger.Errorw("error in converting string to int", "err", err)
 			return err
+		}
+		err, isTimelineUpdated := impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(deploymentStatus.AppName, appId, envId, timeoutDuration, userId)
+		if err != nil {
+			impl.logger.Errorw("error on argo pipeline status update", "err", err)
+			return nil
+		}
+		if !isTimelineUpdated {
+			return fmt.Errorf("timeline unchanged")
 		}
 	}
 	return nil
