@@ -20,7 +20,7 @@ package pipeline
 import (
 	"errors"
 	"fmt"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -91,10 +91,15 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	}
 }
 
-const WorkflowStarting = "Starting"
-const WorkflowInProgress = "Progressing"
-const WorkflowAborted = "Aborted"
-const WorkflowFailed = "Failed"
+const (
+	WorkflowStarting           = "Starting"
+	WorkflowInProgress         = "Progressing"
+	WorkflowAborted            = "Aborted"
+	WorkflowFailed             = "Failed"
+	WorkflowSucceeded          = "Succeeded"
+	WorkflowTimedOut           = "TimedOut"
+	WorkflowUnableToFetchState = "UnableToFetch"
+)
 
 func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error) {
 	if !(len(ciMaterials) == 0) {

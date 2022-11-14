@@ -31,21 +31,22 @@ import (
 )
 
 type CiArtifact struct {
-	tableName        struct{}  `sql:"ci_artifact" pg:",discard_unknown_columns"`
-	Id               int       `sql:"id,pk"`
-	PipelineId       int       `sql:"pipeline_id,notnull"` //id of the ci pipeline from which this webhook was triggered
-	Image            string    `sql:"image,notnull"`
-	ImageDigest      string    `sql:"image_digest,notnull"`
-	MaterialInfo     string    `sql:"material_info"` //git material metadata json array string
-	DataSource       string    `sql:"data_source,notnull"`
-	WorkflowId       *int      `sql:"ci_workflow_id"`
-	ParentCiArtifact int       `sql:"parent_ci_artifact"`
-	ScanEnabled      bool      `sql:"scan_enabled,notnull"`
-	Scanned          bool      `sql:"scanned,notnull"`
-	DeployedTime     time.Time `sql:"-"`
-	Deployed         bool      `sql:"-"`
-	Latest           bool      `sql:"-"`
-	RunningOnParent  bool      `sql:"-"`
+	tableName            struct{}  `sql:"ci_artifact" pg:",discard_unknown_columns"`
+	Id                   int       `sql:"id,pk"`
+	PipelineId           int       `sql:"pipeline_id"` //id of the ci pipeline from which this webhook was triggered
+	Image                string    `sql:"image,notnull"`
+	ImageDigest          string    `sql:"image_digest,notnull"`
+	MaterialInfo         string    `sql:"material_info"` //git material metadata json array string
+	DataSource           string    `sql:"data_source,notnull"`
+	WorkflowId           *int      `sql:"ci_workflow_id"`
+	ParentCiArtifact     int       `sql:"parent_ci_artifact"`
+	ScanEnabled          bool      `sql:"scan_enabled,notnull"`
+	Scanned              bool      `sql:"scanned,notnull"`
+	ExternalCiPipelineId int       `sql:"external_ci_pipeline_id"`
+	DeployedTime         time.Time `sql:"-"`
+	Deployed             bool      `sql:"-"`
+	Latest               bool      `sql:"-"`
+	RunningOnParent      bool      `sql:"-"`
 	sql.AuditLog
 }
 
@@ -53,7 +54,7 @@ type CiArtifactRepository interface {
 	Save(artifact *CiArtifact) error
 	Get(id int) (artifact *CiArtifact, err error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
-	GetArtifactsByCDPipeline(cdPipelineId, limit int) ([]CiArtifact, error)
+	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]CiArtifact, error)
 
 	GetArtifactsByCDPipelineV2(cdPipelineId int) ([]CiArtifact, error)
 	GetArtifactsByCDPipelineAndRunnerType(cdPipelineId int, runnerType bean.WorkflowType) ([]CiArtifact, error)
@@ -109,35 +110,54 @@ func (impl CiArtifactRepositoryImpl) GetByWfId(wfId int) (*CiArtifact, error) {
 }
 
 // this method takes CD Pipeline id and Returns List of Artifacts Latest By last deployed
-func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int) ([]CiArtifact, error) {
+func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]CiArtifact, error) {
 	var artifactsA []CiArtifact
 	var artifactsAB []CiArtifact
-
-	queryFetchArtifacts := ""
-	queryFetchArtifacts = "SELECT cia.id, cia.data_source, cia.image, cia.image_digest, cia.scan_enabled, cia.scanned FROM ci_artifact cia" +
-		" INNER JOIN ci_pipeline cp on cp.id=cia.pipeline_id" +
-		" INNER JOIN pipeline p on p.ci_pipeline_id = cp.id" +
-		" WHERE p.id= ? ORDER BY cia.id DESC"
-	_, err := impl.dbConnection.Query(&artifactsA, queryFetchArtifacts, cdPipelineId)
-	if err != nil {
-		impl.logger.Debugw("Error", err)
-		return nil, err
-	}
-
-	// fetching material info separately because it gives error with fetching other (check its json) - FIXME
 	type Object struct {
 		Id           int    `json:"id"`
 		MaterialInfo string `json:"material_info"`
 	}
-
 	var artifactsB []Object
-	var queryTemp string = "SELECT cia.id, cia.material_info FROM ci_artifact cia" +
-		" INNER JOIN ci_pipeline cp on cp.id=cia.pipeline_id" +
-		" INNER JOIN pipeline p on p.ci_pipeline_id = cp.id" +
-		" WHERE p.id= ? ORDER BY cia.id DESC"
-	_, err = impl.dbConnection.Query(&artifactsB, queryTemp, cdPipelineId)
-	if err != nil {
-		return nil, err
+
+	if parentType == bean.WEBHOOK_WORKFLOW_TYPE {
+		queryFetchArtifacts := ""
+		queryFetchArtifacts = "SELECT cia.id, cia.data_source, cia.image, cia.image_digest, cia.scan_enabled, cia.scanned" +
+			" FROM ci_artifact cia" +
+			" WHERE cia.external_ci_pipeline_id = ? ORDER BY cia.id DESC;"
+		_, err := impl.dbConnection.Query(&artifactsA, queryFetchArtifacts, parentId)
+		if err != nil {
+			impl.logger.Debugw("Error", "error", err)
+			return nil, err
+		}
+		var queryTemp string = "SELECT cia.id, cia.material_info FROM ci_artifact cia" +
+			" WHERE cia.external_ci_pipeline_id = ? ORDER BY cia.id DESC;"
+		_, err = impl.dbConnection.Query(&artifactsB, queryTemp, parentId)
+		if err != nil {
+			return nil, err
+		}
+	} else if parentType == bean.CI_WORKFLOW_TYPE {
+		queryFetchArtifacts := ""
+		queryFetchArtifacts = "SELECT cia.id, cia.data_source, cia.image, cia.image_digest, cia.scan_enabled, cia.scanned" +
+			" FROM ci_artifact cia" +
+			" INNER JOIN ci_pipeline cp on cp.id=cia.pipeline_id" +
+			" INNER JOIN pipeline p on p.ci_pipeline_id = cp.id" +
+			" WHERE p.id= ? ORDER BY cia.id DESC;"
+		_, err := impl.dbConnection.Query(&artifactsA, queryFetchArtifacts, cdPipelineId)
+		if err != nil {
+			impl.logger.Debugw("Error", err)
+			return nil, err
+		}
+
+		// fetching material info separately because it gives error with fetching other (check its json) - FIXME
+
+		var queryTemp string = "SELECT cia.id, cia.material_info FROM ci_artifact cia" +
+			" INNER JOIN ci_pipeline cp on cp.id=cia.pipeline_id" +
+			" INNER JOIN pipeline p on p.ci_pipeline_id = cp.id" +
+			" WHERE p.id= ? ORDER BY cia.id DESC;"
+		_, err = impl.dbConnection.Query(&artifactsB, queryTemp, cdPipelineId)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	mapData := make(map[int]string)
@@ -156,7 +176,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
 		" WHERE pco.pipeline_id = ? ORDER BY pco.ci_artifact_id DESC, pco.created_on ASC;"
 
-	_, err = impl.dbConnection.Query(&artifactsDeployed, query, cdPipelineId)
+	_, err := impl.dbConnection.Query(&artifactsDeployed, query, cdPipelineId)
 	if err != nil {
 		impl.logger.Debugw("Error", err)
 		return nil, err
@@ -166,7 +186,7 @@ func (impl CiArtifactRepositoryImpl) GetArtifactsByCDPipeline(cdPipelineId, limi
 	latestObj := Object{}
 	latestDeployedQuery := "SELECT cia.id FROM ci_artifact cia" +
 		" INNER JOIN pipeline_config_override pco ON pco.ci_artifact_id=cia.id" +
-		" WHERE pco.pipeline_id = ? ORDER BY pco.created_on DESC LIMIT 1"
+		" WHERE pco.pipeline_id = ? ORDER BY pco.created_on DESC LIMIT 1;"
 
 	_, err = impl.dbConnection.Query(&latestObj, latestDeployedQuery, cdPipelineId)
 	if err != nil {

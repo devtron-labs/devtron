@@ -113,7 +113,6 @@ func (impl AppListingRepositoryImpl) FetchAllActiveDevtronAppsWithAppIdAndName()
 *
 It will return the list of filtered apps with details related to each env
 */
-
 func (impl AppListingRepositoryImpl) FetchAppsByEnvironment(appListingFilter helper.AppListingFilter) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	var appEnvArr []*bean.AppEnvironmentContainer

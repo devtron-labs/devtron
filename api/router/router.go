@@ -113,6 +113,7 @@ type MuxRouter struct {
 	k8sCapacityRouter                  k8s.K8sCapacityRouter
 	webhookHelmRouter                  webhookHelm.WebhookHelmRouter
 	globalCMCSRouter                   GlobalCMCSRouter
+	userTerminalAccessRouter           UserTerminalAccessRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -139,7 +140,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
-	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter) *MuxRouter {
+	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter, userTerminalAccessRouter UserTerminalAccessRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -204,6 +205,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		k8sCapacityRouter:                  k8sCapacityRouter,
 		webhookHelmRouter:                  webhookHelmRouter,
 		globalCMCSRouter:                   globalCMCSRouter,
+		userTerminalAccessRouter:           userTerminalAccessRouter,
 	}
 	return r
 }
@@ -404,4 +406,7 @@ func (r MuxRouter) Init() {
 
 	globalCMCSRouter := r.Router.PathPrefix("/orchestrator/global/cm-cs").Subrouter()
 	r.globalCMCSRouter.initGlobalCMCSRouter(globalCMCSRouter)
+
+	userTerminalAccessRouter := r.Router.PathPrefix("/orchestrator/user/terminal").Subrouter()
+	r.userTerminalAccessRouter.InitTerminalAccessRouter(userTerminalAccessRouter)
 }

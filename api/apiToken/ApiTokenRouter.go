@@ -21,4 +21,5 @@ func (impl ApiTokenRouterImpl) InitApiTokenRouter(configRouter *mux.Router) {
 	configRouter.Path("").HandlerFunc(impl.apiTokenRestHandler.CreateApiToken).Methods("POST")
 	configRouter.Path("/{id}").HandlerFunc(impl.apiTokenRestHandler.UpdateApiToken).Methods("PUT")
 	configRouter.Path("/{id}").HandlerFunc(impl.apiTokenRestHandler.DeleteApiToken).Methods("DELETE")
+	configRouter.Path("/webhook").HandlerFunc(impl.apiTokenRestHandler.GetAllApiTokensForWebhook).Methods("GET")
 }
