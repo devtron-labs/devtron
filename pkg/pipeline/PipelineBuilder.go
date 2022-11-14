@@ -1113,6 +1113,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 
 	if isGitOpsConfigured == false && pipelineCreateRequest.Pipelines[0].DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		impl.logger.Errorw("Gitops not configured but selected in creating cd pipeline")
+		return nil, errors.New("Gitops not configured but selected in creating cd pipeline")
 	}
 
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
