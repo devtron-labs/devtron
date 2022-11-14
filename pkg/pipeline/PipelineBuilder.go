@@ -717,13 +717,13 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 func (impl PipelineBuilderImpl) buildExternalCiWebhookSchema() map[string]interface{} {
 	schema := make(map[string]interface{})
 	schema["dockerImage"] = &bean.SchemaObject{Description: "docker image of your application", DataType: "String", Example: "test-docker-repo/test:b150cc81-5-20", Optional: false}
-	schema["digest"] = &bean.SchemaObject{Description: "docker image sha1 digest", DataType: "String", Example: "sha256:94180dead8336237430e848ef8145f060b51", Optional: true}
-	schema["materialType"] = &bean.SchemaObject{Description: "git", DataType: "String", Example: "git", Optional: true}
+	//schema["digest"] = &bean.SchemaObject{Description: "docker image sha1 digest", DataType: "String", Example: "sha256:94180dead8336237430e848ef8145f060b51", Optional: true}
+	//schema["materialType"] = &bean.SchemaObject{Description: "git", DataType: "String", Example: "git", Optional: true}
 
 	ciProjectDetails := make([]map[string]interface{}, 0)
 	ciProjectDetail := make(map[string]interface{})
 	ciProjectDetail["commitHash"] = &bean.SchemaObject{Description: "commit hash is git commit", DataType: "String", Example: "dg46f67559dbsdfdfdfdsfba47901caf47f8b7e", Optional: true}
-	ciProjectDetail["commitTime"] = &bean.SchemaObject{Description: "commit date time, when code has pushed", DataType: "String", Example: "2022-10-11T20:55:21+05:30", Optional: true}
+	ciProjectDetail["commitTime"] = &bean.SchemaObject{Description: "commit date time, when code has pushed", DataType: "String", Example: "2022-11-12T12:12:00", Optional: true}
 	ciProjectDetail["message"] = &bean.SchemaObject{Description: "commit message", DataType: "String", Example: "commit message", Optional: true}
 	ciProjectDetail["author"] = &bean.SchemaObject{Description: "author or user name or email id who have done git commit", DataType: "String", Example: "Devtron User", Optional: true}
 	ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
@@ -736,7 +736,7 @@ func (impl PipelineBuilderImpl) buildPayloadOption() []bean.PayloadOptionObject 
 	payloadOption := make([]bean.PayloadOptionObject, 0)
 	payloadOption = append(payloadOption, bean.PayloadOptionObject{
 		Key:        "dockerImage",
-		PayloadKey: []string{"dockerImage", "digest", "materialType"},
+		PayloadKey: []string{"dockerImage"},
 		Label:      "Container image tag",
 		Mandatory:  true,
 	})
