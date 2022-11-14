@@ -19,12 +19,14 @@ const (
 	TIMELINE_STATUS_DEPLOYMENT_FAILED      TimelineStatus = "FAILED"
 	TIMELINE_STATUS_FETCH_TIMED_OUT        TimelineStatus = "TIMED_OUT"
 	TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS TimelineStatus = "UNABLE_TO_FETCH_STATUS"
+	TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED  TimelineStatus = "DEPLOYMENT_SUPERSEDED"
 )
 
 type PipelineStatusTimelineRepository interface {
 	SaveTimeline(timeline *PipelineStatusTimeline) error
 	SaveTimelinesWithTxn(timelines []PipelineStatusTimeline, tx *pg.Tx) error
 	UpdateTimeline(timeline *PipelineStatusTimeline) error
+	UpdateTimelinesWithTxn(timelines []*PipelineStatusTimeline, tx *pg.Tx) error
 	FetchTimelinesByPipelineId(pipelineId int) ([]*PipelineStatusTimeline, error)
 	FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error)
 	FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineId int, status TimelineStatus) (*PipelineStatusTimeline, error)
@@ -84,6 +86,14 @@ func (impl *PipelineStatusTimelineRepositoryImpl) UpdateTimeline(timeline *Pipel
 	return nil
 }
 
+func (impl *PipelineStatusTimelineRepositoryImpl) UpdateTimelinesWithTxn(timelines []*PipelineStatusTimeline, tx *pg.Tx) error {
+	err := tx.Update(&timelines)
+	if err != nil {
+		impl.logger.Errorw("error in updating timelines of cd pipeline status", "err", err, "timelines", timelines)
+		return err
+	}
+	return nil
+}
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByPipelineId(pipelineId int) ([]*PipelineStatusTimeline, error) {
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
@@ -138,7 +148,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatus(
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error) {
-	terminalStatus := []string{string(TIMELINE_STATUS_APP_HEALTHY), string(TIMELINE_STATUS_DEPLOYMENT_FAILED), string(TIMELINE_STATUS_GIT_COMMIT_FAILED)}
+	terminalStatus := []string{string(TIMELINE_STATUS_APP_HEALTHY), string(TIMELINE_STATUS_DEPLOYMENT_FAILED), string(TIMELINE_STATUS_GIT_COMMIT_FAILED), string(TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED)}
 	timeline := &PipelineStatusTimeline{}
 	exists, err := impl.dbConnection.Model(timeline).
 		Where("cd_workflow_runner_id = ?", wfrId).

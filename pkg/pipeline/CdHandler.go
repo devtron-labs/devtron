@@ -277,7 +277,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 	}
 	cdWfr.Status = appStatus
 	impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "updating wfr", "argoAppName", argoAppName, "newCdWfr", cdWfr)
-	err = impl.cdWorkflowRepository.UpdateWorkFlowRunnersWithTxn([]pipelineConfig.CdWorkflowRunner{cdWfr}, tx)
+	err = impl.cdWorkflowRepository.UpdateWorkFlowRunnersWithTxn([]*pipelineConfig.CdWorkflowRunner{&cdWfr}, tx)
 	if err != nil {
 		impl.Logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
 		return err

@@ -210,7 +210,8 @@ func IsTerminalTimelineStatus(timeline pipelineConfig.TimelineStatus) bool {
 	case
 		pipelineConfig.TIMELINE_STATUS_APP_HEALTHY,
 		pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-		pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED:
+		pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED,
+		pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED:
 		return true
 	}
 	return false

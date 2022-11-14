@@ -36,7 +36,7 @@ type CdWorkflowRepository interface {
 
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
-	UpdateWorkFlowRunnersWithTxn(wfrs []CdWorkflowRunner, tx *pg.Tx) error
+	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
 	UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
@@ -410,7 +410,7 @@ func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner
 	return err
 }
 
-func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnersWithTxn(wfrs []CdWorkflowRunner, tx *pg.Tx) error {
+func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error {
 	_, err := tx.Model(&wfrs).Update()
 	return err
 }

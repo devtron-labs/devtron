@@ -975,6 +975,15 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			impl.logger.Errorw("no previous runner found in updating cd wf runner status,", "err", err, "currentRunner", currentRunner)
 			return nil
 		}
+		dbConnection := impl.cdWorkflowRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			impl.logger.Errorw("error on update status, txn begin failed", "err", err)
+			return err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		var timelines []*pipelineConfig.PipelineStatusTimeline
 		for _, previousRunner := range previousNonTerminalRunners {
 			if previousRunner.Status == string(health.HealthStatusHealthy) ||
 				previousRunner.Status == WorkflowSucceeded ||
@@ -982,17 +991,40 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 				previousRunner.Status == WorkflowFailed {
 				//terminal status return
 				impl.logger.Infow("skip updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
-				return nil
+				continue
 			}
 			impl.logger.Infow("updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 			previousRunner.FinishedOn = triggeredAt
 			previousRunner.Message = "triggered new deployment"
 			previousRunner.Status = WorkflowFailed
+			timeline := &pipelineConfig.PipelineStatusTimeline{
+				CdWorkflowRunnerId: previousRunner.Id,
+				Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
+				StatusDetail:       "This deployment is superseded.",
+				StatusTime:         time.Now(),
+				AuditLog: sql.AuditLog{
+					CreatedBy: 1,
+					CreatedOn: time.Now(),
+					UpdatedBy: 1,
+					UpdatedOn: time.Now(),
+				},
+			}
+			timelines = append(timelines, timeline)
 		}
 
-		err = impl.cdWorkflowRepository.UpdateWorkFlowRunners(previousNonTerminalRunners)
+		err = impl.cdWorkflowRepository.UpdateWorkFlowRunnersWithTxn(previousNonTerminalRunners, tx)
 		if err != nil {
 			impl.logger.Errorw("error updating cd wf runner status", "err", err, "previousNonTerminalRunners", previousNonTerminalRunners)
+			return err
+		}
+		err = impl.cdPipelineStatusTimelineRepo.UpdateTimelinesWithTxn(timelines, tx)
+		if err != nil {
+			impl.logger.Errorw("error updating pipeline status timelines", "err", err, "timelines", timelines)
+			return err
+		}
+		err = tx.Commit()
+		if err != nil {
+			impl.logger.Errorw("error in db transaction commit", "err", err)
 			return err
 		}
 		return nil
