@@ -55,6 +55,7 @@ func (impl *PipelineStatusSyncDetailServiceImpl) SaveOrUpdateSyncDetail(cdWfrId 
 				UpdatedOn: time.Now(),
 			},
 		}
+		err = impl.pipelineStatusSyncDetailRepository.Save(syncDetailModelNew)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status sync detail", "err", err, "model", syncDetailModelNew)
 			return err

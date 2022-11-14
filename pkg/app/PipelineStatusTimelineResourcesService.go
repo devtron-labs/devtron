@@ -118,7 +118,7 @@ func (impl *PipelineStatusTimelineResourcesServiceImpl) SaveOrUpdateCdPipelineTi
 				return err
 			}
 		} else {
-			err = impl.pipelineStatusTimelineResourcesRepository.UpdateTimelineResources(timelineResourcesToBeSaved)
+			err = impl.pipelineStatusTimelineResourcesRepository.UpdateTimelineResources(timelineResourcesToBeUpdated)
 			if err != nil {
 				impl.logger.Errorw("error in updating timelineResources", "err", err, "timelineResources", timelineResourcesToBeUpdated)
 				return err
