@@ -25,6 +25,7 @@ import (
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
@@ -1779,11 +1780,14 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 		impl.logger.Errorw("error on update cd workflow runner, fetch failed for runner type", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
-	wfr.Status = string(app.Status.Health.Status)
+
 	wfr.FinishedOn = time.Now()
 	if string(app.Status.Health.Status) == application.Healthy {
 		d, _ := json.Marshal(app)
 		impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "wf_healthy", "data", string(d))
+		wfr.Status = string(app.Status.Health.Status)
+	} else {
+		wfr.Status = pipeline.WorkflowInProgress
 	}
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
 	if err != nil {
