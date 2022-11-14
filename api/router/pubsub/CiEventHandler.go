@@ -167,9 +167,11 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 	return request, nil
 }
 
-
 func (impl *CiEventHandlerImpl) BuildCiArtifactRequestForWebhook(event CiCompleteEvent) (*pipeline.CiArtifactWebhookRequest, error) {
 	ciMaterialInfos := make([]repository.CiMaterialInfo, 0)
+	if event.MaterialType == "" {
+		event.MaterialType = "git"
+	}
 	for _, p := range event.CiProjectDetails {
 		var modifications []repository.Modification
 

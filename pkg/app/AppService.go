@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
@@ -70,53 +71,52 @@ import (
 )
 
 type AppServiceImpl struct {
-	environmentConfigRepository            chartConfig.EnvConfigOverrideRepository
-	pipelineOverrideRepository             chartConfig.PipelineOverrideRepository
-	mergeUtil                              *MergeUtil
-	logger                                 *zap.SugaredLogger
-	ciArtifactRepository                   repository.CiArtifactRepository
-	pipelineRepository                     pipelineConfig.PipelineRepository
-	gitFactory                             *GitFactory
-	dbMigrationConfigRepository            pipelineConfig.DbMigrationConfigRepository
-	eventClient                            client.EventClient
-	eventFactory                           client.EventFactory
-	acdClient                              application.ServiceClient
-	tokenCache                             *util3.TokenCache
-	acdAuthConfig                          *util3.ACDAuthConfig
-	enforcer                               casbin.Enforcer
-	enforcerUtil                           rbac.EnforcerUtil
-	user                                   user.UserService
-	appListingRepository                   repository.AppListingRepository
-	appRepository                          app.AppRepository
-	envRepository                          repository2.EnvironmentRepository
-	pipelineConfigRepository               chartConfig.PipelineConfigRepository
-	configMapRepository                    chartConfig.ConfigMapRepository
-	chartRepository                        chartRepoRepository.ChartRepository
-	appRepo                                app.AppRepository
-	appLevelMetricsRepository              repository.AppLevelMetricsRepository
-	envLevelMetricsRepository              repository.EnvLevelAppMetricsRepository
-	ciPipelineMaterialRepository           pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository                   pipelineConfig.CdWorkflowRepository
-	commonService                          commonService.CommonService
-	imageScanDeployInfoRepository          security.ImageScanDeployInfoRepository
-	imageScanHistoryRepository             security.ImageScanHistoryRepository
-	ArgoK8sClient                          argocdServer.ArgoK8sClient
-	pipelineStrategyHistoryService         history2.PipelineStrategyHistoryService
-	configMapHistoryService                history2.ConfigMapHistoryService
-	deploymentTemplateHistoryService       history2.DeploymentTemplateHistoryService
-	chartTemplateService                   ChartTemplateService
-	refChartDir                            chartRepoRepository.RefChartDir
-	helmAppClient                          client2.HelmAppClient
-	chartRefRepository                     chartRepoRepository.ChartRefRepository
-	chartService                           chart.ChartService
-	argoUserService                        argo.ArgoUserService
-	cdPipelineStatusTimelineRepo           pipelineConfig.PipelineStatusTimelineRepository
-	appCrudOperationService                AppCrudOperationService
-	configMapHistoryRepository             repository3.ConfigMapHistoryRepository
-	strategyHistoryRepository              repository3.PipelineStrategyHistoryRepository
-	deploymentTemplateHistoryRepository    repository3.DeploymentTemplateHistoryRepository
-	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService
-	pipelineStatusFetchDetailService       PipelineStatusFetchDetailService
+	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
+	pipelineOverrideRepository          chartConfig.PipelineOverrideRepository
+	mergeUtil                           *MergeUtil
+	logger                              *zap.SugaredLogger
+	ciArtifactRepository                repository.CiArtifactRepository
+	pipelineRepository                  pipelineConfig.PipelineRepository
+	gitFactory                          *GitFactory
+	dbMigrationConfigRepository         pipelineConfig.DbMigrationConfigRepository
+	eventClient                         client.EventClient
+	eventFactory                        client.EventFactory
+	acdClient                           application.ServiceClient
+	tokenCache                          *util3.TokenCache
+	acdAuthConfig                       *util3.ACDAuthConfig
+	enforcer                            casbin.Enforcer
+	enforcerUtil                        rbac.EnforcerUtil
+	user                                user.UserService
+	appListingRepository                repository.AppListingRepository
+	appRepository                       app.AppRepository
+	envRepository                       repository2.EnvironmentRepository
+	pipelineConfigRepository            chartConfig.PipelineConfigRepository
+	configMapRepository                 chartConfig.ConfigMapRepository
+	chartRepository                     chartRepoRepository.ChartRepository
+	appRepo                             app.AppRepository
+	appLevelMetricsRepository           repository.AppLevelMetricsRepository
+	envLevelMetricsRepository           repository.EnvLevelAppMetricsRepository
+	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
+	commonService                       commonService.CommonService
+	imageScanDeployInfoRepository       security.ImageScanDeployInfoRepository
+	imageScanHistoryRepository          security.ImageScanHistoryRepository
+	ArgoK8sClient                       argocdServer.ArgoK8sClient
+	pipelineStrategyHistoryService      history2.PipelineStrategyHistoryService
+	configMapHistoryService             history2.ConfigMapHistoryService
+	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
+	chartTemplateService                ChartTemplateService
+	refChartDir                         chartRepoRepository.RefChartDir
+	helmAppClient                       client2.HelmAppClient
+	chartRefRepository                  chartRepoRepository.ChartRefRepository
+	chartService                        chart.ChartService
+	argoUserService                     argo.ArgoUserService
+	cdPipelineStatusTimelineRepo        pipelineConfig.PipelineStatusTimelineRepository
+	appCrudOperationService             AppCrudOperationService
+	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
+	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
+	dockerRegistryIpsConfigService      dockerRegistry.DockerRegistryIpsConfigService
 }
 
 type AppService interface {
@@ -166,55 +166,53 @@ func NewAppService(
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
-	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService,
-	pipelineStatusFetchDetailService PipelineStatusFetchDetailService) *AppServiceImpl {
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
-		environmentConfigRepository:            environmentConfigRepository,
-		mergeUtil:                              mergeUtil,
-		pipelineOverrideRepository:             pipelineOverrideRepository,
-		logger:                                 logger,
-		ciArtifactRepository:                   ciArtifactRepository,
-		pipelineRepository:                     pipelineRepository,
-		dbMigrationConfigRepository:            dbMigrationConfigRepository,
-		eventClient:                            eventClient,
-		eventFactory:                           eventFactory,
-		acdClient:                              acdClient,
-		tokenCache:                             cache,
-		acdAuthConfig:                          authConfig,
-		enforcer:                               enforcer,
-		enforcerUtil:                           enforcerUtil,
-		user:                                   user,
-		appListingRepository:                   appListingRepository,
-		appRepository:                          appRepository,
-		envRepository:                          envRepository,
-		pipelineConfigRepository:               pipelineConfigRepository,
-		configMapRepository:                    configMapRepository,
-		chartRepository:                        chartRepository,
-		appLevelMetricsRepository:              appLevelMetricsRepository,
-		envLevelMetricsRepository:              envLevelMetricsRepository,
-		ciPipelineMaterialRepository:           ciPipelineMaterialRepository,
-		cdWorkflowRepository:                   cdWorkflowRepository,
-		commonService:                          commonService,
-		imageScanDeployInfoRepository:          imageScanDeployInfoRepository,
-		imageScanHistoryRepository:             imageScanHistoryRepository,
-		ArgoK8sClient:                          ArgoK8sClient,
-		gitFactory:                             gitFactory,
-		pipelineStrategyHistoryService:         pipelineStrategyHistoryService,
-		configMapHistoryService:                configMapHistoryService,
-		deploymentTemplateHistoryService:       deploymentTemplateHistoryService,
-		chartTemplateService:                   chartTemplateService,
-		refChartDir:                            refChartDir,
-		chartRefRepository:                     chartRefRepository,
-		chartService:                           chartService,
-		helmAppClient:                          helmAppClient,
-		argoUserService:                        argoUserService,
-		cdPipelineStatusTimelineRepo:           cdPipelineStatusTimelineRepo,
-		appCrudOperationService:                appCrudOperationService,
-		configMapHistoryRepository:             configMapHistoryRepository,
-		strategyHistoryRepository:              strategyHistoryRepository,
-		deploymentTemplateHistoryRepository:    deploymentTemplateHistoryRepository,
-		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
-		pipelineStatusFetchDetailService:       pipelineStatusFetchDetailService,
+		environmentConfigRepository:         environmentConfigRepository,
+		mergeUtil:                           mergeUtil,
+		pipelineOverrideRepository:          pipelineOverrideRepository,
+		logger:                              logger,
+		ciArtifactRepository:                ciArtifactRepository,
+		pipelineRepository:                  pipelineRepository,
+		dbMigrationConfigRepository:         dbMigrationConfigRepository,
+		eventClient:                         eventClient,
+		eventFactory:                        eventFactory,
+		acdClient:                           acdClient,
+		tokenCache:                          cache,
+		acdAuthConfig:                       authConfig,
+		enforcer:                            enforcer,
+		enforcerUtil:                        enforcerUtil,
+		user:                                user,
+		appListingRepository:                appListingRepository,
+		appRepository:                       appRepository,
+		envRepository:                       envRepository,
+		pipelineConfigRepository:            pipelineConfigRepository,
+		configMapRepository:                 configMapRepository,
+		chartRepository:                     chartRepository,
+		appLevelMetricsRepository:           appLevelMetricsRepository,
+		envLevelMetricsRepository:           envLevelMetricsRepository,
+		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
+		cdWorkflowRepository:                cdWorkflowRepository,
+		commonService:                       commonService,
+		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
+		imageScanHistoryRepository:          imageScanHistoryRepository,
+		ArgoK8sClient:                       ArgoK8sClient,
+		gitFactory:                          gitFactory,
+		pipelineStrategyHistoryService:      pipelineStrategyHistoryService,
+		configMapHistoryService:             configMapHistoryService,
+		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
+		chartTemplateService:                chartTemplateService,
+		refChartDir:                         refChartDir,
+		chartRefRepository:                  chartRefRepository,
+		chartService:                        chartService,
+		helmAppClient:                       helmAppClient,
+		argoUserService:                     argoUserService,
+		cdPipelineStatusTimelineRepo:        cdPipelineStatusTimelineRepo,
+		appCrudOperationService:             appCrudOperationService,
+		configMapHistoryRepository:          configMapHistoryRepository,
+		strategyHistoryRepository:           strategyHistoryRepository,
+		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
+		dockerRegistryIpsConfigService:      dockerRegistryIpsConfigService,
 	}
 	return appServiceImpl
 }
@@ -263,6 +261,12 @@ func (impl AppServiceImpl) createArgoApplicationIfRequired(appId int, appName st
 		if err != nil {
 			return "", err
 		}
+		//update cd pipeline to mark deployment app created
+		_, err = impl.updatePipeline(pipeline, userId)
+		if err != nil {
+			impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
+			return "", err
+		}
 		return argoAppName, nil
 	}
 }
@@ -299,7 +303,7 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 		return isHealthy, nil
 	}
 
-	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatusByAppName(newApp.Name)
+	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatus(newApp.Name)
 	if err != nil && !IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching deployment status", "dbApp", dbApp, "err", err)
 		return isHealthy, err
@@ -421,10 +425,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		impl.logger.Infow("terminal status timeline exists for cdWfr, skipping more timeline changes", "wfrId", cdWfr.Id)
 		return nil
 	}
-	err = impl.pipelineStatusFetchDetailService.SaveOrUpdateFetchDetail(cdWfr.Id, 1)
-	if err != nil {
-		impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "cdWfrId", cdWfr.Id)
-	}
 	// creating cd pipeline status timeline
 	timeline := &pipelineConfig.PipelineStatusTimeline{
 		CdWorkflowRunnerId: cdWfr.Id,
@@ -440,22 +440,17 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 		//case of first trigger
 		//committing timeline for kubectl apply as revision will be started when
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
-		timeline.StatusDetail = newApp.Status.OperationState.Message
+		timeline.StatusDetail = "Kubectl apply initiated successfully."
 		//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 		_, err = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 			return err
 		}
-		//saving timeline resource details
-		err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, nil, 1)
-		if err != nil {
-			impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id)
-		}
 		if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
 			timeline.Id = 0
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
-			timeline.StatusDetail = newApp.Status.OperationState.Message
+			timeline.StatusDetail = "Kubectl apply synced successfully."
 			//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 			currrentTimeline, err := impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 			if err != nil {
@@ -463,11 +458,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 				return err
 			}
 			impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "data", string(b), "status", timeline.Status)
-			//saving timeline resource details
-			err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, nil, 1)
-			if err != nil {
-				impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id)
-			}
+
 			if currrentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
 				haveNewTimeline := false
 				timeline.Id = 0
@@ -476,6 +467,10 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 					haveNewTimeline = true
 					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
 					timeline.StatusDetail = "App status is Healthy."
+				} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
+					haveNewTimeline = true
+					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
+					timeline.StatusDetail = "App status is Degraded."
 				}
 				if haveNewTimeline {
 					//not checking if this status is already present or not because already checked for terminal status existence earlier
@@ -491,36 +486,27 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 	} else {
 		if oldApp.Status.Sync.Revision != newApp.Status.Sync.Revision {
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
-			timeline.StatusDetail = newApp.Status.OperationState.Message
+			timeline.StatusDetail = "Kubectl apply initiated successfully."
 			//save after checking if this timeline is present or not because kubewatch may stream same objects multiple times
 			_, err = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 				return err
 			}
-			//saving timeline resource details
-			err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, nil, 1)
-			if err != nil {
-				impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id)
-			}
 		} else if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
 			timeline.Id = 0
 			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
-			timeline.StatusDetail = newApp.Status.OperationState.Message
+			timeline.StatusDetail = "Kubectl apply synced successfully."
 			//save after checking if this timeline is present or not because sync status can change from synced to some other status
 			//and back to synced, or kubewatch may stream same objects multiple times
-			currentTimeline, err := impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
+			currrentTimeline, err := impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
 				return err
 			}
 			impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "data", string(b), "status", timeline.Status)
-			//saving timeline resource details
-			err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfr.Id, newApp, nil, 1)
-			if err != nil {
-				impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfr.Id)
-			}
-			if currentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
+
+			if currrentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
 				haveNewTimeline := false
 				timeline.Id = 0
 				if newApp.Status.Health.Status == health.HealthStatusHealthy {
@@ -528,6 +514,10 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ne
 					haveNewTimeline = true
 					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
 					timeline.StatusDetail = "App status is Healthy."
+				} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
+					haveNewTimeline = true
+					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
+					timeline.StatusDetail = "App status is Degraded."
 				}
 				if haveNewTimeline {
 					//not checking if this status is already present or not because already checked for terminal status existence earlier
@@ -963,7 +953,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 
 		// ACD app creation STARTS HERE, it will use existing if already created
 		impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
-		name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride, pipeline, deployedBy)
+		name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride, pipeline, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
 			return 0, err
@@ -1057,13 +1047,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 				impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 				return 0, err
 			}
-		}
-
-		//update cd pipeline to mark deployment app created
-		_, err = impl.updatePipeline(pipeline, overrideRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
-			return 0, err
 		}
 
 		go impl.WriteCDTriggerEvent(overrideRequest, pipeline, envOverride, materialInfoMap, artifact, releaseId, pipelineOverrideId)
@@ -1602,6 +1585,12 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
 
+	// handle image pull secret if access given
+	merged, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, merged)
+	if err != nil {
+		return 0, 0, "", err
+	}
+
 	commitHash := ""
 	commitTime := time.Time{}
 	if IsAcdApp(pipeline.DeploymentAppType) {
@@ -1623,9 +1612,6 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 			impl.logger.Errorw("error in git commit", "err", err)
 			return 0, 0, "", err
 		}
-	}
-	if commitTime.IsZero() {
-		commitTime = time.Now()
 	}
 	pipelineOverride := &chartConfig.PipelineOverride{
 		Id:                     override.Id,
@@ -1954,6 +1940,12 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 				return false, err
 			}
 			isSuccess = helmResponse.Success
+			//update cd pipeline to mark deployment app created
+			_, err = impl.updatePipeline(pipeline, overrideRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
+				return false, err
+			}
 		}
 
 		// update deployment status, used in deployment history

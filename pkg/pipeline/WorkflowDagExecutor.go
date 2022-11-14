@@ -98,6 +98,7 @@ type WorkflowDagExecutorImpl struct {
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
 	argoUserService               argo.ArgoUserService
 	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
+	CiTemplateRepository          pipelineConfig.CiTemplateRepository
 }
 
 type CiArtifactDTO struct {
@@ -143,7 +144,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,
 	argoUserService argo.ArgoUserService,
-	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository) *WorkflowDagExecutorImpl {
+	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
+	CiTemplateRepository pipelineConfig.CiTemplateRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -170,6 +172,7 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 		argoUserService:               argoUserService,
 		cdPipelineStatusTimelineRepo:  cdPipelineStatusTimelineRepo,
+		CiTemplateRepository:          CiTemplateRepository,
 	}
 	err := util4.AddStream(wde.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM, util4.CI_RUNNER_STREAM)
 	if err != nil {
@@ -534,71 +537,73 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 
 	var ciProjectDetails []CiProjectDetails
-	ciPipeline, err := impl.ciPipelineRepository.FindById(cdPipeline.CiPipelineId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("cannot find ciPipeline", "err", err)
-		return nil, err
-	}
-
-	for _, m := range ciPipeline.CiPipelineMaterials {
-		var ciMaterialCurrent repository.CiMaterialInfo
-		for _, ciMaterial := range ciMaterialInfo {
-			if ciMaterial.Material.GitConfiguration.URL == m.GitMaterial.Url {
-				ciMaterialCurrent = ciMaterial
-				break
-			}
-		}
-		gitMaterial, err := impl.materialRepository.FindById(m.GitMaterialId)
+	var ciPipeline *pipelineConfig.CiPipeline
+	if cdPipeline.CiPipelineId > 0 {
+		ciPipeline, err = impl.ciPipelineRepository.FindById(cdPipeline.CiPipelineId)
 		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("could not fetch git materials", "err", err)
+			impl.logger.Errorw("cannot find ciPipeline", "err", err)
 			return nil, err
 		}
 
-		ciProjectDetail := CiProjectDetails{
-			GitRepository:   ciMaterialCurrent.Material.GitConfiguration.URL,
-			MaterialName:    gitMaterial.Name,
-			CheckoutPath:    gitMaterial.CheckoutPath,
-			FetchSubmodules: gitMaterial.FetchSubmodules,
-			SourceType:      m.Type,
-			SourceValue:     m.Value,
-			Type:            string(m.Type),
-			GitOptions: GitOptions{
-				UserName:      gitMaterial.GitProvider.UserName,
-				Password:      gitMaterial.GitProvider.Password,
-				SshPrivateKey: gitMaterial.GitProvider.SshPrivateKey,
-				AccessToken:   gitMaterial.GitProvider.AccessToken,
-				AuthMode:      gitMaterial.GitProvider.AuthMode,
-			},
-		}
-
-		if len(ciMaterialCurrent.Modifications) > 0 {
-			ciProjectDetail.CommitHash = ciMaterialCurrent.Modifications[0].Revision
-			ciProjectDetail.Author = ciMaterialCurrent.Modifications[0].Author
-			ciProjectDetail.GitTag = ciMaterialCurrent.Modifications[0].Tag
-			ciProjectDetail.Message = ciMaterialCurrent.Modifications[0].Message
-			commitTime, err := convert(ciMaterialCurrent.Modifications[0].ModifiedTime)
-			if err != nil {
+		for _, m := range ciPipeline.CiPipelineMaterials {
+			var ciMaterialCurrent repository.CiMaterialInfo
+			for _, ciMaterial := range ciMaterialInfo {
+				if ciMaterial.Material.GitConfiguration.URL == m.GitMaterial.Url {
+					ciMaterialCurrent = ciMaterial
+					break
+				}
+			}
+			gitMaterial, err := impl.materialRepository.FindById(m.GitMaterialId)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("could not fetch git materials", "err", err)
 				return nil, err
 			}
-			ciProjectDetail.CommitTime = commitTime.Format(bean2.LayoutRFC3339)
-		} else {
-			impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
-			return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
-		}
 
-		// set webhook data
-		if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
-			webhookData := ciMaterialCurrent.Modifications[0].WebhookData
-			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
-				Id:              webhookData.Id,
-				EventActionType: webhookData.EventActionType,
-				Data:            webhookData.Data,
+			ciProjectDetail := CiProjectDetails{
+				GitRepository:   ciMaterialCurrent.Material.GitConfiguration.URL,
+				MaterialName:    gitMaterial.Name,
+				CheckoutPath:    gitMaterial.CheckoutPath,
+				FetchSubmodules: gitMaterial.FetchSubmodules,
+				SourceType:      m.Type,
+				SourceValue:     m.Value,
+				Type:            string(m.Type),
+				GitOptions: GitOptions{
+					UserName:      gitMaterial.GitProvider.UserName,
+					Password:      gitMaterial.GitProvider.Password,
+					SshPrivateKey: gitMaterial.GitProvider.SshPrivateKey,
+					AccessToken:   gitMaterial.GitProvider.AccessToken,
+					AuthMode:      gitMaterial.GitProvider.AuthMode,
+				},
 			}
+
+			if len(ciMaterialCurrent.Modifications) > 0 {
+				ciProjectDetail.CommitHash = ciMaterialCurrent.Modifications[0].Revision
+				ciProjectDetail.Author = ciMaterialCurrent.Modifications[0].Author
+				ciProjectDetail.GitTag = ciMaterialCurrent.Modifications[0].Tag
+				ciProjectDetail.Message = ciMaterialCurrent.Modifications[0].Message
+				commitTime, err := convert(ciMaterialCurrent.Modifications[0].ModifiedTime)
+				if err != nil {
+					return nil, err
+				}
+				ciProjectDetail.CommitTime = commitTime.Format(bean2.LayoutRFC3339)
+			} else {
+				impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
+				return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
+			}
+
+			// set webhook data
+			if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
+				webhookData := ciMaterialCurrent.Modifications[0].WebhookData
+				ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
+					Id:              webhookData.Id,
+					EventActionType: webhookData.EventActionType,
+					Data:            webhookData.Data,
+				}
+			}
+
+			ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
 		}
-
-		ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
 	}
-
 	var stageYaml string
 	var deployStageWfr pipelineConfig.CdWorkflowRunner
 	deployStageTriggeredByUser := &bean.UserInfo{}
@@ -628,8 +633,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	} else {
 		return nil, fmt.Errorf("unsupported workflow triggerd")
 	}
-	extraEnvVariables := make(map[string]string)
-	extraEnvVariables["APP_NAME"] = ciPipeline.App.AppName
+
 	cdStageWorkflowRequest := &CdWorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
@@ -643,15 +647,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		CiProjectDetails:      ciProjectDetails,
 		Namespace:             runner.Namespace,
 		ActiveDeadlineSeconds: impl.cdConfig.DefaultTimeout,
-		DockerUsername:        ciPipeline.CiTemplate.DockerRegistry.Username,
-		DockerPassword:        ciPipeline.CiTemplate.DockerRegistry.Password,
-		AwsRegion:             ciPipeline.CiTemplate.DockerRegistry.AWSRegion,
-		DockerConnection:      ciPipeline.CiTemplate.DockerRegistry.Connection,
-		DockerCert:            ciPipeline.CiTemplate.DockerRegistry.Cert,
-		AccessKey:             ciPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
-		SecretKey:             ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
-		DockerRegistryType:    string(ciPipeline.CiTemplate.DockerRegistry.RegistryType),
-		DockerRegistryURL:     ciPipeline.CiTemplate.DockerRegistry.RegistryURL,
 		CiArtifactDTO: CiArtifactDTO{
 			Id:           artifact.Id,
 			PipelineId:   artifact.PipelineId,
@@ -661,11 +656,43 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			DataSource:   artifact.DataSource,
 			WorkflowId:   artifact.WorkflowId,
 		},
-		OrchestratorHost:          impl.cdConfig.OrchestratorHost,
-		OrchestratorToken:         impl.cdConfig.OrchestratorToken,
-		ExtraEnvironmentVariables: extraEnvVariables,
-		CloudProvider:             impl.cdConfig.CloudProvider,
+		OrchestratorHost:  impl.cdConfig.OrchestratorHost,
+		OrchestratorToken: impl.cdConfig.OrchestratorToken,
+		CloudProvider:     impl.cdConfig.CloudProvider,
 	}
+
+	if ciPipeline != nil && ciPipeline.Id > 0 {
+		extraEnvVariables := make(map[string]string)
+		extraEnvVariables["APP_NAME"] = ciPipeline.App.AppName
+		cdStageWorkflowRequest.ExtraEnvironmentVariables = extraEnvVariables
+		cdStageWorkflowRequest.DockerUsername = ciPipeline.CiTemplate.DockerRegistry.Username
+		cdStageWorkflowRequest.DockerPassword = ciPipeline.CiTemplate.DockerRegistry.Password
+		cdStageWorkflowRequest.AwsRegion = ciPipeline.CiTemplate.DockerRegistry.AWSRegion
+		cdStageWorkflowRequest.DockerConnection = ciPipeline.CiTemplate.DockerRegistry.Connection
+		cdStageWorkflowRequest.DockerCert = ciPipeline.CiTemplate.DockerRegistry.Cert
+		cdStageWorkflowRequest.AccessKey = ciPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId
+		cdStageWorkflowRequest.SecretKey = ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey
+		cdStageWorkflowRequest.DockerRegistryType = string(ciPipeline.CiTemplate.DockerRegistry.RegistryType)
+		cdStageWorkflowRequest.DockerRegistryURL = ciPipeline.CiTemplate.DockerRegistry.RegistryURL
+	} else if cdPipeline.AppId > 0 {
+		ciTemplate, err := impl.CiTemplateRepository.FindByAppId(cdPipeline.AppId)
+		if err != nil {
+			return nil, err
+		}
+		extraEnvVariables := make(map[string]string)
+		extraEnvVariables["APP_NAME"] = ciTemplate.App.AppName
+		cdStageWorkflowRequest.ExtraEnvironmentVariables = extraEnvVariables
+		cdStageWorkflowRequest.DockerUsername = ciTemplate.DockerRegistry.Username
+		cdStageWorkflowRequest.DockerPassword = ciTemplate.DockerRegistry.Password
+		cdStageWorkflowRequest.AwsRegion = ciTemplate.DockerRegistry.AWSRegion
+		cdStageWorkflowRequest.DockerConnection = ciTemplate.DockerRegistry.Connection
+		cdStageWorkflowRequest.DockerCert = ciTemplate.DockerRegistry.Cert
+		cdStageWorkflowRequest.AccessKey = ciTemplate.DockerRegistry.AWSAccessKeyId
+		cdStageWorkflowRequest.SecretKey = ciTemplate.DockerRegistry.AWSSecretAccessKey
+		cdStageWorkflowRequest.DockerRegistryType = string(ciTemplate.DockerRegistry.RegistryType)
+		cdStageWorkflowRequest.DockerRegistryURL = ciTemplate.DockerRegistry.RegistryURL
+	}
+
 	if deployStageTriggeredByUser != nil {
 		cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
 		cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUser.EmailId
