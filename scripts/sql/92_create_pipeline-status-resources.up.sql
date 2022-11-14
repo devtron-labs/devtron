@@ -21,10 +21,10 @@ PRIMARY KEY ("id")
 );
 
 
-CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_status_sync_detail;
+CREATE SEQUENCE IF NOT EXISTS id_seq_pipeline_status_timeline_sync_detail;
 
-CREATE TABLE public.pipeline_status_sync_detail (
-"id"                                integer NOT NULL DEFAULT nextval('id_seq_pipeline_status_sync_detail'::regclass),
+CREATE TABLE public.pipeline_status_timeline_sync_detail (
+"id"                                integer NOT NULL DEFAULT nextval('id_seq_pipeline_status_timeline_sync_detail'::regclass),
 "installed_app_version_history_id"  integer,
 "cd_workflow_runner_id"             integer,
 "last_synced_at"                    timestamptz,
@@ -33,7 +33,7 @@ CREATE TABLE public.pipeline_status_sync_detail (
 "created_by"                        int4,
 "updated_on"                        timestamptz,
 "updated_by"                        int4,
- CONSTRAINT "pipeline_status_sync_detail_cd_workflow_runner_id_fkey" FOREIGN KEY ("cd_workflow_runner_id") REFERENCES "public"."cd_workflow_runner" ("id"),
- CONSTRAINT "pipeline_status_sync_detail_installed_app_version_history_id_fkey" FOREIGN KEY ("installed_app_version_history_id") REFERENCES "public"."installed_app_version_history" ("id"),
+ CONSTRAINT "pipeline_status_timeline_sync_detail_cd_workflow_runner_id_fkey" FOREIGN KEY ("cd_workflow_runner_id") REFERENCES "public"."cd_workflow_runner" ("id"),
+ CONSTRAINT "pipeline_status_timeline_sync_detail_installed_app_version_history_id_fkey" FOREIGN KEY ("installed_app_version_history_id") REFERENCES "public"."installed_app_version_history" ("id"),
  PRIMARY KEY ("id")
 );
