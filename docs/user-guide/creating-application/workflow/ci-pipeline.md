@@ -247,7 +247,7 @@ To get the webhook URL and JSON sample payload to be used in external CI pipelin
 
  HTTP Method: `POST`
 
- API Endpoint: `https://qa.devtron.info/orchestrator/webhook/ext-ci/`
+ API Endpoint: `https://{domain-name}/orchestrator/webhook/ext-ci/{pipeline-id}`
     
  JSON Payload:
 
@@ -258,14 +258,14 @@ To get the webhook URL and JSON sample payload to be used in external CI pipelin
  ```  
 
 You can also select metadata to send to Devtron. Sample JSON will be generated accordingly.
-You can send the Payload script to your CI tools such as Jenkins and Devtron will receive the build image every time the CI Service is triggered or you can use the Webhook URL, which will build an image every time CI Service is triggered using Devtron Dashboard.
+You can send the Payload script to your CI tools such as Jenkins and Devtron will receive the build image every time the CI pipeline is triggered or you can use the Webhook URL, which will build an image every time CI pipeline is triggered using Devtron Dashboard.
  
 
 ### Sample cURL Request
    
 ```bash
 curl --location --request POST \
-'https://qa.devtron.info/orchestrator/webhook/ext-ci/39' \
+'https://{domain-name}/orchestrator/webhook/ext-ci/{pipeline-id}' \
 --header 'Content-Type: application/json' \
 --header 'token: {token}' \
 --data-raw '{
@@ -282,21 +282,27 @@ curl --location --request POST \
 | `401` | `Unauthorized` |
 
 
-### Integrate with External Source - Jenkins
+### Integrate with External Sources - Jenkins or CircleCI
 
  * On the Jenkins dashboard, select the Jenkins job which you want to integrate with the Devtron dashboard.
  * Go to the **Configuration** > **Build Steps**, click **Add build step**, and then click **Execute Shell**.
 
  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/add-build-step-jenkins.png)
 
- * Enter the JSON payload or cURL request command.
- * Make sure to enter the `API token` in your cURL command and click **Save**.
+ * Enter the cURL request command.
+ * Make sure to enter the `API token` and `dockerImage` in your cURL command and click **Save**.
 
  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/execute-shell-jenkins.jpg)
 
- * Go to the Jenkins dashboard and click **Build Now**.
-
   Now, you can access the images on the Devtron dashboard and deploy manually. In case, if you select **Automatic** deployment option, then your application will be deployed automatically everytime a new image is received.
+
+  Similarly, you can also integrate with external source such as **CircleCI** by:
+  
+  * Select the job on the `CircleCI` dashboard and click `Configuration File`.
+  * On the respective job, enter the `cURL` command and update the `API token` and `dockerImage` in your cURL command.
+
+
+
 
 
 ## Update CI Pipeline
