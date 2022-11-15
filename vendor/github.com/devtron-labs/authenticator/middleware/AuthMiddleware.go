@@ -32,8 +32,10 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 			cookie, _ := r.Cookie("argocd.token")
 			token := ""
 			if cookie != nil {
-				token = cookie.Value
-				r.Header.Set("token", token)
+				if !strings.Contains(r.URL.Path, "/orchestrator/webhook/ext-ci/") {
+					token = cookie.Value
+					r.Header.Set("token", token)
+				}
 			}
 			if token == "" && cookie == nil {
 				token = r.Header.Get("token")
