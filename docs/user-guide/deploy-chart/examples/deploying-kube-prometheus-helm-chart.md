@@ -16,7 +16,7 @@ Select `Charts` from the left panel to visit the `Chart Store` page. You will se
 
 After selecting the `bitnami/kube-prometheus` Helm chart, click on `Deploy`.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mysql-helm-chart/mysql-3.jpg)
+![](../../../images/deploy-chart/examples/kube-prometheus/kube-prometheusdeploy.png)
 
 Enter the following details, to deploy MySQL chart:
 
@@ -39,7 +39,7 @@ Set the following parameters in the chart, to be later used to connect MySQL wit
 | `mysqluser` | Username of new user to create |
 | `mysqlPassword` | Password for the new user. Ignored if existing secret is provided |
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mysql-helm-chart/mysql-4.jpg)
+![](../../../images/deploy-chart/examples/kube-prometheus/kube-prometheusyaml.png)
 
 Click on `Deploy Chart` to deploy the Chart.
 
@@ -47,14 +47,14 @@ Click on `Deploy Chart` to deploy the Chart.
 
 After clicking on `Deploy` you will be redirected to app details page where you can see deployment status of the chart. The Status of the chart should be `Healthy`. It might take few seconds after initiating the deployment of the chart.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mysql-helm-chart/mysql-5.jpg)
+![](../../../images/deploy-chart/examples/kube-prometheus/kube-prometheusdeployed.png)
 
 In case the Status, of the deployment is `Degraded` or takes a long time to get deployed.
 Click on the `Status` or check the logs of the pods to debug the issue.
 
 ## 4. Extract the Service Name
 
-Copy the service name, it will be used to connect your application to MySQL.
+Copy the service name, it will be used to connect your application to Kube-Prometheus.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/deploy-chart/deploying-mysql-helm-chart/mysql-6.jpg)
+![](../../../images/deploy-chart/examples/kube-prometheus/kube-prometheusservice.png)
 
