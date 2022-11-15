@@ -37,6 +37,7 @@ const (
 type AppIdentifier int
 
 const (
+	APP                   AppIdentifier = -1
 	CLUSTER               AppIdentifier = 0
 	DEVTRON_APP           AppIdentifier = 1
 	DEVTRON_INSTALLED_APP AppIdentifier = 2
@@ -44,6 +45,7 @@ const (
 )
 
 var TypeMappings = map[string]AppIdentifier{
+	"app":                   APP,
 	"cluster":               CLUSTER,
 	"devtron-app":           DEVTRON_APP,
 	"devtron-installed-app": DEVTRON_INSTALLED_APP,
@@ -153,6 +155,12 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 		//if appLevel, get type and identifier else get clusterId
 		//save it in external_link_type_mapping table
 		linkType := request.Type
+		if linkType == APP_LEVEL_LINK && len(request.Identifiers) == 0 {
+			identifier := LinkIdentifier{
+				Type: getType(APP),
+			}
+			request.Identifiers = append(request.Identifiers, identifier)
+		}
 		for _, linkIdentifier := range request.Identifiers {
 			if linkType == CLUSTER_LEVEL_LINK {
 				linkIdentifier.Type = getType(CLUSTER)
@@ -173,7 +181,12 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 				}
 				linkIdentifier.ClusterId = 0
 			} else {
-				return externalLinksCreateUpdateResponse, fmt.Errorf("link is neither app level or cluster level")
+				err = &util.ApiError{
+					InternalMessage: "external-link-identifier-mapping failed to create ",
+					UserMessage:     "external-link-identifier-mapping failed to create ",
+				}
+				impl.logger.Errorw("link is neither app level or cluster level", "LinkType", request.Type)
+				return externalLinksCreateUpdateResponse, err
 			}
 			externalLinkIdentifierMapping := &ExternalLinkIdentifierMapping{
 				ExternalLinkId: externalLink.Id,
@@ -246,16 +259,27 @@ func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkIdentifi
 			responseMap[externalLinkDto.Id] = externalLinkDto
 		}
 
-		if record.Type == CLUSTER && record.Identifier == "" && record.AppId == 0 && record.ClusterId == 0 {
-			responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
+		if (record.Type == CLUSTER || record.Type == APP) && record.Identifier == "" && record.AppId == 0 && record.ClusterId == 0 {
+			if record.Type == CLUSTER {
+				responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
+			} else {
+				responseMap[record.Id].Type = APP_LEVEL_LINK
+			}
 		} else if record.Active {
+			if record.Type == DEVTRON_APP || record.Type == DEVTRON_INSTALLED_APP {
+				record.Identifier = fmt.Sprintf("%d", record.AppId)
+			}
 			identifier := LinkIdentifier{
 				Type:       getType(record.Type),
 				Identifier: record.Identifier,
 				AppId:      record.AppId,
 				ClusterId:  record.ClusterId,
 			}
-			responseMap[record.Id].Type = identifier.Type
+			if identifier.Type == getType(CLUSTER) {
+				responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
+			} else {
+				responseMap[record.Id].Type = APP_LEVEL_LINK
+			}
 			responseMap[record.Id].Identifiers = append(responseMap[record.Id].Identifiers, identifier)
 		}
 
@@ -420,6 +444,7 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 					return externalLinksCreateUpdateResponse, err
 				}
 				identifier.AppId = appId
+				identifier.Identifier = ""
 			}
 			identifier.ClusterId = 0
 		} else {

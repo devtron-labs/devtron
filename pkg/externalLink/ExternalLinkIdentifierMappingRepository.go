@@ -29,11 +29,11 @@ type ExternalLinkIdentifierMapping struct {
 	ExternalLinkId int           `sql:"external_link_id,notnull"`
 	Type           AppIdentifier `sql:"type,notnull"`
 	Identifier     string        `sql:"identifier,notnull"`
-	EnvId          int           `sql:"env_id"`
-	AppId          int           `sql:"app_id"`
+	EnvId          int           `sql:"env_id,notnull"`
+	AppId          int           `sql:"app_id,notnull"`
 	ClusterId      int           `sql:"cluster_id,notnull"`
 	Active         bool          `sql:"active, notnull"`
-	ExternalLink   ExternalLink
+	//ExternalLink   ExternalLink
 	sql.AuditLog
 }
 
@@ -48,8 +48,8 @@ type ExternalLinkIdentifierMappingData struct {
 	Active                       bool          `sql:"active"`
 	Type                         AppIdentifier `sql:"type,notnull"`
 	Identifier                   string        `sql:"identifier,notnull"`
-	EnvId                        int           `sql:"env_id"`
-	AppId                        int           `sql:"app_id"`
+	EnvId                        int           `sql:"env_id,notnull"`
+	AppId                        int           `sql:"app_id,notnull"`
 	ClusterId                    int           `sql:"cluster_id,notnull"`
 	UpdatedOn                    time.Time     `sql:"updated_on"`
 }
@@ -80,8 +80,9 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) Save(externalLinksCluste
 
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) UpdateAllActiveToInActive(Id int, tx *pg.Tx) error {
 
-	query := "UPDATE external_link_identifier_mapping elim " +
-		"SET elim.active = false WHERE elim.external_link_id = ? ,elim.active = false;"
+	query := "UPDATE external_link_identifier_mapping " +
+		"SET active = false WHERE external_link_id = ? " +
+		"AND active = true;"
 	_, err := tx.Exec(query, Id)
 	return err
 }
@@ -106,7 +107,7 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdent
 		" FROM external_link el" +
 		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id" +
 		" WHERE el.active = true and ( ((elim.type = ? and elim.identifier = ? and elim.app_id = ? and elim.cluster_id = 0) or (elim.type = 0 and elim.app_id = 0 and elim.cluster_id = ?)) " +
-		" or (elim.type = 0 and elim.identifier = '' and elim.cluster_id = 0 and elim.app_id = 0 and elim.env_id = 0) );"
+		" or ((elim.type = 0 or elim.type = -1) and elim.identifier = '' and elim.cluster_id = 0 and elim.app_id = 0 and elim.env_id = 0) );"
 	_, err := impl.dbConnection.Query(&links, query, TypeMappings[linkIdentifier.Type], linkIdentifier.Identifier, linkIdentifier.AppId, clusterId)
 	return links, err
 }
