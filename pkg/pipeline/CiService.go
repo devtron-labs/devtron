@@ -409,12 +409,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
 		templateOverride := templateOverrideBean.CiTemplateOverride
 		checkoutPath = templateOverride.GitMaterial.CheckoutPath
-		dockerfilePath = filepath.Join(checkoutPath, templateOverride.DockerfilePath)
+		dockerfilePath = templateOverride.DockerfilePath
 		dockerRepository = templateOverride.DockerRepository
 		dockerRegistry = templateOverride.DockerRegistry
 	} else {
 		checkoutPath = ciTemplate.GitMaterial.CheckoutPath
-		dockerfilePath = filepath.Join(checkoutPath, ciTemplate.DockerfilePath)
+		dockerfilePath = ciTemplate.DockerfilePath
 		dockerRegistry = ciTemplate.DockerRegistry
 		dockerRepository = ciTemplate.DockerRepository
 		ciBuildConfigEntity := ciTemplate.CiBuildConfig
