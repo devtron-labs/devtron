@@ -28,23 +28,12 @@ Enter the following details, to deploy Kube-Prometheus chart:
 | `Chart Version` | Select the latest Chart Version |
 | `Chart Value` | Select the default value or create a custom value |
 
+
 ### Configure `values.yaml`
 
-Set the following parameters in the chart, to be later used to connect MySQL with your Django Application.
+You can configure the `values.yaml` according to your project's requirements.
 
-| Parameters | Description |
-| :--- | :--- |
-| `postgresRootPassword` | Password for the root user. Ignored if existing secret is provided |
-| `postgresDatabase` | Name of your Postgres database |
-| `postgresuser` | Username of new user to create |
-| `postgresPassword` | Password for the new user. Ignored if existing secret is provided |
-
-
-You can either set these values with the help of GUI mode or YAML mode. 
-
-
-![](../../../images/deploy-chart/examples/kube-prometheus/kube-promethus-gui.png)
-![](../../../images/deploy-chart/examples/kube-prometheus/kube-prometheus-yaml.png)
+![](../../../images/deploy-chart/examples/kube-prometheus/kube-prometheusyaml.png)
 
 
 Click on `Deploy Chart` to deploy the Chart.
