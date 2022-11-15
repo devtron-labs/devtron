@@ -108,6 +108,7 @@ type InstalledAppServiceImpl struct {
 	argoUserService                      argo.ArgoUserService
 	helmAppClient                        client.HelmAppClient
 	helmAppService                       client.HelmAppService
+	attributesRepository                 repository3.AttributesRepository
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -127,7 +128,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
-	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService) (*InstalledAppServiceImpl, error) {
+	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
+	attributesRepository repository3.AttributesRepository) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -155,6 +157,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		argoUserService:                      argoUserService,
 		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
+		attributesRepository:                 attributesRepository,
 	}
 	err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
 	if err != nil {
