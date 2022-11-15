@@ -267,6 +267,9 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 
 	ciMaterialHistoryMap := make(map[*pipelineConfig.CiPipelineMaterial]*gitSensor.MaterialChangeResp)
 	for _, m := range ciMaterials {
+		if !m.GitMaterial.Active {
+			continue
+		}
 		changesRequest := &gitSensor.FetchScmChangesRequest{
 			PipelineMaterialId: m.Id,
 		}

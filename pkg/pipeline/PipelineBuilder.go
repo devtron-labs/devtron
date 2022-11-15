@@ -542,11 +542,10 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				CiBuildConfig:    ciTemplateBean.CiBuildConfig,
 			}
 		}
-		var gitMaterials []int
-		for _, gitMaterial := range ciConfig.Materials {
-			gitMaterials = append(gitMaterials, gitMaterial.GitMaterialId)
-		}
 		for _, material := range pipeline.CiPipelineMaterials {
+			if !material.GitMaterial.Active {
+				continue
+			}
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
 				CheckoutPath:    material.CheckoutPath,
@@ -559,13 +558,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				IsRegex:         material.Regex != "",
 				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 			}
-			for _, gitId := range gitMaterials {
-				if gitId == ciMaterial.GitMaterialId {
-					ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
-					break
-				}
-			}
-
+			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
 
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
