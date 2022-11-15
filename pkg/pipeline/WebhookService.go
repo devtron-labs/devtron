@@ -234,13 +234,8 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *
 
 func (impl WebhookServiceImpl) SaveCiArtifactWebhookExternalCi(externalCiId int, request *CiArtifactWebhookRequest) (id int, err error) {
 	impl.logger.Infow("webhook for artifact save", "req", request)
-
 	if request.DataSource == "" {
 		request.DataSource = "EXTERNAL"
-	}
-	if err != nil {
-		impl.logger.Errorw("unable to find pipeline", "name", request.PipelineName, "err", err)
-		return 0, err
 	}
 	materialJson, err := request.MaterialInfo.MarshalJSON()
 	if err != nil {
@@ -250,6 +245,7 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhookExternalCi(externalCiId int,
 	dst := new(bytes.Buffer)
 	err = json.Compact(dst, materialJson)
 	if err != nil {
+		impl.logger.Errorw("parsing error", "err", err)
 		return 0, err
 	}
 	materialJson = dst.Bytes()
@@ -271,17 +267,17 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhookExternalCi(externalCiId int,
 
 	var ciArtifactArr []*repository.CiArtifact
 	ciArtifactArr = append(ciArtifactArr, artifact)
-	isCiManual := true
+	applyAuth := true
 	if request.UserId == 1 {
 		impl.logger.Debugw("Trigger (auto) by system user", "userId", request.UserId)
-		isCiManual = false
+		applyAuth = false
 	} else {
 		impl.logger.Debugw("Trigger (manual) by user", "userId", request.UserId)
 	}
 
 	async := false
 	for _, ciArtifact := range ciArtifactArr {
-		err = impl.workflowDagExecutor.HandleWebhookExternalCiEvent(ciArtifact, isCiManual, async, request.UserId, externalCiId)
+		err = impl.workflowDagExecutor.HandleWebhookExternalCiEvent(ciArtifact, applyAuth, async, request.UserId, externalCiId)
 		if err != nil {
 			impl.logger.Errorw("error on handle  ci success event", "err", err)
 			return 0, err
