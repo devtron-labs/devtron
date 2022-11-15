@@ -293,6 +293,10 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 	//linkIdentifier and clusterId nil and 0 respectively to fetch links at global level(get all active links)
 	//linkIdentifier and clusterId passed to get all active links for a particular app(linkIdentifier.ClusterId will be 0)
 	var err error
+	apiError := &util.ApiError{
+		InternalMessage: "external-link-identifier-mapping failed to fetching external links  ",
+		UserMessage:     "external-link-identifier-mapping failed to fetching external links  ",
+	}
 	if linkIdentifier == nil {
 		if userRole != SUPER_ADMIN_ROLE {
 			impl.logger.Debugw("user is not super_admin", "userId", userId, "userRole", userRole)
@@ -306,10 +310,7 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 		records, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveLinkIdentifierData()
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
-			err = &util.ApiError{
-				InternalMessage: "external-link-identifier-mapping failed to fetching external link identifiers ",
-				UserMessage:     "external-link-identifier-mapping failed to fetching external link identifiers ",
-			}
+			err = apiError
 			return nil, err
 		}
 		return impl.processResult(records)
@@ -319,10 +320,7 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 		appId, err := strconv.Atoi(linkIdentifier.Identifier)
 		if err != nil {
 			impl.logger.Errorw("error while parsing appId", "appId", appId, "err", err)
-			err = &util.ApiError{
-				InternalMessage: "external-link-identifier-mapping failed to fetching external links ",
-				UserMessage:     "external-link-identifier-mapping failed to fetching external links ",
-			}
+			err = apiError
 			return nil, err
 		}
 		linkIdentifier.AppId = appId
@@ -331,10 +329,7 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 	records, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByLinkIdentifier(linkIdentifier, clusterId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
-		err = &util.ApiError{
-			InternalMessage: "external-link-identifier-mapping failed to fetching external link identifiers ",
-			UserMessage:     "external-link-identifier-mapping failed to fetching external link identifiers ",
-		}
+		err = apiError
 		return nil, err
 	}
 	return impl.processResult(records)
@@ -347,12 +342,13 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 	externalLinksCreateUpdateResponse := &ExternalLinkApiResponse{
 		Success: false,
 	}
+	apiError := &util.ApiError{
+		InternalMessage: "external-link-identifier-mapping failed to updating external link  ",
+		UserMessage:     "external-link-identifier-mapping failed to updating external link  ",
+	}
 	if err != nil {
 		impl.logger.Errorw("error in establishing connection", "err", err)
-		err = &util.ApiError{
-			InternalMessage: "external-link-identifier-mapping failed to updating external link  ",
-			UserMessage:     "external-link-identifier-mapping failed to updating external link  ",
-		}
+		err = apiError
 		return externalLinksCreateUpdateResponse, err
 	}
 
@@ -388,20 +384,14 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 	err = impl.externalLinkRepository.Update(&externalLink, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating link", "data", externalLink, "err", err)
-		err = &util.ApiError{
-			InternalMessage: "external-link-identifier-mapping failed to updating external link  ",
-			UserMessage:     "external-link-identifier-mapping failed to updating external link  ",
-		}
+		err = apiError
 		return externalLinksCreateUpdateResponse, err
 	}
 
 	allExternalLinksMapping, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByExternalLinkId(request.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching link", "data", externalLink, "err", err)
-		err = &util.ApiError{
-			InternalMessage: "external-link-identifier-mapping failed to updating external link  ",
-			UserMessage:     "external-link-identifier-mapping failed to updating external link  ",
-		}
+		err = apiError
 		return externalLinksCreateUpdateResponse, err
 	}
 
@@ -410,10 +400,7 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 	err = impl.externalLinkIdentifierMappingRepository.UpdateAllActiveToInActive(request.Id, tx)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching link", "data", externalLink, "err", err)
-		err = &util.ApiError{
-			InternalMessage: "external-link-identifier-mapping failed to updating external link  ",
-			UserMessage:     "external-link-identifier-mapping failed to updating external link  ",
-		}
+		err = apiError
 		return externalLinksCreateUpdateResponse, err
 	}
 
@@ -437,10 +424,7 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 				appId, err := strconv.Atoi(identifier.Identifier)
 				if err != nil {
 					impl.logger.Errorw("error while parsing appId", "appId", appId, "err", err)
-					err = &util.ApiError{
-						InternalMessage: "external-link-identifier-mapping failed to updating external link  ",
-						UserMessage:     "external-link-identifier-mapping failed to updating external link  ",
-					}
+					err = apiError
 					return externalLinksCreateUpdateResponse, err
 				}
 				identifier.AppId = appId
@@ -494,12 +478,13 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32, userRole st
 	externalLinksCreateUpdateResponse := &ExternalLinkApiResponse{
 		Success: false,
 	}
+	apiError := &util.ApiError{
+		InternalMessage: "external_link failed to delete",
+		UserMessage:     "external_link failed to delete",
+	}
 	if err != nil {
 		impl.logger.Errorw("error in establishing connection", "err", err)
-		err = &util.ApiError{
-			InternalMessage: "external_link failed to delete",
-			UserMessage:     "external_link failed to delete",
-		}
+		err = apiError
 		return externalLinksCreateUpdateResponse, err
 	}
 	// Rollback tx on error.
@@ -508,10 +493,7 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32, userRole st
 	externalLink, err := impl.externalLinkRepository.FindOne(id)
 	if err != nil {
 		impl.logger.Errorw("error occurred in finding the external link", "link-id", id)
-		err = &util.ApiError{
-			InternalMessage: "external_link failed to delete",
-			UserMessage:     "external_link failed to delete",
-		}
+		err = apiError
 		return externalLinksCreateUpdateResponse, err
 	}
 	if userRole == ADMIN_ROLE && !externalLink.IsEditable {
@@ -528,10 +510,7 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32, userRole st
 	err = impl.externalLinkRepository.Update(&externalLink, tx)
 	if err != nil {
 		impl.logger.Errorw("error in update external link", "data", externalLink, "err", err)
-		err = &util.ApiError{
-			InternalMessage: "external_link failed to delete",
-			UserMessage:     "external_link failed to delete",
-		}
+		err = apiError
 		return externalLinksCreateUpdateResponse, err
 	}
 
@@ -547,10 +526,7 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32, userRole st
 		err := impl.externalLinkIdentifierMappingRepository.Update(externalLinkMapping, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting external_link_identifier mappings to false", "data", externalLink, "err", err)
-			err = &util.ApiError{
-				InternalMessage: "external_link failed to delete",
-				UserMessage:     "external_link failed to delete",
-			}
+			err = apiError
 			return externalLinksCreateUpdateResponse, err
 		}
 	}
