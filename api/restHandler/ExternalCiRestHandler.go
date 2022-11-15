@@ -22,6 +22,7 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -40,15 +41,17 @@ type ExternalCiRestHandlerImpl struct {
 	webhookService pipeline.WebhookService
 	ciEventHandler pubsub.CiEventHandler
 	validator      *validator.Validate
+	userService    user.UserService
 }
 
 func NewExternalCiRestHandlerImpl(logger *zap.SugaredLogger, webhookService pipeline.WebhookService,
-	ciEventHandler pubsub.CiEventHandler, validator *validator.Validate) *ExternalCiRestHandlerImpl {
+	ciEventHandler pubsub.CiEventHandler, validator *validator.Validate, userService user.UserService) *ExternalCiRestHandlerImpl {
 	return &ExternalCiRestHandlerImpl{
 		webhookService: webhookService,
 		logger:         logger,
 		ciEventHandler: ciEventHandler,
 		validator:      validator,
+		userService:    userService,
 	}
 }
 
@@ -98,11 +101,20 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.ResponseWriter, r *http.Request) {
 	setupResponse(&w, r)
 	vars := mux.Vars(r)
+
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
 	externalCiId, err := strconv.Atoi(vars["externalCiId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	return
 	decoder := json.NewDecoder(r.Body)
 	var req pubsub.CiCompleteEvent
 	err = decoder.Decode(&req)
