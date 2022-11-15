@@ -18,7 +18,7 @@ After selecting the `bitnami/kube-prometheus` Helm chart, click on `Deploy`.
 
 ![](../../../images/deploy-chart/examples/kube-prometheus/kube-prometheusdeploy.png)
 
-Enter the following details, to deploy MySQL chart:
+Enter the following details, to deploy Kube-Prometheus chart:
 
 | Key | Description |
 | :--- | :--- |
@@ -34,12 +34,18 @@ Set the following parameters in the chart, to be later used to connect MySQL wit
 
 | Parameters | Description |
 | :--- | :--- |
-| `mysqlRootPassword` | Password for the root user. Ignored if existing secret is provided |
-| `mysqlDatabase` | Name of your MySQL database |
-| `mysqluser` | Username of new user to create |
-| `mysqlPassword` | Password for the new user. Ignored if existing secret is provided |
+| `postgresRootPassword` | Password for the root user. Ignored if existing secret is provided |
+| `postgresDatabase` | Name of your Postgres database |
+| `postgresuser` | Username of new user to create |
+| `postgresPassword` | Password for the new user. Ignored if existing secret is provided |
 
-![](../../../images/deploy-chart/examples/kube-prometheus/kube-prometheusyaml.png)
+
+You can either set these values with the help of GUI mode or YAML mode. 
+
+
+![](../../../images/deploy-chart/examples/kube-prometheus/kube-promethus-gui.png)
+![](../../../images/deploy-chart/examples/kube-prometheus/kube-prometheus-yaml.png)
+
 
 Click on `Deploy Chart` to deploy the Chart.
 
