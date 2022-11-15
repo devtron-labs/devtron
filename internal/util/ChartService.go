@@ -51,7 +51,7 @@ const PIPELINE_DEPLOYMENT_TYPE_ACD string = "argo_cd"
 const PIPELINE_DEPLOYMENT_TYPE_HELM string = "helm"
 
 type ChartTemplateService interface {
-	FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32) (*ChartValues, *ChartGitAttribute, error)
+	FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32, pipelineStrategyPath string) (*ChartValues, *ChartGitAttribute, error)
 	GetChartVersion(location string) (string, error)
 	CreateChartProxy(chartMetaData *chart.Metadata, refChartLocation string, templateName string, version string, envName string, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (string, *ChartGitAttribute, error)
 	GitPull(clonedDir string, repoUrl string, appStoreName string) error
@@ -142,7 +142,7 @@ func (impl ChartTemplateServiceImpl) GetChartVersion(location string) (string, e
 	return chartContent.Version, nil
 }
 
-func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32) (*ChartValues, *ChartGitAttribute, error) {
+func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData *chart.Metadata, refChartLocation string, templateName string, userId int32, pipelineStrategyPath string) (*ChartValues, *ChartGitAttribute, error) {
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
 	chartDir := filepath.Join(string(impl.chartWorkingDir), dir)
@@ -165,7 +165,7 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 		impl.logger.Errorw("error in creating archive", "err", err)
 		return nil, nil, err
 	}
-	values, err := impl.getValues(chartDir)
+	values, err := impl.getValues(chartDir, pipelineStrategyPath)
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart", "path", archivePath, "err", err)
 		return nil, nil, err
@@ -312,7 +312,7 @@ func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenc
 	return nil
 }
 
-func (impl ChartTemplateServiceImpl) getValues(directory string) (values *ChartValues, err error) {
+func (impl ChartTemplateServiceImpl) getValues(directory, pipelineStrategyPath string) (values *ChartValues, err error) {
 
 	if fi, err := os.Stat(directory); err != nil {
 		return nil, err
@@ -364,17 +364,15 @@ func (impl ChartTemplateServiceImpl) getValues(directory string) (values *ChartV
 					}
 				}
 			}
-			if name == "pipeline-values.yaml" || name == "pipeline-values.yml" {
-				pipelineOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, file.Name())))
-				if err != nil {
-					impl.logger.Errorw("failed reading data from file", "err", err)
-				} else {
-					pipelineOverrideByte, err = yaml.YAMLToJSON(pipelineOverrideByte)
-					if err != nil {
-						return nil, err
-					}
-				}
-			}
+		}
+	}
+	pipelineOverrideByte, err = ioutil.ReadFile(filepath.Clean(filepath.Join(directory, pipelineStrategyPath)))
+	if err != nil {
+		impl.logger.Errorw("failed reading data from file", "err", err)
+	} else {
+		pipelineOverrideByte, err = yaml.YAMLToJSON(pipelineOverrideByte)
+		if err != nil {
+			return nil, err
 		}
 	}
 
