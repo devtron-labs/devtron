@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/event"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -233,6 +234,17 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *
 }
 
 func (impl WebhookServiceImpl) SaveCiArtifactWebhookExternalCi(externalCiId int, request *CiArtifactWebhookRequest) (id int, err error) {
+	externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(externalCiId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching external ci", "err", err)
+		return 0, err
+	}
+
+	if externalCiPipeline.Id == 0 {
+		impl.logger.Errorw("invalid external ci id", "externalCiId", externalCiId, "err", err)
+		return 0, &util2.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid external ci id"}
+	}
+
 	impl.logger.Infow("webhook for artifact save", "req", request)
 	if request.DataSource == "" {
 		request.DataSource = "EXTERNAL"
