@@ -292,6 +292,7 @@ curl --location --request POST \
  4. Make sure to enter the `API token` in your cURL command and click **Save**.
 
  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/execute-shell-jenkins.jpg)
+ 
  5. Go to the Jenkins dashboard and click **Build Now**.
 
   Now, you can access the images on the Devtron dashboard and deploy manually. In case, if you select **Automatic** deployment option, then your application will be deployed automatically everytime a new image is received.
