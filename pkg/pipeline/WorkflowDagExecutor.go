@@ -861,7 +861,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
 		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
+			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "unauthorized for pipeline " + strconv.Itoa(pipeline.Id)}
+			return err
 		}
 	}
 
