@@ -3,6 +3,7 @@
 - fix: corrected health url in auth whitelist list (#2629)
 - fix: updated devtron-reference-chart directory (#2603)
 ## Enhancements
+- feat: Exposed Devtron docker image in container as variable (#2639)
 ## Documentation
 - doc: broken hyperlinks in doc fix (#2621)
 - docs: fix in gcp installation and configuration command (#2614)
