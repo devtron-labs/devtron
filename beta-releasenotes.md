@@ -1,4 +1,5 @@
 ## Bugs
+- fix: sql scripts for replacing CronJob & Job chart name to Job & CronJob in tables (#2638)
 - fix: changed the description for chart types, written update sql scripts (#2632)
 - fix: corrected health url in auth whitelist list (#2629)
 - fix: updated devtron-reference-chart directory (#2603)
