@@ -647,6 +647,12 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 		return nil, err
 	}
+
+	if externalCiPipeline.Id == 0 {
+		impl.logger.Errorw("invalid external ci id", "externalCiId", externalCiId, "err", err)
+		return nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid external ci id"}
+	}
+
 	hostUrl, err := impl.attributesService.GetByKey(attributes.HostUrlKey)
 	if err != nil {
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
