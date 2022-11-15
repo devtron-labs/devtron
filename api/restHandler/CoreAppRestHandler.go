@@ -38,6 +38,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -1244,7 +1245,18 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 // create docker config
 func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig *appBean.DockerConfig, userId int32) (error, int) {
 	handler.logger.Infow("Create App - creating docker config", "appId", appId, "DockerConfig", dockerConfig)
-
+	dockerBuildConfig := dockerConfig.DockerBuildConfig
+	if dockerBuildConfig != nil {
+		dockerConfig.CheckoutPath = dockerBuildConfig.GitCheckoutPath
+		dockerConfig.CiBuildConfig = &bean2.CiBuildConfigBean{
+			DockerBuildConfig: &bean2.DockerBuildConfig{
+				DockerfilePath:     dockerBuildConfig.DockerfileRelativePath,
+				DockerBuildOptions: dockerBuildConfig.DockerBuildOptions,
+				Args:               dockerBuildConfig.Args,
+				TargetPlatform:     dockerBuildConfig.TargetPlatform,
+			},
+		}
+	}
 	createDockerConfigRequest := &bean.CiConfigRequest{
 		AppId:            appId,
 		UserId:           userId,
