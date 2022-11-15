@@ -220,6 +220,7 @@ You can use Devtron for deployments on Kubernetes while using your CI tool such 
 | **Deploy to environment** | <ul><li>`Environment`: Provide the name of the [environment](https://docs.devtron.ai/getting-started/global-configurations/cluster-and-environments/namespaces-and-environments).</ul></li><ul><li>`Namepsace`: Provide the [namespace](https://docs.devtron.ai/getting-started/global-configurations/cluster-and-environments/namespaces-and-environments).</ul></li> |
 | **When do you want to deploy** | You can deploy either in one of the following ways: <ul><li>`Automatic`: If you select automatic, your application will be deployed automatically everytime a new image is received.</ul></li> <ul><li>`Manual`: In case of manual, you have to select the image and deploy manually. </ul></li>|
 | **Deployment Strategy** | Configure the deployment preferences for this pipeline. |
+
 7. Click **Create Pipeline**.
 8. A new CI pipeline will be created for the external source.
 9. To get the webhook URL and JSON sample payload to be used in external CI pipeline, click **Show Web Details**.
@@ -292,7 +293,7 @@ curl --location --request POST \
  4. Make sure to enter the `API token` in your cURL command and click **Save**.
 
  ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/execute-shell-jenkins.jpg)
- 
+
  5. Go to the Jenkins dashboard and click **Build Now**.
 
   Now, you can access the images on the Devtron dashboard and deploy manually. In case, if you select **Automatic** deployment option, then your application will be deployed automatically everytime a new image is received.
