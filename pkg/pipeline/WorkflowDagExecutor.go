@@ -255,10 +255,6 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 }
 
 func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32, externalCiId int) error {
-	//1. get cd pipelines
-	//2. get config
-	//3. trigger wf/ deployment
-
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
@@ -278,6 +274,7 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, async, triggeredBy)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
+			return err
 		}
 	}
 	return nil

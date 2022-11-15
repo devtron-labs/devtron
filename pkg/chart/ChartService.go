@@ -211,7 +211,7 @@ func NewChartServiceImpl(chartRepository chartRepoRepository.ChartRepository,
 }
 
 func (impl ChartServiceImpl) GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) ([]byte, []byte, error) {
-	refChart, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	refChart, _, err, _, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.logger.Errorw("error in getting refChart", "err", err, "chartRefId", chartRefId)
 		return nil, nil, err
@@ -241,7 +241,7 @@ func (impl ChartServiceImpl) GetAppOverrideForDefaultTemplate(chartRefId int) (m
 		return nil, err
 	}
 
-	refChart, _, err, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	refChart, _, err, _, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		return nil, err
 	}
@@ -311,7 +311,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 
-	refChart, templateName, err, chartversion := impl.getRefChart(templateRequest)
+	refChart, templateName, err, chartversion, pipelineStrategyPath := impl.getRefChart(templateRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -371,7 +371,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 	if err != nil {
 		return nil, err
 	}
-	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId)
+	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId, pipelineStrategyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -434,7 +434,7 @@ func (impl ChartServiceImpl) Create(templateRequest TemplateRequest, ctx context
 		return nil, err
 	}
 	var appLevelMetrics *repository3.AppLevelMetrics
-	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
+	if !(chartMajorVersion >= 3 && chartMinorVersion >= 7) {
 		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
 		appLevelMetrics, err = impl.updateAppLevelMetrics(&appMetricsRequest)
 		if err != nil {
@@ -476,7 +476,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 
-	refChart, templateName, err, chartversion := impl.getRefChart(templateRequest)
+	refChart, templateName, err, chartversion, pipelineStrategyPath := impl.getRefChart(templateRequest)
 	if err != nil {
 		return nil, err
 	}
@@ -487,7 +487,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 		return nil, err
 	}
 	var appLevelMetrics *repository3.AppLevelMetrics
-	if appMetrics && !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
+	if appMetrics && !(chartMajorVersion >= 3 && chartMinorVersion >= 7) {
 		impl.logger.Error("cannot enable app metrics for older chart versions < 3.1.0")
 		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
 		appLevelMetrics, err = impl.updateAppLevelMetrics(&appMetricsRequest)
@@ -510,7 +510,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	if err != nil {
 		return nil, err
 	}
-	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId)
+	chartValues, _, err := impl.chartTemplateService.FetchValuesFromReferenceChart(chartMeta, refChart, templateName, templateRequest.UserId, pipelineStrategyPath)
 	if err != nil {
 		return nil, err
 	}
@@ -628,16 +628,16 @@ func (impl ChartServiceImpl) getChartMetaData(templateRequest TemplateRequest) (
 	}
 	return metadata, err
 }
-func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (string, string, error, string) {
+func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (string, string, error, string, string) {
 	var template string
 	var version string
-
+	var pipelineStrategyPath string
 	if templateRequest.ChartRefId > 0 {
 		chartRef, err := impl.chartRefRepository.FindById(templateRequest.ChartRefId)
 		if err != nil {
 			chartRef, err = impl.chartRefRepository.GetDefault()
 			if err != nil {
-				return "", "", err, ""
+				return "", "", err, "", ""
 			}
 		} else if chartRef.UserUploaded {
 			refChartLocation := filepath.Join(string(impl.refChartDir), chartRef.Location)
@@ -651,20 +651,22 @@ func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (strin
 				}
 				if err != nil {
 					impl.logger.Errorw("Error regarding uploaded chart", "err", err)
-					return "", "", err, ""
+					return "", "", err, "", ""
 				}
 
 			}
 		}
 		template = chartRef.Location
 		version = chartRef.Version
+		pipelineStrategyPath = chartRef.FilePathContainingStrategy
 	} else {
 		chartRef, err := impl.chartRefRepository.GetDefault()
 		if err != nil {
-			return "", "", err, ""
+			return "", "", err, "", ""
 		}
 		template = chartRef.Location
 		version = chartRef.Version
+		pipelineStrategyPath = chartRef.FilePathContainingStrategy
 	}
 
 	//TODO VIKI- fetch from chart ref table
@@ -672,9 +674,9 @@ func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (strin
 	valid, err := chartutil.IsChartDir(chartPath)
 	if err != nil || !valid {
 		impl.logger.Errorw("invalid base chart", "dir", chartPath, "err", err)
-		return "", "", err, ""
+		return "", "", err, "", ""
 	}
-	return chartPath, template, nil, version
+	return chartPath, template, nil, version, pipelineStrategyPath
 }
 
 func (impl ChartServiceImpl) getRefChartVersion(templateRequest TemplateRequest) (string, error) {
@@ -851,7 +853,7 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 		return nil, err
 	}
 
-	if !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
+	if !(chartMajorVersion >= 3 && chartMinorVersion >= 7) {
 		appMetricRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
 		_, err = impl.updateAppLevelMetrics(&appMetricRequest)
 		if err != nil {
@@ -947,11 +949,12 @@ func (impl ChartServiceImpl) IsReadyToTrigger(appId int, envId int, pipelineId i
 }
 
 type chartRef struct {
-	Id           int    `json:"id"`
-	Version      string `json:"version"`
-	Name         string `json:"name"`
-	Description  string `json:"description"`
-	UserUploaded bool   `json:"userUploaded"`
+	Id                    int    `json:"id"`
+	Version               string `json:"version"`
+	Name                  string `json:"name"`
+	Description           string `json:"description"`
+	UserUploaded          bool   `json:"userUploaded"`
+	IsAppMetricsSupported bool   `json:"isAppMetricsSupported"`
 }
 
 type ChartRefMetaData struct {
@@ -996,7 +999,13 @@ func (impl ChartServiceImpl) ChartRefAutocomplete() ([]chartRef, error) {
 	}
 
 	for _, result := range results {
-		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Description: result.ChartDescription, UserUploaded: result.UserUploaded})
+		chartRefs = append(chartRefs, chartRef{
+			Id:                    result.Id,
+			Version:               result.Version,
+			Description:           result.ChartDescription,
+			UserUploaded:          result.UserUploaded,
+			IsAppMetricsSupported: result.IsAppMetricsSupported,
+		})
 	}
 
 	return chartRefs, nil
@@ -1030,7 +1039,14 @@ func (impl ChartServiceImpl) ChartRefAutocompleteForAppOrEnv(appId int, envId in
 		if len(result.Name) == 0 {
 			result.Name = "Rollout Deployment"
 		}
-		chartRefs = append(chartRefs, chartRef{Id: result.Id, Version: result.Version, Name: result.Name, Description: result.ChartDescription, UserUploaded: result.UserUploaded})
+		chartRefs = append(chartRefs, chartRef{
+			Id:                    result.Id,
+			Version:               result.Version,
+			Name:                  result.Name,
+			Description:           result.ChartDescription,
+			UserUploaded:          result.UserUploaded,
+			IsAppMetricsSupported: result.IsAppMetricsSupported,
+		})
 		if result.Default == true {
 			LatestAppChartRef = result.Id
 		}
@@ -1195,7 +1211,7 @@ func (impl ChartServiceImpl) AppMetricsEnableDisable(appMetricRequest AppMetricE
 			return nil, err
 		}
 
-		if !refChart.UserUploaded && !(chartMajorVersion >= 3 && chartMinorVersion >= 1) {
+		if !refChart.UserUploaded && !(chartMajorVersion >= 3 && chartMinorVersion >= 7) {
 			err = &util.ApiError{
 				InternalMessage: "chart version in not compatible for app metrics",
 				UserMessage:     "chart version in not compatible for app metrics",
@@ -1296,7 +1312,7 @@ func (impl ChartServiceImpl) JsonSchemaExtractFromFile(chartRefId int) (map[stri
 		return nil, "", err
 	}
 
-	refChartDir, _, err, version := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
+	refChartDir, _, err, version, _ := impl.getRefChart(TemplateRequest{ChartRefId: chartRefId})
 	if err != nil {
 		impl.logger.Errorw("refChartDir Not Found err, JsonSchemaExtractFromFile", err)
 		return nil, "", err

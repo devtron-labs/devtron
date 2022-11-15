@@ -1286,7 +1286,7 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 
 // create global template
 func (handler CoreAppRestHandlerImpl) createDeploymentTemplate(ctx context.Context, appId int, deploymentTemplate *appBean.DeploymentTemplate, userId int32) (error, int) {
-	handler.logger.Infow("Create App - creating deployment template", "appId", appId, "DeploymentTemplate", deploymentTemplate)
+	handler.logger.Infow("Create App - creating deployment template", "appId", appId, "DeploymentStrategy", deploymentTemplate)
 
 	createDeploymentTemplateRequest := chart.TemplateRequest{
 		AppId:               appId,
