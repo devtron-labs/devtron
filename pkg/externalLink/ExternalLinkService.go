@@ -130,6 +130,12 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 		if userRole == ADMIN_ROLE {
 			request.IsEditable = true
 		}
+		linkType := request.Type
+		if linkType == CLUSTER_LEVEL_LINK {
+			request.Name = request.Name + "|" + "C"
+		} else {
+			request.Name = request.Name + "|" + "A"
+		}
 		//data storing in external links table in db
 		externalLink := &ExternalLink{
 			Name:                         request.Name,
@@ -152,7 +158,6 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 		//for all identifiers, check if it is clusterLevel/appLevel
 		//if appLevel, get type and identifier else get clusterId
 		//save it in external_link_type_mapping table
-		linkType := request.Type
 		for _, linkIdentifier := range request.Identifiers {
 			if linkType == CLUSTER_LEVEL_LINK {
 				linkIdentifier.Type = getType(CLUSTER)
