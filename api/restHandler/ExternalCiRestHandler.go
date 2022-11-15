@@ -25,6 +25,7 @@ import (
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 )
@@ -38,13 +39,16 @@ type ExternalCiRestHandlerImpl struct {
 	logger         *zap.SugaredLogger
 	webhookService pipeline.WebhookService
 	ciEventHandler pubsub.CiEventHandler
+	validator      *validator.Validate
 }
 
-func NewExternalCiRestHandlerImpl(logger *zap.SugaredLogger, webhookService pipeline.WebhookService, ciEventHandler pubsub.CiEventHandler) *ExternalCiRestHandlerImpl {
+func NewExternalCiRestHandlerImpl(logger *zap.SugaredLogger, webhookService pipeline.WebhookService,
+	ciEventHandler pubsub.CiEventHandler, validator *validator.Validate) *ExternalCiRestHandlerImpl {
 	return &ExternalCiRestHandlerImpl{
 		webhookService: webhookService,
 		logger:         logger,
 		ciEventHandler: ciEventHandler,
+		validator:      validator,
 	}
 }
 
@@ -67,7 +71,6 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 		return
 	}
 	impl.logger.Infow("request payload, HandleExternalCiWebhook", "payload", req)
-
 	ciPipelineId, err := impl.webhookService.AuthenticateExternalCiWebhook(apiKey)
 	if err != nil {
 		impl.logger.Errorw("auth error", "err", err, "apiKey", apiKey, "payload", req)
@@ -114,6 +117,13 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.R
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhookByApiToken", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	err = impl.validator.Struct(req)
+	if err != nil {
+		impl.logger.Errorw("validation err, Create", "err", err, "payload", req)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 

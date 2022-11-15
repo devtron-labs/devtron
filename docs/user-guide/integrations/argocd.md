@@ -27,4 +27,4 @@ The installation status may be one of the following:
  
 > A list of installed integrations can be viewed on the **Devtron Stack Manager > Installed** page.
  
-To update an installed integration, please [update Devtron](../setup/upgrade/upgrade-devtron-ui.md).
+To update an installed integration, please [update Devtron](../../setup/upgrade/upgrade-devtron-ui.md).
