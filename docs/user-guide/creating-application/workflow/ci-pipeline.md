@@ -1,10 +1,10 @@
 # CI Pipeline
 
-> **Info:**
+> **Note:**
 > 
 > For Devtron version older than v0.4.0, please refer the [CI Pipeline (legacy)](./ci-pipeline-legacy.md) page.
 
-A CI Pipeline can be created in one of the three ways:
+A CI Pipeline can be created in one of the following ways:
 
 * [Continuous Integration](#1-continuous-integration)
 * [Linked CI Pipeline](#2.-linked-ci-pipeline)
@@ -12,7 +12,7 @@ A CI Pipeline can be created in one of the three ways:
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/workflow-ci.jpg)
 
-Each of these methods has different use-cases that can be tailored to the needs of the organization.
+Each method has different use-cases that can be tailored according the needs of the organization.
 
 ## 1. Continuous Integration
 
@@ -196,26 +196,106 @@ Builds cannot be triggered from a linked CI pipeline; they can only be triggered
 
 ## 3. Incoming Webhook
 
-The CI pipeline receives container images from an external source via a webhook service.
+The CI pipeline can receive container images from an external source via webhook API.
 
-You can use Devtron for deployments on Kubernetes while using your CI tool such as Jenkins. External CI features can be used when the CI tool is hosted outside the Devtron platform.
+You can use Devtron for deployments on Kubernetes while using your CI tool such as Jenkins or CircleCI. External CI features can be used when the CI tool is hosted outside the Devtron platform.
 
-1. From the **Applications** menu, select your application.
-2. On the **App Configuration** page, select **Workflow Editor**.
-3. Select **+ New Build Pipeline**.
-4. Select **Incoming Webhook**.
 
-![](../../../.gitbook/assets/ca-workflow-external.png)
+1. Create a [new](https://docs.devtron.ai/usage/applications/create-application) or [clone](https://docs.devtron.ai/usage/applications/cloning-application) an application.
+2. To configure `Git Repository`, you can add any Git repository account (e.g., dummy account) and click **Next**.
+3. To configure the `Container Registry` and `Container Repository`, you can leave the fields blank or simply add any test repository and click **Save & Next**.
+4. On the `Base Deployment Template` page, select the Chart type from the drop-down list and configure as per your [requirements](https://docs.devtron.ai/usage/applications/creating-application/deployment-template) and click **Save & Next**.
+5. On the **Workflow Editor** page, click **New Workflow** and select **Deploy image from external service**.
 
-| Field Name | Required/Optional | Description |
-| :--- | :--- | :--- |
-| **Pipeline Name** | Required | Name of the pipeline |
-| **Source Type** | Required | ‘Branch Fixed’ or ‘Tag Regex’ |
-| **Branch Name** | Required | Name of the branch |
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/click-new-workflow.png)
 
-* Select **Save and Generate URL**. This generates the Payload format and Webhook URL.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/select-deploy-image-from-external-service.png)
 
-You can send the Payload script to your CI tools such as Jenkins and Devtron will receive the build image every time the CI Service is triggered or you can use the Webhook URL which will build an image every time CI Service is triggered using Devtron Dashboard.
+6. On the **Deploy image from external source** page, provide the information in the following fields:
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/deploy-image-from-external-service.png)
+
+| Fields | Description |
+| --- | --- |
+| **Deploy to environment** | <ul><li>`Environment`: Provide the name of the [environment](https://docs.devtron.ai/getting-started/global-configurations/cluster-and-environments/namespaces-and-environments).</ul></li><ul><li>`Namepsace`: Provide the [namespace](https://docs.devtron.ai/getting-started/global-configurations/cluster-and-environments/namespaces-and-environments).</ul></li> |
+| **When do you want to deploy** | You can deploy either in one of the following ways: <ul><li>`Automatic`: If you select automatic, your application will be deployed automatically everytime a new image is received.</ul></li> <ul><li>`Manual`: In case of manual, you have to select the image and deploy manually. </ul></li>|
+| **Deployment Strategy** | Configure the deployment preferences for this pipeline. |
+7. Click **Create Pipeline**.
+8. A new CI pipeline will be created for the external source.
+9. To get the webhook URL and JSON sample payload to be used in external CI pipeline, click **Show Web Details**.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/show-webhook-details.jpg)
+
+10. On the **Webhook Details** page, you have to authenticate via `API token` to allow requests from an external service (e.g. Jenkins or CircleCI).
+
+11. For authentication, only users with `super-admin` permissions can select or generate an API token:
+    * You can either use **Select API Token** if you have generated an [API Token](https://docs.devtron.ai/getting-started/global-configurations/authorization/api-tokens) under **Global Configurations**. 
+
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/select-api-token-webhook-details.png)
+
+
+    * Or use **Auto-generate token** to generate the API token with the required permissions. Make sure to enter the token name in the **Token name** field.
+
+    ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/auto-generate-token-webhook-details.png)
+
+12. To allow requests from the external source, you can request the API by using:
+     * **Webhook URL**
+     * **cURL Request**
+
+### Webhook URL
+
+ HTTP Method: `POST`
+
+ API Endpoint: `https://qa.devtron.info/orchestrator/webhook/ext-ci/`
+    
+ JSON Payload:
+
+```bash
+    {
+    "dockerImage": "445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2"
+}
+ ```  
+
+You can also select metadata to send to Devtron. Sample JSON will be generated accordingly.
+You can send the Payload script to your CI tools such as Jenkins and Devtron will receive the build image every time the CI Service is triggered or you can use the Webhook URL, which will build an image every time CI Service is triggered using Devtron Dashboard.
+ 
+
+### Sample cURL Request
+   
+```bash
+curl --location --request POST \
+'https://qa.devtron.info/orchestrator/webhook/ext-ci/39' \
+--header 'Content-Type: application/json' \
+--header 'token: {token}' \
+--data-raw '{
+    "dockerImage": "445808685819.dkr.ecr.us-east-2.amazonaws.com/orch:23907713-2"
+}'
+ ```
+
+### Response Codes
+
+| Code    | Description |
+| --- | --- |
+| `200` | `app detail page url` |
+| `400` | `Bad request` |
+| `401` | `Unauthorized` |
+
+
+### Integrate with External Source - Jenkins
+
+ 1. On the Jenkins dashboard, select the Jenkins job which you want to integrate with the Devtron dashboard.
+ 2. Go to the **Configuration** > **Build Steps**, click **Add build step**, and then click **Execute Shell**.
+
+ ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/add-build-step-jenkins.png)
+
+ 3. Enter the JSON payload or cURL request command.
+ 4. Make sure to enter the `API token` in your cURL command and click **Save**.
+
+ ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/execute-shell-jenkins.jpg)
+ 5. Go to the Jenkins dashboard and click **Build Now**.
+
+  Now, you can access the images on the Devtron dashboard and deploy manually. In case, if you select **Automatic** deployment option, then your application will be deployed automatically everytime a new image is received.
+
 
 ## Update CI Pipeline
 
