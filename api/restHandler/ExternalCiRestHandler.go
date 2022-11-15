@@ -101,20 +101,16 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.ResponseWriter, r *http.Request) {
 	setupResponse(&w, r)
 	vars := mux.Vars(r)
-
 	userId, err := impl.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized", http.StatusUnauthorized)
 		return
 	}
-
 	externalCiId, err := strconv.Atoi(vars["externalCiId"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	return
 	decoder := json.NewDecoder(r.Body)
 	var req pubsub.CiCompleteEvent
 	err = decoder.Decode(&req)
@@ -123,6 +119,7 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.R
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	req.TriggeredBy = userId
 	impl.logger.Infow("request payload, HandleExternalCiWebhookByApiToken", "payload", req)
 
 	ciArtifactReq, err := impl.ciEventHandler.BuildCiArtifactRequestForWebhook(req)
