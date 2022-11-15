@@ -274,6 +274,7 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, async, triggeredBy)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
+			return err
 		}
 	}
 	return nil
