@@ -18,7 +18,7 @@ After selecting the `bitnami/postgresql` Helm chart, click on `Deploy`.
 
 ![](../../../images/deploy-chart/examples/postgres/postgresql-deploy.png)
 
-Enter the following details, to deploy Psotgresql chart:
+Enter the following details, to deploy Postgresql chart:
 
 | Key | Description |
 | :--- | :--- |
