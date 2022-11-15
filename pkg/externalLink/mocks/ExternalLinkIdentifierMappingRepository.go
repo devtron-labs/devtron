@@ -84,15 +84,15 @@ func (_m *ExternalLinkIdentifierMappingRepository) FindAllActiveByExternalLinkId
 }
 
 // FindAllActiveByJoin provides a mock function with given fields:
-func (_m *ExternalLinkIdentifierMappingRepository) FindAllActiveByJoin() ([]externalLink.ExternalLinkExternalMappingJoinResponse, error) {
+func (_m *ExternalLinkIdentifierMappingRepository) FindAllActiveLinkIdentifierData() ([]externalLink.ExternalLinkIdentifierMappingData, error) {
 	ret := _m.Called()
 
-	var r0 []externalLink.ExternalLinkExternalMappingJoinResponse
-	if rf, ok := ret.Get(0).(func() []externalLink.ExternalLinkExternalMappingJoinResponse); ok {
+	var r0 []externalLink.ExternalLinkIdentifierMappingData
+	if rf, ok := ret.Get(0).(func() []externalLink.ExternalLinkIdentifierMappingData); ok {
 		r0 = rf()
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]externalLink.ExternalLinkExternalMappingJoinResponse)
+			r0 = ret.Get(0).([]externalLink.ExternalLinkIdentifierMappingData)
 		}
 	}
 
@@ -107,15 +107,15 @@ func (_m *ExternalLinkIdentifierMappingRepository) FindAllActiveByJoin() ([]exte
 }
 
 // FindAllActiveByLinkIdentifier provides a mock function with given fields: identifier, clusterId
-func (_m *ExternalLinkIdentifierMappingRepository) FindAllActiveByLinkIdentifier(identifier *externalLink.LinkIdentifier, clusterId int) ([]externalLink.ExternalLinkExternalMappingJoinResponse, error) {
+func (_m *ExternalLinkIdentifierMappingRepository) FindAllActiveByLinkIdentifier(identifier *externalLink.LinkIdentifier, clusterId int) ([]externalLink.ExternalLinkIdentifierMappingData, error) {
 	ret := _m.Called(identifier, clusterId)
 
-	var r0 []externalLink.ExternalLinkExternalMappingJoinResponse
-	if rf, ok := ret.Get(0).(func(*externalLink.LinkIdentifier, int) []externalLink.ExternalLinkExternalMappingJoinResponse); ok {
+	var r0 []externalLink.ExternalLinkIdentifierMappingData
+	if rf, ok := ret.Get(0).(func(*externalLink.LinkIdentifier, int) []externalLink.ExternalLinkIdentifierMappingData); ok {
 		r0 = rf(identifier, clusterId)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]externalLink.ExternalLinkExternalMappingJoinResponse)
+			r0 = ret.Get(0).([]externalLink.ExternalLinkIdentifierMappingData)
 		}
 	}
 

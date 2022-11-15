@@ -159,8 +159,8 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 		Identifier: "ext-helm-1",
 	}
 
-	mockLinks := make([]externalLink.ExternalLinkExternalMappingJoinResponse, 0)
-	mockLinks = append(mockLinks, externalLink.ExternalLinkExternalMappingJoinResponse{
+	mockLinks := make([]externalLink.ExternalLinkIdentifierMappingData, 0)
+	mockLinks = append(mockLinks, externalLink.ExternalLinkIdentifierMappingData{
 		Id:                           1,
 		ExternalLinkMonitoringToolId: 1,
 		Name:                         "name1",
@@ -170,7 +170,7 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 		Type:                         0,
 		ClusterId:                    1,
 	})
-	mockLinks = append(mockLinks, externalLink.ExternalLinkExternalMappingJoinResponse{
+	mockLinks = append(mockLinks, externalLink.ExternalLinkIdentifierMappingData{
 		Id:                           1,
 		ExternalLinkMonitoringToolId: 1,
 		Name:                         "name1",
@@ -180,7 +180,7 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 		Type:                         0,
 		ClusterId:                    4,
 	})
-	mockLinks = append(mockLinks, externalLink.ExternalLinkExternalMappingJoinResponse{
+	mockLinks = append(mockLinks, externalLink.ExternalLinkIdentifierMappingData{
 		Id:                           2,
 		ExternalLinkMonitoringToolId: 1,
 		Name:                         "name2",
@@ -194,7 +194,7 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 	dbMocked := mocks.DB{}
 	dbMocked.On("Begin").Return(&tx, nil)
 	externalLinkRepositoryMocked.On("GetConnection").Return(&dbMocked)
-	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByJoin").Return(mockLinks)
+	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveLinkIdentifierData").Return(mockLinks)
 	expectedResultLinks := make([]externalLink.ExternalLinkDto, 0)
 	expectedResultLinks = append(expectedResultLinks, externalLink.ExternalLinkDto{
 		Id:               1,
@@ -245,7 +245,7 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 		}
 	}
 
-	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByLinkIdentifier").Return([]externalLink.ExternalLinkExternalMappingJoinResponse{mockLinks[2]})
+	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByLinkIdentifier").Return([]externalLink.ExternalLinkIdentifierMappingData{mockLinks[2]})
 	testResult, err = externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.ADMIN_ROLE, 2)
 	assert.Nil(t, testResult)
 	assert.NotNil(t, err)
