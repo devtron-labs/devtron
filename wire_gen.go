@@ -91,6 +91,7 @@ import (
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
 	"github.com/devtron-labs/devtron/pkg/module"
 	"github.com/devtron-labs/devtron/pkg/module/repo"
+	"github.com/devtron-labs/devtron/pkg/module/store"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -242,7 +243,8 @@ func InitializeApp() (*App, error) {
 	moduleCacheServiceImpl := module.NewModuleCacheServiceImpl(sugaredLogger, k8sUtil, moduleEnvConfig, serverEnvConfigServerEnvConfig, serverDataStoreServerDataStore, moduleRepositoryImpl, teamServiceImpl)
 	moduleServiceHelperImpl := module.NewModuleServiceHelperImpl(serverEnvConfigServerEnvConfig)
 	moduleResourceStatusRepositoryImpl := moduleRepo.NewModuleResourceStatusRepositoryImpl(db)
-	moduleCronServiceImpl, err := module.NewModuleCronServiceImpl(sugaredLogger, moduleEnvConfig, moduleRepositoryImpl, serverEnvConfigServerEnvConfig, helmAppServiceImpl, moduleServiceHelperImpl, moduleResourceStatusRepositoryImpl)
+	moduleDataStoreModuleDataStore := moduleDataStore.InitModuleDataStore()
+	moduleCronServiceImpl, err := module.NewModuleCronServiceImpl(sugaredLogger, moduleEnvConfig, moduleRepositoryImpl, serverEnvConfigServerEnvConfig, helmAppServiceImpl, moduleServiceHelperImpl, moduleResourceStatusRepositoryImpl, moduleDataStoreModuleDataStore)
 	if err != nil {
 		return nil, err
 	}

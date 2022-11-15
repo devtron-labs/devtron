@@ -23,6 +23,7 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	moduleDataStore "github.com/devtron-labs/devtron/pkg/module/store"
 	serverBean "github.com/devtron-labs/devtron/pkg/server/bean"
 	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/util"
@@ -34,6 +35,7 @@ import (
 )
 
 type ModuleCronService interface {
+	HandleModuleStatusIfNotInProgress(moduleName string)
 }
 
 type ModuleCronServiceImpl struct {
@@ -45,10 +47,12 @@ type ModuleCronServiceImpl struct {
 	helmAppService                 client.HelmAppService
 	moduleServiceHelper            ModuleServiceHelper
 	moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository
+	moduleDataStore                *moduleDataStore.ModuleDataStore
 }
 
 func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *ModuleEnvConfig, moduleRepository moduleRepo.ModuleRepository,
-	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleServiceHelper ModuleServiceHelper, moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository) (*ModuleCronServiceImpl, error) {
+	serverEnvConfig *serverEnvConfig.ServerEnvConfig, helmAppService client.HelmAppService, moduleServiceHelper ModuleServiceHelper, moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository,
+	moduleDataStore *moduleDataStore.ModuleDataStore) (*ModuleCronServiceImpl, error) {
 
 	moduleCronServiceImpl := &ModuleCronServiceImpl{
 		logger:                         logger,
@@ -58,6 +62,7 @@ func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *Module
 		helmAppService:                 helmAppService,
 		moduleServiceHelper:            moduleServiceHelper,
 		moduleResourceStatusRepository: moduleResourceStatusRepository,
+		moduleDataStore:                moduleDataStore,
 	}
 
 	// if devtron user type is OSS_HELM then only cron to update module status is useful
@@ -69,7 +74,7 @@ func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *Module
 		cron.Start()
 
 		// add function into cron
-		_, err := cron.AddFunc(fmt.Sprintf("@every %ds", moduleEnvConfig.ModuleStatusHandlingCronDurationInSec), moduleCronServiceImpl.HandleModuleStatus)
+		_, err := cron.AddFunc(fmt.Sprintf("@every %dm", moduleEnvConfig.ModuleStatusHandlingCronDurationInMin), moduleCronServiceImpl.handleAllModuleStatusIfNotInProgress)
 		if err != nil {
 			fmt.Println("error in adding cron function into module cron service")
 			return nil, err
@@ -81,10 +86,24 @@ func NewModuleCronServiceImpl(logger *zap.SugaredLogger, moduleEnvConfig *Module
 	return moduleCronServiceImpl, nil
 }
 
+func (impl *ModuleCronServiceImpl) HandleModuleStatusIfNotInProgress(moduleName string) {
+	if impl.moduleDataStore.ModuleStatusCronInProgress {
+		impl.logger.Warn("module status cron is already in progress, returning.")
+		return
+	}
+	impl.moduleDataStore.ModuleStatusCronInProgress = true
+	impl.handleModuleStatus(moduleName)
+	impl.moduleDataStore.ModuleStatusCronInProgress = false
+}
+
+func (impl *ModuleCronServiceImpl) handleAllModuleStatusIfNotInProgress() {
+	impl.HandleModuleStatusIfNotInProgress("")
+}
+
 // check modules from DB.
 //if status is installing for 1 hour, mark it as timeout
 // if status is installing and helm release is healthy then mark as installed
-func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
+func (impl *ModuleCronServiceImpl) handleModuleStatus(moduleNameInput string) {
 	impl.logger.Debug("starting module status check thread")
 	defer impl.logger.Debug("stopped module status check thread")
 
@@ -98,6 +117,9 @@ func (impl *ModuleCronServiceImpl) HandleModuleStatus() {
 	// update status timeout if module status is installing for more than 1 hour
 	for _, module := range modules {
 		if module.Status != ModuleStatusInstalling {
+			continue
+		}
+		if len(moduleNameInput) > 0 && module.Name != moduleNameInput {
 			continue
 		}
 		if time.Now().After(module.UpdatedOn.Add(1 * time.Hour)) {

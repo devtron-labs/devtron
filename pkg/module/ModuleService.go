@@ -100,9 +100,20 @@ func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error)
 	}
 
 	// now this is the case when data found in DB
+	// if module is in installing state, then trigger module status check and override module model
+	if module.Status == ModuleStatusInstalling {
+		impl.moduleCronService.HandleModuleStatusIfNotInProgress(module.Name)
+		// override module model
+		module, err = impl.moduleRepository.FindOne(name)
+		if err != nil {
+			impl.logger.Errorw("error in getting module from DB ", "name", name, "err", err)
+			return nil, err
+		}
+	}
+
 	// send DB status
 	moduleInfoDto.Status = module.Status
-	
+
 	// handle module resources status data
 	moduleId := module.Id
 	moduleResourcesStatusFromDb, err := impl.moduleResourceStatusRepository.FindAllActiveByModuleId(moduleId)
