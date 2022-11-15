@@ -729,6 +729,7 @@ func (impl UserTerminalAccessServiceImpl) SyncRunningInstances() {
 	for _, accessData := range terminalAccessData {
 		terminalAccessDataMap[accessData.Id] = &UserTerminalAccessSessionData{
 			terminalAccessDataEntity: accessData,
+			latestActivityTime:       time.Now(),
 		}
 	}
 	impl.TerminalAccessSessionDataMap = &terminalAccessDataMap
