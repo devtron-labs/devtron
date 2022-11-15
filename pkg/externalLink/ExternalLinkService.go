@@ -496,6 +496,10 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32, userRole st
 	}
 	if err != nil {
 		impl.logger.Errorw("error in establishing connection", "err", err)
+		err = &util.ApiError{
+			InternalMessage: "external_link failed to delete",
+			UserMessage:     "external_link failed to delete",
+		}
 		return externalLinksCreateUpdateResponse, err
 	}
 	// Rollback tx on error.
@@ -503,11 +507,20 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32, userRole st
 	// mark the link inactive if user has edit access
 	externalLink, err := impl.externalLinkRepository.FindOne(id)
 	if err != nil {
+		impl.logger.Errorw("error occurred in finding the external link", "link-id", id)
+		err = &util.ApiError{
+			InternalMessage: "external_link failed to delete",
+			UserMessage:     "external_link failed to delete",
+		}
 		return externalLinksCreateUpdateResponse, err
 	}
 	if userRole == ADMIN_ROLE && !externalLink.IsEditable {
 		impl.logger.Infow("app admin not allowed to update or delete the external link", "external-link-id", externalLink.Id, "user-id", userId)
-		return externalLinksCreateUpdateResponse, fmt.Errorf("user not allowed to perform update or delete")
+		err = &util.ApiError{
+			InternalMessage: "external_link failed to delete",
+			UserMessage:     "external_link failed to delete,no permission for user to delete",
+		}
+		return externalLinksCreateUpdateResponse, err
 	}
 	externalLink.Active = false
 	externalLink.UpdatedOn = time.Now()
@@ -515,6 +528,10 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32, userRole st
 	err = impl.externalLinkRepository.Update(&externalLink, tx)
 	if err != nil {
 		impl.logger.Errorw("error in update external link", "data", externalLink, "err", err)
+		err = &util.ApiError{
+			InternalMessage: "external_link failed to delete",
+			UserMessage:     "external_link failed to delete",
+		}
 		return externalLinksCreateUpdateResponse, err
 	}
 
@@ -530,6 +547,10 @@ func (impl ExternalLinkServiceImpl) DeleteLink(id int, userId int32, userRole st
 		err := impl.externalLinkIdentifierMappingRepository.Update(externalLinkMapping, tx)
 		if err != nil {
 			impl.logger.Errorw("error in deleting external_link_identifier mappings to false", "data", externalLink, "err", err)
+			err = &util.ApiError{
+				InternalMessage: "external_link failed to delete",
+				UserMessage:     "external_link failed to delete",
+			}
 			return externalLinksCreateUpdateResponse, err
 		}
 	}
