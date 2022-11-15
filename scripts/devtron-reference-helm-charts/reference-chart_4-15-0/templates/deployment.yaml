@@ -252,6 +252,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: DEVTRON_CONTAINER_REPO
+              value: "{{ .Values.server.deployment.image }}"
+            - name: DEVTRON_CONTAINER_TAG
+              value: "{{ .Values.server.deployment.image_tag }}"
           {{- range $.Values.EnvVariablesFromFieldPath }}
             - name: {{ .name }}
               valueFrom:
