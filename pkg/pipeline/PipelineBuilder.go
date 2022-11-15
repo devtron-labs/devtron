@@ -743,7 +743,7 @@ func (impl PipelineBuilderImpl) buildExternalCiWebhookSchema() map[string]interf
 	ciProjectDetails := make([]map[string]interface{}, 0)
 	ciProjectDetail := make(map[string]interface{})
 	ciProjectDetail["commitHash"] = &bean.SchemaObject{Description: "commit hash is git commit", DataType: "String", Example: "dg46f67559dbsdfdfdfdsfba47901caf47f8b7e", Optional: true}
-	ciProjectDetail["commitTime"] = &bean.SchemaObject{Description: "commit date time, when code has pushed", DataType: "String", Example: "2022-11-12T12:12:00", Optional: true}
+	ciProjectDetail["commitTime"] = &bean.SchemaObject{Description: "2022-11-12T12:12:00", DataType: "String", Example: "2022-11-12T12:12:00", Optional: true}
 	ciProjectDetail["message"] = &bean.SchemaObject{Description: "commit message", DataType: "String", Example: "commit message", Optional: true}
 	ciProjectDetail["author"] = &bean.SchemaObject{Description: "author or user name or email id who have done git commit", DataType: "String", Example: "Devtron User", Optional: true}
 	ciProjectDetails = append(ciProjectDetails, ciProjectDetail)

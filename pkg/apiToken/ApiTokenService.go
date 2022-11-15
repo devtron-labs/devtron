@@ -290,6 +290,13 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
 	}
 
+	apiToken.ExpireAtInMs = time.Now().UnixMilli()
+	err = impl.apiTokenRepository.Update(apiToken)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while getting api token by id", "apiTokenId", apiTokenId, "error", err)
+		return nil, err
+	}
+
 	// step-2 inactivate user corresponds to this api-token
 	deleteUserRequest := bean.UserInfo{
 		Id:     apiToken.UserId,
