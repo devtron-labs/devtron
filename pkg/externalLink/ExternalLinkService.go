@@ -24,6 +24,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -227,10 +228,11 @@ func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkExternal
 	responseMap := make(map[int]*ExternalLinkDto)
 	for _, record := range records {
 		_, ok := responseMap[record.Id]
+		nameSplitArray := strings.Split(record.Name, "|")
 		if !ok {
 			externalLinkDto := &ExternalLinkDto{
 				Id:               record.Id,
-				Name:             record.Name,
+				Name:             nameSplitArray[0],
 				Url:              record.Url,
 				Active:           true,
 				MonitoringToolId: record.ExternalLinkMonitoringToolId,
@@ -243,7 +245,11 @@ func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkExternal
 		}
 
 		if record.Type == 0 && record.Identifier == "" && record.AppId == 0 && record.ClusterId == 0 {
-			responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
+			if len(nameSplitArray) <= 1 || nameSplitArray[1] == "C" {
+				responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
+			} else {
+				responseMap[record.Id].Type = APP_LEVEL_LINK
+			}
 		} else if record.Active {
 			identifier := LinkIdentifier{
 				Type:       getType(record.Type),
