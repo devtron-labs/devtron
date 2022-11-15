@@ -11,6 +11,7 @@ ALTER TABLE IF EXISTS "public"."external_link_cluster_mapping" ADD COLUMN "app_i
 
 ALTER SEQUENCE IF EXISTS id_seq_external_link_cluster_mapping RENAME TO id_seq_external_link_identifier_mapping;
 ALTER TABLE IF EXISTS "public"."external_link_cluster_mapping" RENAME TO external_link_identifier_mapping;
+ALTER TABLE IF EXISTS "public"."external_link_identifier_mapping" DROP CONSTRAINT external_link_cluster_mapping_cluster_id_fkey;
 
 DELETE FROM "public"."external_link_monitoring_tool" WHERE name = 'Other';
 UPDATE "public"."external_link_monitoring_tool" SET category = 2;

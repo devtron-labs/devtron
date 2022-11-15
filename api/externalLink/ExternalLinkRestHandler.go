@@ -71,28 +71,34 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 	}
 	userRole := ""
 	v := r.URL.Query()
-	appName := v.Get("appName")
+	//put this check from identifiers itself,don't get this appname from query params
+	appId := v.Get("appId")
 	token := r.Header.Get("token")
-	if !v.Has("appName") {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, action, "*"); !ok {
-			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-			return userId, "", fmt.Errorf("unauthorized error")
+	if v.Has("appId") {
+		id, err := strconv.Atoi(appId)
+		if err != nil {
+			common.WriteJsonResp(w, errors.New("Invalid request"), nil, http.StatusBadRequest)
+			return userId, "", fmt.Errorf("invalid request query param appId = %s", appId)
 		}
-		userRole = externalLink.SUPER_ADMIN_ROLE
-	} else {
-		object := impl.enforcerUtil.GetAppRBACName(appName)
+		object := impl.enforcerUtil.GetAppRBACNameByAppId(id)
 		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, object); !ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return userId, "", fmt.Errorf("unauthorized error")
 		}
 		userRole = externalLink.ADMIN_ROLE
+	} else {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, action, "*"); !ok {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return userId, "", fmt.Errorf("unauthorized error")
+		}
+		userRole = externalLink.SUPER_ADMIN_ROLE
 	}
-
 	return userId, userRole, nil
 }
 func (impl ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
 	userId, userRole, err := impl.roleCheckHelper(w, r, casbin.ActionCreate)
 	if err != nil {
+		impl.logger.Errorw("error in CreateExternalLinks ", "err", err)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
@@ -155,9 +161,9 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, res, http.StatusOK)
 		return
 
-	} else if len(identifier) != 0 && len(linkType) != 0 {
+	} else if len(identifier) != 0 && len(linkType) != 0 { //api to get external links from app-level external links tab and from app-details page
 		id := 0
-		if len(clusterId) != 0 {
+		if len(clusterId) != 0 { //api call from app-detail page
 			id, err = strconv.Atoi(clusterId)
 			if err != nil {
 				impl.logger.Errorw("error occurred while parsing cluster_id", "clusterId", clusterId, "err", err)

@@ -29,15 +29,15 @@ type ExternalLinkIdentifierMapping struct {
 	ExternalLinkId int           `sql:"external_link_id,notnull"`
 	Type           AppIdentifier `sql:"type,notnull"`
 	Identifier     string        `sql:"identifier,notnull"`
-	EnvId          int           `sql:"env_id"`
-	AppId          int           `sql:"app_id"`
+	EnvId          int           `sql:"env_id,notnull"`
+	AppId          int           `sql:"app_id,notnull"`
 	ClusterId      int           `sql:"cluster_id,notnull"`
 	Active         bool          `sql:"active, notnull"`
-	ExternalLink   ExternalLink
+	//ExternalLink   ExternalLink
 	sql.AuditLog
 }
 
-type ExternalLinkExternalMappingJoinResponse struct {
+type ExternalLinkIdentifierMappingData struct {
 	Id                           int           `sql:"id"`
 	ExternalLinkMonitoringToolId int           `sql:"external_link_monitoring_tool_id, notnull"`
 	Name                         string        `sql:"name,notnull"`
@@ -48,8 +48,8 @@ type ExternalLinkExternalMappingJoinResponse struct {
 	Active                       bool          `sql:"active"`
 	Type                         AppIdentifier `sql:"type,notnull"`
 	Identifier                   string        `sql:"identifier,notnull"`
-	EnvId                        int           `sql:"env_id"`
-	AppId                        int           `sql:"app_id"`
+	EnvId                        int           `sql:"env_id,notnull"`
+	AppId                        int           `sql:"app_id,notnull"`
 	ClusterId                    int           `sql:"cluster_id,notnull"`
 	UpdatedOn                    time.Time     `sql:"updated_on"`
 }
@@ -57,12 +57,13 @@ type ExternalLinkExternalMappingJoinResponse struct {
 type ExternalLinkIdentifierMappingRepository interface {
 	Save(externalLinksClusters *ExternalLinkIdentifierMapping, tx *pg.Tx) error
 	FindAllActiveByClusterId(clusterId int) ([]ExternalLinkIdentifierMapping, error)
-	FindAllActiveByLinkIdentifier(identifier *LinkIdentifier, clusterId int) ([]ExternalLinkExternalMappingJoinResponse, error)
+	FindAllActiveByLinkIdentifier(identifier *LinkIdentifier, clusterId int) ([]ExternalLinkIdentifierMappingData, error)
 	FindAllActive() ([]ExternalLinkIdentifierMapping, error)
 	Update(link *ExternalLinkIdentifierMapping, tx *pg.Tx) error
+	UpdateAllActiveToInActive(Id int, tx *pg.Tx) error
 	FindAllActiveByExternalLinkId(linkId int) ([]*ExternalLinkIdentifierMapping, error)
 	FindAllByExternalLinkId(linkId int) ([]*ExternalLinkIdentifierMapping, error)
-	FindAllActiveByJoin() ([]ExternalLinkExternalMappingJoinResponse, error)
+	FindAllActiveLinkIdentifierData() ([]ExternalLinkIdentifierMappingData, error)
 }
 type ExternalLinkIdentifierMappingRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -77,6 +78,14 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) Save(externalLinksCluste
 	return err
 }
 
+func (impl ExternalLinkIdentifierMappingRepositoryImpl) UpdateAllActiveToInActive(Id int, tx *pg.Tx) error {
+
+	query := "UPDATE external_link_identifier_mapping " +
+		"SET active = false WHERE external_link_id = ? " +
+		"AND active = true;"
+	_, err := tx.Exec(query, Id)
+	return err
+}
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) Update(link *ExternalLinkIdentifierMapping, tx *pg.Tx) error {
 	err := tx.Update(link)
 	return err
@@ -90,20 +99,21 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByClusterId
 		Select()
 	return links, err
 }
-func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int) ([]ExternalLinkExternalMappingJoinResponse, error) {
-	var links []ExternalLinkExternalMappingJoinResponse
+func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int) ([]ExternalLinkIdentifierMappingData, error) {
+	var links []ExternalLinkIdentifierMappingData
+	//re-evalute the query
 	query := "select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on," +
 		"elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
 		" FROM external_link el" +
 		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id" +
-		" WHERE el.active = true and elim.active = true and ( ((elim.type = ? and elim.identifier = ? and elim.app_id = ? and elim.cluster_id = ?) or (elim.type = 0 and elim.identifier = '' and elim.app_id = 0 and elim.cluster_id = ?)) " +
-		" or (elim.type = 0 and elim.identifier = '' and elim.cluster_id = 0 and elim.app_id = 0 and elim.env_id = 0) );"
-	_, err := impl.dbConnection.Query(&links, query, TypeMappings[linkIdentifier.Type], linkIdentifier.Identifier, linkIdentifier.AppId, linkIdentifier.ClusterId, clusterId)
+		" WHERE el.active = true and ( ((elim.type = ? and elim.identifier = ? and elim.app_id = ? and elim.cluster_id = 0) or (elim.type = 0 and elim.app_id = 0 and elim.cluster_id = ?)) " +
+		" or ((elim.type = 0 or elim.type = -1) and elim.identifier = '' and elim.cluster_id = 0 and elim.app_id = 0 and elim.env_id = 0) );"
+	_, err := impl.dbConnection.Query(&links, query, TypeMappings[linkIdentifier.Type], linkIdentifier.Identifier, linkIdentifier.AppId, clusterId)
 	return links, err
 }
 
-func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByJoin() ([]ExternalLinkExternalMappingJoinResponse, error) {
-	var links []ExternalLinkExternalMappingJoinResponse
+func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveLinkIdentifierData() ([]ExternalLinkIdentifierMappingData, error) {
+	var links []ExternalLinkIdentifierMappingData
 	query := "select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on," +
 		"elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
 		" FROM external_link el" +
