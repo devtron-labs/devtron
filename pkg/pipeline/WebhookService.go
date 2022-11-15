@@ -50,7 +50,7 @@ type CiArtifactWebhookRequest struct {
 type WebhookService interface {
 	AuthenticateExternalCiWebhook(apiKey string) (int, error)
 	SaveCiArtifactWebhook(ciPipelineId int, request *CiArtifactWebhookRequest) (id int, err error)
-	SaveCiArtifactWebhookExternalCi(externalCiId int, request *CiArtifactWebhookRequest) (id int, err error)
+	SaveCiArtifactWebhookExternalCi(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool) (id int, err error)
 }
 
 type WebhookServiceImpl struct {
@@ -233,7 +233,7 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *
 	return artifact.Id, err
 }
 
-func (impl WebhookServiceImpl) SaveCiArtifactWebhookExternalCi(externalCiId int, request *CiArtifactWebhookRequest) (id int, err error) {
+func (impl WebhookServiceImpl) SaveCiArtifactWebhookExternalCi(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool) (id int, err error) {
 	externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(externalCiId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in fetching external ci", "err", err)
@@ -279,17 +279,8 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhookExternalCi(externalCiId int,
 
 	var ciArtifactArr []*repository.CiArtifact
 	ciArtifactArr = append(ciArtifactArr, artifact)
-	applyAuth := true
-	if request.UserId == 1 {
-		impl.logger.Debugw("Trigger (auto) by system user", "userId", request.UserId)
-		applyAuth = false
-	} else {
-		impl.logger.Debugw("Trigger (manual) by user", "userId", request.UserId)
-	}
-
-	async := false
 	for _, ciArtifact := range ciArtifactArr {
-		err = impl.workflowDagExecutor.HandleWebhookExternalCiEvent(ciArtifact, applyAuth, async, request.UserId, externalCiId)
+		err = impl.workflowDagExecutor.HandleWebhookExternalCiEvent(ciArtifact, request.UserId, externalCiId, auth)
 		if err != nil {
 			impl.logger.Errorw("error on handle  ci success event", "err", err)
 			return 0, err

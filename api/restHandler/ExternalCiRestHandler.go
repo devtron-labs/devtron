@@ -23,12 +23,15 @@ import (
 	"github.com/devtron-labs/devtron/api/router/pubsub"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
 type ExternalCiRestHandler interface {
@@ -42,16 +45,22 @@ type ExternalCiRestHandlerImpl struct {
 	ciEventHandler pubsub.CiEventHandler
 	validator      *validator.Validate
 	userService    user.UserService
+	enforcer       casbin.Enforcer
+	enforcerUtil   rbac.EnforcerUtil
 }
 
 func NewExternalCiRestHandlerImpl(logger *zap.SugaredLogger, webhookService pipeline.WebhookService,
-	ciEventHandler pubsub.CiEventHandler, validator *validator.Validate, userService user.UserService) *ExternalCiRestHandlerImpl {
+	ciEventHandler pubsub.CiEventHandler, validator *validator.Validate, userService user.UserService,
+	enforcer casbin.Enforcer,
+	enforcerUtil rbac.EnforcerUtil) *ExternalCiRestHandlerImpl {
 	return &ExternalCiRestHandlerImpl{
 		webhookService: webhookService,
 		logger:         logger,
 		ciEventHandler: ciEventHandler,
 		validator:      validator,
 		userService:    userService,
+		enforcer:       enforcer,
+		enforcerUtil:   enforcerUtil,
 	}
 }
 
@@ -136,7 +145,7 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.R
 		return
 	}
 
-	_, err = impl.webhookService.SaveCiArtifactWebhookExternalCi(externalCiId, ciArtifactReq)
+	_, err = impl.webhookService.SaveCiArtifactWebhookExternalCi(externalCiId, ciArtifactReq, impl.checkExternalCiDeploymentAuth)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -144,4 +153,15 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.R
 	}
 
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
+}
+
+func (handler ExternalCiRestHandlerImpl) checkExternalCiDeploymentAuth(token string, projectObject string, envObject string) bool {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
+		return false
+	}
+
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
+		return false
+	}
+	return true
 }

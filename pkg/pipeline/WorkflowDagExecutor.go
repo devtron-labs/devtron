@@ -58,13 +58,13 @@ import (
 
 type WorkflowDagExecutor interface {
 	HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error
-	HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32, externalCiId int) error
+	HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(token string, projectObject string, envObject string) bool) error
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(gitHash string, pipelineOverrideId int) error
 	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error
 	Subscribe() error
 	TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) error
-	TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, async bool, triggeredBy int32) error
+	TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, triggeredBy int32) error
 	ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, error)
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
@@ -246,7 +246,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
 			continue
 		}
-		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, async, triggeredBy)
+		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, triggeredBy)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
 		}
@@ -254,7 +254,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32, externalCiId int) error {
+func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(token string, projectObject string, envObject string) bool) error {
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
@@ -271,7 +271,18 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 			return nil
 		}
 
-		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, async, triggeredBy)
+		user, err := impl.user.GetById(triggeredBy)
+		if err != nil {
+			return err
+		}
+		projectObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
+		envObject := impl.enforcerUtil.GetAppRBACByAppIdAndPipelineId(pipeline.AppId, pipeline.Id)
+		if !auth(user.EmailId, projectObject, envObject) {
+			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
+			return nil
+		}
+		//applyAuth=false, becouze already auth applied for this flow
+		err = impl.triggerStage(nil, pipeline, artifact, false, triggeredBy)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
 			return err
@@ -280,7 +291,7 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error {
+func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error {
 	var err error
 	if len(pipeline.PreStageConfig) > 0 {
 		// pre stage exists
@@ -292,7 +303,7 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 	} else if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 		// trigger deployment
 		impl.logger.Debugw("trigger cd for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
-		err = impl.TriggerDeployment(cdWf, artifact, pipeline, applyAuth, async, triggeredBy)
+		err = impl.TriggerDeployment(cdWf, artifact, pipeline, applyAuth, triggeredBy)
 		return err
 	}
 	return nil
@@ -308,7 +319,7 @@ func (impl *WorkflowDagExecutorImpl) triggerStageForBulk(cdWf *pipelineConfig.Cd
 	} else {
 		// trigger deployment
 		impl.logger.Debugw("trigger cd for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
-		err = impl.TriggerDeployment(cdWf, artifact, pipeline, applyAuth, async, triggeredBy)
+		err = impl.TriggerDeployment(cdWf, artifact, pipeline, applyAuth, triggeredBy)
 		return err
 	}
 }
@@ -336,7 +347,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 			if cdStageCompleteEvent.TriggeredBy != 1 {
 				applyAuth = true
 			}
-			err = impl.TriggerDeployment(cdWorkflow, ciArtifact, pipeline, applyAuth, false, cdStageCompleteEvent.TriggeredBy)
+			err = impl.TriggerDeployment(cdWorkflow, ciArtifact, pipeline, applyAuth, cdStageCompleteEvent.TriggeredBy)
 			if err != nil {
 				return err
 			}
@@ -839,7 +850,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 		}
 		//finding ci artifact by ciPipelineID and pipelineId
 		//TODO : confirm values for applyAuth, async & triggeredBy
-		err = impl.triggerStage(nil, pipeline, ciArtifact, applyAuth, false, triggeredBy)
+		err = impl.triggerStage(nil, pipeline, ciArtifact, applyAuth, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd pipeline after successful post stage", "err", err, "pipelineId", pipeline.Id)
 			return err
@@ -849,7 +860,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 }
 
 // Only used for auto trigger
-func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, async bool, triggeredBy int32) error {
+func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, triggeredBy int32) error {
 	//in case of manual ci RBAC need to apply, this method used for auto cd deployment
 	if applyAuth {
 		user, err := impl.user.GetById(triggeredBy)
@@ -972,7 +983,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		return nil
 	}
 
-	err = impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, async, triggeredAt)
+	err = impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
 	err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, err, triggeredAt)
 	if err1 != nil || err != nil {
 		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)

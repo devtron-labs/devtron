@@ -434,7 +434,7 @@ func InitializeApp() (*App, error) {
 	gitWebhookRestHandlerImpl := restHandler.NewGitWebhookRestHandlerImpl(sugaredLogger, gitWebhookServiceImpl)
 	webhookServiceImpl := pipeline.NewWebhookServiceImpl(ciArtifactRepositoryImpl, sugaredLogger, ciPipelineRepositoryImpl, appServiceImpl, eventRESTClientImpl, eventSimpleFactoryImpl, ciWorkflowRepositoryImpl, workflowDagExecutorImpl, ciHandlerImpl)
 	ciEventHandlerImpl := pubsub2.NewCiEventHandlerImpl(sugaredLogger, pubSubClient, webhookServiceImpl)
-	externalCiRestHandlerImpl := restHandler.NewExternalCiRestHandlerImpl(sugaredLogger, webhookServiceImpl, ciEventHandlerImpl, validate, userServiceImpl)
+	externalCiRestHandlerImpl := restHandler.NewExternalCiRestHandlerImpl(sugaredLogger, webhookServiceImpl, ciEventHandlerImpl, validate, userServiceImpl, enforcerImpl, enforcerUtilImpl)
 	natsPublishClientImpl := pubsub.NewNatsPublishClientImpl(sugaredLogger, pubSubClient)
 	pubSubClientRestHandlerImpl := restHandler.NewPubSubClientRestHandlerImpl(natsPublishClientImpl, sugaredLogger, cdConfig)
 	webhookRouterImpl := router.NewWebhookRouterImpl(gitWebhookRestHandlerImpl, pipelineConfigRestHandlerImpl, externalCiRestHandlerImpl, pubSubClientRestHandlerImpl)
