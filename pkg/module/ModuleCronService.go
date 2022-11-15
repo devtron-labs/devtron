@@ -162,10 +162,11 @@ func (impl *ModuleCronServiceImpl) saveModuleResourcesStatus(moduleId int, appDe
 				CreatedOn: time.Now(),
 			}
 			nodeHealth := node.Health
-			if nodeHealth != nil {
-				moduleResourceStatusToSave.HealthStatus = nodeHealth.Status
-				moduleResourceStatusToSave.HealthMessage = nodeHealth.Message
+			if nodeHealth == nil || len(nodeHealth.Status) == 0 {
+				continue
 			}
+			moduleResourceStatusToSave.HealthStatus = nodeHealth.Status
+			moduleResourceStatusToSave.HealthMessage = nodeHealth.Message
 			moduleResourcesStatusToSave = append(moduleResourcesStatusToSave, moduleResourceStatusToSave)
 		}
 	}
