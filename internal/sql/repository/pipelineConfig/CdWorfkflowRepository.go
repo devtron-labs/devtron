@@ -81,6 +81,16 @@ const (
 	TRIGGER_ERROR
 )
 
+const (
+	WorkflowStarting           = "Starting"
+	WorkflowInProgress         = "Progressing"
+	WorkflowAborted            = "Aborted"
+	WorkflowFailed             = "Failed"
+	WorkflowSucceeded          = "Succeeded"
+	WorkflowTimedOut           = "TimedOut"
+	WorkflowUnableToFetchState = "UnableToFetch"
+)
+
 func (a WorkflowStatus) String() string {
 	return [...]string{"WF_UNKNOWN", "REQUEST_ACCEPTED", "ENQUEUED", "QUE_ERROR", "WF_STARTED", "DROPPED_STALE", "DEQUE_ERROR", "TRIGGER_ERROR"}[a]
 }

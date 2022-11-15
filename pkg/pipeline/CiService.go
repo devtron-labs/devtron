@@ -91,16 +91,6 @@ func NewCiServiceImpl(Logger *zap.SugaredLogger, workflowService WorkflowService
 	}
 }
 
-const (
-	WorkflowStarting           = "Starting"
-	WorkflowInProgress         = "Progressing"
-	WorkflowAborted            = "Aborted"
-	WorkflowFailed             = "Failed"
-	WorkflowSucceeded          = "Succeeded"
-	WorkflowTimedOut           = "TimedOut"
-	WorkflowUnableToFetchState = "UnableToFetch"
-)
-
 func (impl *CiServiceImpl) GetCiMaterials(pipelineId int, ciMaterials []*pipelineConfig.CiPipelineMaterial) ([]*pipelineConfig.CiPipelineMaterial, error) {
 	if !(len(ciMaterials) == 0) {
 		return ciMaterials, nil
@@ -248,7 +238,7 @@ func (impl *CiServiceImpl) saveNewWorkflow(pipeline *pipelineConfig.CiPipeline, 
 
 	ciWorkflow := &pipelineConfig.CiWorkflow{
 		Name:               pipeline.Name + "-" + strconv.Itoa(pipeline.Id),
-		Status:             WorkflowStarting,
+		Status:             pipelineConfig.WorkflowStarting,
 		Message:            "",
 		StartedOn:          time.Now(),
 		CiPipelineId:       pipeline.Id,

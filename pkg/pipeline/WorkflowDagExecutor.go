@@ -353,7 +353,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPreStage(cdWf *pipelineConfig.CdWork
 		Name:               pipeline.Name,
 		WorkflowType:       bean.CD_WORKFLOW_TYPE_PRE,
 		ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-		Status:             WorkflowStarting, //starting
+		Status:             pipelineConfig.WorkflowStarting, //starting
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
 		Namespace:          impl.cdConfig.DefaultNamespace,
@@ -421,7 +421,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerPostStage(cdWf *pipelineConfig.CdWor
 		Name:               pipeline.Name,
 		WorkflowType:       bean.CD_WORKFLOW_TYPE_POST,
 		ExecutorType:       pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-		Status:             WorkflowStarting,
+		Status:             pipelineConfig.WorkflowStarting,
 		TriggeredBy:        triggeredBy,
 		StartedOn:          triggeredAt,
 		Namespace:          impl.cdConfig.DefaultNamespace,
@@ -833,7 +833,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		Name:         pipeline.Name,
 		WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 		ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
-		Status:       WorkflowInProgress, //starting
+		Status:       pipelineConfig.WorkflowInProgress, //starting
 		TriggeredBy:  1,
 		StartedOn:    triggeredAt,
 		Namespace:    impl.cdConfig.DefaultNamespace,
@@ -888,7 +888,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		}
 	}
 	if isVulnerable == true {
-		runner.Status = WorkflowFailed
+		runner.Status = pipelineConfig.WorkflowFailed
 		runner.Message = "Found vulnerability on image"
 		runner.FinishedOn = time.Now()
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(runner)
@@ -957,7 +957,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			}
 		}
 		impl.logger.Errorw("error in triggering cd WF, setting wf status as fail ", "wfId", currentRunner.Id, "err", err)
-		currentRunner.Status = WorkflowFailed
+		currentRunner.Status = pipelineConfig.WorkflowFailed
 		currentRunner.Message = err.Error()
 		currentRunner.FinishedOn = triggeredAt
 		err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(currentRunner)
@@ -969,7 +969,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 		//update current WF with error status
 	} else {
 		//update [n,n-1] statuses as failed if not terminal
-		terminalStatus := []string{string(health.HealthStatusHealthy), WorkflowAborted, WorkflowFailed, WorkflowSucceeded}
+		terminalStatus := []string{string(health.HealthStatusHealthy), pipelineConfig.WorkflowAborted, pipelineConfig.WorkflowFailed, pipelineConfig.WorkflowSucceeded}
 		previousNonTerminalRunners, err := impl.cdWorkflowRepository.FindPreviousCdWfRunnerByStatus(pipelineId, currentRunner.Id, terminalStatus)
 		if err != nil {
 			impl.logger.Errorw("error fetching previous wf runner, updating cd wf runner status,", "err", err, "currentRunner", currentRunner)
@@ -989,9 +989,9 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 		var timelines []*pipelineConfig.PipelineStatusTimeline
 		for _, previousRunner := range previousNonTerminalRunners {
 			if previousRunner.Status == string(health.HealthStatusHealthy) ||
-				previousRunner.Status == WorkflowSucceeded ||
-				previousRunner.Status == WorkflowAborted ||
-				previousRunner.Status == WorkflowFailed {
+				previousRunner.Status == pipelineConfig.WorkflowSucceeded ||
+				previousRunner.Status == pipelineConfig.WorkflowAborted ||
+				previousRunner.Status == pipelineConfig.WorkflowFailed {
 				//terminal status return
 				impl.logger.Infow("skip updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 				continue
@@ -999,7 +999,7 @@ func (impl *WorkflowDagExecutorImpl) updatePreviousDeploymentStatus(currentRunne
 			impl.logger.Infow("updating cd wf runner status as previous runner status is", "status", previousRunner.Status)
 			previousRunner.FinishedOn = triggeredAt
 			previousRunner.Message = "triggered new deployment"
-			previousRunner.Status = WorkflowFailed
+			previousRunner.Status = pipelineConfig.WorkflowFailed
 			timeline := &pipelineConfig.PipelineStatusTimeline{
 				CdWorkflowRunnerId: previousRunner.Id,
 				Status:             pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED,
@@ -1150,7 +1150,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			Name:         cdPipeline.Name,
 			WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 			ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_AWF,
-			Status:       WorkflowInProgress,
+			Status:       pipelineConfig.WorkflowInProgress,
 			TriggeredBy:  overrideRequest.UserId,
 			StartedOn:    triggeredAt,
 			Namespace:    impl.cdConfig.DefaultNamespace,
@@ -1210,7 +1210,7 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 				Name:         cdPipeline.Name,
 				WorkflowType: bean.CD_WORKFLOW_TYPE_DEPLOY,
 				ExecutorType: pipelineConfig.WORKFLOW_EXECUTOR_TYPE_SYSTEM,
-				Status:       WorkflowFailed,
+				Status:       pipelineConfig.WorkflowFailed,
 				TriggeredBy:  1,
 				StartedOn:    triggeredAt,
 				Namespace:    impl.cdConfig.DefaultNamespace,

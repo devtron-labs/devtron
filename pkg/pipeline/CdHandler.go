@@ -279,7 +279,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		impl.Logger.Errorw("error on update cd workflow runner", "cdWfr", cdWfr, "err", err)
 		return err, isTimelineUpdated
 	}
-	if appStatus != WorkflowInProgress {
+	if appStatus != pipelineConfig.WorkflowInProgress {
 		_, err = impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(cdWfr.Id, timelineStatus)
 		if err != nil && err != pg.ErrNoRows {
 			impl.Logger.Errorw("error in getting latest timeline", "err", err)
@@ -311,10 +311,10 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		impl.Logger.Errorw("error on db transaction commit for", "err", err)
 		return err, isTimelineUpdated
 	}
-	if appStatus == WorkflowFailed {
+	if appStatus == pipelineConfig.WorkflowFailed {
 		//writing pipeline failure event
 		impl.deploymentEventHandler.WriteCDDeploymentEvent(cdWfr.CdWorkflow.PipelineId, appId, envId, util2.Fail)
-	} else if appStatus == WorkflowSucceeded {
+	} else if appStatus == pipelineConfig.WorkflowSucceeded {
 		//handling deployment success event
 		impl.Logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "handling deployment success event", "argoAppName", argoAppName, "pipelineOverride", pipelineOverride)
 		err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent("", pipelineOverride.Id)
@@ -343,7 +343,7 @@ func (impl *CdHandlerImpl) GetAppStatusByApplicationFetchFromArgo(appName string
 	resp, err := impl.application.Get(ctx, query)
 	if err != nil {
 		impl.Logger.Errorw("error in getting resource tree of acd", "err", err, "appName", appName)
-		appStatus = WorkflowUnableToFetchState
+		appStatus = pipelineConfig.WorkflowUnableToFetchState
 		timelineStatus = pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS
 		statusMessage = "Failed to connect to Argo CD to fetch deployment status."
 	} else {
@@ -365,14 +365,14 @@ func (impl *CdHandlerImpl) GetAppStatusByApplicationFetchFromArgo(appName string
 			}
 		}
 		if resp.Status.Health.Status == health.HealthStatusHealthy {
-			appStatus = WorkflowSucceeded
+			appStatus = pipelineConfig.WorkflowSucceeded
 			timelineStatus = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
 			statusMessage = "App is healthy."
 		} else {
 			latestTimeline, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelineByAppIdAndEnvId(appId, envId)
 			if err != nil && err != pg.ErrNoRows {
 				impl.Logger.Errorw("error in fetching latest timeline by appId and envId", "err", err, "appId", appId, "envId", envId)
-				appStatus = WorkflowInProgress
+				appStatus = pipelineConfig.WorkflowInProgress
 			} else {
 				var lastTimeToCheckForTimeout time.Time
 				if err == pg.ErrNoRows {
@@ -382,11 +382,11 @@ func (impl *CdHandlerImpl) GetAppStatusByApplicationFetchFromArgo(appName string
 				}
 				if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
 					//mark as timed out
-					appStatus = WorkflowTimedOut
+					appStatus = pipelineConfig.WorkflowTimedOut
 					timelineStatus = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
 					statusMessage = "Deployment timed out."
 				} else {
-					appStatus = WorkflowInProgress
+					appStatus = pipelineConfig.WorkflowInProgress
 				}
 			}
 		}
