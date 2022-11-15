@@ -24,6 +24,7 @@ import (
 type UserTerminalAccessService interface {
 	StartTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
+	UpdateTerminalShellSession(request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error)
 	FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error)
 	StopTerminalSession(userTerminalSessionId int) error
 	DisconnectTerminalSession(userTerminalSessionId int) error
@@ -160,6 +161,38 @@ func (impl UserTerminalAccessServiceImpl) createTerminalEntity(request *models.U
 		UserId:           userAccessData.UserId,
 		PodName:          podName,
 		TerminalAccessId: userAccessData.Id,
+	}, nil
+}
+
+func (impl UserTerminalAccessServiceImpl) UpdateTerminalShellSession(request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error) {
+	userTerminalAccessId := request.TerminalAccessId
+	err := impl.DisconnectTerminalSession(userTerminalAccessId)
+	if err != nil {
+		return nil, err
+	}
+	terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(userTerminalAccessId)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalAccessId", userTerminalAccessId, "err", err)
+		return nil, err
+	}
+	terminalAccessData.Metadata = impl.mergeToMetadataString(terminalAccessData.Metadata, request)
+	err = impl.TerminalAccessRepository.UpdateUserTerminalAccessData(terminalAccessData)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while updating terminal Access data ", "userTerminalAccessId", userTerminalAccessId, "err", err)
+		return nil, err
+	}
+	impl.TerminalAccessDataArrayMutex.Lock()
+	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
+	terminalAccessSessionData := terminalAccessDataMap[terminalAccessData.Id]
+	terminalAccessSessionData.terminalAccessDataEntity = terminalAccessData
+	terminalAccessSessionData.latestActivityTime = time.Now()
+	impl.TerminalAccessSessionDataMap = &terminalAccessDataMap
+	impl.TerminalAccessDataArrayMutex.Unlock()
+
+	return &models.UserTerminalSessionResponse{
+		UserId:           terminalAccessData.UserId,
+		PodName:          terminalAccessData.PodName,
+		TerminalAccessId: terminalAccessData.Id,
 	}, nil
 }
 
@@ -309,6 +342,20 @@ func (impl UserTerminalAccessServiceImpl) extractMetadataString(request *models.
 	metadata["BaseImage"] = request.BaseImage
 	metadata["ShellName"] = request.ShellName
 	metadataJsonBytes, err := json.Marshal(metadata)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while converting metadata to json", "request", request, "err", err)
+		return "{}"
+	}
+	return string(metadataJsonBytes)
+}
+
+func (impl UserTerminalAccessServiceImpl) mergeToMetadataString(metadataJsonStr string, request *models.UserTerminalShellSessionRequest) string {
+	metadataMap, err := impl.getMetadataMap(metadataJsonStr)
+	if err != nil {
+		metadataMap = make(map[string]string)
+	}
+	metadataMap["ShellName"] = request.ShellName
+	metadataJsonBytes, err := json.Marshal(metadataMap)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while converting metadata to json", "request", request, "err", err)
 		return "{}"

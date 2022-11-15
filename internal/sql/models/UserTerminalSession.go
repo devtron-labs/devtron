@@ -8,10 +8,14 @@ type UserTerminalSessionRequest struct {
 	BaseImage string `json:"baseImage" validate:"required"`
 	ShellName string `json:"shellName" validate:"required"`
 }
+type UserTerminalShellSessionRequest struct {
+	TerminalAccessId int    `json:"terminalAccessId"`
+	ShellName        string `json:"shellName" validate:"required"`
+}
 
 type UserTerminalSessionConfig struct {
 	MaxSessionPerUser                 int    `env:"MAX_SESSION_PER_USER" envDefault:"5"`
-	TerminalPodStatusSyncTimeInSecs   int    `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"500"`
+	TerminalPodStatusSyncTimeInSecs   int    `env:"TERMINAL_POD_STATUS_SYNC_In_SECS" envDefault:"600"`
 	TerminalPodDefaultNamespace       string `env:"TERMINAL_POD_DEFAULT_NAMESPACE" envDefault:"default"`
 	TerminalPodInActiveDurationInMins int    `env:"TERMINAL_POD_INACTIVE_DURATION_IN_MINS" envDefault:"10"`
 }

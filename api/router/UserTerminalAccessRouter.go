@@ -22,6 +22,8 @@ func NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandler restHandler.U
 func (router UserTerminalAccessRouterImpl) InitTerminalAccessRouter(userTerminalAccessRouter *mux.Router) {
 	userTerminalAccessRouter.Path("/update").
 		HandlerFunc(router.userTerminalAccessRestHandler.UpdateTerminalSession).Methods("POST")
+	userTerminalAccessRouter.Path("/update/shell").
+		HandlerFunc(router.userTerminalAccessRestHandler.UpdateTerminalShellSession).Methods("POST")
 	userTerminalAccessRouter.Path("/start").
 		HandlerFunc(router.userTerminalAccessRestHandler.StartTerminalSession).Methods("PUT")
 	userTerminalAccessRouter.Path("/get").

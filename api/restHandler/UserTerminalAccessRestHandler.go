@@ -17,6 +17,7 @@ import (
 type UserTerminalAccessRestHandler interface {
 	StartTerminalSession(w http.ResponseWriter, r *http.Request)
 	UpdateTerminalSession(w http.ResponseWriter, r *http.Request)
+	UpdateTerminalShellSession(w http.ResponseWriter, r *http.Request)
 	FetchTerminalStatus(w http.ResponseWriter, r *http.Request)
 	StopTerminalSession(w http.ResponseWriter, r *http.Request)
 	DisconnectTerminalSession(w http.ResponseWriter, r *http.Request)
@@ -93,6 +94,35 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalSession(w http.Re
 	sessionResponse, err := handler.UserTerminalAccessService.UpdateTerminalSession(&request)
 	if err != nil {
 		handler.Logger.Errorw("service err, UpdateTerminalSession", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, sessionResponse, http.StatusOK)
+}
+
+func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalShellSession(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.UserService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	decoder := json.NewDecoder(r.Body)
+	var request models.UserTerminalShellSessionRequest
+	err = decoder.Decode(&request)
+	if err != nil {
+		handler.Logger.Errorw("request err, UpdateTerminalShellSession", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	sessionResponse, err := handler.UserTerminalAccessService.UpdateTerminalShellSession(&request)
+	if err != nil {
+		handler.Logger.Errorw("service err, UpdateTerminalShellSession", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
