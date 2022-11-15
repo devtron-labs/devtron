@@ -121,6 +121,11 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		isGitOpsConfigured = true
 	}
 
+	if !isGitOpsConfigured && installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		impl.logger.Errorw("gitops not configured but selected for CD")
+		return nil, errors.New("gitops not configured but selected")
+	}
+
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)
 	if err != nil {
 		impl.logger.Errorw("fetching error", "err", err)
