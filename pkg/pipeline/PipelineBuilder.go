@@ -24,6 +24,7 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
@@ -49,8 +50,8 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -116,12 +117,12 @@ type PipelineBuilder interface {
 type PipelineBuilderImpl struct {
 	logger                        *zap.SugaredLogger
 	dbPipelineOrchestrator        DbPipelineOrchestrator
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
 	materialRepo                  pipelineConfig.MaterialRepository
 	appRepo                       app2.AppRepository
 	pipelineRepository            pipelineConfig.PipelineRepository
 	propertiesConfigService       PropertiesConfigService
-	//ciTemplateRepository             pipelineConfig.CiTemplateRepository
+	//	ciTemplateRepository             pipelineConfig.CiTemplateRepository
 	ciPipelineRepository             pipelineConfig.CiPipelineRepository
 	application                      application.ServiceClient
 	chartRepository                  chartRepoRepository.ChartRepository
@@ -155,13 +156,17 @@ type PipelineBuilderImpl struct {
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
 	//ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
 	//ciBuildConfigService CiBuildConfigService
-	ciTemplateService CiTemplateService
-	userService       user.UserService
+	ciTemplateService            CiTemplateService
+	userService                  user.UserService
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
+	gitMaterialHistoryService    history.GitMaterialHistoryService
+	CiTemplateHistoryService     history.CiTemplateHistoryService
+	CiPipelineHistoryService     history.CiPipelineHistoryService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	dbPipelineOrchestrator DbPipelineOrchestrator,
-	dockerArtifactStoreRepository repository.DockerArtifactStoreRepository,
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository,
 	materialRepo pipelineConfig.MaterialRepository,
 	pipelineGroupRepo app2.AppRepository,
 	pipelineRepository pipelineConfig.PipelineRepository,
@@ -195,7 +200,11 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	userService user.UserService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciTemplateService CiTemplateService) *PipelineBuilderImpl {
+	ciTemplateService CiTemplateService,
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
+	gitMaterialHistoryService history.GitMaterialHistoryService,
+	CiTemplateHistoryService history.CiTemplateHistoryService,
+	CiPipelineHistoryService history.CiPipelineHistoryService) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		dbPipelineOrchestrator:        dbPipelineOrchestrator,
@@ -239,7 +248,11 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciTemplateService:                ciTemplateService,
 		//ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
 		//ciBuildConfigService: ciBuildConfigService,
-		userService: userService,
+		userService:                  userService,
+		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
+		gitMaterialHistoryService:    gitMaterialHistoryService,
+		CiTemplateHistoryService:     CiTemplateHistoryService,
+		CiPipelineHistoryService:     CiPipelineHistoryService,
 	}
 }
 
@@ -310,11 +323,15 @@ func (impl PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) 
 	}
 	existingMaterial.UpdatedOn = time.Now()
 	existingMaterial.UpdatedBy = request.UserId
+
 	err = impl.materialRepo.MarkMaterialDeleted(existingMaterial)
+
 	if err != nil {
 		impl.logger.Errorw("error in deleting git material", "gitMaterial", existingMaterial)
 		return err
 	}
+	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(existingMaterial)
+
 	//TODO: delete ci_pipeline_materials
 
 	return nil
@@ -363,7 +380,7 @@ func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMater
 
 */
 
-func (impl PipelineBuilderImpl) getDefaultArtifactStore(id string) (store *repository.DockerArtifactStore, err error) {
+func (impl PipelineBuilderImpl) getDefaultArtifactStore(id string) (store *dockerRegistryRepository.DockerArtifactStore, err error) {
 	if id == "" {
 		impl.logger.Debugw("docker repo is empty adding default repo")
 		store, err = impl.dockerArtifactStoreRepository.FindActiveDefaultStore()
@@ -430,6 +447,10 @@ func (impl PipelineBuilderImpl) getCiTemplateVariables(appId int) (ciConfig *bea
 		Version:        template.Version,
 		CiTemplateName: template.TemplateName,
 		Materials:      materials,
+		UpdatedOn:      template.UpdatedOn,
+		UpdatedBy:      template.UpdatedBy,
+		CreatedBy:      template.CreatedBy,
+		CreatedOn:      template.CreatedOn,
 	}
 	return ciConfig, err
 }
@@ -647,7 +668,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		repo = originalCiConf.DockerRepository
 	}
 
-	if dockerArtifaceStore.RegistryType == repository.REGISTRYTYPE_ECR {
+	if dockerArtifaceStore.RegistryType == dockerRegistryRepository.REGISTRYTYPE_ECR {
 		err := impl.createEcrRepo(repo, dockerArtifaceStore.AWSRegion, dockerArtifaceStore.AWSAccessKeyId, dockerArtifaceStore.AWSSecretAccessKey)
 		if err != nil {
 			impl.logger.Errorw("ecr repo creation failed while updating ci template", "repo", repo, "err", err)
@@ -686,6 +707,7 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		GitMaterialId: ciBuildConfig.GitMaterialId,
 		//Args:              string(argByte),
 		//TargetPlatform:    originalCiConf.DockerBuildConfig.TargetPlatform,
+		AppId:             originalCiConf.AppId,
 		BeforeDockerBuild: string(beforeByte),
 		AfterDockerBuild:  string(afterByte),
 		Version:           originalCiConf.Version,
@@ -693,6 +715,12 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 		DockerRepository:  originalCiConf.DockerRepository,
 		DockerRegistryId:  originalCiConf.DockerRegistry,
 		Active:            true,
+		AuditLog: sql.AuditLog{
+			CreatedOn: originalCiConf.CreatedOn,
+			CreatedBy: originalCiConf.CreatedBy,
+			UpdatedOn: time.Now(),
+			UpdatedBy: originalCiConf.UpdatedBy,
+		},
 	}
 
 	ciBuildConfig.Id = originalCiBuildConfig.Id
@@ -705,7 +733,15 @@ func (impl PipelineBuilderImpl) UpdateCiTemplate(updateRequest *bean.CiConfigReq
 	if err != nil {
 		return nil, err
 	}
+
 	originalCiConf.CiBuildConfig = ciBuildConfig
+
+	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean, "update")
+
+	if err != nil {
+		impl.logger.Errorw("error in saving update history for ci template", "error", err)
+	}
+
 	return originalCiConf, nil
 }
 
@@ -740,7 +776,7 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 		repo = impl.ecrConfig.EcrPrefix + app.AppName
 	}
 
-	if store.RegistryType == repository.REGISTRYTYPE_ECR {
+	if store.RegistryType == dockerRegistryRepository.REGISTRYTYPE_ECR {
 		err := impl.createEcrRepo(repo, store.AWSRegion, store.AWSAccessKeyId, store.AWSSecretAccessKey)
 		if err != nil {
 			impl.logger.Errorw("ecr repo creation failed while creating ci pipeline", "repo", repo, "err", err)
@@ -791,6 +827,13 @@ func (impl PipelineBuilderImpl) CreateCiPipeline(createRequest *bean.CiConfigReq
 	}
 
 	//-- template config end
+
+	err = impl.CiTemplateHistoryService.SaveHistory(ciTemplateBean, "add")
+
+	if err != nil {
+		impl.logger.Errorw("error in saving audit logs of ci Template", "error", err)
+	}
+
 	createRequest.Id = ciTemplate.Id
 	createRequest.CiTemplateName = ciTemplate.TemplateName
 	if len(createRequest.CiPipelines) > 0 {
@@ -1036,7 +1079,7 @@ func (impl PipelineBuilderImpl) DeleteCiPipeline(request *bean.CiPatchRequest) (
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	err = impl.dbPipelineOrchestrator.DeleteCiPipeline(pipeline, request.UserId, tx)
+	err = impl.dbPipelineOrchestrator.DeleteCiPipeline(pipeline, request, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting pipeline db")
 		return nil, err

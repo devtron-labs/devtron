@@ -742,7 +742,6 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			}
 		}
 		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
-		handler.logger.Debugw("application environment status", "appId", appId, "envId", envId, "resp", resp)
 		if resp.Status == string(health.HealthStatusHealthy) {
 			err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(acdAppName, appId, envId)
 			if err != nil {
