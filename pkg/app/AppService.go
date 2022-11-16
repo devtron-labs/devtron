@@ -745,7 +745,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			return 0, err
 		}
 		//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
-		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(pipeline.AppId, pipeline.EnvironmentId, chartRef.Id)
+		envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(pipeline.AppId, pipeline.EnvironmentId, chartRef.Id)
 		if err != nil {
 			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "chartRefId", chartRef.Id)
 			return 0, err
