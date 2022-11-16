@@ -49,6 +49,16 @@ jobs:
             git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} release-bot
         elif [[ "$RELEASE_TYPE" == "beta" ]]
           then
+            git checkout -b release-bot
+            git config --global user.email "$GIT_CONFIG_EMAIL"
+            git config --global user.name "$GIT_CONFIG_NAME"
+            echo "## Bugs" > beta-releasenotes.md
+            echo "## Enhancements" >> beta-releasenotes.md
+            echo "## Documentation" >> beta-releasenotes.md
+            echo "## Others" >> beta-releasenotes.md
+            git add .
+            git commit -am "Created release-notes files"
+            git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} release-bot
             echo "Not creating release due to beta"
         fi
       env:
