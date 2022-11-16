@@ -298,15 +298,6 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 		UserMessage:     "external-link-identifier-mapping failed to fetching external links  ",
 	}
 	if linkIdentifier == nil {
-		if userRole != SUPER_ADMIN_ROLE {
-			impl.logger.Debugw("user is not super_admin", "userId", userId, "userRole", userRole)
-			err = &util.ApiError{
-				InternalMessage: "external-link-identifier-mapping failed to fetch external links ",
-				UserMessage:     "No Access to fetch external links",
-			}
-			return nil, err
-		}
-
 		records, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveLinkIdentifierData()
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
