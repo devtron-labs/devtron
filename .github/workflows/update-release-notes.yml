@@ -21,7 +21,7 @@ jobs:
         echo "PR ${{ github.event.pull_request.title }} (#${{ github.event.pull_request.number }}) has been merged"
         closed_pr="- ${{ github.event.pull_request.title }} (#${{ github.event.pull_request.number }})"
         pull_req_body=${{ github.event.pull_request.body }}
-        echo "This is body part "${pull_req_body}""
+        echo "This is body part ${pull_req_body}"
         closed_pr_lower=$(echo "$closed_pr" | sed -e 's/\(.*\)/\L\1/')
         gh repo clone $GITHUB_REPOSITORY
         REPO_NAME=$(echo $GITHUB_REPOSITORY | awk -F ["/"] '{print $2}')
