@@ -520,23 +520,19 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
 				timeline.StatusDetail = "App status is Healthy."
 			} else {
+				var lastTimeToCheckForTimeout time.Time
 				if latestTimelineBeforeUpdate == nil {
-					// deployment status will be in progress so leave timeline
+					lastTimeToCheckForTimeout = triggeredAt
 				} else {
-					var lastTimeToCheckForTimeout time.Time
-					if err == pg.ErrNoRows {
-						lastTimeToCheckForTimeout = triggeredAt
-					} else {
-						lastTimeToCheckForTimeout = latestTimelineBeforeUpdate.StatusTime
-					}
-					if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
-						//mark as timed out
-						haveNewTimeline = true
-						timeline.Status = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
-						timeline.StatusDetail = "Deployment timed out."
-					} else {
-						// deployment status will be in progress so leave timeline
-					}
+					lastTimeToCheckForTimeout = latestTimelineBeforeUpdate.StatusTime
+				}
+				if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
+					//mark as timed out
+					haveNewTimeline = true
+					timeline.Status = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
+					timeline.StatusDetail = "Deployment timed out."
+				} else {
+					// deployment status will be in progress so leave timeline
 				}
 			}
 			if haveNewTimeline {
@@ -1781,22 +1777,19 @@ func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Appl
 	if app.Status.Health.Status == health.HealthStatusHealthy {
 		wfr.Status = pipelineConfig.WorkflowSucceeded
 	} else {
+		var lastTimeToCheckForTimeout time.Time
 		if latestTimeline == nil {
-			wfr.Status = pipelineConfig.WorkflowInProgress
+			lastTimeToCheckForTimeout = wfr.StartedOn
 		} else {
-			var lastTimeToCheckForTimeout time.Time
-			if err == pg.ErrNoRows {
-				lastTimeToCheckForTimeout = wfr.StartedOn
-			} else {
-				lastTimeToCheckForTimeout = latestTimeline.StatusTime
-			}
-			if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
-				//mark as timed out
-				wfr.Status = pipelineConfig.WorkflowTimedOut
-			} else {
-				wfr.Status = pipelineConfig.WorkflowInProgress
-			}
+			lastTimeToCheckForTimeout = latestTimeline.StatusTime
 		}
+		if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
+			//mark as timed out
+			wfr.Status = pipelineConfig.WorkflowTimedOut
+		} else {
+			wfr.Status = pipelineConfig.WorkflowInProgress
+		}
+
 	}
 	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(wfr)
 	if err != nil {
