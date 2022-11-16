@@ -1,5 +1,5 @@
 installer:
-  release: "v0.6.6"
+  release: "v0.6.7-rc.0"
   image: "quay.io/devtron/inception"
   tag: "1d2b87e5-185-11095"
   
@@ -14,7 +14,7 @@ components:
     initContainer:
       authenticator: "quay.io/devtron/authenticator:aecda793-393-11109"
   kubelink:
-    image: "quay.io/devtron/kubelink:3f365493-318-11106"
+    image: "quay.io/devtron/kubelink:1d2cc28a-318-11533"
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
