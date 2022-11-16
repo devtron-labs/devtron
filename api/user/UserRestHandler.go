@@ -755,13 +755,9 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 			frags := strings.Split(role, "_")
 			n := len(frags)
 			if n >= 2 && frags[n-1] == appName {
-				if frags[0] == "manager" {
-					isManager = true
-				} else if frags[0] == "admin" {
-					isAdmin = true
-				} else if frags[0] == "trigger" {
-					isTrigger = true
-				}
+				isManager = frags[0] == "manager"
+				isAdmin = frags[0] == "admin"
+				isTrigger = frags[0] == "trigger"
 			}
 		}
 		if isSuperAdmin {

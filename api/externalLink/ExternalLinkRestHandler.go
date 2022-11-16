@@ -152,6 +152,9 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 			return
 		}
 		id, err := strconv.Atoi(clusterId)
+		if err != nil {
+			impl.logger.Errorw("invalid clusterId param received", "clusterId", clusterId)
+		}
 		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, id, externalLink.SUPER_ADMIN_ROLE, int(userId))
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("service err, FetchAllActive", "err", err)

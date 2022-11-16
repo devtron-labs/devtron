@@ -91,7 +91,7 @@ func (impl AppListingRepositoryImpl) FetchAllActiveInstalledAppsWithAppIdAndName
 	query := "select installed_apps.id,app.app_name " + "from app INNER JOIN installed_apps  on app.id = installed_apps.app_id where app.active=true;"
 	_, err := impl.dbConnection.Query(&apps, query)
 	if err != nil {
-		impl.Logger.Errorw("error while fetching installed apps With AppId And Name")
+		impl.Logger.Errorw("error while fetching installed apps With AppId And Name", "err", err)
 		return apps, err
 	}
 	return apps, nil
@@ -103,7 +103,7 @@ func (impl AppListingRepositoryImpl) FetchAllActiveDevtronAppsWithAppIdAndName()
 	query := "select id,app_name " + "from app where app_store=false and active=true;"
 	_, err := impl.dbConnection.Query(&apps, query)
 	if err != nil {
-		impl.Logger.Errorw("error while fetching active Devtron apps With AppId And Name")
+		impl.Logger.Errorw("error while fetching active Devtron apps With AppId And Name", "err", err)
 		return apps, err
 	}
 	return apps, nil

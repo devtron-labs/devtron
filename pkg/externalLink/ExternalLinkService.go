@@ -122,6 +122,10 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 		impl.logger.Errorw("error in establishing connection", "err", err)
 		return nil, err
 	}
+	apiError := &util.ApiError{
+		InternalMessage: "external link failed to create ",
+		UserMessage:     "external link failed to create ",
+	}
 	// Rollback tx on error.
 	defer tx.Rollback()
 	externalLinksCreateUpdateResponse := &ExternalLinkApiResponse{
@@ -145,11 +149,7 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 		err := impl.externalLinkRepository.Save(externalLink, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving link", "data", externalLink, "err", err)
-			err = &util.ApiError{
-				InternalMessage: "external link failed to create in db",
-				UserMessage:     "external link failed to create in db",
-			}
-			return externalLinksCreateUpdateResponse, err
+			return externalLinksCreateUpdateResponse, apiError
 		}
 		//for all identifiers, check if it is clusterLevel/appLevel
 		//if appLevel, get type and identifier else get clusterId
@@ -166,27 +166,14 @@ func (impl ExternalLinkServiceImpl) Create(requests []*ExternalLinkDto, userId i
 				linkIdentifier.Type = getType(CLUSTER)
 				linkIdentifier.Identifier = ""
 			} else if linkType == APP_LEVEL_LINK {
-				if linkIdentifier.Type == getType(DEVTRON_APP) || linkIdentifier.Type == getType(DEVTRON_INSTALLED_APP) {
-					appId, err := strconv.Atoi(linkIdentifier.Identifier)
-					if err != nil {
-						impl.logger.Errorw("error while parsing appId", "appId", linkIdentifier.Identifier, "err", err)
-						err = &util.ApiError{
-							InternalMessage: "external link failed to create ",
-							UserMessage:     "external link failed to create ",
-						}
-						return externalLinksCreateUpdateResponse, err
-					}
-					linkIdentifier.AppId = appId
-					linkIdentifier.Identifier = ""
+				err = impl.updateLinkIdentifier(&linkIdentifier)
+				if err != nil {
+					return externalLinksCreateUpdateResponse, apiError
 				}
 				linkIdentifier.ClusterId = 0
 			} else {
-				err = &util.ApiError{
-					InternalMessage: "external-link-identifier-mapping failed to create ",
-					UserMessage:     "external-link-identifier-mapping failed to create ",
-				}
 				impl.logger.Errorw("link is neither app level or cluster level", "LinkType", request.Type)
-				return externalLinksCreateUpdateResponse, err
+				return externalLinksCreateUpdateResponse, apiError
 			}
 			externalLinkIdentifierMapping := &ExternalLinkIdentifierMapping{
 				ExternalLinkId: externalLink.Id,
@@ -238,7 +225,21 @@ func (impl ExternalLinkServiceImpl) GetAllActiveTools() ([]ExternalLinkMonitorin
 	}
 	return response, err
 }
-
+func (impl ExternalLinkServiceImpl) isGlobalLink(record ExternalLinkIdentifierMappingData) bool {
+	return (record.Type == CLUSTER || record.Type == APP) && record.Identifier == "" && record.AppId == 0 && record.ClusterId == 0
+}
+func (impl ExternalLinkServiceImpl) updateLinkIdentifier(linkIdentifier *LinkIdentifier) error {
+	if linkIdentifier.Type == getType(DEVTRON_APP) || linkIdentifier.Type == getType(DEVTRON_INSTALLED_APP) {
+		appId, err := strconv.Atoi(linkIdentifier.Identifier)
+		if err != nil {
+			impl.logger.Errorw("error while parsing appId", "appId", appId, "err", err)
+			return err
+		}
+		linkIdentifier.AppId = appId
+		linkIdentifier.Identifier = ""
+	}
+	return nil
+}
 func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkIdentifierMappingData) ([]*ExternalLinkDto, error) {
 	var externalLinkResponse = make([]*ExternalLinkDto, 0)
 	responseMap := make(map[int]*ExternalLinkDto)
@@ -259,12 +260,12 @@ func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkIdentifi
 			responseMap[externalLinkDto.Id] = externalLinkDto
 		}
 
-		if (record.Type == CLUSTER || record.Type == APP) && record.Identifier == "" && record.AppId == 0 && record.ClusterId == 0 {
+		if impl.isGlobalLink(record) {
 			responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
-			if record.Type == APP && record.Active {
+			if record.Type == APP {
 				responseMap[record.Id].Type = APP_LEVEL_LINK
 			}
-		} else if record.Active {
+		} else {
 			if record.Type == DEVTRON_APP || record.Type == DEVTRON_INSTALLED_APP {
 				record.Identifier = fmt.Sprintf("%d", record.AppId)
 			}
@@ -315,15 +316,9 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 		return impl.processResult(records)
 	}
 
-	if linkIdentifier.Type == getType(DEVTRON_APP) || linkIdentifier.Type == getType(DEVTRON_INSTALLED_APP) {
-		appId, err := strconv.Atoi(linkIdentifier.Identifier)
-		if err != nil {
-			impl.logger.Errorw("error while parsing appId", "appId", appId, "err", err)
-			err = apiError
-			return nil, err
-		}
-		linkIdentifier.AppId = appId
-		linkIdentifier.Identifier = ""
+	err = impl.updateLinkIdentifier(linkIdentifier)
+	if err != nil {
+		return nil, apiError
 	}
 	linkIdentifier.ClusterId = 0
 	records, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByLinkIdentifier(linkIdentifier, clusterId)
@@ -426,15 +421,9 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 	//update if request identifier present in set else save a new record
 	for _, identifier := range request.Identifiers {
 		if request.Type == APP_LEVEL_LINK {
-			if identifier.Type == getType(DEVTRON_APP) || identifier.Type == getType(DEVTRON_INSTALLED_APP) {
-				appId, err := strconv.Atoi(identifier.Identifier)
-				if err != nil {
-					impl.logger.Errorw("error while parsing appId", "appId", appId, "err", err)
-					err = apiError
-					return externalLinksCreateUpdateResponse, err
-				}
-				identifier.AppId = appId
-				identifier.Identifier = ""
+			err = impl.updateLinkIdentifier(&identifier)
+			if err != nil {
+				return externalLinksCreateUpdateResponse, apiError
 			}
 			identifier.ClusterId = 0
 		} else {
@@ -461,11 +450,7 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 		}
 		if err != nil {
 			impl.logger.Errorw("error in saving external_link_identifier mapping", "identifier", identifier, "err", err)
-			err = &util.ApiError{
-				InternalMessage: "external_link_identifier mapping failed to create in db",
-				UserMessage:     "external_link_identifier mapping failed to create in db",
-			}
-			return externalLinksCreateUpdateResponse, err
+			return externalLinksCreateUpdateResponse, apiError
 		}
 	}
 
