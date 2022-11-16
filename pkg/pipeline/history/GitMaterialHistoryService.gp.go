@@ -45,10 +45,9 @@ func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(inputMaterial *p
 
 	if err != nil {
 		impl.logger.Errorw("error in saving create/update history for git repository")
-		return err
 	}
 
-	return err
+	return nil
 
 }
 
@@ -81,7 +80,6 @@ func (impl GitMaterialHistoryServiceImpl) CreateDeleteMaterialHistory(materials 
 
 	if err != nil {
 		impl.logger.Errorw("Error in saving delete history for git material Repository")
-		return err
 	}
 
 	return nil
@@ -96,7 +94,6 @@ func (impl GitMaterialHistoryServiceImpl) MarkMaterialDeletedAndCreateHistory(ma
 
 	if err != nil {
 		impl.logger.Errorw("error in saving delete history for git material repository")
-		return err
 	}
 
 	return nil
