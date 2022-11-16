@@ -3,6 +3,11 @@
     "$schema": "http://json-schema.org/draft-04/schema#",
     "type": "object",
     "properties": {
+      "containerExtraSpecs":{
+        "type": "object",
+        "title": "containerExtraSpecs",
+        "description": "Define container extra specs here"
+      },
       "ContainerPort": {
         "type": "array",
         "description": "defines ports on which application services will be exposed to other services",
@@ -53,6 +58,28 @@
         "items": {},
         "description": "contains environment variables needed by the containers",
         "title": "Environment Variables"
+      },
+      "EnvVariablesFromFieldPath":{
+        "type": "array",
+        "description": "Selects a field of the pod: supports metadata.name, metadata.namespace, `metadata.labels['<KEY>']`, `metadata.annotations['<KEY>']`, spec.nodeName, spec.serviceAccountName, status.hostIP, status.podIP, status.podIPs",
+        "title": "EnvVariablesFromFieldPath",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "name":{
+                "type": "string",
+                "title": "name",
+                "description": "Env variable name to be"
+              },
+              "fieldPath":{
+                "type": "string",
+                "title": "fieldPath",
+                "description": "Path of the field to select in the specified API version"
+              }
+            }
+          }
+        ]
       },
       "GracePeriod": {
         "type": "integer",
@@ -299,6 +326,16 @@
             "description": "used for enabling/disabling autoscaling",
             "title": "Enabled"
           },
+          "labels": {
+            "type": "object",
+            "description": "labels for HPA",
+            "title": "labels"
+          },
+          "annotations": {
+            "type": "object",
+            "description": "used to configure some options for HPA",
+            "title": "annotations"
+          },                  
           "extraMetrics": {
             "type": "array",
             "items": {},
@@ -321,7 +358,13 @@
             "items": {},
             "description": "contains the commands",
             "title": "Value"
-          }
+          },
+          "workingDir": {
+            "type": "object",
+            "items": {},
+            "description": "contains the working directory",
+            "title": "Working directory"
+          }                    
         }
       },
       "containerSecurityContext": {
@@ -355,6 +398,26 @@
             "type": "string",
             "description": "configMap containing configuration for Envoy",
             "title": "ConfigMap"
+          },
+          "lifecycle":{
+            "type": "object",
+            "description": "Actions that the management system should take in response to container lifecycle events",
+            "title": "lifecycle",
+            "properties": {
+              "enabled":{
+                "type": "boolean"
+              },
+              "postStart":{
+                "type": "object",
+                "title": "postStart",
+                "description": "PostStart is called immediately after a container is created"
+              },
+              "preStop":{
+                "type": "object",
+                "title": "preStop",
+                "description": "PreStop is called immediately before a container is terminated"
+              }
+            }
           },
           "image": {
             "type": "string",
@@ -407,6 +470,32 @@
           }
         }
       },
+      "hostAliases":{
+        "type": "array",
+        "title": "hostAliases",
+        "description": "HostAlias holds the mapping between IP and hostnames that will be injected as an entry in the pod's hosts file",
+        "items": [
+          {
+            "type": "object",
+            "properties": {
+              "ip":{
+                "type": "string",
+                "title": "IP",
+                "description": "IP address of the host file entry"
+              },
+              "hostnames":{
+                "type": "array",
+                "description": "Hostnames for the above IP address",
+                "items": [
+                  {
+                    "type": "string"
+                  }
+                ]
+              }
+            }
+          }
+        ]
+      },
       "image": {
         "type": "object",
         "description": "used to access images in kubernetes",
@@ -442,6 +531,12 @@
             "title": "Ingress class name",
             "default": "nginx"
           },
+          "labels": {
+            "type": "object",
+            "description": "labels for ingress",
+            "title": "Ingress labels",
+            "default": ""
+          },           
           "enabled": {
             "type": "boolean",
             "description": "used to enable or disable ingress",
@@ -596,6 +691,33 @@
           }
         }
       },
+      "containerSpec": {
+        "type":"object",
+        "description": "define the container specic configuration",
+        "title": "containerSpec",
+        "properties": {
+          "lifecycle": {
+            "type": "object",
+            "description": "Actions that the management system should take in response to container lifecycle events",
+            "title": "lifecycle",
+            "properties": {
+              "enabled":{
+                "type": "boolean"
+              },
+              "postStart":{
+                "type": "object",
+                "title": "postStart",
+                "description": "PostStart is called immediately after a container is created.You could use this event to check that a required API is available before the container’s main work begins"
+              },
+              "preStop":{
+                "type": "object",
+                "title": "preStop",
+                "description": "PreStop is called immediately before a container is terminated"
+              }
+            }
+          }
+        }
+      },
       "pauseForSecondsBeforeSwitchActive": {
         "type": "integer",
         "description": "tell how much to wait for given period of time before switch active the container",
@@ -605,6 +727,27 @@
         "type":"object",
         "description": "used to attach metadata and configs in Kubernetes",
         "title": "Pod Annotations"
+      },
+      "podDisruptionBudget": {
+        "type": "object",
+        "description": "PodDisruptionBudget is an object to define the max disruption that can be caused to a collection of pods",
+        "properties": {
+          "minAvailable":{
+            "type": "string",
+            "title": "minAvailable",
+            "description": "An eviction is allowed if at least \"minAvailable\" pods selected by \"selector\" will still be available after the eviction, i.e. even in the absence of the evicted pod"
+          },
+          "maxUnavailable":{
+            "type": "string",
+            "title": "maxUnavailable",
+            "description": "An eviction is allowed if at most \"maxUnavailable\" pods selected by \"selector\" are unavailable after the eviction, i.e. even in absence of the evicted pod."
+          }
+        }
+      },
+      "podExtraSpecs":{
+        "type": "object",
+        "description": "ExtraSpec for the pods to be configured",
+        "title": "podExtraSpecs"
       },
       "podLabels": {
         "type":"object",
@@ -802,3 +945,4 @@
       }
     }
   }
+
