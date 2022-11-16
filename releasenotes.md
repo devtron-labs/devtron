@@ -1,5 +1,9 @@
 ## v0.6.7-rc.0
 
+
+
+## v0.6.7-rc.0
+
 ## Bugs
 - Fix: user re create with super admin permission fix. (#2645)
 - fix: sql scripts for replacing CronJob & Job chart name to Job & CronJob in tables (#2638)
