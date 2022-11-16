@@ -2,8 +2,7 @@
 
 
 A deployment configuration is a manifest of the application. It defines the runtime behavior of the application.
-
-Devtron includes deployment template for both default as well as custom charts created by a super admin.
+You can select one of the default deployment charts or custom deployment charts which are created by super admin.
 
 To configure a deployment chart for your application, do the following steps:
 
@@ -11,17 +10,23 @@ To configure a deployment chart for your application, do the following steps:
 * Go to **App Configuration** page and configure your application.
 * On the **Base Deployment Template** page, select the drop-down under **Chart type**.
 
-You can select a chart in one of the following ways:
+
+## Select chart from Default Charts
+
+You can select a default deployment chart from the following options:
 
 1. [Rollout Deployment](deployment-template/rollout-deployment.md)
-2. [Cronjob & Job](deployment-template/job-and-cronjob.md)
+2. [Job & CronJob](deployment-template/job-and-cronjob.md)
 3. Knative
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/deployment-template/chart-description.jpg)
+
 
 ## Select chart from Custom Charts
 
-Custom charts are added by a super admin from the [Custom charts](../global-configurations/custom-charts.md) section.
+Custom charts are added by users with `super admin` permission from the [Custom charts](../global-configurations/custom-charts.md) section.
 
-Users can select the available custom charts from the drop-down list.
+You can select the available custom charts from the drop-down list.
 
 ![Select custom chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/use-custom-chart.png)
 

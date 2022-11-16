@@ -1,7 +1,9 @@
 
 # Rollout Deployment
 
-Deployment configuration is the manifest of the application which defines the runtime behavior of the application. You can define application behavior by providing information in the following sections:
+The `Rollout Deployment` chart deploys an advanced version of deployment that supports Blue/Green and Canary deployments. For functioning, it requires a rollout controller to run inside the cluster.
+
+You can define application behavior by providing information in the following sections:
 
 * [Chart version](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#1.-chart-version)
 * [Basic Configuration](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#2.-basic-configuration)
