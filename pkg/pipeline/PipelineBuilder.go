@@ -696,6 +696,12 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 		} else {
 			roleData["environmentName"] = fmt.Sprintf("%s,%s", roleData["environmentName"], cdPipeline.Environment.Name)
 		}
+
+		if _, ok := roleData["environmentIdentifier"]; !ok {
+			roleData["environmentIdentifier"] = cdPipeline.Environment.EnvironmentIdentifier
+		} else {
+			roleData["environmentIdentifier"] = fmt.Sprintf("%s,%s", roleData["environmentIdentifier"], cdPipeline.Environment.EnvironmentIdentifier)
+		}
 	}
 
 	externalCiConfig := &bean.ExternalCiConfig{
@@ -705,13 +711,14 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 		AccessKey:  "",
 	}
 	externalCiConfig.ExternalCiConfigRole = bean.ExternalCiConfigRole{
-		ProjectId:       roleData["teamId"].(int),
-		ProjectName:     roleData["teamName"].(string),
-		AppId:           roleData["appId"].(int),
-		AppName:         roleData["appName"].(string),
-		EnvironmentId:   roleData["environmentId"].(string),
-		EnvironmentName: roleData["environmentName"].(string),
-		Role:            "Build and deploy",
+		ProjectId:             roleData["teamId"].(int),
+		ProjectName:           roleData["teamName"].(string),
+		AppId:                 roleData["appId"].(int),
+		AppName:               roleData["appName"].(string),
+		EnvironmentId:         roleData["environmentId"].(string),
+		EnvironmentName:       roleData["environmentName"].(string),
+		EnvironmentIdentifier: roleData["environmentIdentifier"].(string),
+		Role:                  "Build and deploy",
 	}
 	externalCiConfig.Schema = impl.buildExternalCiWebhookSchema()
 	externalCiConfig.PayloadOption = impl.buildPayloadOption()
