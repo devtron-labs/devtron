@@ -148,10 +148,10 @@ func (impl *UserTerminalAccessServiceImpl) createTerminalEntity(request *models.
 		return nil, err
 	}
 	impl.TerminalAccessDataArrayMutex.Lock()
+	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	terminalAccessDataArray := *impl.TerminalAccessSessionDataMap
 	terminalAccessDataArray[userAccessData.Id] = &UserTerminalAccessSessionData{terminalAccessDataEntity: userAccessData, latestActivityTime: time.Now()}
 	impl.TerminalAccessSessionDataMap = &terminalAccessDataArray
-	impl.TerminalAccessDataArrayMutex.Unlock()
 	return &models.UserTerminalSessionResponse{
 		UserId:           userAccessData.UserId,
 		PodName:          podName,
@@ -177,12 +177,12 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(request *m
 		return nil, err
 	}
 	impl.TerminalAccessDataArrayMutex.Lock()
+	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
 	terminalAccessSessionData := terminalAccessDataMap[terminalAccessData.Id]
 	terminalAccessSessionData.terminalAccessDataEntity = terminalAccessData
 	terminalAccessSessionData.latestActivityTime = time.Now()
 	impl.TerminalAccessSessionDataMap = &terminalAccessDataMap
-	impl.TerminalAccessDataArrayMutex.Unlock()
 
 	return &models.UserTerminalSessionResponse{
 		UserId:           terminalAccessData.UserId,
@@ -221,19 +221,21 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTermina
 	if err != nil {
 		return err
 	}
+	impl.TerminalAccessDataArrayMutex.RLock()
+	defer impl.TerminalAccessDataArrayMutex.RUnlock()
 	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
 	accessSessionData := accessSessionDataMap[userTerminalSessionId]
 	terminalAccessData := accessSessionData.terminalAccessDataEntity
 	err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while stopping terminal pod", "userTerminalAccessId", userTerminalSessionId, "err", err)
-		return err
 	}
 	return err
 }
 
 func (impl *UserTerminalAccessServiceImpl) StopTerminalSession(userTerminalAccessId int) error {
 	// disconnect session first
+	impl.TerminalAccessDataArrayMutex.Lock()
+	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
 	accessSessionData, present := accessSessionDataMap[userTerminalAccessId]
 	if present {
@@ -244,6 +246,8 @@ func (impl *UserTerminalAccessServiceImpl) StopTerminalSession(userTerminalAcces
 
 func (impl *UserTerminalAccessServiceImpl) DisconnectAllSessionsForUser(userId int32) {
 	impl.Logger.Infow("disconnecting all active session for user", "userId", userId)
+	impl.TerminalAccessDataArrayMutex.Lock()
+	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	activeSessionList := impl.getUserActiveSessionList(userId)
 	for _, accessSessionData := range activeSessionList {
 		impl.closeAndCleanTerminalSession(accessSessionData)
@@ -327,7 +331,7 @@ func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTer
 
 func (impl *UserTerminalAccessServiceImpl) applyTemplateData(request *models.UserTerminalSessionRequest, podNameVar string,
 	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool) error {
-
+	templateName := terminalTemplate.TemplateName
 	templateData := terminalTemplate.TemplateData
 	clusterId := request.ClusterId
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessClusterIdTemplateVar, strconv.Itoa(clusterId))
@@ -338,7 +342,7 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplateData(request *models.Use
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessPodNameVar, podNameVar)
 	err := impl.applyTemplate(clusterId, terminalTemplate.TemplateKindData, templateData, isUpdate)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while applying template ", "name", terminalTemplate.TemplateName, "err", err)
+		impl.Logger.Errorw("error occurred while applying template ", "name", templateName, "err", err)
 		return err
 	}
 	return nil
@@ -363,6 +367,7 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 			existingStatus := terminalAccessData.Status
 			terminalPodStatusString := existingStatus
 			err := impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
+			impl.deleteUserTerminalTemplates(terminalAccessData.ClusterId, terminalAccessData.PodName)
 			if err != nil {
 				if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == "NotFound" {
 					terminalPodStatusString = string(models.TerminalPodTerminated)
@@ -379,18 +384,18 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 				}
 				terminalAccessData.Status = terminalPodStatusString
 			}
-
 		}
 	}
 	impl.TerminalAccessDataArrayMutex.Lock()
+	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	for _, terminalAccessSessionData := range terminalAccessDataMap {
 		terminalAccessData := terminalAccessSessionData.terminalAccessDataEntity
 		if terminalAccessData.Status != string(models.TerminalPodStarting) && terminalAccessData.Status != string(models.TerminalPodRunning) {
+			// check if this is the last data for this cluster and user then delete terminal resource
 			delete(terminalAccessDataMap, terminalAccessData.Id)
 		}
 	}
 	impl.TerminalAccessSessionDataMap = &terminalAccessDataMap
-	impl.TerminalAccessDataArrayMutex.Unlock()
 }
 
 func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessData *models.UserTerminalAccessData) (string, error) {
@@ -528,6 +533,37 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, term
 	return err
 }
 
+func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(clusterId int, terminalResourceName string, gvkDataString string) error {
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(clusterId)
+	if err != nil {
+		return err
+	}
+
+	var gvkData map[string]string
+	err = json.Unmarshal([]byte(gvkDataString), &gvkData)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
+		return err
+	}
+
+	k8sRequest := &application.K8sRequestBean{
+		ResourceIdentifier: application.ResourceIdentifier{
+			Name:      terminalResourceName,
+			Namespace: impl.Config.TerminalPodDefaultNamespace,
+			GroupVersionKind: schema.GroupVersionKind{
+				Group:   gvkData["group"],
+				Version: gvkData["version"],
+				Kind:    gvkData["kind"],
+			},
+		},
+	}
+	_, err = impl.k8sClientService.DeleteResource(restConfig, k8sRequest)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while deleting resource for pod", "podName", terminalResourceName, "err", err)
+	}
+	return err
+}
+
 func (impl *UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataString string, templateData string, isUpdate bool) error {
 	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(clusterId)
 	if err != nil {
@@ -629,4 +665,22 @@ func (impl *UserTerminalAccessServiceImpl) SyncRunningInstances() {
 	}
 	impl.TerminalAccessSessionDataMap = &terminalAccessDataMap
 	impl.TerminalAccessDataArrayMutex.Unlock()
+}
+
+func (impl *UserTerminalAccessServiceImpl) deleteUserTerminalTemplates(clusterId int, podName string) {
+	templateData, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessClusterRoleBindingTemplateName)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while fetching terminal access template", "err", err)
+		return
+	}
+	templateName := strings.ReplaceAll(models.TerminalAccessClusterRoleBindingTemplate, models.TerminalAccessPodNameTemplate, podName)
+	impl.DeleteTerminalResource(clusterId, templateName, templateData.TemplateKindData)
+
+	templateData, err = impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessServiceAccountTemplateName)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while fetching terminal access template", "err", err)
+		return
+	}
+	templateName = strings.ReplaceAll(models.TerminalAccessServiceAccountTemplate, models.TerminalAccessPodNameTemplate, podName)
+	impl.DeleteTerminalResource(clusterId, templateName, templateData.TemplateKindData)
 }

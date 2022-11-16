@@ -38,8 +38,10 @@ const TerminalAccessBaseImageVar = "${base_image}"
 const TerminalAccessNamespaceVar = "${default_namespace}"
 const TerminalAccessPodTemplateName = "terminal-access-pod"
 const TerminalAccessRoleTemplateName = "terminal-access-role"
-const TerminalAccessRoleBindingTemplateName = "terminal-access-role-binding"
+const TerminalAccessClusterRoleBindingTemplateName = "terminal-access-role-binding"
+const TerminalAccessClusterRoleBindingTemplate = TerminalAccessPodNameTemplate + "-crb"
 const TerminalAccessServiceAccountTemplateName = "terminal-access-service-account"
+const TerminalAccessServiceAccountTemplate = TerminalAccessPodNameTemplate + "-sa"
 
 type TerminalPodStatus string
 

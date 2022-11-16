@@ -32,20 +32,16 @@ func NewTerminalAccessRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLog
 }
 
 func (impl TerminalAccessRepositoryImpl) FetchTerminalAccessTemplate(templateName string) (*models.TerminalAccessTemplates, error) {
-	template := &models.TerminalAccessTemplates{}
-	err := impl.dbConnection.
-		Model(template).
-		Where("template_name = ?", templateName).
-		Select()
-	if templateName == models.TerminalAccessPodTemplateName {
-		template = &models.TerminalAccessTemplates{
-			TemplateName:     models.TerminalAccessPodTemplateName,
-			TemplateKindData: "{\"group\":\"\", \"version\":\"v1\", \"kind\":\"Pod\"}",
-			TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"terminal-access-service-account\",\"nodeSelector\":{\"kubernetes.io/hostname\":\"${node_name}\"},\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}",
+	accessTemplates, err := impl.FetchAllTemplates()
+	if err != nil {
+		return nil, err
+	}
+	for _, accessTemplate := range accessTemplates {
+		if accessTemplate.TemplateName == templateName {
+			return accessTemplate, nil
 		}
 	}
-	err = nil //TODO remove this
-	return template, err
+	return nil, err
 }
 
 func (impl TerminalAccessRepositoryImpl) FetchAllTemplates() ([]*models.TerminalAccessTemplates, error) {
@@ -65,19 +61,18 @@ func (impl TerminalAccessRepositoryImpl) FetchAllTemplates() ([]*models.Terminal
 	templates = append(templates, &models.TerminalAccessTemplates{
 		TemplateName:     models.TerminalAccessServiceAccountTemplateName,
 		TemplateKindData: "{\"version\":\"v1\", \"kind\":\"ServiceAccount\"}",
-		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"name\":\"terminal-access-service-account\",\"namespace\":\"${default_namespace}\"}}",
+		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}}",
 	})
 	templates = append(templates, &models.TerminalAccessTemplates{
-		TemplateName:     models.TerminalAccessRoleBindingTemplateName,
+		TemplateName:     models.TerminalAccessClusterRoleBindingTemplateName,
 		TemplateKindData: "{\"group\":\"rbac.authorization.k8s.io\",\"version\":\"v1\",\"kind\":\"ClusterRoleBinding\"}",
-		TemplateData:     "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"terminal-access-role-binding\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"terminal-access-service-account\",\"namespace\":\"${default_namespace}\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}",
+		TemplateData:     "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"${pod_name}-crb\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}",
 	})
 	templates = append(templates, &models.TerminalAccessTemplates{
 		TemplateName:     models.TerminalAccessPodTemplateName,
 		TemplateKindData: "{\"group\":\"\", \"version\":\"v1\", \"kind\":\"Pod\"}",
-		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"terminal-access-service-account\",\"nodeSelector\":{\"kubernetes.io/hostname\":\"${node_name}\"},\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}",
+		TemplateData:     "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"${pod_name}-sa\",\"nodeSelector\":{\"kubernetes.io/hostname\":\"${node_name}\"},\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}",
 	})
-
 	return templates, err
 }
 
