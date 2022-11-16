@@ -26,7 +26,7 @@ You can select a default deployment chart from the following options:
 
 Custom charts are added by users with `super admin` permission from the [Custom charts](../global-configurations/custom-charts.md) section.
 
-You can select the available custom charts from the drop-down list.
+You can select the available custom charts from the drop-down list. You can also view the description of the custom charts in the list.
 
 ![Select custom chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/custom-charts/use-custom-chart.png)
 
