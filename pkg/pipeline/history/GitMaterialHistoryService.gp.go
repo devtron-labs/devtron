@@ -47,7 +47,7 @@ func (impl GitMaterialHistoryServiceImpl) CreateMaterialHistory(inputMaterial *p
 		impl.logger.Errorw("error in saving create/update history for git repository")
 	}
 
-	return err
+	return nil
 
 }
 
