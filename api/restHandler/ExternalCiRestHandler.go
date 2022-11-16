@@ -156,10 +156,10 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.R
 }
 
 func (handler ExternalCiRestHandlerImpl) checkExternalCiDeploymentAuth(email string, projectObject string, envObject string) bool {
-	if ok := handler.enforcer.EnforceByEmail(email, casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
+	if ok := handler.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
 		return false
 	}
-	if ok := handler.enforcer.EnforceByEmail(email, casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
+	if ok := handler.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
 		return false
 	}
 	return true
