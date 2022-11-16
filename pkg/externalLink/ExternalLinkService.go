@@ -323,6 +323,7 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 			return nil, err
 		}
 		linkIdentifier.AppId = appId
+		linkIdentifier.Identifier = ""
 	}
 	linkIdentifier.ClusterId = 0
 	records, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByLinkIdentifier(linkIdentifier, clusterId)
