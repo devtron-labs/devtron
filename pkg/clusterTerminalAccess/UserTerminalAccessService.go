@@ -82,13 +82,8 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 	return accessServiceImpl, err
 }
 
-func (impl UserTerminalAccessServiceImpl) StartTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	userId := request.UserId
-	//terminalAccessDataList, err := impl.TerminalAccessRepository.GetUserTerminalAccessDataByUser(userId)
-	//if err != nil {
-	//	impl.Logger.Errorw("error occurred while getting terminal access data for user id", "userId", userId, "err", err)
-	//	return nil, err
-	//}
 	// check for max session check
 	err := impl.checkMaxSessionLimit(userId)
 	if err != nil {
@@ -99,7 +94,7 @@ func (impl UserTerminalAccessServiceImpl) StartTerminalSession(request *models.U
 	return impl.createTerminalEntity(request, podName, err)
 }
 
-func (impl UserTerminalAccessServiceImpl) checkMaxSessionLimit(userId int32) error {
+func (impl *UserTerminalAccessServiceImpl) checkMaxSessionLimit(userId int32) error {
 	maxSessionPerUser := impl.Config.MaxSessionPerUser
 	activeSessionList := impl.getUserActiveSessionList(userId)
 	userRunningSessionCount := len(activeSessionList)
@@ -111,7 +106,7 @@ func (impl UserTerminalAccessServiceImpl) checkMaxSessionLimit(userId int32) err
 	return nil
 }
 
-func (impl UserTerminalAccessServiceImpl) getMaxIdForUser(userId int32) int {
+func (impl *UserTerminalAccessServiceImpl) getMaxIdForUser(userId int32) int {
 	accessSessionDataMap := impl.TerminalAccessSessionDataMap
 	maxId := 0
 	for _, userTerminalAccessSessionData := range *accessSessionDataMap {
@@ -126,7 +121,7 @@ func (impl UserTerminalAccessServiceImpl) getMaxIdForUser(userId int32) int {
 	return maxId
 }
 
-func (impl UserTerminalAccessServiceImpl) getUserActiveSessionList(userId int32) []*UserTerminalAccessSessionData {
+func (impl *UserTerminalAccessServiceImpl) getUserActiveSessionList(userId int32) []*UserTerminalAccessSessionData {
 	var userTerminalAccessSessionDataArray []*UserTerminalAccessSessionData
 	accessSessionDataMap := impl.TerminalAccessSessionDataMap
 	for _, userTerminalAccessSessionData := range *accessSessionDataMap {
@@ -138,7 +133,7 @@ func (impl UserTerminalAccessServiceImpl) getUserActiveSessionList(userId int32)
 	return userTerminalAccessSessionDataArray
 }
 
-func (impl UserTerminalAccessServiceImpl) createTerminalEntity(request *models.UserTerminalSessionRequest, podName string, err error) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) createTerminalEntity(request *models.UserTerminalSessionRequest, podName string, err error) (*models.UserTerminalSessionResponse, error) {
 	userAccessData := &models.UserTerminalAccessData{
 		UserId:    request.UserId,
 		ClusterId: request.ClusterId,
@@ -164,7 +159,7 @@ func (impl UserTerminalAccessServiceImpl) createTerminalEntity(request *models.U
 	}, nil
 }
 
-func (impl UserTerminalAccessServiceImpl) UpdateTerminalShellSession(request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	userTerminalAccessId := request.TerminalAccessId
 	err := impl.DisconnectTerminalSession(userTerminalAccessId)
 	if err != nil {
@@ -196,74 +191,17 @@ func (impl UserTerminalAccessServiceImpl) UpdateTerminalShellSession(request *mo
 	}, nil
 }
 
-func (impl UserTerminalAccessServiceImpl) UpdateTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	userTerminalAccessId := request.Id
-	//terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(userTerminalAccessId)
-	//if err != nil {
-	//	impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalAccessId", userTerminalAccessId, "err", err)
-	//	return nil, err
-	//}
-	////podName := terminalAccessData.PodName
-	//err = impl.StopTerminalSession(userTerminalAccessId)
-	//if err != nil {
-	//	impl.Logger.Errorw("error occurred while deleting terminal pod", "userTerminalAccessId", userTerminalAccessId, "err", err)
-	//	return nil, err
-	//}
-	//err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
-	//if err != nil {
-	//	impl.Logger.Errorw("error occurred while stopping terminal pod", "userTerminalAccessId", userTerminalAccessId, "err", err)
-	//	return nil, err
-	//}
 	err := impl.DisconnectTerminalSession(userTerminalAccessId)
 	if err != nil {
 		return nil, err
 	}
-	//terminalAccessPodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessPodTemplateName)
-	//if err != nil {
-	//	impl.Logger.Errorw("error occurred while fetching template", "template", models.TerminalAccessPodTemplateName, "err", err)
-	//	return nil, err
-	//}
-	//userId := request.UserId
-	//terminalAccessDataList, err := impl.TerminalAccessRepository.GetUserTerminalAccessDataByUser(userId)
-	//if err != nil {
-	//	impl.Logger.Errorw("error occurred while getting terminal access data for user id", "userId", userId, "err", err)
-	//	return nil, err
-	//}
 
 	return impl.StartTerminalSession(request)
-
-	//maxId := impl.getMaxIdForUser(userId)
-	//podName = impl.createPodName(request, maxId)
-	//terminalAccessData.Metadata = impl.extractMetadataString(request)
-	//terminalAccessData.NodeName = request.NodeName
-	//terminalAccessData.UpdatedOn = time.Now()
-	//terminalAccessData.PodName = podName
-	//err = impl.TerminalAccessRepository.UpdateUserTerminalAccessData(terminalAccessData)
-	//if err != nil {
-	//	impl.Logger.Errorw("error occurred while updating terminal Access data ", "userTerminalAccessId", userTerminalAccessId, "err", err)
-	//	return nil, err
-	//}
-	//userAccessData := &models.UserTerminalAccessData{
-	//	UserId:    request.UserId,
-	//	ClusterId: request.ClusterId,
-	//	NodeName:  request.NodeName,
-	//	Status:    string(models.TerminalPodStarting),
-	//	PodName:   podName,
-	//	Metadata:  metadataString,
-	//}
-	//err = impl.applyTemplateData(request, podName, terminalAccessPodTemplate, true)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//
-	//return &models.UserTerminalSessionResponse{
-	//	UserId:           terminalAccessData.UserId,
-	//	PodName:          podName,
-	//	TerminalAccessId: terminalAccessData.Id,
-	//}, nil
 }
 
-func (impl UserTerminalAccessServiceImpl) checkTerminalExists(userTerminalSessionId int) (*models.UserTerminalAccessData, error) {
+func (impl *UserTerminalAccessServiceImpl) checkTerminalExists(userTerminalSessionId int) (*models.UserTerminalAccessData, error) {
 	terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(userTerminalSessionId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalSessionId", userTerminalSessionId, "err", err)
@@ -278,7 +216,7 @@ func (impl UserTerminalAccessServiceImpl) checkTerminalExists(userTerminalSessio
 	return terminalAccessData, nil
 }
 
-func (impl UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminalSessionId int) error {
+func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminalSessionId int) error {
 	err := impl.StopTerminalSession(userTerminalSessionId)
 	if err != nil {
 		return err
@@ -294,27 +232,17 @@ func (impl UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminal
 	return err
 }
 
-func (impl UserTerminalAccessServiceImpl) StopTerminalSession(userTerminalAccessId int) error {
-	//terminalAccessData, err := impl.checkTerminalExists(userTerminalAccessId)
-	//if err != nil {
-	//	return err
-	//}
+func (impl *UserTerminalAccessServiceImpl) StopTerminalSession(userTerminalAccessId int) error {
 	// disconnect session first
 	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
 	accessSessionData, present := accessSessionDataMap[userTerminalAccessId]
 	if present {
 		impl.closeAndCleanTerminalSession(accessSessionData)
 	}
-	//// handle already terminated/not found cases
-	//err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
-	//if err != nil {
-	//	impl.Logger.Errorw("error occurred while stopping terminal pod", "userTerminalAccessId", userTerminalAccessId, "err", err)
-	//	return err
-	//}
 	return nil
 }
 
-func (impl UserTerminalAccessServiceImpl) DisconnectAllSessionsForUser(userId int32) {
+func (impl *UserTerminalAccessServiceImpl) DisconnectAllSessionsForUser(userId int32) {
 	impl.Logger.Infow("disconnecting all active session for user", "userId", userId)
 	activeSessionList := impl.getUserActiveSessionList(userId)
 	for _, accessSessionData := range activeSessionList {
@@ -322,7 +250,7 @@ func (impl UserTerminalAccessServiceImpl) DisconnectAllSessionsForUser(userId in
 	}
 }
 
-func (impl UserTerminalAccessServiceImpl) closeAndCleanTerminalSession(accessSessionData *UserTerminalAccessSessionData) {
+func (impl *UserTerminalAccessServiceImpl) closeAndCleanTerminalSession(accessSessionData *UserTerminalAccessSessionData) {
 	sessionId := accessSessionData.sessionId
 	if sessionId != "" {
 		userTerminalAccessId := accessSessionData.terminalAccessDataEntity.Id
@@ -333,11 +261,11 @@ func (impl UserTerminalAccessServiceImpl) closeAndCleanTerminalSession(accessSes
 	}
 }
 
-func (impl UserTerminalAccessServiceImpl) closeSession(sessionId string) {
+func (impl *UserTerminalAccessServiceImpl) closeSession(sessionId string) {
 	impl.terminalSessionHandler.Close(sessionId, 1, "Process exited")
 }
 
-func (impl UserTerminalAccessServiceImpl) extractMetadataString(request *models.UserTerminalSessionRequest) string {
+func (impl *UserTerminalAccessServiceImpl) extractMetadataString(request *models.UserTerminalSessionRequest) string {
 	metadata := make(map[string]string)
 	metadata["BaseImage"] = request.BaseImage
 	metadata["ShellName"] = request.ShellName
@@ -349,7 +277,7 @@ func (impl UserTerminalAccessServiceImpl) extractMetadataString(request *models.
 	return string(metadataJsonBytes)
 }
 
-func (impl UserTerminalAccessServiceImpl) mergeToMetadataString(metadataJsonStr string, request *models.UserTerminalShellSessionRequest) string {
+func (impl *UserTerminalAccessServiceImpl) mergeToMetadataString(metadataJsonStr string, request *models.UserTerminalShellSessionRequest) string {
 	metadataMap, err := impl.getMetadataMap(metadataJsonStr)
 	if err != nil {
 		metadataMap = make(map[string]string)
@@ -363,7 +291,7 @@ func (impl UserTerminalAccessServiceImpl) mergeToMetadataString(metadataJsonStr 
 	return string(metadataJsonBytes)
 }
 
-func (impl UserTerminalAccessServiceImpl) getMetadataMap(metadata string) (map[string]string, error) {
+func (impl *UserTerminalAccessServiceImpl) getMetadataMap(metadata string) (map[string]string, error) {
 	var metadataMap map[string]string
 	err := json.Unmarshal([]byte(metadata), &metadataMap)
 	if err != nil {
@@ -373,7 +301,7 @@ func (impl UserTerminalAccessServiceImpl) getMetadataMap(metadata string) (map[s
 	return metadataMap, nil
 }
 
-func (impl UserTerminalAccessServiceImpl) startTerminalPod(request *models.UserTerminalSessionRequest, runningCount int) (string, error) {
+func (impl *UserTerminalAccessServiceImpl) startTerminalPod(request *models.UserTerminalSessionRequest, runningCount int) (string, error) {
 	podNameVar := impl.createPodName(request, runningCount)
 	accessTemplates, err := impl.TerminalAccessRepository.FetchAllTemplates()
 	if err != nil {
@@ -389,7 +317,7 @@ func (impl UserTerminalAccessServiceImpl) startTerminalPod(request *models.UserT
 	return podNameVar, err
 }
 
-func (impl UserTerminalAccessServiceImpl) createPodName(request *models.UserTerminalSessionRequest, runningCount int) string {
+func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTerminalSessionRequest, runningCount int) string {
 	podNameVar := models.TerminalAccessPodNameTemplate
 	podNameVar = strings.ReplaceAll(podNameVar, models.TerminalAccessClusterIdTemplateVar, strconv.Itoa(request.ClusterId))
 	podNameVar = strings.ReplaceAll(podNameVar, models.TerminalAccessUserIdTemplateVar, strconv.FormatInt(int64(request.UserId), 10))
@@ -397,7 +325,7 @@ func (impl UserTerminalAccessServiceImpl) createPodName(request *models.UserTerm
 	return podNameVar
 }
 
-func (impl UserTerminalAccessServiceImpl) applyTemplateData(request *models.UserTerminalSessionRequest, podNameVar string,
+func (impl *UserTerminalAccessServiceImpl) applyTemplateData(request *models.UserTerminalSessionRequest, podNameVar string,
 	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool) error {
 
 	templateData := terminalTemplate.TemplateData
@@ -416,13 +344,7 @@ func (impl UserTerminalAccessServiceImpl) applyTemplateData(request *models.User
 	return nil
 }
 
-func (impl UserTerminalAccessServiceImpl) SyncPodStatus() {
-	// set starting/running pods in memory and fetch status of those pods and update their status in Db
-	//terminalAccessPodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessPodTemplateName)
-	//if err != nil {
-	//	impl.Logger.Errorw("error occurred while fetching template", "template", models.TerminalAccessPodTemplateName, "err", err)
-	//	return
-	//}
+func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
 	for _, terminalAccessSessionData := range terminalAccessDataMap {
 		sessionId := terminalAccessSessionData.sessionId
@@ -456,36 +378,9 @@ func (impl UserTerminalAccessServiceImpl) SyncPodStatus() {
 					continue
 				}
 				terminalAccessData.Status = terminalPodStatusString
-				////create terminal session if status is Running and store sessionId
-				//metadata := terminalAccessData.Metadata
-				//metadataMap, err := impl.getMetadataMap(metadata)
-				//if err != nil {
-				//	impl.Logger.Errorw("error occurred while converting metadata json to map", "metadata", metadata, "err", err)
-				//	continue
-				//}
-				//request := &terminal.TerminalSessionRequest{
-				//	Shell:     metadataMap["ShellName"],
-				//	Namespace: impl.Config.TerminalPodDefaultNamespace,
-				//	PodName:   terminalAccessPodName,
-				//	ClusterId: clusterId,
-				//}
-				//_, terminalMessage, err := impl.terminalSessionHandler.GetTerminalSession(request)
-				//if err != nil {
-				//	impl.Logger.Errorw("error occurred while creating terminal session", "terminalAccessId", terminalAccessId, "err", err)
-				//	continue
-				//}
-				//sessionID := terminalMessage.SessionID
-				//terminalAccessSessionData.sessionId = sessionID
 			}
 
 		}
-		//clusterId := terminalAccessData.ClusterId
-		//terminalAccessPodName := terminalAccessData.PodName
-		//existingStatus := terminalAccessData.Status
-		//terminalPodStatus, err := impl.getPodStatus(clusterId, terminalAccessPodName, terminalAccessPodTemplate.TemplateKindData)
-		//if err != nil {
-		//	continue
-		//}
 	}
 	impl.TerminalAccessDataArrayMutex.Lock()
 	for _, terminalAccessSessionData := range terminalAccessDataMap {
@@ -498,7 +393,7 @@ func (impl UserTerminalAccessServiceImpl) SyncPodStatus() {
 	impl.TerminalAccessDataArrayMutex.Unlock()
 }
 
-func (impl UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessData *models.UserTerminalAccessData) (string, error) {
+func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessData *models.UserTerminalAccessData) (string, error) {
 	terminalAccessPodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessPodTemplateName)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching template", "template", models.TerminalAccessPodTemplateName, "err", err)
@@ -545,7 +440,7 @@ func (impl UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessDat
 	return sessionID, err
 }
 
-func (impl UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error) {
 
 	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
 	terminalAccessSessionData, present := terminalAccessDataMap[terminalAccessId]
@@ -594,7 +489,7 @@ func (impl UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId i
 	return terminalAccessResponse, nil
 }
 
-func (impl UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, terminalPodName string) error {
+func (impl *UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, terminalPodName string) error {
 	//make pod delete request, handle errors if pod does  not exists
 	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(clusterId)
 	if err != nil {
@@ -633,7 +528,7 @@ func (impl UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, termi
 	return err
 }
 
-func (impl UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataString string, templateData string, isUpdate bool) error {
+func (impl *UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataString string, templateData string, isUpdate bool) error {
 	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(clusterId)
 	if err != nil {
 		return err
@@ -672,7 +567,7 @@ func (impl UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataSt
 	return nil
 }
 
-func (impl UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName string, gvkDataString string) (string, error) {
+func (impl *UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName string, gvkDataString string) (string, error) {
 	// return terminated if pod does not exist
 	var gvkData map[string]string
 	err := json.Unmarshal([]byte(gvkDataString), &gvkData)
@@ -719,7 +614,7 @@ func (impl UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName st
 	return status, nil
 }
 
-func (impl UserTerminalAccessServiceImpl) SyncRunningInstances() {
+func (impl *UserTerminalAccessServiceImpl) SyncRunningInstances() {
 	terminalAccessData, err := impl.TerminalAccessRepository.GetAllRunningUserTerminalData()
 	if err != nil {
 		impl.Logger.Fatalw("error occurred while fetching all running/starting data", "err", err)
