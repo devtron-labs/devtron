@@ -260,9 +260,8 @@ func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkIdentifi
 		}
 
 		if (record.Type == CLUSTER || record.Type == APP) && record.Identifier == "" && record.AppId == 0 && record.ClusterId == 0 {
-			if record.Type == CLUSTER {
-				responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
-			} else {
+			responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
+			if record.Type == APP && record.Active {
 				responseMap[record.Id].Type = APP_LEVEL_LINK
 			}
 		} else if record.Active {
@@ -393,6 +392,12 @@ func (impl ExternalLinkServiceImpl) Update(request *ExternalLinkDto, userRole st
 		impl.logger.Errorw("error in fetching link", "data", externalLink, "err", err)
 		err = apiError
 		return externalLinksCreateUpdateResponse, err
+	}
+	if len(request.Identifiers) == 0 && request.Type == APP_LEVEL_LINK {
+		identifier := LinkIdentifier{
+			Type: getType(APP),
+		}
+		request.Identifiers = append(request.Identifiers, identifier)
 	}
 
 	//make all the existing mappings of this external link inactive
