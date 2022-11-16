@@ -2,17 +2,18 @@ package casbin
 
 import (
 	"fmt"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/stretchr/testify/assert"
+	"go.uber.org/zap"
 	"strconv"
 	"testing"
 	"time"
 )
 
 func TestRbacEnforcer(t *testing.T) {
+	t.SkipNow()
 	t.Run("check for RBAC ", func(t *testing.T) {
 		syncedEnforcer := Create()
-		logger, err := util.InitLogger()
+		logger, err := getLogger()
 		assert.Nil(t, err)
 		enforcerImpl := NewEnforcerImpl(syncedEnforcer, nil, logger)
 		//enforced := enforcerImpl.EnforceByEmail("pawan@devtron.ai", "application", "get", "*")
@@ -32,6 +33,16 @@ func TestRbacEnforcer(t *testing.T) {
 			fmt.Println("enforced", response, "timegapInMillis", elapsedTime.Milliseconds())
 		}
 	})
+}
+
+func getLogger() (*zap.SugaredLogger, error) {
+	config := zap.NewProductionConfig()
+	l, err := config.Build()
+	if err != nil {
+		fmt.Println("failed to create the default logger: " + err.Error())
+		return nil, err
+	}
+	return l.Sugar(), nil
 }
 
 func getRval(rval ...interface{}) []interface{} {
