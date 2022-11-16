@@ -3,7 +3,6 @@ package cron
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/caarlos0/env"
 	client2 "github.com/devtron-labs/devtron/client/events"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
@@ -35,32 +34,16 @@ type CdApplicationStatusUpdateHandlerImpl struct {
 	workflowDagExecutor              pipeline.WorkflowDagExecutor
 	installedAppService              service.InstalledAppService
 	CdHandler                        pipeline.CdHandler
-	AppStatusConfig                  *AppStatusConfig
+	AppStatusConfig                  *app.AppStatusConfig
 	pubsubClient                     *pubsub.PubSubClient
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository
 	eventClient                      client2.EventClient
 	appListingRepository             repository.AppListingRepository
 }
 
-type AppStatusConfig struct {
-	CdPipelineStatusCronTime        string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
-	CdPipelineStatusTimeoutDuration string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"` //in minutes
-	PipelineDegradedTime            string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`              //in minutes
-}
-
-func GetAppStatusConfig() (*AppStatusConfig, error) {
-	cfg := &AppStatusConfig{}
-	err := env.Parse(cfg)
-	if err != nil {
-		fmt.Println("failed to parse server app status config: " + err.Error())
-		return nil, err
-	}
-	return cfg, nil
-}
-
 func NewCdApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, appService app.AppService,
 	workflowDagExecutor pipeline.WorkflowDagExecutor, installedAppService service.InstalledAppService,
-	CdHandler pipeline.CdHandler, AppStatusConfig *AppStatusConfig, pubsubClient *pubsub.PubSubClient,
+	CdHandler pipeline.CdHandler, AppStatusConfig *app.AppStatusConfig, pubsubClient *pubsub.PubSubClient,
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	eventClient client2.EventClient, appListingRepository repository.AppListingRepository) *CdApplicationStatusUpdateHandlerImpl {
 	cron := cron.New(
@@ -117,12 +100,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			return
 		}
 		impl.logger.Infow("ARGO_PIPELINE_STATUS_UPDATE_REQ", "stage", "subscribeDataUnmarshal", "data", statusUpdateEvent)
-		timeoutDuration, err := strconv.Atoi(impl.AppStatusConfig.CdPipelineStatusTimeoutDuration)
-		if err != nil {
-			impl.logger.Errorw("error in converting string to int", "err", err)
-			return
-		}
-		err, _ = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(statusUpdateEvent.ArgoAppName, statusUpdateEvent.AppId, statusUpdateEvent.EnvId, timeoutDuration, statusUpdateEvent.UserId)
+		err, _ = impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(statusUpdateEvent.ArgoAppName, statusUpdateEvent.UserId)
 		if err != nil {
 			impl.logger.Errorw("error on argo pipeline status update", "err", err, "msg", string(msg.Data))
 			return
@@ -179,18 +157,15 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ArgoPipelineTimelineUpdate() {
 }
 
 func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceTreeCall(acdAppName string, appId, envId int) error {
-	timeline, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelineByAppIdAndEnvId(appId, envId)
-	if err != nil {
-		impl.logger.Errorw("error in getting timeline", "err", err)
+	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatusForAcdPipelineByAppIdAndEnvId(appId, envId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching deployment status", "err", err, "appId", appId, "envId", envId)
 		return err
 	}
-
-	if !IsTerminalTimelineStatus(timeline.Status) {
+	if !util.IsTerminalStatus(deploymentStatus.Status) {
 		//create new nats event
 		statusUpdateEvent := pipeline.ArgoPipelineStatusSyncEvent{
 			ArgoAppName: acdAppName,
-			AppId:       appId,
-			EnvId:       envId,
 			UserId:      1,
 		}
 		//write event
@@ -203,18 +178,6 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) SyncPipelineStatusForResourceT
 	return nil
 }
 
-func IsTerminalTimelineStatus(timeline pipelineConfig.TimelineStatus) bool {
-	switch timeline {
-	case
-		pipelineConfig.TIMELINE_STATUS_APP_HEALTHY,
-		pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_FAILED,
-		pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED,
-		pipelineConfig.TIMELINE_STATUS_DEPLOYMENT_SUPERSEDED:
-		return true
-	}
-	return false
-}
-
 func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId, envId int, userId int32) error {
 	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatusForAcdPipelineByAppIdAndEnvId(appId, envId)
 	if err != nil && err != pg.ErrNoRows {
@@ -222,12 +185,7 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId
 		return err
 	}
 	if !util.IsTerminalStatus(deploymentStatus.Status) {
-		timeoutDuration, err := strconv.Atoi(impl.AppStatusConfig.CdPipelineStatusTimeoutDuration)
-		if err != nil {
-			impl.logger.Errorw("error in converting string to int", "err", err)
-			return err
-		}
-		err, isTimelineUpdated := impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(deploymentStatus.AppName, appId, envId, timeoutDuration, userId)
+		err, isTimelineUpdated := impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(deploymentStatus.AppName, userId)
 		if err != nil {
 			impl.logger.Errorw("error on argo pipeline status update", "err", err)
 			return nil

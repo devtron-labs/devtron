@@ -29,8 +29,8 @@ type PipelineStatusTimelineRepository interface {
 	UpdateTimelinesWithTxn(timelines []*PipelineStatusTimeline, tx *pg.Tx) error
 	FetchTimelinesByPipelineId(pipelineId int) ([]*PipelineStatusTimeline, error)
 	FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error)
-	FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineId int, status TimelineStatus) (*PipelineStatusTimeline, error)
 	FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error)
+	FetchLatestTimelineByWfrId(wfrId int) (*PipelineStatusTimeline, error)
 	CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error)
 	FetchLatestTimelineByAppIdAndEnvId(appId, envId int) (*PipelineStatusTimeline, error)
 	DeleteByCdWfrIdAndTimelineStatuses(cdWfrId int, status []TimelineStatus) error
@@ -121,21 +121,6 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelinesByWfrId(wfrId in
 	return timelines, nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(cdWorkflowId int, status TimelineStatus) (*PipelineStatusTimeline, error) {
-	timeline := &PipelineStatusTimeline{}
-	err := impl.dbConnection.Model(timeline).
-		Join("INNER JOIN cd_workflow_runner wfr ON wfr.id = pipeline_status_timeline.cd_workflow_runner_id").
-		Join("INNER JOIN cd_workflow cw ON cw.id=wfr.cd_workflow_id").
-		Where("cw.id = ?", cdWorkflowId).
-		Where("pipeline_status_timeline.status = ?", status).
-		Order("cw.id DESC").Limit(1).Select()
-	if err != nil {
-		impl.logger.Errorw("error in getting timeline of latest wf by cdWorkflowId and status", "err", err, "cdWorkflowId", cdWorkflowId)
-		return nil, err
-	}
-	return timeline, nil
-}
-
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error) {
 	timeline := &PipelineStatusTimeline{}
 	err := impl.dbConnection.Model(timeline).
@@ -143,7 +128,20 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatus(
 		Where("status = ?", status).
 		Limit(1).Select()
 	if err != nil {
-		impl.logger.Errorw("error in getting timeline of latest wf by wfrId and status", "err", err, "wfrId", wfrId)
+		impl.logger.Errorw("error in getting timeline of latest wf by wfrId and status", "err", err, "wfrId", wfrId, "status", status)
+		return nil, err
+	}
+	return timeline, nil
+}
+
+func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByWfrId(wfrId int) (*PipelineStatusTimeline, error) {
+	timeline := &PipelineStatusTimeline{}
+	err := impl.dbConnection.Model(timeline).
+		Where("cd_workflow_runner_id = ?", wfrId).
+		Order("status_time DESC").
+		Limit(1).Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting timeline of latest wf by wfrId", "err", err, "wfrId", wfrId)
 		return nil, err
 	}
 	return timeline, nil
@@ -172,7 +170,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByAppIdAndE
 		Where("p.app_id = ?", appId).
 		Where("p.environment_id = ?", envId).
 		Where("p.deleted = false").
-		Order("pipeline_status_timeline.id DESC").
+		Order("pipeline_status_timeline.status_time DESC").
 		Limit(1).
 		Select()
 	if err != nil {

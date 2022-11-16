@@ -67,9 +67,8 @@ func NewApplicationStatusUpdateHandlerImpl(logger *zap.SugaredLogger, pubsubClie
 }
 
 type ApplicationDetail struct {
-	Application    *v1alpha12.Application `json:"application"`
-	OldApplication *v1alpha12.Application `json:"oldApplication"`
-	StatusTime     time.Time              `json:"statusTime"`
+	Application *v1alpha12.Application `json:"application"`
+	StatusTime  time.Time              `json:"statusTime"`
 }
 
 func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
@@ -83,40 +82,36 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 			impl.logger.Errorw("unmarshal error on app update status", "err", err)
 			return
 		}
-		newApp := applicationDetail.Application
-		oldApp := applicationDetail.OldApplication
-		if newApp == nil {
+		app := applicationDetail.Application
+		if app == nil {
 			return
 		}
-		//impl.logger.Infow("app update request", "application", newApp)
+		//impl.logger.Infow("app update request", "application", app)
 		if applicationDetail.StatusTime.IsZero() {
 			applicationDetail.StatusTime = time.Now()
 		}
-		isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp, applicationDetail.StatusTime)
+		isSucceeded, err := impl.appService.UpdateDeploymentStatusAndCheckIsSucceeded(app, applicationDetail.StatusTime)
 		if err != nil {
 			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
-
 			//TODO - check update for charts - fix this call
 			if err == pg.ErrNoRows {
 				// if not found in charts (which is for devtron apps) try to find in installed app (which is for devtron charts)
-				_, err := impl.installedAppService.UpdateInstalledAppVersionStatus(newApp)
+				_, err := impl.installedAppService.UpdateInstalledAppVersionStatus(app)
 				if err != nil {
 					impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 					return
 				}
 			}
-			// return anyways weather updates or failure, no further processing for charts status update
+			// return anyway whether updates or failure, no further processing for charts status update
 			return
 		}
 
 		// invoke DagExecutor, for cd success which will trigger post stage if exist.
-		if isHealthy {
-			impl.logger.Debugw("git hash history", "list", newApp.Status.History)
-			var gitHash string
-			if newApp.Operation != nil && newApp.Operation.Sync != nil {
-				gitHash = newApp.Operation.Sync.Revision
-			} else if newApp.Status.OperationState != nil && newApp.Status.OperationState.Operation.Sync != nil {
-				gitHash = newApp.Status.OperationState.Operation.Sync.Revision
+		if isSucceeded {
+			impl.logger.Debugw("git hash history", "list", app.Status.History)
+			gitHash := ""
+			if app != nil {
+				gitHash = app.Status.Sync.Revision
 			}
 			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
 			if err != nil {
@@ -124,7 +119,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 				return
 			}
 		}
-		impl.logger.Debugw("application status update completed", "app", newApp.Name)
+		impl.logger.Debugw("application status update completed", "app", app.Name)
 	}, nats.Durable(util.APPLICATION_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.KUBEWATCH_STREAM))
 
 	if err != nil {

@@ -169,7 +169,7 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewPipelineRestHandler,
 		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
-
+		app.GetAppStatusConfig,
 		app.NewAppService,
 		wire.Bind(new(app.AppService), new(*app.AppServiceImpl)),
 
@@ -726,7 +726,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
 		util2.GetDevtronSecretName,
 		//	AuthWireSet,
-		cron.GetAppStatusConfig,
+
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.CdApplicationStatusUpdateHandler), new(*cron.CdApplicationStatusUpdateHandlerImpl)),
 
