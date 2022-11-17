@@ -3,11 +3,11 @@ package models
 import "github.com/devtron-labs/devtron/pkg/sql"
 
 type TerminalAccessTemplates struct {
-	tableName        struct{} `sql:"terminal_access_templates" pg:",discard_unknown_columns"`
-	Id               int      `sql:"id,pk"`
-	TemplateName     string   `sql:"template_name"`
-	TemplateKindData string   `sql:"template_kind"`
-	TemplateData     string   `sql:"template_data"`
+	tableName    struct{} `sql:"terminal_access_templates" pg:",discard_unknown_columns"`
+	Id           int      `sql:"id,pk"`
+	TemplateName string   `sql:"template_name"`
+	//TemplateKindData string   `sql:"template_kind"`
+	TemplateData string `sql:"template_data"`
 	sql.AuditLog
 }
 

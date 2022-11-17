@@ -15,6 +15,7 @@ import (
 	"go.uber.org/zap"
 	k8sErrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	"strconv"
 	"strings"
 	"sync"
@@ -340,7 +341,7 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplateData(request *models.Use
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessBaseImageVar, request.BaseImage)
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessNamespaceVar, impl.Config.TerminalPodDefaultNamespace)
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessPodNameVar, podNameVar)
-	err := impl.applyTemplate(clusterId, terminalTemplate.TemplateKindData, templateData, isUpdate)
+	err := impl.applyTemplate(clusterId, terminalTemplate.TemplateData, templateData, isUpdate)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while applying template ", "name", templateName, "err", err)
 		return err
@@ -367,7 +368,7 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 			existingStatus := terminalAccessData.Status
 			terminalPodStatusString := existingStatus
 			err := impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
-			impl.deleteUserTerminalTemplates(terminalAccessData.ClusterId, terminalAccessData.PodName)
+			impl.deleteClusterTerminalTemplates(terminalAccessData.ClusterId, terminalAccessData.PodName)
 			if err != nil {
 				if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == "NotFound" {
 					terminalPodStatusString = string(models.TerminalPodTerminated)
@@ -407,7 +408,7 @@ func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessDa
 	clusterId := terminalAccessData.ClusterId
 	terminalAccessPodName := terminalAccessData.PodName
 	existingStatus := terminalAccessData.Status
-	terminalPodStatusString, err := impl.getPodStatus(clusterId, terminalAccessPodName, terminalAccessPodTemplate.TemplateKindData)
+	terminalPodStatusString, err := impl.getPodStatus(clusterId, terminalAccessPodName, terminalAccessPodTemplate.TemplateData)
 	if err != nil {
 		return "", err
 	}
@@ -507,9 +508,8 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, term
 		return err
 	}
 
-	gvkDataString := terminalAccessPodTemplate.TemplateKindData
-	var gvkData map[string]string
-	err = json.Unmarshal([]byte(gvkDataString), &gvkData)
+	gvkDataString := terminalAccessPodTemplate.TemplateData
+	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(gvkDataString), nil, nil)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
 		return err
@@ -520,9 +520,9 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, term
 			Name:      terminalPodName,
 			Namespace: impl.Config.TerminalPodDefaultNamespace,
 			GroupVersionKind: schema.GroupVersionKind{
-				Group:   gvkData["group"],
-				Version: gvkData["version"],
-				Kind:    gvkData["kind"],
+				Group:   groupVersionKind.Group,
+				Version: groupVersionKind.Version,
+				Kind:    groupVersionKind.Kind,
 			},
 		},
 	}
@@ -539,8 +539,7 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(clusterId int,
 		return err
 	}
 
-	var gvkData map[string]string
-	err = json.Unmarshal([]byte(gvkDataString), &gvkData)
+	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(gvkDataString), nil, nil)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
 		return err
@@ -551,9 +550,9 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(clusterId int,
 			Name:      terminalResourceName,
 			Namespace: impl.Config.TerminalPodDefaultNamespace,
 			GroupVersionKind: schema.GroupVersionKind{
-				Group:   gvkData["group"],
-				Version: gvkData["version"],
-				Kind:    gvkData["kind"],
+				Group:   groupVersionKind.Group,
+				Version: groupVersionKind.Version,
+				Kind:    groupVersionKind.Kind,
 			},
 		},
 	}
@@ -570,8 +569,7 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataS
 		return err
 	}
 
-	var gvkData map[string]string
-	err = json.Unmarshal([]byte(gvkDataString), &gvkData)
+	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(gvkDataString), nil, nil)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
 		return err
@@ -581,9 +579,9 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataS
 		ResourceIdentifier: application.ResourceIdentifier{
 			Namespace: impl.Config.TerminalPodDefaultNamespace,
 			GroupVersionKind: schema.GroupVersionKind{
-				Group:   gvkData["group"],
-				Version: gvkData["version"],
-				Kind:    gvkData["kind"],
+				Group:   groupVersionKind.Group,
+				Version: groupVersionKind.Version,
+				Kind:    groupVersionKind.Kind,
 			},
 		},
 	}
@@ -605,8 +603,7 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataS
 
 func (impl *UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName string, gvkDataString string) (string, error) {
 	// return terminated if pod does not exist
-	var gvkData map[string]string
-	err := json.Unmarshal([]byte(gvkDataString), &gvkData)
+	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(gvkDataString), nil, nil)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
 		return "", err
@@ -620,9 +617,9 @@ func (impl *UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName s
 				Name:      podName,
 				Namespace: impl.Config.TerminalPodDefaultNamespace,
 				GroupVersionKind: schema.GroupVersionKind{
-					Group:   gvkData["group"],
-					Version: gvkData["version"],
-					Kind:    gvkData["kind"],
+					Group:   groupVersionKind.Group,
+					Version: groupVersionKind.Version,
+					Kind:    groupVersionKind.Kind,
 				},
 			},
 		},
@@ -667,14 +664,14 @@ func (impl *UserTerminalAccessServiceImpl) SyncRunningInstances() {
 	impl.TerminalAccessDataArrayMutex.Unlock()
 }
 
-func (impl *UserTerminalAccessServiceImpl) deleteUserTerminalTemplates(clusterId int, podName string) {
+func (impl *UserTerminalAccessServiceImpl) deleteClusterTerminalTemplates(clusterId int, podName string) {
 	templateData, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessClusterRoleBindingTemplateName)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching terminal access template", "err", err)
 		return
 	}
 	templateName := strings.ReplaceAll(models.TerminalAccessClusterRoleBindingTemplate, models.TerminalAccessPodNameTemplate, podName)
-	impl.DeleteTerminalResource(clusterId, templateName, templateData.TemplateKindData)
+	impl.DeleteTerminalResource(clusterId, templateName, templateData.TemplateData)
 
 	templateData, err = impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessServiceAccountTemplateName)
 	if err != nil {
@@ -682,5 +679,5 @@ func (impl *UserTerminalAccessServiceImpl) deleteUserTerminalTemplates(clusterId
 		return
 	}
 	templateName = strings.ReplaceAll(models.TerminalAccessServiceAccountTemplate, models.TerminalAccessPodNameTemplate, podName)
-	impl.DeleteTerminalResource(clusterId, templateName, templateData.TemplateKindData)
+	impl.DeleteTerminalResource(clusterId, templateName, templateData.TemplateData)
 }

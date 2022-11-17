@@ -14,6 +14,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/stretchr/testify/assert"
+	"k8s.io/kubernetes/pkg/api/legacyscheme"
 	"testing"
 	"time"
 )
@@ -66,5 +67,21 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 			time.Sleep(5 * time.Second)
 		}
 
+	})
+
+	t.Run("convert to k8s structure", func(t *testing.T) {
+		podJson := "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"${pod_name}-crb\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}"
+		_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(podJson), nil, nil)
+		assert.Nil(t, err)
+		assert.Equal(t, groupVersionKind.Group, "rbac.authorization.k8s.io")
+		assert.Equal(t, groupVersionKind.Version, "v1")
+		assert.Equal(t, groupVersionKind.Kind, "ClusterRoleBinding")
+
+		podJson = "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"${pod_name}-sa\",\"nodeSelector\":{\"kubernetes.io/hostname\":\"${node_name}\"},\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}"
+		_, groupVersionKind, err = legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(podJson), nil, nil)
+		assert.Nil(t, err)
+		assert.Equal(t, groupVersionKind.Group, "")
+		assert.Equal(t, groupVersionKind.Version, "v1")
+		assert.Equal(t, groupVersionKind.Kind, "Pod")
 	})
 }
