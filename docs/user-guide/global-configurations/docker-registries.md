@@ -45,7 +45,7 @@ Please read each `registry type` in detail for you to help in choosing the right
 * [Registry Type: Docker](#registry-type-docker)
 * [Registry Type: Google Container Registry (GCR)](#registry-type-google-container-registry-gcr)
 * [Registry Type: Artifact Registry (GCP)](#registry-type-artifact-registry-gcp)
-* [Registry Type: Others](#-registry-type-others)
+* [Registry Type: Others](#registry-type-others)
 
 
 ### Registry Type: ECR
