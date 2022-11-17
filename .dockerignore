@@ -1,0 +1,23 @@
+#Markdown files
+*.md
+
+#Docker files
+docker-compose.yml
+
+#Git files
+.git
+.gitattributes
+.gitignore
+.gitbook.yaml
+
+#Folders
+CHANGELOG/
+contrib-chart/
+docs/
+developers-guide/
+sample-docker-templates/
+
+#Files
+LICENSE
+DCO
+688
