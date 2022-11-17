@@ -262,7 +262,7 @@ func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkIdentifi
 
 		if impl.isGlobalLink(record) {
 			responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
-			if record.Type == APP {
+			if record.Type == APP && record.Active {
 				responseMap[record.Id].Type = APP_LEVEL_LINK
 			}
 		} else {

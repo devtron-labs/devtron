@@ -106,8 +106,8 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdent
 		"elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
 		" FROM external_link el" +
 		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id" +
-		" WHERE el.active = true and ( ((elim.type = ? and elim.identifier = ? and elim.app_id = ? and elim.cluster_id = 0 and elim.active = true) or (elim.type = 0 and elim.app_id = 0 and elim.cluster_id = ? and elim.active = true)) " +
-		" or ((elim.type is null or (elim.type = -1 and elim.active = true)) and elim.identifier is null and elim.cluster_id is null and elim.app_id is null and elim.env_id is null) );"
+		" WHERE el.active = true and ( (elim.type = ? and elim.identifier = ? and elim.app_id = ? and elim.cluster_id = 0 and elim.active = true) or (elim.type = 0 and elim.app_id = 0 and elim.cluster_id = ? and elim.active = true) " +
+		" or (elim.type is null or elim.type = -1) );"
 	_, err := impl.dbConnection.Query(&links, query, TypeMappings[linkIdentifier.Type], linkIdentifier.Identifier, linkIdentifier.AppId, clusterId)
 	return links, err
 }
@@ -117,7 +117,7 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveLinkIdentif
 	query := "select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on," +
 		"elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
 		" FROM external_link el" +
-		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id Where el.active=true and (elim.active = true or elim.type is null);"
+		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id Where el.active=true and (elim.active = true or elim.type = -1);"
 	_, err := impl.dbConnection.Query(&links, query)
 	return links, err
 }
