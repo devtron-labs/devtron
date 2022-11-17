@@ -20,7 +20,7 @@ import (
 )
 
 func TestNewUserTerminalAccessService(t *testing.T) {
-	//t.SkipNow()
+	t.SkipNow()
 	t.Run("applyTemplates", func(t *testing.T) {
 		sugaredLogger, _ := util.InitLogger()
 		config, _ := sql.GetConfig()
