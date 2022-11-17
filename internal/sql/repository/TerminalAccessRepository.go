@@ -20,15 +20,19 @@ type TerminalAccessRepository interface {
 }
 
 type TerminalAccessRepositoryImpl struct {
-	dbConnection *pg.DB
-	Logger       *zap.SugaredLogger
+	dbConnection   *pg.DB
+	Logger         *zap.SugaredLogger
+	templatesCache []*models.TerminalAccessTemplates
 }
 
 func NewTerminalAccessRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *TerminalAccessRepositoryImpl {
-	return &TerminalAccessRepositoryImpl{
+
+	repoImpl := &TerminalAccessRepositoryImpl{
 		dbConnection: dbConnection,
 		Logger:       logger,
 	}
+	go repoImpl.FetchAllTemplates()
+	return repoImpl
 }
 
 func (impl TerminalAccessRepositoryImpl) FetchTerminalAccessTemplate(templateName string) (*models.TerminalAccessTemplates, error) {
@@ -45,34 +49,32 @@ func (impl TerminalAccessRepositoryImpl) FetchTerminalAccessTemplate(templateNam
 }
 
 func (impl TerminalAccessRepositoryImpl) FetchAllTemplates() ([]*models.TerminalAccessTemplates, error) {
+
+	if impl.templatesCache != nil && len(impl.templatesCache) != 0 {
+		return impl.templatesCache, nil
+	}
+
 	var templates []*models.TerminalAccessTemplates
 	err := impl.dbConnection.
 		Model(&templates).
 		Select()
 	if err == pg.ErrNoRows {
-		impl.Logger.Debug("no terminal access templates found")
+		impl.Logger.Error("no terminal access templates found")
 		err = nil
 	}
-	//templates = append(templates, &models.TerminalAccessTemplates{
-	//	TemplateName:     bean.TerminalAccessRoleTemplateName,
-	//	TemplateKindData: "{\"group\":\"\", \"version\":\"\", \"kind\":\"\"}",
-	//	TemplateData:     "",
-	//})
 	templates = append(templates, &models.TerminalAccessTemplates{
 		TemplateName: models.TerminalAccessServiceAccountTemplateName,
-		//TemplateKindData: "{\"version\":\"v1\", \"kind\":\"ServiceAccount\"}",
 		TemplateData: "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}}",
 	})
 	templates = append(templates, &models.TerminalAccessTemplates{
 		TemplateName: models.TerminalAccessClusterRoleBindingTemplateName,
-		//TemplateKindData: "{\"group\":\"rbac.authorization.k8s.io\",\"version\":\"v1\",\"kind\":\"ClusterRoleBinding\"}",
 		TemplateData: "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"${pod_name}-crb\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}",
 	})
 	templates = append(templates, &models.TerminalAccessTemplates{
 		TemplateName: models.TerminalAccessPodTemplateName,
-		//TemplateKindData: "{\"group\":\"\", \"version\":\"v1\", \"kind\":\"Pod\"}",
 		TemplateData: "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"${pod_name}-sa\",\"nodeSelector\":{\"kubernetes.io/hostname\":\"${node_name}\"},\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}",
 	})
+	impl.templatesCache = templates
 	return templates, err
 }
 

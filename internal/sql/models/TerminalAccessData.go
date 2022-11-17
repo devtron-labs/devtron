@@ -6,8 +6,7 @@ type TerminalAccessTemplates struct {
 	tableName    struct{} `sql:"terminal_access_templates" pg:",discard_unknown_columns"`
 	Id           int      `sql:"id,pk"`
 	TemplateName string   `sql:"template_name"`
-	//TemplateKindData string   `sql:"template_kind"`
-	TemplateData string `sql:"template_data"`
+	TemplateData string   `sql:"template_data"`
 	sql.AuditLog
 }
 
