@@ -85,6 +85,7 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 }
 
 func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
+	impl.Logger.Infow("terminal start request received for user", "request", request)
 	userId := request.UserId
 	// check for max session check
 	err := impl.checkMaxSessionLimit(userId)
@@ -167,6 +168,7 @@ func (impl *UserTerminalAccessServiceImpl) createTerminalEntity(request *models.
 }
 
 func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error) {
+	impl.Logger.Infow("terminal update shell request received for user", "request", request)
 	userTerminalAccessId := request.TerminalAccessId
 	err := impl.DisconnectTerminalSession(userTerminalAccessId)
 	if err != nil {
@@ -199,6 +201,7 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(request *m
 }
 
 func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
+	impl.Logger.Infow("terminal update request received for user", "request", request)
 	userTerminalAccessId := request.Id
 	err := impl.DisconnectTerminalSession(userTerminalAccessId)
 	if err != nil {
@@ -242,7 +245,7 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTermina
 }
 
 func (impl *UserTerminalAccessServiceImpl) StopTerminalSession(userTerminalAccessId int) error {
-	// disconnect session first
+	impl.Logger.Infow("terminal stop request received for user", "userTerminalAccessId", userTerminalAccessId)
 	impl.TerminalAccessDataArrayMutex.Lock()
 	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
@@ -453,7 +456,6 @@ func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessDa
 }
 
 func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error) {
-
 	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
 	terminalAccessSessionData, present := terminalAccessDataMap[terminalAccessId]
 	var terminalSessionId = ""
@@ -648,6 +650,7 @@ func (impl *UserTerminalAccessServiceImpl) SyncRunningInstances() {
 		impl.Logger.Fatalw("error occurred while fetching all running/starting data", "err", err)
 	}
 	impl.TerminalAccessDataArrayMutex.Lock()
+	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
 	for _, accessData := range terminalAccessData {
 		terminalAccessDataMap[accessData.Id] = &UserTerminalAccessSessionData{
@@ -656,7 +659,7 @@ func (impl *UserTerminalAccessServiceImpl) SyncRunningInstances() {
 		}
 	}
 	impl.TerminalAccessSessionDataMap = &terminalAccessDataMap
-	impl.TerminalAccessDataArrayMutex.Unlock()
+	impl.Logger.Infow("all running/starting terminal pod loaded", "size", len(terminalAccessDataMap))
 }
 
 func (impl *UserTerminalAccessServiceImpl) deleteClusterTerminalTemplates(clusterId int, podName string) {

@@ -62,18 +62,6 @@ func (impl TerminalAccessRepositoryImpl) FetchAllTemplates() ([]*models.Terminal
 		impl.Logger.Error("no terminal access templates found")
 		err = nil
 	}
-	templates = append(templates, &models.TerminalAccessTemplates{
-		TemplateName: models.TerminalAccessServiceAccountTemplateName,
-		TemplateData: "{\"apiVersion\":\"v1\",\"kind\":\"ServiceAccount\",\"metadata\":{\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}}",
-	})
-	templates = append(templates, &models.TerminalAccessTemplates{
-		TemplateName: models.TerminalAccessClusterRoleBindingTemplateName,
-		TemplateData: "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"${pod_name}-crb\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}",
-	})
-	templates = append(templates, &models.TerminalAccessTemplates{
-		TemplateName: models.TerminalAccessPodTemplateName,
-		TemplateData: "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"${pod_name}-sa\",\"nodeSelector\":{\"kubernetes.io/hostname\":\"${node_name}\"},\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}",
-	})
 	impl.templatesCache = templates
 	return templates, err
 }
