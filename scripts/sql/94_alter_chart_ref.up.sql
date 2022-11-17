@@ -1,3 +1,8 @@
+UPDATE chart_ref SET is_default=false;
+INSERT INTO "public"."chart_ref" ("name","location", "version", "is_default", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
+    ('Deployment','reference-chart_4-16-0', '4.16.0','t', 't', 'now()', 1, 'now()', 1);
+
+
 ALTER TABLE "chart_ref" ADD COLUMN "file_path_containing_strategy" text;
 ALTER TABLE "chart_ref" ADD COLUMN "json_path_for_strategy" text;
 ALTER TABLE "chart_ref" ADD COLUMN "is_app_metrics_supported" bool NOT NULL DEFAULT TRUE;
@@ -33,9 +38,9 @@ PRIMARY KEY ("id")
 
 UPDATE chart_ref set file_path_containing_strategy='pipeline-values.yaml' where user_uploaded=false;
 
-UPDATE chart_ref set is_app_metrics_supported=true where version in ('3.7.0','3.8.0','3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','4.10.0','4.11.0','4.12.0','4.13.0','4.14.0','4.15.0') and name is null and user_uploaded=false;
+UPDATE chart_ref set is_app_metrics_supported=true where version in ('3.7.0','3.8.0','3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','4.10.0','4.11.0','4.12.0','4.13.0','4.14.0','4.15.0','4.16.0') and name is null or name = 'Deployment' and user_uploaded=false;
 
-UPDATE chart_ref set is_app_metrics_supported=false where not (version in('3.7.0','3.8.0','3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','4.10.0','4.11.0','4.12.0','4.13.0','4.14.0','4.15.0') and name is null and user_uploaded=false);
+UPDATE chart_ref set is_app_metrics_supported=false where not (version in('3.7.0','3.8.0','3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','4.10.0','4.11.0','4.12.0','4.13.0','4.14.0','4.15.0','4.16.0') and name is null or name = 'Deployment'  and user_uploaded=false);
 
 INSERT INTO global_strategy_metadata ("id","name", "description", "deleted", "created_on", "created_by", "updated_on", "updated_by") VALUES
     (1,'ROLLING', 'RollingUpdate or Rolling strategy.', 'false', 'now()', 1, 'now()', 1),
@@ -51,7 +56,7 @@ DECLARE
 temprow record;
 query text;
 BEGIN
-FOR temprow IN SELECT * FROM chart_ref where version in ('3.2.0','3.3.0','3.4.0','3.5.0','3.6.0','3.7.0','3.8.0','3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','4.10.0','4.11.0','4.12.0','4.13.0','4.14.0','4.15.0') and name is null and user_uploaded=false
+FOR temprow IN SELECT * FROM chart_ref where version in ('3.2.0','3.3.0','3.4.0','3.5.0','3.6.0','3.7.0','3.8.0','3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','4.10.0','4.11.0','4.12.0','4.13.0','4.14.0','4.15.0','4.16.0') and name is null or name = 'Deployment' and user_uploaded=false
 	LOOP
                 query := E'INSERT INTO global_strategy_metadata_chart_ref_mapping ("global_strategy_metadata_id", "chart_ref_id", "active", "created_on", "created_by", "updated_on", "updated_by") ' ||
                     'VALUES (1,$1, ''true'', ''now()'', 1, ''now()'', 1),' ||
@@ -68,7 +73,7 @@ DECLARE
 temprow record;
 query text;
 BEGIN
-FOR temprow IN SELECT * FROM chart_ref where not (version in ('3.2.0','3.3.0','3.4.0','3.5.0','3.6.0','3.7.0','3.8.0','3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','4.10.0','4.11.0','4.12.0','4.13.0','4.14.0','4.15.0') and name is null) and user_uploaded=false
+FOR temprow IN SELECT * FROM chart_ref where not (version in ('3.2.0','3.3.0','3.4.0','3.5.0','3.6.0','3.7.0','3.8.0','3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','4.10.0','4.11.0','4.12.0','4.13.0','4.14.0','4.15.0','4.16.0') and name is null or name = 'Deployment') and user_uploaded=false
     LOOP
                   query := E'INSERT INTO global_strategy_metadata_chart_ref_mapping ("global_strategy_metadata_id", "chart_ref_id", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
                       (1,$1, ''true'', ''now()'', 1, ''now()'', 1),

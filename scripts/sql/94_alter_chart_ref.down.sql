@@ -1,3 +1,7 @@
+DELETE FROM "public"."chart_ref" WHERE ("location" = 'reference-chart_4-16-0' AND "version" = '4.16.0');
+
+UPDATE "public"."chart_ref" SET "is_default" = 't' WHERE "location" = 'reference-chart_4-15-0' AND "version" = '4.15.0';
+
 ALTER TABLE "chart_ref" DROP COLUMN "file_path_containing_strategy";
 ALTER TABLE "chart_ref" DROP COLUMN "json_path_for_strategy";
 ALTER TABLE "chart_ref" DROP COLUMN "is_app_metrics_supported";
