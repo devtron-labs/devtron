@@ -5,7 +5,6 @@
 docker-compose.yml
 
 #Git files
-.git
 .gitattributes
 .gitignore
 .gitbook.yaml
