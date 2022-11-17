@@ -41,10 +41,10 @@ To add container registry, go to the `Container Registry` section of `Global Con
 
 Please read each `registry type` in detail for you to help in choosing the right container registry for your application development needs.
 
-* [Registry Type: ECR](#-registry-type-ecr)
-* [Registry Type: Docker](#-registry-type-docker)
-* [Registry Type: Google Container Registry (GCR)](#-registry-type-google-container-registry-gcr)
-* [Registry Type: Artifact Registry (GCP)](#-registry-type-artifact-registry-gcp)
+* [Registry Type: ECR](#registry-type-ecr)
+* [Registry Type: Docker](#registry-type-docker)
+* [Registry Type: Google Container Registry (GCR)](#registry-type-google-container-registry-gcr)
+* [Registry Type: Artifact Registry (GCP)](#registry-type-artifact-registry-gcp)
 * [Registry Type: Others](#-registry-type-others)
 
 
@@ -69,7 +69,6 @@ Before you begin, create an [IAM user](https://docs.aws.amazon.com/AmazonECR/lat
 ![ECR Key-based authentication](https://devtron-public-asset.s3.us-east-2.amazonaws.com/Container-registeries/ECR_user-auth-key-based.png)
 
 To set the `ECR` as the default registry hub for your images, enable the field **[x] Set as default registry** and then click **Save**.
-
 
 To use the ECR container image, go to the **Applications** page and select your application, and then select **App Configuration > [Build Configuration](./../creating-application/docker-build-configuration.md)**.
 
@@ -127,7 +126,7 @@ If you enable the `Set as default registry` option, then the registry name will 
 * If you enable the `Allow Secure Connection With CA Certificate` option, then you have to upload/provide private CA certificate (ca.crt).
 * If the container registry is insecure (for eg : SSL certificate is expired), then you enable the `Allow Insecure Connection` option.
 
-### Note:
+#### Note:
 You can use any registry which can be authenticated using `docker login -u <username> -p <password> <registry-url>`. However these registries might provide a more secured way for authentication, which we will support later.
 
 
