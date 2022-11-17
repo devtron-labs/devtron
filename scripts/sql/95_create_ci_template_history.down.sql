@@ -1,1 +1,0 @@
-DROP TABLE IF EXISTS "public"."ci_template_history";
