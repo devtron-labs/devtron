@@ -1249,6 +1249,7 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 	if dockerBuildConfig != nil {
 		dockerConfig.CheckoutPath = dockerBuildConfig.GitCheckoutPath
 		dockerConfig.CiBuildConfig = &bean2.CiBuildConfigBean{
+			CiBuildType: bean2.SELF_DOCKERFILE_BUILD_TYPE,
 			DockerBuildConfig: &bean2.DockerBuildConfig{
 				DockerfilePath:     dockerBuildConfig.DockerfileRelativePath,
 				DockerBuildOptions: dockerBuildConfig.DockerBuildOptions,
