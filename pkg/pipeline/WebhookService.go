@@ -277,19 +277,16 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhookExternalCi(externalCiId int,
 		return 0, err
 	}
 
-	var ciArtifactArr []*repository.CiArtifact
-	ciArtifactArr = append(ciArtifactArr, artifact)
-	for _, ciArtifact := range ciArtifactArr {
-		err = impl.workflowDagExecutor.HandleWebhookExternalCiEvent(ciArtifact, request.UserId, externalCiId, auth)
-		if err != nil {
-			impl.logger.Errorw("error on handle  ci success event", "err", err)
-			if err1 := impl.ciArtifactRepository.Delete(artifact); err1 != nil {
-				impl.logger.Errorw("error in rollback artifact", "err", err1)
-				return 0, err1
-			}
-			return 0, err
+	err = impl.workflowDagExecutor.HandleWebhookExternalCiEvent(artifact, request.UserId, externalCiId, auth)
+	if err != nil {
+		impl.logger.Errorw("error on handle  ci success event", "err", err)
+		if err1 := impl.ciArtifactRepository.Delete(artifact); err1 != nil {
+			impl.logger.Errorw("error in rollback artifact", "err", err1)
+			return 0, err1
 		}
+		return 0, err
 	}
+
 	return artifact.Id, err
 }
 

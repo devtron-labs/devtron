@@ -268,9 +268,8 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		}
 		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
 			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
-			return nil
+			continue
 		}
-
 		user, err := impl.user.GetById(triggeredBy)
 		if err != nil {
 			return err
@@ -278,9 +277,11 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		projectObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		envObject := impl.enforcerUtil.GetAppRBACByAppIdAndPipelineId(pipeline.AppId, pipeline.Id)
 		if !auth(user.EmailId, projectObject, envObject) {
-			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
-			return err
+			//err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
+			//return err
+			continue
 		}
+
 		//applyAuth=false, becouze already auth applied for this flow
 		err = impl.triggerStage(nil, pipeline, artifact, false, triggeredBy)
 		if err != nil {
