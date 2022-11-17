@@ -1,7 +1,6 @@
 FROM golang:1.18  AS build-env
 
 RUN echo $GOPATH
-RUN go env GOCACHE
 RUN apt update
 RUN apt install git gcc musl-dev make -y
 RUN go install github.com/google/wire/cmd/wire@latest
