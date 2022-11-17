@@ -1,6 +1,6 @@
 # Container Registries
 
-Container registries are used for storing images built by the CI Pipeline. You can configure the container registry using any different cloud provider of your choice. It allows you to build, deploy and manage your container images with easy-to-use UI. 
+Container registries are used for storing images built by the CI Pipeline. You can configure the container registry using any different container registry provider of your choice. It allows you to build, deploy and manage your container images with easy-to-use UI. 
 
 When configuring an application, you can choose the specific container registry and repository in the App Configuration > [Build Configuration](user-guide/creating-application/docker-build-configuration.md) section.
 
@@ -11,9 +11,10 @@ Provide the information in the following fields to configure the container regis
 | **Container Registry** | Select the container registry from the drop-down list. |
 | **Container Repository** | Enter the name of the container repository. |
 
+
 ## Add Container Registry:
 
-To add container registry, go to the `Container Registry` section of `Global Configuration`. Click **Add Container Registry**.
+To add container registry, go to the `Container Registry` section of `Global Configurations`. Click **Add Container Registry**.
 
 | Fields | Description |
 | --- | --- |
@@ -38,17 +39,14 @@ To add container registry, go to the `Container Registry` section of `Global Con
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/add-container-registry.jpg)
 
 
-### Name
+Please read each `registry type` in detail for you to help in choosing the right container registry for your application development needs.
 
-Provide a name to your registry and this name will be shown to you in Build Configuration in the drop-down list.
+* [Registry Type: ECR](#-registry-type-ecr)
+* [Registry Type: Docker](#-registry-type-docker)
+* [Registry Type: Google Container Registry (GCR)](#-registry-type-google-container-registry-gcr)
+* [Registry Type: Artifact Registry (GCP)](#-registry-type-artifact-registry-gcp)
+* [Registry Type: Others](#-registry-type-others)
 
-### Registry Type
-
-Here you can select the type of the Registry. We are supporting three types- `docker hub`, `ecr` and `others`. You can select any one of them from the drop-down. By default, this value is `ecr`. If you select ecr then you have to provide some information like- `AWS region, Access Key`, and `Secret Key`. If you select docker hub then you have to provide `Username` and `Password`. And if you select others then you have to provide the `Username` and `Password`.
-
-### Registry URL
-
-Select any type of Registry from the drop-down, you have to provide the URL of your registry. Create your registry and provide the URL of that registry in the URL box.
 
 ### Registry Type: ECR
 
