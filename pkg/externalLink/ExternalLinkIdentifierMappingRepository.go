@@ -117,7 +117,7 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveLinkIdentif
 	query := "select el.id,el.external_link_monitoring_tool_id,el.name,el.url,el.is_editable,el.description,el.updated_on," +
 		"elim.id as mapping_id,elim.active,elim.type,elim.identifier,elim.env_id,elim.app_id,elim.cluster_id" +
 		" FROM external_link el" +
-		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id Where el.active=true and (elim.active = true or elim.type = -1);"
+		" LEFT JOIN external_link_identifier_mapping elim ON el.id = elim.external_link_id Where el.active=true and (elim.active = true or elim.type = -1 or elim.type is null);"
 	_, err := impl.dbConnection.Query(&links, query)
 	return links, err
 }
