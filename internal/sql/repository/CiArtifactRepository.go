@@ -52,6 +52,7 @@ type CiArtifact struct {
 
 type CiArtifactRepository interface {
 	Save(artifact *CiArtifact) error
+	Delete(artifact *CiArtifact) error
 	Get(id int) (artifact *CiArtifact, err error)
 	GetByWfId(wfId int) (artifact *CiArtifact, err error)
 	GetArtifactsByCDPipeline(cdPipelineId, limit int, parentId int, parentType bean.WorkflowType) ([]CiArtifact, error)
@@ -92,6 +93,9 @@ func (impl CiArtifactRepositoryImpl) SaveAll(artifacts []*CiArtifact) error {
 
 func (impl CiArtifactRepositoryImpl) Save(artifact *CiArtifact) error {
 	return impl.dbConnection.Insert(artifact)
+}
+func (impl CiArtifactRepositoryImpl) Delete(artifact *CiArtifact) error {
+	return impl.dbConnection.Delete(artifact)
 }
 
 func (impl CiArtifactRepositoryImpl) Get(id int) (artifact *CiArtifact, err error) {

@@ -39,7 +39,7 @@ type ApiTokenService interface {
 	CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32, managerAuth func(token string, object string) bool) (*openapi.CreateApiTokenResponse, error)
 	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.UpdateApiTokenResponse, error)
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
-	GetAllApiTokensForWebhook(token string, projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error)
+	GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error)
 }
 
 type ApiTokenServiceImpl struct {
@@ -70,7 +70,7 @@ type ApiTokenCustomClaims struct {
 	jwt.RegisteredClaims
 }
 
-func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(token string, projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error) {
+func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error) {
 	impl.logger.Info("Getting active api tokens")
 	apiTokensFromDb, err := impl.apiTokenRepository.FindAllActive()
 	if err != nil {

@@ -227,14 +227,13 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWri
 	}
 
 	// handle super-admin RBAC
-	token := r.Header.Get("token")
 	v := r.URL.Query()
 	projectName := v.Get("projectName")
 	environmentName := v.Get("environmentName")
 	appName := v.Get("appName")
 
 	// service call
-	res, err := impl.apiTokenService.GetAllApiTokensForWebhook(token, projectName, environmentName, appName, impl.CheckAuthorizationForWebhook)
+	res, err := impl.apiTokenService.GetAllApiTokensForWebhook(projectName, environmentName, appName, impl.CheckAuthorizationForWebhook)
 	if err != nil {
 		impl.logger.Errorw("service err, GetAllApiTokensForWebhook", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -247,7 +246,6 @@ func (handler ApiTokenRestHandlerImpl) CheckAuthorizationForWebhook(token string
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
 		return false
 	}
-
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
 		return false
 	}
