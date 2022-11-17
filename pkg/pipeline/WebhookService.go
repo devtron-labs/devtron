@@ -283,9 +283,9 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhookExternalCi(externalCiId int,
 		err = impl.workflowDagExecutor.HandleWebhookExternalCiEvent(ciArtifact, request.UserId, externalCiId, auth)
 		if err != nil {
 			impl.logger.Errorw("error on handle  ci success event", "err", err)
-			if err = impl.ciArtifactRepository.Delete(artifact); err != nil {
+			if err1 := impl.ciArtifactRepository.Delete(artifact); err != nil {
 				impl.logger.Errorw("error in rollback artifact", "err", err)
-				return 0, err
+				return 0, err1
 			}
 			return 0, err
 		}

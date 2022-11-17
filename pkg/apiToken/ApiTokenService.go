@@ -78,8 +78,9 @@ func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, en
 		return nil, err
 	}
 
-	var apiTokens []*openapi.ApiToken
+	apiTokens := make([]*openapi.ApiToken, 0)
 	for _, apiTokenFromDb := range apiTokensFromDb {
+		authPassed := true
 		userId := apiTokenFromDb.User.Id
 		//checking permission on each of the roles associated with this API Token
 		environmentNames := strings.Split(environmentName, ",")
@@ -89,23 +90,26 @@ func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, en
 			isValidAuth := auth(apiTokenFromDb.Token, projectObject, envObject)
 			if !isValidAuth {
 				impl.logger.Debugw("authentication for token failed", "apiTokenFromDb", apiTokenFromDb)
+				authPassed = false
 				continue
 			}
 		}
 
-		apiTokenIdI32 := int32(apiTokenFromDb.Id)
-		updatedAtStr := apiTokenFromDb.UpdatedOn.String()
-		apiToken := &openapi.ApiToken{
-			Id:             &apiTokenIdI32,
-			UserId:         &userId,
-			UserIdentifier: &apiTokenFromDb.User.EmailId,
-			Name:           &apiTokenFromDb.Name,
-			Description:    &apiTokenFromDb.Description,
-			ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
-			Token:          &apiTokenFromDb.Token,
-			UpdatedAt:      &updatedAtStr,
+		if authPassed {
+			apiTokenIdI32 := int32(apiTokenFromDb.Id)
+			updatedAtStr := apiTokenFromDb.UpdatedOn.String()
+			apiToken := &openapi.ApiToken{
+				Id:             &apiTokenIdI32,
+				UserId:         &userId,
+				UserIdentifier: &apiTokenFromDb.User.EmailId,
+				Name:           &apiTokenFromDb.Name,
+				Description:    &apiTokenFromDb.Description,
+				ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
+				Token:          &apiTokenFromDb.Token,
+				UpdatedAt:      &updatedAtStr,
+			}
+			apiTokens = append(apiTokens, apiToken)
 		}
-		apiTokens = append(apiTokens, apiToken)
 	}
 
 	return apiTokens, nil
