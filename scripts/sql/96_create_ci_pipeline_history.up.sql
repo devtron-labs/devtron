@@ -13,4 +13,4 @@ CREATE TABLE public.ci_pipeline_history(
             FOREIGN KEY (ci_pipeline_id)
                     REFERENCES public.ci_pipeline(id)
 );
-ß
+
