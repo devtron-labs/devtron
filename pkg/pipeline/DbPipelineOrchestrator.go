@@ -336,7 +336,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 				return nil, err
 			}
 
-			err = impl.ciPipelineHistoryService.SaveHistory(createRequest.Id, materials, ciTemplateBean, true, "update")
+			err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, materials, ciTemplateBean, repository4.TRIGGER_UPDATE)
 
 			if err != nil {
 				impl.logger.Errorw("error in saving history of ci pipeline material")
@@ -353,7 +353,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 				return nil, err
 			}
 
-			err = impl.ciPipelineHistoryService.SaveHistory(createRequest.Id, materials, ciTemplateBean, true, "update")
+			err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, materials, ciTemplateBean, repository4.TRIGGER_UPDATE)
 
 			if err != nil {
 				impl.logger.Errorw("error in saving history of ci pipeline material")
@@ -367,7 +367,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			CiBuildConfig:      nil,
 			UserId:             userId,
 		}
-		err = impl.ciPipelineHistoryService.SaveHistory(createRequest.Id, materials, ciTemplateBean, false, "update")
+		err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, materials, ciTemplateBean, repository4.TRIGGER_UPDATE)
 
 		if err != nil {
 			impl.logger.Errorw("error in saving history of ci pipeline material")
@@ -419,9 +419,12 @@ func (impl DbPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig
 	userId := request.UserId
 
 	p := &pipelineConfig.CiPipeline{
-		Id:       pipeline.Id,
-		Deleted:  true,
-		AuditLog: sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
+		Id:                       pipeline.Id,
+		Deleted:                  true,
+		ScanEnabled:              pipeline.ScanEnabled,
+		IsManual:                 pipeline.IsManual,
+		IsDockerConfigOverridden: pipeline.IsDockerConfigOverridden,
+		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
 	err := impl.ciPipelineRepository.Update(p, tx)
 	if err != nil {
@@ -466,7 +469,7 @@ func (impl DbPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig
 			UserId:             userId,
 		}
 
-		err := impl.ciPipelineHistoryService.SaveHistory(request.CiPipeline.Id, materials, &CiTemplateBean, request.CiPipeline.IsDockerConfigOverridden, "delete")
+		err := impl.ciPipelineHistoryService.SaveHistory(p, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
 
 		if err != nil {
 			impl.logger.Errorw("error in saving delete history for ci pipeline material and ci template overridden")
@@ -493,7 +496,7 @@ func (impl DbPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConfig
 			UserId:        userId,
 		}
 
-		err := impl.ciPipelineHistoryService.SaveHistory(request.CiPipeline.Id, materials, &CiTemplateBean, request.CiPipeline.IsDockerConfigOverridden, "delete")
+		err := impl.ciPipelineHistoryService.SaveHistory(p, materials, &CiTemplateBean, repository4.TRIGGER_DELETE)
 
 		if err != nil {
 			impl.logger.Errorw("error in saving delete history for ci pipeline material and ci template overridden")
@@ -643,7 +646,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				return nil, err
 			}
 
-			err = impl.ciPipelineHistoryService.SaveHistory(ciPipeline.Id, pipelineMaterials, ciTemplateBean, true, "add")
+			err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, pipelineMaterials, ciTemplateBean, repository4.TRIGGER_ADD)
 
 			if err != nil {
 				impl.logger.Errorw("error in saving history for ci pipeline")
@@ -657,7 +660,7 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 				UserId:             createRequest.UserId,
 			}
 
-			err = impl.ciPipelineHistoryService.SaveHistory(ciPipeline.Id, pipelineMaterials, ciTemplateBean, false, "add")
+			err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, pipelineMaterials, ciTemplateBean, repository4.TRIGGER_ADD)
 
 			if err != nil {
 				impl.logger.Errorw("error in saving history for ci pipeline")
