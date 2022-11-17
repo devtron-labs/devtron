@@ -9,8 +9,7 @@ WORKDIR /go/src/github.com/devtron-labs/devtron
 COPY go.* /go/src/github.com/devtron-labs/devtron/
 RUN go mod download
 ADD . /go/src/github.com/devtron-labs/devtron/
-RUN --mount=type=cache,target=/root/.cache/go-build \
-GOOS=linux make build-all
+RUN GOOS=linux make build-all
 
 # uncomment this post build arg
 FROM ubuntu as  devtron-all
