@@ -44,6 +44,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
+	"os"
 	"time"
 )
 
@@ -111,6 +112,13 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 }
 
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
+
+	isInternalUse, ok := os.LookupEnv("isInternalUse")
+
+	if !ok {
+		isInternalUse = "external"
+	}
+
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 	if err != nil && err != pg.ErrNoRows {
@@ -121,7 +129,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		isGitOpsConfigured = true
 	}
 
-	if !isGitOpsConfigured && installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if isInternalUse == "internal" && !isGitOpsConfigured && installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		impl.logger.Errorw("gitops not configured but selected for CD")
 		return nil, errors.New("gitops not configured but selected")
 	}
@@ -173,11 +181,13 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		EnvironmentId: environment.Id,
 		Status:        appStoreBean.DEPLOY_INIT,
 	}
-	if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+
+	if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && (installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD || isInternalUse == "external") {
 		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	} else {
 		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	}
+
 	installAppVersionRequest.DeploymentAppType = installedAppModel.DeploymentAppType
 	installedAppModel.CreatedBy = installAppVersionRequest.UserId
 	installedAppModel.UpdatedBy = installAppVersionRequest.UserId
