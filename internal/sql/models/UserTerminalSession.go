@@ -3,14 +3,14 @@ package models
 type UserTerminalSessionRequest struct {
 	Id        int    `json:"id"`
 	UserId    int32  `json:"userId"`
-	ClusterId int    `json:"clusterId" validate:"required"`
-	NodeName  string `json:"nodeName" validate:"required"`
-	BaseImage string `json:"baseImage" validate:"required"`
-	ShellName string `json:"shellName" validate:"required"`
+	ClusterId int    `json:"clusterId" validate:"number,gt=0"`
+	NodeName  string `json:"nodeName" validate:"required,min=1"`
+	BaseImage string `json:"baseImage" validate:"required,min=1"`
+	ShellName string `json:"shellName" validate:"required,min=1"`
 }
 type UserTerminalShellSessionRequest struct {
-	TerminalAccessId int    `json:"terminalAccessId"`
-	ShellName        string `json:"shellName" validate:"required"`
+	TerminalAccessId int    `json:"terminalAccessId" validate:"number,gt=0"`
+	ShellName        string `json:"shellName" validate:"required,min=1"`
 }
 
 type UserTerminalSessionConfig struct {

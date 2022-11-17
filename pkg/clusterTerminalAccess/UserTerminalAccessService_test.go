@@ -36,37 +36,46 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		k8sApplicationService := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, nil, nil)
 		terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger)
 		terminalAccessServiceImpl, _ := NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, k8sApplicationService, k8sClientServiceImpl, terminalSessionHandlerImpl)
-		clusterId := 2
+		clusterId := 1
 		request := &models.UserTerminalSessionRequest{
 			UserId:    2,
 			ClusterId: clusterId,
 			BaseImage: "trstringer/internal-kubectl:latest",
 			ShellName: "sh",
+			NodeName:  "demo-new",
 		}
+		time.Sleep(5 * time.Second)
 		startTerminalSession, err := terminalAccessServiceImpl.StartTerminalSession(request)
-		if err != nil {
-			return
-		}
+		assert.Nil(t, err)
 		fmt.Println(startTerminalSession)
-		sessionId := ""
-		for sessionId == "" {
-			fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(startTerminalSession.TerminalAccessId)
-			assert.Nil(t, err)
-			sessionId = fetchTerminalStatus.UserTerminalSessionId
-			fmt.Println("sessionId: ", sessionId)
-			time.Sleep(1 * time.Second)
-		}
+		sessionId := fetchSessionId(t, terminalAccessServiceImpl, startTerminalSession.TerminalAccessId)
 		fmt.Println("SessionId: ", sessionId)
 
-		err = terminalAccessServiceImpl.StopTerminalSession(startTerminalSession.TerminalAccessId)
-		if err != nil {
-			fmt.Println(err)
-		}
+		shellChangeResponse, err := terminalAccessServiceImpl.UpdateTerminalShellSession(&models.UserTerminalShellSessionRequest{TerminalAccessId: startTerminalSession.TerminalAccessId, ShellName: "bash"})
+		assert.Nil(t, err)
+		assert.Equal(t, shellChangeResponse.TerminalAccessId, startTerminalSession.TerminalAccessId)
+		request.BaseImage = "nginx:latest"
+		request.Id = startTerminalSession.TerminalAccessId
+		updateTerminalSession, err := terminalAccessServiceImpl.UpdateTerminalSession(request)
+		assert.Nil(t, err)
+		assert.Equal(t, updateTerminalSession.UserId, request.UserId)
+		fmt.Println("updated: ", updateTerminalSession)
+
+		sessionId = fetchSessionId(t, terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
+		fmt.Println("SessionId: ", sessionId)
+
+		err = terminalAccessServiceImpl.StopTerminalSession(updateTerminalSession.TerminalAccessId)
+		assert.Nil(t, err)
+		sessionId = fetchSessionId(t, terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
+		fmt.Println("SessionId: ", sessionId)
+		err = terminalAccessServiceImpl.DisconnectTerminalSession(updateTerminalSession.TerminalAccessId)
+		assert.Nil(t, err)
+		sessionId = fetchSessionId(t, terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
+		fmt.Println("SessionId: ", sessionId)
 		for true {
 			fmt.Println("looping")
 			time.Sleep(5 * time.Second)
 		}
-
 	})
 
 	t.Run("convert to k8s structure", func(t *testing.T) {
@@ -84,4 +93,16 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		assert.Equal(t, groupVersionKind.Version, "v1")
 		assert.Equal(t, groupVersionKind.Kind, "Pod")
 	})
+}
+
+func fetchSessionId(t *testing.T, terminalAccessServiceImpl *UserTerminalAccessServiceImpl, terminalAccessId int) string {
+	sessionId := ""
+	for sessionId == "" {
+		fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(terminalAccessId)
+		assert.Nil(t, err)
+		sessionId = fetchTerminalStatus.UserTerminalSessionId
+		fmt.Println("sessionId: ", sessionId)
+		time.Sleep(1 * time.Second)
+	}
+	return sessionId
 }
