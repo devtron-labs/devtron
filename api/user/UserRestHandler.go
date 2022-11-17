@@ -754,10 +754,10 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 			}
 			frags := strings.Split(role, "_")
 			n := len(frags)
-			if n >= 2 && frags[n-1] == appName {
-				isManager = frags[0] == "manager"
-				isAdmin = frags[0] == "admin"
-				isTrigger = frags[0] == "trigger"
+			if n >= 2 && (frags[n-1] == appName || frags[n-1] == "") {
+				isManager = strings.Contains(frags[0], "manager")
+				isAdmin = strings.Contains(frags[0], "admin")
+				isTrigger = strings.Contains(frags[0], "trigger")
 			}
 		}
 		if isSuperAdmin {
@@ -771,6 +771,7 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 		} else {
 			result["role"] = "View"
 		}
+		result["roles"] = roles
 
 		common.WriteJsonResp(w, err, result, http.StatusOK)
 		return
