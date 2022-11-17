@@ -1,7 +1,7 @@
 CREATE SEQUENCE IF NOT EXISTS id_seq_terminal_access_templates;
 
 -- Table Definition
-CREATE TABLE "public"."terminal_access_templates"
+CREATE TABLE IF NOT EXISTS "public"."terminal_access_templates"
 (
     "id"            integer NOT NULL DEFAULT nextval('id_seq_terminal_access_templates'::regclass),
     "template_name" VARCHAR(1000),
@@ -17,7 +17,7 @@ CREATE TABLE "public"."terminal_access_templates"
 CREATE SEQUENCE IF NOT EXISTS id_seq_user_terminal_access_data;
 
 -- Table Definition
-CREATE TABLE "public"."user_terminal_access_data"
+CREATE TABLE  IF NOT EXISTS "public"."user_terminal_access_data"
 (
     "id"         integer NOT NULL DEFAULT nextval('id_seq_user_terminal_access_data'::regclass),
     "user_id"    int4,
