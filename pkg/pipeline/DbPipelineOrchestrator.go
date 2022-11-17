@@ -63,7 +63,7 @@ type DbPipelineOrchestrator interface {
 	UpdateCDPipeline(pipelineRequest *bean.CDPipelineConfigObject, userId int32, tx *pg.Tx) (err error)
 	DeleteCiPipeline(pipeline *pipelineConfig.CiPipeline, request *bean.CiPatchRequest, tx *pg.Tx) error
 	DeleteCdPipeline(pipelineId int, tx *pg.Tx) error
-	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32) (*bean.CiPipeline, error)
+	PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error)
 	PipelineExists(name string) (bool, error)
 	GetCdPipelinesForApp(appId int) (cdPipelines *bean.CdPipelines, err error)
 	GetCdPipelinesForAppAndEnv(appId int, envId int) (cdPipelines *bean.CdPipelines, err error)
@@ -146,12 +146,13 @@ func NewDbPipelineOrchestrator(
 const BEFORE_DOCKER_BUILD string = "BEFORE_DOCKER_BUILD"
 const AFTER_DOCKER_BUILD string = "AFTER_DOCKER_BUILD"
 
-func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.CiPipeline, userId int32) (*bean.CiPipeline, error) {
+func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.CiPipeline, userId int32, oldPipeline *pipelineConfig.CiPipeline) (*bean.CiPipeline, error) {
 	argByte, err := json.Marshal(createRequest.DockerArgs)
 	if err != nil {
 		impl.logger.Error(err)
 		return nil, err
 	}
+
 	dbConnection := impl.pipelineRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -173,6 +174,15 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		IsDockerConfigOverridden: createRequest.IsDockerConfigOverridden,
 		AuditLog:                 sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
 	}
+
+	createOnTimeMap := make(map[int]time.Time)
+	createByMap := make(map[int]int32)
+
+	for _, oldMaterial := range oldPipeline.CiPipelineMaterials {
+		createOnTimeMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedOn
+		createByMap[oldMaterial.GitMaterialId] = oldMaterial.CreatedBy
+	}
+
 	err = impl.ciPipelineRepository.Update(ciPipelineObject, tx)
 	if err != nil {
 		return nil, err
@@ -224,6 +234,8 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			materialsAdd = append(materialsAdd, pipelineMaterial)
 		} else {
 			materialsUpdate = append(materialsUpdate, pipelineMaterial)
+			pipelineMaterial.CreatedOn = createOnTimeMap[material.GitMaterialId]
+			pipelineMaterial.CreatedBy = createByMap[material.GitMaterialId]
 		}
 	}
 	regexMaterial, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(createRequest.Id)
@@ -320,6 +332,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 				UpdatedBy: userId,
 			},
 		}
+
 		savedTemplateOverride := savedTemplateOverrideBean.CiTemplateOverride
 		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
 			ciBuildConfigBean.Id = savedTemplateOverride.CiBuildConfigId
