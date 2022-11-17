@@ -20,7 +20,7 @@ import (
 )
 
 func TestNewUserTerminalAccessService(t *testing.T) {
-	t.SkipNow()
+	//t.SkipNow()
 	t.Run("applyTemplates", func(t *testing.T) {
 		sugaredLogger, _ := util.InitLogger()
 		config, _ := sql.GetConfig()
@@ -72,10 +72,6 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		assert.Nil(t, err)
 		sessionId = fetchSessionId(t, terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
 		fmt.Println("SessionId: ", sessionId)
-		for true {
-			fmt.Println("looping")
-			time.Sleep(5 * time.Second)
-		}
 	})
 
 	t.Run("convert to k8s structure", func(t *testing.T) {
@@ -102,7 +98,7 @@ func fetchSessionId(t *testing.T, terminalAccessServiceImpl *UserTerminalAccessS
 		assert.Nil(t, err)
 		sessionId = fetchTerminalStatus.UserTerminalSessionId
 		fmt.Println("sessionId: ", sessionId)
-		time.Sleep(1 * time.Second)
+		time.Sleep(5 * time.Second)
 	}
 	return sessionId
 }

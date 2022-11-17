@@ -48,6 +48,7 @@ type UserTerminalAccessSessionData struct {
 	sessionId                string
 	latestActivityTime       time.Time
 	terminalAccessDataEntity *models.UserTerminalAccessData
+	terminateTriggered       bool
 }
 
 func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository,
@@ -228,12 +229,15 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTermina
 	if err != nil {
 		return err
 	}
-	impl.TerminalAccessDataArrayMutex.RLock()
-	defer impl.TerminalAccessDataArrayMutex.RUnlock()
+	impl.TerminalAccessDataArrayMutex.Lock()
+	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
 	accessSessionData := accessSessionDataMap[userTerminalAccessId]
 	terminalAccessData := accessSessionData.terminalAccessDataEntity
 	err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
+	if err == nil {
+		accessSessionData.terminateTriggered = true
+	}
 	return err
 }
 
@@ -380,6 +384,7 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 					continue
 				}
 			}
+			terminalAccessSessionData.terminateTriggered = true
 			if existingStatus != terminalPodStatusString {
 				terminalAccessId := terminalAccessData.Id
 				err = impl.TerminalAccessRepository.UpdateUserTerminalStatus(terminalAccessId, terminalPodStatusString)
@@ -411,7 +416,6 @@ func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessDa
 	}
 	clusterId := terminalAccessData.ClusterId
 	terminalAccessPodName := terminalAccessData.PodName
-	existingStatus := terminalAccessData.Status
 	terminalPodStatusString, err := impl.getPodStatus(clusterId, terminalAccessPodName, terminalAccessPodTemplate.TemplateData)
 	if err != nil {
 		return "", err
@@ -419,14 +423,12 @@ func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessDa
 	sessionID := ""
 	terminalAccessId := terminalAccessData.Id
 	if terminalPodStatusString == string(models.TerminalPodRunning) {
-		if existingStatus != terminalPodStatusString {
-			err = impl.TerminalAccessRepository.UpdateUserTerminalStatus(terminalAccessId, terminalPodStatusString)
-			if err != nil {
-				impl.Logger.Errorw("error occurred while updating terminal status", "terminalAccessId", terminalAccessId, "err", err)
-				return "", err
-			}
-			terminalAccessData.Status = terminalPodStatusString
+		err = impl.TerminalAccessRepository.UpdateUserTerminalStatus(terminalAccessId, terminalPodStatusString)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while updating terminal status", "terminalAccessId", terminalAccessId, "err", err)
+			return "", err
 		}
+		terminalAccessData.Status = terminalPodStatusString
 		//create terminal session if status is Running and store sessionId
 		metadata := terminalAccessData.Metadata
 		metadataMap, err := impl.getMetadataMap(metadata)
@@ -457,10 +459,21 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId 
 	var terminalSessionId = ""
 	var terminalAccessData *models.UserTerminalAccessData
 	if present {
-		terminalSessionId = terminalAccessSessionData.sessionId
-		validSession := impl.terminalSessionHandler.ValidateSession(terminalSessionId)
-		if validSession {
-			terminalAccessData = terminalAccessSessionData.terminalAccessDataEntity
+		if terminalAccessSessionData.terminateTriggered {
+			accessDataEntity := terminalAccessSessionData.terminalAccessDataEntity
+			return &models.UserTerminalSessionResponse{
+				TerminalAccessId:      terminalAccessId,
+				UserId:                accessDataEntity.UserId,
+				Status:                models.TerminalPodStatus(accessDataEntity.Status),
+				PodName:               accessDataEntity.PodName,
+				UserTerminalSessionId: terminalSessionId,
+			}, nil
+		} else {
+			terminalSessionId = terminalAccessSessionData.sessionId
+			validSession := impl.terminalSessionHandler.ValidateSession(terminalSessionId)
+			if validSession {
+				terminalAccessData = terminalAccessSessionData.terminalAccessDataEntity
+			}
 		}
 	}
 	if terminalAccessData == nil {
@@ -500,52 +513,30 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId 
 }
 
 func (impl *UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, terminalPodName string) error {
-	//make pod delete request, handle errors if pod does  not exists
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(clusterId)
-	if err != nil {
-		return err
-	}
-
 	terminalAccessPodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessPodTemplateName)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching template", "template", models.TerminalAccessPodTemplateName, "err", err)
 		return err
 	}
-
 	gvkDataString := terminalAccessPodTemplate.TemplateData
-	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(gvkDataString), nil, nil)
+	err = impl.DeleteTerminalResource(clusterId, terminalPodName, gvkDataString)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
-		return err
-	}
-
-	k8sRequest := &application.K8sRequestBean{
-		ResourceIdentifier: application.ResourceIdentifier{
-			Name:      terminalPodName,
-			Namespace: impl.Config.TerminalPodDefaultNamespace,
-			GroupVersionKind: schema.GroupVersionKind{
-				Group:   groupVersionKind.Group,
-				Version: groupVersionKind.Version,
-				Kind:    groupVersionKind.Kind,
-			},
-		},
-	}
-	_, err = impl.k8sClientService.DeleteResource(restConfig, k8sRequest)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while deleting resource for pod", "podName", terminalPodName, "err", err)
+		if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == "NotFound" {
+			return nil
+		}
 	}
 	return err
 }
 
-func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(clusterId int, terminalResourceName string, gvkDataString string) error {
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(clusterId)
+func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(clusterId int, terminalResourceName string, resourceTemplateString string) error {
+	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(resourceTemplateString), nil, nil)
 	if err != nil {
+		impl.Logger.Errorw("error occurred while extracting data for gvk", "resourceTemplateString", resourceTemplateString, "err", err)
 		return err
 	}
 
-	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(gvkDataString), nil, nil)
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(clusterId)
 	if err != nil {
-		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
 		return err
 	}
 
