@@ -6,7 +6,7 @@ RUN apt update
 RUN apt install git gcc musl-dev make -y
 RUN go install github.com/google/wire/cmd/wire@latest
 WORKDIR /go/src/github.com/devtron-labs/devtron
-COPY go.* .
+COPY go.* /go/src/github.com/devtron-labs/devtron/
 RUN go mod download
 ADD . /go/src/github.com/devtron-labs/devtron/
 RUN GOOS=linux make build-all
