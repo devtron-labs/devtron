@@ -74,8 +74,14 @@ func GetEcrConfig() (*EcrConfig, error) {
 	return cfg, err
 }
 
-type DeploymentServiceConfig struct {
-	isInternalUse bool `env:"IS_INTERNAL_USE" envDefault:"false"`
+type DeploymentServiceTypeConfig struct {
+	IsInternalUse bool `env:"IS_INTERNAL_USE" envDefault:"true"`
+}
+
+func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
+	cfg := &DeploymentServiceTypeConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
 }
 
 type PipelineBuilder interface {
@@ -158,10 +164,11 @@ type PipelineBuilderImpl struct {
 	helmAppService                   client.HelmAppService
 	deploymentGroupRepository        repository.DeploymentGroupRepository
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
+	ciTemplateService                CiTemplateService
+	userService                      user.UserService
+	deploymentConfig                 *DeploymentServiceTypeConfig
 	//ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
 	//ciBuildConfigService CiBuildConfigService
-	ciTemplateService CiTemplateService
-	userService       user.UserService
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -200,7 +207,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	deploymentGroupRepository repository.DeploymentGroupRepository,
 	ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	userService user.UserService,
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciTemplateService CiTemplateService) *PipelineBuilderImpl {
+	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository, ciTemplateService CiTemplateService,
+	deploymentConfig *DeploymentServiceTypeConfig) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		dbPipelineOrchestrator:        dbPipelineOrchestrator,
@@ -244,7 +252,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciTemplateService:                ciTemplateService,
 		//ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
 		//ciBuildConfigService: ciBuildConfigService,
-		userService: userService,
+		userService:      userService,
+		deploymentConfig: deploymentConfig,
 	}
 }
 
@@ -1105,10 +1114,7 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
-	config := DeploymentServiceConfig{}
-	err := env.Parse(config)
-
-	isInternalUse := config.isInternalUse
+	isInternalUse := impl.deploymentConfig.IsInternalUse
 
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
