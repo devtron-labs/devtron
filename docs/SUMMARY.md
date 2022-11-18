@@ -1,8 +1,10 @@
 # Summary
 
-* [Overview](README.md)
-
-### Getting Started
+* [Introduction](README.md)
+* [How Devtron works]()
+* [Why Devtron](why-devtron.md)
+* [Getting Started](getting-started.md)
+* [FAQ](faq-on-installation.md)
 
 * [Install Devtron](setup/install/README.md)
   * [Install Devtron with CI/CD integration](setup/install/install-devtron-with-cicd.md)
