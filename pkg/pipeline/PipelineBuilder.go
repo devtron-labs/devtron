@@ -1218,7 +1218,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 
 		if isInternalUse == "external" {
-			if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			if isGitOpsConfigured {
 				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 			} else {
 				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
