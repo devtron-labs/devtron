@@ -21,6 +21,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
@@ -44,7 +45,6 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
-	"os"
 	"time"
 )
 
@@ -111,13 +111,16 @@ func NewAppStoreDeploymentServiceImpl(logger *zap.SugaredLogger, installedAppRep
 	}
 }
 
+type DeploymentServiceConfig struct {
+	isInternalUse bool `env:"IS_INTERNAL_USE" envDefault:"false"`
+}
+
 func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, tx *pg.Tx) (*appStoreBean.InstallAppVersionDTO, error) {
 
-	isInternalUse, ok := os.LookupEnv("isInternalUse")
+	config := DeploymentServiceConfig{}
+	err := env.Parse(config)
 
-	if !ok {
-		isInternalUse = "external"
-	}
+	isInternalUse := config.isInternalUse
 
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
@@ -129,7 +132,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		isGitOpsConfigured = true
 	}
 
-	if isInternalUse == "internal" && !isGitOpsConfigured && installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if isInternalUse && !isGitOpsConfigured && installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		impl.logger.Errorw("gitops not configured but selected for CD")
 		return nil, errors.New("gitops not configured but selected")
 	}
@@ -182,7 +185,7 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		Status:        appStoreBean.DEPLOY_INIT,
 	}
 
-	if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && (installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD || isInternalUse == "external") {
+	if isGitOpsConfigured && appInstallationMode == util2.SERVER_MODE_FULL && (installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD || !isInternalUse) {
 		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 	} else {
 		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM

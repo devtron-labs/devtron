@@ -36,7 +36,6 @@ import (
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"net/http"
 	"net/url"
-	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -73,6 +72,10 @@ func GetEcrConfig() (*EcrConfig, error) {
 	cfg := &EcrConfig{}
 	err := env.Parse(cfg)
 	return cfg, err
+}
+
+type DeploymentServiceConfig struct {
+	isInternalUse bool `env:"IS_INTERNAL_USE" envDefault:"false"`
 }
 
 type PipelineBuilder interface {
@@ -1102,11 +1105,10 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
-	isInternalUse, ok := os.LookupEnv("isInternalUse")
+	config := DeploymentServiceConfig{}
+	err := env.Parse(config)
 
-	if !ok {
-		isInternalUse = "external"
-	}
+	isInternalUse := config.isInternalUse
 
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
@@ -1119,7 +1121,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		isGitOpsConfigured = true
 	}
 
-	if isInternalUse == "internal" && isGitOpsConfigured == false && pipelineCreateRequest.Pipelines[0].DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	if isInternalUse && isGitOpsConfigured == false && pipelineCreateRequest.Pipelines[0].DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		impl.logger.Errorw("Gitops not configured but selected in creating cd pipeline")
 		return nil, errors.New("Gitops not configured but selected in creating cd pipeline")
 	}
@@ -1173,7 +1175,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		}
 	}
 
-	if isGitOpsConfigured && (isInternalUse == "external" || pipelineCreateRequest.Pipelines[0].DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD) {
+	if isGitOpsConfigured && (!isInternalUse || pipelineCreateRequest.Pipelines[0].DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD) {
 		//if gitops configured create GIT repository and register into ACD
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 		if err != nil && pg.ErrNoRows != err {
@@ -1217,7 +1219,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 
-		if isInternalUse == "external" {
+		if !isInternalUse {
 			if isGitOpsConfigured {
 				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 			} else {
