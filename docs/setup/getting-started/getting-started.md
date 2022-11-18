@@ -11,7 +11,7 @@ First, lets see what are the pre-requisite requirements before you install Devtr
 
 ## Pre-requisite Requirements
 * [Recommended Resources](#recommended-resources)
-*  Kubernetes Cluster, preferably K8s version 1.16 or higher
+*  [Kubernetes Cluster, preferably K8s version 1.16 or higher](#create-a-kubernetes-cluster)
 * [Helm Installation](https://helm.sh/docs/intro/install/)
 
 You can install Devtron after fulfilling the pre-requisite requirements.
