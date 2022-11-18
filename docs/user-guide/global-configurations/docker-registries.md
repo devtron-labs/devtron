@@ -1,6 +1,6 @@
 # Container Registries
 
-Container registries are used for storing images built by the CI Pipeline. You can configure the container registry using any different container registry provider of your choice. It allows you to build, deploy and manage your container images with easy-to-use UI. 
+Container registries are used for storing images built by the CI Pipeline. You can configure the container registry using any container registry provider of your choice. It allows you to build, deploy and manage your container images with easy-to-use UI. 
 
 When configuring an application, you can choose the specific container registry and repository in the App Configuration > [Build Configuration](user-guide/creating-application/docker-build-configuration.md) section.
 
