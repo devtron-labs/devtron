@@ -150,7 +150,7 @@ type AppService interface {
 	GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
 	GetChartRepoName(gitRepoUrl string) string
-	UpdateDeploymentStatusForGitOpsCdPipelines(app *v1alpha1.Application, statusTime time.Time, userId int32) (bool, bool, error)
+	UpdateDeploymentStatusForGitOpsCdPipelines(app *v1alpha1.Application, statusTime time.Time) (bool, bool, error)
 }
 
 func NewAppService(
@@ -333,7 +333,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alp
 		return isSucceeded, nil
 	}
 
-	isSucceeded, _, err = impl.UpdateDeploymentStatusForGitOpsCdPipelines(app, statusTime, 1)
+	isSucceeded, _, err = impl.UpdateDeploymentStatusForGitOpsCdPipelines(app, statusTime)
 	if err != nil {
 		impl.logger.Errorw("error in updating deployment status", "argoAppName", app.Name)
 		return isSucceeded, err
@@ -341,39 +341,21 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alp
 	return isSucceeded, nil
 }
 
-func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1alpha1.Application, statusTime time.Time, userId int32) (bool, bool, error) {
+func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1alpha1.Application, statusTime time.Time) (bool, bool, error) {
 	isSucceeded := false
 	isTimelineUpdated := false
-	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatusByAppName(app.Name)
-	if err != nil {
-		impl.logger.Errorw("error in fetching deployment status by argoAppName", "argoAppName", app.Name, "err", err)
-		return isSucceeded, isTimelineUpdated, err
-	}
-	if util2.IsTerminalStatus(deploymentStatus.Status) {
-		//drop event
-		return isSucceeded, isTimelineUpdated, nil
-	}
-	//getting latest pipelineOverride for app (by appId and envId)
-	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(deploymentStatus.AppId, deploymentStatus.EnvId)
-	if err != nil {
-		impl.logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId)
-		return isSucceeded, isTimelineUpdated, err
-	}
 	gitHash := ""
 	if app != nil {
 		gitHash = app.Status.Sync.Revision
 	}
-	if gitHash != "" && pipelineOverride.GitHash != gitHash {
-		pipelineOverrideByHash, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
-		if err != nil {
-			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "err", err)
-			return isSucceeded, isTimelineUpdated, err
-		}
-		if pipelineOverrideByHash.CommitTime.Before(pipelineOverride.CommitTime) {
-			//we have received trigger hash which is committed before this apps actual gitHash stored by us
-			// this means that the hash stored by us will be synced later, so we will drop this event
-			return isSucceeded, isTimelineUpdated, nil
-		}
+	isValid, deploymentStatus, pipelineOverride, err := impl.CheckIfPipelineUpdateEventIsValid(app.Name, gitHash)
+	if err != nil {
+		impl.logger.Errorw("service err, CheckIfPipelineUpdateEventIsValid", "err", err)
+		return isSucceeded, isTimelineUpdated, err
+	}
+	if !isValid {
+		impl.logger.Infow("deployment status event invalid, skipping", "appName", app.Name)
+		return isSucceeded, isTimelineUpdated, nil
 	}
 	//get wfr by cdWorkflowId & runnerType
 	cdWfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
@@ -386,19 +368,19 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 		impl.logger.Errorw("error in converting string to int", "err", err)
 		return isSucceeded, isTimelineUpdated, err
 	}
-	latestTimelineBeforeUpdate, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelineByWfrId(cdWfr.Id)
+	latestTimelineBeforeThisEvent, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelineByWfrId(cdWfr.Id)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting latest timeline before update", "err", err, "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId)
+		impl.logger.Errorw("error in getting latest timeline before update", "err", err, "cdWfrId", cdWfr.Id)
 		return isSucceeded, isTimelineUpdated, err
 	}
 	//updating cd pipeline status timeline
-	isTimelineUpdated, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeUpdate)
+	isTimelineUpdated, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
 	kubectlSyncedTimeline, err := impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(cdWfr.Id, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
+		impl.logger.Errorw("error in getting latest timeline", "err", err, "cdWfrId", cdWfr.Id)
 		return isSucceeded, isTimelineUpdated, err
 	}
 	reconciledAt := app.Status.ReconciledAt
@@ -413,42 +395,14 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 			return isSucceeded, isTimelineUpdated, err
 		}
 		if pipelineOverride.PipelineReleaseCounter == releaseCounter {
-			impl.logger.Debugw("inserting new app status", "status", string(app.Status.Health.Status), "argoAppName", app.Name, "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId)
-			newDeploymentStatus := &repository.DeploymentStatus{
-				AppName:   app.Name,
-				AppId:     deploymentStatus.AppId,
-				EnvId:     deploymentStatus.EnvId,
-				Status:    string(app.Status.Health.Status),
-				CreatedOn: time.Now(),
-				UpdatedOn: time.Now(),
-			}
-			dbConnection := impl.pipelineRepository.GetConnection()
-			tx, err := dbConnection.Begin()
+			isSucceeded, err = impl.UpdateDeploymentStatusForPipeline(app, deploymentStatus, pipelineOverride, cdWfr.Id, timeoutDuration, latestTimelineBeforeThisEvent)
 			if err != nil {
-				impl.logger.Errorw("error on update status, db get txn failed", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
+				impl.logger.Errorw("error in updating deployment status for pipeline", "err", err)
 				return isSucceeded, isTimelineUpdated, err
 			}
-			// Rollback tx on error.
-			defer tx.Rollback()
-			err = impl.appListingRepository.SaveNewDeployment(newDeploymentStatus, tx)
-			if err != nil {
-				impl.logger.Errorw("error on saving new deployment status for wf", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
-				return isSucceeded, isTimelineUpdated, err
-			}
-			err = impl.UpdateCdWorkflowRunnerByACDObject(app, cdWfr.Id, timeoutDuration, latestTimelineBeforeUpdate)
-			if err != nil {
-				impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
-				return isSucceeded, isTimelineUpdated, err
-			}
-			err = tx.Commit()
-			if err != nil {
-				impl.logger.Errorw("error on db transaction commit for", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
-				return isSucceeded, isTimelineUpdated, err
-			}
-			if string(application.Healthy) == newDeploymentStatus.Status {
-				isSucceeded = true
-				impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "newDeploymentStatus", newDeploymentStatus)
-				go impl.WriteCDSuccessEvent(newDeploymentStatus.AppId, newDeploymentStatus.EnvId, pipelineOverride)
+			if isSucceeded {
+				impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride)
+				go impl.WriteCDSuccessEvent(deploymentStatus.AppId, deploymentStatus.EnvId, pipelineOverride)
 			}
 		} else {
 			impl.logger.Debug("event received for older triggered revision: " + gitHash)
@@ -457,6 +411,84 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 		// new revision is not reconciled yet, thus status will not be changes and will remain in progress
 	}
 	return isSucceeded, isTimelineUpdated, nil
+}
+
+func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(appName, gitHash string) (bool, repository.DeploymentStatus, *chartConfig.PipelineOverride, error) {
+	isValid := false
+	var err error
+	var deploymentStatus repository.DeploymentStatus
+	var pipelineOverride *chartConfig.PipelineOverride
+	deploymentStatus, err = impl.appListingRepository.FindLastDeployedStatusByAppName(appName)
+	if err != nil {
+		impl.logger.Errorw("error in fetching deployment status by argoAppName", "argoAppName", appName, "err", err)
+		return isValid, deploymentStatus, pipelineOverride, err
+	}
+	if util2.IsTerminalStatus(deploymentStatus.Status) {
+		//drop event
+		return isValid, deploymentStatus, pipelineOverride, nil
+	}
+	//getting latest pipelineOverride for app (by appId and envId)
+	pipelineOverride, err = impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(deploymentStatus.AppId, deploymentStatus.EnvId)
+	if err != nil {
+		impl.logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId)
+		return isValid, deploymentStatus, pipelineOverride, err
+	}
+	if gitHash != "" && pipelineOverride.GitHash != gitHash {
+		pipelineOverrideByHash, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
+		if err != nil {
+			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "err", err)
+			return isValid, deploymentStatus, pipelineOverride, err
+		}
+		if pipelineOverrideByHash.CommitTime.Before(pipelineOverride.CommitTime) {
+			//we have received trigger hash which is committed before this apps actual gitHash stored by us
+			// this means that the hash stored by us will be synced later, so we will drop this event
+			return isValid, deploymentStatus, pipelineOverride, nil
+		}
+	}
+	isValid = true
+	return isValid, deploymentStatus, pipelineOverride, nil
+}
+
+func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Application, deploymentStatus repository.DeploymentStatus,
+	pipelineOverride *chartConfig.PipelineOverride, cdWfrId, timeoutDuration int, latestTimelineBeforeThisEvent *pipelineConfig.PipelineStatusTimeline) (bool, error) {
+	impl.logger.Debugw("inserting new app status", "status", string(app.Status.Health.Status), "argoAppName", app.Name, "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId)
+	isSucceeded := false
+	impl.logger.Debugw("inserting new app status", "status", string(app.Status.Health.Status), "argoAppName", app.Name, "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId)
+	newDeploymentStatus := &repository.DeploymentStatus{
+		AppName:   app.Name,
+		AppId:     deploymentStatus.AppId,
+		EnvId:     deploymentStatus.EnvId,
+		Status:    string(app.Status.Health.Status),
+		CreatedOn: time.Now(),
+		UpdatedOn: time.Now(),
+	}
+	dbConnection := impl.pipelineRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		impl.logger.Errorw("error on update status, db get txn failed", "err", err)
+		return isSucceeded, err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+	err = impl.appListingRepository.SaveNewDeployment(newDeploymentStatus, tx)
+	if err != nil {
+		impl.logger.Errorw("error on saving new deployment status for wf", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
+		return isSucceeded, err
+	}
+	err = impl.UpdateCdWorkflowRunnerByACDObject(app, cdWfrId, timeoutDuration, latestTimelineBeforeThisEvent)
+	if err != nil {
+		impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
+		return isSucceeded, err
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error on db transaction commit for", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
+		return isSucceeded, err
+	}
+	if string(application.Healthy) == newDeploymentStatus.Status {
+		isSucceeded = true
+	}
+	return isSucceeded, nil
 }
 
 func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, cdWfrId int, statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline) (bool, error) {

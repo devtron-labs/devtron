@@ -261,7 +261,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 			return err, isTimelineUpdated
 		}
 	} else {
-		isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsCdPipelines(app, time.Now(), userId)
+		isSucceeded, isTimelineUpdated, err = impl.appService.UpdateDeploymentStatusForGitOpsCdPipelines(app, time.Now())
 		if err != nil {
 			impl.Logger.Errorw("error in updating deployment status for gitOps cd pipelines", "app", app)
 			return err, isTimelineUpdated
