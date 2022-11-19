@@ -109,7 +109,7 @@ func (impl *UserTerminalAccessServiceImpl) checkMaxSessionLimit(userId int32) er
 	if userRunningSessionCount >= maxSessionPerUser {
 		errStr := fmt.Sprintf("cannot start new session more than configured %s", strconv.Itoa(maxSessionPerUser))
 		impl.Logger.Errorw(errStr, "userId", userId)
-		return errors.New(errStr)
+		return errors.New("session-limit-reached")
 	}
 	return nil
 }
@@ -170,7 +170,7 @@ func (impl *UserTerminalAccessServiceImpl) createTerminalEntity(request *models.
 func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal update shell request received for user", "request", request)
 	userTerminalAccessId := request.TerminalAccessId
-	err := impl.DisconnectTerminalSession(userTerminalAccessId)
+	err := impl.StopTerminalSession(userTerminalAccessId)
 	if err != nil {
 		return nil, err
 	}

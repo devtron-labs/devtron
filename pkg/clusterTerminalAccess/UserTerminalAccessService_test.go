@@ -64,6 +64,12 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		sessionId = fetchSessionId(t, terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
 		fmt.Println("SessionId: ", sessionId)
 
+		terminalShellSession, err := terminalAccessServiceImpl.UpdateTerminalShellSession(&models.UserTerminalShellSessionRequest{TerminalAccessId: updateTerminalSession.TerminalAccessId, ShellName: "bash"})
+		assert.Nil(t, err)
+		assert.Equal(t, terminalShellSession.TerminalAccessId, updateTerminalSession.TerminalAccessId)
+		sessionId = fetchSessionId(t, terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
+		fmt.Println("SessionId: ", sessionId)
+
 		err = terminalAccessServiceImpl.StopTerminalSession(updateTerminalSession.TerminalAccessId)
 		assert.Nil(t, err)
 		sessionId = fetchSessionId(t, terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
