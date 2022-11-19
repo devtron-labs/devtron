@@ -595,7 +595,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("error in parsing envId : %s must be integer", envIdParam), nil, http.StatusBadRequest)
 		return
 	}
-	appDetail, err = handler.getAppDetails(appIdParam, installedAppIdParam, envId)
+	appDetail, err, appId = handler.getAppDetails(appIdParam, installedAppIdParam, envId)
 	if err != nil {
 		handler.logger.Errorw("error occurred while getting app details", "appId", appIdParam, "installedAppId", installedAppIdParam, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -649,23 +649,25 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppIdParam string, envId int) (bean.AppDetailContainer, error) {
+func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppIdParam string, envId int) (bean.AppDetailContainer, error, int) {
 	var appDetail bean.AppDetailContainer
 	if appIdParam != "" {
 		appId, err := strconv.Atoi(appIdParam)
 		if err != nil {
 			handler.logger.Errorw("error in parsing appId from request body", "appId", appIdParam, "err", err)
-			return appDetail, err
+			return appDetail, err, appId
 		}
-		return handler.appListingService.FetchAppDetails(appId, envId)
+		appDetail, err = handler.appListingService.FetchAppDetails(appId, envId)
+		return appDetail, err, appId
 	}
 
 	appId, err := strconv.Atoi(installedAppIdParam)
 	if err != nil {
 		handler.logger.Errorw("error in parsing installedAppId from request body", "installedAppId", installedAppIdParam, "err", err)
-		return appDetail, err
+		return appDetail, err, appId
 	}
-	return handler.installedAppService.FindAppDetailsForAppstoreApplication(appId, envId)
+	appDetail, err = handler.installedAppService.FindAppDetailsForAppstoreApplication(appId, envId)
+	return appDetail, err, appId
 }
 
 func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
