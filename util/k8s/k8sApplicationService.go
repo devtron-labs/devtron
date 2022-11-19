@@ -99,13 +99,13 @@ func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTree map[
 	for i := 0; i < noOfNodes; i++ {
 		resourceItem := resourceNodeItemss[i].(map[string]interface{})
 		var kind, name, namespace string
-		if _, ok := resourceItem["kind"]; ok {
+		if _, ok := resourceItem["kind"]; ok && resourceItem["kind"] != nil {
 			kind = resourceItem["kind"].(string)
 		}
-		if _, ok := resourceItem["name"]; ok {
+		if _, ok := resourceItem["name"]; ok && resourceItem["name"] != nil {
 			name = resourceItem["name"].(string)
 		}
-		if _, ok := resourceItem["namespace"]; ok {
+		if _, ok := resourceItem["namespace"]; ok && resourceItem["namespace"] != nil {
 			namespace = resourceItem["namespace"].(string)
 		}
 
