@@ -297,7 +297,7 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 	commitHashes := trigger.CommitHashes
 	for _, ciMaterial := range ciMaterials {
 		// ignore those materials which have inactive git material
-		if !ciMaterial.GitMaterial.Active {
+		if ciMaterial == nil || ciMaterial.GitMaterial == nil || !ciMaterial.GitMaterial.Active {
 			continue
 		}
 		commitHashForPipelineId := commitHashes[ciMaterial.Id]
