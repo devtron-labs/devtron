@@ -587,6 +587,20 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("only one of the appId or installedAppId should be valid appId: %s installedAppId: %s", appIdParam, installedAppIdParam), nil, http.StatusBadRequest)
 		return
 	}
+	token := r.Header.Get("token")
+	if appIdParam != "" {
+		appId, err := strconv.Atoi(appIdParam)
+		if err != nil {
+			handler.logger.Errorw("error in parsing appId from request body", "appId", appIdParam, "err", err)
+			common.WriteJsonResp(w, fmt.Errorf("error in parsing appId : %s must be integer", envIdParam), nil, http.StatusBadRequest)
+			return
+		}
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			return
+		}
+	}
 	var appDetail bean.AppDetailContainer
 	var appId, envId int
 	envId, err := strconv.Atoi(envIdParam)
@@ -610,7 +624,6 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		return
 	}
 	//check user authorization for this app
-	token := r.Header.Get("token")
 	if installedAppIdParam != "" {
 		object, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appDetail.AppName, appDetail.EnvironmentId)
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
