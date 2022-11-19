@@ -27,6 +27,7 @@ import (
 	"github.com/devtron-labs/devtron/api/dashboardEvent"
 	"github.com/devtron-labs/devtron/api/deployment"
 	"github.com/devtron-labs/devtron/api/externalLink"
+	"github.com/devtron-labs/devtron/api/globalTag"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/module"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
@@ -113,6 +114,7 @@ type MuxRouter struct {
 	k8sCapacityRouter                  k8s.K8sCapacityRouter
 	webhookHelmRouter                  webhookHelm.WebhookHelmRouter
 	globalCMCSRouter                   GlobalCMCSRouter
+	globalTagRouter                    globalTag.GlobalTagRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -139,7 +141,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
-	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter) *MuxRouter {
+	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter, globalTagRouter globalTag.GlobalTagRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -204,6 +206,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		k8sCapacityRouter:                  k8sCapacityRouter,
 		webhookHelmRouter:                  webhookHelmRouter,
 		globalCMCSRouter:                   globalCMCSRouter,
+		globalTagRouter:                    globalTagRouter,
 	}
 	return r
 }
@@ -404,4 +407,8 @@ func (r MuxRouter) Init() {
 
 	globalCMCSRouter := r.Router.PathPrefix("/orchestrator/global/cm-cs").Subrouter()
 	r.globalCMCSRouter.initGlobalCMCSRouter(globalCMCSRouter)
+
+	// global-tags router
+	globalTagSubRouter := r.Router.PathPrefix("/orchestrator/global-tag").Subrouter()
+	r.globalTagRouter.InitGlobalTagRouter(globalTagSubRouter)
 }
