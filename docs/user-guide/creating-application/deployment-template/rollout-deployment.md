@@ -610,7 +610,7 @@ It is used to configure database migration.
 
 ### Application Metrics
 
-Application metrics can be enabled to see your application's metrics-CPUService Monito usage,Memory Usage,Status,Throughput and Latency.
+Application metrics can be enabled to see your application's metrics-CPU Service Monitor usage, Memory Usage, Status, Throughput and Latency.
 
 ### Deployment Metrics
 
