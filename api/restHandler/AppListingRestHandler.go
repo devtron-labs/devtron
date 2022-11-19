@@ -592,7 +592,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		appId, err := strconv.Atoi(appIdParam)
 		if err != nil {
 			handler.logger.Errorw("error in parsing appId from request body", "appId", appIdParam, "err", err)
-			common.WriteJsonResp(w, fmt.Errorf("error in parsing appId : %s must be integer", envIdParam), nil, http.StatusBadRequest)
+			common.WriteJsonResp(w, fmt.Errorf("error in parsing appId : %s must be integer", appIdParam), nil, http.StatusBadRequest)
 			return
 		}
 		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
@@ -628,12 +628,6 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		object, object2 := handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(appDetail.AppName, appDetail.EnvironmentId)
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
 		if !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-			return
-		}
-	} else {
-		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 			return
 		}
