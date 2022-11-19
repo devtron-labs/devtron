@@ -625,6 +625,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			return
 		}
 	}
+
 	if installedAppIdParam != "" {
 		appDetail = handler.fetchResourceTreeFromInstallAppService(w, r, appDetail)
 	} else {
