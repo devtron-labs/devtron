@@ -75,7 +75,7 @@ func GetEcrConfig() (*EcrConfig, error) {
 }
 
 type DeploymentServiceTypeConfig struct {
-	IsInternalUse bool `env:"IS_INTERNAL_USE" envDefault:"true"`
+	IsInternalUse bool `env:"IS_INTERNAL_USE" envDefault:"false"`
 }
 
 func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
