@@ -41,6 +41,7 @@ type ExternalLinkRepository interface {
 	Update(link *ExternalLink, tx *pg.Tx) error
 	FindAllFilterOutByIds(ids []int) ([]ExternalLink, error)
 	GetConnection() *pg.DB
+	FindAllClusterLinks() ([]ExternalLink, error)
 }
 type ExternalLinkRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -82,4 +83,15 @@ func (impl ExternalLinkRepositoryImpl) FindAllFilterOutByIds(ids []int) ([]Exter
 		Where("id not in (?)", pg.In(ids)).
 		Select()
 	return links, err
+}
+
+func (impl ExternalLinkRepositoryImpl) FindAllClusterLinks() ([]ExternalLink, error) {
+	var res []ExternalLink
+	query := " select * " +
+		"from external_link el" +
+		"  where el.id not in" +
+		" (select distinct elim.external_link_id from external_link_identifier_mapping elim where elim.active = true)" +
+		" and el.active = true;"
+	_, err := impl.dbConnection.Query(&res, query)
+	return res, err
 }

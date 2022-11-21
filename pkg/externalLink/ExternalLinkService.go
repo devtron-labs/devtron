@@ -262,7 +262,7 @@ func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkIdentifi
 
 		if impl.isGlobalLink(record) {
 			responseMap[record.Id].Type = CLUSTER_LEVEL_LINK
-			if record.Type == APP && record.Active {
+			if record.Type == APP {
 				responseMap[record.Id].Type = APP_LEVEL_LINK
 			}
 		} else {
@@ -289,6 +289,27 @@ func (impl ExternalLinkServiceImpl) processResult(records []ExternalLinkIdentifi
 	}
 	return externalLinkResponse, nil
 }
+func (impl ExternalLinkServiceImpl) appendAllClusterLinks(records []ExternalLinkIdentifierMappingData) ([]ExternalLinkIdentifierMappingData, error) {
+	links, err := impl.externalLinkRepository.FindAllClusterLinks()
+	if err != nil {
+		impl.logger.Errorw("error while fetching all cluster links")
+		return records, err
+	}
+	for _, link := range links {
+		record := ExternalLinkIdentifierMappingData{
+			Id:                           link.Id,
+			Type:                         CLUSTER,
+			ExternalLinkMonitoringToolId: link.ExternalLinkMonitoringToolId,
+			Name:                         link.Name,
+			Url:                          link.Url,
+			Description:                  link.Description,
+			IsEditable:                   link.IsEditable,
+			UpdatedOn:                    link.UpdatedOn,
+		}
+		records = append(records, record)
+	}
+	return records, nil
+}
 func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int, userRole string, userId int) ([]*ExternalLinkDto, error) {
 	//linkIdentifier and clusterId nil and 0 respectively to fetch links at global level(get all active links)
 	//linkIdentifier and clusterId passed to get all active links for a particular app(linkIdentifier.ClusterId will be 0)
@@ -304,6 +325,12 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 			err = apiError
 			return nil, err
 		}
+		records, err = impl.appendAllClusterLinks(records)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
+			err = apiError
+			return nil, err
+		}
 		return impl.processResult(records)
 	}
 
@@ -313,6 +340,12 @@ func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIden
 	}
 	linkIdentifier.ClusterId = 0
 	records, err := impl.externalLinkIdentifierMappingRepository.FindAllActiveByLinkIdentifier(linkIdentifier, clusterId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
+		err = apiError
+		return nil, err
+	}
+	records, err = impl.appendAllClusterLinks(records)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error while fetching external links from external_links_identifier mappings table", "err", err)
 		err = apiError
