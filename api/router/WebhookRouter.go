@@ -48,6 +48,7 @@ func NewWebhookRouterImpl(gitWebhookRestHandler restHandler.GitWebhookRestHandle
 func (impl WebhookRouterImpl) intWebhookRouter(configRouter *mux.Router) {
 	configRouter.Path("/git").HandlerFunc(impl.gitWebhookRestHandler.HandleGitWebhook).Methods("POST")
 	configRouter.Path("/ci/workflow").HandlerFunc(impl.pipelineRestHandler.HandleWorkflowWebhook).Methods("POST")
-	configRouter.Path("/ext-ci/{api-key}").HandlerFunc(impl.externalCiRestHandler.HandleExternalCiWebhook).Methods("POST")
+	//configRouter.Path("/ext-ci/{api-key}").HandlerFunc(impl.externalCiRestHandler.HandleExternalCiWebhook).Methods("POST")
 	configRouter.Path("/msg/nats").HandlerFunc(impl.pubSubClientRestHandler.PublishEventsToNats).Methods("POST")
+	configRouter.Path("/ext-ci/{externalCiId}").HandlerFunc(impl.externalCiRestHandler.HandleExternalCiWebhookByApiToken).Methods("POST")
 }
