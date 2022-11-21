@@ -238,7 +238,12 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTermina
 	accessSessionData := accessSessionDataMap[userTerminalAccessId]
 	terminalAccessData := accessSessionData.terminalAccessDataEntity
 	err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName)
-	if err == nil {
+	if err != nil {
+		if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == "NotFound" {
+			accessSessionData.terminateTriggered = true
+			err = nil
+		}
+	} else {
 		accessSessionData.terminateTriggered = true
 	}
 	return err
@@ -522,11 +527,6 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, term
 	}
 	gvkDataString := terminalAccessPodTemplate.TemplateData
 	err = impl.DeleteTerminalResource(clusterId, terminalPodName, gvkDataString)
-	if err != nil {
-		if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == "NotFound" {
-			return nil
-		}
-	}
 	return err
 }
 
