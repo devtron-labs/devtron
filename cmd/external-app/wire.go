@@ -143,6 +143,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(router.UserTerminalAccessRouter), new(*router.UserTerminalAccessRouterImpl)),
 		restHandler.NewUserTerminalAccessRestHandlerImpl,
 		wire.Bind(new(restHandler.UserTerminalAccessRestHandler), new(*restHandler.UserTerminalAccessRestHandlerImpl)),
+		clusterTerminalAccess.GetTerminalAccessConfig,
 		clusterTerminalAccess.NewUserTerminalAccessServiceImpl,
 		wire.Bind(new(clusterTerminalAccess.UserTerminalAccessService), new(*clusterTerminalAccess.UserTerminalAccessServiceImpl)),
 		repository.NewTerminalAccessRepositoryImpl,

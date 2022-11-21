@@ -51,16 +51,19 @@ type UserTerminalAccessSessionData struct {
 	terminateTriggered       bool
 }
 
-func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository,
-	k8sApplicationService k8s.K8sApplicationService, k8sClientService application.K8sClientService, terminalSessionHandler terminal.TerminalSessionHandler) (*UserTerminalAccessServiceImpl, error) {
+func GetTerminalAccessConfig() (*models.UserTerminalSessionConfig, error) {
 	config := &models.UserTerminalSessionConfig{}
 	err := env.Parse(config)
 	if err != nil {
 		return nil, err
 	}
+	return config, err
+}
+
+func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessRepository repository.TerminalAccessRepository, config *models.UserTerminalSessionConfig,
+	k8sApplicationService k8s.K8sApplicationService, k8sClientService application.K8sClientService, terminalSessionHandler terminal.TerminalSessionHandler) (*UserTerminalAccessServiceImpl, error) {
 	//fetches all running and starting entities from db and start SyncStatus
-	podStatusSyncCron := cron.New(
-		cron.WithChain())
+	podStatusSyncCron := cron.New(cron.WithChain())
 	terminalAccessDataArrayMutex := &sync.RWMutex{}
 	map1 := make(map[int]*UserTerminalAccessSessionData)
 	accessServiceImpl := &UserTerminalAccessServiceImpl{
@@ -75,7 +78,7 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 		terminalSessionHandler:       terminalSessionHandler,
 	}
 	podStatusSyncCron.Start()
-	_, err = podStatusSyncCron.AddFunc(fmt.Sprintf("@every %ds", config.TerminalPodStatusSyncTimeInSecs), accessServiceImpl.SyncPodStatus)
+	_, err := podStatusSyncCron.AddFunc(fmt.Sprintf("@every %ds", config.TerminalPodStatusSyncTimeInSecs), accessServiceImpl.SyncPodStatus)
 	if err != nil {
 		logger.Errorw("error occurred while starting cron job", "time in secs", config.TerminalPodStatusSyncTimeInSecs)
 		return nil, err
@@ -209,21 +212,6 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(request *models
 	}
 
 	return impl.StartTerminalSession(request)
-}
-
-func (impl *UserTerminalAccessServiceImpl) checkTerminalExists(userTerminalSessionId int) (*models.UserTerminalAccessData, error) {
-	terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(userTerminalSessionId)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalSessionId", userTerminalSessionId, "err", err)
-		return nil, err
-	}
-	terminalStatus := terminalAccessData.Status
-	terminalPodStatus := models.TerminalPodStatus(terminalStatus)
-	if terminalPodStatus == models.TerminalPodTerminated || terminalPodStatus == models.TerminalPodError {
-		impl.Logger.Errorw("pod is already in terminated/error state", "userTerminalSessionId", userTerminalSessionId, "terminalPodStatus", terminalPodStatus)
-		return nil, errors.New("pod already terminated")
-	}
-	return terminalAccessData, nil
 }
 
 func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminalAccessId int) error {
