@@ -247,6 +247,17 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	}
 }
 
+//internal use only
+const (
+	teamIdKey                string = "teamId"
+	teamNameKey              string = "teamName"
+	appIdKey                 string = "appId"
+	appNameKey               string = "appName"
+	environmentIdKey         string = "environmentId"
+	environmentNameKey       string = "environmentName"
+	environmentIdentifierKey string = "environmentIdentifier"
+)
+
 func formatDate(t time.Time, layout string) string {
 	if t.IsZero() {
 		return ""
@@ -606,38 +617,37 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 				impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 				return nil, err
 			}
-			if _, ok := roleData["teamId"]; !ok {
+			if _, ok := roleData[teamIdKey]; !ok {
 				app, err := impl.appRepo.FindAppAndProjectByAppId(cdPipeline.AppId)
 				if err != nil && !util.IsErrNoRows(err) {
 					impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 					return nil, err
 				}
-				roleData["teamId"] = app.TeamId
-				roleData["teamName"] = app.Team.Name
+				roleData[teamIdKey] = app.TeamId
+				roleData[teamNameKey] = app.Team.Name
+				roleData[appIdKey] = cdPipeline.AppId
+				roleData[appNameKey] = cdPipeline.App.AppName
 			}
-			roleData["appId"] = cdPipeline.AppId
-			roleData["appName"] = cdPipeline.App.AppName
-			if _, ok := roleData["environmentId"]; !ok {
-				roleData["environmentId"] = cdPipeline.Environment.Name
+			if _, ok := roleData[environmentNameKey]; !ok {
+				roleData[environmentNameKey] = cdPipeline.Environment.Name
 			} else {
-				roleData["environmentId"] = fmt.Sprintf("%s,%s", roleData["environmentId"], cdPipeline.Environment.Name)
+				roleData[environmentNameKey] = fmt.Sprintf("%s,%s", roleData[environmentNameKey], cdPipeline.Environment.Name)
 			}
-			if _, ok := roleData["environmentName"]; !ok {
-				roleData["environmentName"] = cdPipeline.Environment.Name
+			if _, ok := roleData[environmentIdentifierKey]; !ok {
+				roleData[environmentIdentifierKey] = cdPipeline.Environment.EnvironmentIdentifier
 			} else {
-				roleData["environmentName"] = fmt.Sprintf("%s,%s", roleData["environmentName"], cdPipeline.Environment.Name)
+				roleData[environmentIdentifierKey] = fmt.Sprintf("%s,%s", roleData[environmentIdentifierKey], cdPipeline.Environment.EnvironmentIdentifier)
 			}
-
 		}
 
 		externalCiConfig.ExternalCiConfigRole = bean.ExternalCiConfigRole{
-			ProjectId:       roleData["teamId"].(int),
-			ProjectName:     roleData["teamName"].(string),
-			AppId:           roleData["appId"].(int),
-			AppName:         roleData["appName"].(string),
-			EnvironmentId:   roleData["environmentId"].(string),
-			EnvironmentName: roleData["environmentName"].(string),
-			Role:            "Build and deploy",
+			ProjectId:             roleData[teamIdKey].(int),
+			ProjectName:           roleData[teamNameKey].(string),
+			AppId:                 roleData[appIdKey].(int),
+			AppName:               roleData[appNameKey].(string),
+			EnvironmentName:       roleData[environmentNameKey].(string),
+			EnvironmentIdentifier: roleData[environmentIdentifierKey].(string),
+			Role:                  "Build and deploy",
 		}
 		externalCiConfigs = append(externalCiConfigs, externalCiConfig)
 	}
@@ -646,6 +656,7 @@ func (impl PipelineBuilderImpl) GetExternalCi(appId int) (ciConfig []*bean.Exter
 }
 
 func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (ciConfig *bean.ExternalCiConfig, err error) {
+
 	externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(externalCiId)
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
@@ -679,32 +690,26 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 			impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 			return nil, err
 		}
-		if _, ok := roleData["TeamId"]; !ok {
+		if _, ok := roleData[teamIdKey]; !ok {
 			app, err := impl.appRepo.FindAppAndProjectByAppId(cdPipeline.AppId)
 			if err != nil && !util.IsErrNoRows(err) {
 				impl.logger.Errorw("error in fetching external ci", "appId", appId, "err", err)
 				return nil, err
 			}
-			roleData["teamId"] = app.TeamId
-			roleData["teamName"] = app.Team.Name
+			roleData[teamIdKey] = app.TeamId
+			roleData[teamNameKey] = app.Team.Name
+			roleData[appIdKey] = cdPipeline.AppId
+			roleData[appNameKey] = cdPipeline.App.AppName
 		}
-		roleData["appId"] = cdPipeline.AppId
-		roleData["appName"] = cdPipeline.App.AppName
-		if _, ok := roleData["environmentId"]; !ok {
-			roleData["environmentId"] = cdPipeline.Environment.Name
+		if _, ok := roleData[environmentNameKey]; !ok {
+			roleData[environmentNameKey] = cdPipeline.Environment.Name
 		} else {
-			roleData["environmentId"] = fmt.Sprintf("%s,%s", roleData["environmentId"], cdPipeline.Environment.Name)
+			roleData[environmentNameKey] = fmt.Sprintf("%s,%s", roleData[environmentNameKey], cdPipeline.Environment.Name)
 		}
-		if _, ok := roleData["environmentName"]; !ok {
-			roleData["environmentName"] = cdPipeline.Environment.Name
+		if _, ok := roleData[environmentIdentifierKey]; !ok {
+			roleData[environmentIdentifierKey] = cdPipeline.Environment.EnvironmentIdentifier
 		} else {
-			roleData["environmentName"] = fmt.Sprintf("%s,%s", roleData["environmentName"], cdPipeline.Environment.Name)
-		}
-
-		if _, ok := roleData["environmentIdentifier"]; !ok {
-			roleData["environmentIdentifier"] = cdPipeline.Environment.EnvironmentIdentifier
-		} else {
-			roleData["environmentIdentifier"] = fmt.Sprintf("%s,%s", roleData["environmentIdentifier"], cdPipeline.Environment.EnvironmentIdentifier)
+			roleData[environmentIdentifierKey] = fmt.Sprintf("%s,%s", roleData[environmentIdentifierKey], cdPipeline.Environment.EnvironmentIdentifier)
 		}
 	}
 
@@ -715,13 +720,12 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 		AccessKey:  "",
 	}
 	externalCiConfig.ExternalCiConfigRole = bean.ExternalCiConfigRole{
-		ProjectId:             roleData["teamId"].(int),
-		ProjectName:           roleData["teamName"].(string),
-		AppId:                 roleData["appId"].(int),
-		AppName:               roleData["appName"].(string),
-		EnvironmentId:         roleData["environmentId"].(string),
-		EnvironmentName:       roleData["environmentName"].(string),
-		EnvironmentIdentifier: roleData["environmentIdentifier"].(string),
+		ProjectId:             roleData[teamIdKey].(int),
+		ProjectName:           roleData[teamNameKey].(string),
+		AppId:                 roleData[appIdKey].(int),
+		AppName:               roleData[appNameKey].(string),
+		EnvironmentName:       roleData[environmentNameKey].(string),
+		EnvironmentIdentifier: roleData[environmentIdentifierKey].(string),
 		Role:                  "Build and deploy",
 	}
 	externalCiConfig.Schema = impl.buildExternalCiWebhookSchema()
@@ -729,118 +733,6 @@ func (impl PipelineBuilderImpl) GetExternalCiById(appId int, externalCiId int) (
 	externalCiConfig.Responses = impl.buildResponses()
 	//--------pipeline population end
 	return externalCiConfig, err
-}
-
-func (impl PipelineBuilderImpl) buildExternalCiWebhookSchema() map[string]interface{} {
-	schema := make(map[string]interface{})
-	schema["dockerImage"] = &bean.SchemaObject{Description: "docker image created for your application (Eg. quay.io/devtron/test:da3ba325-161-467)", DataType: "String", Example: "test-docker-repo/test:b150cc81-5-20", Optional: false}
-	//schema["digest"] = &bean.SchemaObject{Description: "docker image sha1 digest", DataType: "String", Example: "sha256:94180dead8336237430e848ef8145f060b51", Optional: true}
-	//schema["materialType"] = &bean.SchemaObject{Description: "git", DataType: "String", Example: "git", Optional: true}
-
-	ciProjectDetails := make([]map[string]interface{}, 0)
-	ciProjectDetail := make(map[string]interface{})
-	ciProjectDetail["commitHash"] = &bean.SchemaObject{Description: "Hash of git commit used to build the image (Eg. 4bd84gba5ebdd6b1937ffd6c0734c2ad52ede782)", DataType: "String", Example: "dg46f67559dbsdfdfdfdsfba47901caf47f8b7e", Optional: true}
-	ciProjectDetail["commitTime"] = &bean.SchemaObject{Description: "Time at which the code was committed to git (Eg. 2022-11-12T12:12:00)", DataType: "String", Example: "2022-11-12T12:12:00", Optional: true}
-	ciProjectDetail["message"] = &bean.SchemaObject{Description: "Message provided during code commit (Eg. This is a sample commit message)", DataType: "String", Example: "commit message", Optional: true}
-	ciProjectDetail["author"] = &bean.SchemaObject{Description: "Name or email id of the user who has done git commit (Eg. John Doe, johndoe@company.com)", DataType: "String", Example: "Devtron User", Optional: true}
-	ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
-
-	schema["ciProjectDetails"] = &bean.SchemaObject{Description: "Git commit details used to build the image", DataType: "Array", Example: "[{}]", Optional: true, Child: ciProjectDetails}
-	return schema
-}
-
-func (impl PipelineBuilderImpl) buildPayloadOption() []bean.PayloadOptionObject {
-	payloadOption := make([]bean.PayloadOptionObject, 0)
-	payloadOption = append(payloadOption, bean.PayloadOptionObject{
-		Key:        "dockerImage",
-		PayloadKey: []string{"dockerImage"},
-		Label:      "Container image tag",
-		Mandatory:  true,
-	})
-
-	payloadOption = append(payloadOption, bean.PayloadOptionObject{
-		Key:        "commitHash",
-		PayloadKey: []string{"ciProjectDetails.commitHash"},
-		Label:      "Commit hash",
-		Mandatory:  false,
-	})
-	payloadOption = append(payloadOption, bean.PayloadOptionObject{
-		Key:        "message",
-		PayloadKey: []string{"ciProjectDetails.message"},
-		Label:      "Commit message",
-		Mandatory:  false,
-	})
-	payloadOption = append(payloadOption, bean.PayloadOptionObject{
-		Key:        "author",
-		PayloadKey: []string{"ciProjectDetails.author"},
-		Label:      "Author",
-		Mandatory:  false,
-	})
-	payloadOption = append(payloadOption, bean.PayloadOptionObject{
-		Key:        "commitTime",
-		PayloadKey: []string{"ciProjectDetails.commitTime"},
-		Label:      "Date & time of commit",
-		Mandatory:  false,
-	})
-	return payloadOption
-}
-
-func (impl PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
-	responseSchemaObjects := make([]bean.ResponseSchemaObject, 0)
-	schema := make(map[string]interface{})
-	schema["code"] = &bean.SchemaObject{Description: "http status code", DataType: "integer", Example: "200,400,401", Optional: false}
-	schema["result"] = &bean.SchemaObject{Description: "api response", DataType: "string", Example: "url", Optional: true}
-	schema["status"] = &bean.SchemaObject{Description: "api response status", DataType: "string", Example: "url", Optional: true}
-
-	error := make(map[string]interface{})
-	error["code"] = &bean.SchemaObject{Description: "http status code", DataType: "integer", Example: "200,400,401", Optional: true}
-	error["userMessage"] = &bean.SchemaObject{Description: "api error user message", DataType: "string", Example: "message", Optional: true}
-	schema["error"] = &bean.SchemaObject{Description: "api error", DataType: "object", Example: "{}", Optional: true, Child: error}
-	description200 := bean.ResponseDescriptionSchemaObject{
-		Description: "success http api response",
-		ExampleValue: bean.ExampleValueDto{
-			Code:   200,
-			Result: "api response result",
-		},
-		Schema: schema,
-	}
-	response200 := bean.ResponseSchemaObject{
-		Description: description200,
-		Code:        "200",
-	}
-	badReq := bean.ErrorDto{
-		Code:        400,
-		UserMessage: "Bad request",
-	}
-	description400 := bean.ResponseDescriptionSchemaObject{
-		Description: "bad http request api response",
-		ExampleValue: bean.ExampleValueDto{
-			Code:   400,
-			Errors: []bean.ErrorDto{badReq},
-		},
-		Schema: schema,
-	}
-
-	response400 := bean.ResponseSchemaObject{
-		Description: description400,
-		Code:        "400",
-	}
-	description401 := bean.ResponseDescriptionSchemaObject{
-		Description: "unauthorized http api response",
-		ExampleValue: bean.ExampleValueDto{
-			Code:   401,
-			Result: "Unauthorized",
-		},
-		Schema: schema,
-	}
-	response401 := bean.ResponseSchemaObject{
-		Description: description401,
-		Code:        "401",
-	}
-	responseSchemaObjects = append(responseSchemaObjects, response200)
-	responseSchemaObjects = append(responseSchemaObjects, response400)
-	responseSchemaObjects = append(responseSchemaObjects, response401)
-	return responseSchemaObjects
 }
 
 func (impl PipelineBuilderImpl) GetCiPipelineMin(appId int) ([]*bean.CiPipelineMin, error) {
@@ -2952,4 +2844,116 @@ func (impl PipelineBuilderImpl) GetBulkActionImpactedPipelines(dto *bean.CdBulkA
 		}
 	}
 	return pipelines, nil
+}
+
+func (impl PipelineBuilderImpl) buildExternalCiWebhookSchema() map[string]interface{} {
+	schema := make(map[string]interface{})
+	schema["dockerImage"] = &bean.SchemaObject{Description: "docker image created for your application (Eg. quay.io/devtron/test:da3ba325-161-467)", DataType: "String", Example: "test-docker-repo/test:b150cc81-5-20", Optional: false}
+	//schema["digest"] = &bean.SchemaObject{Description: "docker image sha1 digest", DataType: "String", Example: "sha256:94180dead8336237430e848ef8145f060b51", Optional: true}
+	//schema["materialType"] = &bean.SchemaObject{Description: "git", DataType: "String", Example: "git", Optional: true}
+
+	ciProjectDetails := make([]map[string]interface{}, 0)
+	ciProjectDetail := make(map[string]interface{})
+	ciProjectDetail["commitHash"] = &bean.SchemaObject{Description: "Hash of git commit used to build the image (Eg. 4bd84gba5ebdd6b1937ffd6c0734c2ad52ede782)", DataType: "String", Example: "dg46f67559dbsdfdfdfdsfba47901caf47f8b7e", Optional: true}
+	ciProjectDetail["commitTime"] = &bean.SchemaObject{Description: "Time at which the code was committed to git (Eg. 2022-11-12T12:12:00)", DataType: "String", Example: "2022-11-12T12:12:00", Optional: true}
+	ciProjectDetail["message"] = &bean.SchemaObject{Description: "Message provided during code commit (Eg. This is a sample commit message)", DataType: "String", Example: "commit message", Optional: true}
+	ciProjectDetail["author"] = &bean.SchemaObject{Description: "Name or email id of the user who has done git commit (Eg. John Doe, johndoe@company.com)", DataType: "String", Example: "Devtron User", Optional: true}
+	ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
+
+	schema["ciProjectDetails"] = &bean.SchemaObject{Description: "Git commit details used to build the image", DataType: "Array", Example: "[{}]", Optional: true, Child: ciProjectDetails}
+	return schema
+}
+
+func (impl PipelineBuilderImpl) buildPayloadOption() []bean.PayloadOptionObject {
+	payloadOption := make([]bean.PayloadOptionObject, 0)
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:        "dockerImage",
+		PayloadKey: []string{"dockerImage"},
+		Label:      "Container image tag",
+		Mandatory:  true,
+	})
+
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:        "commitHash",
+		PayloadKey: []string{"ciProjectDetails.commitHash"},
+		Label:      "Commit hash",
+		Mandatory:  false,
+	})
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:        "message",
+		PayloadKey: []string{"ciProjectDetails.message"},
+		Label:      "Commit message",
+		Mandatory:  false,
+	})
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:        "author",
+		PayloadKey: []string{"ciProjectDetails.author"},
+		Label:      "Author",
+		Mandatory:  false,
+	})
+	payloadOption = append(payloadOption, bean.PayloadOptionObject{
+		Key:        "commitTime",
+		PayloadKey: []string{"ciProjectDetails.commitTime"},
+		Label:      "Date & time of commit",
+		Mandatory:  false,
+	})
+	return payloadOption
+}
+
+func (impl PipelineBuilderImpl) buildResponses() []bean.ResponseSchemaObject {
+	responseSchemaObjects := make([]bean.ResponseSchemaObject, 0)
+	schema := make(map[string]interface{})
+	schema["code"] = &bean.SchemaObject{Description: "http status code", DataType: "integer", Example: "200,400,401", Optional: false}
+	schema["result"] = &bean.SchemaObject{Description: "api response", DataType: "string", Example: "url", Optional: true}
+	schema["status"] = &bean.SchemaObject{Description: "api response status", DataType: "string", Example: "url", Optional: true}
+
+	error := make(map[string]interface{})
+	error["code"] = &bean.SchemaObject{Description: "http status code", DataType: "integer", Example: "200,400,401", Optional: true}
+	error["userMessage"] = &bean.SchemaObject{Description: "api error user message", DataType: "string", Example: "message", Optional: true}
+	schema["error"] = &bean.SchemaObject{Description: "api error", DataType: "object", Example: "{}", Optional: true, Child: error}
+	description200 := bean.ResponseDescriptionSchemaObject{
+		Description: "success http api response",
+		ExampleValue: bean.ExampleValueDto{
+			Code:   200,
+			Result: "api response result",
+		},
+		Schema: schema,
+	}
+	response200 := bean.ResponseSchemaObject{
+		Description: description200,
+		Code:        "200",
+	}
+	badReq := bean.ErrorDto{
+		Code:        400,
+		UserMessage: "Bad request",
+	}
+	description400 := bean.ResponseDescriptionSchemaObject{
+		Description: "bad http request api response",
+		ExampleValue: bean.ExampleValueDto{
+			Code:   400,
+			Errors: []bean.ErrorDto{badReq},
+		},
+		Schema: schema,
+	}
+
+	response400 := bean.ResponseSchemaObject{
+		Description: description400,
+		Code:        "400",
+	}
+	description401 := bean.ResponseDescriptionSchemaObject{
+		Description: "unauthorized http api response",
+		ExampleValue: bean.ExampleValueDto{
+			Code:   401,
+			Result: "Unauthorized",
+		},
+		Schema: schema,
+	}
+	response401 := bean.ResponseSchemaObject{
+		Description: description401,
+		Code:        "401",
+	}
+	responseSchemaObjects = append(responseSchemaObjects, response200)
+	responseSchemaObjects = append(responseSchemaObjects, response400)
+	responseSchemaObjects = append(responseSchemaObjects, response401)
+	return responseSchemaObjects
 }
