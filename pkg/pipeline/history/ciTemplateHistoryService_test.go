@@ -13,7 +13,7 @@ import (
 
 func TestCiTemplateHistoryService(t *testing.T) {
 
-	t.Run("Save", func(t *testing.T) {
+	t.Run("SaveHistory", func(t *testing.T) {
 
 		sugaredLogger, err := util.NewSugardLogger()
 		assert.Nil(t, err)
@@ -23,7 +23,6 @@ func TestCiTemplateHistoryService(t *testing.T) {
 		CiTemplateHistoryServiceImpl := NewCiTemplateHistoryServiceImpl(mockedCiTemplateHistoryRepository, sugaredLogger)
 
 		mockedCiTemplateHistoryObject := repository.CiTemplateHistory{
-			Id:                 1,
 			CiTemplateId:       28,
 			AppId:              38,
 			DockerRegistryId:   "prakash",
@@ -40,12 +39,14 @@ func TestCiTemplateHistoryService(t *testing.T) {
 			DockerBuildOptions: "",
 			CiBuildConfigId:    20,
 			BuildMetaDataType:  "self-dockerfile-build",
-			BuildMetadata:      "{\"dockerfileRelativePath\":\"Dockerfile\",\"dockerfileContent\":\"# Build Stage\\n# First pull Golang image\\nFROM golang:latest as builder \\n \\n RUN mkdir /app\\nADD . ./app\\nWORKDIR /app\\nCOPY . ./\\nRUN go build -o main .\\nEXPOSE 8080\\nCMD [\\\"/app/main\\\"]\\n\\n# Set environment variable\\n# ENV APP_NAME sams\\n# ENV CMD_PATH main.go\\n \\n# Copy application data into image\\n# COPY . ./\\n# WORKDIR $GOPATH/src/$APP_NAME\\n \\n# # Budild application\\n# RUN CGO_ENABLED=0 go build -v -o /$APP_NAME $GOPATH/src/Package/$CMD_PATH\\n \\n# # Run Stage\\n# FROM alpine:3.14\\n \\n# # Set environment variable\\n# ENV APP_NAME sample-dockerize-app\\n \\n# # Copy only required data into this image\\n# COPY --from=build-env /$APP_NAME .\\n \\n# # Expose application port\\n# EXPOSE 8081\\n \\n# # Start app\\n# CMD ./$APP_NAME\",\"targetPlatform\":\"linux/amd64,linux/arm64\",\"language\":\"Go\"}",
+			BuildMetadata:      "{\"dockerfileContent\":\"\"}",
 			Trigger:            "update",
 			AuditLog:           sql.AuditLog{},
 		}
-		dockerBuildOptions := map[string]string{}
-		dockerBuildOptions["volume"] = "abcd:defg"
+		//dockerBuildOptions := map[string]string{}
+		//dockerBuildOptions["dockerfileRelativePath"] = "Dockerfile"
+		//dockerBuildOptions["dockerfileContent"] = ""
+		//dockerBuildOptions["dockerfileRelativePath"] = "Dockerfile"
 
 		ciServiceObject := bean2.CiTemplateBean{
 			CiTemplate: &pipelineConfig.CiTemplate{
@@ -60,10 +61,10 @@ func TestCiTemplateHistoryService(t *testing.T) {
 				AfterDockerBuild:   "",
 				TemplateName:       "",
 				Version:            "",
-				Active:             false,
-				GitMaterialId:      0,
+				Active:             true,
+				GitMaterialId:      22,
 				DockerBuildOptions: "",
-				CiBuildConfigId:    0,
+				CiBuildConfigId:    20,
 				AuditLog:           sql.AuditLog{},
 				App:                nil,
 				DockerRegistry:     nil,
@@ -75,13 +76,15 @@ func TestCiTemplateHistoryService(t *testing.T) {
 				Id:                20,
 				GitMaterialId:     22,
 				CiBuildType:       "self-dockerfile-build",
-				DockerBuildConfig: &bean2.DockerBuildConfig{DockerfilePath: "Dockerfile", TargetPlatform: "linux/amd64", DockerBuildOptions: dockerBuildOptions},
+				DockerBuildConfig: &bean2.DockerBuildConfig{DockerfileContent: ""},
 				BuildPackConfig:   nil,
 			},
 			UserId: 0,
 		}
 
-		mockedCiTemplateHistoryRepository.On("Save", mockedCiTemplateHistoryObject).Return(nil)
+		mockedCiTemplateHistoryRepository.On("Save", &mockedCiTemplateHistoryObject).Return(
+			nil,
+		)
 
 		err = CiTemplateHistoryServiceImpl.SaveHistory(&ciServiceObject, "update")
 
