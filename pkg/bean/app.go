@@ -282,6 +282,10 @@ type CiConfigRequest struct {
 	BeforeDockerBuild []*Task                 `json:"beforeDockerBuild,omitempty" validate:"dive"`
 	AfterDockerBuild  []*Task                 `json:"afterDockerBuild,omitempty" validate:"dive"`
 	ScanEnabled       bool                    `json:"scanEnabled,notnull"`
+	CreatedOn         time.Time          `sql:"created_on,type:timestamptz"`
+	CreatedBy         int32              `sql:"created_by,type:integer"`
+	UpdatedOn         time.Time          `sql:"updated_on,type:timestamptz"`
+	UpdatedBy         int32              `sql:"updated_by,type:integer"`
 }
 
 type TestExecutorImageProperties struct {
