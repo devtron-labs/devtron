@@ -62,7 +62,15 @@ type CiPipelineHistory struct {
 	CiTemplateOverrideHistory string   `sql:"ci_template_override_history"`
 	CiPipelineMaterialHistory string   `sql:"ci_pipeline_material_history"`
 	Trigger                   string   `sql:"trigger"`
+	ScanEnabled               bool     `sql:"scan_enabled,notnull"`
+	Manual                    bool     `sql:"manual,notnull"`
 }
+
+const (
+	TRIGGER_ADD    = "add"
+	TRIGGER_UPDATE = "update"
+	TRIGGER_DELETE = "delete"
+)
 
 type CiPipelineHistoryRepository interface {
 	Save(ciPipelineHistory *CiPipelineHistory) error

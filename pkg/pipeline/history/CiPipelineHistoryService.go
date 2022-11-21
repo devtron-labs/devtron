@@ -11,7 +11,7 @@ import (
 )
 
 type CiPipelineHistoryService interface {
-	SaveHistory(CiPipelineId int, CiPipelineMaterial []*pipelineConfig.CiPipelineMaterial, ciTemplateBean *bean.CiTemplateBean, IsDockerConfigOverriden bool, Trigger string) error
+	SaveHistory(pipeline *pipelineConfig.CiPipeline, CiPipelineMaterial []*pipelineConfig.CiPipelineMaterial, ciTemplateBean *bean.CiTemplateBean, Trigger string) error
 }
 
 type CiPipelineHistoryServiceImpl struct {
@@ -27,12 +27,14 @@ func NewCiPipelineHistoryServiceImpl(CiPipelineHistoryRepository repository.CiPi
 	}
 }
 
-func (impl *CiPipelineHistoryServiceImpl) SaveHistory(CiPipelineId int, CiPipelineMaterial []*pipelineConfig.CiPipelineMaterial, CiTemplateBean *bean.CiTemplateBean, IsDockerConfigOverriden bool, Trigger string) error {
+func (impl *CiPipelineHistoryServiceImpl) SaveHistory(pipeline *pipelineConfig.CiPipeline, CiPipelineMaterial []*pipelineConfig.CiPipelineMaterial, CiTemplateBean *bean.CiTemplateBean, Trigger string) error {
 
 	CiPipelineMaterialJson, _ := json.Marshal(CiPipelineMaterial)
 
 	var CiPipelineHistory repository.CiPipelineHistory
 	var CiTemplateOverride repository.CiPipelineTemplateOverrideHistoryDTO
+
+	IsDockerConfigOverriden := pipeline.IsDockerConfigOverridden
 
 	if IsDockerConfigOverriden {
 		ciTemplateId := 0
@@ -75,10 +77,12 @@ func (impl *CiPipelineHistoryServiceImpl) SaveHistory(CiPipelineId int, CiPipeli
 	CiTemplateOverrideJson, _ := json.Marshal(CiTemplateOverride)
 
 	CiPipelineHistory = repository.CiPipelineHistory{
-		CiPipelineId:              CiPipelineId,
+		CiPipelineId:              pipeline.Id,
 		CiTemplateOverrideHistory: string(CiTemplateOverrideJson),
 		CiPipelineMaterialHistory: string(CiPipelineMaterialJson),
 		Trigger:                   Trigger,
+		ScanEnabled:               pipeline.ScanEnabled,
+		Manual:                    pipeline.IsManual,
 	}
 
 	err := impl.CiPipelineHistoryRepository.Save(&CiPipelineHistory)

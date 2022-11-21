@@ -1147,7 +1147,7 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 		return nil, fmt.Errorf("update of plugin scm material not supported")
 	} else {
 		modifiedCiPipeline.ScanEnabled = baseCiConfig.ScanEnabled
-		modifiedCiPipeline, err = impl.dbPipelineOrchestrator.PatchMaterialValue(modifiedCiPipeline, baseCiConfig.UserId)
+		modifiedCiPipeline, err = impl.dbPipelineOrchestrator.PatchMaterialValue(modifiedCiPipeline, baseCiConfig.UserId, pipeline)
 		if err != nil {
 			return nil, err
 		}
