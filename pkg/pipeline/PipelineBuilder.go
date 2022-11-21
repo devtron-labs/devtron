@@ -172,6 +172,7 @@ type PipelineBuilderImpl struct {
 	gitMaterialHistoryService    history.GitMaterialHistoryService
 	CiTemplateHistoryService     history.CiTemplateHistoryService
 	CiPipelineHistoryService     history.CiPipelineHistoryService
+	deploymentConfig             *DeploymentServiceTypeConfig
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -214,7 +215,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	gitMaterialHistoryService history.GitMaterialHistoryService,
 	CiTemplateHistoryService history.CiTemplateHistoryService,
-	CiPipelineHistoryService history.CiPipelineHistoryService) *PipelineBuilderImpl {
+	CiPipelineHistoryService history.CiPipelineHistoryService,
+	deploymentConfig *DeploymentServiceTypeConfig) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		dbPipelineOrchestrator:        dbPipelineOrchestrator,
@@ -263,6 +265,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		gitMaterialHistoryService:    gitMaterialHistoryService,
 		CiTemplateHistoryService:     CiTemplateHistoryService,
 		CiPipelineHistoryService:     CiPipelineHistoryService,
+		deploymentConfig:             deploymentConfig,
 	}
 }
 
