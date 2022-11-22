@@ -168,7 +168,7 @@ func (impl CiPipelineRepositoryImpl) MarkCiPipelineScriptsInactiveByCiPipelineId
 func (impl CiPipelineRepositoryImpl) FindByAppId(appId int) (pipelines []*CiPipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
 		Column("ci_pipeline.*", "CiPipelineMaterials", "ExternalCiPipeline", "CiPipelineMaterials.GitMaterial").
-		Where("ci_pipeline.app_id =?", appId).
+		Where("app_id =?", appId).
 		Where("deleted =? ", false).
 		Select()
 	return pipelines, err
