@@ -415,14 +415,14 @@ envoyproxy:
 containerSpec:
   lifecycle: 
     enabled: false
-    preStop:
-      exec: 
-        command: ["sleep","10"]
-    postStart:
-      httpGet:
-        host: example.com
-        path: /example
-        port: 90
+    preStop: {}
+#       exec: 
+#         command: ["sleep","10"]
+    postStart: {}
+#       httpGet:
+#         host: example.com
+#         path: /example
+#         port: 90
 
 podDisruptionBudget: {}
 #  minAvailable: 1
