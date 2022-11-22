@@ -115,6 +115,7 @@ type DockerConfigOverride struct {
 	DockerRepository string                  `json:"dockerRepository,omitempty"`
 	CiBuildConfig    *bean.CiBuildConfigBean `json:"ciBuildConfig,omitEmpty"`
 	//DockerBuildConfig *DockerBuildConfig  `json:"dockerBuildConfig,omitempty"`
+	TargetPlatform string `json:"targetPlatform,omitEmpty"`
 }
 
 type CiPipelineMin struct {

@@ -299,6 +299,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			return nil, err
 		}
 		ciBuildConfigBean := createRequest.DockerConfigOverride.CiBuildConfig
+
 		templateOverrideReq := &pipelineConfig.CiTemplateOverride{
 			CiPipelineId:     createRequest.Id,
 			DockerRegistryId: createRequest.DockerConfigOverride.DockerRegistry,
@@ -315,6 +316,7 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 		}
 		savedTemplateOverride := savedTemplateOverrideBean.CiTemplateOverride
 		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
+			ciBuildConfigBean.DockerBuildConfig.TargetPlatform = createRequest.DockerConfigOverride.TargetPlatform
 			ciBuildConfigBean.Id = savedTemplateOverride.CiBuildConfigId
 			templateOverrideReq.Id = savedTemplateOverride.Id
 			templateOverrideReq.CreatedOn = savedTemplateOverride.CreatedOn

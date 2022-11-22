@@ -921,6 +921,13 @@ func (impl PipelineBuilderImpl) PatchCiPipeline(request *bean.CiPatchRequest) (c
 	if request.CiPipeline != nil {
 		ciConfig.ScanEnabled = request.CiPipeline.ScanEnabled
 	}
+
+	for _, pipeline := range ciConfig.CiPipelines {
+		if pipeline.AppWorkflowId == request.AppWorkflowId {
+			pipeline.DockerConfigOverride.TargetPlatform = request.CiPipeline.DockerConfigOverride.TargetPlatform
+		}
+	}
+
 	switch request.Action {
 	case bean.CREATE:
 		impl.logger.Debugw("create patch request")
