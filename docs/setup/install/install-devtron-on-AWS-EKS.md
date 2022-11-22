@@ -153,6 +153,8 @@ helm upgrade --install aws-ebs-csi-driver --namespace kube-system aws-ebs-csi-dr
 kube-system
 ```
 
+**Note**: You can also EKS cluster using CLI command `eksctl`. Refer [here](https://github.com/devtron-labs/utilities/tree/main/eksctl-configs) for more detail.
+
 
 ## Install Devtron with CI/CD on AWS EKS 
 
