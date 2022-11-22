@@ -5,6 +5,7 @@
 ## Enhancements
 - feat: Audit logs for docker and git repositories (#2655)
 ## Documentation
+- docs: devtron readme - credentials update (#2663)
 - docs: Image Pull Secret Doc (#2604)
 - docs: updated url for the license file (#2662)
 ## Others
