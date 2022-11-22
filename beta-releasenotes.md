@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Lifecycle hook failing due to default values (#2671)
 - fix: unblocked pre cd auto trigger in case of manual cd  (#2666)
 - fix: app_id ambiguous fix (#2661)
 - fix: checking git material active status for multiple places :  1) while triggering ci 2) while getting commit info 3) while getting ci pipeline (#2636)
