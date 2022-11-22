@@ -1,18 +1,19 @@
 # Summary
 
 * [Introduction](README.md)
-* [How Devtron works]()
-* [Why Devtron](why-devtron.md)
-* [Getting Started](getting-started.md)
-* [FAQ](faq-on-installation.md)
-
-* [Install Devtron](setup/install/README.md)
-  * [Install Devtron with CI/CD integration](setup/install/install-devtron-with-cicd.md)
+* [Why Devtron](setup/getting-started/why-devtron.md)
+* [Getting Started](setup/getting-started/getting-started.md)
+* Install Devtron with CI/CD
+  * [Install Devtron with CI/CD Integreation](setup/install/install-devtron-with-cicd.md)
+  * [Install Devtron with CI/CD on AWS EKS](setup/install/install-devtron-on-AWS-EKS.md)
+* Install Devtron
   * [Install Devtron](setup/install/install-devtron.md)
   * [Install Devtron on Minikube, Microk8s, K3s, Kind](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
+* [FAQ](setup/install/faq-on-installation.md)
+* [Configurations](setup/configurations/configurations-overview.md)
   * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
-  * [Ingress setup for Devtron Installation](setup/install/ingress-setup.md)
+  * [Setup Ingress](setup/configurations/ingress-setup.md)
 * [Global Configurations](user-guide/global-configurations/README.md)
   * [GitOps](user-guide/global-configurations/gitops.md)
   * [Projects](user-guide/global-configurations/projects.md)
