@@ -198,7 +198,7 @@ Builds cannot be triggered from a linked CI pipeline; they can only be triggered
 
 The CI pipeline can receive container images from an external source via webhook API.
 
-You can use Devtron for deployments on Kubernetes while using your CI tool such as Jenkins or CircleCI. External CI features can be used when the CI tool is hosted outside the Devtron platform.
+You can use Devtron for deployments on Kubernetes while using an external CI tool such as Jenkins, Github actions, Gitlab CI or CircleCI. External CI feature can be used when the CI tool is hosted outside the Devtron platform. However, by using an external CI, you will not be able to use some of the Devtron features such as Image scanning and security policies, configuring pre-post CI stages etc. 
 
 
 * Create a [new](https://docs.devtron.ai/usage/applications/create-application) or [clone](https://docs.devtron.ai/usage/applications/cloning-application) an application.
