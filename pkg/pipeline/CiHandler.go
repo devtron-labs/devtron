@@ -267,10 +267,6 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 
 	ciMaterialHistoryMap := make(map[*pipelineConfig.CiPipelineMaterial]*gitSensor.MaterialChangeResp)
 	for _, m := range ciMaterials {
-		// git material should be active in this case
-		if m == nil || m.GitMaterial == nil || !m.GitMaterial.Active {
-			continue
-		}
 		changesRequest := &gitSensor.FetchScmChangesRequest{
 			PipelineMaterialId: m.Id,
 		}
@@ -1082,11 +1078,6 @@ func (impl *CiHandlerImpl) FetchMaterialInfoByArtifactId(ciArtifactId int) (*Git
 		for _, m := range ciMaterials {
 			var history []*gitSensor.GitCommit
 			_gitTrigger := workflow.GitTriggers[m.Id]
-
-			// ignore git trigger which have commit and webhook both data nil
-			if len(_gitTrigger.Commit) == 0 && _gitTrigger.WebhookData.Id == 0 {
-				continue
-			}
 
 			_gitCommit := &gitSensor.GitCommit{
 				Message: _gitTrigger.Message,
