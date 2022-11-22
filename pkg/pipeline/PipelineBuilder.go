@@ -74,6 +74,16 @@ func GetEcrConfig() (*EcrConfig, error) {
 	return cfg, err
 }
 
+type DeploymentServiceTypeConfig struct {
+	IsInternalUse bool `env:"IS_INTERNAL_USE" envDefault:"false"`
+}
+
+func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
+	cfg := &DeploymentServiceTypeConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
 type PipelineBuilder interface {
 	CreateCiPipeline(createRequest *bean.CiConfigRequest) (*bean.PipelineCreateResponse, error)
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
@@ -162,6 +172,7 @@ type PipelineBuilderImpl struct {
 	gitMaterialHistoryService    history.GitMaterialHistoryService
 	CiTemplateHistoryService     history.CiTemplateHistoryService
 	CiPipelineHistoryService     history.CiPipelineHistoryService
+	deploymentConfig             *DeploymentServiceTypeConfig
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -204,7 +215,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	gitMaterialHistoryService history.GitMaterialHistoryService,
 	CiTemplateHistoryService history.CiTemplateHistoryService,
-	CiPipelineHistoryService history.CiPipelineHistoryService) *PipelineBuilderImpl {
+	CiPipelineHistoryService history.CiPipelineHistoryService,
+	deploymentConfig *DeploymentServiceTypeConfig) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		dbPipelineOrchestrator:        dbPipelineOrchestrator,
@@ -253,6 +265,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		gitMaterialHistoryService:    gitMaterialHistoryService,
 		CiTemplateHistoryService:     CiTemplateHistoryService,
 		CiPipelineHistoryService:     CiPipelineHistoryService,
+		deploymentConfig:             deploymentConfig,
 	}
 }
 
@@ -331,6 +344,8 @@ func (impl PipelineBuilderImpl) DeleteMaterial(request *bean.UpdateMaterialDTO) 
 		return err
 	}
 	err = impl.gitMaterialHistoryService.MarkMaterialDeletedAndCreateHistory(existingMaterial)
+
+	//TODO: delete ci_pipeline_materials
 
 	return nil
 }
@@ -561,6 +576,10 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				CiBuildConfig:    ciTemplateBean.CiBuildConfig,
 			}
 		}
+		var gitMaterials []int
+		for _, gitMaterial := range ciConfig.Materials {
+			gitMaterials = append(gitMaterials, gitMaterial.GitMaterialId)
+		}
 		for _, material := range pipeline.CiPipelineMaterials {
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
@@ -574,7 +593,13 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				IsRegex:         material.Regex != "",
 				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
 			}
-			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+			for _, gitId := range gitMaterials {
+				if gitId == ciMaterial.GitMaterialId {
+					ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+					break
+				}
+			}
+
 		}
 
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
@@ -1142,14 +1167,23 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 }
 
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
+
+	isInternalUse := impl.deploymentConfig.IsInternalUse
+
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
 		return nil, err
 	}
 	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
 		isGitOpsConfigured = true
+	}
+
+	if isInternalUse && isGitOpsConfigured == false && pipelineCreateRequest.Pipelines[0].DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+		impl.logger.Errorw("Gitops not configured but selected in creating cd pipeline")
+		return nil, errors.New("Gitops not configured but selected in creating cd pipeline")
 	}
 
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
@@ -1201,7 +1235,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		}
 	}
 
-	if isGitOpsConfigured {
+	if isGitOpsConfigured && (!isInternalUse || pipelineCreateRequest.Pipelines[0].DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD) {
 		//if gitops configured create GIT repository and register into ACD
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 		if err != nil && pg.ErrNoRows != err {
@@ -1244,10 +1278,13 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		if isGitOpsConfigured {
-			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-		} else {
-			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+
+		if !isInternalUse {
+			if isGitOpsConfigured {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+			} else {
+				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+			}
 		}
 		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
 		if err != nil {
@@ -2370,6 +2407,7 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		RunPreStageInEnv:              dbPipeline.RunPreStageInEnv,
 		RunPostStageInEnv:             dbPipeline.RunPostStageInEnv,
 		CdArgoSetup:                   environment.Cluster.CdArgoSetup,
+		DeploymentAppType:             dbPipeline.DeploymentAppType,
 	}
 
 	return cdPipeline, err

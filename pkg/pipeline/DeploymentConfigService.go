@@ -9,6 +9,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
 	repository2 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/go-pg/pg"
+	"github.com/juju/errors"
 	"go.uber.org/zap"
 )
 
@@ -26,7 +27,6 @@ type DeploymentConfigServiceImpl struct {
 	pipelineConfigRepository     chartConfig.PipelineConfigRepository
 	configMapRepository          chartConfig.ConfigMapRepository
 	configMapHistoryService      history.ConfigMapHistoryService
-	chartRefRepository           chartRepoRepository.ChartRefRepository
 }
 
 func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
@@ -37,8 +37,7 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
 	pipelineConfigRepository chartConfig.PipelineConfigRepository,
 	configMapRepository chartConfig.ConfigMapRepository,
-	configMapHistoryService history.ConfigMapHistoryService,
-	chartRefRepository chartRepoRepository.ChartRefRepository) *DeploymentConfigServiceImpl {
+	configMapHistoryService history.ConfigMapHistoryService) *DeploymentConfigServiceImpl {
 	return &DeploymentConfigServiceImpl{
 		logger:                       logger,
 		envConfigOverrideRepository:  envConfigOverrideRepository,
@@ -49,7 +48,6 @@ func NewDeploymentConfigServiceImpl(logger *zap.SugaredLogger,
 		pipelineConfigRepository:     pipelineConfigRepository,
 		configMapRepository:          configMapRepository,
 		configMapHistoryService:      configMapHistoryService,
-		chartRefRepository:           chartRefRepository,
 	}
 }
 
@@ -100,48 +98,35 @@ func (impl *DeploymentConfigServiceImpl) GetLatestDeploymentTemplateConfig(pipel
 	} else {
 		isAppMetricsEnabled = *envLevelAppMetrics.AppMetrics
 	}
-	envOverride, err := impl.envConfigOverrideRepository.ActiveEnvConfigOverride(pipeline.AppId, pipeline.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("not able to get envConfigOverride", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
+	envOverride, err := impl.envConfigOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
+	if err != nil && err != errors.NotFoundf(err.Error()) {
+		impl.logger.Errorw("error in getting envConfigOverride by appId and envId", "err", err, "appId", pipeline.App, "envId", pipeline.EnvironmentId)
 		return nil, err
 	}
-	impl.logger.Infow("received override chart", "envConfigOverride", envOverride)
-	deploymentTemplateConfig := &history.HistoryDetailDto{}
-	if envOverride != nil && envOverride.Id > 0 && envOverride.IsOverride {
-		if envOverride.Chart != nil {
-			chartRef, err := impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
-			if err != nil {
-				impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
-				return nil, err
-			}
-			deploymentTemplateConfig = &history.HistoryDetailDto{
-				TemplateName:        envOverride.Chart.ChartName,
-				TemplateVersion:     chartRef.Version,
-				IsAppMetricsEnabled: &isAppMetricsEnabled,
-				CodeEditorValue: &history.HistoryDetailConfig{
-					DisplayName: "values.yaml",
-					Value:       envOverride.EnvOverrideValues,
-				},
-			}
-		}
-	} else {
+	var deploymentTemplateConfig *history.HistoryDetailDto
+	if err != errors.NotFoundf(err.Error()) || !envOverride.IsOverride {
 		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(pipeline.AppId)
 		if err != nil {
 			impl.logger.Errorw("error in getting chart by appId", "err", err, "appId", pipeline.AppId)
 			return nil, err
 		}
-		chartRef, err := impl.chartRefRepository.FindById(chart.ChartRefId)
-		if err != nil {
-			impl.logger.Errorw("error in getting chartRef by id", "err", err, "chartRefId", envOverride.Chart.ChartRefId)
-			return nil, err
-		}
 		deploymentTemplateConfig = &history.HistoryDetailDto{
 			TemplateName:        chart.ChartName,
-			TemplateVersion:     chartRef.Version,
+			TemplateVersion:     chart.ChartVersion,
 			IsAppMetricsEnabled: &isAppMetricsEnabled,
 			CodeEditorValue: &history.HistoryDetailConfig{
 				DisplayName: "values.yaml",
 				Value:       chart.GlobalOverride,
+			},
+		}
+	} else {
+		deploymentTemplateConfig = &history.HistoryDetailDto{
+			TemplateName:        envOverride.Chart.ChartName,
+			TemplateVersion:     envOverride.Chart.ChartVersion,
+			IsAppMetricsEnabled: &isAppMetricsEnabled,
+			CodeEditorValue: &history.HistoryDetailConfig{
+				DisplayName: "values.yaml",
+				Value:       envOverride.EnvOverrideValues,
 			},
 		}
 	}
@@ -156,8 +141,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestPipelineStrategyConfig(pipelin
 		return nil, err
 	}
 	pipelineStrategyConfig := &history.HistoryDetailDto{
-		Strategy:            string(pipelineStrategy.Strategy),
-		PipelineTriggerType: pipeline.TriggerType,
+		Strategy: string(pipelineStrategy.Strategy),
 		CodeEditorValue: &history.HistoryDetailConfig{
 			DisplayName: "Strategy configuration",
 			Value:       pipelineStrategy.Config,
@@ -190,12 +174,12 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 		configMapEnvLevel = configEnvLevel.ConfigMapData
 		secretEnvLevel = configEnvLevel.SecretData
 	}
-	mergedConfigMap, err := impl.GetMergedCMCSConfigMap(configMapAppLevel, configMapEnvLevel, repository2.CONFIGMAP_TYPE)
+	mergedConfigMap, err := impl.MergeCMCSConfig(configMapAppLevel, configMapEnvLevel, repository2.CONFIGMAP_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
 		return nil, nil, err
 	}
-	mergedSecret, err := impl.GetMergedCMCSConfigMap(secretAppLevel, secretEnvLevel, repository2.SECRET_TYPE)
+	mergedSecret, err := impl.MergeCMCSConfig(secretAppLevel, secretEnvLevel, repository2.SECRET_TYPE)
 	if err != nil {
 		impl.logger.Errorw("error in merging app level and env level CM configs", "err", err)
 		return nil, nil, err
@@ -223,7 +207,7 @@ func (impl *DeploymentConfigServiceImpl) GetLatestCMCSConfig(pipeline *pipelineC
 	return cmConfigsDto, secretConfigsDto, nil
 }
 
-func (impl *DeploymentConfigServiceImpl) GetMergedCMCSConfigMap(appLevelConfig, envLevelConfig string, configType repository2.ConfigType) (map[string]*history.ConfigData, error) {
+func (impl *DeploymentConfigServiceImpl) MergeCMCSConfig(appLevelConfig, envLevelConfig string, configType repository2.ConfigType) (map[string]*history.ConfigData, error) {
 	envLevelMap := make(map[string]*history.ConfigData, 0)
 	finalMap := make(map[string]*history.ConfigData, 0)
 	if configType == repository2.CONFIGMAP_TYPE {

@@ -22,6 +22,7 @@ package main
 
 import (
 	"github.com/devtron-labs/authenticator/middleware"
+	pubsub_lib "github.com/devtron-labs/common-lib/pubsub-lib"
 	"github.com/devtron-labs/devtron/api/apiToken"
 	appStoreRestHandler "github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
@@ -199,6 +200,7 @@ func InitializeApp() (*App, error) {
 		app2.NewAppRepositoryImpl,
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
 
+		pipeline.GetDeploymentServiceTypeConfig,
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
 		pipeline2.NewPipelineRestHandlerImpl,
@@ -392,6 +394,7 @@ func InitializeApp() (*App, error) {
 		pipeline.NewCiLogServiceImpl,
 		wire.Bind(new(pipeline.CiLogService), new(*pipeline.CiLogServiceImpl)),
 
+		pubsub_lib.NewPubSubClientServiceImpl,
 		pubsub2.NewPubSubClient,
 
 		pubsub.NewGitWebhookHandler,

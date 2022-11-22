@@ -22,6 +22,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"net/http"
 	"strconv"
@@ -69,16 +70,19 @@ type UserRestHandlerImpl struct {
 	logger           *zap.SugaredLogger
 	enforcer         casbin.Enforcer
 	roleGroupService user.RoleGroupService
+	teamRepository   team.TeamRepository
 }
 
 func NewUserRestHandlerImpl(userService user.UserService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService) *UserRestHandlerImpl {
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService,
+	teamRepository team.TeamRepository) *UserRestHandlerImpl {
 	userAuthHandler := &UserRestHandlerImpl{
 		userService:      userService,
 		validator:        validator,
 		logger:           logger,
 		enforcer:         enforcer,
 		roleGroupService: roleGroupService,
+		teamRepository:   teamRepository,
 	}
 	return userAuthHandler
 }
@@ -295,12 +299,9 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
 	isAuthorised := false
-	//checking superAdmin access
-	isAuthorised, err = handler.userService.IsSuperAdmin(int(userId))
-	if err != nil {
-		handler.logger.Errorw("error in checking superAdmin access of user", "err", err)
-		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-		return
+	//checking for superadmin access
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isAuthorised = true
 	}
 	if !isAuthorised {
 		user, err := handler.userService.GetById(userId)
