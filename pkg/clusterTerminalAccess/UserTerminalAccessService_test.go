@@ -20,11 +20,24 @@ import (
 	"time"
 )
 
+func TestWrongImageCase(t *testing.T) {
+	terminalAccessServiceImpl := initTerminalAccessService(t)
+	t.Run("wrongImage", func(t *testing.T) {
+		baseImage := "devtron/randomimage"
+		//baseImage = "trstringer/internal-kubectl"
+		terminalSessionResponse := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, 1, 2, baseImage)
+		sessionId, err := fetchSessionId(terminalAccessServiceImpl, terminalSessionResponse.TerminalAccessId)
+		assert.Nil(t, err)
+		assert.NotEmpty(t, sessionId)
+	})
+}
+
 func TestNewUserTerminalAccessService(t *testing.T) {
 	t.SkipNow()
+	terminalAccessServiceImpl := initTerminalAccessService(t)
 	t.Run("ClusterTerminalJourneyForSingleUserSingleSession", func(t *testing.T) {
-		terminalAccessServiceImpl := initTerminalAccessService(t)
-		updateTerminalSession := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, 1, 2)
+		baseImage := "trstringer/internal-kubectl:latest"
+		updateTerminalSession := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, 1, 2, baseImage)
 
 		err := terminalAccessServiceImpl.StopTerminalSession(updateTerminalSession.TerminalAccessId)
 		assert.Nil(t, err)
@@ -37,12 +50,12 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 	})
 
 	t.Run("ClusterTerminalJourneyForSingleUserMultiSession", func(t *testing.T) {
-		terminalAccessServiceImpl := initTerminalAccessService(t)
 		clusterId := 1
 		userId := int32(2)
-		terminalSession1 := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, clusterId, userId)
-		terminalSession2 := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, clusterId, userId)
-		terminalSession3 := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, clusterId, userId)
+		baseImage := "trstringer/internal-kubectl:latest"
+		terminalSession1 := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, clusterId, userId, baseImage)
+		terminalSession2 := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, clusterId, userId, baseImage)
+		terminalSession3 := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, clusterId, userId, baseImage)
 
 		terminalAccessServiceImpl.DisconnectAllSessionsForUser(userId)
 		_, err := fetchSessionId(terminalAccessServiceImpl, terminalSession1.TerminalAccessId)
@@ -108,12 +121,12 @@ func initTerminalAccessService(t *testing.T) *UserTerminalAccessServiceImpl {
 	return terminalAccessServiceImpl
 }
 
-func createAndUpdateSessionForUser(t *testing.T, terminalAccessServiceImpl *UserTerminalAccessServiceImpl, clusterId int, userId int32) *models.UserTerminalSessionResponse {
+func createAndUpdateSessionForUser(t *testing.T, terminalAccessServiceImpl *UserTerminalAccessServiceImpl, clusterId int, userId int32, baseImage string) *models.UserTerminalSessionResponse {
 
 	request := &models.UserTerminalSessionRequest{
 		UserId:    userId,
 		ClusterId: clusterId,
-		BaseImage: "trstringer/internal-kubectl:latest",
+		BaseImage: baseImage,
 		ShellName: "sh",
 		NodeName:  "demo-new",
 	}
