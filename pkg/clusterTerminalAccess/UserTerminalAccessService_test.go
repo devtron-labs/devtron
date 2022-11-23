@@ -25,10 +25,32 @@ func TestWrongImageCase(t *testing.T) {
 	t.Run("wrongImage", func(t *testing.T) {
 		baseImage := "devtron/randomimage"
 		//baseImage = "trstringer/internal-kubectl"
-		terminalSessionResponse := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, 1, 2, baseImage)
-		sessionId, err := fetchSessionId(terminalAccessServiceImpl, terminalSessionResponse.TerminalAccessId)
+		clusterId := 1
+		userId := int32(2)
+		request := &models.UserTerminalSessionRequest{
+			UserId:    userId,
+			ClusterId: clusterId,
+			BaseImage: baseImage,
+			ShellName: "sh",
+			NodeName:  "demo-new",
+		}
+		time.Sleep(5 * time.Second)
+		terminalSessionResponse, err := terminalAccessServiceImpl.StartTerminalSession(request)
 		assert.Nil(t, err)
-		assert.NotEmpty(t, sessionId)
+		fmt.Println(terminalSessionResponse)
+		podManifest, err := terminalAccessServiceImpl.FetchPodManifest(terminalSessionResponse.TerminalAccessId)
+		assert.Nil(t, err)
+		fmt.Println("manifest", podManifest.Manifest)
+		podEvents, err := terminalAccessServiceImpl.FetchPodEvents(terminalSessionResponse.TerminalAccessId)
+		assert.Nil(t, err)
+		fmt.Println(podEvents)
+		sessionId, err := fetchSessionId(terminalAccessServiceImpl, terminalSessionResponse.TerminalAccessId)
+		assert.Equal(t, err, errors.New("pod-terminated"))
+		assert.Empty(t, sessionId)
+		podManifest, err = terminalAccessServiceImpl.FetchPodManifest(terminalSessionResponse.TerminalAccessId)
+		assert.Equal(t, err, errors.New("pod-terminated"))
+		podEvents, err = terminalAccessServiceImpl.FetchPodEvents(terminalSessionResponse.TerminalAccessId)
+		assert.Equal(t, err, errors.New("pod-terminated"))
 	})
 }
 
