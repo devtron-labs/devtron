@@ -26,6 +26,7 @@ import (
 	"errors"
 	"fmt"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -50,6 +51,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/go-pg/pg"
+	errors1 "github.com/juju/errors"
 	"go.uber.org/zap"
 )
 
@@ -71,6 +73,7 @@ type DbPipelineOrchestrator interface {
 	BuildCiPipelineScript(userId int32, ciScript *bean.CiScript, scriptStage string, ciPipeline *bean.CiPipeline) *pipelineConfig.CiPipelineScript
 	AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error
 	CheckStringMatchRegex(regex string, value string) bool
+	CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error
 }
 
 type DbPipelineOrchestratorImpl struct {
@@ -92,10 +95,11 @@ type DbPipelineOrchestratorImpl struct {
 	prePostCiScriptHistoryService history3.PrePostCiScriptHistoryService
 	pipelineStageService          PipelineStageService
 	//ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
-	ciTemplateService            CiTemplateService
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
-	gitMaterialHistoryService    history3.GitMaterialHistoryService
-	ciPipelineHistoryService     history3.CiPipelineHistoryService
+	ciTemplateService             CiTemplateService
+	ciTemplateOverrideRepository  pipelineConfig.CiTemplateOverrideRepository
+	gitMaterialHistoryService     history3.GitMaterialHistoryService
+	ciPipelineHistoryService      history3.CiPipelineHistoryService
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository
 }
 
 func NewDbPipelineOrchestrator(
@@ -117,7 +121,9 @@ func NewDbPipelineOrchestrator(
 	pipelineStageService PipelineStageService,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	gitMaterialHistoryService history3.GitMaterialHistoryService,
-	ciPipelineHistoryService history3.CiPipelineHistoryService, ciTemplateService CiTemplateService) *DbPipelineOrchestratorImpl {
+	ciPipelineHistoryService history3.CiPipelineHistoryService,
+	ciTemplateService CiTemplateService,
+	dockerArtifactStoreRepository dockerRegistryRepository.DockerArtifactStoreRepository) *DbPipelineOrchestratorImpl {
 	return &DbPipelineOrchestratorImpl{
 		appRepository:                 pipelineGroupRepository,
 		logger:                        logger,
@@ -140,6 +146,7 @@ func NewDbPipelineOrchestrator(
 		gitMaterialHistoryService:     gitMaterialHistoryService,
 		ciPipelineHistoryService:      ciPipelineHistoryService,
 		ciTemplateService:             ciTemplateService,
+		dockerArtifactStoreRepository: dockerArtifactStoreRepository,
 	}
 }
 
@@ -373,15 +380,18 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			}
 
 		}
+		err = impl.createEcrRepoIfNeededForCiTemplateOverride(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
+		if err != nil {
+			impl.logger.Errorw("error, createEcrRepoIfNeededForCiTemplateOverride", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
+			return nil, err
+		}
 	} else {
-
 		ciTemplateBean := &bean2.CiTemplateBean{
 			CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
 			CiBuildConfig:      nil,
 			UserId:             userId,
 		}
 		err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, materials, ciTemplateBean, repository4.TRIGGER_UPDATE)
-
 		if err != nil {
 			impl.logger.Errorw("error in saving history of ci pipeline material")
 		}
@@ -658,15 +668,16 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			if err != nil {
 				return nil, err
 			}
-
+			err = impl.createEcrRepoIfNeededForCiTemplateOverride(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
+			if err != nil {
+				impl.logger.Errorw("error, createEcrRepoIfNeededForCiTemplateOverride", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
+				return nil, err
+			}
 			err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, pipelineMaterials, ciTemplateBean, repository4.TRIGGER_ADD)
-
 			if err != nil {
 				impl.logger.Errorw("error in saving history for ci pipeline")
 			}
-
 		} else {
-
 			ciTemplateBean := &bean2.CiTemplateBean{
 				CiTemplateOverride: &pipelineConfig.CiTemplateOverride{},
 				CiBuildConfig:      nil,
@@ -1485,4 +1496,34 @@ func (impl DbPipelineOrchestratorImpl) GetByEnvOverrideId(envOverrideId int) (*b
 		Pipelines: pipelines,
 	}
 	return cdPipelines, nil
+}
+
+func (impl DbPipelineOrchestratorImpl) createEcrRepoIfNeededForCiTemplateOverride(dockerRegistryId, dockerRepository string) error {
+	dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(dockerRegistryId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching DockerRegistry  for update", "err", err, "registry", dockerRegistryId)
+		return err
+	}
+	if dockerArtifactStore.RegistryType == dockerRegistryRepository.REGISTRYTYPE_ECR {
+		err := impl.CreateEcrRepo(dockerRepository, dockerArtifactStore.AWSRegion, dockerArtifactStore.AWSAccessKeyId, dockerArtifactStore.AWSSecretAccessKey)
+		if err != nil {
+			impl.logger.Errorw("ecr repo creation failed while updating ci template", "err", err, "repo", dockerRepository)
+			return err
+		}
+	}
+	return nil
+}
+func (impl DbPipelineOrchestratorImpl) CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error {
+	impl.logger.Debugw("attempting ecr repo creation ", "repo", dockerRepository)
+	err := util.CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey)
+	if err != nil {
+		if errors1.IsAlreadyExists(err) {
+			impl.logger.Warnw("this repo already exists!!, skipping repo creation", "repo", dockerRepository)
+		} else {
+			impl.logger.Errorw("ecr repo creation failed, it might be due to authorization or any other external "+
+				"dependency. please create repo manually before triggering ci", "repo", dockerRepository, "err", err)
+			return err
+		}
+	}
+	return nil
 }
