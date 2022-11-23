@@ -4,8 +4,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/externalLink"
-	"github.com/go-pg/pg"
-	//"github.com/go-pg/pg/mocks"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -27,125 +25,6 @@ func getExternalLinkService(t *testing.T) *externalLink.ExternalLinkServiceImpl 
 	externalLinkMonitoringToolRepository := NewExternalLinkMonitoringToolRepository(t)
 
 	return externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
-}
-
-func TestExternalLinkServiceImpl_Create(t *testing.T) {
-	t.SkipNow()
-	logger, err := util.NewSugardLogger()
-	assert.Nil(t, err)
-	externalLinkRepositoryMocked := NewExternalLinkRepository(t)
-	externalLinkIdentifierMappingRepositoryMocked := NewExternalLinkIdentifierMappingRepository(t)
-	externalLinkMonitoringToolRepository := NewExternalLinkMonitoringToolRepository(t)
-
-	externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
-	inputRequests := make([]*externalLink.ExternalLinkDto, 0)
-	inputRequests = append(inputRequests, &externalLink.ExternalLinkDto{
-		Name:        "test1",
-		Url:         "https://www.google.com",
-		Type:        "clusterLevel",
-		Identifiers: nil,
-	})
-	inputRequests = append(inputRequests, &externalLink.ExternalLinkDto{
-		Name:        "test2",
-		Url:         "https://www.abc.com",
-		Type:        "appLevel",
-		Identifiers: nil,
-	})
-	outputResponse1 := &externalLink.ExternalLinkApiResponse{
-		Success: true,
-	}
-	//tx := Tx{}
-	//dbMocked := mocks.DB{}
-	//dbMocked.On("Begin").Return(&tx, nil)
-	//externalLinkRepositoryMocked.On("GetConnection").Return()
-	//test1
-	externalLinkRepositoryMocked.On("Save", nil).Return(nil)
-	externalLinkIdentifierMappingRepositoryMocked.On("Save", nil, &pg.Tx{}).Return("error")
-	testResult, err := externalLinkService.Create(inputRequests, 1, "admin")
-	assert.Nil(t, err)
-	assert.NotNil(t, testResult)
-	assert.Equal(t, testResult.Success, outputResponse1.Success)
-	inputRequests = append(inputRequests, &externalLink.ExternalLinkDto{
-		Name:        "test2",
-		Url:         "https://www.abc.com",
-		Type:        "appLevel",
-		Identifiers: []externalLink.LinkIdentifier{},
-	})
-	//test2
-	externalLinkRepositoryMocked.On("Save", inputRequests[1], nil).Return("error")
-	externalLinkIdentifierMappingRepositoryMocked.On("Save", nil).Return(nil)
-	testResult, err = externalLinkService.Create(inputRequests, 1, "admin")
-	outputResponse2 := &externalLink.ExternalLinkApiResponse{
-		Success: false,
-	}
-	assert.NotNil(t, err)
-	assert.Equal(t, "error", err)
-	assert.NotNil(t, testResult)
-	assert.Equal(t, outputResponse2.Success, testResult.Success)
-
-	inputRequests[1].Identifiers = append(inputRequests[1].Identifiers, externalLink.LinkIdentifier{
-		Type:       "devtron-app",
-		Identifier: "abc",
-	})
-	//test3
-	externalLinkRepositoryMocked.On("Save", inputRequests[1], nil).Return(nil)
-	externalLinkIdentifierMappingRepositoryMocked.On("Save", nil).Return(nil)
-	testResult, err = externalLinkService.Create(inputRequests, 1, "admin")
-	outputResponse3 := &externalLink.ExternalLinkApiResponse{
-		Success: false,
-	}
-	assert.NotNil(t, outputResponse3)
-	assert.NotNil(t, err)
-	assert.Equal(t, testResult.Success, outputResponse3.Success)
-	inputRequests[1].Identifiers = append(inputRequests[0].Identifiers, externalLink.LinkIdentifier{
-		Type:       "devtron-app",
-		Identifier: "1",
-	})
-	//test4
-	externalLinkRepositoryMocked.On("Save", inputRequests[1], nil).Return(nil)
-	externalLinkIdentifierMappingRepositoryMocked.On("Save", nil).Return(nil)
-	testResult, err = externalLinkService.Create(inputRequests, 1, "admin")
-	outputResponse4 := &externalLink.ExternalLinkApiResponse{
-		Success: false,
-	}
-	assert.NotNil(t, outputResponse4)
-	assert.NotNil(t, err)
-	assert.Equal(t, testResult.Success, outputResponse4.Success)
-
-}
-
-func TestExternalLinkServiceImpl_DeleteLink(t *testing.T) {
-	t.SkipNow()
-	logger, err := util.NewSugardLogger()
-	assert.Nil(t, err)
-	externalLinkRepositoryMocked := NewExternalLinkRepository(t)
-	externalLinkIdentifierMappingRepositoryMocked := NewExternalLinkIdentifierMappingRepository(t)
-	externalLinkMonitoringToolRepository := NewExternalLinkMonitoringToolRepository(t)
-
-	externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
-	mockLink := externalLink.ExternalLink{
-		Id:         1,
-		IsEditable: false,
-	}
-	//tx := Tx{}
-	//dbMocked := mocks.DB{}
-	//dbMocked.On("Begin").Return(&tx, nil)
-	//externalLinkRepositoryMocked.On("GetConnection").Return(&dbMocked)
-	mockExternalLinkMappings := make([]externalLink.ExternalLinkIdentifierMapping, 0)
-	mockExternalLinkMappings = append(mockExternalLinkMappings, externalLink.ExternalLinkIdentifierMapping{})
-	externalLinkRepositoryMocked.On("FindOne", 1).Return(mockLink)
-	externalLinkRepositoryMocked.On("Update", nil, nil).Return(nil)
-	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByExternalLinkId", 1).Return(mockExternalLinkMappings)
-	externalLinkIdentifierMappingRepositoryMocked.On("Update").Return(nil)
-	res, err := externalLinkService.DeleteLink(1, 2, "admin")
-	assert.NotNil(t, err)
-	assert.Equal(t, err, fmt.Errorf("user not allowed to perform update or delete"))
-	assert.NotNil(t, res)
-	assert.Equal(t, res.Success, false)
-	res, err = externalLinkService.DeleteLink(1, 2, "superAdmin")
-	assert.Nil(t, err)
-	assert.NotNil(t, res)
-	assert.Equal(t, res.Success, true)
 }
 
 func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.T) {
@@ -425,54 +304,173 @@ func TestExternalLinkServiceImpl_GetAllActiveTools(t *testing.T) {
 	})
 }
 
-func TestExternalLinkServiceImpl_Update(t *testing.T) {
-	t.SkipNow()
-	logger, err := util.NewSugardLogger()
-	assert.Nil(t, err)
-	externalLinkRepositoryMocked := NewExternalLinkRepository(t)
-	externalLinkIdentifierMappingRepositoryMocked := NewExternalLinkIdentifierMappingRepository(t)
-	externalLinkMonitoringToolRepository := NewExternalLinkMonitoringToolRepository(t)
+//func TestExternalLinkServiceImpl_Update(t *testing.T) {
+//	t.SkipNow()
+//	logger, err := util.NewSugardLogger()
+//	assert.Nil(t, err)
+//	externalLinkRepositoryMocked := NewExternalLinkRepository(t)
+//	externalLinkIdentifierMappingRepositoryMocked := NewExternalLinkIdentifierMappingRepository(t)
+//	externalLinkMonitoringToolRepository := NewExternalLinkMonitoringToolRepository(t)
+//
+//	activeMappings := []externalLink.LinkIdentifier{
+//		{
+//			Type:      "cluster",
+//			ClusterId: 1,
+//		},
+//		{
+//			Type:      "cluster",
+//			ClusterId: 4,
+//		},
+//	}
+//	externalLinkDtoInput := externalLink.ExternalLinkDto{
+//		Id:               1,
+//		Name:             "name2",
+//		Url:              "test-url1",
+//		IsEditable:       true,
+//		MonitoringToolId: 1,
+//		Identifiers:      activeMappings,
+//	}
+//
+//	externalLinkOutput := externalLink.ExternalLink{
+//		Id:                           1,
+//		Name:                         "name1",
+//		Url:                          "test-url1",
+//		IsEditable:                   true,
+//		ExternalLinkMonitoringToolId: 1,
+//	}
+//	externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
+//	//tx := Tx{}
+//	//dbMocked := mocks.DB{}
+//	//dbMocked.On("Begin").Return(&tx, nil)
+//	//externalLinkRepositoryMocked.On("GetConnection").Return(&dbMocked)
+//	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByExternalLinkId").Return(activeMappings)
+//	externalLinkIdentifierMappingRepositoryMocked.On("Update").Return(nil)
+//	externalLinkIdentifierMappingRepositoryMocked.On("Save").Return(nil)
+//	externalLinkRepositoryMocked.On("FindOne", 1).Return(externalLinkOutput)
+//	externalLinkRepositoryMocked.On("Update").Return(nil)
+//
+//	res, err := externalLinkService.Update(&externalLinkDtoInput, externalLink.SUPER_ADMIN_ROLE)
+//	assert.Nil(t, err)
+//	assert.NotNil(t, res)
+//	assert.Equal(t, res.Success, true)
+//
+//}
 
-	activeMappings := []externalLink.LinkIdentifier{
-		{
-			Type:      "cluster",
-			ClusterId: 1,
-		},
-		{
-			Type:      "cluster",
-			ClusterId: 4,
-		},
-	}
-	externalLinkDtoInput := externalLink.ExternalLinkDto{
-		Id:               1,
-		Name:             "name2",
-		Url:              "test-url1",
-		IsEditable:       true,
-		MonitoringToolId: 1,
-		Identifiers:      activeMappings,
-	}
-
-	externalLinkOutput := externalLink.ExternalLink{
-		Id:                           1,
-		Name:                         "name1",
-		Url:                          "test-url1",
-		IsEditable:                   true,
-		ExternalLinkMonitoringToolId: 1,
-	}
-	externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
-	//tx := Tx{}
-	//dbMocked := mocks.DB{}
-	//dbMocked.On("Begin").Return(&tx, nil)
-	//externalLinkRepositoryMocked.On("GetConnection").Return(&dbMocked)
-	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByExternalLinkId").Return(activeMappings)
-	externalLinkIdentifierMappingRepositoryMocked.On("Update").Return(nil)
-	externalLinkIdentifierMappingRepositoryMocked.On("Save").Return(nil)
-	externalLinkRepositoryMocked.On("FindOne", 1).Return(externalLinkOutput)
-	externalLinkRepositoryMocked.On("Update").Return(nil)
-
-	res, err := externalLinkService.Update(&externalLinkDtoInput, externalLink.SUPER_ADMIN_ROLE)
-	assert.Nil(t, err)
-	assert.NotNil(t, res)
-	assert.Equal(t, res.Success, true)
-
-}
+//func TestExternalLinkServiceImpl_Create(t *testing.T) {
+//	t.SkipNow()
+//	logger, err := util.NewSugardLogger()
+//	assert.Nil(t, err)
+//	externalLinkRepositoryMocked := NewExternalLinkRepository(t)
+//	externalLinkIdentifierMappingRepositoryMocked := NewExternalLinkIdentifierMappingRepository(t)
+//	externalLinkMonitoringToolRepository := NewExternalLinkMonitoringToolRepository(t)
+//
+//	externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
+//	inputRequests := make([]*externalLink.ExternalLinkDto, 0)
+//	inputRequests = append(inputRequests, &externalLink.ExternalLinkDto{
+//		Name:        "test1",
+//		Url:         "https://www.google.com",
+//		Type:        "clusterLevel",
+//		Identifiers: nil,
+//	})
+//	inputRequests = append(inputRequests, &externalLink.ExternalLinkDto{
+//		Name:        "test2",
+//		Url:         "https://www.abc.com",
+//		Type:        "appLevel",
+//		Identifiers: nil,
+//	})
+//	outputResponse1 := &externalLink.ExternalLinkApiResponse{
+//		Success: true,
+//	}
+//	//tx := Tx{}
+//	//dbMocked := mocks.DB{}
+//	//dbMocked.On("Begin").Return(&tx, nil)
+//	//externalLinkRepositoryMocked.On("GetConnection").Return()
+//	//test1
+//	externalLinkRepositoryMocked.On("Save", nil).Return(nil)
+//	externalLinkIdentifierMappingRepositoryMocked.On("Save", nil, &pg.Tx{}).Return("error")
+//	testResult, err := externalLinkService.Create(inputRequests, 1, "admin")
+//	assert.Nil(t, err)
+//	assert.NotNil(t, testResult)
+//	assert.Equal(t, testResult.Success, outputResponse1.Success)
+//	inputRequests = append(inputRequests, &externalLink.ExternalLinkDto{
+//		Name:        "test2",
+//		Url:         "https://www.abc.com",
+//		Type:        "appLevel",
+//		Identifiers: []externalLink.LinkIdentifier{},
+//	})
+//	//test2
+//	externalLinkRepositoryMocked.On("Save", inputRequests[1], nil).Return("error")
+//	externalLinkIdentifierMappingRepositoryMocked.On("Save", nil).Return(nil)
+//	testResult, err = externalLinkService.Create(inputRequests, 1, "admin")
+//	outputResponse2 := &externalLink.ExternalLinkApiResponse{
+//		Success: false,
+//	}
+//	assert.NotNil(t, err)
+//	assert.Equal(t, "error", err)
+//	assert.NotNil(t, testResult)
+//	assert.Equal(t, outputResponse2.Success, testResult.Success)
+//
+//	inputRequests[1].Identifiers = append(inputRequests[1].Identifiers, externalLink.LinkIdentifier{
+//		Type:       "devtron-app",
+//		Identifier: "abc",
+//	})
+//	//test3
+//	externalLinkRepositoryMocked.On("Save", inputRequests[1], nil).Return(nil)
+//	externalLinkIdentifierMappingRepositoryMocked.On("Save", nil).Return(nil)
+//	testResult, err = externalLinkService.Create(inputRequests, 1, "admin")
+//	outputResponse3 := &externalLink.ExternalLinkApiResponse{
+//		Success: false,
+//	}
+//	assert.NotNil(t, outputResponse3)
+//	assert.NotNil(t, err)
+//	assert.Equal(t, testResult.Success, outputResponse3.Success)
+//	inputRequests[1].Identifiers = append(inputRequests[0].Identifiers, externalLink.LinkIdentifier{
+//		Type:       "devtron-app",
+//		Identifier: "1",
+//	})
+//	//test4
+//	externalLinkRepositoryMocked.On("Save", inputRequests[1], nil).Return(nil)
+//	externalLinkIdentifierMappingRepositoryMocked.On("Save", nil).Return(nil)
+//	testResult, err = externalLinkService.Create(inputRequests, 1, "admin")
+//	outputResponse4 := &externalLink.ExternalLinkApiResponse{
+//		Success: false,
+//	}
+//	assert.NotNil(t, outputResponse4)
+//	assert.NotNil(t, err)
+//	assert.Equal(t, testResult.Success, outputResponse4.Success)
+//
+//}
+//
+//func TestExternalLinkServiceImpl_DeleteLink(t *testing.T) {
+//	t.SkipNow()
+//	logger, err := util.NewSugardLogger()
+//	assert.Nil(t, err)
+//	externalLinkRepositoryMocked := NewExternalLinkRepository(t)
+//	externalLinkIdentifierMappingRepositoryMocked := NewExternalLinkIdentifierMappingRepository(t)
+//	externalLinkMonitoringToolRepository := NewExternalLinkMonitoringToolRepository(t)
+//
+//	externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
+//	mockLink := externalLink.ExternalLink{
+//		Id:         1,
+//		IsEditable: false,
+//	}
+//	//tx := Tx{}
+//	//dbMocked := mocks.DB{}
+//	//dbMocked.On("Begin").Return(&tx, nil)
+//	//externalLinkRepositoryMocked.On("GetConnection").Return(&dbMocked)
+//	mockExternalLinkMappings := make([]externalLink.ExternalLinkIdentifierMapping, 0)
+//	mockExternalLinkMappings = append(mockExternalLinkMappings, externalLink.ExternalLinkIdentifierMapping{})
+//	externalLinkRepositoryMocked.On("FindOne", 1).Return(mockLink)
+//	externalLinkRepositoryMocked.On("Update", nil, nil).Return(nil)
+//	externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByExternalLinkId", 1).Return(mockExternalLinkMappings)
+//	externalLinkIdentifierMappingRepositoryMocked.On("Update").Return(nil)
+//	res, err := externalLinkService.DeleteLink(1, 2, "admin")
+//	assert.NotNil(t, err)
+//	assert.Equal(t, err, fmt.Errorf("user not allowed to perform update or delete"))
+//	assert.NotNil(t, res)
+//	assert.Equal(t, res.Success, false)
+//	res, err = externalLinkService.DeleteLink(1, 2, "superAdmin")
+//	assert.Nil(t, err)
+//	assert.NotNil(t, res)
+//	assert.Equal(t, res.Success, true)
+//}

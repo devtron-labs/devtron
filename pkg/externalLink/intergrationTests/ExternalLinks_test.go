@@ -12,9 +12,9 @@ import (
 
 type Config struct {
 	Addr            string `env:"TEST_PG_ADDR" envDefault:"127.0.0.1"`
-	Port            string `env:"TEST_PG_PORT" envDefault:"8085"`
-	User            string `env:"TEST_PG_USER" envDefault:""`
-	Password        string `env:"TEST_PG_PASSWORD" envDefault:"" secretData:"-"`
+	Port            string `env:"TEST_PG_PORT" envDefault:"55000"`
+	User            string `env:"TEST_PG_USER" envDefault:"postgres"`
+	Password        string `env:"TEST_PG_PASSWORD" envDefault:"postgrespw" secretData:"-"`
 	Database        string `env:"TEST_PG_DATABASE" envDefault:"orchestrator"`
 	ApplicationName string `env:"TEST_APP" envDefault:"orchestrator"`
 	LogQuery        bool   `env:"TEST_PG_LOG_QUERY" envDefault:"true"`
@@ -58,14 +58,14 @@ func TestExternalLinkServiceImpl_Create(t *testing.T) {
 	assert.Equal(t, inputData[0].Url, outputData[0].Url)
 	assert.Equal(t, inputData[0].IsEditable, outputData[0].IsEditable)
 	assert.NotNil(t, outputData[0].Identifiers)
-	assert.Equal(t, 2, outputData[0].Identifiers)
+	assert.Equal(t, 2, len(outputData[0].Identifiers))
 	for i, idf := range inputData[0].Identifiers {
 		assert.Equal(t, idf.Type, outputData[0].Identifiers[i].Type)
 		assert.Equal(t, idf.Identifier, outputData[0].Identifiers[i].Identifier)
 		assert.Equal(t, idf.ClusterId, outputData[0].Identifiers[i].ClusterId)
 	}
 	//clean created data
-	cleanDb()
+	cleanDb(t)
 }
 
 func TestExternalLinkServiceImpl_Update(t *testing.T) {
@@ -104,10 +104,10 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
 		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
 		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
-		assert.Equal(tt, expectedResultLink.Identifiers, outputDataAfterUpdate[0].Identifiers)
+		assert.Equal(tt, len(expectedResultLink.Identifiers), len(outputDataAfterUpdate[0].Identifiers))
 
 		//clean data in db
-		cleanDb()
+		cleanDb(tt)
 	})
 
 	//update 1app to 1cluster
@@ -149,7 +149,7 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		assert.Equal(tt, expectedResultLink.Identifiers[0].ClusterId, outputDataAfterUpdate[0].Identifiers[0].ClusterId)
 
 		//clean data in db
-		cleanDb()
+		cleanDb(tt)
 	})
 
 	//update 1app to all cluster
@@ -182,10 +182,10 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
 		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
 		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
-		assert.Equal(tt, expectedResultLink.Identifiers, outputDataAfterUpdate[0].Identifiers)
+		assert.Equal(tt, len(expectedResultLink.Identifiers), len(outputDataAfterUpdate[0].Identifiers))
 
 		//clean data in db
-		cleanDb()
+		cleanDb(tt)
 	})
 
 	//update 1cluster to 1 app
@@ -221,10 +221,10 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
 		assert.Equal(tt, 1, len(outputDataAfterUpdate[0].Identifiers))
 		assert.Equal(tt, expectedResultLink.Identifiers[0].Type, outputDataAfterUpdate[0].Identifiers[0].Type)
-		assert.Equal(tt, expectedResultLink.Identifiers[0].Identifier, outputDataAfterUpdate[0].Identifiers[0].Identifier)
+		assert.Equal(tt, len(expectedResultLink.Identifiers[0].Identifier), len(outputDataAfterUpdate[0].Identifiers[0].Identifier))
 
 		//clean data in db
-		cleanDb()
+		cleanDb(tt)
 	})
 
 	//update 1cluster to all cluster
@@ -257,8 +257,8 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
 		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
 		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
-		assert.Equal(tt, expectedResultLink.Identifiers, outputDataAfterUpdate[0].Identifiers)
-		cleanDb()
+		assert.Equal(tt, len(expectedResultLink.Identifiers), len(outputDataAfterUpdate[0].Identifiers))
+		cleanDb(tt)
 	})
 
 	//update 1cluster to all apps
@@ -291,10 +291,10 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
 		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
 		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
-		assert.Equal(tt, expectedResultLink.Identifiers, outputDataAfterUpdate[0].Identifiers)
+		assert.Equal(tt, len(expectedResultLink.Identifiers), len(outputDataAfterUpdate[0].Identifiers))
 
 		//clean data in db
-		cleanDb()
+		cleanDb(tt)
 	})
 
 	//all apps to all cluster
@@ -347,10 +347,10 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
 		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
 		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
-		assert.Equal(tt, expectedResultLink.Identifiers, outputDataAfterUpdate[0].Identifiers)
+		assert.Equal(tt, len(expectedResultLink.Identifiers), len(outputDataAfterUpdate[0].Identifiers))
 
 		//clean data in db
-		cleanDb()
+		cleanDb(tt)
 	})
 
 	//all cluster to all apps
@@ -403,10 +403,10 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
 		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
 		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
-		assert.Equal(tt, expectedResultLink.Identifiers, outputDataAfterUpdate[0].Identifiers)
+		assert.Equal(tt, len(expectedResultLink.Identifiers), len(outputDataAfterUpdate[0].Identifiers))
 
 		//clean data in db
-		cleanDb()
+		cleanDb(tt)
 	})
 }
 
@@ -429,7 +429,7 @@ func TestExternalLinkServiceImpl_Delete(t *testing.T) {
 		assert.Equal(tt, 0, len(res1))
 
 		//clean created data
-		cleanDb()
+		cleanDb(tt)
 	})
 
 	t.Run("Test To Delete cluster level links", func(tt *testing.T) {
@@ -447,7 +447,7 @@ func TestExternalLinkServiceImpl_Delete(t *testing.T) {
 		assert.Equal(tt, 0, len(res1))
 
 		//clean created data
-		cleanDb()
+		cleanDb(tt)
 	})
 
 }
@@ -468,7 +468,7 @@ func CreateAndGetClusterLevelExternalLink(tt *testing.T) []*externalLink.Externa
 	}
 	inputData = append(inputData, &inp1)
 
-	res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+	res, err := externalLinkService.Create(inputData, 1, externalLink.SUPER_ADMIN_ROLE)
 	assert.Nil(tt, err)
 	assert.NotNil(tt, res)
 	assert.Equal(tt, true, res.Success)
@@ -480,6 +480,7 @@ func CreateAndGetClusterLevelExternalLink(tt *testing.T) []*externalLink.Externa
 }
 
 func CreateAndGetAppLevelExternalLink(tt *testing.T) []*externalLink.ExternalLinkDto {
+
 	inputData := make([]*externalLink.ExternalLinkDto, 0)
 	inp1 := externalLink.ExternalLinkDto{
 		MonitoringToolId: 4,
@@ -495,7 +496,7 @@ func CreateAndGetAppLevelExternalLink(tt *testing.T) []*externalLink.ExternalLin
 	}
 	inputData = append(inputData, &inp1)
 
-	res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+	res, err := externalLinkService.Create(inputData, 1, externalLink.SUPER_ADMIN_ROLE)
 	assert.Nil(tt, err)
 	assert.NotNil(tt, res)
 	assert.Equal(tt, true, res.Success)
@@ -514,22 +515,23 @@ func Copy(to *externalLink.ExternalLinkDto, from *externalLink.ExternalLinkDto) 
 	to.Url = from.Url
 	to.IsEditable = from.IsEditable
 	to.Description = from.Description
+	to.Identifiers = from.Identifiers
 }
-func cleanDb() {
-	var inf interface{}
-	tx, _ := db.Begin()
-	defer tx.Rollback()
-	query := "DELETE FROM external_link WHERE id IS NOT NULL;"
-	_, err := tx.Query(inf, query)
+func cleanDb(tt *testing.T) {
+	DB, _ := getDbConn()
+	query := "truncate external_link;"
+	_, err := DB.Exec(query)
+	assert.Nil(tt, err)
 	if err != nil {
 		return
 	}
-	query = "DELETE FROM external_link_identifier_mapping WHERE id IS NOT NULL;"
-	_, err = tx.Query(inf, query)
+	query = "truncate external_link_identifier_mapping;"
+	_, err = DB.Exec(query)
+	assert.Nil(tt, err)
 	if err != nil {
 		return
 	}
-	tx.Commit()
+
 }
 
 var db *pg.DB
@@ -539,7 +541,7 @@ func getDbConn() (*pg.DB, error) {
 		return db, nil
 	}
 	cfg := Config{}
-	err := env.Parse(cfg)
+	err := env.Parse(&cfg)
 	if err != nil {
 		return nil, err
 	}
