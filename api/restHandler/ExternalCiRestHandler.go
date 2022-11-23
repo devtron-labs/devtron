@@ -26,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
@@ -36,7 +35,6 @@ import (
 
 type ExternalCiRestHandler interface {
 	HandleExternalCiWebhook(w http.ResponseWriter, r *http.Request)
-	HandleExternalCiWebhookByApiToken(w http.ResponseWriter, r *http.Request)
 }
 
 type ExternalCiRestHandlerImpl struct {
@@ -65,49 +63,6 @@ func NewExternalCiRestHandlerImpl(logger *zap.SugaredLogger, webhookService pipe
 }
 
 func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWriter, r *http.Request) {
-	decoder := json.NewDecoder(r.Body)
-
-	vars := mux.Vars(r)
-	apiKey := vars["api-key"]
-	if apiKey == "" {
-		impl.logger.Errorw("request err, HandleExternalCiWebhook", "apiKey", apiKey)
-		common.WriteJsonResp(w, errors.New("invalid api-key"), nil, http.StatusBadRequest)
-		return
-	}
-
-	var req pubsub.CiCompleteEvent
-	err := decoder.Decode(&req)
-	if err != nil {
-		impl.logger.Errorw("request err, HandleExternalCiWebhook", "err", err, "payload", req)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	impl.logger.Infow("request payload, HandleExternalCiWebhook", "payload", req)
-	ciPipelineId, err := impl.webhookService.AuthenticateExternalCiWebhook(apiKey)
-	if err != nil {
-		impl.logger.Errorw("auth error", "err", err, "apiKey", apiKey, "payload", req)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	ciArtifactReq, err := impl.ciEventHandler.BuildCiArtifactRequest(req)
-	if err != nil {
-		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	_, err = impl.webhookService.SaveCiArtifactWebhook(ciPipelineId, ciArtifactReq)
-	if err != nil {
-		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	common.WriteJsonResp(w, err, nil, http.StatusOK)
-}
-
-func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.ResponseWriter, r *http.Request) {
 	setupResponse(&w, r)
 	vars := mux.Vars(r)
 	userId, err := impl.userService.GetLoggedInUser(r)
@@ -124,28 +79,27 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.R
 	var req pubsub.CiCompleteEvent
 	err = decoder.Decode(&req)
 	if err != nil {
-		impl.logger.Errorw("request err, HandleExternalCiWebhookByApiToken", "err", err, "payload", req)
+		impl.logger.Errorw("request err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	req.TriggeredBy = userId
-	impl.logger.Infow("request payload, HandleExternalCiWebhookByApiToken", "payload", req)
-
-	ciArtifactReq, err := impl.ciEventHandler.BuildCiArtifactRequestForWebhook(req)
-	if err != nil {
-		impl.logger.Errorw("service err, HandleExternalCiWebhookByApiToken", "err", err, "payload", req)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
+	impl.logger.Infow("request payload, HandleExternalCiWebhook", "payload", req)
 
 	err = impl.validator.Struct(req)
 	if err != nil {
-		impl.logger.Errorw("validation err, Create", "err", err, "payload", req)
+		impl.logger.Errorw("validation err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	_, err = impl.webhookService.SaveCiArtifactWebhookExternalCi(externalCiId, ciArtifactReq, impl.checkExternalCiDeploymentAuth)
+	//fetching request
+	ciArtifactReq, err := impl.ciEventHandler.BuildCiArtifactRequestForWebhook(req)
+	if err != nil {
+		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	_, err = impl.webhookService.HandleExternalCiWebhook(externalCiId, ciArtifactReq, impl.checkExternalCiDeploymentAuth)
 	if err != nil {
 		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -155,11 +109,11 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhookByApiToken(w http.R
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
-func (handler ExternalCiRestHandlerImpl) checkExternalCiDeploymentAuth(email string, projectObject string, envObject string) bool {
-	if ok := handler.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
+func (impl ExternalCiRestHandlerImpl) checkExternalCiDeploymentAuth(email string, projectObject string, envObject string) bool {
+	if ok := impl.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
 		return false
 	}
-	if ok := handler.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
+	if ok := impl.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
 		return false
 	}
 	return true

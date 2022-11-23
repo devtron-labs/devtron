@@ -87,7 +87,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 		if err != nil {
 			return
 		}
-		resp, err := impl.webhookService.SaveCiArtifactWebhook(ciCompleteEvent.PipelineId, req)
+		resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req)
 		if err != nil {
 			impl.logger.Error(err)
 			return
