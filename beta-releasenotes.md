@@ -11,4 +11,5 @@
 - docs: Image Pull Secret Doc (#2604)
 - docs: updated url for the license file (#2662)
 ## Others
+- chore: bump beta release to stable (#2677)
 - Ingress Urls User level access Issue (#2659)
