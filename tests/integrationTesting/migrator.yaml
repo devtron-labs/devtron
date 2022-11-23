@@ -1,0 +1,219 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-migrate-devtron
+spec:
+  template:
+    spec:
+      containers:
+        - name: postgresql-migrate-devtron
+          image: quay.io/devtron/migrator:71748de9-149-11112
+          env:
+            - name: GIT_BRANCH
+              value: main
+            - name: SCRIPT_LOCATION
+              value: scripts/sql/
+            - name: GIT_REPO_URL
+              value: https://github.com/devtron-labs/devtron.git
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_USER_NAME
+              value: postgres
+            - name: DB_HOST
+              value: postgresql-postgresql
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: orchestrator
+            - name: MIGRATE_TO_VERSION
+              value: "0"
+            - name: GIT_HASH
+              value: be7da471e45a501eba19eaa5f8d08dfe5601598d
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+      restartPolicy: OnFailure
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-migrate-casbin
+spec:
+  template:
+    spec:
+      serviceAccountName: devtron
+      containers:
+        - name: postgresql-migrate-casbin
+          image: quay.io/devtron/migrator:71748de9-149-11112
+          env:
+            - name: SCRIPT_LOCATION
+              value: scripts/casbin/
+            - name: GIT_REPO_URL
+              value: https://github.com/devtron-labs/devtron.git
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_USER_NAME
+              value: postgres
+            - name: DB_HOST
+              value: postgresql-postgresql
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: casbin
+            - name: MIGRATE_TO_VERSION
+              value: "0"
+            - name: GIT_HASH
+              value: be7da471e45a501eba19eaa5f8d08dfe5601598d
+            - name: GIT_BRANCH
+              value: main
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+          resources:
+            requests:
+              cpu: 0.5
+              memory: 500Mi
+      restartPolicy: OnFailure
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-migrate-gitsensor
+spec:
+  template:
+    spec:
+      containers:
+        - name: postgresql-migrate-gitsensor
+          image: quay.io/devtron/migrator:71748de9-149-11112
+          env:
+            - name: SCRIPT_LOCATION
+              value: scripts/sql/
+            - name: GIT_REPO_URL
+              value: https://github.com/devtron-labs/git-sensor.git
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_USER_NAME
+              value: postgres
+            - name: DB_HOST
+              value: postgresql-postgresql
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: git_sensor
+            - name: MIGRATE_TO_VERSION
+              value: "0"
+            - name: GIT_BRANCH
+              value: main
+            - name: GIT_HASH
+              value: a1e0e0a7b7cc64a2b38c8be0e33e3df0e8eb5a1b
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+      restartPolicy: OnFailure
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-migrate-lens
+spec:
+  template:
+    spec:
+      containers:
+        - name: postgresql-migrate-lens
+          image: quay.io/devtron/migrator:71748de9-149-11112
+          env:
+            - name: SCRIPT_LOCATION
+              value: scripts/sql/
+            - name: GIT_REPO_URL
+              value: https://github.com/devtron-labs/lens.git
+            - name: DB_TYPE
+              value: postgres
+            - name: DB_USER_NAME
+              value: postgres
+            - name: DB_HOST
+              value: postgresql-postgresql
+            - name: DB_PORT
+              value: "5432"
+            - name: DB_NAME
+              value: lens
+            - name: MIGRATE_TO_VERSION
+              value: "0"
+            - name: GIT_BRANCH
+              value: main
+            - name: GIT_HASH
+              value: c20fad054db2de04547cce65dbb74ccb61bfd76f
+          envFrom:
+            - secretRef:
+                name: postgresql-migrator
+      restartPolicy: OnFailure
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1
+#this job is added for creating new database(clairv4).
+#This database is needed for clair upgrade (v2 to v4), since old database does not support migration for new clair.
+#Without this job, database can be created for new users, but not for existing users.
+kind: Job
+metadata:
+  name: postgresql-miscellaneous
+spec:
+  ttlSecondsAfterFinished: 1000
+  template:
+    spec:
+      containers:
+        - name: postgresql-miscellaneous
+          image: quay.io/devtron/postgres:11.9
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-postgresql
+                  key: postgresql-password
+            - name: PGHOST
+              value: postgresql-postgresql
+          command:
+            - /bin/sh
+            - -c
+            - psql -Upostgres -f /docker-entrypoint-initdb.d/db_create.sql
+          volumeMounts:
+            - name: custom-init-scripts
+              mountPath: /docker-entrypoint-initdb.d/
+      volumes:
+        - name: custom-init-scripts
+          configMap:
+            name: postgresql-postgresql-init-scripts
+      restartPolicy: OnFailure
+  backoffLimit: 20
+  activeDeadlineSeconds: 1500
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: app-sync-cronjob
+spec:
+  schedule: "0 19 * * *"
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: chart-sync
+              image: quay.io/devtron/chart-sync:07ac8fd7-150-11120
+              env:
+                - name: PG_ADDR
+                  value: postgresql-postgresql
+                - name: PG_DATABASE
+                  value: orchestrator
+                - name: PG_USER
+                  value: postgres
+              envFrom:
+                - secretRef:
+                    name: devtron-secret
+          restartPolicy: Never
+      backoffLimit: 4
