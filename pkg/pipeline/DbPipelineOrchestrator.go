@@ -380,17 +380,10 @@ func (impl DbPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.Ci
 			}
 
 		}
-		dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(createRequest.DockerConfigOverride.DockerRegistry)
+		err = impl.createEcrRepoIfNeededForCiTemplateOverride(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
 		if err != nil {
-			impl.logger.Errorw("error in fetching DockerRegistry  for update", "err", err, "registry", createRequest.DockerConfigOverride.DockerRegistry)
+			impl.logger.Errorw("error, createEcrRepoIfNeededForCiTemplateOverride", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
 			return nil, err
-		}
-		if dockerArtifactStore.RegistryType == dockerRegistryRepository.REGISTRYTYPE_ECR {
-			err := impl.CreateEcrRepo(createRequest.DockerConfigOverride.DockerRepository, dockerArtifactStore.AWSRegion, dockerArtifactStore.AWSAccessKeyId, dockerArtifactStore.AWSSecretAccessKey)
-			if err != nil {
-				impl.logger.Errorw("ecr repo creation failed while updating ci template", "repo", createRequest.DockerConfigOverride.DockerRepository, "err", err)
-				return nil, err
-			}
 		}
 	} else {
 		ciTemplateBean := &bean2.CiTemplateBean{
@@ -675,17 +668,10 @@ func (impl DbPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConfig
 			if err != nil {
 				return nil, err
 			}
-			dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(ciPipeline.DockerConfigOverride.DockerRegistry)
+			err = impl.createEcrRepoIfNeededForCiTemplateOverride(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
 			if err != nil {
-				impl.logger.Errorw("error in fetching DockerRegistry  for update", "err", err, "registry", ciPipeline.DockerConfigOverride.DockerRegistry)
+				impl.logger.Errorw("error, createEcrRepoIfNeededForCiTemplateOverride", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
 				return nil, err
-			}
-			if dockerArtifactStore.RegistryType == dockerRegistryRepository.REGISTRYTYPE_ECR {
-				err := impl.CreateEcrRepo(ciPipeline.DockerConfigOverride.DockerRepository, dockerArtifactStore.AWSRegion, dockerArtifactStore.AWSAccessKeyId, dockerArtifactStore.AWSSecretAccessKey)
-				if err != nil {
-					impl.logger.Errorw("ecr repo creation failed while updating ci template", "repo", ciPipeline.DockerConfigOverride.DockerRepository, "err", err)
-					return nil, err
-				}
 			}
 			err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, pipelineMaterials, ciTemplateBean, repository4.TRIGGER_ADD)
 			if err != nil {
@@ -1512,6 +1498,21 @@ func (impl DbPipelineOrchestratorImpl) GetByEnvOverrideId(envOverrideId int) (*b
 	return cdPipelines, nil
 }
 
+func (impl DbPipelineOrchestratorImpl) createEcrRepoIfNeededForCiTemplateOverride(dockerRegistryId, dockerRepository string) error {
+	dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(dockerRegistryId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching DockerRegistry  for update", "err", err, "registry", dockerRegistryId)
+		return err
+	}
+	if dockerArtifactStore.RegistryType == dockerRegistryRepository.REGISTRYTYPE_ECR {
+		err := impl.CreateEcrRepo(dockerRepository, dockerArtifactStore.AWSRegion, dockerArtifactStore.AWSAccessKeyId, dockerArtifactStore.AWSSecretAccessKey)
+		if err != nil {
+			impl.logger.Errorw("ecr repo creation failed while updating ci template", "err", err, "repo", dockerRepository)
+			return err
+		}
+	}
+	return nil
+}
 func (impl DbPipelineOrchestratorImpl) CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey string) error {
 	impl.logger.Debugw("attempting ecr repo creation ", "repo", dockerRepository)
 	err := util.CreateEcrRepo(dockerRepository, AWSRegion, AWSAccessKeyId, AWSSecretAccessKey)
