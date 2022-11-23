@@ -122,6 +122,8 @@ type PipelineBuilder interface {
 	GetEnvironmentByCdPipelineId(pipelineId int) (int, error)
 	PatchRegexCiPipeline(request *bean.CiRegexPatchRequest) (err error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
+	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
+	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
 }
 
 type PipelineBuilderImpl struct {
@@ -1166,126 +1168,186 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 
 }
 
-func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
-
-	isInternalUse := impl.deploymentConfig.IsInternalUse
+func (impl PipelineBuilderImpl) IsGitopsConfigured() (bool, error) {
 
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
 
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
-		return nil, err
+		return false, err
 	}
 	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
 		isGitOpsConfigured = true
 	}
 
-	if isInternalUse && isGitOpsConfigured == false && pipelineCreateRequest.Pipelines[0].DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+	return isGitOpsConfigured, nil
+
+}
+
+func (impl PipelineBuilderImpl) ValidateCDPipelineRequest(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured, haveAtleastOneGitOps bool) (bool, error) {
+
+	if isGitOpsConfigured == false && haveAtleastOneGitOps {
 		impl.logger.Errorw("Gitops not configured but selected in creating cd pipeline")
-		return nil, errors.New("Gitops not configured but selected in creating cd pipeline")
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: "GitOps not configured but selected in creating cd pipeline",
+			UserMessage:     "GitOps not configured but selected in creating cd pipeline",
+		}
+		return false, err
 	}
 
-	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
-	if err != nil {
-		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
-		return nil, err
-	}
 	envPipelineMap := make(map[int]string)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if envPipelineMap[pipeline.EnvironmentId] != "" {
-			err = &util.ApiError{
+			err := &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
 				InternalMessage: "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
 				UserMessage:     "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
 			}
-			return nil, err
+			return false, err
 		}
 		envPipelineMap[pipeline.EnvironmentId] = pipeline.Name
 
 		existingCdPipelinesForEnv, pErr := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(pipelineCreateRequest.AppId, pipeline.EnvironmentId)
 		if pErr != nil && !util.IsErrNoRows(pErr) {
 			impl.logger.Errorw("error in fetching cd pipelines ", "err", pErr, "appId", pipelineCreateRequest.AppId)
-			return nil, pErr
+			return false, pErr
 		}
 		if len(existingCdPipelinesForEnv) > 0 {
-			err = &util.ApiError{
+			err := &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
 				InternalMessage: "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
 				UserMessage:     "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
 			}
-			return nil, err
+			return false, err
 		}
 
 		if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
-			err = &util.ApiError{
+			err := &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
 				InternalMessage: "invalid yaml config, must include - beforeStages",
 				UserMessage:     "invalid yaml config, must include - beforeStages",
 			}
-			return nil, err
+			return false, err
 		}
 		if len(pipeline.PostStage.Config) > 0 && !strings.Contains(pipeline.PostStage.Config, "afterStages") {
-			err = &util.ApiError{
+			err := &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
 				InternalMessage: "invalid yaml config, must include - afterStages",
 				UserMessage:     "invalid yaml config, must include - afterStages",
 			}
-			return nil, err
+			return false, err
 		}
 	}
 
-	if isGitOpsConfigured && (!isInternalUse || pipelineCreateRequest.Pipelines[0].DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD) {
-		//if gitops configured create GIT repository and register into ACD
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
-		if err != nil && pg.ErrNoRows != err {
-			return nil, err
-		}
-		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
-		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, pipelineCreateRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
-			return nil, err
-		}
-		err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
-		if err != nil {
-			impl.logger.Errorw("error while register git repo in argo", "err", err)
-			emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
-			if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
-				// - found empty repository, create some file in repository
-				err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, pipelineCreateRequest.UserId)
-				if err != nil {
-					impl.logger.Errorw("error in creating file in git repo", "err", err)
-					return nil, err
-				}
-				// - retry register in argo
-				err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
-				if err != nil {
-					impl.logger.Errorw("error in re-try register in argo", "err", err)
-					return nil, err
-				}
-			} else {
-				return nil, err
-			}
-		}
+	return true, nil
 
-		// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
-		err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
+}
+
+func (impl PipelineBuilderImpl) RegisterInACD(app *app2.App, pipelineCreateRequest *bean.CdPipelines, ctx context.Context) error {
+
+	//if gitops configured create GIT repository and register into ACD
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+	if err != nil && pg.ErrNoRows != err {
+		return err
+	}
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
+	chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, pipelineCreateRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
+		return err
+	}
+	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+	if err != nil {
+		impl.logger.Errorw("error while register git repo in argo", "err", err)
+		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
+		if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
+			// - found empty repository, create some file in repository
+			err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in creating file in git repo", "err", err)
+				return err
+			}
+			// - retry register in argo
+			err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+			if err != nil {
+				impl.logger.Errorw("error in re-try register in argo", "err", err)
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+
+	// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
+	err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
+		return err
+
+	}
+	return nil
+}
+
+func (impl PipelineBuilderImpl) IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool {
+
+	// if deploymentAppType is not coming in request than hasAtLeastOneGitOps will be false
+
+	haveAtLeastOneGitOps := false
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			haveAtLeastOneGitOps = true
+		}
+	}
+	return haveAtLeastOneGitOps
+}
+
+func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool) {
+	isInternalUse := impl.deploymentConfig.IsInternalUse
+	var globalDeploymentAppType string
+	if !isInternalUse {
+		if isGitOpsConfigured {
+			globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+		} else {
+			globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		}
+	}
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if !isInternalUse {
+			pipeline.DeploymentAppType = globalDeploymentAppType
+		}
+	}
+}
+
+func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
+
+	isGitOpsConfigured, err := impl.IsGitopsConfigured()
+
+	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
+
+	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
+		return nil, err
+	}
+
+	_, err = impl.ValidateCDPipelineRequest(pipelineCreateRequest, isGitOpsConfigured, isGitOpsRequiredForCD)
+	if err != nil {
+		return nil, err
+	}
+
+	impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
+
+	if isGitOpsConfigured && isGitOpsRequiredForCD {
+		err = impl.RegisterInACD(app, pipelineCreateRequest, ctx)
 		if err != nil {
-			impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
 			return nil, err
 		}
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 
-		if !isInternalUse {
-			if isGitOpsConfigured {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-			} else {
-				pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-			}
-		}
 		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating pipeline", "name", pipeline.Name, "err", err)
