@@ -242,10 +242,6 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 		return err
 	}
 	for _, pipeline := range pipelines {
-		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
-			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
-			continue
-		}
 		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, triggeredBy)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
