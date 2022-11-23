@@ -341,6 +341,11 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 		}
 
 		savedTemplateOverride := savedTemplateOverrideBean.CiTemplateOverride
+		err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
+		if err != nil {
+			impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
+			return nil, err
+		}
 		if savedTemplateOverride != nil && savedTemplateOverride.Id > 0 {
 			ciBuildConfigBean.Id = savedTemplateOverride.CiBuildConfigId
 			templateOverrideReq.Id = savedTemplateOverride.Id
@@ -379,11 +384,6 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 				impl.logger.Errorw("error in saving history of ci pipeline material")
 			}
 
-		}
-		err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
-		if err != nil {
-			impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
-			return nil, err
 		}
 	} else {
 		ciTemplateBean := &bean2.CiTemplateBean{
@@ -664,13 +664,13 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 				CiBuildConfig:      ciPipeline.DockerConfigOverride.CiBuildConfig,
 				UserId:             createRequest.UserId,
 			}
-			err := impl.ciTemplateService.Save(ciTemplateBean)
-			if err != nil {
-				return nil, err
-			}
 			err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
 			if err != nil {
 				impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
+				return nil, err
+			}
+			err := impl.ciTemplateService.Save(ciTemplateBean)
+			if err != nil {
 				return nil, err
 			}
 			err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, pipelineMaterials, ciTemplateBean, repository4.TRIGGER_ADD)
