@@ -72,30 +72,8 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 	//update app to all apps
 
 	t.Run("TEST : update link from app to all apps", func(tt *testing.T) {
-		inputData := make([]*externalLink.ExternalLinkDto, 0)
-		inp1 := externalLink.ExternalLinkDto{
-			MonitoringToolId: 4,
-			Name:             "IntegrationTest-1",
-			Description:      "integration test link description",
-			Type:             "appLevel",
-			Identifiers: []externalLink.LinkIdentifier{
-				{Type: "devtron-app", Identifier: "1", ClusterId: 0},
-				{Type: "devtron-app", Identifier: "103", ClusterId: 0},
-			},
-			Url:        "http://integration-test.com",
-			IsEditable: true,
-		}
-		inputData = append(inputData, &inp1)
 
-		res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
-		assert.Nil(tt, err)
-		assert.NotNil(tt, res)
-		assert.Equal(tt, true, res.Success)
-
-		outputData, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
-		assert.Nil(tt, err)
-		assert.Equal(tt, 1, len(outputData))
-
+		outputData := CreateAndGetAppLevelExternalLink(tt)
 		//change update fields
 		createdLink := outputData[0]
 		createdLink.Name = "IntegrationTest-1-update"
@@ -105,7 +83,7 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		Copy(&expectedResultLink, createdLink)
 
 		//update it via update API
-		res, err = externalLinkService.Update(createdLink, externalLink.SUPER_ADMIN_ROLE)
+		res, err := externalLinkService.Update(createdLink, externalLink.SUPER_ADMIN_ROLE)
 		assert.Nil(tt, err)
 		assert.NotNil(tt, res)
 		assert.Equal(tt, true, res.Success)
@@ -129,130 +107,191 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 
 	//update 1app to 1cluster
 	t.Run("TEST : update link from app to cluster", func(tt *testing.T) {
-		inputData := make([]*externalLink.ExternalLinkDto, 0)
-		inp1 := externalLink.ExternalLinkDto{
-			MonitoringToolId: 4,
-			Name:             "IntegrationTest-1",
-			Description:      "integration test link description",
-			Type:             "appLevel",
-			Identifiers: []externalLink.LinkIdentifier{
-				{Type: "devtron-app", Identifier: "1", ClusterId: 0},
-				{Type: "devtron-app", Identifier: "103", ClusterId: 0},
-			},
-			Url:        "http://integration-test.com",
-			IsEditable: true,
-		}
-		inputData = append(inputData, &inp1)
-		res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+		outputData := CreateAndGetAppLevelExternalLink(tt)
 
-		assert.Nil(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, true, res.Success)
+		//change fields to update
+		createdLink := outputData[0]
+		createdLink.Name = "IntegrationTest-1-update"
+		createdLink.Type = "clusterLevel"
+		createdLink.Identifiers = []externalLink.LinkIdentifier{{
+			Type:       "cluster",
+			Identifier: "1",
+			ClusterId:  1,
+		}}
 
-		//get created link
-		outputData, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		var expectedResultLink externalLink.ExternalLinkDto
+		Copy(&expectedResultLink, createdLink)
+
+		//update the link
+		res, err := externalLinkService.Update(createdLink, externalLink.SUPER_ADMIN_ROLE)
 		assert.Nil(tt, err)
-		assert.Equal(tt, 1, len(outputData))
+		assert.NotNil(tt, res)
+		assert.Equal(tt, true, res.Success)
 
-		//run tests
+		//test if it's updated properly
+		outputDataAfterUpdate, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, outputDataAfterUpdate)
+		assert.Equal(tt, 1, len(outputDataAfterUpdate))
+		assert.Equal(tt, expectedResultLink.Id, outputDataAfterUpdate[0].Id)
+		assert.Equal(tt, expectedResultLink.Name, outputDataAfterUpdate[0].Name)
+		assert.Equal(tt, expectedResultLink.Type, outputDataAfterUpdate[0].Type)
+		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
+		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
+		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
+		assert.Equal(tt, 1, len(outputDataAfterUpdate[0].Identifiers))
+		assert.Equal(tt, expectedResultLink.Identifiers[0].Type, outputDataAfterUpdate[0].Identifiers[0].Type)
+		assert.Equal(tt, expectedResultLink.Identifiers[0].ClusterId, outputDataAfterUpdate[0].Identifiers[0].ClusterId)
+
+		//clean data in db
 		cleanDb()
 	})
+
 	//update 1app to all cluster
 	t.Run("TEST : update link from app to all cluster", func(tt *testing.T) {
-		inputData := make([]*externalLink.ExternalLinkDto, 0)
-		inp1 := externalLink.ExternalLinkDto{
-			MonitoringToolId: 4,
-			Name:             "IntegrationTest-1",
-			Description:      "integration test link description",
-			Type:             "appLevel",
-			Identifiers: []externalLink.LinkIdentifier{
-				{Type: "devtron-app", Identifier: "1", ClusterId: 0},
-				{Type: "devtron-app", Identifier: "103", ClusterId: 0},
-			},
-			Url:        "http://integration-test.com",
-			IsEditable: true,
-		}
-		inputData = append(inputData, &inp1)
-		res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+		outputData := CreateAndGetAppLevelExternalLink(tt)
 
-		assert.Nil(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, true, res.Success)
-		//run tests
+		//change fields to update
+		createdLink := outputData[0]
+		createdLink.Name = "IntegrationTest-1-update"
+		createdLink.Type = "clusterLevel"
+		createdLink.Identifiers = make([]externalLink.LinkIdentifier, 0)
+
+		var expectedResultLink externalLink.ExternalLinkDto
+		Copy(&expectedResultLink, createdLink)
+
+		//update the link
+		res, err := externalLinkService.Update(createdLink, externalLink.SUPER_ADMIN_ROLE)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, true, res.Success)
+
+		//test if it's updated properly
+		outputDataAfterUpdate, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, outputDataAfterUpdate)
+		assert.Equal(tt, 1, len(outputDataAfterUpdate))
+		assert.Equal(tt, expectedResultLink.Id, outputDataAfterUpdate[0].Id)
+		assert.Equal(tt, expectedResultLink.Name, outputDataAfterUpdate[0].Name)
+		assert.Equal(tt, expectedResultLink.Type, outputDataAfterUpdate[0].Type)
+		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
+		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
+		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
+		assert.Equal(tt, expectedResultLink.Identifiers, outputDataAfterUpdate[0].Identifiers)
+
+		//clean data in db
 		cleanDb()
 	})
+
 	//update 1cluster to 1 app
 	t.Run("TEST : update link from cluster to app", func(tt *testing.T) {
-		inputData := make([]*externalLink.ExternalLinkDto, 0)
-		inp1 := externalLink.ExternalLinkDto{
-			MonitoringToolId: 4,
-			Name:             "IntegrationTest-1",
-			Description:      "integration test link description",
-			Type:             "appLevel",
-			Identifiers: []externalLink.LinkIdentifier{
-				{Type: "devtron-app", Identifier: "1", ClusterId: 0},
-				{Type: "devtron-app", Identifier: "103", ClusterId: 0},
-			},
-			Url:        "http://integration-test.com",
-			IsEditable: true,
-		}
-		inputData = append(inputData, &inp1)
-		res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+		outputData := CreateAndGetClusterLevelExternalLink(tt)
 
-		assert.Nil(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, true, res.Success)
-		//run tests
+		//change fields to be updated
+		createdLink := outputData[0]
+		createdLink.Name = "IntegrationTest-1-update"
+		createdLink.Type = "appLevel"
+		createdLink.Identifiers = []externalLink.LinkIdentifier{{
+			Type:       "devtron-app",
+			Identifier: "1",
+		}}
+
+		var expectedResultLink externalLink.ExternalLinkDto
+		Copy(&expectedResultLink, createdLink)
+
+		//update the link
+		res, err := externalLinkService.Update(createdLink, externalLink.SUPER_ADMIN_ROLE)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, true, res.Success)
+
+		//test if it's updated properly
+		outputDataAfterUpdate, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, outputDataAfterUpdate)
+		assert.Equal(tt, expectedResultLink.Id, outputDataAfterUpdate[0].Id)
+		assert.Equal(tt, expectedResultLink.Name, outputDataAfterUpdate[0].Name)
+		assert.Equal(tt, expectedResultLink.Type, outputDataAfterUpdate[0].Type)
+		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
+		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
+		assert.Equal(tt, 1, len(outputDataAfterUpdate[0].Identifiers))
+		assert.Equal(tt, expectedResultLink.Identifiers[0].Type, outputDataAfterUpdate[0].Identifiers[0].Type)
+		assert.Equal(tt, expectedResultLink.Identifiers[0].Identifier, outputDataAfterUpdate[0].Identifiers[0].Identifier)
+
+		//clean data in db
 		cleanDb()
 	})
+
 	//update 1cluster to all cluster
-	t.Run("TEST : update link from app to all apps", func(tt *testing.T) {
-		inputData := make([]*externalLink.ExternalLinkDto, 0)
-		inp1 := externalLink.ExternalLinkDto{
-			MonitoringToolId: 4,
-			Name:             "IntegrationTest-1",
-			Description:      "integration test link description",
-			Type:             "appLevel",
-			Identifiers: []externalLink.LinkIdentifier{
-				{Type: "devtron-app", Identifier: "1", ClusterId: 0},
-				{Type: "devtron-app", Identifier: "103", ClusterId: 0},
-			},
-			Url:        "http://integration-test.com",
-			IsEditable: true,
-		}
-		inputData = append(inputData, &inp1)
-		res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+	t.Run("TEST : update link from cluster to all clusters", func(tt *testing.T) {
+		outputData := CreateAndGetClusterLevelExternalLink(tt)
 
-		assert.Nil(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, true, res.Success)
-		//run tests
+		//change fields to be updated
+		createdLink := outputData[0]
+		createdLink.Name = "IntegrationTest-1-update"
+		createdLink.Type = "clusterLevel"
+		createdLink.Identifiers = make([]externalLink.LinkIdentifier, 0)
+
+		var expectedResultLink externalLink.ExternalLinkDto
+		Copy(&expectedResultLink, createdLink)
+
+		//update the link
+		res, err := externalLinkService.Update(createdLink, externalLink.SUPER_ADMIN_ROLE)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, true, res.Success)
+
+		//test if it's updated properly
+		outputDataAfterUpdate, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, outputDataAfterUpdate)
+		assert.Equal(tt, 1, len(outputDataAfterUpdate))
+		assert.Equal(tt, expectedResultLink.Id, outputDataAfterUpdate[0].Id)
+		assert.Equal(tt, expectedResultLink.Name, outputDataAfterUpdate[0].Name)
+		assert.Equal(tt, expectedResultLink.Type, outputDataAfterUpdate[0].Type)
+		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
+		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
+		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
+		assert.Equal(tt, expectedResultLink.Identifiers, outputDataAfterUpdate[0].Identifiers)
 		cleanDb()
 	})
+
 	//update 1cluster to all apps
 	t.Run("TEST : update link from cluster to all apps", func(tt *testing.T) {
-		inputData := make([]*externalLink.ExternalLinkDto, 0)
-		inp1 := externalLink.ExternalLinkDto{
-			MonitoringToolId: 4,
-			Name:             "IntegrationTest-1",
-			Description:      "integration test link description",
-			Type:             "appLevel",
-			Identifiers: []externalLink.LinkIdentifier{
-				{Type: "devtron-app", Identifier: "1", ClusterId: 0},
-				{Type: "devtron-app", Identifier: "103", ClusterId: 0},
-			},
-			Url:        "http://integration-test.com",
-			IsEditable: true,
-		}
-		inputData = append(inputData, &inp1)
-		res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+		outputData := CreateAndGetClusterLevelExternalLink(tt)
 
-		assert.Nil(t, err)
-		assert.NotNil(t, res)
-		assert.Equal(t, true, res.Success)
-		//run tests
+		//change fields to be updated
+		createdLink := outputData[0]
+		createdLink.Name = "IntegrationTest-1-update"
+		createdLink.Type = "appLevel"
+		createdLink.Identifiers = make([]externalLink.LinkIdentifier, 0)
+
+		var expectedResultLink externalLink.ExternalLinkDto
+		Copy(&expectedResultLink, createdLink)
+
+		//update the link
+		res, err := externalLinkService.Update(createdLink, externalLink.SUPER_ADMIN_ROLE)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, true, res.Success)
+
+		//test if it's updated properly
+		outputDataAfterUpdate, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, outputDataAfterUpdate)
+		assert.Equal(tt, 1, len(outputDataAfterUpdate))
+		assert.Equal(tt, expectedResultLink.Id, outputDataAfterUpdate[0].Id)
+		assert.Equal(tt, expectedResultLink.Name, outputDataAfterUpdate[0].Name)
+		assert.Equal(tt, expectedResultLink.Type, outputDataAfterUpdate[0].Type)
+		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
+		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
+		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
+		assert.Equal(tt, expectedResultLink.Identifiers, outputDataAfterUpdate[0].Identifiers)
+
+		//clean data in db
 		cleanDb()
 	})
+
 	//all apps to all cluster
 	t.Run("TEST : update link from all app to all clusters", func(tt *testing.T) {
 		inputData := make([]*externalLink.ExternalLinkDto, 0)
@@ -261,12 +300,9 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 			Name:             "IntegrationTest-1",
 			Description:      "integration test link description",
 			Type:             "appLevel",
-			Identifiers: []externalLink.LinkIdentifier{
-				{Type: "devtron-app", Identifier: "1", ClusterId: 0},
-				{Type: "devtron-app", Identifier: "103", ClusterId: 0},
-			},
-			Url:        "http://integration-test.com",
-			IsEditable: true,
+			Identifiers:      make([]externalLink.LinkIdentifier, 0),
+			Url:              "http://integration-test.com",
+			IsEditable:       true,
 		}
 		inputData = append(inputData, &inp1)
 		res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
@@ -274,23 +310,55 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
 		assert.Equal(t, true, res.Success)
-		//run tests
+
+		//get created data
+		outputData, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 1, len(outputData))
+
+		//change fields to be updated
+		createdLink := outputData[0]
+		createdLink.Name = "IntegrationTest-1-update"
+		createdLink.Type = "clusterLevel"
+		createdLink.Identifiers = make([]externalLink.LinkIdentifier, 0)
+
+		var expectedResultLink externalLink.ExternalLinkDto
+		Copy(&expectedResultLink, createdLink)
+
+		//update the link
+		res, err = externalLinkService.Update(createdLink, externalLink.SUPER_ADMIN_ROLE)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, true, res.Success)
+
+		//test if it's updated properly
+		outputDataAfterUpdate, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, outputDataAfterUpdate)
+		assert.Equal(tt, 1, len(outputDataAfterUpdate))
+		assert.Equal(tt, expectedResultLink.Id, outputDataAfterUpdate[0].Id)
+		assert.Equal(tt, expectedResultLink.Name, outputDataAfterUpdate[0].Name)
+		assert.Equal(tt, expectedResultLink.Type, outputDataAfterUpdate[0].Type)
+		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
+		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
+		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
+		assert.Equal(tt, expectedResultLink.Identifiers, outputDataAfterUpdate[0].Identifiers)
+
+		//clean data in db
 		cleanDb()
 	})
+
 	//all cluster to all apps
-	t.Run("TEST : update link from all app to all clusters", func(tt *testing.T) {
+	t.Run("TEST : update link from all clusters to all apps", func(tt *testing.T) {
 		inputData := make([]*externalLink.ExternalLinkDto, 0)
 		inp1 := externalLink.ExternalLinkDto{
 			MonitoringToolId: 4,
 			Name:             "IntegrationTest-1",
 			Description:      "integration test link description",
-			Type:             "appLevel",
-			Identifiers: []externalLink.LinkIdentifier{
-				{Type: "devtron-app", Identifier: "1", ClusterId: 0},
-				{Type: "devtron-app", Identifier: "103", ClusterId: 0},
-			},
-			Url:        "http://integration-test.com",
-			IsEditable: true,
+			Type:             "clusterLevel",
+			Identifiers:      make([]externalLink.LinkIdentifier, 0),
+			Url:              "http://integration-test.com",
+			IsEditable:       true,
 		}
 		inputData = append(inputData, &inp1)
 		res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
@@ -298,9 +366,97 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		assert.Nil(t, err)
 		assert.NotNil(t, res)
 		assert.Equal(t, true, res.Success)
-		//run tests
+
+		//get created data
+		outputData, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 1, len(outputData))
+
+		//change fields to be updated
+		createdLink := outputData[0]
+		createdLink.Name = "IntegrationTest-1-update"
+		createdLink.Type = "appLevel"
+		createdLink.Identifiers = make([]externalLink.LinkIdentifier, 0)
+
+		var expectedResultLink externalLink.ExternalLinkDto
+		Copy(&expectedResultLink, createdLink)
+
+		//update the link
+		res, err = externalLinkService.Update(createdLink, externalLink.SUPER_ADMIN_ROLE)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, true, res.Success)
+
+		//test if it's updated properly
+		outputDataAfterUpdate, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, outputDataAfterUpdate)
+		assert.Equal(tt, 1, len(outputDataAfterUpdate))
+		assert.Equal(tt, expectedResultLink.Id, outputDataAfterUpdate[0].Id)
+		assert.Equal(tt, expectedResultLink.Name, outputDataAfterUpdate[0].Name)
+		assert.Equal(tt, expectedResultLink.Type, outputDataAfterUpdate[0].Type)
+		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
+		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
+		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
+		assert.Equal(tt, expectedResultLink.Identifiers, outputDataAfterUpdate[0].Identifiers)
+
+		//clean data in db
 		cleanDb()
 	})
+}
+
+func CreateAndGetClusterLevelExternalLink(tt *testing.T) []*externalLink.ExternalLinkDto {
+	inputData := make([]*externalLink.ExternalLinkDto, 0)
+	inp1 := externalLink.ExternalLinkDto{
+		MonitoringToolId: 4,
+		Name:             "IntegrationTest-1",
+		Description:      "integration test link description",
+		Type:             "clusterLevel",
+		Identifiers: []externalLink.LinkIdentifier{
+			{Type: "cluster", Identifier: "1", ClusterId: 1},
+			{Type: "cluster", Identifier: "2", ClusterId: 2},
+		},
+		Url:        "http://integration-test.com",
+		IsEditable: true,
+	}
+	inputData = append(inputData, &inp1)
+
+	res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+	assert.Nil(tt, err)
+	assert.NotNil(tt, res)
+	assert.Equal(tt, true, res.Success)
+
+	outputData, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+	assert.Nil(tt, err)
+	assert.Equal(tt, 1, len(outputData))
+	return outputData
+}
+
+func CreateAndGetAppLevelExternalLink(tt *testing.T) []*externalLink.ExternalLinkDto {
+	inputData := make([]*externalLink.ExternalLinkDto, 0)
+	inp1 := externalLink.ExternalLinkDto{
+		MonitoringToolId: 4,
+		Name:             "IntegrationTest-1",
+		Description:      "integration test link description",
+		Type:             "appLevel",
+		Identifiers: []externalLink.LinkIdentifier{
+			{Type: "devtron-app", Identifier: "1", ClusterId: 0},
+			{Type: "devtron-app", Identifier: "103", ClusterId: 0},
+		},
+		Url:        "http://integration-test.com",
+		IsEditable: true,
+	}
+	inputData = append(inputData, &inp1)
+
+	res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+	assert.Nil(tt, err)
+	assert.NotNil(tt, res)
+	assert.Equal(tt, true, res.Success)
+
+	outputData, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+	assert.Nil(tt, err)
+	assert.Equal(tt, 1, len(outputData))
+	return outputData
 }
 
 func Copy(to *externalLink.ExternalLinkDto, from *externalLink.ExternalLinkDto) {
