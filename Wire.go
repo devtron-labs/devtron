@@ -687,6 +687,20 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository3.PrePostCdScriptHistoryRepository), new(*repository3.PrePostCdScriptHistoryRepositoryImpl)),
 		repository3.NewPipelineStrategyHistoryRepositoryImpl,
 		wire.Bind(new(repository3.PipelineStrategyHistoryRepository), new(*repository3.PipelineStrategyHistoryRepositoryImpl)),
+		repository3.NewGitMaterialHistoryRepositoyImpl,
+		wire.Bind(new(repository3.GitMaterialHistoryRepository), new(*repository3.GitMaterialHistoryRepositoryImpl)),
+
+		history3.NewCiTemplateHistoryServiceImpl,
+		wire.Bind(new(history3.CiTemplateHistoryService), new(*history3.CiTemplateHistoryServiceImpl)),
+
+		repository3.NewCiTemplateHistoryRepositoryImpl,
+		wire.Bind(new(repository3.CiTemplateHistoryRepository), new(*repository3.CiTemplateHistoryRepositoryImpl)),
+
+		history3.NewCiPipelineHistoryServiceImpl,
+		wire.Bind(new(history3.CiPipelineHistoryService), new(*history3.CiPipelineHistoryServiceImpl)),
+
+		repository3.NewCiPipelineHistoryRepositoryImpl,
+		wire.Bind(new(repository3.CiPipelineHistoryRepository), new(*repository3.CiPipelineHistoryRepositoryImpl)),
 
 		history3.NewPrePostCdScriptHistoryServiceImpl,
 		wire.Bind(new(history3.PrePostCdScriptHistoryService), new(*history3.PrePostCdScriptHistoryServiceImpl)),
@@ -698,6 +712,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history3.ConfigMapHistoryService), new(*history3.ConfigMapHistoryServiceImpl)),
 		history3.NewPipelineStrategyHistoryServiceImpl,
 		wire.Bind(new(history3.PipelineStrategyHistoryService), new(*history3.PipelineStrategyHistoryServiceImpl)),
+		history3.NewGitMaterialHistoryServiceImpl,
+		wire.Bind(new(history3.GitMaterialHistoryService), new(*history3.GitMaterialHistoryServiceImpl)),
 
 		history3.NewDeployedConfigurationHistoryServiceImpl,
 		wire.Bind(new(history3.DeployedConfigurationHistoryService), new(*history3.DeployedConfigurationHistoryServiceImpl)),
