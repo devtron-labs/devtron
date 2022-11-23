@@ -83,29 +83,6 @@ func (_m *ExternalLinkIdentifierMappingRepository) FindAllActiveByExternalLinkId
 	return r0, r1
 }
 
-// FindAllActiveByJoin provides a mock function with given fields:
-func (_m *ExternalLinkIdentifierMappingRepository) FindAllActiveLinkIdentifierData() ([]externalLink.ExternalLinkIdentifierMappingData, error) {
-	ret := _m.Called()
-
-	var r0 []externalLink.ExternalLinkIdentifierMappingData
-	if rf, ok := ret.Get(0).(func() []externalLink.ExternalLinkIdentifierMappingData); ok {
-		r0 = rf()
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]externalLink.ExternalLinkIdentifierMappingData)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func() error); ok {
-		r1 = rf()
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
-}
-
 // FindAllActiveByLinkIdentifier provides a mock function with given fields: identifier, clusterId
 func (_m *ExternalLinkIdentifierMappingRepository) FindAllActiveByLinkIdentifier(identifier *externalLink.LinkIdentifier, clusterId int) ([]externalLink.ExternalLinkIdentifierMappingData, error) {
 	ret := _m.Called(identifier, clusterId)
@@ -122,6 +99,29 @@ func (_m *ExternalLinkIdentifierMappingRepository) FindAllActiveByLinkIdentifier
 	var r1 error
 	if rf, ok := ret.Get(1).(func(*externalLink.LinkIdentifier, int) error); ok {
 		r1 = rf(identifier, clusterId)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// FindAllActiveLinkIdentifierData provides a mock function with given fields:
+func (_m *ExternalLinkIdentifierMappingRepository) FindAllActiveLinkIdentifierData() ([]externalLink.ExternalLinkIdentifierMappingData, error) {
+	ret := _m.Called()
+
+	var r0 []externalLink.ExternalLinkIdentifierMappingData
+	if rf, ok := ret.Get(0).(func() []externalLink.ExternalLinkIdentifierMappingData); ok {
+		r0 = rf()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]externalLink.ExternalLinkIdentifierMappingData)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func() error); ok {
+		r1 = rf()
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -173,6 +173,20 @@ func (_m *ExternalLinkIdentifierMappingRepository) Update(link *externalLink.Ext
 	var r0 error
 	if rf, ok := ret.Get(0).(func(*externalLink.ExternalLinkIdentifierMapping, *pg.Tx) error); ok {
 		r0 = rf(link, tx)
+	} else {
+		r0 = ret.Error(0)
+	}
+
+	return r0
+}
+
+// UpdateAllActiveToInActive provides a mock function with given fields: Id, tx
+func (_m *ExternalLinkIdentifierMappingRepository) UpdateAllActiveToInActive(Id int, tx *pg.Tx) error {
+	ret := _m.Called(Id, tx)
+
+	var r0 error
+	if rf, ok := ret.Get(0).(func(int, *pg.Tx) error); ok {
+		r0 = rf(Id, tx)
 	} else {
 		r0 = ret.Error(0)
 	}
