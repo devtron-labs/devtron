@@ -380,9 +380,9 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 			}
 
 		}
-		err = impl.createEcrRepoIfNeededForCiTemplateOverride(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
+		err = impl.createDockerRepoIfNeeded(createRequest.DockerConfigOverride.DockerRegistry, createRequest.DockerConfigOverride.DockerRepository)
 		if err != nil {
-			impl.logger.Errorw("error, createEcrRepoIfNeededForCiTemplateOverride", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
+			impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", createRequest.DockerConfigOverride.DockerRegistry, "dockerRegistry", createRequest.DockerConfigOverride.DockerRepository)
 			return nil, err
 		}
 	} else {
@@ -668,9 +668,9 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			if err != nil {
 				return nil, err
 			}
-			err = impl.createEcrRepoIfNeededForCiTemplateOverride(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
+			err = impl.createDockerRepoIfNeeded(ciPipeline.DockerConfigOverride.DockerRegistry, ciPipeline.DockerConfigOverride.DockerRepository)
 			if err != nil {
-				impl.logger.Errorw("error, createEcrRepoIfNeededForCiTemplateOverride", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
+				impl.logger.Errorw("error, createDockerRepoIfNeeded", "err", err, "dockerRegistryId", ciPipeline.DockerConfigOverride.DockerRegistry, "dockerRegistry", ciPipeline.DockerConfigOverride.DockerRepository)
 				return nil, err
 			}
 			err = impl.ciPipelineHistoryService.SaveHistory(ciPipelineObject, pipelineMaterials, ciTemplateBean, repository4.TRIGGER_ADD)
@@ -1498,7 +1498,7 @@ func (impl CiCdPipelineOrchestratorImpl) GetByEnvOverrideId(envOverrideId int) (
 	return cdPipelines, nil
 }
 
-func (impl CiCdPipelineOrchestratorImpl) createEcrRepoIfNeededForCiTemplateOverride(dockerRegistryId, dockerRepository string) error {
+func (impl CiCdPipelineOrchestratorImpl) createDockerRepoIfNeeded(dockerRegistryId, dockerRepository string) error {
 	dockerArtifactStore, err := impl.dockerArtifactStoreRepository.FindOne(dockerRegistryId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching DockerRegistry  for update", "err", err, "registry", dockerRegistryId)
