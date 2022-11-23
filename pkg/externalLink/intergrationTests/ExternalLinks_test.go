@@ -69,6 +69,11 @@ func TestExternalLinkServiceImpl_Create(t *testing.T) {
 }
 
 func TestExternalLinkServiceImpl_Update(t *testing.T) {
+
+	if externalLinkService == nil {
+		InitExternalLinkService()
+	}
+
 	//update app to all apps
 
 	t.Run("TEST : update link from app to all apps", func(tt *testing.T) {
@@ -403,6 +408,48 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		//clean data in db
 		cleanDb()
 	})
+}
+
+func TestExternalLinkServiceImpl_Delete(t *testing.T) {
+	if externalLinkService == nil {
+		InitExternalLinkService()
+	}
+
+	t.Run("Test To Delete app level links", func(tt *testing.T) {
+		outputData := CreateAndGetAppLevelExternalLink(tt)
+		//delete the created link
+		res, err := externalLinkService.DeleteLink(outputData[0].Id, 1, externalLink.SUPER_ADMIN_ROLE)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, true, res.Success)
+
+		//get links and check we get 0 links
+		res1, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 0, len(res1))
+
+		//clean created data
+		cleanDb()
+	})
+
+	t.Run("Test To Delete cluster level links", func(tt *testing.T) {
+		outputData := CreateAndGetClusterLevelExternalLink(tt)
+
+		//delete the created link
+		res, err := externalLinkService.DeleteLink(outputData[0].Id, 1, externalLink.SUPER_ADMIN_ROLE)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, true, res.Success)
+
+		//get links and check we get 0 links
+		res1, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 0, len(res1))
+
+		//clean created data
+		cleanDb()
+	})
+
 }
 
 func CreateAndGetClusterLevelExternalLink(tt *testing.T) []*externalLink.ExternalLinkDto {
