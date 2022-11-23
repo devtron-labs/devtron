@@ -51,6 +51,7 @@ type ClusterRestHandler interface {
 
 	FindAllForAutoComplete(w http.ResponseWriter, r *http.Request)
 	DeleteCluster(w http.ResponseWriter, r *http.Request)
+	GetAllClusterNamespaces(w http.ResponseWriter, r *http.Request)
 }
 
 type ClusterRestHandlerImpl struct {
@@ -359,4 +360,19 @@ func (impl ClusterRestHandlerImpl) DeleteCluster(w http.ResponseWriter, r *http.
 		return
 	}
 	common.WriteJsonResp(w, err, CLUSTER_DELETE_SUCCESS_RESP, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl) GetAllClusterNamespaces(w http.ResponseWriter, r *http.Request) {
+	token := r.Header.Get("token")
+	clusterNamespaces := impl.clusterService.GetAllClusterNamespaces()
+
+	// RBAC enforcer applying
+	for clusterName, _ := range clusterNamespaces {
+		if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionGet, strings.ToLower(clusterName)); !ok {
+			delete(clusterNamespaces, clusterName)
+		}
+	}
+	//RBAC enforcer Ends
+
+	common.WriteJsonResp(w, nil, clusterNamespaces, http.StatusOK)
 }

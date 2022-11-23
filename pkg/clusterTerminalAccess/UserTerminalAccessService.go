@@ -27,9 +27,11 @@ type UserTerminalAccessService interface {
 	UpdateTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalShellSession(request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error)
 	FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error)
-	StopTerminalSession(userTerminalSessionId int) error
-	DisconnectTerminalSession(userTerminalSessionId int) error
+	StopTerminalSession(userTerminalAccessId int) error
+	DisconnectTerminalSession(userTerminalAccessId int) error
 	DisconnectAllSessionsForUser(userId int32)
+	FetchPodManifest(userTerminalAccessId int) (resp *application.ManifestResponse, err error)
+	FetchPodEvents(userTerminalAccessId int) (*application.EventsResponse, error)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -405,14 +407,9 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 }
 
 func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessData *models.UserTerminalAccessData) (string, error) {
-	terminalAccessPodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessPodTemplateName)
-	if err != nil {
-		impl.Logger.Errorw("error occurred while fetching template", "template", models.TerminalAccessPodTemplateName, "err", err)
-		return "", err
-	}
 	clusterId := terminalAccessData.ClusterId
 	terminalAccessPodName := terminalAccessData.PodName
-	terminalPodStatusString, err := impl.getPodStatus(clusterId, terminalAccessPodName, terminalAccessPodTemplate.TemplateData)
+	terminalPodStatusString, err := impl.getPodStatus(clusterId, terminalAccessPodName)
 	if err != nil {
 		return "", err
 	}
@@ -586,12 +583,57 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataS
 	return nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName string, gvkDataString string) (string, error) {
-	// return terminated if pod does not exist
+func (impl *UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName string) (string, error) {
+	response, err := impl.getPodManifest(clusterId, podName)
+	if err != nil {
+		if err.Error() == string(models.TerminalPodTerminated) {
+			return string(models.TerminalPodTerminated), nil
+		} else {
+			return "", err
+		}
+	}
+	status := ""
+	if response != nil {
+		manifest := response.Manifest
+		for key, value := range manifest.Object {
+			if key == "status" {
+				statusData := value.(map[string]interface{})
+				status = statusData["phase"].(string)
+			}
+		}
+	}
+	impl.Logger.Debug("pod status", "podName", podName, "status", status)
+	return status, nil
+}
+
+func (impl *UserTerminalAccessServiceImpl) getPodManifest(clusterId int, podName string) (*application.ManifestResponse, error) {
+	request, err := impl.getPodRequestBean(clusterId, podName)
+	if err != nil {
+		return nil, err
+	}
+	response, err := impl.k8sApplicationService.GetResource(request)
+	if err != nil {
+		if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == "NotFound" {
+			return nil, errors.New(string(models.TerminalPodTerminated))
+		} else {
+			impl.Logger.Errorw("error occurred while fetching resource info for pod", "podName", podName)
+			return nil, err
+		}
+	}
+	return response, nil
+}
+
+func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podName string) (*k8s.ResourceRequestBean, error) {
+	terminalAccessPodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessPodTemplateName)
+	if err != nil {
+		impl.Logger.Errorw("error occurred while fetching template", "template", models.TerminalAccessPodTemplateName, "err", err)
+		return nil, err
+	}
+	gvkDataString := terminalAccessPodTemplate.TemplateData
 	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(gvkDataString), nil, nil)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "gvkDataString", gvkDataString, "err", err)
-		return "", err
+		return nil, err
 	}
 	request := &k8s.ResourceRequestBean{
 		AppIdentifier: &client.AppIdentifier{
@@ -609,27 +651,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName s
 			},
 		},
 	}
-	response, err := impl.k8sApplicationService.GetResource(request)
-	if err != nil {
-		if errStatus, ok := err.(*k8sErrors.StatusError); ok && errStatus.Status().Reason == "NotFound" {
-			return string(models.TerminalPodTerminated), nil
-		} else {
-			impl.Logger.Errorw("error occurred while fetching resource info for pod", "podName", podName)
-			return "", err
-		}
-	}
-	status := ""
-	if response != nil {
-		manifest := response.Manifest
-		for key, value := range manifest.Object {
-			if key == "status" {
-				statusData := value.(map[string]interface{})
-				status = statusData["phase"].(string)
-			}
-		}
-	}
-	impl.Logger.Debug("pod status", "podName", podName, "status", status)
-	return status, nil
+	return request, nil
 }
 
 func (impl *UserTerminalAccessServiceImpl) SyncRunningInstances() {
@@ -666,4 +688,48 @@ func (impl *UserTerminalAccessServiceImpl) deleteClusterTerminalTemplates(cluste
 	}
 	templateName = strings.ReplaceAll(models.TerminalAccessServiceAccountTemplate, models.TerminalAccessPodNameTemplate, podName)
 	impl.DeleteTerminalResource(clusterId, templateName, templateData.TemplateData)
+}
+
+func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(userTerminalAccessId int) (resp *application.ManifestResponse, err error) {
+	terminalAccessData, err := impl.getTerminalAccessDataForId(userTerminalAccessId)
+	if err != nil {
+		return nil, errors.New("unable to fetch manifest")
+	}
+	if terminalAccessData.Status == string(models.TerminalPodTerminated) {
+		return nil, errors.New("pod-terminated")
+	}
+	manifest, err := impl.getPodManifest(terminalAccessData.ClusterId, terminalAccessData.PodName)
+	if err == errors.New(string(models.TerminalPodTerminated)) {
+		return nil, errors.New("pod-terminated")
+	}
+	return manifest, err
+}
+
+func (impl *UserTerminalAccessServiceImpl) FetchPodEvents(userTerminalAccessId int) (*application.EventsResponse, error) {
+	terminalAccessData, err := impl.getTerminalAccessDataForId(userTerminalAccessId)
+	if err != nil {
+		return nil, errors.New("unable to fetch pod event")
+	}
+	if terminalAccessData.Status == string(models.TerminalPodTerminated) {
+		return nil, errors.New("pod-terminated")
+	}
+	podRequestBean, err := impl.getPodRequestBean(terminalAccessData.ClusterId, terminalAccessData.PodName)
+	return impl.k8sApplicationService.ListEvents(podRequestBean)
+}
+
+func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTerminalAccessId int) (*models.UserTerminalAccessData, error) {
+	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
+	terminalAccessSessionData, present := terminalAccessDataMap[userTerminalAccessId]
+	var terminalAccessData *models.UserTerminalAccessData
+	var err error
+	if present {
+		terminalAccessData = terminalAccessSessionData.terminalAccessDataEntity
+	} else {
+		terminalAccessData, err = impl.TerminalAccessRepository.GetUserTerminalAccessData(userTerminalAccessId)
+		if err != nil {
+			impl.Logger.Errorw("error occurred while fetching terminal access data ", "userTerminalAccessId", userTerminalAccessId, "err", err)
+			return nil, err
+		}
+	}
+	return terminalAccessData, err
 }
