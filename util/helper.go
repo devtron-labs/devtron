@@ -155,7 +155,7 @@ func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
 		switch header.Typeflag {
 		case tar.TypeDir:
 			if _, err := os.Stat(filepath.Join(chartDir, header.Name)); os.IsNotExist(err) {
-				if err := os.Mkdir(filepath.Join(chartDir, header.Name), 0755); err != nil {
+				if err := os.MkdirAll(filepath.Join(chartDir, header.Name), 0755); err != nil {
 					return err
 				}
 			} else {
@@ -167,7 +167,7 @@ func ExtractTarGz(gzipStream io.Reader, chartDir string) error {
 			if err != nil {
 				dirName := filepath.Dir(header.Name)
 				if _, err1 := os.Stat(filepath.Join(chartDir, dirName)); os.IsNotExist(err1) {
-					if err1 = os.Mkdir(filepath.Join(chartDir, dirName), 0755); err1 != nil {
+					if err1 = os.MkdirAll(filepath.Join(chartDir, dirName), 0755); err1 != nil {
 						return err1
 					}
 					outFile, err = os.Create(filepath.Join(chartDir, header.Name))
