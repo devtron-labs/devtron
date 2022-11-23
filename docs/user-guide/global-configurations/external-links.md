@@ -1,9 +1,25 @@
-# Link to external Monitoring Tools
+# External Links
 
-External links allow you to connect to the third-party Monitoring Tools within your Devtron dashboard for seamlessly monitoring/debugging/logging/analyzing your applications.
-The Monitoring Tool is available as a bookmark at various component levels, such as application, pods, and container.
+External Links allow you to connect to the third-party applications within your Devtron dashboard for seamlessly monitoring/debugging/logging/analyzing your applications. You can select from the pre-defined thrid-party applications such as Grafana to link to your application for quick access.
 
-## Use case
+Configured external links will be available on the `App details` page.
+
+You can also integrate `Document` or `Folder` using **External Links** UI.
+
+Some of the third-party tools which are pre-defined on `Devtron` Dashboard are:
+* Grafana
+* Kibana
+* Newrelic
+* Coralogix
+* Datadog
+* Loki
+* Cloudwatch
+* Swagger 
+* Jira etc.
+
+
+
+## Use Case for Monitoring Tool
 
 To monitor/debug an application using a specific Monitoring Tool (such as Grafana, Kibana, etc.), you may need to navigate to the tool's page, then to the respective app/resource page.
 
@@ -13,43 +29,65 @@ External links take you directly to the tool's page, which includes the context 
 
 Before you begin, configure an application in the Devtron dashboard.
 
-- Super admin access*
+- Super admin access
 - Monitoring tool URL
 
-<sup>*</sup>External links can only be added/managed by a super admin, but other users can [access the configured Monitoring tools](././../creating-application/app-details.md) on their app's page.
+**Note**: External links can only be added/managed by a super admin, but non-super admin users can [access the configured external links](././../creating-application/app-details.md) on the `App Details` page.
 
-## Add an external link
+## Add an External Link
 
-1. On the Devtron dashboard, select `Global Configurations` from the left navigation pane.
+1. On the Devtron dashboard, go to the `Global Configurations` from the left navigation pane.
 2. Select `External links`.
    
-![External links welcome page](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/external-links-welcome.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/external-links-welcome.png)
 
-3. Select **Add link**.
-4. On the `Add link` page, enter the following fields:
+3. Select **Add Link**.
+4. On the `Add Link` page, select the external link which you want to link to your application from Webpage.
 
-![Create an external link](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/add-external-link.png)
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/external-add-link.png)
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/external-link-specific-applications.png)
+
+The following fields are provided on the **Add Link** page:
 
 <table>
     <row>
-        <th>Field name</th>
+        <th>Field</th>
         <th>Description</th>
     </row>
     <tr>
-        <td><b>Monitoring Tool</b></td>
-        <td>Select a Monitoring Tool from the drop-down list. To add a different tool, select 'Other'.</td>
+        <td><b>Link name</b></td>
+        <td>Provide name for the tool you want to link.</td>
     </tr>
     <tr>
-        <td><b>Name</b></td>
-        <td>Enter a user-defined name for the Monitoring Tool</td>
+        <td><b>Description</b></td>
+        <td>Description for the link name.</td>
+    </tr>
+    <tr>
+        <td><b>Show link in</b></td>
+        <td> <ul>
+                <li>All apps in specific clusters: Select this option to select the cluster.</li>
+                <li>Specific applications: Select this option to select the application.</li>                
+            </ul></td>
     </tr>
     <tr>
         <td><b>Clusters</b></td>
         <td>
-            Choose the clusters for which you want to configure the selected tool.
+            Choose the clusters for which you want to configure the selected external tool with.
             <ul>
-                <li>Select more than one cluster name, to enable the link on multiple clusters</li>
-                <li>Select 'Cluster: All', to enable the link on the existing clusters and future clusters</li>                
+                <li>Select one or more than one cluster to enable the link on the specified clusters.</li>
+                <li>Select `All Clusters` to enable the link on all the clusters.</li>                
+            </ul>
+        </td>
+    </tr>
+    <tr>
+        <td><b>Applications</b></td>
+        <td>
+            Choose the application for which you want to configure the selected external tool with.
+            <ul>
+                <li>Select one or more than one application to enable the link on the specified application.</li>
+                <li>Select `All applications` to enable the link on all the applications.<br>Note: If you enable `App admins can edit`, then you can view the selected links on the app-details page. </li>                
             </ul>
         </td>
     </tr>
@@ -74,21 +112,22 @@ Before you begin, configure an application in the Devtron dashboard.
     </tr>
 </table>
 
+
 > Note: To add multiple links, select **+ Add another** at the top-left corner.
 
-Select **Save**.
+Click **Save**.
 
 ## Access an external link
 
-The users (admin and others) can access the configured external link from the [App details](././../creating-application/app-details.md) page.
+The users (admin and others) can access the configured external link from the [App Details](././../creating-application/app-details.md) page.
 
-## Manage external links
+## Manage External links
 
-On this page, the configured external links can be filtered/searched, as well as edited/deleted.
+On the `External Links` page, the configured external links can be filtered/searched, as well as edited/deleted.
 
 Select `Global Configurations > External links`.
 
-![Manage external links](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/manage-external-links.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/manage-external-links.png)
 
 * Filter and search the links based on the tool's name or a user-defined name.
 * Edit a link by selecting the edit icon next to an external link.

@@ -7,18 +7,27 @@ The users can access the [configured external links](../../user-guide/global-con
 1. Select **Applications** from the left navigation pane.
 2. After selecting a configured application, select the **App Details** tab.
    
-> **Note**: The external link configured on the cluster where your app is located is the only one that is visible.
+> **Note**: If you enable `App admins can edit` on the `External Links` page, then only you can view the selected links on the `App-Details` page
 
-As shown in the screenshot, the monitoring tool appears at the configured component level:
+As shown in the screenshot, the external links appear on the app-details level:
 
-![External links at apps and pod level](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/link-app-pod-level.png)
-
-![External links at container level](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/link-container-level.png)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/app-details-external-link.png)
 
 
-3. Click on an external link to access the Monitoring Tool.
+3. You can hover around an external link (e.g. Grafana) to view the description.
 
 The link opens in a new tab with the context you specified as env variables in the [Add an external link](./global-configurations/../../global-configurations/external-links.md) section.
+
+
+## Manage External Links
+
+On the `App Configuration` page, select `External Links` from the navigation pane.
+You can see the configured external links which can be searched, edited or deleted.
+
+You can also `Add Link` to add a new external link.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/app-config-external-link.jpg)
+
 
 ## Change Project of your Application
 
