@@ -41,31 +41,57 @@ func TestExternalLinkServiceImpl_Create(t *testing.T) {
 	}
 	//data created via CREATE API
 	inputData = append(inputData, &inp1)
-	res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+	t.Run("Test Create API With Valid Payload", func(tt *testing.T) {
+		res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
 
-	assert.Nil(t, err)
-	assert.NotNil(t, res)
-	assert.Equal(t, true, res.Success)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, true, res.Success)
 
-	//fetch data via GET API
+		//fetch data via GET API
 
-	outputData, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
-	assert.Nil(t, err)
-	assert.Equal(t, 1, len(outputData))
-	assert.Equal(t, inputData[0].Name, outputData[0].Name)
-	assert.Equal(t, inputData[0].Description, outputData[0].Description)
-	assert.Equal(t, inputData[0].Type, outputData[0].Type)
-	assert.Equal(t, inputData[0].Url, outputData[0].Url)
-	assert.Equal(t, inputData[0].IsEditable, outputData[0].IsEditable)
-	assert.NotNil(t, outputData[0].Identifiers)
-	assert.Equal(t, 2, len(outputData[0].Identifiers))
-	for i, idf := range inputData[0].Identifiers {
-		assert.Equal(t, idf.Type, outputData[0].Identifiers[i].Type)
-		assert.Equal(t, idf.Identifier, outputData[0].Identifiers[i].Identifier)
-		assert.Equal(t, idf.ClusterId, outputData[0].Identifiers[i].ClusterId)
-	}
-	//clean created data
-	cleanDb(t)
+		outputData, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.Equal(tt, 1, len(outputData))
+		assert.Equal(tt, inputData[0].Name, outputData[0].Name)
+		assert.Equal(tt, inputData[0].Description, outputData[0].Description)
+		assert.Equal(tt, inputData[0].Type, outputData[0].Type)
+		assert.Equal(tt, inputData[0].Url, outputData[0].Url)
+		assert.Equal(tt, inputData[0].IsEditable, outputData[0].IsEditable)
+		assert.NotNil(tt, outputData[0].Identifiers)
+		assert.Equal(tt, 2, len(outputData[0].Identifiers))
+		for i, idf := range inputData[0].Identifiers {
+			assert.Equal(tt, idf.Type, outputData[0].Identifiers[i].Type)
+			assert.Equal(tt, idf.Identifier, outputData[0].Identifiers[i].Identifier)
+			assert.Equal(tt, idf.ClusterId, outputData[0].Identifiers[i].ClusterId)
+		}
+		//clean created data
+		cleanDb(tt)
+	})
+
+	t.Run("Test Create API With InValid Payload - 1", func(tt *testing.T) {
+		inputData[0].Identifiers[0].Identifier = "1a"
+		res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+
+		assert.NotNil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, false, res.Success)
+
+		//clean created data
+		cleanDb(tt)
+	})
+
+	t.Run("Test Create API With InValid Payload - 2", func(tt *testing.T) {
+		inputData[0].Type = "invalidType"
+		res, err := externalLinkService.Create(inputData, 1, externalLink.ADMIN_ROLE)
+
+		assert.NotNil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, false, res.Success)
+
+		//clean created data
+		cleanDb(tt)
+	})
 }
 
 func TestExternalLinkServiceImpl_Update(t *testing.T) {
@@ -83,6 +109,7 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		createdLink := outputData[0]
 		createdLink.Name = "IntegrationTest-1-update"
 		createdLink.Identifiers = make([]externalLink.LinkIdentifier, 0)
+		createdLink.IsEditable = false
 
 		var expectedResultLink externalLink.ExternalLinkDto
 		Copy(&expectedResultLink, createdLink)
@@ -106,6 +133,11 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
 		assert.Equal(tt, len(expectedResultLink.Identifiers), len(outputDataAfterUpdate[0].Identifiers))
 
+		//test with admin user
+		res, err = externalLinkService.Update(createdLink, externalLink.ADMIN_ROLE)
+		assert.NotNil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, false, res.Success)
 		//clean data in db
 		cleanDb(tt)
 	})
@@ -446,6 +478,12 @@ func TestExternalLinkServiceImpl_Delete(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, 0, len(res1))
 
+		//
+		res, err = externalLinkService.DeleteLink(outputData[0].Id, 1, externalLink.ADMIN_ROLE)
+		assert.NotNil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, false, res.Success)
+
 		//clean created data
 		cleanDb(tt)
 	})
@@ -464,7 +502,7 @@ func CreateAndGetClusterLevelExternalLink(tt *testing.T) []*externalLink.Externa
 			{Type: "cluster", Identifier: "2", ClusterId: 2},
 		},
 		Url:        "http://integration-test.com",
-		IsEditable: true,
+		IsEditable: false,
 	}
 	inputData = append(inputData, &inp1)
 
