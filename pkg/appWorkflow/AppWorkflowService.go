@@ -50,11 +50,11 @@ type AppWorkflowService interface {
 }
 
 type AppWorkflowServiceImpl struct {
-	Logger                 *zap.SugaredLogger
-	appWorkflowRepository  appWorkflow.AppWorkflowRepository
-	dbPipelineOrchestrator pipeline.DbPipelineOrchestrator
-	ciPipelineRepository   pipelineConfig.CiPipelineRepository
-	pipelineRepository     pipelineConfig.PipelineRepository
+	Logger                   *zap.SugaredLogger
+	appWorkflowRepository    appWorkflow.AppWorkflowRepository
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator
+	ciPipelineRepository     pipelineConfig.CiPipelineRepository
+	pipelineRepository       pipelineConfig.PipelineRepository
 }
 
 type AppWorkflowDto struct {
@@ -87,13 +87,13 @@ type WorkflowComponentNamesDto struct {
 	CdPipelines    []string `json:"cdPipelines"`
 }
 
-func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository, dbPipelineOrchestrator pipeline.DbPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) *AppWorkflowServiceImpl {
+func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository, ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
-		Logger:                 logger,
-		appWorkflowRepository:  appWorkflowRepository,
-		dbPipelineOrchestrator: dbPipelineOrchestrator,
-		ciPipelineRepository:   ciPipelineRepository,
-		pipelineRepository:     pipelineRepository,
+		Logger:                   logger,
+		appWorkflowRepository:    appWorkflowRepository,
+		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
+		ciPipelineRepository:     ciPipelineRepository,
+		pipelineRepository:       pipelineRepository,
 	}
 }
 
