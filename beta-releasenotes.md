@@ -3,3 +3,4 @@
 ## Enhancements
 ## Documentation
 ## Others
+- chore: Fix release version (#2684)
