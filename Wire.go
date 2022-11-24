@@ -206,8 +206,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline2.PipelineConfigRestHandler), new(*pipeline2.PipelineConfigRestHandlerImpl)),
 		router.NewPipelineRouterImpl,
 		wire.Bind(new(router.PipelineConfigRouter), new(*router.PipelineConfigRouterImpl)),
-		pipeline.NewDbPipelineOrchestrator,
-		wire.Bind(new(pipeline.DbPipelineOrchestrator), new(*pipeline.DbPipelineOrchestratorImpl)),
+		pipeline.NewCiCdPipelineOrchestrator,
+		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline.CiCdPipelineOrchestratorImpl)),
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 
