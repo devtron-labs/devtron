@@ -91,15 +91,7 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) Update(link *ExternalLin
 	err := tx.Update(link)
 	return err
 }
-func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByClusterId(clusterId int) ([]ExternalLinkIdentifierMapping, error) {
-	var links []ExternalLinkIdentifierMapping
-	err := impl.dbConnection.Model(&links).
-		Column("external_link_identifier_mapping.*", "ExternalLink").
-		Where("external_link_identifier_mapping.active = ?", true).
-		Where("external_link_identifier_mapping.cluster_id = ?", clusterId).
-		Select()
-	return links, err
-}
+
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int) ([]ExternalLinkIdentifierMappingData, error) {
 	var links []ExternalLinkIdentifierMappingData
 	var query string
@@ -132,29 +124,12 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveLinkIdentif
 	_, err := impl.dbConnection.Query(&links, query)
 	return links, err
 }
-func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActive() ([]ExternalLinkIdentifierMapping, error) {
-	var links []ExternalLinkIdentifierMapping
-	err := impl.dbConnection.Model(&links).
-		Column("external_link_identifier_mapping.*", "ExternalLink").
-		Where("external_link_identifier_mapping.active = ?", true).
-		Select()
-	return links, err
-}
 
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllActiveByExternalLinkId(linkId int) ([]*ExternalLinkIdentifierMapping, error) {
 	var links []*ExternalLinkIdentifierMapping
 	err := impl.dbConnection.Model(&links).
 		Column("external_link_identifier_mapping.*").
 		Where("external_link_identifier_mapping.active = ?", true).
-		Where("external_link_identifier_mapping.external_link_id = ?", linkId).
-		Select()
-	return links, err
-}
-
-func (impl ExternalLinkIdentifierMappingRepositoryImpl) FindAllByExternalLinkId(linkId int) ([]*ExternalLinkIdentifierMapping, error) {
-	var links []*ExternalLinkIdentifierMapping
-	err := impl.dbConnection.Model(&links).
-		Column("external_link_identifier_mapping.*").
 		Where("external_link_identifier_mapping.external_link_id = ?", linkId).
 		Select()
 	return links, err
