@@ -114,7 +114,7 @@ func (impl *UserTerminalAccessServiceImpl) checkMaxSessionLimit(userId int32) er
 	if userRunningSessionCount >= maxSessionPerUser {
 		errStr := fmt.Sprintf("cannot start new session more than configured %s", strconv.Itoa(maxSessionPerUser))
 		impl.Logger.Errorw(errStr, "userId", userId)
-		return errors.New("session-limit-reached")
+		return errors.New(models.MaxSessionLimitReachedMsg)
 	}
 	return nil
 }

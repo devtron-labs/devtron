@@ -2,196 +2,83 @@ package clusterTerminalAccess
 
 import (
 	"errors"
-	"fmt"
-	"github.com/devtron-labs/authenticator/client"
-	application2 "github.com/devtron-labs/devtron/client/k8s/application"
-	"github.com/devtron-labs/devtron/client/k8s/informer"
+	"github.com/devtron-labs/devtron/client/k8s/application"
+	mocks4 "github.com/devtron-labs/devtron/client/k8s/application/mocks"
 	"github.com/devtron-labs/devtron/internal/sql/models"
-	"github.com/devtron-labs/devtron/internal/sql/repository"
+	"github.com/devtron-labs/devtron/internal/sql/repository/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/cluster"
-	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
-	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/terminal"
-	"github.com/devtron-labs/devtron/util/k8s"
+	mocks2 "github.com/devtron-labs/devtron/pkg/terminal/mocks"
+	mocks3 "github.com/devtron-labs/devtron/util/k8s/mocks"
 	"github.com/stretchr/testify/assert"
-	"k8s.io/kubernetes/pkg/api/legacyscheme"
+	"github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"testing"
-	"time"
 )
 
-func TestWrongImageCase(t *testing.T) {
-	terminalAccessServiceImpl := initTerminalAccessService(t)
-	t.Run("wrongImage", func(t *testing.T) {
-		baseImage := "devtron/randomimage"
-		//baseImage = "trstringer/internal-kubectl"
-		clusterId := 1
-		userId := int32(2)
-		request := &models.UserTerminalSessionRequest{
-			UserId:    userId,
-			ClusterId: clusterId,
-			BaseImage: baseImage,
-			ShellName: "sh",
-			NodeName:  "demo-new",
-		}
-		time.Sleep(5 * time.Second)
-		terminalSessionResponse, err := terminalAccessServiceImpl.StartTerminalSession(request)
-		assert.Nil(t, err)
-		fmt.Println(terminalSessionResponse)
-		podManifest, err := terminalAccessServiceImpl.FetchPodManifest(terminalSessionResponse.TerminalAccessId)
-		assert.Nil(t, err)
-		fmt.Println("manifest", podManifest.Manifest)
-		podEvents, err := terminalAccessServiceImpl.FetchPodEvents(terminalSessionResponse.TerminalAccessId)
-		assert.Nil(t, err)
-		fmt.Println(podEvents)
-		sessionId, err := fetchSessionId(terminalAccessServiceImpl, terminalSessionResponse.TerminalAccessId)
-		assert.Equal(t, err, errors.New("pod-terminated"))
-		assert.Empty(t, sessionId)
-		podManifest, err = terminalAccessServiceImpl.FetchPodManifest(terminalSessionResponse.TerminalAccessId)
-		assert.Equal(t, err, errors.New("pod-terminated"))
-		podEvents, err = terminalAccessServiceImpl.FetchPodEvents(terminalSessionResponse.TerminalAccessId)
-		assert.Equal(t, err, errors.New("pod-terminated"))
-	})
-}
-
 func TestNewUserTerminalAccessService(t *testing.T) {
-	t.SkipNow()
-	terminalAccessServiceImpl := initTerminalAccessService(t)
-	t.Run("ClusterTerminalJourneyForSingleUserSingleSession", func(t *testing.T) {
-		baseImage := "trstringer/internal-kubectl:latest"
-		updateTerminalSession := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, 1, 2, baseImage)
+	//t.SkipNow()
+	podJson := "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"${pod_name}-sa\",\"nodeSelector\":{\"kubernetes.io/hostname\":\"${node_name}\"},\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}"
+	t.Run("CheckMaxSessionLimit", func(t *testing.T) {
+		logger, err := util.InitLogger()
+		assert.Nil(t, err)
+		userTerminalSessionConfig, err := GetTerminalAccessConfig()
+		assert.Nil(t, err)
+		userTerminalSessionConfig.MaxSessionPerUser = 1
+		terminalAccessRepository := mocks.NewTerminalAccessRepository(t)
+		terminalSessionHandler := mocks2.NewTerminalSessionHandler(t)
+		k8sApplicationService := mocks3.NewK8sApplicationService(t)
+		k8sClientService := mocks4.NewK8sClientService(t)
+		terminalAccessRepository.On("GetAllRunningUserTerminalData").Return(nil, nil)
+		terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(logger, terminalAccessRepository, userTerminalSessionConfig, k8sApplicationService, k8sClientService, terminalSessionHandler)
+		assert.Nil(t, err)
 
-		err := terminalAccessServiceImpl.StopTerminalSession(updateTerminalSession.TerminalAccessId)
+		terminalAccessDataId := 1
+		var savedTerminalAccessData *models.UserTerminalAccessData
+		terminalAccessRepository.On("SaveUserTerminalAccessData", mock.AnythingOfType("*models.UserTerminalAccessData")).
+			Return(func(data *models.UserTerminalAccessData) error {
+				data.Id = terminalAccessDataId
+				savedTerminalAccessData = data
+				return nil
+			})
+		terminalAccessRepository.On("FetchAllTemplates").Return(nil, nil)
+		mockedClusterId := 1
+		mockedShellName := "bash"
+		mockedUserId := int32(1)
+		mockedNodeName := "random1"
+		request := &models.UserTerminalSessionRequest{UserId: mockedUserId, ClusterId: mockedClusterId, NodeName: mockedNodeName, BaseImage: "random2", ShellName: mockedShellName}
+		terminalSessionResponse1, err := terminalAccessServiceImpl.StartTerminalSession(request)
 		assert.Nil(t, err)
-		sessionId, _ := fetchSessionId(terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
-		fmt.Println("SessionId: ", sessionId)
-		err = terminalAccessServiceImpl.DisconnectTerminalSession(updateTerminalSession.TerminalAccessId)
+		terminalAccessId1 := terminalSessionResponse1.TerminalAccessId
+		assert.NotZero(t, terminalAccessId1)
+		assert.Equal(t, terminalSessionResponse1.UserId, request.UserId)
+		podTemplate := &models.TerminalAccessTemplates{TemplateData: podJson}
+		podStatus := "Running"
+		k8sApplicationService.On("GetResource", mock.AnythingOfType("*k8s.ResourceRequestBean")).Return(&application.ManifestResponse{Manifest: unstructured.Unstructured{Object: map[string]interface{}{"status": map[string]interface{}{"phase": podStatus}}}}, nil)
+		terminalAccessRepository.On("FetchTerminalAccessTemplate", models.TerminalAccessPodTemplateName).Return(podTemplate, nil)
+		terminalAccessRepository.On("GetUserTerminalAccessData", terminalAccessId1).Return(savedTerminalAccessData, nil)
+		terminalAccessRepository.On("UpdateUserTerminalStatus", mock.AnythingOfType("int"), mock.AnythingOfType("string")).
+			Return(func(id int, status string) error {
+				assert.Equal(t, terminalAccessDataId, id)
+				assert.Equal(t, podStatus, status)
+				return nil
+			})
+		terminalSessionHandler.On("ValidateSession", "").Return(false)
+		randomSessionId := "randomSessionId"
+		terminalSessionHandler.On("GetTerminalSession", mock.Anything).
+			Return(200, func(req *terminal.TerminalSessionRequest) *terminal.TerminalMessage {
+				assert.Equal(t, mockedClusterId, req.ClusterId)
+				assert.Equal(t, mockedShellName, req.Shell)
+				assert.Equal(t, terminalSessionResponse1.PodName, req.PodName)
+				terminalMsg := &terminal.TerminalMessage{SessionID: randomSessionId}
+				return terminalMsg
+			}, nil)
+		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(terminalAccessId1)
 		assert.Nil(t, err)
-		_, err = fetchSessionId(terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
-		assert.Equal(t, err, errors.New("pod-terminated"))
+		assert.Equal(t, podStatus, string(terminalSessionStatus.Status))
+		assert.Equal(t, randomSessionId, terminalSessionStatus.UserTerminalSessionId)
+		terminalSessionResponse2, err := terminalAccessServiceImpl.StartTerminalSession(request)
+		assert.Equal(t, errors.New(models.MaxSessionLimitReachedMsg), err)
+		assert.Nil(t, terminalSessionResponse2)
 	})
-
-	t.Run("ClusterTerminalJourneyForSingleUserMultiSession", func(t *testing.T) {
-		clusterId := 1
-		userId := int32(2)
-		baseImage := "trstringer/internal-kubectl:latest"
-		terminalSession1 := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, clusterId, userId, baseImage)
-		terminalSession2 := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, clusterId, userId, baseImage)
-		terminalSession3 := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, clusterId, userId, baseImage)
-
-		terminalAccessServiceImpl.DisconnectAllSessionsForUser(userId)
-		_, err := fetchSessionId(terminalAccessServiceImpl, terminalSession1.TerminalAccessId)
-		assert.Nil(t, err)
-		_, err = fetchSessionId(terminalAccessServiceImpl, terminalSession2.TerminalAccessId)
-		assert.Nil(t, err)
-		_, err = fetchSessionId(terminalAccessServiceImpl, terminalSession3.TerminalAccessId)
-		assert.Nil(t, err)
-
-		err = terminalAccessServiceImpl.DisconnectTerminalSession(terminalSession1.TerminalAccessId)
-		assert.Nil(t, err)
-		err = terminalAccessServiceImpl.DisconnectTerminalSession(terminalSession2.TerminalAccessId)
-		assert.Nil(t, err)
-		err = terminalAccessServiceImpl.DisconnectTerminalSession(terminalSession3.TerminalAccessId)
-		assert.Nil(t, err)
-
-		_, err = fetchSessionId(terminalAccessServiceImpl, terminalSession1.TerminalAccessId)
-		assert.Equal(t, err, errors.New("pod-terminated"))
-		_, err = fetchSessionId(terminalAccessServiceImpl, terminalSession2.TerminalAccessId)
-		assert.Equal(t, err, errors.New("pod-terminated"))
-		_, err = fetchSessionId(terminalAccessServiceImpl, terminalSession3.TerminalAccessId)
-		assert.Equal(t, err, errors.New("pod-terminated"))
-	})
-
-	t.Run("convert to k8s structure", func(t *testing.T) {
-		podJson := "{\"apiVersion\":\"rbac.authorization.k8s.io/v1\",\"kind\":\"ClusterRoleBinding\",\"metadata\":{\"name\":\"${pod_name}-crb\"},\"subjects\":[{\"kind\":\"ServiceAccount\",\"name\":\"${pod_name}-sa\",\"namespace\":\"${default_namespace}\"}],\"roleRef\":{\"kind\":\"ClusterRole\",\"name\":\"cluster-admin\",\"apiGroup\":\"rbac.authorization.k8s.io\"}}"
-		_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(podJson), nil, nil)
-		assert.Nil(t, err)
-		assert.Equal(t, groupVersionKind.Group, "rbac.authorization.k8s.io")
-		assert.Equal(t, groupVersionKind.Version, "v1")
-		assert.Equal(t, groupVersionKind.Kind, "ClusterRoleBinding")
-
-		podJson = "{\"apiVersion\":\"v1\",\"kind\":\"Pod\",\"metadata\":{\"name\":\"${pod_name}\"},\"spec\":{\"serviceAccountName\":\"${pod_name}-sa\",\"nodeSelector\":{\"kubernetes.io/hostname\":\"${node_name}\"},\"containers\":[{\"name\":\"internal-kubectl\",\"image\":\"${base_image}\",\"command\":[\"/bin/bash\",\"-c\",\"--\"],\"args\":[\"while true; do sleep 30; done;\"]}]}}"
-		_, groupVersionKind, err = legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(podJson), nil, nil)
-		assert.Nil(t, err)
-		assert.Equal(t, groupVersionKind.Group, "")
-		assert.Equal(t, groupVersionKind.Version, "v1")
-		assert.Equal(t, groupVersionKind.Kind, "Pod")
-	})
-}
-
-func initTerminalAccessService(t *testing.T) *UserTerminalAccessServiceImpl {
-	sugaredLogger, _ := util.InitLogger()
-	config, _ := sql.GetConfig()
-	db, _ := sql.NewDbConnection(config, sugaredLogger)
-	runtimeConfig, err := client.GetRuntimeConfig()
-	assert.Nil(t, err)
-	v := informer.NewGlobalMapClusterNamespace()
-	k8sInformerFactoryImpl := informer.NewK8sInformerFactoryImpl(sugaredLogger, v, runtimeConfig)
-	terminalAccessRepositoryImpl := repository.NewTerminalAccessRepositoryImpl(db, sugaredLogger)
-	clusterRepositoryImpl := repository2.NewClusterRepositoryImpl(db, sugaredLogger)
-	k8sClientServiceImpl := application2.NewK8sClientServiceImpl(sugaredLogger, clusterRepositoryImpl)
-	clusterServiceImpl := cluster.NewClusterServiceImpl(clusterRepositoryImpl, sugaredLogger, nil, k8sInformerFactoryImpl)
-	//clusterServiceImpl := cluster2.NewClusterServiceImplExtended(clusterRepositoryImpl, nil, nil, sugaredLogger, nil, nil, nil, nil, nil)
-	k8sApplicationService := k8s.NewK8sApplicationServiceImpl(sugaredLogger, clusterServiceImpl, nil, k8sClientServiceImpl, nil, nil, nil)
-	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(nil, clusterServiceImpl, sugaredLogger)
-	userTerminalSessionConfig, err := GetTerminalAccessConfig()
-	assert.Nil(t, err)
-	userTerminalSessionConfig.TerminalPodStatusSyncTimeInSecs = 60
-	userTerminalSessionConfig.TerminalPodInActiveDurationInMins = 2
-	terminalAccessServiceImpl, err := NewUserTerminalAccessServiceImpl(sugaredLogger, terminalAccessRepositoryImpl, userTerminalSessionConfig, k8sApplicationService, k8sClientServiceImpl, terminalSessionHandlerImpl)
-	assert.Nil(t, err)
-	return terminalAccessServiceImpl
-}
-
-func createAndUpdateSessionForUser(t *testing.T, terminalAccessServiceImpl *UserTerminalAccessServiceImpl, clusterId int, userId int32, baseImage string) *models.UserTerminalSessionResponse {
-
-	request := &models.UserTerminalSessionRequest{
-		UserId:    userId,
-		ClusterId: clusterId,
-		BaseImage: baseImage,
-		ShellName: "sh",
-		NodeName:  "demo-new",
-	}
-	time.Sleep(5 * time.Second)
-	startTerminalSession, err := terminalAccessServiceImpl.StartTerminalSession(request)
-	assert.Nil(t, err)
-	fmt.Println(startTerminalSession)
-	sessionId, err := fetchSessionId(terminalAccessServiceImpl, startTerminalSession.TerminalAccessId)
-	assert.Nil(t, err)
-	fmt.Println("SessionId: ", sessionId)
-
-	shellChangeResponse, err := terminalAccessServiceImpl.UpdateTerminalShellSession(&models.UserTerminalShellSessionRequest{TerminalAccessId: startTerminalSession.TerminalAccessId, ShellName: "bash"})
-	assert.Nil(t, err)
-	assert.Equal(t, shellChangeResponse.TerminalAccessId, startTerminalSession.TerminalAccessId)
-	request.BaseImage = "nginx:latest"
-	request.Id = startTerminalSession.TerminalAccessId
-	updateTerminalSession, err := terminalAccessServiceImpl.UpdateTerminalSession(request)
-	assert.Nil(t, err)
-	assert.Equal(t, updateTerminalSession.UserId, request.UserId)
-	fmt.Println("updated: ", updateTerminalSession)
-	sessionId, err = fetchSessionId(terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
-	assert.Nil(t, err)
-	fmt.Println("SessionId: ", sessionId)
-
-	terminalShellSession, err := terminalAccessServiceImpl.UpdateTerminalShellSession(&models.UserTerminalShellSessionRequest{TerminalAccessId: updateTerminalSession.TerminalAccessId, ShellName: "bash"})
-	assert.Nil(t, err)
-	assert.Equal(t, terminalShellSession.TerminalAccessId, updateTerminalSession.TerminalAccessId)
-	sessionId, err = fetchSessionId(terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
-	assert.Nil(t, err)
-	fmt.Println("SessionId: ", sessionId)
-	return updateTerminalSession
-}
-
-func fetchSessionId(terminalAccessServiceImpl *UserTerminalAccessServiceImpl, terminalAccessId int) (string, error) {
-	sessionId := ""
-	for sessionId == "" {
-		fetchTerminalStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(terminalAccessId)
-		if err != nil {
-			return sessionId, err
-		}
-		sessionId = fetchTerminalStatus.UserTerminalSessionId
-		fmt.Println("sessionId: ", sessionId)
-		time.Sleep(5 * time.Second)
-	}
-	return sessionId, nil
 }
