@@ -174,7 +174,7 @@ type PipelineBuilderImpl struct {
 	gitMaterialHistoryService    history.GitMaterialHistoryService
 	CiTemplateHistoryService     history.CiTemplateHistoryService
 	CiPipelineHistoryService     history.CiPipelineHistoryService
-	deploymentConfig                 *DeploymentServiceTypeConfig
+	deploymentConfig             *DeploymentServiceTypeConfig
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -267,7 +267,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		gitMaterialHistoryService:    gitMaterialHistoryService,
 		CiTemplateHistoryService:     CiTemplateHistoryService,
 		CiPipelineHistoryService:     CiPipelineHistoryService,
-		deploymentConfig: deploymentConfig,
+		deploymentConfig:             deploymentConfig,
 	}
 }
 
@@ -1299,6 +1299,17 @@ func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateReque
 			globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
 		} else {
 			globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		}
+	} else {
+		// if gitops or helm is option available, and deployment app type is not present in pipeline request/
+		for _, pipeline := range pipelineCreateRequest.Pipelines {
+			if pipeline.DeploymentAppType == "" {
+				if isGitOpsConfigured {
+					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+				} else {
+					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+				}
+			}
 		}
 	}
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
