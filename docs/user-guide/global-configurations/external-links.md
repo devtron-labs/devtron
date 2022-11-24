@@ -1,12 +1,10 @@
 # External Links
 
-External Links allow you to connect to the third-party applications within your Devtron dashboard for seamlessly monitoring/debugging/logging/analyzing your applications. You can select from the pre-defined thrid-party applications such as Grafana to link to your application for quick access.
+External Links allow you to connect to the third-party applications within your Devtron dashboard for seamlessly monitoring/debugging/logging/analyzing your applications. You can select from the pre-defined thrid-party applications such as `Grafana` to link to your application for quick access.
 
-Configured external links will be available on the `App details` page.
+Configured external links will be available on the `App details` page. You can also integrate `Document` or `Folder` using **External Links**.
 
-You can also integrate `Document` or `Folder` using **External Links** UI.
-
-Some of the third-party tools which are pre-defined on `Devtron` Dashboard are:
+Some of the third-party applications which are pre-defined on `Devtron` Dashboard are:
 * Grafana
 * Kibana
 * Newrelic
@@ -23,7 +21,7 @@ Some of the third-party tools which are pre-defined on `Devtron` Dashboard are:
 
 To monitor/debug an application using a specific Monitoring Tool (such as Grafana, Kibana, etc.), you may need to navigate to the tool's page, then to the respective app/resource page.
 
-External links take you directly to the tool's page, which includes the context of the application, environment, pod, and container.
+`External Links` can take you directly to the tool's page, which includes the context of the application, environment, pod, and container.
 
 ## Prerequisites
 
@@ -42,7 +40,7 @@ Before you begin, configure an application in the Devtron dashboard.
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/external-links-welcome.png)
 
 3. Select **Add Link**.
-4. On the `Add Link` page, select the external link which you want to link to your application from Webpage.
+4. On the `Add Link` page, select the external link (e.g. Grafana) which you want to link to your application from Webpage.
 
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/external-add-link.png)
@@ -62,7 +60,7 @@ The following fields are provided on the **Add Link** page:
     </tr>
     <tr>
         <td><b>Description</b></td>
-        <td>Description for the link name.</td>
+        <td>Description of the link name.</td>
     </tr>
     <tr>
         <td><b>Show link in</b></td>
@@ -77,7 +75,7 @@ The following fields are provided on the **Add Link** page:
             Choose the clusters for which you want to configure the selected external tool with.
             <ul>
                 <li>Select one or more than one cluster to enable the link on the specified clusters.</li>
-                <li>Select `All Clusters` to enable the link on all the clusters.</li>                
+                <li>Select All Clusters to enable the link on all the clusters.</li>                
             </ul>
         </td>
     </tr>
@@ -87,7 +85,7 @@ The following fields are provided on the **Add Link** page:
             Choose the application for which you want to configure the selected external tool with.
             <ul>
                 <li>Select one or more than one application to enable the link on the specified application.</li>
-                <li>Select `All applications` to enable the link on all the applications.<br>Note: If you enable `App admins can edit`, then you can view the selected links on the app-details page. </li>                
+                <li>Select All applications to enable the link on all the applications.<br>Note: If you enable `App admins can edit`, then you can view the selected links on the app-details page. </li>                
             </ul>
         </td>
     </tr>
@@ -119,7 +117,9 @@ Click **Save**.
 
 ## Access an external link
 
-The users (admin and others) can access the configured external link from the [App Details](././../creating-application/app-details.md) page.
+The users (admin and others) can access the configured external link on the [App Details](././../creating-application/app-details.md) page. 
+
+**Note**: If you enable `App admins can edit` on the `External Links` page, then only non-super admin users can view the selected links on the `App-Details` page. 
 
 ## Manage External links
 

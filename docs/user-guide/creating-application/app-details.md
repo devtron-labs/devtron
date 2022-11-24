@@ -7,9 +7,9 @@ The users can access the [configured external links](../../user-guide/global-con
 1. Select **Applications** from the left navigation pane.
 2. After selecting a configured application, select the **App Details** tab.
    
-> **Note**: If you enable `App admins can edit` on the `External Links` page, then only you can view the selected links on the `App-Details` page
+> **Note**: If you enable `App admins can edit` on the `External Links` page, then only non-super admin users can view the selected links on the `App-Details` page.
 
-As shown in the screenshot, the external links appear on the app-details level:
+As shown in the screenshot, the external links appear on the App-Details level:
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/app-details-external-link.png)
 
