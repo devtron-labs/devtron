@@ -495,7 +495,104 @@ func TestExternalLinkServiceImpl_Delete(t *testing.T) {
 }
 
 func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.T) {
+	if externalLinkService == nil {
+		InitExternalLinkService()
+	}
+	expectedLinksForDevtronAppMap, expectedLinksForDevtronInstalledAppMap, expectedLinksForExternalHelmAppMap := CreateTestDataInDbToTestFetchAllActiveLinksByLinkIdentifier()
 
+	//test the links of devtron-app with expected devtron-app links
+	t.Run("Test Links for devtron-app", func(tt *testing.T) {
+		linkIdentifier := externalLink.LinkIdentifier{
+			Type:       "devtron-app",
+			Identifier: "1",
+		}
+		resultDevtronAppLinks, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(&linkIdentifier, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, resultDevtronAppLinks)
+
+		resultDevtronAppLinksMap := map[string]externalLink.ExternalLinkDto{}
+		for _, resultLink := range resultDevtronAppLinks {
+			resultDevtronAppLinksMap[resultLink.Name] = *resultLink
+		}
+
+		//test the result links with expected links
+		for key, expectedValue := range expectedLinksForDevtronAppMap {
+			val, ok := resultDevtronAppLinksMap[key]
+			assert.Equal(tt, true, ok)
+			assert.NotNil(tt, val)
+			assert.Equal(tt, expectedValue.MonitoringToolId, val.MonitoringToolId)
+			assert.Equal(tt, expectedValue.Name, val.Name)
+			assert.Equal(tt, expectedValue.Description, val.Description)
+			assert.Equal(tt, expectedValue.Url, val.Url)
+			assert.Equal(tt, len(expectedValue.Identifiers), len(val.Identifiers))
+			for i, ExpIdf := range expectedValue.Identifiers {
+				assert.Equal(tt, ExpIdf.Type, val.Identifiers[i].Type)
+			}
+		}
+	})
+
+	//test the links of devtron-installed-app with expected devtron-installed-app links
+	t.Run("Test Links for devtron-installed-app", func(tt *testing.T) {
+		linkIdentifier := externalLink.LinkIdentifier{
+			Type:       "devtron-installed-app",
+			Identifier: "12",
+		}
+		resultDevtronInstalledAppLinks, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(&linkIdentifier, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, resultDevtronInstalledAppLinks)
+
+		resultDevtronInstalledAppLinksMap := map[string]externalLink.ExternalLinkDto{}
+		for _, resultLink := range resultDevtronInstalledAppLinks {
+			resultDevtronInstalledAppLinksMap[resultLink.Name] = *resultLink
+		}
+
+		//test the result links with expected links
+		for key, expectedValue := range expectedLinksForDevtronInstalledAppMap {
+			val, ok := resultDevtronInstalledAppLinksMap[key]
+			assert.Equal(tt, true, ok)
+			assert.NotNil(tt, val)
+			assert.Equal(tt, expectedValue.MonitoringToolId, val.MonitoringToolId)
+			assert.Equal(tt, expectedValue.Name, val.Name)
+			assert.Equal(tt, expectedValue.Description, val.Description)
+			assert.Equal(tt, expectedValue.Url, val.Url)
+			assert.Equal(tt, len(expectedValue.Identifiers), len(val.Identifiers))
+			for i, ExpIdf := range expectedValue.Identifiers {
+				assert.Equal(tt, ExpIdf.Type, val.Identifiers[i].Type)
+			}
+		}
+	})
+
+	//test the links of external-helm-app with expected external-helm-app links
+	t.Run("Test Links for external-helm-app", func(tt *testing.T) {
+		linkIdentifier := externalLink.LinkIdentifier{
+			Type:       "external-helm-app",
+			Identifier: "helm-app-test",
+		}
+		resultExternalHelmAppLinks, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(&linkIdentifier, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, resultExternalHelmAppLinks)
+
+		resultExternalHelmAppLinksMap := map[string]externalLink.ExternalLinkDto{}
+		for _, resultLink := range resultExternalHelmAppLinks {
+			resultExternalHelmAppLinksMap[resultLink.Name] = *resultLink
+		}
+
+		//test the result links with expected links
+		for key, expectedValue := range expectedLinksForExternalHelmAppMap {
+			val, ok := resultExternalHelmAppLinksMap[key]
+			assert.Equal(tt, true, ok)
+			assert.NotNil(tt, val)
+			assert.Equal(tt, expectedValue.MonitoringToolId, val.MonitoringToolId)
+			assert.Equal(tt, expectedValue.Name, val.Name)
+			assert.Equal(tt, expectedValue.Description, val.Description)
+			assert.Equal(tt, expectedValue.Url, val.Url)
+			assert.Equal(tt, len(expectedValue.Identifiers), len(val.Identifiers))
+			for i, ExpIdf := range expectedValue.Identifiers {
+				assert.Equal(tt, ExpIdf.Type, val.Identifiers[i].Type)
+			}
+		}
+	})
+	cleanDb(t)
 }
 
 func TestExternalLinkMonitoringToolRepository_FindAllActive(t *testing.T) {
@@ -527,14 +624,127 @@ func TestExternalLinkMonitoringToolRepository_FindAllActive(t *testing.T) {
 		returnedToolsMap[tool.Id] = tool
 	}
 
-	//test links returned with expected links
-
+	//test the returned-links with expected-links
 	for key, expectedVal := range expectedToolsMap {
 		val, ok := returnedToolsMap[key]
 		assert.Equal(t, true, ok)
 		assert.Equal(t, expectedVal, val)
 	}
 }
+
+func CreateTestDataInDbToTestFetchAllActiveLinksByLinkIdentifier() (a, b, c map[string]externalLink.ExternalLinkDto) {
+	linksForDevtronAppMap := map[string]externalLink.ExternalLinkDto{}
+	linksForDevtronInstalledAppMap := map[string]externalLink.ExternalLinkDto{}
+	linksForExternalHelmAppMap := map[string]externalLink.ExternalLinkDto{}
+	inputData := make([]*externalLink.ExternalLinkDto, 0)
+	itr := 0
+	//link for only one cluster
+	inputData = append(inputData, &externalLink.ExternalLinkDto{
+		MonitoringToolId: 4,
+		Name:             "cluster-link-1",
+		Description:      "integration test link description",
+		Type:             "clusterLevel",
+		Identifiers: []externalLink.LinkIdentifier{
+			{Type: "cluster", Identifier: "1", ClusterId: 1},
+		},
+		Url:        "http://integration-test.com",
+		IsEditable: true,
+	})
+	itr++
+	//link for another cluster
+	inputData = append(inputData, &externalLink.ExternalLinkDto{
+		MonitoringToolId: 4,
+		Name:             "cluster-link-2",
+		Description:      "integration test link description",
+		Type:             "clusterLevel",
+		Identifiers: []externalLink.LinkIdentifier{
+			{Type: "cluster", Identifier: "2", ClusterId: 2},
+		},
+		Url:        "http://integration-test.com",
+		IsEditable: true,
+	})
+	itr++
+
+	//create all-cluster link
+	inputData = append(inputData, &externalLink.ExternalLinkDto{
+		MonitoringToolId: 4,
+		Name:             "all-cluster-link",
+		Description:      "integration test link description",
+		Type:             "clusterLevel",
+		Url:              "http://integration-test.com",
+		IsEditable:       true,
+	})
+	linksForDevtronAppMap[inputData[itr].Name] = *inputData[itr]
+	linksForDevtronInstalledAppMap[inputData[itr].Name] = *inputData[itr]
+	linksForExternalHelmAppMap[inputData[itr].Name] = *inputData[itr]
+	itr++
+
+	//create all-app link
+	inputData = append(inputData, &externalLink.ExternalLinkDto{
+		MonitoringToolId: 4,
+		Name:             "all-app-link",
+		Description:      "integration test link description",
+		Type:             "appLevel",
+		Url:              "http://integration-test.com",
+		IsEditable:       true,
+	})
+	linksForDevtronAppMap[inputData[itr].Name] = *inputData[itr]
+	linksForDevtronInstalledAppMap[inputData[itr].Name] = *inputData[itr]
+	linksForExternalHelmAppMap[inputData[itr].Name] = *inputData[itr]
+	itr++
+
+	//create for devtron-app
+	inputData = append(inputData, &externalLink.ExternalLinkDto{
+		MonitoringToolId: 4,
+		Name:             "devtron-app-link",
+		Description:      "integration test link description",
+		Type:             "appLevel",
+		Identifiers: []externalLink.LinkIdentifier{
+			{Type: "devtron-app", Identifier: "1", ClusterId: 0},
+		},
+		Url:        "http://integration-test.com",
+		IsEditable: true,
+	})
+	linksForDevtronAppMap[inputData[itr].Name] = *inputData[itr]
+	itr++
+
+	//create for devtron-installed-app
+	inputData = append(inputData, &externalLink.ExternalLinkDto{
+		MonitoringToolId: 4,
+		Name:             "devtron-installed-app-link",
+		Description:      "integration test link description",
+		Type:             "appLevel",
+		Identifiers: []externalLink.LinkIdentifier{
+			{Type: "devtron-installed-app", Identifier: "12", ClusterId: 0},
+		},
+		Url:        "http://integration-test.com",
+		IsEditable: true,
+	})
+	linksForDevtronInstalledAppMap[inputData[itr].Name] = *inputData[itr]
+	itr++
+
+	//create for external-helm-app
+	inputData = append(inputData, &externalLink.ExternalLinkDto{
+		MonitoringToolId: 4,
+		Name:             "external-helm-app-link",
+		Description:      "integration test link description",
+		Type:             "appLevel",
+		Identifiers: []externalLink.LinkIdentifier{
+			{Type: "external-helm-app", Identifier: "helm-app-test", ClusterId: 0},
+		},
+		Url:        "http://integration-test.com",
+		IsEditable: true,
+	})
+	linksForExternalHelmAppMap[inputData[itr].Name] = *inputData[itr]
+
+	//create the above links in db using create service
+	_, err := externalLinkService.Create(inputData, 1, externalLink.SUPER_ADMIN_ROLE)
+	if err != nil {
+		log.Fatalf("error occured while creating external links payload, err : %s", err)
+	}
+	return linksForDevtronAppMap, linksForDevtronInstalledAppMap, linksForExternalHelmAppMap
+}
+
 func CreateAndGetClusterLevelExternalLink(tt *testing.T) []*externalLink.ExternalLinkDto {
 	inputData := make([]*externalLink.ExternalLinkDto, 0)
 	inp1 := externalLink.ExternalLinkDto{
