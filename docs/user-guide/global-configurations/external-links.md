@@ -85,7 +85,7 @@ The following fields are provided on the **Add Link** page:
             Choose the application for which you want to configure the selected external tool with.
             <ul>
                 <li>Select one or more than one application to enable the link on the specified application.</li>
-                <li>Select All applications to enable the link on all the applications.<br>Note: If you enable `App admins can edit`, then you can view the selected links on the app-details page. </li>                
+                <li>Select All applications to enable the link on all the applications.<br>Note: If you enable `App admins can edit`, then you can view the selected links on the App-Details page. </li>                
             </ul>
         </td>
     </tr>
