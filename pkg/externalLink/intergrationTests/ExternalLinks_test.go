@@ -478,7 +478,11 @@ func TestExternalLinkServiceImpl_Delete(t *testing.T) {
 		assert.Nil(tt, err)
 		assert.Equal(tt, 0, len(res1))
 
-		//
+		//clean created data
+		cleanDb(tt)
+
+		//try to delete non-editable link with admin
+		outputData = CreateAndGetClusterLevelExternalLink(tt)
 		res, err = externalLinkService.DeleteLink(outputData[0].Id, 1, externalLink.ADMIN_ROLE)
 		assert.NotNil(tt, err)
 		assert.NotNil(tt, res)
