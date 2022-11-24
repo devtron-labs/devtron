@@ -92,10 +92,11 @@ The following fields are provided on the **Add Link** page:
     <tr>
         <td><b>URL Template</b></td>
         <td>
-            The configured URL Template is used by apps deployed on the selected clusters.            
+            The configured URL Template is used by apps deployed on the selected clusters/applications.            
             By combining one or more of the env variables, a URL with the structure shown below can be created:<br></br>
             <i>http://www.domain.com/{namespace}/{appName}/details/{appId}/env/{envId}/details/{podName}</i>
             <br></br>
+            If you include the variables {podName} and {containerName} in the URL template, then the configured links (e.g. Grafana) will be visible only on the pod level and container level respectively.<br></br>
             The env variables:
             <ul>
                 <li>{appName}</li>
@@ -105,7 +106,7 @@ The following fields are provided on the **Add Link** page:
                 <li>{podName}: If used, the link will only be visible at the pod level on the <a href="../creating-application/app-details.md"> App details </a> page.
                 <li>{containerName}: If used, the link will only be visible at the container level on the <a href="../creating-application/app-details.md">App details</a> page. </li>
             </ul>
-            <b>Note: The env variables will be dynamically replaced by the values that you used to configure the link.            
+            <b>Note: The env variables will be dynamically replaced by the values that you used to configure the link.           
         </td>
     </tr>
 </table>
