@@ -494,6 +494,47 @@ func TestExternalLinkServiceImpl_Delete(t *testing.T) {
 
 }
 
+func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.T) {
+
+}
+
+func TestExternalLinkMonitoringToolRepository_FindAllActive(t *testing.T) {
+	//Get Test data
+	query := "select * from external_link_monitoring_tool where active = true"
+	var expectedTools []externalLink.ExternalLinkMonitoringTool
+	DB, err := getDbConn()
+	if err != nil {
+		log.Fatalf("error in getting db connection, err : %s", err)
+	}
+	_, err = DB.Query(&expectedTools, query)
+	if err != nil {
+		log.Fatalf("error in getting monitoring tools from data base, err : %s", err)
+	}
+	expectedToolsMap := map[int]externalLink.ExternalLinkMonitoringTool{}
+	for _, tool := range expectedTools {
+		expectedToolsMap[tool.Id] = tool
+	}
+
+	//Get Data from test service
+	repoToBeTested := externalLink.NewExternalLinkMonitoringToolRepositoryImpl(DB)
+	returnedTools, err := repoToBeTested.FindAllActive()
+	assert.Nil(t, err)
+	assert.NotNil(t, returnedTools)
+	assert.Equal(t, len(expectedTools), len(returnedTools))
+
+	returnedToolsMap := map[int]externalLink.ExternalLinkMonitoringTool{}
+	for _, tool := range returnedTools {
+		returnedToolsMap[tool.Id] = tool
+	}
+
+	//test links returned with expected links
+
+	for key, expectedVal := range expectedToolsMap {
+		val, ok := returnedToolsMap[key]
+		assert.Equal(t, true, ok)
+		assert.Equal(t, expectedVal, val)
+	}
+}
 func CreateAndGetClusterLevelExternalLink(tt *testing.T) []*externalLink.ExternalLinkDto {
 	inputData := make([]*externalLink.ExternalLinkDto, 0)
 	inp1 := externalLink.ExternalLinkDto{
