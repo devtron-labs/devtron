@@ -100,6 +100,40 @@ func TestExternalLinkServiceImpl_Update(t *testing.T) {
 		InitExternalLinkService()
 	}
 
+	//update apps to apps
+	t.Run("TEST : update link from apps to apps", func(tt *testing.T) {
+		outputData := CreateAndGetAppLevelExternalLink(tt)
+
+		createdLink := outputData[0]
+		createdLink.Name = "IntegrationTest-1-update"
+		createdLink.IsEditable = false
+
+		var expectedResultLink externalLink.ExternalLinkDto
+		Copy(&expectedResultLink, createdLink)
+
+		//update it via update API
+		res, err := externalLinkService.Update(createdLink, externalLink.SUPER_ADMIN_ROLE)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, res)
+		assert.Equal(tt, true, res.Success)
+
+		//test if it's updated properly
+		outputDataAfterUpdate, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 1)
+		assert.Nil(tt, err)
+		assert.NotNil(tt, outputDataAfterUpdate)
+		assert.Equal(tt, 1, len(outputDataAfterUpdate))
+		assert.Equal(tt, expectedResultLink.Id, outputDataAfterUpdate[0].Id)
+		assert.Equal(tt, expectedResultLink.Name, outputDataAfterUpdate[0].Name)
+		assert.Equal(tt, expectedResultLink.Type, outputDataAfterUpdate[0].Type)
+		assert.Equal(tt, expectedResultLink.Description, outputDataAfterUpdate[0].Description)
+		assert.Equal(tt, expectedResultLink.Url, outputDataAfterUpdate[0].Url)
+		assert.Equal(tt, expectedResultLink.MonitoringToolId, outputDataAfterUpdate[0].MonitoringToolId)
+		assert.Equal(tt, len(expectedResultLink.Identifiers), len(outputDataAfterUpdate[0].Identifiers))
+
+		//clean data in db
+		cleanDb(tt)
+	})
+
 	//update app to all apps
 
 	t.Run("TEST : update link from app to all apps", func(tt *testing.T) {
