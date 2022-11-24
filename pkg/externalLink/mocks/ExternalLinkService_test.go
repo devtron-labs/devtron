@@ -8,6 +8,11 @@ import (
 	"testing"
 )
 
+var expectedMonitoringToolErr = util.ApiError{
+	InternalMessage: "external-link-identifier-mapping failed to getting tools ",
+	UserMessage:     "external-link-identifier-mapping failed to getting tools ",
+}
+
 func getExternalLinkService(t *testing.T) *externalLink.ExternalLinkServiceImpl {
 	logger, err := util.NewSugardLogger()
 	assert.Nil(t, err)
@@ -283,14 +288,12 @@ func TestExternalLinkServiceImpl_GetAllActiveTools(t *testing.T) {
 		externalLinkMonitoringToolRepository := NewExternalLinkMonitoringToolRepository(tt)
 
 		externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
-		expectedErr := &util.ApiError{
-			InternalMessage: "external-link-identifier-mapping failed to getting tools ",
-			UserMessage:     "external-link-identifier-mapping failed to getting tools ",
-		}
+
 		externalLinkMonitoringToolRepository.On("FindAllActive").Return(nil, fmt.Errorf("err"))
+
 		mockToolDtosResponse, err := externalLinkService.GetAllActiveTools()
 		assert.NotNil(tt, err)
 		assert.Nil(tt, mockToolDtosResponse)
-		assert.Equal(tt, expectedErr, err)
+		assert.Equal(tt, &expectedMonitoringToolErr, err)
 	})
 }
