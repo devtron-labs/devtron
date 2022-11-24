@@ -12,9 +12,9 @@ import (
 
 type Config struct {
 	Addr            string `env:"TEST_PG_ADDR" envDefault:"127.0.0.1"`
-	Port            string `env:"TEST_PG_PORT" envDefault:"55000"`
+	Port            string `env:"TEST_PG_PORT" envDefault:"5432"`
 	User            string `env:"TEST_PG_USER" envDefault:"postgres"`
-	Password        string `env:"TEST_PG_PASSWORD" envDefault:"postgrespw" secretData:"-"`
+	Password        string `env:"TEST_PG_PASSWORD" envDefault:"" secretData:"-"`
 	Database        string `env:"TEST_PG_DATABASE" envDefault:"orchestrator"`
 	ApplicationName string `env:"TEST_APP" envDefault:"orchestrator"`
 	LogQuery        bool   `env:"TEST_PG_LOG_QUERY" envDefault:"true"`
