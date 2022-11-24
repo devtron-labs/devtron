@@ -58,11 +58,10 @@ func TestNewUserTerminalAccessServiceIT(t *testing.T) {
 		baseImage := "trstringer/internal-kubectl:latest"
 		updateTerminalSession := createAndUpdateSessionForUser(t, terminalAccessServiceImpl, 1, 2, baseImage)
 
-		err := terminalAccessServiceImpl.StopTerminalSession(updateTerminalSession.TerminalAccessId)
-		assert.Nil(t, err)
+		terminalAccessServiceImpl.StopTerminalSession(updateTerminalSession.TerminalAccessId)
 		sessionId, _ := fetchSessionId(terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
 		fmt.Println("SessionId: ", sessionId)
-		err = terminalAccessServiceImpl.DisconnectTerminalSession(updateTerminalSession.TerminalAccessId)
+		err := terminalAccessServiceImpl.DisconnectTerminalSession(updateTerminalSession.TerminalAccessId)
 		assert.Nil(t, err)
 		_, err = fetchSessionId(terminalAccessServiceImpl, updateTerminalSession.TerminalAccessId)
 		assert.Equal(t, err, errors.New("pod-terminated"))
