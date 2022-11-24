@@ -56,13 +56,13 @@ type ExternalLinkIdentifierMappingData struct {
 
 type ExternalLinkIdentifierMappingRepository interface {
 	Save(externalLinksClusters *ExternalLinkIdentifierMapping, tx *pg.Tx) error
-	FindAllActiveByClusterId(clusterId int) ([]ExternalLinkIdentifierMapping, error)
+
 	FindAllActiveByLinkIdentifier(identifier *LinkIdentifier, clusterId int) ([]ExternalLinkIdentifierMappingData, error)
-	FindAllActive() ([]ExternalLinkIdentifierMapping, error)
+
 	Update(link *ExternalLinkIdentifierMapping, tx *pg.Tx) error
 	UpdateAllActiveToInActive(Id int, tx *pg.Tx) error
 	FindAllActiveByExternalLinkId(linkId int) ([]*ExternalLinkIdentifierMapping, error)
-	FindAllByExternalLinkId(linkId int) ([]*ExternalLinkIdentifierMapping, error)
+
 	FindAllActiveLinkIdentifierData() ([]ExternalLinkIdentifierMappingData, error)
 }
 type ExternalLinkIdentifierMappingRepositoryImpl struct {
