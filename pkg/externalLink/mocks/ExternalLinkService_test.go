@@ -83,48 +83,48 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 	})
 	expectedResultLinks := make([]externalLink.ExternalLinkDto, 0)
 	expectedResultLinks = append(expectedResultLinks, externalLink.ExternalLinkDto{
-		Id:               1,
-		Name:             "name1",
-		Url:              "test-url1",
-		IsEditable:       true,
-		MonitoringToolId: 1,
+		Id:               mockLinks[0].Id,
+		Name:             mockLinks[0].Name,
+		Url:              mockLinks[0].Url,
+		IsEditable:       mockLinks[0].IsEditable,
+		MonitoringToolId: mockLinks[0].ExternalLinkMonitoringToolId,
 		Identifiers: []externalLink.LinkIdentifier{
 			{
 				Type:      "cluster",
-				ClusterId: 1,
+				ClusterId: mockLinks[0].ClusterId,
 			},
 			{
 				Type:      "cluster",
-				ClusterId: 4,
+				ClusterId: mockLinks[1].ClusterId,
 			},
 		},
 	})
 	expectedResultLinks = append(expectedResultLinks, externalLink.ExternalLinkDto{
-		Id:               2,
-		Name:             "name2",
-		Url:              "test-url2",
-		IsEditable:       true,
-		MonitoringToolId: 1,
+		Id:               mockLinks[2].Id,
+		Name:             mockLinks[2].Name,
+		Url:              mockLinks[2].Url,
+		IsEditable:       mockLinks[2].IsEditable,
+		MonitoringToolId: mockLinks[2].ExternalLinkMonitoringToolId,
 		Identifiers: []externalLink.LinkIdentifier{
 			{
 				Type:       "external-helm-app",
-				Identifier: "ext-helm-1",
+				Identifier: mockLinks[2].Identifier,
 			},
 		},
 	})
 	expectedResultLinks = append(expectedResultLinks, externalLink.ExternalLinkDto{
-		Id:               4,
-		Name:             "name4",
-		Url:              "test-url4",
-		IsEditable:       false,
-		MonitoringToolId: 1,
+		Id:               mockLinks[3].Id,
+		Name:             mockLinks[2].Name,
+		Url:              mockLinks[2].Url,
+		IsEditable:       mockLinks[2].IsEditable,
+		MonitoringToolId: mockLinks[2].ExternalLinkMonitoringToolId,
 	})
 	expectedResultLinks = append(expectedResultLinks, externalLink.ExternalLinkDto{
-		Id:               3,
-		Name:             "name3",
-		Url:              "test-url3",
-		IsEditable:       true,
-		MonitoringToolId: 1,
+		Id:               mockGlobLinks[0].Id,
+		Name:             mockGlobLinks[0].Name,
+		Url:              mockGlobLinks[0].Url,
+		IsEditable:       mockGlobLinks[0].IsEditable,
+		MonitoringToolId: mockGlobLinks[0].ExternalLinkMonitoringToolId,
 	})
 
 	t.Run("Test GetLinks Global Links", func(tt *testing.T) {
@@ -136,7 +136,7 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 		externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveLinkIdentifierData").Return(mockLinks, nil)
 		externalLinkRepositoryMocked.On("FindAllClusterLinks").Return(mockGlobLinks, nil)
 
-		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 2)
+		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0)
 		assert.Nil(tt, err)
 		for i, testLink := range testResult {
 			assert.Equal(tt, testLink.Id, expectedResultLinks[i].Id)
@@ -162,7 +162,7 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 		externalLinkMonitoringToolRepository := NewExternalLinkMonitoringToolRepository(tt)
 		externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
 		externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveLinkIdentifierData").Return(nil, fmt.Errorf("err"))
-		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 2)
+		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0)
 		assert.NotNil(tt, err)
 		assert.Nil(tt, testResult)
 	})
@@ -174,7 +174,7 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 		externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
 		externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveLinkIdentifierData").Return(mockLinks, nil)
 		externalLinkRepositoryMocked.On("FindAllClusterLinks").Return(nil, fmt.Errorf("err"))
-		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0, externalLink.SUPER_ADMIN_ROLE, 2)
+		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, 0)
 		assert.NotNil(tt, err)
 		assert.Nil(tt, testResult)
 	})
@@ -187,7 +187,7 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 		externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
 		externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByLinkIdentifier", linkIdentifierInput, 0).Return([]externalLink.ExternalLinkIdentifierMappingData{mockLinks[2]}, nil)
 		externalLinkRepositoryMocked.On("FindAllClusterLinks").Return(mockGlobLinks, nil)
-		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifierInput, 0, externalLink.ADMIN_ROLE, 2)
+		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifierInput, 0)
 		assert.Nil(tt, err)
 		assert.NotNil(tt, testResult)
 		//assert.Equal(tt, 1, len(testResult))
@@ -213,7 +213,7 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 		externalLinkMonitoringToolRepository := NewExternalLinkMonitoringToolRepository(tt)
 		externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
 		externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByLinkIdentifier", linkIdentifierInput, 0).Return(nil, fmt.Errorf("err"))
-		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifierInput, 0, externalLink.ADMIN_ROLE, 2)
+		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifierInput, 0)
 		assert.NotNil(tt, err)
 		assert.Nil(tt, testResult)
 	})
@@ -225,7 +225,7 @@ func TestExternalLinkServiceImpl_FetchAllActiveLinksByLinkIdentifier(t *testing.
 		externalLinkService := externalLink.NewExternalLinkServiceImpl(logger, externalLinkMonitoringToolRepository, externalLinkIdentifierMappingRepositoryMocked, externalLinkRepositoryMocked)
 		externalLinkIdentifierMappingRepositoryMocked.On("FindAllActiveByLinkIdentifier", linkIdentifierInput, 0).Return([]externalLink.ExternalLinkIdentifierMappingData{mockLinks[2]}, nil)
 		externalLinkRepositoryMocked.On("FindAllClusterLinks").Return(nil, fmt.Errorf("err"))
-		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifierInput, 0, externalLink.ADMIN_ROLE, 2)
+		testResult, err := externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifierInput, 0)
 		assert.NotNil(tt, err)
 		assert.Nil(tt, testResult)
 	})
