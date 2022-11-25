@@ -1481,12 +1481,6 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(appId int) ([]*bean.Envi
 		return envs, err
 	}
 	for _, env := range envs {
-		detail, err := impl.appListingRepository.FetchAppDetail(appId, env.EnvironmentId)
-		if err != nil {
-			impl.Logger.Errorw("unable to fetch app details", "appId", appId, "envId", env.EnvironmentId)
-			return envs, err
-		}
-		env.LastDeployed = detail.LastDeployedTime
 		envOverride, err := impl.envOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, env.EnvironmentId)
 		if err != nil && !errors2.IsNotFound(err) {
 			impl.Logger.Errorw("error in fetching latest chart by appId and envId", "err", err, "appId", appId, "envId", env.EnvironmentId)
