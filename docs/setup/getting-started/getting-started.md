@@ -26,7 +26,7 @@ You can create a cluster using one of the following cloud providers as per your 
 
 | Cloud Provider | Description |
 | --- | --- |
-| **AWS EKS** | Create a cluster using [AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). <br>`Note`: If you want to refer to our customized documentation for installing `Devtron with CI/CD` on AWS EKS, please refer [here](setup/install/install-devtron-on-AWS-EKS.md).</br>  |
+| **AWS EKS** | Create a cluster using [AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html). <br>`Note`: If you want to install `Devtron with CI/CD` on AWS EKS, please refer our customized documentation [here](setup/install/install-devtron-on-AWS-EKS.md).</br>  |
 | **Google Kubernetes Engine (GKE)** | Create a cluster using [GKE](https://cloud.google.com/kubernetes-engine/). |
 | **Azure Kubernetes Service (AKS)** | Create a cluster using [AKS](https://learn.microsoft.com/en-us/azure/aks/). | 
 | **k3s - Lightweight Kubernetes** | Create a cluster using [k3s - Lightweight Kubernetes](https://devtron.ai/blog/deploy-your-applications-over-k3s-lightweight-kubernetes-in-no-time/).<br>`Note`: If you want to install `Helm Dashboard by Devtron` on `Minikube, Microk8s, K3s, Kind`, please refer our customized documentation [here](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md).</br> | 
@@ -68,7 +68,9 @@ The minimum requirements for installing `Helm Dashboard by Devtron` and `Devtron
 
 ## Installation of Devtron
 
-As it is mentioned before, you can install Devtron standalone (Helm Dashboard by Devtron) or along with CI/CD integration.
+As it is mentioned before, you can install Devtron standalone (Helm Dashboard by Devtron) or along with CI/CD integration. Or, you can upgrade Devtron to the latest version.
+
+Choose one of the options as per your requirements:
 
 | Installation Options | Description |
 | --- | --- |
