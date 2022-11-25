@@ -272,7 +272,7 @@ func (repo AppRepositoryImpl) FetchAllActiveInstalledAppsWithAppIdAndName() ([]*
 		Join("INNER JOIN installed_apps  on app.id = installed_apps.app_id").
 		Where("app.active=true").
 		Select()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		repo.logger.Errorw("error while fetching installed apps With AppId And Name", "err", err)
 		return apps, err
 	}
@@ -288,7 +288,7 @@ func (repo AppRepositoryImpl) FetchAllActiveDevtronAppsWithAppIdAndName() ([]*Ap
 		Where("app_store = ?", false).
 		Where("active", true).
 		Select()
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		repo.logger.Errorw("error while fetching active Devtron apps With AppId And Name", "err", err)
 		return apps, err
 	}
