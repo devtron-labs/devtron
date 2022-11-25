@@ -194,27 +194,27 @@ const NotDeployed = "Not Deployed"
 func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error) {
 	impl.Logger.Debug("reached at FetchAllDevtronManagedApps:")
 	apps := make([]AppNameTypeIdContainer, 0)
-	res, err := impl.appListingRepository.FetchAllActiveDevtronAppsWithAppIdAndName()
+	res, err := impl.appRepository.FetchAllActiveDevtronAppsWithAppIdAndName()
 	if err != nil {
 		impl.Logger.Errorw("failed to fetch devtron apps", "err", err)
 		return nil, err
 	}
 	for _, r := range res {
 		appContainer := AppNameTypeIdContainer{
-			AppId:   r.AppId,
+			AppId:   r.Id,
 			AppName: r.AppName,
 			Type:    "devtron-app",
 		}
 		apps = append(apps, appContainer)
 	}
-	res, err = impl.appListingRepository.FetchAllActiveInstalledAppsWithAppIdAndName()
+	res, err = impl.appRepository.FetchAllActiveInstalledAppsWithAppIdAndName()
 	if err != nil {
 		impl.Logger.Errorw("failed to fetch devtron installed apps", "err", err)
 		return nil, err
 	}
 	for _, r := range res {
 		appContainer := AppNameTypeIdContainer{
-			AppId:   r.AppId,
+			AppId:   r.Id,
 			AppName: r.AppName,
 			Type:    "devtron-installed-app",
 		}

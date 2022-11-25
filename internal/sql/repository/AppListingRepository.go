@@ -45,8 +45,6 @@ type AppListingRepository interface {
 	PrometheusApiByEnvId(id int) (*string, error)
 
 	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
-	FetchAllActiveInstalledAppsWithAppIdAndName() ([]AppNameTypeIdContainerDBResponse, error)
-	FetchAllActiveDevtronAppsWithAppIdAndName() ([]AppNameTypeIdContainerDBResponse, error)
 	SaveNewDeployment(deploymentStatus *DeploymentStatus, tx *pg.Tx) error
 	SaveNewDeploymentsWithTxn(deploymentStatuses []DeploymentStatus, tx *pg.Tx) error
 	FindLastDeployedStatus(appName string) (DeploymentStatus, error)
@@ -83,30 +81,6 @@ type AppListingRepositoryImpl struct {
 
 func NewAppListingRepositoryImpl(Logger *zap.SugaredLogger, dbConnection *pg.DB, appListingRepositoryQueryBuilder helper.AppListingRepositoryQueryBuilder) *AppListingRepositoryImpl {
 	return &AppListingRepositoryImpl{dbConnection: dbConnection, Logger: Logger, appListingRepositoryQueryBuilder: appListingRepositoryQueryBuilder}
-}
-
-func (impl AppListingRepositoryImpl) FetchAllActiveInstalledAppsWithAppIdAndName() ([]AppNameTypeIdContainerDBResponse, error) {
-	impl.Logger.Debug("reached at Fetch All Active Installed Apps With AppId And Name")
-	var apps []AppNameTypeIdContainerDBResponse
-	query := "select installed_apps.id,app.app_name " + "from app INNER JOIN installed_apps  on app.id = installed_apps.app_id where app.active=true;"
-	_, err := impl.dbConnection.Query(&apps, query)
-	if err != nil {
-		impl.Logger.Errorw("error while fetching installed apps With AppId And Name", "err", err)
-		return apps, err
-	}
-	return apps, nil
-}
-
-func (impl AppListingRepositoryImpl) FetchAllActiveDevtronAppsWithAppIdAndName() ([]AppNameTypeIdContainerDBResponse, error) {
-	impl.Logger.Debug("reached at Fetch All Active Devtron Apps With AppId And Name:")
-	var apps []AppNameTypeIdContainerDBResponse
-	query := "select id,app_name " + "from app where app_store=false and active=true;"
-	_, err := impl.dbConnection.Query(&apps, query)
-	if err != nil {
-		impl.Logger.Errorw("error while fetching active Devtron apps With AppId And Name", "err", err)
-		return apps, err
-	}
-	return apps, nil
 }
 
 /*
