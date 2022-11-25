@@ -55,7 +55,7 @@ var TypeMappings = map[string]AppIdentifier{
 type ExternalLinkService interface {
 	Create(requests []*ExternalLinkDto, userId int32, userRole string) (*ExternalLinkApiResponse, error)
 	GetAllActiveTools() ([]ExternalLinkMonitoringToolDto, error)
-	FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int, userRole string, userId int) ([]*ExternalLinkDto, error)
+	FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int) ([]*ExternalLinkDto, error)
 	Update(request *ExternalLinkDto, userRole string) (*ExternalLinkApiResponse, error)
 	DeleteLink(id int, userId int32, userRole string) (*ExternalLinkApiResponse, error)
 }
@@ -310,7 +310,7 @@ func (impl ExternalLinkServiceImpl) appendAllClusterLinks(records []ExternalLink
 	}
 	return records, nil
 }
-func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int, userRole string, userId int) ([]*ExternalLinkDto, error) {
+func (impl ExternalLinkServiceImpl) FetchAllActiveLinksByLinkIdentifier(linkIdentifier *LinkIdentifier, clusterId int) ([]*ExternalLinkDto, error) {
 	//linkIdentifier and clusterId nil and 0 respectively to fetch links at global level(get all active links)
 	//linkIdentifier and clusterId passed to get all active links for a particular app(linkIdentifier.ClusterId will be 0)
 	var err error

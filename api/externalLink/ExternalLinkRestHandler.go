@@ -77,6 +77,7 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 	if v.Has("appId") {
 		id, err := strconv.Atoi(appId)
 		if err != nil {
+			impl.logger.Errorw("error occurred while converting appId to integer", "err", err, "appId", appId)
 			common.WriteJsonResp(w, errors.New("Invalid request"), nil, http.StatusBadRequest)
 			return userId, "", fmt.Errorf("invalid request query param appId = %s", appId)
 		}
@@ -151,11 +152,13 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-		id, err := strconv.Atoi(clusterId)
+		clusterIdNumber, err := strconv.Atoi(clusterId)
 		if err != nil {
 			impl.logger.Errorw("invalid clusterId param received", "clusterId", clusterId)
+			common.WriteJsonResp(w, errors.New("Invalid request"), nil, http.StatusBadRequest)
+			return
 		}
-		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, id, externalLink.SUPER_ADMIN_ROLE, int(userId))
+		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, clusterIdNumber)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("service err, FetchAllActive", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -165,9 +168,9 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 		return
 
 	} else if len(identifier) != 0 && len(linkType) != 0 { //api to get external links from app-level external links tab and from app-details page
-		id := 0
+		clusterIdNumber := 0
 		if len(clusterId) != 0 { //api call from app-detail page
-			id, err = strconv.Atoi(clusterId)
+			clusterIdNumber, err = strconv.Atoi(clusterId)
 			if err != nil {
 				impl.logger.Errorw("error occurred while parsing cluster_id", "clusterId", clusterId, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -179,8 +182,8 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 			Identifier: identifier,
 			ClusterId:  0,
 		}
-		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifier, id, externalLink.ADMIN_ROLE, int(userId))
-		if err != nil && err != pg.ErrNoRows {
+		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifier, clusterIdNumber)
+		if err != nil {
 			impl.logger.Errorw("service err, FetchAllActive", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
@@ -228,7 +231,7 @@ func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter
 	id := params["id"]
 	linkId, err := strconv.Atoi(id)
 	if err != nil {
-		impl.logger.Errorw("request err, DeleteExternalLink", "id", id)
+		impl.logger.Errorw("request err, DeleteExternalLink", "id", id, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
