@@ -2,9 +2,11 @@
 # Why Devtron?
  
 
-Kubernetes is one of the most popular open source projects in the world, and it has helped to change how software is managed. In the process, however, it has also introduced a lot of new complexities for developers and systems administrators alike.
+Kubernetes is an open-source container orchestration tool that enables administrators to seamlessly deploy, manage and scale containerized apps in a wide variety of production environments. It works on a wide variety of platforms and cloud deployment models. By organizing apps into a cluster of containers that run on virtualized host operating systems, Kubernetes enables businesses to manage IT workloads efficiently.
 
-To improve the usage of Kubernetes, several tools are need to be integrated. But using these tools at the same time, however, is cumbersome and complex. These tools do not communicate with one another to manage different aspects of the application lifecycle, such as CI, CD, security, cost, observability, and stabilization.
+In the process, however, Kubernetes has also introduced a lot of new complexities for developers and systems administrators alike.
+
+To improve the usage of Kubernetes, several tools are needed to be integrated. But using these tools at the same time, however, is cumbersome and complex. These tools do not communicate with one another to manage different aspects of the application lifecycle, such as CI/CD, security, cost, observability, and stabilization.
 
 This is where **Devtron** comes into the picture! 
 
