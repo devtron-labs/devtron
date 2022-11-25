@@ -87,10 +87,12 @@ func TestNewUserTerminalAccessService(t *testing.T) {
 		terminalAccessRepository.On("GetUserTerminalAccessData", terminalAccessId).Return(terminalAccessData, nil)
 		podTemplate := &models.TerminalAccessTemplates{TemplateData: podJson}
 		terminalAccessRepository.On("FetchTerminalAccessTemplate", models.TerminalAccessPodTemplateName).Return(podTemplate, nil)
-		k8sApplicationService.On("GetResource", mock.AnythingOfType("*k8s.ResourceRequestBean")).Return(nil, &k8sErrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonForbidden}})
+		failedMsg := &k8sErrors.StatusError{ErrStatus: metav1.Status{Reason: metav1.StatusReasonForbidden}}
+		k8sApplicationService.On("GetResource", mock.AnythingOfType("*k8s.ResourceRequestBean")).Return(nil, failedMsg)
 		terminalSessionStatus, err := terminalAccessServiceImpl.FetchTerminalStatus(terminalAccessId)
 		assert.Nil(tt, terminalSessionStatus)
 		assert.NotNil(tt, err)
+		assert.Equal(tt, failedMsg, err)
 	})
 
 	t.Run("DbSaveOperationFailed", func(tt *testing.T) {

@@ -12,7 +12,6 @@ type TerminalAccessRepository interface {
 	FetchTerminalAccessTemplate(templateName string) (*models.TerminalAccessTemplates, error)
 	FetchAllTemplates() ([]*models.TerminalAccessTemplates, error)
 	GetUserTerminalAccessData(id int) (*models.UserTerminalAccessData, error)
-	GetUserTerminalAccessDataByUser(userId int32) ([]*models.UserTerminalAccessData, error)
 	GetAllRunningUserTerminalData() ([]*models.UserTerminalAccessData, error)
 	SaveUserTerminalAccessData(data *models.UserTerminalAccessData) error
 	UpdateUserTerminalAccessData(data *models.UserTerminalAccessData) error
@@ -73,23 +72,6 @@ func (impl TerminalAccessRepositoryImpl) GetUserTerminalAccessData(id int) (*mod
 		WherePK().
 		Select()
 	return terminalAccessData, err
-}
-
-// GetUserTerminalAccessDataByUser return empty array for no data and return only running/starting instances
-func (impl TerminalAccessRepositoryImpl) GetUserTerminalAccessDataByUser(userId int32) ([]*models.UserTerminalAccessData, error) {
-	var accessDataArray []*models.UserTerminalAccessData
-	err := impl.dbConnection.Model(&accessDataArray).
-		Where("user_id = ?", userId).
-		WhereGroup(func(query *orm.Query) (*orm.Query, error) {
-			query = query.WhereOr("status = ?", string(models.TerminalPodRunning)).WhereOr("status = ?", string(models.TerminalPodStarting))
-			return query, nil
-		}).
-		Select()
-	if err == pg.ErrNoRows {
-		impl.Logger.Debug("no running/starting pods found", "userId", userId)
-		err = nil
-	}
-	return accessDataArray, err
 }
 
 func (impl TerminalAccessRepositoryImpl) SaveUserTerminalAccessData(data *models.UserTerminalAccessData) error {
