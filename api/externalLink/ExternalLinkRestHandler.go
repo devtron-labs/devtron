@@ -152,14 +152,9 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
-		clusterIdNumber, err := strconv.Atoi(clusterId)
-		if err != nil {
-			impl.logger.Errorw("invalid clusterId param received", "clusterId", clusterId)
-			common.WriteJsonResp(w, errors.New("Invalid request"), nil, http.StatusBadRequest)
-			return
-		}
+		clusterIdNumber := 0
 		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, clusterIdNumber)
-		if err != nil && err != pg.ErrNoRows {
+		if err != nil {
 			impl.logger.Errorw("service err, FetchAllActive", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
@@ -214,7 +209,7 @@ func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter
 	bean.UserId = userId
 
 	res, err := impl.externalLinkService.Update(&bean, userRole)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("service err, Update Links", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -237,7 +232,7 @@ func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter
 	}
 
 	res, err := impl.externalLinkService.DeleteLink(linkId, userId, userRole)
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("service err, delete Links", "err", err, "linkId", linkId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
