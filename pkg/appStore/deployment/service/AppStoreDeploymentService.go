@@ -197,6 +197,14 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 		installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 	}
 
+	if isInternalUse && installedAppModel.DeploymentAppType == "" {
+		if isGitOpsConfigured {
+			installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+		} else {
+			installedAppModel.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		}
+	}
+
 	installAppVersionRequest.DeploymentAppType = installedAppModel.DeploymentAppType
 	installedAppModel.CreatedBy = installAppVersionRequest.UserId
 	installedAppModel.UpdatedBy = installAppVersionRequest.UserId
