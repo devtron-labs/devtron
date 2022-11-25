@@ -70,16 +70,31 @@ components:
           items:
             type: integer
           description: ids of all environments whose pipelines are to be included in action
+        envNames:
+          type: array
+          items:
+            type: integer
+          description: names of all environments whose pipelines are to be included in action
         appIds:
           type: array
           items:
             type: integer
           description: ids of all apps for which the environment is to be included
+        appNames:
+          type: array
+          items:
+            type: integer
+          description: names of all apps for which the environment is to be included
         projectIds:
           type: array
           items:
             type: integer
           description: ids of all projects for which the environment is to be included
+        projectNames:
+          type: array
+          items:
+            type: integer
+          description: names of all projects for which the environment is to be included
     CdPipelineImpactedObjectDto:
       type: object
       properties:
