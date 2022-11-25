@@ -80,11 +80,11 @@ func (impl ExternalLinkIdentifierMappingRepositoryImpl) Save(externalLinksCluste
 }
 
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) UpdateAllActiveToInActive(Id int, tx *pg.Tx) error {
-
-	query := "UPDATE external_link_identifier_mapping " +
-		"SET active = false WHERE external_link_id = ? " +
-		"AND active = true;"
-	_, err := tx.Exec(query, Id)
+	model := ExternalLinkIdentifierMapping{}
+	_, err := tx.Model(&model).Set("active = false").
+		Where("external_link_id = ?", Id).
+		Where("active = true").
+		Update()
 	return err
 }
 func (impl ExternalLinkIdentifierMappingRepositoryImpl) Update(link *ExternalLinkIdentifierMapping, tx *pg.Tx) error {
