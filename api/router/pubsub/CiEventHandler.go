@@ -43,7 +43,7 @@ type CiEventHandlerImpl struct {
 
 type CiCompleteEvent struct {
 	CiProjectDetails []pipeline.CiProjectDetails `json:"ciProjectDetails"`
-	DockerImage      string                      `json:"dockerImage" validate:"required"`
+	DockerImage      string                      `json:"dockerImage" validate:"required,image-validator"`
 	Digest           string                      `json:"digest"`
 	PipelineId       int                         `json:"pipelineId"`
 	WorkflowId       *int                        `json:"workflowId"`
