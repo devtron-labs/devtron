@@ -260,14 +260,14 @@ func (repo AppRepositoryImpl) FindIdsByTeamIdsAndTeamNames(teamIds []int, teamNa
 		return nil, err
 	}
 	if len(teamIds) > 0 && len(teamNames) > 0 {
-		query := `select id from app inner join team on team.id=app.team_id where team.active=? and app.active=?   
+		query := `select app.id from app inner join team on team.id=app.team_id where team.active=? and app.active=?   
                  and (team.id in (?) or team.name in (?));`
 		_, err = repo.dbConnection.Query(&ids, query, true, true, pg.In(teamIds), pg.In(teamNames))
 	} else if len(teamIds) > 0 {
 		query := "select id from app where team_id in (?) and active=?;"
 		_, err = repo.dbConnection.Query(&ids, query, pg.In(teamIds), true)
 	} else if len(teamNames) > 0 {
-		query := "select id from app inner join team on team.id=app.team_id where team.name in (?) and team.active=? and app.active=?;"
+		query := "select app.id from app inner join team on team.id=app.team_id where team.name in (?) and team.active=? and app.active=?;"
 		_, err = repo.dbConnection.Query(&ids, query, pg.In(teamNames), true, true)
 	}
 	if err != nil {
