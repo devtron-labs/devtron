@@ -1,9 +1,11 @@
 package pubsub_lib
 
 import (
+	"encoding/json"
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"log"
 	"sync"
 )
 
@@ -26,6 +28,7 @@ func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceI
 	if err != nil {
 		logger.Fatalw("error occurred while creating nats client stopping now!!")
 	}
+	ParseAndFillStreamWiseAndConsumerWiseConfigMaps()
 	pubSubClient := &PubSubClientServiceImpl{
 		Logger:     logger,
 		NatsClient: natsClient,
@@ -39,7 +42,8 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	jetStrCtxt := natsClient.JetStrCtxt
 	natsTopic := GetNatsTopic(topic)
 	streamName := natsTopic.streamName
-	streamConfig := natsClient.streamConfig
+	streamConfig := getStreamConfig(streamName)
+	//streamConfig := natsClient.streamConfig
 	_ = AddStream(jetStrCtxt, streamConfig, streamName)
 	//Generate random string for passing as Header Id in message
 	randString := "MsgHeaderId-" + utils.Generate(10)
@@ -59,14 +63,17 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *P
 	queueName := natsTopic.queueName
 	consumerName := natsTopic.consumerName
 	natsClient := impl.NatsClient
-	streamConfig := natsClient.streamConfig
+	streamConfig := getStreamConfig(streamName)
+	//streamConfig := natsClient.streamConfig
 	_ = AddStream(natsClient.JetStrCtxt, streamConfig, streamName)
 	deliveryOption := nats.DeliverLast()
 	if streamConfig.Retention == nats.WorkQueuePolicy {
 		deliveryOption = nats.DeliverAll()
 	}
-	processingBatchSize := natsClient.NatsMsgProcessingBatchSize
-	msgBufferSize := natsClient.NatsMsgBufferSize
+	processingBatchSize := NatsConsumerWiseConfigMapping[consumerName].NatsMsgProcessingBatchSize
+	msgBufferSize := NatsConsumerWiseConfigMapping[consumerName].NatsMsgBufferSize
+	//processingBatchSize := natsClient.NatsMsgProcessingBatchSize
+	//msgBufferSize := natsClient.NatsMsgBufferSize
 	channel := make(chan *nats.Msg, msgBufferSize)
 	_, err := natsClient.JetStrCtxt.ChanQueueSubscribe(topic, queueName, channel, nats.Durable(consumerName), deliveryOption, nats.ManualAck(),
 		nats.BindStream(streamName))
@@ -102,4 +109,20 @@ func processMsg(msg *nats.Msg, callback func(msg *PubSubMsg)) {
 	defer msg.Ack()
 	subMsg := &PubSubMsg{Data: string(msg.Data)}
 	callback(subMsg)
+}
+
+func getStreamConfig(streamName string) *nats.StreamConfig {
+	configJson := NatsStreamWiseConfigMapping[streamName].StreamConfig
+	streamCfg := &nats.StreamConfig{}
+	data, err := json.Marshal(configJson)
+	if err == nil {
+		err = json.Unmarshal(data, streamCfg)
+		if err != nil {
+			log.Println("error occurred while parsing streamConfigJson ", "streamCfg", streamCfg, "reason", err)
+		}
+	} else {
+		log.Println("error occurred while parsing streamConfigJson ", "configJson", configJson, "reason", err)
+	}
+
+	return streamCfg
 }
