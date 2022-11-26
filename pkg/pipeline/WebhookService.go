@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/util/event"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strconv"
 	"strings"
@@ -48,7 +49,8 @@ type CiArtifactWebhookRequest struct {
 
 type WebhookService interface {
 	AuthenticateExternalCiWebhook(apiKey string) (int, error)
-	SaveCiArtifactWebhook(ciPipelineId int, request *CiArtifactWebhookRequest) (id int, err error)
+	HandleCiSuccessEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (id int, err error)
+	HandleExternalCiWebhook(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool) (id int, err error)
 }
 
 type WebhookServiceImpl struct {
@@ -112,7 +114,7 @@ func (impl WebhookServiceImpl) AuthenticateExternalCiWebhook(apiKey string) (int
 	return id, nil
 }
 
-func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *CiArtifactWebhookRequest) (id int, err error) {
+func (impl WebhookServiceImpl) HandleCiSuccessEvent(ciPipelineId int, request *CiArtifactWebhookRequest) (id int, err error) {
 	impl.logger.Infow("webhook for artifact save", "req", request)
 	if request.WorkflowId != nil {
 		savedWorkflow, err := impl.ciWorkflowRepository.FindById(*request.WorkflowId)
@@ -204,10 +206,6 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *
 		}
 	}
 	ciArtifactArr = append(ciArtifactArr, artifact)
-
-	//go impl.WriteCISuccessEvent(request, pipeline, artifact)
-	//impl.ciHandler.WriteToCreateTestSuites(pipeline.Id, *request.WorkflowId, int(request.UserId))
-
 	isCiManual := true
 	if request.UserId == 1 {
 		impl.logger.Debugw("Trigger (auto) by system user", "userId", request.UserId)
@@ -215,11 +213,6 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *
 	} else {
 		impl.logger.Debugw("Trigger (manual) by user", "userId", request.UserId)
 	}
-	//FIXME
-	/*async := true
-	if len(ciArtifactArr) > 1 {
-		async = false
-	}*/
 	async := false
 	for _, ciArtifact := range ciArtifactArr {
 		err = impl.workflowDagExecutor.HandleCiSuccessEvent(ciArtifact, isCiManual, async, request.UserId)
@@ -228,6 +221,64 @@ func (impl WebhookServiceImpl) SaveCiArtifactWebhook(ciPipelineId int, request *
 			return 0, err
 		}
 	}
+	return artifact.Id, err
+}
+
+func (impl WebhookServiceImpl) HandleExternalCiWebhook(externalCiId int, request *CiArtifactWebhookRequest, auth func(token string, projectObject string, envObject string) bool) (id int, err error) {
+	externalCiPipeline, err := impl.ciPipelineRepository.FindExternalCiById(externalCiId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching external ci", "err", err)
+		return 0, err
+	}
+	if externalCiPipeline.Id == 0 {
+		impl.logger.Errorw("invalid external ci id", "externalCiId", externalCiId, "err", err)
+		return 0, &util2.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid external ci id"}
+	}
+
+	impl.logger.Infow("request of webhook external ci", "req", request)
+	if request.DataSource == "" {
+		request.DataSource = "EXTERNAL"
+	}
+	materialJson, err := request.MaterialInfo.MarshalJSON()
+	if err != nil {
+		impl.logger.Errorw("unable to marshal material metadata", "err", err)
+		return 0, err
+	}
+	dst := new(bytes.Buffer)
+	err = json.Compact(dst, materialJson)
+	if err != nil {
+		impl.logger.Errorw("parsing error", "err", err)
+		return 0, err
+	}
+	materialJson = dst.Bytes()
+	artifact := &repository.CiArtifact{
+		Image:                request.Image,
+		ImageDigest:          request.ImageDigest,
+		MaterialInfo:         string(materialJson),
+		DataSource:           request.DataSource,
+		WorkflowId:           request.WorkflowId,
+		ExternalCiPipelineId: externalCiId,
+		ScanEnabled:          false,
+		Scanned:              false,
+		AuditLog:             sql.AuditLog{CreatedBy: request.UserId, UpdatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now()},
+	}
+	if err = impl.ciArtifactRepository.Save(artifact); err != nil {
+		impl.logger.Errorw("error in saving material", "err", err)
+		return 0, err
+	}
+
+	atLeastOneSuccess, err := impl.workflowDagExecutor.HandleWebhookExternalCiEvent(artifact, request.UserId, externalCiId, auth)
+	if err != nil {
+		impl.logger.Errorw("error on handle  ci success event", "err", err)
+		return 0, err
+	}
+	if !atLeastOneSuccess {
+		if err1 := impl.ciArtifactRepository.Delete(artifact); err1 != nil {
+			impl.logger.Errorw("error in rollback artifact", "err", err1)
+			return 0, err1
+		}
+	}
+
 	return artifact.Id, err
 }
 
