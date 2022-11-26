@@ -61,6 +61,8 @@ type AppRepository interface {
 	FindAllMatchesByAppName(appName string) ([]*App, error)
 	FindIdsByTeamIdsAndTeamNames(teamIds []int, teamNames []string) ([]int, error)
 	FindIdsByNames(appNames []string) ([]int, error)
+	FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error)
+	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -286,4 +288,36 @@ func (repo AppRepositoryImpl) FindIdsByNames(appNames []string) ([]int, error) {
 		return nil, err
 	}
 	return ids, err
+}
+
+func (repo AppRepositoryImpl) FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error) {
+	repo.logger.Debug("reached at Fetch All Active Installed Apps With AppId And Name")
+	var apps []*App
+
+	err := repo.dbConnection.Model(&apps).
+		Column("installed_apps.id", "app.app_name").
+		Join("INNER JOIN installed_apps  on app.id = installed_apps.app_id").
+		Where("app.active=true").
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error while fetching installed apps With AppId And Name", "err", err)
+		return apps, err
+	}
+	return apps, nil
+
+}
+func (repo AppRepositoryImpl) FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error) {
+	repo.logger.Debug("reached at Fetch All Active Devtron Apps With AppId And Name:")
+	var apps []*App
+
+	err := repo.dbConnection.Model(&apps).
+		Column("id", "app_name").
+		Where("app_store = ?", false).
+		Where("active", true).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error while fetching active Devtron apps With AppId And Name", "err", err)
+		return apps, err
+	}
+	return apps, nil
 }

@@ -129,6 +129,7 @@ type Environment struct {
 	InfraMetrics    *bool  `json:"infraMetrics"`
 	Prod            bool   `json:"prod"`
 	ChartRefId      int    `json:"chartRefId"`
+	LastDeployed    string `json:"lastDeployed"`
 }
 
 type InstanceDetail struct {

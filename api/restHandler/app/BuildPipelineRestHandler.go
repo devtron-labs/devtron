@@ -322,7 +322,6 @@ func (handler PipelineConfigRestHandlerImpl) GetExternalCi(w http.ResponseWriter
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
-
 func (handler PipelineConfigRestHandlerImpl) GetExternalCiById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
