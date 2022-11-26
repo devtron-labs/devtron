@@ -3,6 +3,7 @@ package k8s
 import (
 	"context"
 	"fmt"
+	"github.com/caarlos0/env/v6"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	clusterRepository "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/robfig/cron/v3"
@@ -22,6 +23,10 @@ type ClusterCronServiceImpl struct {
 	clusterRepository     clusterRepository.ClusterRepository
 }
 
+type ClusterStatusConfig struct {
+	ClusterStatusCronTime int `env:"CLUSTER_STATUS_CRON_TIME" envDefault:"15"`
+}
+
 func NewClusterCronServiceImpl(logger *zap.SugaredLogger, clusterService cluster.ClusterService,
 	k8sApplicationService K8sApplicationService, clusterRepository clusterRepository.ClusterRepository) (*ClusterCronServiceImpl, error) {
 	clusterCronServiceImpl := &ClusterCronServiceImpl{
@@ -33,10 +38,13 @@ func NewClusterCronServiceImpl(logger *zap.SugaredLogger, clusterService cluster
 	// initialise cron
 	newCron := cron.New(cron.WithChain())
 	newCron.Start()
-
+	cfg := &ClusterStatusConfig{}
+	err := env.Parse(cfg)
+	if err != nil {
+		fmt.Println("failed to parse server cluster status config: " + err.Error())
+	}
 	// add function into cron
-	//TODO: get cron time from env var
-	_, err := newCron.AddFunc(fmt.Sprint("@every 15m"), clusterCronServiceImpl.GetAndUpdateClusterConnectionStatus)
+	_, err = newCron.AddFunc(fmt.Sprintf("@every %dm", cfg.ClusterStatusCronTime), clusterCronServiceImpl.GetAndUpdateClusterConnectionStatus)
 	if err != nil {
 		fmt.Println("error in adding cron function into cluster cron service")
 		return clusterCronServiceImpl, err
