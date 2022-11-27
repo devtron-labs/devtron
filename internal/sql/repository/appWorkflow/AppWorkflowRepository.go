@@ -53,6 +53,7 @@ type AppWorkflowRepository interface {
 	FindWFCDMappingByExternalCiId(externalCiId int) ([]*AppWorkflowMapping, error)
 	FindByTypeAndComponentId(wfId int, componentId int, componentType string) (*AppWorkflowMapping, error)
 	FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(envIds []int, appIds []int) ([]*AppWorkflowMapping, error)
+	FindCiPipelineIdsFromAppWfIds(appWfIds []int) ([]int, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -349,15 +350,27 @@ func (impl AppWorkflowRepositoryImpl) DeleteAppWorkflowMappingsByCdPipelineId(pi
 func (impl AppWorkflowRepositoryImpl) FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(envIds []int, appIds []int) ([]*AppWorkflowMapping, error) {
 	var models []*AppWorkflowMapping
 	query := `select * from app_workflow_mapping awm inner join app_workflow aw on aw.id=awm.app_workflow_id 
-				where aw.app_id in (?) and awm.active = ? and awm.app_workflow_id not in  
+				where awm.type = ? and aw.app_id in (?) and awm.active = ? and awm.app_workflow_id not in  
 					(select app_workflow_id from app_workflow_mapping awm inner join pipeline p on p.id=awm.component_id  
 					and awm.type = ? and p.environment_id not in (?) and p.app_id in (?) and p.deleted = ? and awm.active = ?); `
-	_, err := impl.dbConnection.Query(&models, query, pg.In(appIds), true, CDPIPELINE, pg.In(envIds), pg.In(appIds), false, true)
+	_, err := impl.dbConnection.Query(&models, query, CDPIPELINE, pg.In(appIds), true, CDPIPELINE, pg.In(envIds), pg.In(appIds), false, true)
 	if err != nil {
 		impl.Logger.Errorw("error, FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly", "err", err)
 		return nil, err
 	}
 	return models, nil
+}
+
+func (impl AppWorkflowRepositoryImpl) FindCiPipelineIdsFromAppWfIds(appWfIds []int) ([]int, error) {
+	var ciPipelineIds []int
+	query := `select DISTINCT component_id from app_workflow_mapping 
+				where type = ? and app_workflow_id in (?) and awm.active = ?; `
+	_, err := impl.dbConnection.Query(&ciPipelineIds, query, CIPIPELINE, pg.In(appWfIds), true)
+	if err != nil {
+		impl.Logger.Errorw("error, FindCiPipelineIdsFromAppWfIds", "err", err)
+		return nil, err
+	}
+	return ciPipelineIds, nil
 }
 
 func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiId(externalCiId int) ([]*AppWorkflowMapping, error) {

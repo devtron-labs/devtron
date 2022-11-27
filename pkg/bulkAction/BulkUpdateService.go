@@ -1325,21 +1325,26 @@ func (impl BulkUpdateServiceImpl) GetBulkActionImpactedPipelinesAndWfs(dto *CdBu
 			}
 		} else {
 			//getting all workflows in given apps which do not have pipelines of other than given environments
-			appWfs, err := impl.appWorkflowRepository.FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(dto.EnvIds, dto.AppIds)
+			appWfsHavingSpecificCdPipelines, err := impl.appWorkflowRepository.FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(dto.EnvIds, dto.AppIds)
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error in getting wfs having cd pipelines from specific env only", "err", err)
 				return nil, nil, nil, err
 			}
 			impactedWfIdsMap := make(map[int]bool)
-			for _, appWf := range appWfs {
+			for _, appWf := range appWfsHavingSpecificCdPipelines {
 				if appWf.Type == appWorkflow.CDPIPELINE {
 					impactedPipelineIds = append(impactedPipelineIds, appWf.ComponentId)
-				} else if appWf.Type == appWorkflow.CIPIPELINE {
-					impactedCiPipelineIds = append(impactedCiPipelineIds, appWf.ComponentId)
 				}
 				if _, ok := impactedWfIdsMap[appWf.AppWorkflowId]; !ok {
 					impactedWfIds = append(impactedWfIds, appWf.AppWorkflowId)
 					impactedWfIdsMap[appWf.AppWorkflowId] = true
+				}
+			}
+			if len(impactedWfIds) > 0 {
+				impactedCiPipelineIds, err = impl.appWorkflowRepository.FindCiPipelineIdsFromAppWfIds(impactedWfIds)
+				if err != nil {
+					impl.logger.Errorw("error in getting ciPipelineIds from appWfIds", "err", err, "wfIds", impactedWfIds)
+					return nil, nil, nil, err
 				}
 			}
 		}

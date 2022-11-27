@@ -104,8 +104,9 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 
 	if req.Id != 0 {
 		wf = &appWorkflow.AppWorkflow{
-			Id:   req.Id,
-			Name: req.Name,
+			Id:     req.Id,
+			Name:   req.Name,
+			Active: true,
 			AuditLog: sql.AuditLog{
 				UpdatedOn: time.Now(),
 				UpdatedBy: req.UserId,
