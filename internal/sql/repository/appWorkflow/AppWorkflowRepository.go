@@ -364,7 +364,7 @@ func (impl AppWorkflowRepositoryImpl) FindAllWfsHavingCdPipelinesFromSpecificEnv
 func (impl AppWorkflowRepositoryImpl) FindCiPipelineIdsFromAppWfIds(appWfIds []int) ([]int, error) {
 	var ciPipelineIds []int
 	query := `select DISTINCT component_id from app_workflow_mapping 
-				where type = ? and app_workflow_id in (?) and awm.active = ?; `
+				where type = ? and app_workflow_id in (?) and active = ?; `
 	_, err := impl.dbConnection.Query(&ciPipelineIds, query, CIPIPELINE, pg.In(appWfIds), true)
 	if err != nil {
 		impl.Logger.Errorw("error, FindCiPipelineIdsFromAppWfIds", "err", err)
