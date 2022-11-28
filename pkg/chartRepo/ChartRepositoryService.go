@@ -572,6 +572,44 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 		impl.logger.Errorw("error in deleting chart repo", "err", err)
 		return err
 	}
+
+	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
+	if err != nil {
+		return err
+	}
+	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
+	if err != nil {
+		return err
+	}
+
+	client, err := impl.K8sUtil.GetClient(cfg)
+	if err != nil {
+		return err
+	}
+	deleteSuccess := false
+	retryCount := 0
+	for !deleteSuccess && retryCount < 3 {
+		retryCount = retryCount + 1
+
+		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+		if err != nil {
+			return err
+		}
+
+		err = impl.K8sUtil.DeleteConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		if err != nil {
+			impl.logger.Warnw(" config map failed", "err", err)
+			continue
+		}
+		if err == nil {
+			impl.logger.Warnw(" config map delete succeeded", "on retryCount", retryCount)
+			deleteSuccess = true
+		}
+	}
+	if !deleteSuccess {
+		return fmt.Errorf("resouce version not matched with config map attempted 3 times")
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in tx commit, DeleteChartRepo", "err", err)
