@@ -75,7 +75,7 @@ type TemplateRequest struct {
 	IsAppMetricsEnabled     bool                        `json:"isAppMetricsEnabled"`
 	Schema                  json.RawMessage             `json:"schema"`
 	Readme                  string                      `json:"readme"`
-	IsBasicViewLocked       bool                        `json:"isBasicViewLocked" validate:"required"`
+	IsBasicViewLocked       bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor       models.ChartsViewEditorType `json:"currentViewEditor" validate:"required"`
 	UserId                  int32                       `json:"-"`
 }

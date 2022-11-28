@@ -63,7 +63,7 @@ type DeploymentTemplate struct {
 	Template          map[string]interface{}      `json:"template,notnull" validate:"required"`
 	ShowAppMetrics    bool                        `json:"showAppMetrics"`
 	IsOverride        bool                        `json:"isOverride"`
-	IsBasicViewLocked bool                        `json:"isBasicViewLocked" validate:"required"`
+	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor" validate:"required"`
 }
 

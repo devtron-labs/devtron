@@ -53,7 +53,7 @@ type EnvironmentProperties struct {
 	AppMetrics        *bool                       `json:"isAppMetricsEnabled"`
 	ChartRefId        int                         `json:"chartRefId,omitempty"  validate:"number"`
 	IsOverride        bool                        `sql:"isOverride"`
-	IsBasicViewLocked bool                        `json:"isBasicViewLocked" validate:"required"`
+	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
 	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor" validate:"required"`
 }
 
