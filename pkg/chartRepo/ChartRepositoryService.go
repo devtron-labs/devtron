@@ -460,7 +460,67 @@ func (impl *ChartRepositoryServiceImpl) createRepoElement(request *ChartRepoDto)
 
 	return repoData
 }
+func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, request *ChartRepoDto) map[string]string {
+	helmRepoStr := data["helm.repositories"]
+	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
+	if err != nil {
+		panic(err)
+	}
+	var helmRepositories []*AcdConfigMapRepositoriesDto
+	err = json.Unmarshal(helmRepoByte, &helmRepositories)
+	if err != nil {
+		panic(err)
+	}
 
+	rb, err := json.Marshal(helmRepositories)
+	if err != nil {
+		panic(err)
+	}
+	helmRepositoriesYamlByte, err := yaml.JSONToYAML(rb)
+	if err != nil {
+		panic(err)
+	}
+
+	//SETUP for repositories
+	var repositories []*AcdConfigMapRepositoriesDto
+	repoStr := data["repositories"]
+	repoByte, err := yaml.YAMLToJSON([]byte(repoStr))
+	if err != nil {
+		panic(err)
+	}
+	err = json.Unmarshal(repoByte, &repositories)
+	if err != nil {
+		panic(err)
+	}
+
+	var newRepositories []*AcdConfigMapRepositoriesDto
+	for _, item := range repositories {
+		//if request chart not repo found, exclude it
+		if item.Name != request.Name {
+			newRepositories = append(newRepositories, item)
+		}
+	}
+
+	rb, err = json.Marshal(newRepositories)
+	if err != nil {
+		panic(err)
+	}
+	repositoriesYamlByte, err := yaml.JSONToYAML(rb)
+	if err != nil {
+		panic(err)
+	}
+
+	if len(helmRepositoriesYamlByte) > 0 {
+		data["helm.repositories"] = string(helmRepositoriesYamlByte)
+	}
+	if len(repositoriesYamlByte) > 0 {
+		data["repositories"] = string(repositoriesYamlByte)
+	}
+	//dex config copy as it is
+	dexConfigStr := data["dex.config"]
+	data["dex.config"] = string([]byte(dexConfigStr))
+	return data
+}
 func (impl *ChartRepositoryServiceImpl) updateData(data map[string]string, request *ChartRepoDto) map[string]string {
 	helmRepoStr := data["helm.repositories"]
 	helmRepoByte, err := yaml.YAMLToJSON([]byte(helmRepoStr))
@@ -595,8 +655,9 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 		if err != nil {
 			return err
 		}
-
-		err = impl.K8sUtil.DeleteConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		data := impl.deleteData(cm.Data, request)
+		cm.Data = data
+		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
 		if err != nil {
 			impl.logger.Warnw(" config map failed", "err", err)
 			continue

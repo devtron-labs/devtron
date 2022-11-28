@@ -240,10 +240,6 @@ func (impl K8sUtil) UpdateConfigMap(namespace string, cm *v1.ConfigMap, client *
 		return cm, nil
 	}
 }
-func (impl K8sUtil) DeleteConfigMap(namespace string, cm *v1.ConfigMap, client *v12.CoreV1Client) error {
-	err := client.ConfigMaps(namespace).Delete(context.Background(), cm.Name, metav1.DeleteOptions{})
-	return err
-}
 
 func (impl K8sUtil) PatchConfigMap(namespace string, clusterConfig *ClusterConfig, name string, data map[string]interface{}) (*v1.ConfigMap, error) {
 	client, err := impl.GetClient(clusterConfig)
