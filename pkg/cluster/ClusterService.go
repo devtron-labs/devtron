@@ -378,7 +378,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 			model.PTlsClientKey = bean.PrometheusAuth.TlsClientKey
 		}
 	}
-
+	model.ErrorInConnecting = "" //setting empty because config to be updated is already validated
 	model.Active = bean.Active
 	model.Config = bean.Config
 	model.UpdatedBy = userId
