@@ -18,6 +18,7 @@
 package app
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -58,7 +59,10 @@ type AppRepository interface {
 	FindAppAndProjectByAppName(appName string) (*App, error)
 	GetConnection() *pg.DB
 	FindAllMatchesByAppName(appName string) ([]*App, error)
-	FindIdsByTeamIds(teamIds []int) ([]int, error)
+	FindIdsByTeamIdsAndTeamNames(teamIds []int, teamNames []string) ([]int, error)
+	FindIdsByNames(appNames []string) ([]int, error)
+	FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error)
+	FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error)
 }
 
 const DevtronApp = "DevtronApp"
@@ -250,13 +254,70 @@ func (repo AppRepositoryImpl) FindAllMatchesByAppName(appName string) ([]*App, e
 	return apps, err
 }
 
-func (repo AppRepositoryImpl) FindIdsByTeamIds(teamIds []int) ([]int, error) {
+func (repo AppRepositoryImpl) FindIdsByTeamIdsAndTeamNames(teamIds []int, teamNames []string) ([]int, error) {
 	var ids []int
-	query := "select id from app where team_id in (?) and active = ?;"
-	_, err := repo.dbConnection.Query(&ids, query, pg.In(teamIds), true)
+	var err error
+	if len(teamIds) == 0 && len(teamNames) == 0 {
+		err = fmt.Errorf("invalid input arguments, no projectIds or projectNames to get apps")
+		return nil, err
+	}
+	if len(teamIds) > 0 && len(teamNames) > 0 {
+		query := `select app.id from app inner join team on team.id=app.team_id where team.active=? and app.active=?   
+                 and (team.id in (?) or team.name in (?));`
+		_, err = repo.dbConnection.Query(&ids, query, true, true, pg.In(teamIds), pg.In(teamNames))
+	} else if len(teamIds) > 0 {
+		query := "select id from app where team_id in (?) and active=?;"
+		_, err = repo.dbConnection.Query(&ids, query, pg.In(teamIds), true)
+	} else if len(teamNames) > 0 {
+		query := "select app.id from app inner join team on team.id=app.team_id where team.name in (?) and team.active=? and app.active=?;"
+		_, err = repo.dbConnection.Query(&ids, query, pg.In(teamNames), true, true)
+	}
 	if err != nil {
-		repo.logger.Errorw("error in getting appIds by teamIds", "err", err, "teamIds", teamIds)
+		repo.logger.Errorw("error in getting appIds by teamIds and teamNames", "err", err, "teamIds", teamIds, "teamNames", teamNames)
 		return nil, err
 	}
 	return ids, err
+}
+
+func (repo AppRepositoryImpl) FindIdsByNames(appNames []string) ([]int, error) {
+	var ids []int
+	query := "select id from app where app_name in (?) and active=?;"
+	_, err := repo.dbConnection.Query(&ids, query, pg.In(appNames), true)
+	if err != nil {
+		repo.logger.Errorw("error in getting appIds by names", "err", err, "names", appNames)
+		return nil, err
+	}
+	return ids, err
+}
+
+func (repo AppRepositoryImpl) FetchAllActiveInstalledAppsWithAppIdAndName() ([]*App, error) {
+	repo.logger.Debug("reached at Fetch All Active Installed Apps With AppId And Name")
+	var apps []*App
+
+	err := repo.dbConnection.Model(&apps).
+		Column("installed_apps.id", "app.app_name").
+		Join("INNER JOIN installed_apps  on app.id = installed_apps.app_id").
+		Where("app.active=true").
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error while fetching installed apps With AppId And Name", "err", err)
+		return apps, err
+	}
+	return apps, nil
+
+}
+func (repo AppRepositoryImpl) FetchAllActiveDevtronAppsWithAppIdAndName() ([]*App, error) {
+	repo.logger.Debug("reached at Fetch All Active Devtron Apps With AppId And Name:")
+	var apps []*App
+
+	err := repo.dbConnection.Model(&apps).
+		Column("id", "app_name").
+		Where("app_store = ?", false).
+		Where("active", true).
+		Select()
+	if err != nil && err != pg.ErrNoRows {
+		repo.logger.Errorw("error while fetching active Devtron apps With AppId And Name", "err", err)
+		return apps, err
+	}
+	return apps, nil
 }
