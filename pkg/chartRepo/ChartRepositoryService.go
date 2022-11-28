@@ -494,9 +494,11 @@ func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, reque
 	}
 
 	var newRepositories []*AcdConfigMapRepositoriesDto
+	found := false
 	for _, item := range repositories {
 		//if request chart not repo found, exclude it
-		if item.Name != request.Name {
+		if !found && item.Name != request.Name {
+			found = true
 			newRepositories = append(newRepositories, item)
 		}
 	}
