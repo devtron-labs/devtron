@@ -21,7 +21,7 @@ Each method has different use-cases that can be tailored according the needs of 
 1. From the **Applications** menu, select your application.
 2. On the **App Configuration** page, select **Workflow Editor**.
 3. Select **+ New Workflow**.
-4. Select **Build and Deploy from source code**.
+4. Select **Build and deploy from source code**.
 5. Enter the following fields on the **Create build pipeline** screen:
 
 ![](../../../.gitbook/assets/ci-pipeline-2.png)
