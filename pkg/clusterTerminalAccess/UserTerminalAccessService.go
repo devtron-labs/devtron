@@ -28,7 +28,7 @@ type UserTerminalAccessService interface {
 	UpdateTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
 	UpdateTerminalShellSession(request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error)
 	FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error)
-	StopTerminalSession(userTerminalAccessId int) error
+	StopTerminalSession(userTerminalAccessId int)
 	DisconnectTerminalSession(userTerminalAccessId int) error
 	DisconnectAllSessionsForUser(userId int32)
 	FetchPodManifest(userTerminalAccessId int) (resp *application.ManifestResponse, err error)

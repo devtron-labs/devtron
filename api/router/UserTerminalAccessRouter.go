@@ -28,6 +28,10 @@ func (router UserTerminalAccessRouterImpl) InitTerminalAccessRouter(userTerminal
 		HandlerFunc(router.userTerminalAccessRestHandler.StartTerminalSession).Methods("PUT")
 	userTerminalAccessRouter.Path("/get").
 		HandlerFunc(router.userTerminalAccessRestHandler.FetchTerminalStatus).Queries("terminalAccessId", "{terminalAccessId}").Methods("GET")
+	userTerminalAccessRouter.Path("/pod/events").
+		HandlerFunc(router.userTerminalAccessRestHandler.FetchTerminalStatus).Queries("terminalAccessId", "{terminalAccessId}").Methods("GET")
+	userTerminalAccessRouter.Path("/pod/manifest").
+		HandlerFunc(router.userTerminalAccessRestHandler.FetchTerminalStatus).Queries("terminalAccessId", "{terminalAccessId}").Methods("GET")
 	userTerminalAccessRouter.Path("/disconnect").
 		HandlerFunc(router.userTerminalAccessRestHandler.DisconnectTerminalSession).Queries("terminalAccessId", "{terminalAccessId}").Methods("POST")
 	userTerminalAccessRouter.Path("/stop").
