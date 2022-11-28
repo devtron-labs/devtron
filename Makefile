@@ -15,10 +15,12 @@ GIT_COMMIT =$(shell sh -c 'git log --pretty=format:'%h' -n 1')
 BUILD_TIME= $(shell sh -c 'date -u '+%Y-%m-%dT%H:%M:%SZ'')
 SERVER_MODE_FULL= FULL
 SERVER_MODE_EA_ONLY=EA_ONLY
+#TEST_BRANCH=PUT_YOUR_BRANCH_HERE
+#LATEST_HASH=PUT_YOUR_HASH_HERE
 include $(ENV_FILE)
 export
 
-build: clean wire test
+build: clean wire test-all
 	$(ENVVAR) GOOS=$(GOOS) go build -o devtron \
 			-ldflags="-X 'github.com/devtron-labs/devtron/util.GitCommit=${GIT_COMMIT}' \
 			-X 'github.com/devtron-labs/devtron/util.BuildTime=${BUILD_TIME}' \
@@ -30,8 +32,15 @@ wire:
 clean:
 	rm -f devtron
 
-test:
+test-all: test-unit
+	echo 'test cases ran successfully'
+
+test-unit:
 	go test ./pkg/pipeline
+
+test-integration:
+	. ./tests/integrationTesting/create-test-env.sh
+	. ./tests/integrationTesting/run-integration-test.sh
 
 run: build
 	./devtron
