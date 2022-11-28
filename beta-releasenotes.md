@@ -1,4 +1,5 @@
 ## Bugs
+- fix: wf deletion bug and bulk cd pipeline req (#2693)
 - fix: updated cluster connection status for update api (#2686)
 ## Enhancements
 - Feat: External Ci webhook new interface, Deployment separated from build node. (#2664)
