@@ -4,24 +4,24 @@
 > 
 > For Devtron version older than v0.4.0, please refer the [CI Pipeline (legacy)](./ci-pipeline-legacy.md) page.
 
-A CI Pipeline can be created in one of the following ways:
+A CI Workflow can be created in one of the following ways:
 
-* [Continuous Integration](#1-continuous-integration)
-* [Linked CI Pipeline](#2.-linked-ci-pipeline)
-* [Incoming Webhook](#3.-incoming-webhook)
+* [Build and Deploy from Source Code](#1-continuous-integration)
+* [Linked Build Pipeline](#2.-linked-ci-pipeline)
+* [Deploy Image from External Service](#3.-incoming-webhook)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/workflow-ci.jpg)
 
 Each method has different use-cases that can be tailored according the needs of the organization.
 
-## 1. Continuous Integration
+## 1. Build and Deploy from Source Code
 
-Continuous Integration Pipeline allows you to build the container image from a source code repository.
+`Build and Deploy from Source Code` workflow allows you to build the container image from a source code repository.
 
 1. From the **Applications** menu, select your application.
 2. On the **App Configuration** page, select **Workflow Editor**.
-3. Select **+ New Build Pipeline**.
-4. Select **Continuous Integration**.
+3. Select **+ New Workflow**.
+4. Select **Build and Deploy from source code**.
 5. Enter the following fields on the **Create build pipeline** screen:
 
 ![](../../../.gitbook/assets/ci-pipeline-2.png)
@@ -173,14 +173,14 @@ Select **Create Pipeline**.
 >
 > **(b)** The total timeout for the execution of the CI pipeline is by default set as 3600 seconds. This default timeout is configurable according to the use case. The timeout can be edited in the configmap of the orchestrator service in the env variable as `env:"DEFAULT_TIMEOUT" envDefault:"3600"`
 
-## 2. Linked CI Pipeline
+## 2. Linked Build Pipeline
 
-If one code is shared across multiple applications, `Linked CI Pipeline` can be used, and only one image will be built for multiple applications because if there is only one build, it is not advisable to create multiple CI Pipelines.
+If one code is shared across multiple applications, `Linked Build Pipeline` can be used, and only one image will be built for multiple applications because if there is only one build, it is not advisable to create multiple CI Pipelines.
 
 1. From the **Applications** menu, select your application.
 2. On the **App Configuration** page, select **Workflow Editor**.
-3. Select **+ New Build Pipeline**.
-4. Select **Linked CI Pipeline**.
+3. Select **+ New Workflow**.
+4. Select **Linked Build Pipeline**.
 5. Enter the following fields on the **Create linked build pipeline** screen:
 
 ![](../../../.gitbook/assets/ca-workflow-linked.png)
@@ -189,12 +189,12 @@ If one code is shared across multiple applications, `Linked CI Pipeline` can be 
 * Select the source CI pipeline from the application that you selected above.
 * Enter a name for the linked CI pipeline.
 
-Select **Create Linked CI Pipeline**.
+Click **Create Linked CI Pipeline**.
 
 After creating a linked CI pipeline, you can create a CD pipeline. 
 Builds cannot be triggered from a linked CI pipeline; they can only be triggered from the source CI pipeline. There will be no images to deploy in the CD pipeline created from the 'linked CI pipeline' at first. To see the images in the CD pipeline of the linked CI pipeline, trigger build in the source CI pipeline. The build images will now be listed in the CD pipeline of the 'linked CI pipeline' whenever you trigger a build in the source CI pipeline.
 
-## 3. Incoming Webhook
+## 3. Deploy Image from External Service
 
 The CI pipeline can receive container images from an external source via webhook API.
 
