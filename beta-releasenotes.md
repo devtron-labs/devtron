@@ -5,5 +5,6 @@
 - Feat: External Ci webhook new interface, Deployment separated from build node. (#2664)
 ## Documentation
 ## Others
+- sql migration error fix (#2695)
 - External links extention for app level  (#2573)
 - added support for giving names in wf bulk deletion req (#2690)
