@@ -7,6 +7,7 @@ type UserTerminalSessionRequest struct {
 	NodeName  string `json:"nodeName" validate:"required,min=1"`
 	BaseImage string `json:"baseImage" validate:"required,min=1"`
 	ShellName string `json:"shellName" validate:"required,min=1"`
+	Namespace string `json:"namespace" validate:"required,min=1"`
 }
 type UserTerminalShellSessionRequest struct {
 	TerminalAccessId int    `json:"terminalAccessId" validate:"number,gt=0"`
