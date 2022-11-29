@@ -166,7 +166,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	chartRepo.AuthMode = request.AuthMode
 	chartRepo.UserName = request.UserName
 	chartRepo.Password = request.Password
-	chartRepo.Active = request.Active
+	chartRepo.Name = request.Name
 	chartRepo.AccessToken = request.AccessToken
 	chartRepo.SshKey = request.SshKey
 	chartRepo.Active = request.Active
@@ -496,11 +496,13 @@ func (impl *ChartRepositoryServiceImpl) deleteData(data map[string]string, reque
 	var newRepositories []*AcdConfigMapRepositoriesDto
 	found := false
 	for _, item := range repositories {
-		//if request chart not repo found, exclude it
-		if !found && item.Name != request.Name {
+		//if request chart repo not found, exclude it for the first time
+		if !found && item.Name == request.Name {
 			found = true
-			newRepositories = append(newRepositories, item)
+			continue
 		}
+		newRepositories = append(newRepositories, item)
+
 	}
 
 	rb, err = json.Marshal(newRepositories)
@@ -634,45 +636,49 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 		impl.logger.Errorw("error in deleting chart repo", "err", err)
 		return err
 	}
-
-	clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
-	if err != nil {
-		return err
+	repoCountWithName, err := impl.repoRepository.FindActiveCountWithRepoName(chartRepo.Name)
+	if err != nil && !util.IsErrNoRows(err) {
+		impl.logger.Errorw("error in Finding active repos with name", "name", chartRepo.Name, "err", err)
 	}
-	cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
-	if err != nil {
-		return err
-	}
-
-	client, err := impl.K8sUtil.GetClient(cfg)
-	if err != nil {
-		return err
-	}
-	deleteSuccess := false
-	retryCount := 0
-	for !deleteSuccess && retryCount < 3 {
-		retryCount = retryCount + 1
-
-		cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+	if repoCountWithName == 0 {
+		clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 		if err != nil {
 			return err
 		}
-		data := impl.deleteData(cm.Data, request)
-		cm.Data = data
-		_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+		cfg, err := impl.clusterService.GetClusterConfig(clusterBean)
 		if err != nil {
-			impl.logger.Warnw(" config map failed", "err", err)
-			continue
+			return err
 		}
-		if err == nil {
-			impl.logger.Warnw(" config map delete succeeded", "on retryCount", retryCount)
-			deleteSuccess = true
-		}
-	}
-	if !deleteSuccess {
-		return fmt.Errorf("resouce version not matched with config map attempted 3 times")
-	}
 
+		client, err := impl.K8sUtil.GetClient(cfg)
+		if err != nil {
+			return err
+		}
+		deleteSuccess := false
+		retryCount := 0
+		for !deleteSuccess && retryCount < 3 {
+			retryCount = retryCount + 1
+
+			cm, err := impl.K8sUtil.GetConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, impl.aCDAuthConfig.ACDConfigMapName, client)
+			if err != nil {
+				return err
+			}
+			data := impl.deleteData(cm.Data, request)
+			cm.Data = data
+			_, err = impl.K8sUtil.UpdateConfigMap(impl.aCDAuthConfig.ACDConfigMapNamespace, cm, client)
+			if err != nil {
+				impl.logger.Warnw(" config map failed", "err", err)
+				continue
+			}
+			if err == nil {
+				impl.logger.Warnw(" config map delete succeeded", "on retryCount", retryCount)
+				deleteSuccess = true
+			}
+		}
+		if !deleteSuccess {
+			return fmt.Errorf("resouce version not matched with config map attempted 3 times")
+		}
+	}
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error in tx commit, DeleteChartRepo", "err", err)

@@ -255,6 +255,7 @@ type ChartRepoRepository interface {
 	GetConnection() *pg.DB
 	MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error
 	FindByName(name string) (*ChartRepo, error)
+	FindActiveCountWithRepoName(name string) (int, error)
 }
 type ChartRepoRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -317,6 +318,14 @@ func (impl ChartRepoRepositoryImpl) FindByName(name string) (*ChartRepo, error) 
 		Where("deleted = ?", false).
 		Select()
 	return repo, err
+}
+
+func (impl ChartRepoRepositoryImpl) FindActiveCountWithRepoName(name string) (int, error) {
+	repo := &ChartRepo{}
+	cnt, err := impl.dbConnection.Model(repo).
+		Where("name = ?", name).
+		Where("deleted = false").Count()
+	return cnt, err
 }
 
 // ------------------------ CHART REF REPOSITORY ---------------
