@@ -220,7 +220,7 @@ func (_m *CdWorkflowRepository) FindCdWorkflowMetaByPipelineId(pipelineId int, o
 }
 
 // FindCdWorkflowRunnerByEnvironmentIdAndRunnerType provides a mock function with given fields: appId, environmentId, runnerType
-func (_m *CdWorkflowRepository) FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (pipelineConfig.CdWorkflowRunner, error) {
+func (_m *CdWorkflowRepository) FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (pipelineConfig.CdWorkflowRunner, error) {
 	ret := _m.Called(appId, environmentId, runnerType)
 
 	var r0 pipelineConfig.CdWorkflowRunner

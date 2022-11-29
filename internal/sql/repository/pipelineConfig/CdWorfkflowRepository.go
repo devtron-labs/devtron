@@ -43,7 +43,7 @@ type CdWorkflowRepository interface {
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error)
-	FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
+	FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
 
 	GetConnection() *pg.DB
 
@@ -287,17 +287,15 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByEnvironmentId(appId in
 	return wfrList, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
 	var wfr CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&wfr).
-		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
 		Where("p.environment_id = ?", environmentId).
 		Where("p.app_id = ?", appId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
-		Order("cd_workflow_runner.id DESC").
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
-		Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
 		Join("inner join pipeline p on p.id = wf.pipeline_id").
 		Order("cd_workflow_runner.id DESC").Limit(1).
 		Select()

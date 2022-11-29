@@ -60,7 +60,8 @@ type CdHandler interface {
 	CheckHelmAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error
 	CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error
 	CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error
-	UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(argoAppName string, userId int32) (err error, isTimelineUpdated bool)
+	UpdatePipelineTimelineAndStatusByLiveApplicationFetch(argoAppName string, userId int32) (err error, isTimelineUpdated bool)
+	CheckAndSendArgoPipelineStatusSyncEventIfNeeded(argoAppName string, userId int32)
 }
 
 type CdHandlerImpl struct {
@@ -156,17 +157,7 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDe
 	}
 	impl.Logger.Infow("received deployment statuses for stucked argo cd pipelines", "deploymentStatuses", deploymentStatuses)
 	for _, deploymentStatus := range deploymentStatuses {
-		//create new nats event
-		statusUpdateEvent := ArgoPipelineStatusSyncEvent{
-			ArgoAppName: deploymentStatus.AppName,
-			UserId:      1,
-		}
-		//write event
-		err = impl.eventClient.WriteNatsEvent(util3.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
-		if err != nil {
-			impl.Logger.Errorw("error in writing nats event", "topic", util3.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
-			continue
-		}
+		impl.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(deploymentStatus.AppName, 1)
 	}
 	return nil
 }
@@ -174,7 +165,7 @@ func (impl *CdHandlerImpl) CheckArgoAppStatusPeriodicallyAndUpdateInDb(timeForDe
 func (impl *CdHandlerImpl) CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateInDb(pendingSinceSeconds int, timeForDegradation int) error {
 	//getting all the progressing status that are stuck since some time after kubectl apply success sync stage
 	//and are not eligible for CheckArgoAppStatusPeriodicallyAndUpdateInDb
-	pipelineIds, err := impl.pipelineRepository.GetPipelineIdsHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds, 0)
+	pipelineIds, err := impl.pipelineRepository.GetPipelineIdsHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds, timeForDegradation)
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("err in GetPipelineIdsHavingTriggersStuckInLastPossibleNonTerminalTimelines", "err", err)
 		return err
@@ -189,22 +180,33 @@ func (impl *CdHandlerImpl) CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateI
 	}
 	impl.Logger.Infow("received argo cd pipelines stucked at kubectl apply synced stage", "pipelines", pipelines)
 	for _, pipeline := range pipelines {
-		//create new nats event
+		argoAppName := fmt.Sprintf("%s-%s", pipeline.App.AppName, pipeline.Environment.Name)
+		impl.CheckAndSendArgoPipelineStatusSyncEventIfNeeded(argoAppName, 1)
+	}
+	return nil
+}
+
+func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(argoAppName string, userId int32) {
+	lastSyncTime, err := impl.pipelineStatusSyncDetailService.GetLastSyncTimeForLatestCdWfrByArgoAppName(argoAppName)
+	if err != nil {
+		impl.Logger.Errorw("error in getting last sync time by argoAppName", "err", err)
+		return
+	}
+	//TODO: remove hard coding
+	if !lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second { //create new nats event
 		statusUpdateEvent := ArgoPipelineStatusSyncEvent{
-			ArgoAppName: pipeline.App.AppName + "-" + pipeline.Environment.Name,
-			UserId:      1,
+			ArgoAppName: argoAppName,
+			UserId:      userId,
 		}
 		//write event
 		err = impl.eventClient.WriteNatsEvent(util3.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, statusUpdateEvent)
 		if err != nil {
 			impl.Logger.Errorw("error in writing nats event", "topic", util3.ARGO_PIPELINE_STATUS_UPDATE_TOPIC, "payload", statusUpdateEvent)
-			continue
 		}
 	}
-	return nil
 }
 
-func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetch(argoAppName string, userId int32) (error, bool) {
+func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch(argoAppName string, userId int32) (error, bool) {
 	isTimelineUpdated := false
 	isSucceeded := false
 	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatusByAppName(argoAppName)
@@ -231,7 +233,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 	if err != nil {
 		impl.Logger.Errorw("error in getting acd application", "err", err, "argoAppName", argoAppName)
 		var cdWfr pipelineConfig.CdWorkflowRunner
-		cdWfr, err = impl.cdWorkflowRepository.FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(deploymentStatus.AppId, deploymentStatus.EnvId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+		cdWfr, err = impl.cdWorkflowRepository.FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(deploymentStatus.AppId, deploymentStatus.EnvId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 		if err != nil {
 			impl.Logger.Errorw("found error, skipping argo apps status update for this trigger", "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId, "err", err)
 			return err, isTimelineUpdated

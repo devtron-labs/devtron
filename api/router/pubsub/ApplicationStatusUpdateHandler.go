@@ -75,7 +75,7 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.APPLICATION_STATUS_UPDATE_TOPIC, util.APPLICATION_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("received app update request")
 		defer msg.Ack()
-		impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "raw", "data", msg.Data)
+		impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "raw", "data", msg.Data)
 		applicationDetail := ApplicationDetail{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &applicationDetail)
 		if err != nil {
@@ -86,7 +86,6 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 		if app == nil {
 			return
 		}
-		//impl.logger.Infow("app update request", "application", app)
 		if applicationDetail.StatusTime.IsZero() {
 			applicationDetail.StatusTime = time.Now()
 		}

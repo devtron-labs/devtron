@@ -21,6 +21,7 @@ type PipelineStatusSyncDetailRepository interface {
 	Save(model *PipelineStatusSyncDetail) error
 	Update(model *PipelineStatusSyncDetail) error
 	GetByCdWfrId(cdWfrId int) (*PipelineStatusSyncDetail, error)
+	GetOfLatestCdWfrByArgoAppName(argoAppName string) (*PipelineStatusSyncDetail, error)
 }
 
 type PipelineStatusSyncDetailRepositoryImpl struct {
@@ -59,6 +60,20 @@ func (impl *PipelineStatusSyncDetailRepositoryImpl) GetByCdWfrId(cdWfrId int) (*
 	err := impl.dbConnection.Model(&model).Where("cd_workflow_runner_id = ?", cdWfrId).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting cd pipeline status sync detail by cdWfrId", "err", err, "cdWfrId", cdWfrId)
+		return nil, err
+	}
+	return &model, nil
+}
+
+func (impl *PipelineStatusSyncDetailRepositoryImpl) GetOfLatestCdWfrByArgoAppName(argoAppName string) (*PipelineStatusSyncDetail, error) {
+	var model PipelineStatusSyncDetail
+	query := `select * from pipeline_status_timeline_sync_detail 
+              	where cd_workflow_runner_id = (select cwr.id from cd_workflow_runner cwr inner join cd_workflow cw on cw.is=cwr.cd_workflow_id 
+                	inner join pipeline p on p.id=cw.pipeline_id where (p.app_id,p.environment_id) in
+                	    (select app_id, env_id from deployment_status where app_name =? order by id desc limit ?) and p.active=? order by cwr.id desc limit ?);`
+	_, err := impl.dbConnection.Query(&model, query, argoAppName, 1, true, 1)
+	if err != nil {
+		impl.logger.Errorw("error in getting cd pipeline status sync detail of latest cdWfr by argoAppName", "err", err, "argoAppName", argoAppName)
 		return nil, err
 	}
 	return &model, nil
