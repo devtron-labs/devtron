@@ -64,7 +64,7 @@ func (impl GlobalTagRepositoryImpl) FindAllActive() ([]*GlobalTag, error) {
 
 func (impl GlobalTagRepositoryImpl) CheckKeyExistsForAnyActiveTag(key string) (bool, error) {
 	var globalTag *GlobalTag
-	exists, err := impl.dbConnection.Model(&globalTag).
+	exists, err := impl.dbConnection.Model(globalTag).
 		Where("active IS TRUE").
 		Where("key = ?", key).
 		Exists()
@@ -81,8 +81,8 @@ func (impl GlobalTagRepositoryImpl) FindAllActiveByIds(ids []int) ([]*GlobalTag,
 }
 
 func (impl GlobalTagRepositoryImpl) FindActiveById(id int) (*GlobalTag, error) {
-	var globalTag *GlobalTag
-	err := impl.dbConnection.Model(&globalTag).
+	globalTag := &GlobalTag{}
+	err := impl.dbConnection.Model(globalTag).
 		Where("active IS TRUE").
 		Where("id = ?", id).
 		Select()

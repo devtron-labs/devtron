@@ -117,10 +117,10 @@ components:
     UpdateGlobalTagDto:
       type: object
       properties:
-        description:
-          type: string
-          description: Description of global-tag
-          example: "some description"
+        id:
+          type: integer
+          description: Id of global tag
+          example: 1
           nullable: false
         mandatoryProjectIdsCsv:
           type: string
