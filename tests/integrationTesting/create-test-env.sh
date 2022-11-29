@@ -9,7 +9,7 @@ kubectl apply -f postgresql-secret.yaml
 wget https://raw.githubusercontent.com/devtron-labs/devtron/main/tests/integrationTesting/postgresql.yaml -O postgresql.yaml
 kubectl apply -f postgresql.yaml
 wget https://raw.githubusercontent.com/devtron-labs/devtron/main/tests/integrationTesting/migrator.yaml -O migrator.yaml
-yq '((select .spec != null) | .spec.template.spec.containers[0] | select (.name == "postgresql-migrate-devtron" and .name != null) | .env[0].value) = env(TEST_BRANCH)' migrator.yaml -i
-yq '(.spec.template.spec.containers[0] | select (.name == "postgresql-migrate-devtron") | .env[9].value) = env(LATEST_HASH)' migrator.yaml -i
+yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[0].value) = env(TEST_BRANCH)' migrator.yaml -i
+yq '(select(.metadata.name == "postgresql-migrate-devtron") | .spec.template.spec.containers[0].env[9].value) = env(LATEST_HASH)' migrator.yaml -i
 kubectl apply -f migrator.yaml
 exit #to get out of container
