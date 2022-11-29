@@ -39,9 +39,9 @@ test-unit:
 	go test ./pkg/pipeline
 
 test-integration:
-	export INTEGRATION_TEST_ENV_ID=$(docker run --env TEST_BRANCH --env LATEST_HASH --privileged -d --name dind-test docker:dind)
-	docker exec ${INTEGRATION_TEST_ENV_ID} ./tests/integrationTesting/create-test-env.sh
-	docker exec ${INTEGRATION_TEST_ENV_ID} ./tests/integrationTesting/run-integration-test.sh
+	export INTEGRATION_TEST_ENV_ID=$(docker run --env TEST_BRANCH --env LATEST_HASH --privileged -d --name dind-test -v $PWD/tests/integrationTesting/:/tmp/ docker:dind)
+	docker exec ${INTEGRATION_TEST_ENV_ID} sh /tmp/create-test-env.sh
+	docker exec ${INTEGRATION_TEST_ENV_ID} sh /tests/integrationTesting/run-integration-test.sh
 
 run: build
 	./devtron
