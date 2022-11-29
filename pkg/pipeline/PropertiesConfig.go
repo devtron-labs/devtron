@@ -54,7 +54,7 @@ type EnvironmentProperties struct {
 	ChartRefId        int                         `json:"chartRefId,omitempty"  validate:"number"`
 	IsOverride        bool                        `sql:"isOverride"`
 	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
-	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"`
+	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor" validate:"required"`
 }
 
 type EnvironmentPropertiesResponse struct {
@@ -90,7 +90,7 @@ type PropertiesConfigServiceImpl struct {
 	chartRepo                        chartRepoRepository.ChartRepository
 	mergeUtil                        util.MergeUtil
 	environmentRepository            repository2.EnvironmentRepository
-	dbPipelineOrchestrator           DbPipelineOrchestrator
+	ciCdPipelineOrchestrator         CiCdPipelineOrchestrator
 	application                      application.ServiceClient
 	envLevelAppMetricsRepository     repository.EnvLevelAppMetricsRepository
 	appLevelMetricsRepository        repository.AppLevelMetricsRepository
@@ -102,7 +102,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 	chartRepo chartRepoRepository.ChartRepository,
 	mergeUtil util.MergeUtil,
 	environmentRepository repository2.EnvironmentRepository,
-	dbPipelineOrchestrator DbPipelineOrchestrator,
+	ciCdPipelineOrchestrator CiCdPipelineOrchestrator,
 	application application.ServiceClient,
 	envLevelAppMetricsRepository repository.EnvLevelAppMetricsRepository,
 	appLevelMetricsRepository repository.AppLevelMetricsRepository,
@@ -113,7 +113,7 @@ func NewPropertiesConfigServiceImpl(logger *zap.SugaredLogger,
 		chartRepo:                        chartRepo,
 		mergeUtil:                        mergeUtil,
 		environmentRepository:            environmentRepository,
-		dbPipelineOrchestrator:           dbPipelineOrchestrator,
+		ciCdPipelineOrchestrator:         ciCdPipelineOrchestrator,
 		application:                      application,
 		envLevelAppMetricsRepository:     envLevelAppMetricsRepository,
 		appLevelMetricsRepository:        appLevelMetricsRepository,
