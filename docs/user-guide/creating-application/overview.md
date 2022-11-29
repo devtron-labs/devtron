@@ -3,7 +3,7 @@
 
 The `Overview` section contains the brief information of the application, any added tags, configured external links and deployment details of the particular application.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/overview-app.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/overview/overview-app-latest.jpg)
 
 
 The following details are provided on the **Overview** page:
