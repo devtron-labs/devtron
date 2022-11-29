@@ -276,6 +276,10 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 		return
 	}
 	//RBAC enforcer Ends
+	if appIdentifier.ReleaseName == "devtron" && appIdentifier.Namespace == "devtroncd" && appIdentifier.ClusterId == 1 {
+		common.WriteJsonResp(w, errors.New("cannot delete this default helm app"), nil, http.StatusForbidden)
+		return
+	}
 	res, err := handler.helmAppService.DeleteApplication(context.Background(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
