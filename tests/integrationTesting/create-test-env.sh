@@ -1,7 +1,7 @@
 # shellcheck disable=SC2155
 export INTEGRATION_TEST_ENV_ID=$(docker run --env TEST_BRANCH --env LATEST_HASH --privileged -d --name dind-test docker:dind)
 docker exec -it dind-test /bin/sh
-apk update && apk add wget && apk add curl && apk add vim  && apk addbash && apk add git
+apk update && apk add wget && apk add curl && apk add vim  && apk add bash && apk add git
 wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 k3d cluster create it-cluster
 curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
