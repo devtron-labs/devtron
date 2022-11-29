@@ -68,7 +68,7 @@ func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *team.TeamRequest) error 
 }
 
 func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error {
-	//TODO : check deployments also once deployment is enabled for hyperion
+
 	deployedCharts, err := impl.installedAppRepository.GetAllInstalledAppsByChartRepoId(deleteRequest.Id)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("err in deleting repo", "deleteRequest", deployedCharts)
