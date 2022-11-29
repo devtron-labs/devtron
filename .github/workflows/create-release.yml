@@ -24,11 +24,11 @@ jobs:
         RELEASE_TYPE=$(echo $RELEASE_FILE_CONTENTS | awk '{print $1}')
         FILE_NAME=${FILE_NAME:=releasenotes.md}
         echo $RELEASE_TYPE
+        echo $GITHUB_REPOSITORY
+        gh repo clone $GITHUB_REPOSITORY
+        cd devtron
         if [[ "$RELEASE_TYPE" == "stable" ]]
           then
-            echo $GITHUB_REPOSITORY
-            gh repo clone $GITHUB_REPOSITORY
-            cd devtron
             tag=$(git tag --sort=committerdate | tail -1)
             echo $tag
             echo $RELEASE_BRANCH
@@ -49,6 +49,16 @@ jobs:
             git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} release-bot
         elif [[ "$RELEASE_TYPE" == "beta" ]]
           then
+            git checkout -b release-bot
+            git config --global user.email "$GIT_CONFIG_EMAIL"
+            git config --global user.name "$GIT_CONFIG_NAME"
+            echo "## Bugs" > beta-releasenotes.md
+            echo "## Enhancements" >> beta-releasenotes.md
+            echo "## Documentation" >> beta-releasenotes.md
+            echo "## Others" >> beta-releasenotes.md
+            git add .
+            git commit -am "Created release-notes files"
+            git push -f https://${GIT_CONFIG_NAME}:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY} release-bot
             echo "Not creating release due to beta"
         fi
       env:

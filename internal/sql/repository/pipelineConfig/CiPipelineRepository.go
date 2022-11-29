@@ -46,17 +46,15 @@ type CiPipeline struct {
 	sql.AuditLog
 	CiPipelineMaterials []*CiPipelineMaterial
 	CiTemplate          *CiTemplate
-	ExternalCiPipeline  *ExternalCiPipeline
 }
 
 type ExternalCiPipeline struct {
-	tableName    struct{} `sql:"external_ci_pipeline" pg:",discard_unknown_columns"`
-	Id           int      `sql:"id,pk"`
-	CiPipelineId int      `sql:"ci_pipeline_id"`
-	Active       bool     `sql:"active,notnull"`
-	AccessToken  string   `sql:"access_token,notnull"`
+	tableName   struct{} `sql:"external_ci_pipeline" pg:",discard_unknown_columns"`
+	Id          int      `sql:"id,pk"`
+	AppId       int      `sql:"app_id"`
+	Active      bool     `sql:"active,notnull"`
+	AccessToken string   `sql:"access_token"`
 	sql.AuditLog
-	CiPipeline *CiPipeline
 }
 
 type CiPipelineScript struct {
@@ -75,8 +73,10 @@ type CiPipelineScript struct {
 type CiPipelineRepository interface {
 	Save(pipeline *CiPipeline, tx *pg.Tx) error
 	SaveExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error)
-	UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, int, error)
+	UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error)
 	FindExternalCiByCiPipelineId(ciPipelineId int) (*ExternalCiPipeline, error)
+	FindExternalCiById(id int) (*ExternalCiPipeline, error)
+	FindExternalCiByAppId(appId int) ([]*ExternalCiPipeline, error)
 	FindCiScriptsByCiPipelineId(ciPipelineId int) ([]*CiPipelineScript, error)
 	SaveCiPipelineScript(ciPipelineScript *CiPipelineScript, tx *pg.Tx) error
 	UpdateCiPipelineScript(script *CiPipelineScript, tx *pg.Tx) error
@@ -131,11 +131,9 @@ func (impl CiPipelineRepositoryImpl) SaveExternalCi(pipeline *ExternalCiPipeline
 	return pipeline, err
 }
 
-func (impl CiPipelineRepositoryImpl) UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, int, error) {
-	r, err := tx.Model(pipeline).Where("ci_pipeline_id= ?", pipeline.CiPipelineId).UpdateNotNull()
-	rowsUpdated := r.RowsAffected()
-	impl.logger.Infof("total rows updated %d", rowsUpdated)
-	return pipeline, rowsUpdated, err
+func (impl CiPipelineRepositoryImpl) UpdateExternalCi(pipeline *ExternalCiPipeline, tx *pg.Tx) (*ExternalCiPipeline, error) {
+	err := tx.Update(pipeline)
+	return pipeline, err
 }
 
 func (impl CiPipelineRepositoryImpl) Save(pipeline *CiPipeline, tx *pg.Tx) error {
@@ -167,8 +165,8 @@ func (impl CiPipelineRepositoryImpl) MarkCiPipelineScriptsInactiveByCiPipelineId
 
 func (impl CiPipelineRepositoryImpl) FindByAppId(appId int) (pipelines []*CiPipeline, err error) {
 	err = impl.dbConnection.Model(&pipelines).
-		Column("ci_pipeline.*", "CiPipelineMaterials", "ExternalCiPipeline", "CiPipelineMaterials.GitMaterial").
-		Where("app_id =?", appId).
+		Column("ci_pipeline.*", "CiPipelineMaterials", "CiPipelineMaterials.GitMaterial").
+		Where("ci_pipeline.app_id =?", appId).
 		Where("deleted =? ", false).
 		Select()
 	return pipelines, err
@@ -180,6 +178,26 @@ func (impl CiPipelineRepositoryImpl) FindExternalCiByCiPipelineId(ciPipelineId i
 		Column("external_ci_pipeline.*", "CiPipeline").
 		Where("external_ci_pipeline.ci_pipeline_id = ?", ciPipelineId).
 		Where("external_ci_pipeline.active =? ", true).
+		Select()
+	return externalCiPipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindExternalCiById(id int) (*ExternalCiPipeline, error) {
+	externalCiPipeline := &ExternalCiPipeline{}
+	err := impl.dbConnection.Model(externalCiPipeline).
+		Column("external_ci_pipeline.*").
+		Where("id = ?", id).
+		Where("active =? ", true).
+		Select()
+	return externalCiPipeline, err
+}
+
+func (impl CiPipelineRepositoryImpl) FindExternalCiByAppId(appId int) ([]*ExternalCiPipeline, error) {
+	var externalCiPipeline []*ExternalCiPipeline
+	err := impl.dbConnection.Model(&externalCiPipeline).
+		Column("external_ci_pipeline.*").
+		Where("app_id = ?", appId).
+		Where("active =? ", true).
 		Select()
 	return externalCiPipeline, err
 }
@@ -202,7 +220,7 @@ func (impl CiPipelineRepositoryImpl) SaveCiPipelineScript(ciPipelineScript *CiPi
 func (impl CiPipelineRepositoryImpl) FindById(id int) (pipeline *CiPipeline, err error) {
 	pipeline = &CiPipeline{Id: id}
 	err = impl.dbConnection.Model(pipeline).
-		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial", "ExternalCiPipeline").
+		Column("ci_pipeline.*", "App", "CiPipelineMaterials", "CiTemplate", "CiTemplate.DockerRegistry", "CiPipelineMaterials.GitMaterial").
 		Where("ci_pipeline.id= ?", id).
 		Where("ci_pipeline.deleted =? ", false).
 		Select()
