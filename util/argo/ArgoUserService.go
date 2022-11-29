@@ -51,13 +51,14 @@ type ArgoUserServiceImpl struct {
 	devtronSecretConfig *util2.DevtronSecretConfig
 	runTimeConfig       *client.RuntimeConfig
 	gitOpsRepository    repository.GitOpsConfigRepository
+	settingsManager     *settings.SettingsManager
 }
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
 	acdSettings *settings.ArgoCDSettings,
 	devtronSecretConfig *util2.DevtronSecretConfig,
-	runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository) (*ArgoUserServiceImpl, error) {
+	runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository, settingsManager *settings.SettingsManager) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
 		logger:              Logger,
 		clusterService:      clusterService,
@@ -65,6 +66,7 @@ func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 		devtronSecretConfig: devtronSecretConfig,
 		runTimeConfig:       runTimeConfig,
 		gitOpsRepository:    gitOpsRepository,
+		settingsManager:     settingsManager,
 	}
 	if !runTimeConfig.LocalDevMode {
 		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail()
@@ -143,6 +145,13 @@ func (impl *ArgoUserServiceImpl) createNewArgoCdUserForDevtron(k8sClient *v1.Cor
 }
 
 func (impl *ArgoUserServiceImpl) createNewArgoCdTokenForDevtron(username, password string, tokenNo int, k8sClient *v1.CoreV1Client) (string, error) {
+
+	//load argo-cd credential from configmap and secret
+	_, err := impl.settingsManager.GetSettings()
+	if err != nil {
+		impl.logger.Errorw("error in getting settings", "err", err)
+		return "", err
+	}
 	//create new user at argo cd side
 	token, err := impl.createTokenForArgoCdUser(username, password)
 	if err != nil {
@@ -307,6 +316,7 @@ func (impl *ArgoUserServiceImpl) createTokenForArgoCdUser(username, password str
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "token", token)
+
 	acdConnection := argocdServer.GetConnection(token, impl.acdSettings)
 	accountServiceClient := account.NewAccountServiceClient(acdConnection)
 	acdToken, err := accountServiceClient.CreateToken(ctx, &account.CreateTokenRequest{
