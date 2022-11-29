@@ -1,10 +1,12 @@
 package delete
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/team"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 )
 
@@ -67,7 +69,16 @@ func (impl DeleteServiceImpl) DeleteTeam(deleteRequest *team.TeamRequest) error 
 
 func (impl DeleteServiceImpl) DeleteChartRepo(deleteRequest *chartRepo.ChartRepoDto) error {
 	//TODO : check deployments also once deployment is enabled for hyperion
-	err := impl.chartRepositoryService.DeleteChartRepo(deleteRequest)
+	deployedCharts, err := impl.installedAppRepository.GetAllInstalledAppsByChartRepoId(deleteRequest.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("err in deleting repo", "deleteRequest", deployedCharts)
+		return err
+	}
+	if len(deployedCharts) > 0 {
+		impl.logger.Errorw("err in deleting repo, found charts deployed using this repo", "deleteRequest", deployedCharts)
+		return fmt.Errorf("cannot delete repo, found charts deployed in this repo")
+	}
+	err = impl.chartRepositoryService.DeleteChartRepo(deleteRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting chart repo", "err", err, "deleteRequest", deleteRequest)
 		return err
