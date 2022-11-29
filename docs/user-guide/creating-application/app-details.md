@@ -9,7 +9,7 @@ The users can access the [configured external links](../../user-guide/global-con
    
 > **Note**: If you enable `App admins can edit` on the `External Links` page, then only non-super admin users can view the selected links on the `App-Details` page.
 
-As shown in the screenshot, the external links appear on the App-Details level:
+As shown in the screenshot, the external links appear on the `App-Details` level:
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/app-details-external-link.png)
 
@@ -28,29 +28,6 @@ You can also `Add Link` to add a new external link.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/app-config-external-link.jpg)
 
-
-## Change Project of your Application
-
-You can change the project of your application by selecting **About app** from your application.
-
-![About app](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/about-app3.png)
-
-![Project Change](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/project-change.png)
-
-The following fields are provided on the **About** page:
-
-| Fields | Description |
-| :---    |     :---       |
-| **App Name**  | Displays the name of the application. |
-| **Created on** | Displays the day, date and time the application was created. |
-| **Created by**  | Displays the email address of a user who created the application. |
-| **Project**   | Displays the currect project of the application. You can change the project by selecting a different project from the drop-down list. |
-
-Click **Save**. The application will be moved to the selected project.
-
-**Note**: If you change the project:
-* The current users will lose the access to the application.
-* The users who already have an access to the selected project, will get an access to the application automatically.
 
 
 ## Ingress Host URL
