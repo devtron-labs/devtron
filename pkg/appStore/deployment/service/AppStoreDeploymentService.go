@@ -627,6 +627,7 @@ func (impl AppStoreDeploymentServiceImpl) LinkHelmApplicationToChartStore(ctx co
 		ValuesOverrideYaml: request.GetValuesYaml(),
 		ReferenceValueId:   int(request.GetReferenceValueId()),
 		ReferenceValueKind: request.GetReferenceValueKind(),
+		DeploymentAppType:  util.PIPELINE_DEPLOYMENT_TYPE_HELM,
 	}
 
 	// STEP-2 InstallApp with only DB operations
