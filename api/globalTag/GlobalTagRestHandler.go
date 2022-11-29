@@ -112,13 +112,13 @@ func (impl GlobalTagRestHandlerImpl) CreateTags(w http.ResponseWriter, r *http.R
 	}
 
 	// service call
-	res, err := impl.globalTagService.CreateTags(request, userId)
+	err = impl.globalTagService.CreateTags(request, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, CreateTags", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
 func (impl GlobalTagRestHandlerImpl) UpdateTags(w http.ResponseWriter, r *http.Request) {
@@ -154,13 +154,13 @@ func (impl GlobalTagRestHandlerImpl) UpdateTags(w http.ResponseWriter, r *http.R
 	}
 
 	// service call
-	res, err := impl.globalTagService.UpdateTags(request, userId)
+	err = impl.globalTagService.UpdateTags(request, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, UpdateTags", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
 func (impl GlobalTagRestHandlerImpl) DeleteTags(w http.ResponseWriter, r *http.Request) {
@@ -196,11 +196,11 @@ func (impl GlobalTagRestHandlerImpl) DeleteTags(w http.ResponseWriter, r *http.R
 	}
 
 	// service call
-	res, err := impl.globalTagService.DeleteTags(request, userId)
+	err = impl.globalTagService.DeleteTags(request, userId)
 	if err != nil {
 		impl.logger.Errorw("service err, DeleteTags", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, err, res, http.StatusOK)
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }

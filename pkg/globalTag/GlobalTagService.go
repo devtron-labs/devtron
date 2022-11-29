@@ -18,8 +18,12 @@
 package globalTag
 
 import (
+	"fmt"
+	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
+	"github.com/pkg/errors"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"time"
 )
 
@@ -74,6 +78,74 @@ func (impl GlobalTagServiceImpl) GetAllActiveTags() ([]*GlobalTagDto, error) {
 func (impl GlobalTagServiceImpl) CreateTags(request *CreateGlobalTagsRequest, createdBy int32) error {
 	impl.logger.Infow("Creating Global tags", "request", request, "createdBy", createdBy)
 
+	var tagKeysMap map[string]bool
+	var globalTagsToSave []*GlobalTag
+	// validations
+	for _, tag := range request.Tags {
+		key := tag.Key
+
+		// check if empty key
+		if len(key) == 0 {
+			return errors.New("Validation error - empty key found in the request")
+		}
+
+		// Check if array has same key or not - if same key found - return error
+		if _, ok := tagKeysMap[key]; ok {
+			errorMsg := fmt.Sprintf("Validation error - Duplicate tag -%s found in request", key)
+			impl.logger.Errorw("Validation error while creating global tags. duplicate tag found", "tag", key)
+			return errors.New(errorMsg)
+		}
+
+		// check kubernetes label key validation logic
+		errs := validation.IsQualifiedName(key)
+		if len(errs) > 0 {
+			errorMsg := fmt.Sprintf("Validation error - tag -%s is not satisfying the label key criteria", key)
+			impl.logger.Errorw("error while checking if tag key valid", "errors", errs, "key", key)
+			return errors.New(errorMsg)
+		}
+
+		// Check if key exists with active true - if exists - return error
+		exists, err := impl.globalTagRepository.CheckKeyExistsForAnyActiveTag(key)
+		if err != nil {
+			impl.logger.Errorw("error while checking if tag key exists in DB with active true", "error", err, "key", key)
+			return err
+		}
+		if exists {
+			errorMsg := fmt.Sprintf("Validation error - tag -%s already exists", key)
+			impl.logger.Errorw("Validation error while creating global tags. tag already exists", "tag", key)
+			return errors.New(errorMsg)
+		}
+
+		// insert in DB
+		globalTagsToSave = append(globalTagsToSave, &GlobalTag{
+			Key:                    key,
+			MandatoryProjectIdsCsv: tag.MandatoryProjectIdsCsv,
+			Description:            tag.Description,
+			Active:                 true,
+			AuditLog:               sql.AuditLog{CreatedOn: time.Now(), CreatedBy: createdBy},
+		})
+	}
+
+	// initiate TX
+	dbConnection := impl.globalTagRepository.GetConnection()
+	tx, err := dbConnection.Begin()
+	if err != nil {
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	err = impl.globalTagRepository.Save(globalTagsToSave, tx)
+	if err != nil {
+		impl.logger.Errorw("error while saving global tags", "error", err)
+		return err
+	}
+
+	// commit TX
+	err = tx.Commit()
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

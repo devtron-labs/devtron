@@ -1,0 +1,136 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/global-tag:
+    get:
+      description: Get All active Global tags
+      responses:
+        "200":
+          description: Successfully fetched active global tags
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GlobalTagDto"
+    post:
+      description: Create global tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateGlobalTagsRequest"
+      responses:
+        "200":
+          description: global-tags creation response
+    put:
+      description: Update global tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateGlobalTagsRequest"
+      responses:
+        "200":
+          description: global-tags update response
+    delete:
+      description: Delete global tags
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeleteGlobalTagsRequest"
+      responses:
+        "200":
+          description: global-tags delete response
+components:
+  schemas:
+    GlobalTagDto:
+      type: object
+      properties:
+        id:
+          type: integer
+          description: Id of global tag
+          example: 1
+          nullable: false
+        key:
+          type: string
+          description: key of that global-tag
+          example: "somekey"
+          nullable: false
+        description:
+          type: string
+          description: Description of global-tag
+          example: "some description"
+          nullable: false
+        mandatoryProjectIdsCsv:
+          type: string
+          description: Comma saparated values of project Ids for mandatory tags
+          example: "1,2"
+        createdOnInMs:
+          type: integer
+          description: Creation time in milliseconds for that global tag
+          example: "12344546"
+          format: int64
+          nullable: false
+        updatedOnInMs:
+          type: integer
+          description: Updation time in milliseconds for that global tag
+          example: "12344546"
+          format: int64
+    CreateGlobalTagsRequest:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/CreateGlobalTagDto"
+    CreateGlobalTagDto:
+      type: object
+      properties:
+        key:
+          type: string
+          description: key of that global-tag
+          example: "somekey"
+          nullable: false
+        description:
+          type: string
+          description: Description of global-tag
+          example: "some description"
+          nullable: false
+        mandatoryProjectIdsCsv:
+          type: string
+          description: Comma saparated values of project Ids for mandatory tag
+          example: "1,2"
+    UpdateGlobalTagsRequest:
+      type: object
+      properties:
+        tags:
+          type: array
+          items:
+            $ref: "#/components/schemas/UpdateGlobalTagDto"
+    UpdateGlobalTagDto:
+      type: object
+      properties:
+        description:
+          type: string
+          description: Description of global-tag
+          example: "some description"
+          nullable: false
+        mandatoryProjectIdsCsv:
+          type: string
+          description: Comma saparated values of project Ids for mandatory tag
+          example: "1,2"
+    DeleteGlobalTagsRequest:
+      type: object
+      properties:
+        ids:
+          type: array
+          description: tag Ids
+          items:
+            type: number
