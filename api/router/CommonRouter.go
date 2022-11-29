@@ -32,9 +32,9 @@ type CommonRouterImpl struct {
 func NewCommonRouterImpl(commonRestHandler restHandler.CommonRestHanlder) *CommonRouterImpl {
 	return &CommonRouterImpl{commonRestHandler: commonRestHandler}
 }
-func (impl CommonRouterImpl) InitCommonRouter(router *mux.Router) {
+func (router *CommonRouterImpl) InitCommonRouter(commonRouter *mux.Router) {
 
-	router.Path("/checklist").
-		HandlerFunc(impl.commonRestHandler.GlobalChecklist).
+	commonRouter.Path("/checklist").
+		HandlerFunc(router.commonRestHandler.GlobalChecklist).
 		Methods("GET")
 }

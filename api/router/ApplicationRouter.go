@@ -40,14 +40,14 @@ func NewApplicationRouterImpl(handler restHandler.ArgoApplicationRestHandler, lo
 	}
 }
 
-func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
+func (router *ApplicationRouterImpl) initApplicationRouter(applicationRouter *mux.Router) {
 
-	router.Path("/stream").
+	applicationRouter.Path("/stream").
 		Queries("name", "{name}").
 		Methods("GET").
-		HandlerFunc(r.handler.Watch)
+		HandlerFunc(router.handler.Watch)
 
-	router.Path("/{name}/pods/{podName}/logs").
+	applicationRouter.Path("/{name}/pods/{podName}/logs").
 		Queries("container", "{container}", "namespace", "{namespace}").
 		Queries("follow", "{follow}").
 		Queries("sinceSeconds", "{sinceSeconds}").
@@ -55,58 +55,58 @@ func (r ApplicationRouterImpl) initApplicationRouter(router *mux.Router) {
 		Queries("sinceTime.nanos", "{sinceTime.nanos}").
 		Queries("tailLines", "{tailLines}").
 		Methods("GET").
-		HandlerFunc(r.handler.GetPodLogs)
-	router.Path("/{name}/pods/{podName}/logs").
+		HandlerFunc(router.handler.GetPodLogs)
+	applicationRouter.Path("/{name}/pods/{podName}/logs").
 		Methods("GET").
-		HandlerFunc(r.handler.GetPodLogs)
-	router.Path("/{name}/resource-tree").
+		HandlerFunc(router.handler.GetPodLogs)
+	applicationRouter.Path("/{name}/resource-tree").
 		Methods("GET").
-		HandlerFunc(r.handler.GetResourceTree)
-	router.Path("/{name}/resource").
+		HandlerFunc(router.handler.GetResourceTree)
+	applicationRouter.Path("/{name}/resource").
 		Queries("version", "{version}", "namespace", "{namespace}", "group", "{group}", "kind", "{kind}", "resourceName", "{resourceName}").
 		Methods("GET").
-		HandlerFunc(r.handler.GetResource)
-	router.Path("/{name}/events").
+		HandlerFunc(router.handler.GetResource)
+	applicationRouter.Path("/{name}/events").
 		Queries("resourceNamespace", "{resourceNamespace}", "resourceUID", "{resourceUID}", "resourceName", "{resourceName}").
 		Methods("GET").
-		HandlerFunc(r.handler.ListResourceEvents)
-	router.Path("/{name}/events").
+		HandlerFunc(router.handler.ListResourceEvents)
+	applicationRouter.Path("/{name}/events").
 		Methods("GET").
-		HandlerFunc(r.handler.ListResourceEvents)
-	router.Path("/").
+		HandlerFunc(router.handler.ListResourceEvents)
+	applicationRouter.Path("/").
 		Queries("name", "{name}", "refresh", "{refresh}", "project", "{project}").
 		Methods("GET").
-		HandlerFunc(r.handler.List)
-	router.Path("/{applicationName}/managed-resources").
+		HandlerFunc(router.handler.List)
+	applicationRouter.Path("/{applicationName}/managed-resources").
 		Methods("GET").
-		HandlerFunc(r.handler.ManagedResources)
-	router.Path("/{name}/rollback").
+		HandlerFunc(router.handler.ManagedResources)
+	applicationRouter.Path("/{name}/rollback").
 		Methods("GET").
-		HandlerFunc(r.handler.Rollback)
+		HandlerFunc(router.handler.Rollback)
 
-	router.Path("/{name}/manifests").
+	applicationRouter.Path("/{name}/manifests").
 		Methods("GET").
-		HandlerFunc(r.handler.GetManifests)
-	router.Path("/{name}").
+		HandlerFunc(router.handler.GetManifests)
+	applicationRouter.Path("/{name}").
 		Methods("GET").
-		HandlerFunc(r.handler.Get)
-	router.Path("/{appName}/operation").
+		HandlerFunc(router.handler.Get)
+	applicationRouter.Path("/{appName}/operation").
 		Methods("DELETE").
-		HandlerFunc(r.handler.TerminateOperation)
-	router.Path("/{name}/resource").
+		HandlerFunc(router.handler.TerminateOperation)
+	applicationRouter.Path("/{name}/resource").
 		Methods("POST").
-		HandlerFunc(r.handler.PatchResource)
-	router.Path("/{appNameACD}/resource").
+		HandlerFunc(router.handler.PatchResource)
+	applicationRouter.Path("/{appNameACD}/resource").
 		Queries("name", "{name}", "namespace", "{namespace}", "resourceName", "{resourceName}", "version", "{version}",
 			"force", "{force}", "appId", "{appId}", "envId", "{envId}", "group", "{group}", "kind", "{kind}").
 		Methods("DELETE").
-		HandlerFunc(r.handler.DeleteResource)
+		HandlerFunc(router.handler.DeleteResource)
 
-	router.Path("/{name}/service-link").
+	applicationRouter.Path("/{name}/service-link").
 		Methods("GET").
-		HandlerFunc(r.handler.GetServiceLink)
-	router.Path("/pod/exec/session/{appId}/{environmentId}/{namespace}/{pod}/{shell}/{container}").
+		HandlerFunc(router.handler.GetServiceLink)
+	applicationRouter.Path("/pod/exec/session/{appId}/{environmentId}/{namespace}/{pod}/{shell}/{container}").
 		Methods("GET").
-		HandlerFunc(r.handler.GetTerminalSession)
-	router.Path("/pod/exec/sockjs/ws/").Handler(terminal.CreateAttachHandler("/api/v1/applications/pod/exec/sockjs/ws/"))
+		HandlerFunc(router.handler.GetTerminalSession)
+	applicationRouter.Path("/pod/exec/sockjs/ws/").Handler(terminal.CreateAttachHandler("/api/v1/applications/pod/exec/sockjs/ws/"))
 }

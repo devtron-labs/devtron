@@ -55,15 +55,15 @@ func NewCommonRestHanlderImpl(
 	}
 }
 
-func (impl CommonRestHanlderImpl) GlobalChecklist(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *CommonRestHanlderImpl) GlobalChecklist(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	res, err := impl.commonService.GlobalChecklist()
+	res, err := handler.commonService.GlobalChecklist()
 	if err != nil {
-		impl.logger.Errorw("service err, GlobalChecklist", "err", err)
+		handler.logger.Errorw("service err, GlobalChecklist", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

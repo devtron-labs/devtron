@@ -34,23 +34,23 @@ func NewGitHostRouterImpl(gitHostRestHandler restHandler.GitHostRestHandler) *Gi
 	return &GitHostRouterImpl{gitHostRestHandler: gitHostRestHandler}
 }
 
-func (impl GitHostRouterImpl) InitGitHostRouter(configRouter *mux.Router) {
+func (router *GitHostRouterImpl) InitGitHostRouter(configRouter *mux.Router) {
 	configRouter.Path("/host").
-		HandlerFunc(impl.gitHostRestHandler.GetGitHosts).
+		HandlerFunc(router.gitHostRestHandler.GetGitHosts).
 		Methods("GET")
 	configRouter.Path("/host").
-		HandlerFunc(impl.gitHostRestHandler.CreateGitHost).
+		HandlerFunc(router.gitHostRestHandler.CreateGitHost).
 		Methods("POST")
 	configRouter.Path("/host/{id}").
-		HandlerFunc(impl.gitHostRestHandler.GetGitHostById).
+		HandlerFunc(router.gitHostRestHandler.GetGitHostById).
 		Methods("GET")
 	configRouter.Path("/host/{id}/event").
-		HandlerFunc(impl.gitHostRestHandler.GetAllWebhookEventConfig).
+		HandlerFunc(router.gitHostRestHandler.GetAllWebhookEventConfig).
 		Methods("GET")
 	configRouter.Path("/host/event/{eventId}").
-		HandlerFunc(impl.gitHostRestHandler.GetWebhookEventConfig).
+		HandlerFunc(router.gitHostRestHandler.GetWebhookEventConfig).
 		Methods("GET")
 	configRouter.Path("/host/webhook-meta-config/{gitProviderId}").
-		HandlerFunc(impl.gitHostRestHandler.GetWebhookDataMetaConfig).
+		HandlerFunc(router.gitHostRestHandler.GetWebhookDataMetaConfig).
 		Methods("GET")
 }

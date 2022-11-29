@@ -33,13 +33,13 @@ func NewTestSuitRouterImpl(testSuitRouter restHandler.TestSuitRestHandler) *Test
 	return &TestSuitRouterImpl{testSuitRouter: testSuitRouter}
 }
 
-func (impl TestSuitRouterImpl) InitTestSuitRouter(configRouter *mux.Router) {
-	configRouter.Path("/suites/proxy").HandlerFunc(impl.testSuitRouter.SuitesProxy).Methods("POST")
-	configRouter.Path("/suites/list").HandlerFunc(impl.testSuitRouter.GetTestSuites).Methods("GET")
-	configRouter.Path("/suites/list/detail").HandlerFunc(impl.testSuitRouter.DetailedTestSuites).Methods("GET")
-	configRouter.Path("/suites/{pipelineId}").HandlerFunc(impl.testSuitRouter.GetAllSuitByID).Methods("GET")
-	configRouter.Path("/cases").HandlerFunc(impl.testSuitRouter.GetAllTestCases).Methods("GET")
-	configRouter.Path("/cases/{pipelineId}").HandlerFunc(impl.testSuitRouter.GetTestCaseByID).Methods("GET")
-	configRouter.Path("/trigger/{pipelineId}").HandlerFunc(impl.testSuitRouter.RedirectTriggerForApp).Methods("GET")
-	configRouter.Path("/trigger/{pipelineId}/{triggerId}").HandlerFunc(impl.testSuitRouter.RedirectTriggerForEnv).Methods("GET")
+func (router *TestSuitRouterImpl) InitTestSuitRouter(configRouter *mux.Router) {
+	configRouter.Path("/suites/proxy").HandlerFunc(router.testSuitRouter.SuitesProxy).Methods("POST")
+	configRouter.Path("/suites/list").HandlerFunc(router.testSuitRouter.GetTestSuites).Methods("GET")
+	configRouter.Path("/suites/list/detail").HandlerFunc(router.testSuitRouter.DetailedTestSuites).Methods("GET")
+	configRouter.Path("/suites/{pipelineId}").HandlerFunc(router.testSuitRouter.GetAllSuitByID).Methods("GET")
+	configRouter.Path("/cases").HandlerFunc(router.testSuitRouter.GetAllTestCases).Methods("GET")
+	configRouter.Path("/cases/{pipelineId}").HandlerFunc(router.testSuitRouter.GetTestCaseByID).Methods("GET")
+	configRouter.Path("/trigger/{pipelineId}").HandlerFunc(router.testSuitRouter.RedirectTriggerForApp).Methods("GET")
+	configRouter.Path("/trigger/{pipelineId}/{triggerId}").HandlerFunc(router.testSuitRouter.RedirectTriggerForEnv).Methods("GET")
 }

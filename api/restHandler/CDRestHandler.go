@@ -41,7 +41,7 @@ func NewCDRestHandlerImpl(logger *zap.SugaredLogger, resourceService ArgoUtil.Re
 	return cdRestHandler
 }
 
-func (handler CDRestHandlerImpl) FetchResourceTree(w http.ResponseWriter, r *http.Request) {
+func (handler *CDRestHandlerImpl) FetchResourceTree(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appName := vars["app-name"]
 
@@ -56,7 +56,7 @@ func (handler CDRestHandlerImpl) FetchResourceTree(w http.ResponseWriter, r *htt
 	}
 }
 
-func (handler CDRestHandlerImpl) FetchPodContainerLogs(w http.ResponseWriter, r *http.Request) {
+func (handler *CDRestHandlerImpl) FetchPodContainerLogs(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appName := vars["app-name"]
 	podName := vars["pod-name"]

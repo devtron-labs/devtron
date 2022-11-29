@@ -32,29 +32,29 @@ type DockerRegRouterImpl struct {
 func NewDockerRegRouterImpl(dockerRestHandler restHandler.DockerRegRestHandler) *DockerRegRouterImpl {
 	return &DockerRegRouterImpl{dockerRestHandler: dockerRestHandler}
 }
-func (impl DockerRegRouterImpl) InitDockerRegRouter(configRouter *mux.Router) {
+func (router *DockerRegRouterImpl) InitDockerRegRouter(configRouter *mux.Router) {
 	configRouter.Path("/registry").
-		HandlerFunc(impl.dockerRestHandler.SaveDockerRegistryConfig).
+		HandlerFunc(router.dockerRestHandler.SaveDockerRegistryConfig).
 		Methods("POST")
 	configRouter.Path("/registry/active").
-		HandlerFunc(impl.dockerRestHandler.GetDockerArtifactStore).
+		HandlerFunc(router.dockerRestHandler.GetDockerArtifactStore).
 		Methods("GET")
 	configRouter.Path("/registry").
-		HandlerFunc(impl.dockerRestHandler.FetchAllDockerAccounts).
+		HandlerFunc(router.dockerRestHandler.FetchAllDockerAccounts).
 		Methods("GET")
 	configRouter.Path("/registry/autocomplete").
-		HandlerFunc(impl.dockerRestHandler.FetchAllDockerRegistryForAutocomplete).
+		HandlerFunc(router.dockerRestHandler.FetchAllDockerRegistryForAutocomplete).
 		Methods("GET")
 	configRouter.Path("/registry/{id}").
-		HandlerFunc(impl.dockerRestHandler.FetchOneDockerAccounts).
+		HandlerFunc(router.dockerRestHandler.FetchOneDockerAccounts).
 		Methods("GET")
 	configRouter.Path("/registry").
-		HandlerFunc(impl.dockerRestHandler.UpdateDockerRegistryConfig).
+		HandlerFunc(router.dockerRestHandler.UpdateDockerRegistryConfig).
 		Methods("PUT")
 	configRouter.Path("/registry/configure/status").
-		HandlerFunc(impl.dockerRestHandler.IsDockerRegConfigured).
+		HandlerFunc(router.dockerRestHandler.IsDockerRegConfigured).
 		Methods("GET")
 	configRouter.Path("/registry").
-		HandlerFunc(impl.dockerRestHandler.DeleteDockerRegistryConfig).
+		HandlerFunc(router.dockerRestHandler.DeleteDockerRegistryConfig).
 		Methods("DELETE")
 }

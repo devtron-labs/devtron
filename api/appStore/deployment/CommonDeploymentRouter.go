@@ -35,7 +35,7 @@ func NewCommonDeploymentRouterImpl(commonDeploymentRestHandler CommonDeploymentR
 	}
 }
 
-func (router CommonDeploymentRouterImpl) Init(configRouter *mux.Router) {
+func (router *CommonDeploymentRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/deployment-history").
 		HandlerFunc(router.commonDeploymentRestHandler.GetDeploymentHistory).Methods("GET")
 

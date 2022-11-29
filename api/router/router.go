@@ -208,15 +208,15 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	return r
 }
 
-func (r MuxRouter) Init() {
+func (router *MuxRouter) Init() {
 
-	r.Router.PathPrefix("/orchestrator/api/vi/pod/exec/ws").Handler(terminal.CreateAttachHandler("/orchestrator/api/vi/pod/exec/ws"))
+	router.Router.PathPrefix("/orchestrator/api/vi/pod/exec/ws").Handler(terminal.CreateAttachHandler("/orchestrator/api/vi/pod/exec/ws"))
 
-	r.Router.StrictSlash(true)
-	r.Router.Handle("/metrics", promhttp.Handler())
+	router.Router.StrictSlash(true)
+	router.Router.Handle("/metrics", promhttp.Handler())
 	//prometheus.MustRegister(pipeline.CiTriggerCounter)
 	//prometheus.MustRegister(app.CdTriggerCounter)
-	r.Router.Path("/health").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	router.Router.Path("/health").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(200)
 		response := common.Response{}
@@ -225,12 +225,12 @@ func (r MuxRouter) Init() {
 		b, err := json.Marshal(response)
 		if err != nil {
 			b = []byte("OK")
-			r.logger.Errorw("Unexpected error in apiError", "err", err)
+			router.logger.Errorw("Unexpected error in apiError", "err", err)
 		}
 		_, _ = writer.Write(b)
 	})
 
-	r.Router.Path("/orchestrator/version").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	router.Router.Path("/orchestrator/version").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		writer.Header().Set("Content-Type", "application/json")
 		writer.WriteHeader(200)
 		response := common.Response{}
@@ -239,169 +239,169 @@ func (r MuxRouter) Init() {
 		b, err := json.Marshal(response)
 		if err != nil {
 			b = []byte("OK")
-			r.logger.Errorw("Unexpected error in apiError", "err", err)
+			router.logger.Errorw("Unexpected error in apiError", "err", err)
 		}
 		_, _ = writer.Write(b)
 	})
-	coreAppRouter := r.Router.PathPrefix("/orchestrator/core").Subrouter()
-	r.coreAppRouter.initCoreAppRouter(coreAppRouter)
+	coreAppRouter := router.Router.PathPrefix("/orchestrator/core").Subrouter()
+	router.coreAppRouter.initCoreAppRouter(coreAppRouter)
 
-	pipelineConfigRouter := r.Router.PathPrefix("/orchestrator/app").Subrouter()
-	r.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)
-	r.AppListingRouter.initAppListingRouter(pipelineConfigRouter)
-	r.HelmRouter.initPipelineTriggerRouter(pipelineConfigRouter)
-	r.appRouter.initAppRouter(pipelineConfigRouter)
+	pipelineConfigRouter := router.Router.PathPrefix("/orchestrator/app").Subrouter()
+	router.PipelineConfigRouter.initPipelineConfigRouter(pipelineConfigRouter)
+	router.AppListingRouter.initAppListingRouter(pipelineConfigRouter)
+	router.HelmRouter.initPipelineTriggerRouter(pipelineConfigRouter)
+	router.appRouter.initAppRouter(pipelineConfigRouter)
 
-	migrateRouter := r.Router.PathPrefix("/orchestrator/migrate").Subrouter()
-	r.MigrateDbRouter.InitMigrateDbRouter(migrateRouter)
+	migrateRouter := router.Router.PathPrefix("/orchestrator/migrate").Subrouter()
+	router.MigrateDbRouter.InitMigrateDbRouter(migrateRouter)
 
-	environmentClusterMappingsRouter := r.Router.PathPrefix("/orchestrator/env").Subrouter()
-	r.EnvironmentClusterMappingsRouter.InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter)
+	environmentClusterMappingsRouter := router.Router.PathPrefix("/orchestrator/env").Subrouter()
+	router.EnvironmentClusterMappingsRouter.InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter)
 
-	clusterRouter := r.Router.PathPrefix("/orchestrator/cluster").Subrouter()
-	r.ClusterRouter.InitClusterRouter(clusterRouter)
+	clusterRouter := router.Router.PathPrefix("/orchestrator/cluster").Subrouter()
+	router.ClusterRouter.InitClusterRouter(clusterRouter)
 
-	webHookRouter := r.Router.PathPrefix("/orchestrator/webhook").Subrouter()
-	r.WebHookRouter.intWebhookRouter(webHookRouter)
+	webHookRouter := router.Router.PathPrefix("/orchestrator/webhook").Subrouter()
+	router.WebHookRouter.intWebhookRouter(webHookRouter)
 
-	applicationRouter := r.Router.PathPrefix("/orchestrator/api/v1/applications").Subrouter()
-	r.ApplicationRouter.initApplicationRouter(applicationRouter)
+	applicationRouter := router.Router.PathPrefix("/orchestrator/api/v1/applications").Subrouter()
+	router.ApplicationRouter.initApplicationRouter(applicationRouter)
 
-	rootRouter := r.Router.PathPrefix("/orchestrator").Subrouter()
-	r.UserAuthRouter.InitUserAuthRouter(rootRouter)
+	rootRouter := router.Router.PathPrefix("/orchestrator").Subrouter()
+	router.UserAuthRouter.InitUserAuthRouter(rootRouter)
 
-	projectManagementRouter := r.Router.PathPrefix("/orchestrator/project-management").Subrouter()
-	r.ProjectManagementRouter.InitProjectManagementRouter(projectManagementRouter)
+	projectManagementRouter := router.Router.PathPrefix("/orchestrator/project-management").Subrouter()
+	router.ProjectManagementRouter.InitProjectManagementRouter(projectManagementRouter)
 
-	gitRouter := r.Router.PathPrefix("/orchestrator/git").Subrouter()
-	r.GitProviderRouter.InitGitProviderRouter(gitRouter)
-	r.GitHostRouter.InitGitHostRouter(gitRouter)
+	gitRouter := router.Router.PathPrefix("/orchestrator/git").Subrouter()
+	router.GitProviderRouter.InitGitProviderRouter(gitRouter)
+	router.GitHostRouter.InitGitHostRouter(gitRouter)
 
-	dockerRouter := r.Router.PathPrefix("/orchestrator/docker").Subrouter()
-	r.DockerRegRouter.InitDockerRegRouter(dockerRouter)
+	dockerRouter := router.Router.PathPrefix("/orchestrator/docker").Subrouter()
+	router.DockerRegRouter.InitDockerRegRouter(dockerRouter)
 
-	notificationRouter := r.Router.PathPrefix("/orchestrator/notification").Subrouter()
-	r.NotificationRouter.InitNotificationRegRouter(notificationRouter)
+	notificationRouter := router.Router.PathPrefix("/orchestrator/notification").Subrouter()
+	router.NotificationRouter.InitNotificationRegRouter(notificationRouter)
 
-	teamRouter := r.Router.PathPrefix("/orchestrator/team").Subrouter()
-	r.TeamRouter.InitTeamRouter(teamRouter)
+	teamRouter := router.Router.PathPrefix("/orchestrator/team").Subrouter()
+	router.TeamRouter.InitTeamRouter(teamRouter)
 
-	userRouter := r.Router.PathPrefix("/orchestrator/user").Subrouter()
-	r.UserRouter.InitUserRouter(userRouter)
+	userRouter := router.Router.PathPrefix("/orchestrator/user").Subrouter()
+	router.UserRouter.InitUserRouter(userRouter)
 
-	chartRefRouter := r.Router.PathPrefix("/orchestrator/chartref").Subrouter()
-	r.ChartRefRouter.initChartRefRouter(chartRefRouter)
+	chartRefRouter := router.Router.PathPrefix("/orchestrator/chartref").Subrouter()
+	router.ChartRefRouter.initChartRefRouter(chartRefRouter)
 
-	configMapRouter := r.Router.PathPrefix("/orchestrator/config").Subrouter()
-	r.ConfigMapRouter.initConfigMapRouter(configMapRouter)
+	configMapRouter := router.Router.PathPrefix("/orchestrator/config").Subrouter()
+	router.ConfigMapRouter.initConfigMapRouter(configMapRouter)
 
-	appStoreRouter := r.Router.PathPrefix("/orchestrator/app-store").Subrouter()
-	r.AppStoreRouter.Init(appStoreRouter)
+	appStoreRouter := router.Router.PathPrefix("/orchestrator/app-store").Subrouter()
+	router.AppStoreRouter.Init(appStoreRouter)
 
-	chartRepoRouter := r.Router.PathPrefix("/orchestrator/chart-repo").Subrouter()
-	r.ChartRepositoryRouter.Init(chartRepoRouter)
+	chartRepoRouter := router.Router.PathPrefix("/orchestrator/chart-repo").Subrouter()
+	router.ChartRepositoryRouter.Init(chartRepoRouter)
 
-	deploymentMetricsRouter := r.Router.PathPrefix("/orchestrator/deployment-metrics").Subrouter()
-	r.ReleaseMetricsRouter.initReleaseMetricsRouter(deploymentMetricsRouter)
+	deploymentMetricsRouter := router.Router.PathPrefix("/orchestrator/deployment-metrics").Subrouter()
+	router.ReleaseMetricsRouter.initReleaseMetricsRouter(deploymentMetricsRouter)
 
-	deploymentGroupRouter := r.Router.PathPrefix("/orchestrator/deployment-group").Subrouter()
-	r.deploymentGroupRouter.initDeploymentGroupRouter(deploymentGroupRouter)
+	deploymentGroupRouter := router.Router.PathPrefix("/orchestrator/deployment-group").Subrouter()
+	router.deploymentGroupRouter.initDeploymentGroupRouter(deploymentGroupRouter)
 
-	r.batchOperationRouter.initBatchOperationRouter(rootRouter)
+	router.batchOperationRouter.initBatchOperationRouter(rootRouter)
 
-	chartGroupRouter := r.Router.PathPrefix("/orchestrator/chart-group").Subrouter()
-	r.chartGroupRouter.initChartGroupRouter(chartGroupRouter)
+	chartGroupRouter := router.Router.PathPrefix("/orchestrator/chart-group").Subrouter()
+	router.chartGroupRouter.initChartGroupRouter(chartGroupRouter)
 
-	testSuitRouter := r.Router.PathPrefix("/orchestrator/test-report").Subrouter()
-	r.testSuitRouter.InitTestSuitRouter(testSuitRouter)
+	testSuitRouter := router.Router.PathPrefix("/orchestrator/test-report").Subrouter()
+	router.testSuitRouter.InitTestSuitRouter(testSuitRouter)
 
-	imageScanRouter := r.Router.PathPrefix("/orchestrator/security/scan").Subrouter()
-	r.imageScanRouter.InitImageScanRouter(imageScanRouter)
+	imageScanRouter := router.Router.PathPrefix("/orchestrator/security/scan").Subrouter()
+	router.imageScanRouter.InitImageScanRouter(imageScanRouter)
 
-	policyRouter := r.Router.PathPrefix("/orchestrator/security/policy").Subrouter()
-	r.policyRouter.InitPolicyRouter(policyRouter)
+	policyRouter := router.Router.PathPrefix("/orchestrator/security/policy").Subrouter()
+	router.policyRouter.InitPolicyRouter(policyRouter)
 
-	gitOpsRouter := r.Router.PathPrefix("/orchestrator/gitops").Subrouter()
-	r.gitOpsConfigRouter.InitGitOpsConfigRouter(gitOpsRouter)
+	gitOpsRouter := router.Router.PathPrefix("/orchestrator/gitops").Subrouter()
+	router.gitOpsConfigRouter.InitGitOpsConfigRouter(gitOpsRouter)
 
-	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
-	r.attributesRouter.initAttributesRouter(attributeRouter)
+	attributeRouter := router.Router.PathPrefix("/orchestrator/attributes").Subrouter()
+	router.attributesRouter.initAttributesRouter(attributeRouter)
 
-	userAttributeRouter := r.Router.PathPrefix("/orchestrator/attributes/user").Subrouter()
-	r.userAttributesRouter.InitUserAttributesRouter(userAttributeRouter)
+	userAttributeRouter := router.Router.PathPrefix("/orchestrator/attributes/user").Subrouter()
+	router.userAttributesRouter.InitUserAttributesRouter(userAttributeRouter)
 
-	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
-	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
+	dashboardRouter := router.Router.PathPrefix("/dashboard").Subrouter()
+	router.dashboardRouter.InitDashboardRouter(dashboardRouter)
 
-	grafanaRouter := r.Router.PathPrefix("/grafana").Subrouter()
-	r.grafanaRouter.initGrafanaRouter(grafanaRouter)
+	grafanaRouter := router.Router.PathPrefix("/grafana").Subrouter()
+	router.grafanaRouter.initGrafanaRouter(grafanaRouter)
 
-	r.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
+	router.Router.Path("/").HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 		http.Redirect(writer, request, "/dashboard", 301)
 	})
 
-	commonRouter := r.Router.PathPrefix("/orchestrator/global").Subrouter()
-	r.commonRouter.InitCommonRouter(commonRouter)
+	commonRouter := router.Router.PathPrefix("/orchestrator/global").Subrouter()
+	router.commonRouter.InitCommonRouter(commonRouter)
 
-	ssoLoginRouter := r.Router.PathPrefix("/orchestrator/sso").Subrouter()
-	r.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
+	ssoLoginRouter := router.Router.PathPrefix("/orchestrator/sso").Subrouter()
+	router.ssoLoginRouter.InitSsoLoginRouter(ssoLoginRouter)
 
-	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
-	r.telemetryRouter.InitTelemetryRouter(telemetryRouter)
+	telemetryRouter := router.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
+	router.telemetryRouter.InitTelemetryRouter(telemetryRouter)
 
-	bulkUpdateRouter := r.Router.PathPrefix("/orchestrator/batch").Subrouter()
-	r.bulkUpdateRouter.initBulkUpdateRouter(bulkUpdateRouter)
+	bulkUpdateRouter := router.Router.PathPrefix("/orchestrator/batch").Subrouter()
+	router.bulkUpdateRouter.initBulkUpdateRouter(bulkUpdateRouter)
 
-	webhookListenerRouter := r.Router.PathPrefix("/orchestrator/webhook/git").Subrouter()
-	r.WebhookListenerRouter.InitWebhookListenerRouter(webhookListenerRouter)
+	webhookListenerRouter := router.Router.PathPrefix("/orchestrator/webhook/git").Subrouter()
+	router.WebhookListenerRouter.InitWebhookListenerRouter(webhookListenerRouter)
 
-	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
-	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
+	k8sApp := router.Router.PathPrefix("/orchestrator/k8s").Subrouter()
+	router.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
 
-	pProfListenerRouter := r.Router.PathPrefix("/orchestrator/debug/pprof").Subrouter()
-	r.pProfRouter.initPProfRouter(pProfListenerRouter)
+	pProfListenerRouter := router.Router.PathPrefix("/orchestrator/debug/pprof").Subrouter()
+	router.pProfRouter.initPProfRouter(pProfListenerRouter)
 
-	globalPluginRouter := r.Router.PathPrefix("/orchestrator/plugin").Subrouter()
-	r.globalPluginRouter.initGlobalPluginRouter(globalPluginRouter)
+	globalPluginRouter := router.Router.PathPrefix("/orchestrator/plugin").Subrouter()
+	router.globalPluginRouter.initGlobalPluginRouter(globalPluginRouter)
 
 	//  deployment router starts
-	deploymentConfigSubRouter := r.Router.PathPrefix("/orchestrator/deployment/template").Subrouter()
-	r.deploymentConfigRouter.Init(deploymentConfigSubRouter)
+	deploymentConfigSubRouter := router.Router.PathPrefix("/orchestrator/deployment/template").Subrouter()
+	router.deploymentConfigRouter.Init(deploymentConfigSubRouter)
 	// deployment router ends
 
 	//  dashboard event router starts
-	dashboardTelemetryRouter := r.Router.PathPrefix("/orchestrator/dashboard-event").Subrouter()
-	r.dashboardTelemetryRouter.Init(dashboardTelemetryRouter)
+	dashboardTelemetryRouter := router.Router.PathPrefix("/orchestrator/dashboard-event").Subrouter()
+	router.dashboardTelemetryRouter.Init(dashboardTelemetryRouter)
 	// dashboard event router ends
 
 	//GitOps,Acd + HelmCLi both apps deployment related api's
-	applicationSubRouter := r.Router.PathPrefix("/orchestrator/application").Subrouter()
-	r.commonDeploymentRouter.Init(applicationSubRouter)
+	applicationSubRouter := router.Router.PathPrefix("/orchestrator/application").Subrouter()
+	router.commonDeploymentRouter.Init(applicationSubRouter)
 	//this router must placed after commonDeploymentRouter
-	r.helmAppRouter.InitAppListRouter(applicationSubRouter)
+	router.helmAppRouter.InitAppListRouter(applicationSubRouter)
 
-	externalLinkRouter := r.Router.PathPrefix("/orchestrator/external-links").Subrouter()
-	r.externalLinkRouter.InitExternalLinkRouter(externalLinkRouter)
+	externalLinkRouter := router.Router.PathPrefix("/orchestrator/external-links").Subrouter()
+	router.externalLinkRouter.InitExternalLinkRouter(externalLinkRouter)
 
 	// module router
-	moduleRouter := r.Router.PathPrefix("/orchestrator/module").Subrouter()
-	r.moduleRouter.Init(moduleRouter)
+	moduleRouter := router.Router.PathPrefix("/orchestrator/module").Subrouter()
+	router.moduleRouter.Init(moduleRouter)
 
 	// server router
-	serverRouter := r.Router.PathPrefix("/orchestrator/server").Subrouter()
-	r.serverRouter.Init(serverRouter)
+	serverRouter := router.Router.PathPrefix("/orchestrator/server").Subrouter()
+	router.serverRouter.Init(serverRouter)
 
 	// api-token router
-	apiTokenRouter := r.Router.PathPrefix("/orchestrator/api-token").Subrouter()
-	r.apiTokenRouter.InitApiTokenRouter(apiTokenRouter)
+	apiTokenRouter := router.Router.PathPrefix("/orchestrator/api-token").Subrouter()
+	router.apiTokenRouter.InitApiTokenRouter(apiTokenRouter)
 
-	k8sCapacityApp := r.Router.PathPrefix("/orchestrator/k8s/capacity").Subrouter()
-	r.k8sCapacityRouter.InitK8sCapacityRouter(k8sCapacityApp)
+	k8sCapacityApp := router.Router.PathPrefix("/orchestrator/k8s/capacity").Subrouter()
+	router.k8sCapacityRouter.InitK8sCapacityRouter(k8sCapacityApp)
 
 	// webhook helm app router
-	webhookHelmRouter := r.Router.PathPrefix("/orchestrator/webhook/helm").Subrouter()
-	r.webhookHelmRouter.InitWebhookHelmRouter(webhookHelmRouter)
+	webhookHelmRouter := router.Router.PathPrefix("/orchestrator/webhook/helm").Subrouter()
+	router.webhookHelmRouter.InitWebhookHelmRouter(webhookHelmRouter)
 
-	globalCMCSRouter := r.Router.PathPrefix("/orchestrator/global/cm-cs").Subrouter()
-	r.globalCMCSRouter.initGlobalCMCSRouter(globalCMCSRouter)
+	globalCMCSRouter := router.Router.PathPrefix("/orchestrator/global/cm-cs").Subrouter()
+	router.globalCMCSRouter.initGlobalCMCSRouter(globalCMCSRouter)
 }

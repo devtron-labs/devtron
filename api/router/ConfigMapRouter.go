@@ -34,7 +34,7 @@ func NewConfigMapRouterImpl(restHandler restHandler.ConfigMapRestHandler) *Confi
 
 }
 
-func (router ConfigMapRouterImpl) initConfigMapRouter(configRouter *mux.Router) {
+func (router *ConfigMapRouterImpl) initConfigMapRouter(configRouter *mux.Router) {
 	configRouter.Path("/global/cm").
 		HandlerFunc(router.restHandler.CMGlobalAddUpdate).Methods("POST")
 	configRouter.Path("/environment/cm").

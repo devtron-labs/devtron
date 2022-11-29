@@ -32,50 +32,50 @@ type NotificationRouterImpl struct {
 func NewNotificationRouterImpl(notificationRestHandler restHandler.NotificationRestHandler) *NotificationRouterImpl {
 	return &NotificationRouterImpl{notificationRestHandler: notificationRestHandler}
 }
-func (impl NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.Router) {
+func (router *NotificationRouterImpl) InitNotificationRegRouter(configRouter *mux.Router) {
 	configRouter.Path("").
-		HandlerFunc(impl.notificationRestHandler.SaveNotificationSettings).
+		HandlerFunc(router.notificationRestHandler.SaveNotificationSettings).
 		Methods("POST")
 	configRouter.Path("").
-		HandlerFunc(impl.notificationRestHandler.UpdateNotificationSettings).
+		HandlerFunc(router.notificationRestHandler.UpdateNotificationSettings).
 		Methods("PUT")
 	configRouter.Path("").
 		Queries("size", "{size}").
 		Queries("offset", "{offset}").
-		HandlerFunc(impl.notificationRestHandler.GetAllNotificationSettings).
+		HandlerFunc(router.notificationRestHandler.GetAllNotificationSettings).
 		Methods("GET")
 	configRouter.Path("").
-		HandlerFunc(impl.notificationRestHandler.DeleteNotificationSettings).
+		HandlerFunc(router.notificationRestHandler.DeleteNotificationSettings).
 		Methods("DELETE")
 
 	configRouter.Path("/channel").
-		HandlerFunc(impl.notificationRestHandler.SaveNotificationChannelConfig).
+		HandlerFunc(router.notificationRestHandler.SaveNotificationChannelConfig).
 		Methods("POST")
 	configRouter.Path("/channel").
-		HandlerFunc(impl.notificationRestHandler.FindAllNotificationConfig).
+		HandlerFunc(router.notificationRestHandler.FindAllNotificationConfig).
 		Methods("GET")
 	configRouter.Path("/channel/ses/{id}").
-		HandlerFunc(impl.notificationRestHandler.FindSESConfig).
+		HandlerFunc(router.notificationRestHandler.FindSESConfig).
 		Methods("GET")
 	configRouter.Path("/channel/slack/{id}").
-		HandlerFunc(impl.notificationRestHandler.FindSlackConfig).
+		HandlerFunc(router.notificationRestHandler.FindSlackConfig).
 		Methods("GET")
 	configRouter.Path("/channel/smtp/{id}").
-		HandlerFunc(impl.notificationRestHandler.FindSMTPConfig).
+		HandlerFunc(router.notificationRestHandler.FindSMTPConfig).
 		Methods("GET")
 	configRouter.Path("/channel").
-		HandlerFunc(impl.notificationRestHandler.DeleteNotificationChannelConfig).
+		HandlerFunc(router.notificationRestHandler.DeleteNotificationChannelConfig).
 		Methods("DELETE")
 
 	configRouter.Path("/recipient").
 		Queries("value", "{value}").
-		HandlerFunc(impl.notificationRestHandler.RecipientListingSuggestion).
+		HandlerFunc(router.notificationRestHandler.RecipientListingSuggestion).
 		Methods("GET")
 	configRouter.Path("/channel/autocomplete/{type}").
-		HandlerFunc(impl.notificationRestHandler.FindAllNotificationConfigAutocomplete).
+		HandlerFunc(router.notificationRestHandler.FindAllNotificationConfigAutocomplete).
 		Methods("GET")
 	configRouter.Path("/search").
-		HandlerFunc(impl.notificationRestHandler.GetOptionsForNotificationSettings).
+		HandlerFunc(router.notificationRestHandler.GetOptionsForNotificationSettings).
 		Methods("POST")
 
 }

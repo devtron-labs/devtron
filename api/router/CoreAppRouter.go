@@ -35,7 +35,7 @@ func NewCoreAppRouterImpl(restHandler restHandler.CoreAppRestHandler) *CoreAppRo
 
 }
 
-func (router CoreAppRouterImpl) initCoreAppRouter(configRouter *mux.Router) {
+func (router *CoreAppRouterImpl) initCoreAppRouter(configRouter *mux.Router) {
 	configRouter.Path("/v1beta1/application").HandlerFunc(router.restHandler.CreateApp).Methods("POST")
 	configRouter.Path("/v1beta1/application/{appId}").HandlerFunc(router.restHandler.GetAppAllDetail).Methods("GET")
 	configRouter.Path("/v1beta1/application/workflow").HandlerFunc(router.restHandler.CreateAppWorkflow).Methods("POST")

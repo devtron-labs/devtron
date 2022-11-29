@@ -74,9 +74,9 @@ func NewGitProviderRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryC
 	}
 }
 
-func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -84,40 +84,40 @@ func (impl GitProviderRestHandlerImpl) SaveGitRepoConfig(w http.ResponseWriter, 
 	var bean pipeline.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, SaveGitRepoConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, SaveGitRepoConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, SaveGitRepoConfig", "err", err, "payload", bean)
-	err = impl.validator.Struct(bean)
+	handler.logger.Infow("request payload, SaveGitRepoConfig", "err", err, "payload", bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, SaveGitRepoConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("validation err, SaveGitRepoConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
 
-	res, err := impl.gitRegistryConfig.Create(&bean)
+	res, err := handler.gitRegistryConfig.Create(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl GitProviderRestHandlerImpl) GetGitProviders(w http.ResponseWriter, r *http.Request) {
-	res, err := impl.gitRegistryConfig.GetAll()
+func (handler *GitProviderRestHandlerImpl) GetGitProviders(w http.ResponseWriter, r *http.Request) {
+	res, err := handler.gitRegistryConfig.GetAll()
 	if err != nil {
-		impl.logger.Errorw("service err, GetGitProviders", "err", err)
+		handler.logger.Errorw("service err, GetGitProviders", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -125,10 +125,10 @@ func (impl GitProviderRestHandlerImpl) GetGitProviders(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWriter, r *http.Request) {
-	res, err := impl.gitRegistryConfig.FetchAllGitProviders()
+func (handler *GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWriter, r *http.Request) {
+	res, err := handler.gitRegistryConfig.FetchAllGitProviders()
 	if err != nil {
-		impl.logger.Errorw("service err, FetchAllGitProviders", "err", err)
+		handler.logger.Errorw("service err, FetchAllGitProviders", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -137,7 +137,7 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 	token := r.Header.Get("token")
 	result := make([]pipeline.GitRegistry, 0)
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, item)
 		}
 	}
@@ -146,19 +146,19 @@ func (impl GitProviderRestHandlerImpl) FetchAllGitProviders(w http.ResponseWrite
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (impl GitProviderRestHandlerImpl) FetchOneGitProviders(w http.ResponseWriter, r *http.Request) {
+func (handler *GitProviderRestHandlerImpl) FetchOneGitProviders(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
-	res, err := impl.gitRegistryConfig.FetchOneGitProvider(id)
+	res, err := handler.gitRegistryConfig.FetchOneGitProvider(id)
 	if err != nil {
-		impl.logger.Errorw("service err, FetchOneGitProviders", "err", err, "id", id)
+		handler.logger.Errorw("service err, FetchOneGitProviders", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, strings.ToLower(res.Name)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionGet, strings.ToLower(res.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -167,9 +167,9 @@ func (impl GitProviderRestHandlerImpl) FetchOneGitProviders(w http.ResponseWrite
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -177,38 +177,38 @@ func (impl GitProviderRestHandlerImpl) UpdateGitRepoConfig(w http.ResponseWriter
 	var bean pipeline.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, UpdateGitRepoConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, UpdateGitRepoConfig", "payload", bean)
-	err = impl.validator.Struct(bean)
+	handler.logger.Infow("request payload, UpdateGitRepoConfig", "payload", bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("validation err, UpdateGitRepoConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionUpdate, strings.ToLower(bean.Name)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionUpdate, strings.ToLower(bean.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
 
-	res, err := impl.gitRegistryConfig.Update(&bean)
+	res, err := handler.gitRegistryConfig.Update(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateGitRepoConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, UpdateGitRepoConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -216,28 +216,28 @@ func (impl GitProviderRestHandlerImpl) DeleteGitRepoConfig(w http.ResponseWriter
 	var bean pipeline.GitRegistry
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, DeleteGitRepoConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, DeleteGitRepoConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, DeleteGitRepoConfig", "payload", bean)
-	err = impl.validator.Struct(bean)
+	handler.logger.Infow("request payload, DeleteGitRepoConfig", "payload", bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, DeleteGitRepoConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("validation err, DeleteGitRepoConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGit, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.deleteServiceFullMode.DeleteGitProvider(&bean)
+	err = handler.deleteServiceFullMode.DeleteGitProvider(&bean)
 	if err != nil {
-		impl.logger.Errorw("error in deleting git account", "err", err, "payload", bean)
+		handler.logger.Errorw("error in deleting git account", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

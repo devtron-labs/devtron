@@ -34,9 +34,9 @@ func NewPolicyRouterImpl(policyRestHandler restHandler.PolicyRestHandler) *Polic
 		policyRestHandler: policyRestHandler,
 	}
 }
-func (impl PolicyRouterImpl) InitPolicyRouter(configRouter *mux.Router) {
-	configRouter.Path("/save").HandlerFunc(impl.policyRestHandler.SavePolicy).Methods("POST")
-	configRouter.Path("/update").HandlerFunc(impl.policyRestHandler.UpdatePolicy).Methods("POST")
-	configRouter.Path("/list").HandlerFunc(impl.policyRestHandler.GetPolicy).Methods("GET")
-	configRouter.Path("/verify/webhook").HandlerFunc(impl.policyRestHandler.VerifyImage).Methods("POST")
+func (router *PolicyRouterImpl) InitPolicyRouter(policyRouter *mux.Router) {
+	policyRouter.Path("/save").HandlerFunc(router.policyRestHandler.SavePolicy).Methods("POST")
+	policyRouter.Path("/update").HandlerFunc(router.policyRestHandler.UpdatePolicy).Methods("POST")
+	policyRouter.Path("/list").HandlerFunc(router.policyRestHandler.GetPolicy).Methods("GET")
+	policyRouter.Path("/verify/webhook").HandlerFunc(router.policyRestHandler.VerifyImage).Methods("POST")
 }

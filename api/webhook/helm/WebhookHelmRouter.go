@@ -16,8 +16,8 @@ func NewWebhookHelmRouterImpl(webhookHelmRestHandler WebhookHelmRestHandler) *We
 	return &WebhookHelmRouterImpl{webhookHelmRestHandler: webhookHelmRestHandler}
 }
 
-func (impl WebhookHelmRouterImpl) InitWebhookHelmRouter(configRouter *mux.Router) {
+func (router *WebhookHelmRouterImpl) InitWebhookHelmRouter(configRouter *mux.Router) {
 	configRouter.Path("/app").
-		HandlerFunc(impl.webhookHelmRestHandler.InstallOrUpdateApplication).
+		HandlerFunc(router.webhookHelmRestHandler.InstallOrUpdateApplication).
 		Methods("POST")
 }

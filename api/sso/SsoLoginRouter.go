@@ -36,7 +36,7 @@ func NewSsoLoginRouterImpl(handler SsoLoginRestHandler) *SsoLoginRouterImpl {
 	return router
 }
 
-func (router SsoLoginRouterImpl) InitSsoLoginRouter(userAuthRouter *mux.Router) {
+func (router *SsoLoginRouterImpl) InitSsoLoginRouter(userAuthRouter *mux.Router) {
 	userAuthRouter.Path("/create").
 		HandlerFunc(router.handler.CreateSSOLoginConfig).Methods("POST")
 	userAuthRouter.Path("/update").

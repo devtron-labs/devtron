@@ -16,10 +16,10 @@ func NewApiTokenRouterImpl(apiTokenRestHandler ApiTokenRestHandler) *ApiTokenRou
 	return &ApiTokenRouterImpl{apiTokenRestHandler: apiTokenRestHandler}
 }
 
-func (impl ApiTokenRouterImpl) InitApiTokenRouter(configRouter *mux.Router) {
-	configRouter.Path("").HandlerFunc(impl.apiTokenRestHandler.GetAllApiTokens).Methods("GET")
-	configRouter.Path("").HandlerFunc(impl.apiTokenRestHandler.CreateApiToken).Methods("POST")
-	configRouter.Path("/{id}").HandlerFunc(impl.apiTokenRestHandler.UpdateApiToken).Methods("PUT")
-	configRouter.Path("/{id}").HandlerFunc(impl.apiTokenRestHandler.DeleteApiToken).Methods("DELETE")
-	configRouter.Path("/webhook").HandlerFunc(impl.apiTokenRestHandler.GetAllApiTokensForWebhook).Methods("GET")
+func (router *ApiTokenRouterImpl) InitApiTokenRouter(configRouter *mux.Router) {
+	configRouter.Path("").HandlerFunc(router.apiTokenRestHandler.GetAllApiTokens).Methods("GET")
+	configRouter.Path("").HandlerFunc(router.apiTokenRestHandler.CreateApiToken).Methods("POST")
+	configRouter.Path("/{id}").HandlerFunc(router.apiTokenRestHandler.UpdateApiToken).Methods("PUT")
+	configRouter.Path("/{id}").HandlerFunc(router.apiTokenRestHandler.DeleteApiToken).Methods("DELETE")
+	configRouter.Path("/webhook").HandlerFunc(router.apiTokenRestHandler.GetAllApiTokensForWebhook).Methods("GET")
 }

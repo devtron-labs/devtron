@@ -115,8 +115,8 @@ func NewNotificationRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistry
 	}
 }
 
-func (impl NotificationRestHandlerImpl) SaveNotificationSettings(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *NotificationRestHandlerImpl) SaveNotificationSettings(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -124,14 +124,14 @@ func (impl NotificationRestHandlerImpl) SaveNotificationSettings(w http.Response
 	var notificationSetting notifier.NotificationRequest
 	err = json.NewDecoder(r.Body).Decode(&notificationSetting)
 	if err != nil {
-		impl.logger.Errorw("request err, SaveNotificationSettings", "err", err, "payload", notificationSetting)
+		handler.logger.Errorw("request err, SaveNotificationSettings", "err", err, "payload", notificationSetting)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, SaveNotificationSettings", "err", err, "payload", notificationSetting)
-	err = impl.validator.Struct(notificationSetting)
+	handler.logger.Infow("request payload, SaveNotificationSettings", "err", err, "payload", notificationSetting)
+	err = handler.validator.Struct(notificationSetting)
 	if err != nil {
-		impl.logger.Errorw("validation err, SaveNotificationSettings", "err", err, "payload", notificationSetting)
+		handler.logger.Errorw("validation err, SaveNotificationSettings", "err", err, "payload", notificationSetting)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -139,15 +139,15 @@ func (impl NotificationRestHandlerImpl) SaveNotificationSettings(w http.Response
 	//RBAC
 	token := r.Header.Get("token")
 	for _, item := range notificationSetting.NotificationConfigRequest {
-		teamRbac, envRbac := impl.buildRbacObjectsForNotificationSettings(item.TeamId, item.EnvId, item.AppId, item.PipelineId, item.PipelineType)
+		teamRbac, envRbac := handler.buildRbacObjectsForNotificationSettings(item.TeamId, item.EnvId, item.AppId, item.PipelineId, item.PipelineType)
 		for _, object := range teamRbac {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
 		}
 		for _, object := range envRbac {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
@@ -155,9 +155,9 @@ func (impl NotificationRestHandlerImpl) SaveNotificationSettings(w http.Response
 	}
 	//RBAC
 
-	res, err := impl.notificationService.CreateOrUpdateNotificationSettings(&notificationSetting, userId)
+	res, err := handler.notificationService.CreateOrUpdateNotificationSettings(&notificationSetting, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, SaveNotificationSettings", "err", err, "payload", notificationSetting)
+		handler.logger.Errorw("service err, SaveNotificationSettings", "err", err, "payload", notificationSetting)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -165,7 +165,7 @@ func (impl NotificationRestHandlerImpl) SaveNotificationSettings(w http.Response
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(teamIds []*int, envIds []*int, appIds []*int, pipelineId *int, pipelineType util.PipelineType) ([]string, []string) {
+func (handler *NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(teamIds []*int, envIds []*int, appIds []*int, pipelineId *int, pipelineType util.PipelineType) ([]string, []string) {
 	if teamIds == nil {
 		teamIds = make([]*int, 0)
 	}
@@ -184,10 +184,10 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 	teamsMap := make(map[int]string)
 	appsMap := make(map[int]string)
 	if len(teamIds) > 0 && len(appIds) > 0 {
-		teams, err := impl.teamService.FindByIds(teamIds)
+		teams, err := handler.teamService.FindByIds(teamIds)
 		if err != nil {
 		}
-		apps, err := impl.pipelineBuilder.FindByIds(appIds)
+		apps, err := handler.pipelineBuilder.FindByIds(appIds)
 		if err != nil {
 		}
 		for _, t := range teams {
@@ -198,16 +198,16 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 		}
 
 	} else if len(teamIds) == 0 && len(appIds) > 0 {
-		apps, err := impl.pipelineBuilder.FindByIds(appIds)
+		apps, err := handler.pipelineBuilder.FindByIds(appIds)
 		if err != nil {
 		}
 		for _, a := range apps {
 			teamIds = append(teamIds, &a.TeamId)
 			appsMap[a.Id] = a.Name
 		}
-		teams, err := impl.teamService.FindByIds(teamIds)
+		teams, err := handler.teamService.FindByIds(teamIds)
 		if err != nil {
-			impl.logger.Errorw("error", "error", err)
+			handler.logger.Errorw("error", "error", err)
 		}
 		for _, t := range teams {
 			for _, a := range apps {
@@ -217,7 +217,7 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 			}
 		}
 	} else if len(teamIds) > 0 && len(appIds) == 0 {
-		teams, err := impl.teamService.FindByIds(teamIds)
+		teams, err := handler.teamService.FindByIds(teamIds)
 		if err != nil {
 		}
 		for _, t := range teams {
@@ -226,14 +226,14 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 		}
 	}
 	if len(envIds) > 0 && len(appIds) == 0 {
-		envs, err := impl.environmentService.FindByIds(envIds)
+		envs, err := handler.environmentService.FindByIds(envIds)
 		if err != nil {
 		}
 		for _, e := range envs {
 			envRbac = append(envRbac, fmt.Sprintf("%s/*", strings.ToLower(e.EnvironmentIdentifier)))
 		}
 	} else if len(envIds) > 0 && len(appIds) > 0 {
-		envs, err := impl.environmentService.FindByIds(envIds)
+		envs, err := handler.environmentService.FindByIds(envIds)
 		if err != nil {
 		}
 		for _, e := range envs {
@@ -245,10 +245,10 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 
 	if *pipelineId > 0 {
 		if pipelineType == util.CI {
-			trbac := impl.enforcerUtil.GetTeamRbacObjectByCiPipelineId(*pipelineId)
+			trbac := handler.enforcerUtil.GetTeamRbacObjectByCiPipelineId(*pipelineId)
 			teamRbac = append(teamRbac, trbac)
 		} else if pipelineType == util.CD {
-			trbac, erbac := impl.enforcerUtil.GetTeamAndEnvironmentRbacObjectByCDPipelineId(*pipelineId)
+			trbac, erbac := handler.enforcerUtil.GetTeamAndEnvironmentRbacObjectByCDPipelineId(*pipelineId)
 			teamRbac = append(teamRbac, trbac)
 			envRbac = append(envRbac, erbac)
 		}
@@ -257,8 +257,8 @@ func (impl NotificationRestHandlerImpl) buildRbacObjectsForNotificationSettings(
 	return teamRbac, envRbac
 }
 
-func (impl NotificationRestHandlerImpl) UpdateNotificationSettings(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *NotificationRestHandlerImpl) UpdateNotificationSettings(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -266,14 +266,14 @@ func (impl NotificationRestHandlerImpl) UpdateNotificationSettings(w http.Respon
 	var notificationSetting notifier.NotificationUpdateRequest
 	err = json.NewDecoder(r.Body).Decode(&notificationSetting)
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateNotificationSettings", "err", err, "payload", notificationSetting)
+		handler.logger.Errorw("request err, UpdateNotificationSettings", "err", err, "payload", notificationSetting)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, UpdateNotificationSettings", "err", err, "payload", notificationSetting)
-	err = impl.validator.Struct(notificationSetting)
+	handler.logger.Infow("request payload, UpdateNotificationSettings", "err", err, "payload", notificationSetting)
+	err = handler.validator.Struct(notificationSetting)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateNotificationSettings", "err", err, "payload", notificationSetting)
+		handler.logger.Errorw("validation err, UpdateNotificationSettings", "err", err, "payload", notificationSetting)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -284,22 +284,22 @@ func (impl NotificationRestHandlerImpl) UpdateNotificationSettings(w http.Respon
 	for _, request := range notificationSetting.NotificationConfigRequest {
 		ids = append(ids, &request.Id)
 	}
-	nsViews, err := impl.notificationService.FetchNSViewByIds(ids)
+	nsViews, err := handler.notificationService.FetchNSViewByIds(ids)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateNotificationSettings", "err", err, "payload", notificationSetting)
+		handler.logger.Errorw("service err, UpdateNotificationSettings", "err", err, "payload", notificationSetting)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	for _, item := range nsViews {
-		teamRbac, envRbac := impl.buildRbacObjectsForNotificationSettings(item.TeamId, item.EnvId, item.AppId, item.PipelineId, item.PipelineType)
+		teamRbac, envRbac := handler.buildRbacObjectsForNotificationSettings(item.TeamId, item.EnvId, item.AppId, item.PipelineId, item.PipelineType)
 		for _, object := range teamRbac {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
 		}
 		for _, object := range envRbac {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionUpdate, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
@@ -307,9 +307,9 @@ func (impl NotificationRestHandlerImpl) UpdateNotificationSettings(w http.Respon
 	}
 	//RBAC
 
-	res, err := impl.notificationService.UpdateNotificationSettings(&notificationSetting, userId)
+	res, err := handler.notificationService.UpdateNotificationSettings(&notificationSetting, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateNotificationSettings", "err", err, "payload", notificationSetting)
+		handler.logger.Errorw("service err, UpdateNotificationSettings", "err", err, "payload", notificationSetting)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -317,65 +317,65 @@ func (impl NotificationRestHandlerImpl) UpdateNotificationSettings(w http.Respon
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (impl NotificationRestHandlerImpl) DeleteNotificationSettings(w http.ResponseWriter, r *http.Request) {
+func (handler *NotificationRestHandlerImpl) DeleteNotificationSettings(w http.ResponseWriter, r *http.Request) {
 	var request notifier.NSDeleteRequest
 	err := json.NewDecoder(r.Body).Decode(&request)
 	if err != nil {
-		impl.logger.Errorw("request err, DeleteNotificationSettings", "err", err, "payload", request)
+		handler.logger.Errorw("request err, DeleteNotificationSettings", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, DeleteNotificationSettings", "err", err, "payload", request)
+	handler.logger.Infow("request payload, DeleteNotificationSettings", "err", err, "payload", request)
 	token := r.Header.Get("token")
 	//RBAC
-	nsViews, err := impl.notificationService.FetchNSViewByIds(request.Id)
+	nsViews, err := handler.notificationService.FetchNSViewByIds(request.Id)
 	if err != nil {
-		impl.logger.Errorw("service err, DeleteNotificationSettings", "err", err, "payload", request)
+		handler.logger.Errorw("service err, DeleteNotificationSettings", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	for _, item := range nsViews {
-		teamRbac, envRbac := impl.buildRbacObjectsForNotificationSettings(item.TeamId, item.EnvId, item.AppId, item.PipelineId, item.PipelineType)
+		teamRbac, envRbac := handler.buildRbacObjectsForNotificationSettings(item.TeamId, item.EnvId, item.AppId, item.PipelineId, item.PipelineType)
 		for _, object := range teamRbac {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, object); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionDelete, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
 		}
 		for _, object := range envRbac {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, object); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionDelete, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
 		}
 	}
 	//RBAC
-	err = impl.notificationService.DeleteNotificationSettings(request)
+	err = handler.notificationService.DeleteNotificationSettings(request)
 	if err != nil {
-		impl.logger.Errorw("service err, DeleteNotificationSettings", "err", err, "payload", request)
+		handler.logger.Errorw("service err, DeleteNotificationSettings", "err", err, "payload", request)
 	}
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
-func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.ResponseWriter, r *http.Request) {
+func (handler *NotificationRestHandlerImpl) GetAllNotificationSettings(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	size, err := strconv.Atoi(vars["size"])
 	if err != nil {
-		impl.logger.Errorw("request err, GetAllNotificationSettings", "err", err, "payload", size)
+		handler.logger.Errorw("request err, GetAllNotificationSettings", "err", err, "payload", size)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	offset, err := strconv.Atoi(vars["offset"])
 	if err != nil {
-		impl.logger.Errorw("request err, GetAllNotificationSettings", "err", err, "payload", offset)
+		handler.logger.Errorw("request err, GetAllNotificationSettings", "err", err, "payload", offset)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	token := r.Header.Get("token")
-	notificationSettingsViews, totalCount, err := impl.notificationService.FindAll(offset, size)
+	notificationSettingsViews, totalCount, err := handler.notificationService.FindAll(offset, size)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("service err, GetAllNotificationSettings", "err", err)
+		handler.logger.Errorw("service err, GetAllNotificationSettings", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -384,14 +384,14 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 		nsConfig := &notifier.NSConfig{}
 		err = json.Unmarshal([]byte(ns.Config), nsConfig)
 		if err != nil {
-			impl.logger.Errorw("service err, GetAllNotificationSettings", "err", err)
+			handler.logger.Errorw("service err, GetAllNotificationSettings", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
-		teamRbac, envRbac := impl.buildRbacObjectsForNotificationSettings(nsConfig.TeamId, nsConfig.EnvId, nsConfig.AppId, nsConfig.PipelineId, nsConfig.PipelineType)
+		teamRbac, envRbac := handler.buildRbacObjectsForNotificationSettings(nsConfig.TeamId, nsConfig.EnvId, nsConfig.AppId, nsConfig.PipelineId, nsConfig.PipelineType)
 		pass := true
 		for _, object := range teamRbac {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 				pass = false
 				break
 			}
@@ -400,7 +400,7 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 			continue
 		}
 		for _, object := range envRbac {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
 				pass = false
 				break
 			}
@@ -410,9 +410,9 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 		}
 	}
 
-	results, deletedItemCount, err := impl.notificationService.BuildNotificationSettingsResponse(filteredSettingViews)
+	results, deletedItemCount, err := handler.notificationService.BuildNotificationSettingsResponse(filteredSettingViews)
 	if err != nil {
-		impl.logger.Errorw("service err, GetAllNotificationSettings", "err", err)
+		handler.logger.Errorw("service err, GetAllNotificationSettings", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -428,8 +428,8 @@ func (impl NotificationRestHandlerImpl) GetAllNotificationSettings(w http.Respon
 	common.WriteJsonResp(w, err, nsvResponse, http.StatusOK)
 }
 
-func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -439,24 +439,24 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 	var channelReq ChannelDto
 	err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&channelReq)
 	if err != nil {
-		impl.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "payload", channelReq)
+		handler.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "payload", channelReq)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, SaveNotificationChannelConfig", "err", err, "payload", channelReq)
+	handler.logger.Infow("request payload, SaveNotificationChannelConfig", "err", err, "payload", channelReq)
 	token := r.Header.Get("token")
 	if util.Slack == channelReq.Channel {
 		var slackReq *notifier.SlackChannelConfig
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&slackReq)
 		if err != nil {
-			impl.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "slackReq", slackReq)
+			handler.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "slackReq", slackReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
-		err = impl.validator.Struct(slackReq)
+		err = handler.validator.Struct(slackReq)
 		if err != nil {
-			impl.logger.Errorw("validation err, SaveNotificationChannelConfig", "err", err, "slackReq", slackReq)
+			handler.logger.Errorw("validation err, SaveNotificationChannelConfig", "err", err, "slackReq", slackReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
@@ -466,22 +466,22 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 		for _, item := range slackReq.SlackConfigDtos {
 			teamIds = append(teamIds, &item.TeamId)
 		}
-		teams, err := impl.teamService.FindByIds(teamIds)
+		teams, err := handler.teamService.FindByIds(teamIds)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 		for _, item := range teams {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
 				common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 				return
 			}
 		}
 		//RBAC
 
-		res, cErr := impl.slackService.SaveOrEditNotificationConfig(slackReq.SlackConfigDtos, userId)
+		res, cErr := handler.slackService.SaveOrEditNotificationConfig(slackReq.SlackConfigDtos, userId)
 		if cErr != nil {
-			impl.logger.Errorw("service err, SaveNotificationChannelConfig", "err", err, "slackReq", slackReq)
+			handler.logger.Errorw("service err, SaveNotificationChannelConfig", "err", err, "slackReq", slackReq)
 			common.WriteJsonResp(w, cErr, nil, http.StatusInternalServerError)
 			return
 		}
@@ -491,29 +491,29 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 		var sesReq *notifier.SESChannelConfig
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&sesReq)
 		if err != nil {
-			impl.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "sesReq", sesReq)
+			handler.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "sesReq", sesReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
-		err = impl.validator.Struct(sesReq)
+		err = handler.validator.Struct(sesReq)
 		if err != nil {
-			impl.logger.Errorw("validation err, SaveNotificationChannelConfig", "err", err, "sesReq", sesReq)
+			handler.logger.Errorw("validation err, SaveNotificationChannelConfig", "err", err, "sesReq", sesReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
 		// RBAC enforcer applying
 		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
 		}
 		//RBAC enforcer Ends
 
-		res, cErr := impl.sesService.SaveOrEditNotificationConfig(sesReq.SESConfigDtos, userId)
+		res, cErr := handler.sesService.SaveOrEditNotificationConfig(sesReq.SESConfigDtos, userId)
 		if cErr != nil {
-			impl.logger.Errorw("service err, SaveNotificationChannelConfig", "err", err, "sesReq", sesReq)
+			handler.logger.Errorw("service err, SaveNotificationChannelConfig", "err", err, "sesReq", sesReq)
 			common.WriteJsonResp(w, cErr, nil, http.StatusInternalServerError)
 			return
 		}
@@ -523,29 +523,29 @@ func (impl NotificationRestHandlerImpl) SaveNotificationChannelConfig(w http.Res
 		var smtpReq *notifier.SMTPChannelConfig
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&smtpReq)
 		if err != nil {
-			impl.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "smtpReq", smtpReq)
+			handler.logger.Errorw("request err, SaveNotificationChannelConfig", "err", err, "smtpReq", smtpReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
-		err = impl.validator.Struct(smtpReq)
+		err = handler.validator.Struct(smtpReq)
 		if err != nil {
-			impl.logger.Errorw("validation err, SaveNotificationChannelConfig", "err", err, "smtpReq", smtpReq)
+			handler.logger.Errorw("validation err, SaveNotificationChannelConfig", "err", err, "smtpReq", smtpReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
 		// RBAC enforcer applying
 		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
 		}
 		//RBAC enforcer Ends
 
-		res, cErr := impl.smtpService.SaveOrEditNotificationConfig(smtpReq.SMTPConfigDtos, userId)
+		res, cErr := handler.smtpService.SaveOrEditNotificationConfig(smtpReq.SMTPConfigDtos, userId)
 		if cErr != nil {
-			impl.logger.Errorw("service err, SaveNotificationChannelConfig", "err", err, "smtpReq", smtpReq)
+			handler.logger.Errorw("service err, SaveNotificationChannelConfig", "err", err, "smtpReq", smtpReq)
 			common.WriteJsonResp(w, cErr, nil, http.StatusInternalServerError)
 			return
 		}
@@ -560,8 +560,8 @@ type ChannelResponseDTO struct {
 	SMTPConfigs  []*notifier.SMTPConfigDto  `json:"smtpConfigs"`
 }
 
-func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *NotificationRestHandlerImpl) FindAllNotificationConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -569,14 +569,14 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 
 	token := r.Header.Get("token")
 	channelsResponse := &ChannelResponseDTO{}
-	slackConfigs, fErr := impl.slackService.FetchAllSlackNotificationConfig()
+	slackConfigs, fErr := handler.slackService.FetchAllSlackNotificationConfig()
 	if fErr != nil && fErr != pg.ErrNoRows {
-		impl.logger.Errorw("service err, FindAllNotificationConfig", "err", err)
+		handler.logger.Errorw("service err, FindAllNotificationConfig", "err", err)
 		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
 		return
 	}
 
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 		// if user does not have notification level access then return unauthorized
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
@@ -588,13 +588,13 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 		for _, item := range slackConfigs {
 			teamIds = append(teamIds, &item.TeamId)
 		}
-		teams, err := impl.teamService.FindByIds(teamIds)
+		teams, err := handler.teamService.FindByIds(teamIds)
 		if err != nil {
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 		for _, item := range teams {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(item.Name))); !ok {
 				pass = false
 				break
 			}
@@ -607,9 +607,9 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 	if pass {
 		channelsResponse.SlackConfigs = slackConfigs
 	}
-	sesConfigs, fErr := impl.sesService.FetchAllSESNotificationConfig()
+	sesConfigs, fErr := handler.sesService.FetchAllSESNotificationConfig()
 	if fErr != nil && fErr != pg.ErrNoRows {
-		impl.logger.Errorw("service err, FindAllNotificationConfig", "err", err)
+		handler.logger.Errorw("service err, FindAllNotificationConfig", "err", err)
 		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
 		return
 	}
@@ -620,9 +620,9 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 		channelsResponse.SESConfigs = sesConfigs
 	}
 
-	smtpConfigs, err := impl.smtpService.FetchAllSMTPNotificationConfig()
+	smtpConfigs, err := handler.smtpService.FetchAllSMTPNotificationConfig()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("service err, FindAllNotificationConfig", "err", err)
+		handler.logger.Errorw("service err, FindAllNotificationConfig", "err", err)
 		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
 		return
 	}
@@ -636,8 +636,8 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfig(w http.Respons
 	common.WriteJsonResp(w, fErr, channelsResponse, http.StatusOK)
 }
 
-func (impl NotificationRestHandlerImpl) FindSESConfig(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *NotificationRestHandlerImpl) FindSESConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -645,18 +645,18 @@ func (impl NotificationRestHandlerImpl) FindSESConfig(w http.ResponseWriter, r *
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		impl.logger.Errorw("request err, FindSESConfig", "err", err)
+		handler.logger.Errorw("request err, FindSESConfig", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 	}
 
-	sesConfig, fErr := impl.sesService.FetchSESNotificationConfigById(id)
+	sesConfig, fErr := handler.sesService.FetchSESNotificationConfigById(id)
 	if fErr != nil && fErr != pg.ErrNoRows {
-		impl.logger.Errorw("service err, FindSESConfig", "err", err)
+		handler.logger.Errorw("service err, FindSESConfig", "err", err)
 		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
 		return
 	}
@@ -665,8 +665,8 @@ func (impl NotificationRestHandlerImpl) FindSESConfig(w http.ResponseWriter, r *
 	common.WriteJsonResp(w, fErr, sesConfig, http.StatusOK)
 }
 
-func (impl NotificationRestHandlerImpl) FindSlackConfig(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *NotificationRestHandlerImpl) FindSlackConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -674,14 +674,14 @@ func (impl NotificationRestHandlerImpl) FindSlackConfig(w http.ResponseWriter, r
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		impl.logger.Errorw("request err, FindSlackConfig", "err", err, "id", id)
+		handler.logger.Errorw("request err, FindSlackConfig", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	sesConfig, fErr := impl.slackService.FetchSlackNotificationConfigById(id)
+	sesConfig, fErr := handler.slackService.FetchSlackNotificationConfigById(id)
 	if fErr != nil && fErr != pg.ErrNoRows {
-		impl.logger.Errorw("service err, FindSlackConfig, cannot find slack config", "err", fErr, "id", id)
+		handler.logger.Errorw("service err, FindSlackConfig, cannot find slack config", "err", fErr, "id", id)
 		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
 		return
 	}
@@ -690,8 +690,8 @@ func (impl NotificationRestHandlerImpl) FindSlackConfig(w http.ResponseWriter, r
 	common.WriteJsonResp(w, fErr, sesConfig, http.StatusOK)
 }
 
-func (impl NotificationRestHandlerImpl) FindSMTPConfig(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *NotificationRestHandlerImpl) FindSMTPConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -699,18 +699,18 @@ func (impl NotificationRestHandlerImpl) FindSMTPConfig(w http.ResponseWriter, r 
 	vars := mux.Vars(r)
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		impl.logger.Errorw("request err, FindSMTPConfig", "err", err)
+		handler.logger.Errorw("request err, FindSMTPConfig", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 	}
 
-	smtpConfig, fErr := impl.smtpService.FetchSMTPNotificationConfigById(id)
+	smtpConfig, fErr := handler.smtpService.FetchSMTPNotificationConfigById(id)
 	if fErr != nil && fErr != pg.ErrNoRows {
-		impl.logger.Errorw("service err, FindSMTPConfig", "err", err)
+		handler.logger.Errorw("service err, FindSMTPConfig", "err", err)
 		common.WriteJsonResp(w, fErr, nil, http.StatusInternalServerError)
 		return
 	}
@@ -718,14 +718,14 @@ func (impl NotificationRestHandlerImpl) FindSMTPConfig(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, fErr, smtpConfig, http.StatusOK)
 }
 
-func (impl NotificationRestHandlerImpl) RecipientListingSuggestion(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *NotificationRestHandlerImpl) RecipientListingSuggestion(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), "Forbidden", http.StatusForbidden)
 		return
 	}
@@ -733,9 +733,9 @@ func (impl NotificationRestHandlerImpl) RecipientListingSuggestion(w http.Respon
 	value := vars["value"]
 	//var teams []int
 	var channelsResponse []*notifier.NotificationRecipientListingResponse
-	channelsResponse, err = impl.slackService.RecipientListingSuggestion(value)
+	channelsResponse, err = handler.slackService.RecipientListingSuggestion(value)
 	if err != nil {
-		impl.logger.Errorw("service err, RecipientListingSuggestion", "err", err, "value", value)
+		handler.logger.Errorw("service err, RecipientListingSuggestion", "err", err, "value", value)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -748,8 +748,8 @@ func (impl NotificationRestHandlerImpl) RecipientListingSuggestion(w http.Respon
 	common.WriteJsonResp(w, nil, channelsResponse, http.StatusOK)
 }
 
-func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -757,7 +757,7 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w 
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 		response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 		return
 	}
@@ -766,42 +766,42 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w 
 	cType := vars["type"]
 	var channelsResponse []*notifier.NotificationChannelAutoResponse
 	if cType == string(util.Slack) {
-		channelsResponseAll, err := impl.slackService.FetchAllSlackNotificationConfigAutocomplete()
+		channelsResponseAll, err := handler.slackService.FetchAllSlackNotificationConfigAutocomplete()
 		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("service err, FindAllNotificationConfigAutocomplete", "err", err)
+			handler.logger.Errorw("service err, FindAllNotificationConfigAutocomplete", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 		for _, item := range channelsResponseAll {
-			team, err := impl.teamService.FetchOne(item.TeamId)
+			team, err := handler.teamService.FetchOne(item.TeamId)
 			if err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(team.Name))); ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, fmt.Sprintf("%s/*", strings.ToLower(team.Name))); ok {
 				channelsResponse = append(channelsResponse, item)
 			}
 		}
 
 	} else if cType == string(util.SES) {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
 		}
-		channelsResponse, err = impl.sesService.FetchAllSESNotificationConfigAutocomplete()
+		channelsResponse, err = handler.sesService.FetchAllSESNotificationConfigAutocomplete()
 		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("service err, FindAllNotificationConfigAutocomplete", "err", err)
+			handler.logger.Errorw("service err, FindAllNotificationConfigAutocomplete", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
 	} else if cType == string(util.SMTP) {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionGet, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
 		}
-		channelsResponse, err = impl.smtpService.FetchAllSMTPNotificationConfigAutocomplete()
+		channelsResponse, err = handler.smtpService.FetchAllSMTPNotificationConfigAutocomplete()
 		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("service err, FindAllNotificationConfigAutocomplete", "err", err)
+			handler.logger.Errorw("service err, FindAllNotificationConfigAutocomplete", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
@@ -814,9 +814,9 @@ func (impl NotificationRestHandlerImpl) FindAllNotificationConfigAutocomplete(w 
 	common.WriteJsonResp(w, nil, channelsResponse, http.StatusOK)
 }
 
-func (impl NotificationRestHandlerImpl) GetOptionsForNotificationSettings(w http.ResponseWriter, r *http.Request) {
+func (handler *NotificationRestHandlerImpl) GetOptionsForNotificationSettings(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -824,15 +824,15 @@ func (impl NotificationRestHandlerImpl) GetOptionsForNotificationSettings(w http
 	var request repository.SearchRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		impl.logger.Errorw("request err, GetOptionsForNotificationSettings", "err", err, "request", request)
+		handler.logger.Errorw("request err, GetOptionsForNotificationSettings", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	request.UserId = userId
 
-	notificationSettingsOptions, err := impl.notificationService.FindNotificationSettingOptions(&request)
+	notificationSettingsOptions, err := handler.notificationService.FindNotificationSettingOptions(&request)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("service err, GetOptionsForNotificationSettings", "err", err)
+		handler.logger.Errorw("service err, GetOptionsForNotificationSettings", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -857,16 +857,16 @@ func (impl NotificationRestHandlerImpl) GetOptionsForNotificationSettings(w http
 		if ns.PipelineResponse != nil && *ns.PipelineResponse.Id > 0 {
 			pId = *ns.PipelineResponse.Id
 		}
-		teamRbac, envRbac := impl.buildRbacObjectsForNotificationSettings(teamIds, envIds, appIds, &pId, util.PipelineType(ns.PipelineType))
+		teamRbac, envRbac := handler.buildRbacObjectsForNotificationSettings(teamIds, envIds, appIds, &pId, util.PipelineType(ns.PipelineType))
 		pass := false
 
 		for _, object := range teamRbac {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionCreate, object); ok {
 				pass = true
 			}
 		}
 		for _, object := range envRbac {
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); ok {
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionCreate, object); ok {
 				pass = true
 			}
 		}
@@ -882,8 +882,8 @@ func (impl NotificationRestHandlerImpl) GetOptionsForNotificationSettings(w http
 	common.WriteJsonResp(w, err, filteredSettingViews, http.StatusOK)
 }
 
-func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -893,38 +893,38 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 	var channelReq ChannelDto
 	err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&channelReq)
 	if err != nil {
-		impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "payload", channelReq)
+		handler.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "payload", channelReq)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, DeleteNotificationChannelConfig", "err", err, "payload", channelReq)
+	handler.logger.Infow("request payload, DeleteNotificationChannelConfig", "err", err, "payload", channelReq)
 	if util.Slack == channelReq.Channel {
 		var deleteReq *notifier.SlackConfigDto
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
 		if err != nil {
-			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			handler.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
-		err = impl.validator.Struct(deleteReq)
+		err = handler.validator.Struct(deleteReq)
 		if err != nil {
-			impl.logger.Errorw("validation err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			handler.logger.Errorw("validation err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
 		// RBAC enforcer applying
 		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
 		}
 		//RBAC enforcer Ends
 
-		cErr := impl.slackService.DeleteNotificationConfig(deleteReq, userId)
+		cErr := handler.slackService.DeleteNotificationConfig(deleteReq, userId)
 		if cErr != nil {
-			impl.logger.Errorw("service err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			handler.logger.Errorw("service err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
 			common.WriteJsonResp(w, cErr, nil, http.StatusInternalServerError)
 			return
 		}
@@ -933,29 +933,29 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 		var deleteReq *notifier.SESConfigDto
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
 		if err != nil {
-			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			handler.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
-		err = impl.validator.Struct(deleteReq)
+		err = handler.validator.Struct(deleteReq)
 		if err != nil {
-			impl.logger.Errorw("validation err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			handler.logger.Errorw("validation err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
 		// RBAC enforcer applying
 		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
 		}
 		//RBAC enforcer Ends
 
-		cErr := impl.sesService.DeleteNotificationConfig(deleteReq, userId)
+		cErr := handler.sesService.DeleteNotificationConfig(deleteReq, userId)
 		if cErr != nil {
-			impl.logger.Errorw("service err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			handler.logger.Errorw("service err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
 			common.WriteJsonResp(w, cErr, nil, http.StatusInternalServerError)
 			return
 		}
@@ -964,29 +964,29 @@ func (impl NotificationRestHandlerImpl) DeleteNotificationChannelConfig(w http.R
 		var deleteReq *notifier.SMTPConfigDto
 		err = json.NewDecoder(ioutil.NopCloser(bytes.NewBuffer(data))).Decode(&deleteReq)
 		if err != nil {
-			impl.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			handler.logger.Errorw("request err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
-		err = impl.validator.Struct(deleteReq)
+		err = handler.validator.Struct(deleteReq)
 		if err != nil {
-			impl.logger.Errorw("validation err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			handler.logger.Errorw("validation err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 			return
 		}
 
 		// RBAC enforcer applying
 		token := r.Header.Get("token")
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceNotification, casbin.ActionCreate, "*"); !ok {
 			response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
 			return
 		}
 		//RBAC enforcer Ends
 
-		cErr := impl.smtpService.DeleteNotificationConfig(deleteReq, userId)
+		cErr := handler.smtpService.DeleteNotificationConfig(deleteReq, userId)
 		if cErr != nil {
-			impl.logger.Errorw("service err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
+			handler.logger.Errorw("service err, DeleteNotificationChannelConfig", "err", err, "deleteReq", deleteReq)
 			common.WriteJsonResp(w, cErr, nil, http.StatusInternalServerError)
 			return
 		}

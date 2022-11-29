@@ -86,9 +86,9 @@ func NewTeamRestHandlerImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request) {
+func (handler *TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userService.GetLoggedInUser(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -96,45 +96,45 @@ func (impl TeamRestHandlerImpl) SaveTeam(w http.ResponseWriter, r *http.Request)
 	var bean team.TeamRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, SaveTeam", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, SaveTeam", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, SaveTeam", "payload", bean)
-	err = impl.validator.Struct(bean)
+	handler.logger.Infow("request payload, SaveTeam", "payload", bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, SaveTeam", "err", err, "payload", bean)
+		handler.logger.Errorw("validation err, SaveTeam", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 
-	res, err := impl.teamService.Create(&bean)
+	res, err := handler.teamService.Create(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, SaveTeam", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, SaveTeam", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request) {
+func (handler *TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	res, err := impl.teamService.FetchAllActive()
+	res, err := handler.teamService.FetchAllActive()
 	if err != nil {
-		impl.logger.Errorw("service err, FetchAllActive", "err", err)
+		handler.logger.Errorw("service err, FetchAllActive", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	// RBAC enforcer applying
 	var result []team.TeamRequest
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, item)
 		}
 	}
@@ -143,25 +143,25 @@ func (impl TeamRestHandlerImpl) FetchAll(w http.ResponseWriter, r *http.Request)
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (impl TeamRestHandlerImpl) FetchOne(w http.ResponseWriter, r *http.Request) {
+func (handler *TeamRestHandlerImpl) FetchOne(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id := params["id"]
 	idi, err := strconv.Atoi(id)
 	if err != nil {
-		impl.logger.Errorw("request err, FetchOne", "err", err, "id", id)
+		handler.logger.Errorw("request err, FetchOne", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	res, err := impl.teamService.FetchOne(idi)
+	res, err := handler.teamService.FetchOne(idi)
 	if err != nil {
-		impl.logger.Errorw("service err, FetchOne", "err", err, "id", idi)
+		handler.logger.Errorw("service err, FetchOne", "err", err, "id", idi)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(res.Name)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(res.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -169,9 +169,9 @@ func (impl TeamRestHandlerImpl) FetchOne(w http.ResponseWriter, r *http.Request)
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Request) {
+func (handler *TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userService.GetLoggedInUser(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -179,35 +179,35 @@ func (impl TeamRestHandlerImpl) UpdateTeam(w http.ResponseWriter, r *http.Reques
 	var bean team.TeamRequest
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateTeam", "err", err, "bean", bean)
+		handler.logger.Errorw("request err, UpdateTeam", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, UpdateTeam", "err", err, "bean", bean)
-	err = impl.validator.Struct(bean)
+	handler.logger.Infow("request payload, UpdateTeam", "err", err, "bean", bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateTeam", "err", err, "bean", bean)
+		handler.logger.Errorw("validation err, UpdateTeam", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionUpdate, strings.ToLower(bean.Name)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionUpdate, strings.ToLower(bean.Name)); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
-	res, err := impl.teamService.Update(&bean)
+	res, err := handler.teamService.Update(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateTeam", "err", err, "bean", bean)
+		handler.logger.Errorw("service err, UpdateTeam", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Request) {
+func (handler *TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userService.GetLoggedInUser(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -215,44 +215,44 @@ func (impl TeamRestHandlerImpl) DeleteTeam(w http.ResponseWriter, r *http.Reques
 	var deleteRequest team.TeamRequest
 	err = decoder.Decode(&deleteRequest)
 	if err != nil {
-		impl.logger.Errorw("request err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+		handler.logger.Errorw("request err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	deleteRequest.UserId = userId
-	impl.logger.Infow("request payload, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
-	err = impl.validator.Struct(deleteRequest)
+	handler.logger.Infow("request payload, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+	err = handler.validator.Struct(deleteRequest)
 	if err != nil {
-		impl.logger.Errorw("validation err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+		handler.logger.Errorw("validation err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	//rbac starts
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//rbac ends
-	err = impl.deleteService.DeleteTeam(&deleteRequest)
+	err = handler.deleteService.DeleteTeam(&deleteRequest)
 	if err != nil {
-		impl.logger.Errorw("service err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
+		handler.logger.Errorw("service err, DeleteTeam", "err", err, "deleteRequest", deleteRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, PROJECT_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
-func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	start := time.Now()
-	teams, err := impl.teamService.FetchForAutocomplete()
+	teams, err := handler.teamService.FetchForAutocomplete()
 	if err != nil {
-		impl.logger.Errorw("service err, FetchForAutocomplete", "err", err)
+		handler.logger.Errorw("service err, FetchForAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -260,16 +260,16 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 	token := r.Header.Get("token")
 	var grantedTeams = teams
 	start = time.Now()
-	if !impl.cfg.IgnoreAuthCheck {
+	if !handler.cfg.IgnoreAuthCheck {
 		grantedTeams = make([]team.TeamRequest, 0)
-		emailId, _ := impl.userService.GetEmailFromToken(token)
+		emailId, _ := handler.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
 		var teamNameList []string
 		for _, item := range teams {
 			teamNameList = append(teamNameList, strings.ToLower(item.Name))
 		}
 
-		result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
+		result := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceTeam, casbin.ActionGet, teamNameList)
 
 		for _, item := range teams {
 			if hasAccess := result[strings.ToLower(item.Name)]; hasAccess {
@@ -277,7 +277,7 @@ func (impl TeamRestHandlerImpl) FetchForAutocomplete(w http.ResponseWriter, r *h
 			}
 		}
 	}
-	impl.logger.Infow("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
+	handler.logger.Infow("Team elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime", time.Since(start),
 		"token", token, "envSize", len(grantedTeams))
 
 	//RBAC enforcer Ends

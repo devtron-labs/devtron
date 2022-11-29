@@ -19,7 +19,7 @@ func NewBulkUpdateRouterImpl(handler restHandler.BulkUpdateRestHandler) *BulkUpd
 	}
 	return router
 }
-func (router BulkUpdateRouterImpl) initBulkUpdateRouter(bulkRouter *mux.Router) {
+func (router *BulkUpdateRouterImpl) initBulkUpdateRouter(bulkRouter *mux.Router) {
 	bulkRouter.Path("/{apiVersion}/{kind}/readme").HandlerFunc(router.restHandler.FindBulkUpdateReadme).Methods("GET")
 	bulkRouter.Path("/v1beta1/application/dryrun").HandlerFunc(router.restHandler.GetImpactedAppsName).Methods("POST")
 	bulkRouter.Path("/v1beta1/application").HandlerFunc(router.restHandler.BulkUpdate).Methods("POST")

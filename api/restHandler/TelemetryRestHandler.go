@@ -52,7 +52,7 @@ func NewTelemetryRestHandlerImpl(logger *zap.SugaredLogger,
 	return handler
 }
 
-func (handler TelemetryRestHandlerImpl) GetTelemetryMetaInfo(w http.ResponseWriter, r *http.Request) {
+func (handler *TelemetryRestHandlerImpl) GetTelemetryMetaInfo(w http.ResponseWriter, r *http.Request) {
 	res, err := handler.telemetryEventClient.GetTelemetryMetaInfo()
 	if err != nil {
 		handler.logger.Errorw("service err, GetTelemetryMetaInfo", "err", err)
@@ -62,7 +62,7 @@ func (handler TelemetryRestHandlerImpl) GetTelemetryMetaInfo(w http.ResponseWrit
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter, r *http.Request) {
+func (handler *TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -95,7 +95,7 @@ func (handler TelemetryRestHandlerImpl) SendTelemetryData(w http.ResponseWriter,
 
 }
 
-func (handler TelemetryRestHandlerImpl) SendSummaryEvent(w http.ResponseWriter, r *http.Request) {
+func (handler *TelemetryRestHandlerImpl) SendSummaryEvent(w http.ResponseWriter, r *http.Request) {
 	handler.logger.Info("Handling SendSummaryEvent request")
 	decoder := json.NewDecoder(r.Body)
 	var payload map[string]interface{}

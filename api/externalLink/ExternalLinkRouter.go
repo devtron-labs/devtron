@@ -15,10 +15,10 @@ func NewExternalLinkRouterImpl(externalLinkRestHandler ExternalLinkRestHandler) 
 	return &ExternalLinkRouterImpl{externalLinkRestHandler: externalLinkRestHandler}
 }
 
-func (impl ExternalLinkRouterImpl) InitExternalLinkRouter(configRouter *mux.Router) {
-	configRouter.Path("").HandlerFunc(impl.externalLinkRestHandler.CreateExternalLinks).Methods("POST")
-	configRouter.Path("/tools").HandlerFunc(impl.externalLinkRestHandler.GetExternalLinkMonitoringTools).Methods("GET")
-	configRouter.Path("").HandlerFunc(impl.externalLinkRestHandler.GetExternalLinks).Methods("GET")
-	configRouter.Path("").HandlerFunc(impl.externalLinkRestHandler.UpdateExternalLink).Methods("PUT")
-	configRouter.Path("").HandlerFunc(impl.externalLinkRestHandler.DeleteExternalLink).Queries("id", "{id}").Methods("DELETE")
+func (router *ExternalLinkRouterImpl) InitExternalLinkRouter(configRouter *mux.Router) {
+	configRouter.Path("").HandlerFunc(router.externalLinkRestHandler.CreateExternalLinks).Methods("POST")
+	configRouter.Path("/tools").HandlerFunc(router.externalLinkRestHandler.GetExternalLinkMonitoringTools).Methods("GET")
+	configRouter.Path("").HandlerFunc(router.externalLinkRestHandler.GetExternalLinks).Methods("GET")
+	configRouter.Path("").HandlerFunc(router.externalLinkRestHandler.UpdateExternalLink).Methods("PUT")
+	configRouter.Path("").HandlerFunc(router.externalLinkRestHandler.DeleteExternalLink).Queries("id", "{id}").Methods("DELETE")
 }

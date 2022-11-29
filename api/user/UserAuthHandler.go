@@ -58,7 +58,7 @@ func NewUserAuthHandlerImpl(
 	return userAuthHandler
 }
 
-func (handler UserAuthHandlerImpl) LoginHandler(w http.ResponseWriter, r *http.Request) {
+func (handler *UserAuthHandlerImpl) LoginHandler(w http.ResponseWriter, r *http.Request) {
 	up := &userNamePassword{}
 	decoder := json.NewDecoder(r.Body)
 	err := decoder.Decode(up)
@@ -86,15 +86,15 @@ func (handler UserAuthHandlerImpl) LoginHandler(w http.ResponseWriter, r *http.R
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler UserAuthHandlerImpl) CallbackHandler(w http.ResponseWriter, r *http.Request) {
+func (handler *UserAuthHandlerImpl) CallbackHandler(w http.ResponseWriter, r *http.Request) {
 	handler.userAuthService.HandleDexCallback(w, r)
 }
 
-func (handler UserAuthHandlerImpl) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
+func (handler *UserAuthHandlerImpl) RefreshTokenHandler(w http.ResponseWriter, r *http.Request) {
 	handler.userAuthService.HandleRefresh(w, r)
 }
 
-func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWriter, r *http.Request) {
+func (handler *UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	team := vars["team"]
 	app := vars["app"]
@@ -232,7 +232,7 @@ func (handler UserAuthHandlerImpl) AddDefaultPolicyAndRoles(w http.ResponseWrite
 
 }
 
-func (handler UserAuthHandlerImpl) AuthVerification(w http.ResponseWriter, r *http.Request) {
+func (handler *UserAuthHandlerImpl) AuthVerification(w http.ResponseWriter, r *http.Request) {
 	res, err := handler.userAuthService.AuthVerification(r)
 	if err != nil {
 		handler.logger.Errorw("service err, AuthVerification", "err", err)

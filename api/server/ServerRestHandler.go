@@ -58,9 +58,9 @@ func NewServerRestHandlerImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl ServerRestHandlerImpl) GetServerInfo(w http.ResponseWriter, r *http.Request) {
+func (handler *ServerRestHandlerImpl) GetServerInfo(w http.ResponseWriter, r *http.Request) {
 	// check if user is logged in or not
-	userId, err := impl.userService.GetLoggedInUser(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -76,18 +76,18 @@ func (impl ServerRestHandlerImpl) GetServerInfo(w http.ResponseWriter, r *http.R
 	}
 
 	// service call
-	res, err := impl.serverService.GetServerInfo(showServerStatus)
+	res, err := handler.serverService.GetServerInfo(showServerStatus)
 	if err != nil {
-		impl.logger.Errorw("service err, GetServerInfo", "err", err)
+		handler.logger.Errorw("service err, GetServerInfo", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl ServerRestHandlerImpl) HandleServerAction(w http.ResponseWriter, r *http.Request) {
+func (handler *ServerRestHandlerImpl) HandleServerAction(w http.ResponseWriter, r *http.Request) {
 	// check if user is logged in or not
-	userId, err := impl.userService.GetLoggedInUser(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -98,28 +98,28 @@ func (impl ServerRestHandlerImpl) HandleServerAction(w http.ResponseWriter, r *h
 	var serverActionRequestDto *serverBean.ServerActionRequestDto
 	err = decoder.Decode(&serverActionRequestDto)
 	if err != nil {
-		impl.logger.Errorw("error in decoding request in HandleServerAction", "err", err)
+		handler.logger.Errorw("error in decoding request in HandleServerAction", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	err = impl.validator.Struct(serverActionRequestDto)
+	err = handler.validator.Struct(serverActionRequestDto)
 	if err != nil {
-		impl.logger.Errorw("error in validating request in HandleServerAction", "err", err)
+		handler.logger.Errorw("error in validating request in HandleServerAction", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
 	// service call
-	res, err := impl.serverService.HandleServerAction(userId, serverActionRequestDto)
+	res, err := handler.serverService.HandleServerAction(userId, serverActionRequestDto)
 	if err != nil {
-		impl.logger.Errorw("service err, HandleServerAction", "err", err)
+		handler.logger.Errorw("service err, HandleServerAction", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

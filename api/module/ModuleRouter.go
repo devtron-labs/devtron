@@ -16,8 +16,8 @@ func NewModuleRouterImpl(moduleRestHandler ModuleRestHandler) *ModuleRouterImpl 
 	return &ModuleRouterImpl{moduleRestHandler: moduleRestHandler}
 }
 
-func (impl ModuleRouterImpl) Init(configRouter *mux.Router) {
-	configRouter.Path("").HandlerFunc(impl.moduleRestHandler.GetModuleInfo).Queries("name", "{name}").Methods("GET")
-	configRouter.Path("/config").HandlerFunc(impl.moduleRestHandler.GetModuleConfig).Queries("name", "{name}").Methods("GET")
-	configRouter.Path("").HandlerFunc(impl.moduleRestHandler.HandleModuleAction).Queries("name", "{name}").Methods("POST")
+func (router *ModuleRouterImpl) Init(configRouter *mux.Router) {
+	configRouter.Path("").HandlerFunc(router.moduleRestHandler.GetModuleInfo).Queries("name", "{name}").Methods("GET")
+	configRouter.Path("/config").HandlerFunc(router.moduleRestHandler.GetModuleConfig).Queries("name", "{name}").Methods("GET")
+	configRouter.Path("").HandlerFunc(router.moduleRestHandler.HandleModuleAction).Queries("name", "{name}").Methods("POST")
 }

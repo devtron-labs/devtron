@@ -127,7 +127,7 @@ func setupResponse(w *http.ResponseWriter, req *http.Request) {
 	(*w).Header().Set("Access-Control-Allow-Headers", "Accept, Content-Type, Content-Length, Accept-Encoding, X-CSRF-Token, Authorization")
 	(*w).Header().Set("Content-Type", "text/html; charset=utf-8")
 }
-func (handler AppListingRestHandlerImpl) FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request) {
+func (handler *AppListingRestHandlerImpl) FetchAllDevtronManagedApps(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -145,7 +145,7 @@ func (handler AppListingRestHandlerImpl) FetchAllDevtronManagedApps(w http.Respo
 	res, err := handler.appListingService.FetchAllDevtronManagedApps()
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request) {
+func (handler *AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseWriter, r *http.Request) {
 	//Allow CORS here By * or specific origin
 	setupResponse(&w, r)
 	token := r.Header.Get("token")
@@ -312,7 +312,7 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	common.WriteJsonResp(w, err, appContainerResponse, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, r *http.Request) {
+func (handler *AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
 	appId, err := strconv.Atoi(vars["app-id"])
@@ -342,7 +342,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWriter, r *http.Request) {
+func (handler *AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	token := r.Header.Get("token")
 	appId, err := strconv.Atoi(vars["app-id"])
@@ -472,7 +472,7 @@ func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWrit
 	common.WriteJsonResp(w, err, triggerView, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWriter, r *http.Request) {
+func (handler *AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["app-id"])
 	if err != nil {
@@ -506,7 +506,7 @@ func (handler AppListingRestHandlerImpl) FetchAppStageStatus(w http.ResponseWrit
 	common.WriteJsonResp(w, err, triggerView, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWriter, r *http.Request) {
+func (handler *AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["app-id"])
 	if err != nil {
@@ -542,7 +542,7 @@ func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWr
 	common.WriteJsonResp(w, err, otherEnvironment, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWriter, r *http.Request) {
+func (handler *AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	Id, err := strconv.Atoi(vars["Id"])
@@ -588,12 +588,12 @@ func (handler AppListingRestHandlerImpl) RedirectToLinkouts(w http.ResponseWrite
 	}
 	http.Redirect(w, r, link, http.StatusOK)
 }
-func (handler AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
+func (handler *AppListingRestHandlerImpl) fetchResourceTreeFromInstallAppService(w http.ResponseWriter, r *http.Request, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
 	rctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
 	return handler.installedAppService.FetchResourceTree(rctx, cn, &appDetail)
 }
-func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
+func (handler *AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request) {
 	vars := r.URL.Query()
 	appIdParam := vars.Get("appId")
 	installedAppIdParam := vars.Get("installedAppId")
@@ -682,7 +682,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppIdParam string, envId int) (bean.AppDetailContainer, error, int) {
+func (handler *AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppIdParam string, envId int) (bean.AppDetailContainer, error, int) {
 	var appDetail bean.AppDetailContainer
 	if appIdParam != "" {
 		appId, err := strconv.Atoi(appIdParam)
@@ -703,7 +703,7 @@ func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppI
 	return appDetail, err, appId
 }
 
-func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
+func (handler *AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsAcdApp(appDetail.DeploymentAppType) {
 		//RBAC enforcer Ends
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName

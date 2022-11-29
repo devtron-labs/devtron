@@ -40,14 +40,14 @@ func NewReleaseMetricsRouterImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl ReleaseMetricsRouterImpl) initReleaseMetricsRouter(router *mux.Router) {
-	router.Path("/reset-app-environment").
-		HandlerFunc(impl.releaseMetricsRestHandler.ResetDataForAppEnvironment).
+func (router *ReleaseMetricsRouterImpl) initReleaseMetricsRouter(releaseMetricsRouter *mux.Router) {
+	releaseMetricsRouter.Path("/reset-app-environment").
+		HandlerFunc(router.releaseMetricsRestHandler.ResetDataForAppEnvironment).
 		Methods("POST")
-	router.Path("/reset-all-app-environment").
-		HandlerFunc(impl.releaseMetricsRestHandler.ResetDataForAllAppEnvironment).
+	releaseMetricsRouter.Path("/reset-all-app-environment").
+		HandlerFunc(router.releaseMetricsRestHandler.ResetDataForAllAppEnvironment).
 		Methods("POST")
-	router.Path("/").
-		HandlerFunc(impl.releaseMetricsRestHandler.GetDeploymentMetrics).
+	releaseMetricsRouter.Path("/").
+		HandlerFunc(router.releaseMetricsRestHandler.GetDeploymentMetrics).
 		Methods("GET")
 }

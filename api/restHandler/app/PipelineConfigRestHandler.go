@@ -173,7 +173,7 @@ const (
 	HTTPS_URL_PREFIX = "https://"
 )
 
-func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -216,7 +216,7 @@ func (handler PipelineConfigRestHandlerImpl) DeleteApp(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
@@ -284,7 +284,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateApp(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, createResp, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -312,7 +312,7 @@ func (handler PipelineConfigRestHandlerImpl) GetApp(w http.ResponseWriter, r *ht
 	common.WriteJsonResp(w, err, ciConf, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FindAppsByTeamId(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FindAppsByTeamId(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamId, err := strconv.Atoi(vars["teamId"])
 	if err != nil {
@@ -330,7 +330,7 @@ func (handler PipelineConfigRestHandlerImpl) FindAppsByTeamId(w http.ResponseWri
 	common.WriteJsonResp(w, err, project, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FindAppsByTeamName(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FindAppsByTeamName(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	teamName := vars["teamName"]
 	handler.Logger.Infow("request payload, FindAppsByTeamName", "teamName", teamName)
@@ -472,7 +472,7 @@ func (handler *PipelineConfigRestHandlerImpl) handleForwardResponseStreamError(w
 	}
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -534,7 +534,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListByTeamIds(w http.Response
 	common.WriteJsonResp(w, err, projectWiseApps, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerView(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -585,7 +585,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchAppWorkflowStatusForTriggerVie
 	common.WriteJsonResp(w, err, triggerWorkflowStatus, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) PipelineNameSuggestion(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])

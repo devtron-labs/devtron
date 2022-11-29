@@ -16,7 +16,7 @@ func NewDashboardTelemetryRouterImpl(deploymentRestHandler DashboardTelemetryRes
 	}
 }
 
-func (router DashboardTelemetryRouterImpl) Init(configRouter *mux.Router) {
+func (router *DashboardTelemetryRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/dashboardAccessed").
 		HandlerFunc(router.deploymentRestHandler.SendDashboardAccessedEvent).Methods("GET")
 	configRouter.Path("/dashboardLoggedIn").

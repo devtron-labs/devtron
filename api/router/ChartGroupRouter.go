@@ -34,22 +34,22 @@ func NewChartGroupRouterImpl(ChartGroupRestHandler restHandler.ChartGroupRestHan
 
 }
 
-func (impl *ChartGroupRouterImpl) initChartGroupRouter(chartGroupRouter *mux.Router) {
+func (router *ChartGroupRouterImpl) initChartGroupRouter(chartGroupRouter *mux.Router) {
 	chartGroupRouter.Path("/").
-		HandlerFunc(impl.ChartGroupRestHandler.CreateChartGroup).Methods("POST")
+		HandlerFunc(router.ChartGroupRestHandler.CreateChartGroup).Methods("POST")
 	chartGroupRouter.Path("/").
-		HandlerFunc(impl.ChartGroupRestHandler.UpdateChartGroup).Methods("PUT")
+		HandlerFunc(router.ChartGroupRestHandler.UpdateChartGroup).Methods("PUT")
 	chartGroupRouter.Path("/entries").
-		HandlerFunc(impl.ChartGroupRestHandler.SaveChartGroupEntries).Methods("PUT")
+		HandlerFunc(router.ChartGroupRestHandler.SaveChartGroupEntries).Methods("PUT")
 	chartGroupRouter.Path("/list").
-		HandlerFunc(impl.ChartGroupRestHandler.GetChartGroupList).Methods("GET")
+		HandlerFunc(router.ChartGroupRestHandler.GetChartGroupList).Methods("GET")
 	chartGroupRouter.Path("/{chartGroupId}").
-		HandlerFunc(impl.ChartGroupRestHandler.GetChartGroupWithChartMetaData).Methods("GET")
+		HandlerFunc(router.ChartGroupRestHandler.GetChartGroupWithChartMetaData).Methods("GET")
 	chartGroupRouter.Path("/installation-detail/{chartGroupId}").
-		HandlerFunc(impl.ChartGroupRestHandler.GetChartGroupInstallationDetail).Methods("GET")
+		HandlerFunc(router.ChartGroupRestHandler.GetChartGroupInstallationDetail).Methods("GET")
 
 	chartGroupRouter.Path("/list/min").
-		HandlerFunc(impl.ChartGroupRestHandler.GetChartGroupListMin).Methods("GET")
+		HandlerFunc(router.ChartGroupRestHandler.GetChartGroupListMin).Methods("GET")
 	chartGroupRouter.Path("").
-		HandlerFunc(impl.ChartGroupRestHandler.DeleteChartGroup).Methods("DELETE")
+		HandlerFunc(router.ChartGroupRestHandler.DeleteChartGroup).Methods("DELETE")
 }

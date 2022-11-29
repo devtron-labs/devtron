@@ -41,7 +41,7 @@ func NewCDRouterImpl(logger *zap.SugaredLogger, cdRestHandler restHandler.CDRest
 	return router
 }
 
-func (router CDRouterImpl) initCDRouter(cdRouter *mux.Router) {
+func (router *CDRouterImpl) initCDRouter(cdRouter *mux.Router) {
 	cdRouter.Path("/").
 		HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			router.writeSuccess("Welcome @Devtron", writer)
@@ -56,7 +56,7 @@ func (router CDRouterImpl) initCDRouter(cdRouter *mux.Router) {
 		Methods("GET")
 }
 
-func (router CDRouterImpl) writeSuccess(message string, w http.ResponseWriter) {
+func (router *CDRouterImpl) writeSuccess(message string, w http.ResponseWriter) {
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte(message))
 	if err != nil {

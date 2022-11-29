@@ -34,7 +34,7 @@ func NewDeploymentGroupRouterImpl(restHandler restHandler.DeploymentGroupRestHan
 
 }
 
-func (router DeploymentGroupRouterImpl) initDeploymentGroupRouter(configRouter *mux.Router) {
+func (router *DeploymentGroupRouterImpl) initDeploymentGroupRouter(configRouter *mux.Router) {
 	configRouter.Path("/dg/create").HandlerFunc(router.restHandler.CreateDeploymentGroup).Methods("POST")
 	configRouter.Path("/dg/fetch/ci/{deploymentGroupId}").HandlerFunc(router.restHandler.FetchParentCiForDG).Methods("GET")
 	configRouter.Path("/dg/fetch/env/apps/{ciPipelineId}").HandlerFunc(router.restHandler.FetchEnvApplicationsForDG).Methods("GET")

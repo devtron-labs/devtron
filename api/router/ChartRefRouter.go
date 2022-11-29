@@ -37,7 +37,7 @@ func NewChartRefRouterImpl(chartRefRestHandler restHandler.ChartRefRestHandler) 
 	return router
 }
 
-func (router ChartRefRouterImpl) initChartRefRouter(userAuthRouter *mux.Router) {
+func (router *ChartRefRouterImpl) initChartRefRouter(userAuthRouter *mux.Router) {
 
 	userAuthRouter.Path("/autocomplete").
 		HandlerFunc(router.chartRefRestHandler.ChartRefAutocomplete).Methods("GET")

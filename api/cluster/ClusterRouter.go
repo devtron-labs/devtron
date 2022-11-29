@@ -35,29 +35,29 @@ func NewClusterRouterImpl(handler ClusterRestHandler) *ClusterRouterImpl {
 	}
 }
 
-func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
+func (router *ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 	clusterRouter.Path("").
 		Methods("POST").
-		HandlerFunc(impl.clusterRestHandler.Save)
+		HandlerFunc(router.clusterRestHandler.Save)
 
 	clusterRouter.Path("").
 		Methods("GET").
 		Queries("id", "{id}").
-		HandlerFunc(impl.clusterRestHandler.FindById)
+		HandlerFunc(router.clusterRestHandler.FindById)
 
 	clusterRouter.Path("").
 		Methods("GET").
-		HandlerFunc(impl.clusterRestHandler.FindAll)
+		HandlerFunc(router.clusterRestHandler.FindAll)
 
 	clusterRouter.Path("").
 		Methods("PUT").
-		HandlerFunc(impl.clusterRestHandler.Update)
+		HandlerFunc(router.clusterRestHandler.Update)
 
 	clusterRouter.Path("/autocomplete").
 		Methods("GET").
-		HandlerFunc(impl.clusterRestHandler.FindAllForAutoComplete)
+		HandlerFunc(router.clusterRestHandler.FindAllForAutoComplete)
 
 	clusterRouter.Path("").
 		Methods("DELETE").
-		HandlerFunc(impl.clusterRestHandler.DeleteCluster)
+		HandlerFunc(router.clusterRestHandler.DeleteCluster)
 }

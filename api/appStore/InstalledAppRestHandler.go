@@ -87,7 +87,7 @@ func NewInstalledAppRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService u
 	}
 }
 
-func (handler InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWriter, r *http.Request) {
+func (handler *InstalledAppRestHandlerImpl) GetAllInstalledApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -272,38 +272,38 @@ func (handler *InstalledAppRestHandlerImpl) CheckAppExists(w http.ResponseWriter
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl *InstalledAppRestHandlerImpl) DefaultComponentInstallation(w http.ResponseWriter, r *http.Request) {
+func (handler *InstalledAppRestHandlerImpl) DefaultComponentInstallation(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
-		impl.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "userId", userId)
+		handler.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "userId", userId)
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	clusterId, err := strconv.Atoi(vars["clusterId"])
 	if err != nil {
-		impl.Logger.Errorw("request err, DefaultComponentInstallation", "error", err, "clusterId", clusterId)
+		handler.Logger.Errorw("request err, DefaultComponentInstallation", "error", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.Logger.Errorw("request payload, DefaultComponentInstallation", "clusterId", clusterId)
-	cluster, err := impl.clusterService.FindById(clusterId)
+	handler.Logger.Errorw("request payload, DefaultComponentInstallation", "clusterId", clusterId)
+	cluster, err := handler.clusterService.FindById(clusterId)
 	if err != nil {
-		impl.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "clusterId", clusterId)
+		handler.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	// RBAC enforcer applying
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, strings.ToLower(cluster.ClusterName)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceCluster, casbin.ActionUpdate, strings.ToLower(cluster.ClusterName)); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	// RBAC enforcer ends
-	isTriggered, err := impl.installedAppService.DeployDefaultChartOnCluster(cluster, userId)
+	isTriggered, err := handler.installedAppService.DeployDefaultChartOnCluster(cluster, userId)
 	if err != nil {
-		impl.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "cluster", cluster)
+		handler.Logger.Errorw("service err, DefaultComponentInstallation", "error", err, "cluster", cluster)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

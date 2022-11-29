@@ -46,12 +46,12 @@ func NewPubSubClientRestHandlerImpl(natsPublishClient pubsub.NatsPublishClient, 
 	}
 }
 
-func (impl *PubSubClientRestHandlerImpl) PublishEventsToNats(w http.ResponseWriter, r *http.Request) {
+func (handler *PubSubClientRestHandlerImpl) PublishEventsToNats(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var publishRequest pubsub.PublishRequest
 	err := decoder.Decode(&publishRequest)
 	if err != nil {
-		impl.logger.Errorw("request err, HandleExternalCiWebhook", "err", err, "payload", publishRequest)
+		handler.logger.Errorw("request err, HandleExternalCiWebhook", "err", err, "payload", publishRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -59,19 +59,19 @@ func (impl *PubSubClientRestHandlerImpl) PublishEventsToNats(w http.ResponseWrit
 	reqToken := r.Header.Get("Authorization")
 	splitToken := strings.Split(reqToken, "Bearer")
 	if len(splitToken) != 2 {
-		impl.logger.Debugw("request err, HandleExternalCiWebhook", "payload", publishRequest, "token", reqToken)
+		handler.logger.Debugw("request err, HandleExternalCiWebhook", "payload", publishRequest, "token", reqToken)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	reqToken = strings.TrimSpace(splitToken[1])
-	if impl.cdConfig.OrchestratorToken != reqToken {
+	if handler.cdConfig.OrchestratorToken != reqToken {
 		common.WriteJsonResp(w, err, "Unauthorized req", http.StatusUnauthorized)
 		return
 	}
 
-	err = impl.natsPublishClient.Publish(&publishRequest)
+	err = handler.natsPublishClient.Publish(&publishRequest)
 	if err != nil {
-		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", publishRequest)
+		handler.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", publishRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

@@ -42,19 +42,19 @@ func NewGitWebhookRestHandlerImpl(logger *zap.SugaredLogger, gitWebhookService g
 	}
 }
 
-func (impl GitWebhookRestHandlerImpl) HandleGitWebhook(w http.ResponseWriter, r *http.Request) {
+func (handler *GitWebhookRestHandlerImpl) HandleGitWebhook(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var bean gitSensor.CiPipelineMaterial
 	err := decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, HandleGitWebhook", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, HandleGitWebhook", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, HandleGitWebhook", "payload", bean)
-	resp, err := impl.gitWebhookService.HandleGitWebhook(bean)
+	handler.logger.Infow("request payload, HandleGitWebhook", "payload", bean)
+	resp, err := handler.gitWebhookService.HandleGitWebhook(bean)
 	if err != nil {
-		impl.logger.Errorw("service err, HandleGitWebhook", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, HandleGitWebhook", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

@@ -55,7 +55,7 @@ func NewAttributesRestHandlerImpl(logger *zap.SugaredLogger, enforcer casbin.Enf
 	}
 	return userAuthHandler
 }
-func (handler AttributesRestHandlerImpl) AddAttributes(w http.ResponseWriter, r *http.Request) {
+func (handler *AttributesRestHandlerImpl) AddAttributes(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -86,7 +86,7 @@ func (handler AttributesRestHandlerImpl) AddAttributes(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter, r *http.Request) {
+func (handler *AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -118,7 +118,7 @@ func (handler AttributesRestHandlerImpl) UpdateAttributes(w http.ResponseWriter,
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler AttributesRestHandlerImpl) GetAttributesById(w http.ResponseWriter, r *http.Request) {
+func (handler *AttributesRestHandlerImpl) GetAttributesById(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -146,7 +146,7 @@ func (handler AttributesRestHandlerImpl) GetAttributesById(w http.ResponseWriter
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler AttributesRestHandlerImpl) GetAttributesActiveList(w http.ResponseWriter, r *http.Request) {
+func (handler *AttributesRestHandlerImpl) GetAttributesActiveList(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -168,7 +168,7 @@ func (handler AttributesRestHandlerImpl) GetAttributesActiveList(w http.Response
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler AttributesRestHandlerImpl) GetAttributesByKey(w http.ResponseWriter, r *http.Request) {
+func (handler *AttributesRestHandlerImpl) GetAttributesByKey(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)

@@ -63,8 +63,8 @@ func NewExternalLinkRestHandlerImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r *http.Request, action string) (int32, string, error) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r *http.Request, action string) (int32, string, error) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return userId, "", fmt.Errorf("unauthorized error")
@@ -77,18 +77,18 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 	if v.Has("appId") {
 		id, err := strconv.Atoi(appId)
 		if err != nil {
-			impl.logger.Errorw("error occurred while converting appId to integer", "err", err, "appId", appId)
+			handler.logger.Errorw("error occurred while converting appId to integer", "err", err, "appId", appId)
 			common.WriteJsonResp(w, errors.New("Invalid request"), nil, http.StatusBadRequest)
 			return userId, "", fmt.Errorf("invalid request query param appId = %s", appId)
 		}
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(id)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, action, object); !ok {
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(id)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, action, object); !ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return userId, "", fmt.Errorf("unauthorized error")
 		}
 		userRole = externalLink.ADMIN_ROLE
 	} else {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, action, "*"); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, action, "*"); !ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return userId, "", fmt.Errorf("unauthorized error")
 		}
@@ -96,46 +96,46 @@ func (impl ExternalLinkRestHandlerImpl) roleCheckHelper(w http.ResponseWriter, r
 	}
 	return userId, userRole, nil
 }
-func (impl ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
-	userId, userRole, err := impl.roleCheckHelper(w, r, casbin.ActionCreate)
+func (handler *ExternalLinkRestHandlerImpl) CreateExternalLinks(w http.ResponseWriter, r *http.Request) {
+	userId, userRole, err := handler.roleCheckHelper(w, r, casbin.ActionCreate)
 	if err != nil {
-		impl.logger.Errorw("error in CreateExternalLinks ", "err", err)
+		handler.logger.Errorw("error in CreateExternalLinks ", "err", err)
 		return
 	}
 	decoder := json.NewDecoder(r.Body)
 	var beans []*externalLink.ExternalLinkDto
 	err = decoder.Decode(&beans)
 	if err != nil {
-		impl.logger.Errorw("request err, SaveLink", "err", err, "payload", beans)
+		handler.logger.Errorw("request err, SaveLink", "err", err, "payload", beans)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := impl.externalLinkService.Create(beans, userId, userRole)
+	res, err := handler.externalLinkService.Create(beans, userId, userRole)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("service err, SaveLink", "err", err, "payload", beans)
+		handler.logger.Errorw("service err, SaveLink", "err", err, "payload", beans)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-func (impl ExternalLinkRestHandlerImpl) GetExternalLinkMonitoringTools(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ExternalLinkRestHandlerImpl) GetExternalLinkMonitoringTools(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 
 	// auth free api as we are using this for multiple places
-	res, err := impl.externalLinkService.GetAllActiveTools()
+	res, err := handler.externalLinkService.GetAllActiveTools()
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("service err, GetAllActiveTools", "err", err)
+		handler.logger.Errorw("service err, GetAllActiveTools", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -148,14 +148,14 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 
 	token := r.Header.Get("token")
 	if len(identifier) == 0 && len(linkType) == 0 && len(clusterId) == 0 {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 			return
 		}
 		clusterIdNumber := 0
-		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, clusterIdNumber)
+		res, err := handler.externalLinkService.FetchAllActiveLinksByLinkIdentifier(nil, clusterIdNumber)
 		if err != nil {
-			impl.logger.Errorw("service err, FetchAllActive", "err", err)
+			handler.logger.Errorw("service err, FetchAllActive", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
@@ -167,7 +167,7 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 		if len(clusterId) != 0 { //api call from app-detail page
 			clusterIdNumber, err = strconv.Atoi(clusterId)
 			if err != nil {
-				impl.logger.Errorw("error occurred while parsing cluster_id", "clusterId", clusterId, "err", err)
+				handler.logger.Errorw("error occurred while parsing cluster_id", "clusterId", clusterId, "err", err)
 				common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 				return
 			}
@@ -177,9 +177,9 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 			Identifier: identifier,
 			ClusterId:  0,
 		}
-		res, err := impl.externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifier, clusterIdNumber)
+		res, err := handler.externalLinkService.FetchAllActiveLinksByLinkIdentifier(linkIdentifier, clusterIdNumber)
 		if err != nil {
-			impl.logger.Errorw("service err, FetchAllActive", "err", err)
+			handler.logger.Errorw("service err, FetchAllActive", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}
@@ -187,14 +187,14 @@ func (impl ExternalLinkRestHandlerImpl) GetExternalLinks(w http.ResponseWriter, 
 		return
 	}
 
-	impl.logger.Errorw("invalid request, FetchAllActive external links", "err", err)
+	handler.logger.Errorw("invalid request, FetchAllActive external links", "err", err)
 	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 	return
 
 }
 
-func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter, r *http.Request) {
-	userId, userRole, err := impl.roleCheckHelper(w, r, casbin.ActionUpdate)
+func (handler *ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter, r *http.Request) {
+	userId, userRole, err := handler.roleCheckHelper(w, r, casbin.ActionUpdate)
 	if err != nil {
 		return
 	}
@@ -202,23 +202,23 @@ func (impl ExternalLinkRestHandlerImpl) UpdateExternalLink(w http.ResponseWriter
 	var bean externalLink.ExternalLinkDto
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, Update Link", "err", err, "bean", bean)
+		handler.logger.Errorw("request err, Update Link", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
 
-	res, err := impl.externalLinkService.Update(&bean, userRole)
+	res, err := handler.externalLinkService.Update(&bean, userRole)
 	if err != nil {
-		impl.logger.Errorw("service err, Update Links", "err", err, "bean", bean)
+		handler.logger.Errorw("service err, Update Links", "err", err, "bean", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter, r *http.Request) {
-	userId, userRole, err := impl.roleCheckHelper(w, r, casbin.ActionDelete)
+func (handler *ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter, r *http.Request) {
+	userId, userRole, err := handler.roleCheckHelper(w, r, casbin.ActionDelete)
 	if err != nil {
 		return
 	}
@@ -226,14 +226,14 @@ func (impl ExternalLinkRestHandlerImpl) DeleteExternalLink(w http.ResponseWriter
 	id := params["id"]
 	linkId, err := strconv.Atoi(id)
 	if err != nil {
-		impl.logger.Errorw("request err, DeleteExternalLink", "id", id, "err", err)
+		handler.logger.Errorw("request err, DeleteExternalLink", "id", id, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	res, err := impl.externalLinkService.DeleteLink(linkId, userId, userRole)
+	res, err := handler.externalLinkService.DeleteLink(linkId, userId, userRole)
 	if err != nil {
-		impl.logger.Errorw("service err, delete Links", "err", err, "linkId", linkId)
+		handler.logger.Errorw("service err, delete Links", "err", err, "linkId", linkId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

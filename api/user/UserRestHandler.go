@@ -83,7 +83,7 @@ func NewUserRestHandlerImpl(userService user.UserService, validator *validator.V
 	return userAuthHandler
 }
 
-func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -180,7 +180,7 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -241,7 +241,7 @@ func (handler UserRestHandlerImpl) UpdateUser(w http.ResponseWriter, r *http.Req
 
 }
 
-func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -285,7 +285,7 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -349,7 +349,7 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -375,7 +375,7 @@ func (handler UserRestHandlerImpl) GetAllDetailedUsers(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -433,7 +433,7 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	/* #nosec */
 	id, err := strconv.Atoi(vars["id"])
@@ -472,7 +472,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -536,7 +536,7 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -570,7 +570,7 @@ func (handler UserRestHandlerImpl) UpdateRoleGroup(w http.ResponseWriter, r *htt
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -632,7 +632,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) FetchDetailedRoleGroups(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) FetchDetailedRoleGroups(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -657,7 +657,7 @@ func (handler UserRestHandlerImpl) FetchDetailedRoleGroups(w http.ResponseWriter
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) FetchRoleGroupsByName(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) FetchRoleGroupsByName(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -675,7 +675,7 @@ func (handler UserRestHandlerImpl) FetchRoleGroupsByName(w http.ResponseWriter, 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -728,7 +728,7 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -787,7 +787,7 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) SyncOrchestratorToCasbin(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) SyncOrchestratorToCasbin(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -812,7 +812,7 @@ func (handler UserRestHandlerImpl) SyncOrchestratorToCasbin(w http.ResponseWrite
 	common.WriteJsonResp(w, err, flag, http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) UpdateTriggerPolicyForTerminalAccess(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) UpdateTriggerPolicyForTerminalAccess(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		handler.logger.Errorw("unauthorized user, UpdateTriggerPolicyForTerminalAccess", "userId", userId)
@@ -838,7 +838,7 @@ func (handler UserRestHandlerImpl) UpdateTriggerPolicyForTerminalAccess(w http.R
 	common.WriteJsonResp(w, nil, "Trigger policy updated successfully.", http.StatusOK)
 }
 
-func (handler UserRestHandlerImpl) GetRoleCacheDump(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) GetRoleCacheDump(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -859,7 +859,7 @@ func (handler UserRestHandlerImpl) GetRoleCacheDump(w http.ResponseWriter, r *ht
 	}
 }
 
-func (handler UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r *http.Request) {
+func (handler *UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r *http.Request) {
 
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -881,7 +881,7 @@ func (handler UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r 
 
 }
 
-func (handler UserRestHandlerImpl) CheckManagerAuth(token string, object string) bool {
+func (handler *UserRestHandlerImpl) CheckManagerAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
 		return false
 	}

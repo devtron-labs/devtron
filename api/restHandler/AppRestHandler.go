@@ -62,7 +62,7 @@ func NewAppRestHandlerImpl(logger *zap.SugaredLogger, appService app.AppCrudOper
 	return handler
 }
 
-func (handler AppRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *http.Request) {
+func (handler *AppRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -86,7 +86,7 @@ func (handler AppRestHandlerImpl) GetAllLabels(w http.ResponseWriter, r *http.Re
 	common.WriteJsonResp(w, nil, results, http.StatusOK)
 }
 
-func (handler AppRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.Request) {
+func (handler *AppRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -118,7 +118,7 @@ func (handler AppRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler AppRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Request) {
+func (handler *AppRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -170,7 +170,7 @@ func (handler AppRestHandlerImpl) UpdateApp(w http.ResponseWriter, r *http.Reque
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler AppRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter, r *http.Request) {
+func (handler *AppRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)

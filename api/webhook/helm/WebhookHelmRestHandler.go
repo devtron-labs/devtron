@@ -52,8 +52,8 @@ func NewWebhookHelmRestHandlerImpl(logger *zap.SugaredLogger, webhookHelmService
 	}
 }
 
-func (impl WebhookHelmRestHandlerImpl) InstallOrUpdateApplication(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *WebhookHelmRestHandlerImpl) InstallOrUpdateApplication(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteApiJsonResponse(w, nil, http.StatusUnauthorized, common.UnAuthenticated, "")
 		return
@@ -61,7 +61,7 @@ func (impl WebhookHelmRestHandlerImpl) InstallOrUpdateApplication(w http.Respons
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteApiJsonResponse(w, nil, http.StatusForbidden, common.UnAuthorized, "")
 		return
 	}
@@ -71,23 +71,23 @@ func (impl WebhookHelmRestHandlerImpl) InstallOrUpdateApplication(w http.Respons
 	var request *webhookHelm.HelmAppCreateUpdateRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		impl.logger.Errorw("err in decoding request in InstallOrUpdateHelmApplication", "err", err)
+		handler.logger.Errorw("err in decoding request in InstallOrUpdateHelmApplication", "err", err)
 		common.WriteApiJsonResponse(w, nil, http.StatusBadRequest, common.BadRequest, err.Error())
 		return
 	}
 
 	// validate request
-	err = impl.validator.Struct(request)
+	err = handler.validator.Struct(request)
 	if err != nil {
-		impl.logger.Errorw("validation err in InstallOrUpdateHelmApplication", "err", err, "request", request)
+		handler.logger.Errorw("validation err in InstallOrUpdateHelmApplication", "err", err, "request", request)
 		common.WriteApiJsonResponse(w, nil, http.StatusBadRequest, common.BadRequest, err.Error())
 		return
 	}
 
 	// service call
-	result, errCode, errMsg, statusCode := impl.webhookHelmService.CreateOrUpdateHelmApplication(context.Background(), request)
+	result, errCode, errMsg, statusCode := handler.webhookHelmService.CreateOrUpdateHelmApplication(context.Background(), request)
 	if len(errCode) > 0 {
-		impl.logger.Errorw("service err in InstallOrUpdateHelmApplication", "request", request, "errCode", errCode, "errMsg", errMsg)
+		handler.logger.Errorw("service err in InstallOrUpdateHelmApplication", "request", request, "errCode", errCode, "errMsg", errMsg)
 		common.WriteApiJsonResponse(w, nil, statusCode, errCode, errMsg)
 		return
 	}

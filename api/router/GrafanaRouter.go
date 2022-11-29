@@ -39,6 +39,6 @@ func NewGrafanaRouterImpl(logger *zap.SugaredLogger, grafanaCfg *grafana.Config)
 	return router
 }
 
-func (router GrafanaRouterImpl) initGrafanaRouter(grafanaRouter *mux.Router) {
+func (router *GrafanaRouterImpl) initGrafanaRouter(grafanaRouter *mux.Router) {
 	grafanaRouter.PathPrefix("").HandlerFunc(router.grafanaProxy)
 }

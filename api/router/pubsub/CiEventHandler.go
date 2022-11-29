@@ -72,36 +72,36 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 	return ciEventHandlerImpl
 }
 
-func (impl *CiEventHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.CI_COMPLETE_TOPIC, util.CI_COMPLETE_GROUP, func(msg *nats.Msg) {
-		impl.logger.Debug("ci complete event received")
+func (handler *CiEventHandlerImpl) Subscribe() error {
+	_, err := handler.pubsubClient.JetStrCtxt.QueueSubscribe(util.CI_COMPLETE_TOPIC, util.CI_COMPLETE_GROUP, func(msg *nats.Msg) {
+		handler.logger.Debug("ci complete event received")
 		defer msg.Ack()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
 		if err != nil {
-			impl.logger.Error("error while unmarshalling json data", "error", err)
+			handler.logger.Error("error while unmarshalling json data", "error", err)
 			return
 		}
-		impl.logger.Debugw("ci complete event for ci", "ciPipelineId", ciCompleteEvent.PipelineId)
-		req, err := impl.BuildCiArtifactRequest(ciCompleteEvent)
+		handler.logger.Debugw("ci complete event for ci", "ciPipelineId", ciCompleteEvent.PipelineId)
+		req, err := handler.BuildCiArtifactRequest(ciCompleteEvent)
 		if err != nil {
 			return
 		}
-		resp, err := impl.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req)
+		resp, err := handler.webhookService.HandleCiSuccessEvent(ciCompleteEvent.PipelineId, req)
 		if err != nil {
-			impl.logger.Error(err)
+			handler.logger.Error(err)
 			return
 		}
-		impl.logger.Debug(resp)
+		handler.logger.Debug(resp)
 	}, nats.Durable(util.CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.CI_RUNNER_STREAM))
 	if err != nil {
-		impl.logger.Error(err)
+		handler.logger.Error(err)
 		return err
 	}
 	return nil
 }
 
-func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*pipeline.CiArtifactWebhookRequest, error) {
+func (handler *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*pipeline.CiArtifactWebhookRequest, error) {
 	var ciMaterialInfos []repository.CiMaterialInfo
 	for _, p := range event.CiProjectDetails {
 		var modifications []repository.Modification
@@ -145,7 +145,7 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 
 	materialBytes, err := json.Marshal(ciMaterialInfos)
 	if err != nil {
-		impl.logger.Errorw("cannot build ci artifact req", "err", err)
+		handler.logger.Errorw("cannot build ci artifact req", "err", err)
 		return nil, err
 	}
 	rawMaterialInfo := json.RawMessage(materialBytes)
@@ -167,7 +167,7 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequest(event CiCompleteEvent) (*
 	return request, nil
 }
 
-func (impl *CiEventHandlerImpl) BuildCiArtifactRequestForWebhook(event CiCompleteEvent) (*pipeline.CiArtifactWebhookRequest, error) {
+func (handler *CiEventHandlerImpl) BuildCiArtifactRequestForWebhook(event CiCompleteEvent) (*pipeline.CiArtifactWebhookRequest, error) {
 	ciMaterialInfos := make([]repository.CiMaterialInfo, 0)
 	if event.MaterialType == "" {
 		event.MaterialType = "git"
@@ -214,7 +214,7 @@ func (impl *CiEventHandlerImpl) BuildCiArtifactRequestForWebhook(event CiComplet
 
 	materialBytes, err := json.Marshal(ciMaterialInfos)
 	if err != nil {
-		impl.logger.Errorw("cannot build ci artifact req", "err", err)
+		handler.logger.Errorw("cannot build ci artifact req", "err", err)
 		return nil, err
 	}
 	rawMaterialInfo := json.RawMessage(materialBytes)

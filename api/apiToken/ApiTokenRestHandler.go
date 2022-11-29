@@ -60,8 +60,8 @@ func NewApiTokenRestHandlerImpl(logger *zap.SugaredLogger, apiTokenService apiTo
 	}
 }
 
-func (impl ApiTokenRestHandlerImpl) GetAllApiTokens(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ApiTokenRestHandlerImpl) GetAllApiTokens(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -69,23 +69,23 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokens(w http.ResponseWriter, r *ht
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
 	// service call
-	res, err := impl.apiTokenService.GetAllActiveApiTokens()
+	res, err := handler.apiTokenService.GetAllActiveApiTokens()
 	if err != nil {
-		impl.logger.Errorw("service err, GetAllActiveApiTokens", "err", err)
+		handler.logger.Errorw("service err, GetAllActiveApiTokens", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -93,7 +93,7 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -103,15 +103,15 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 	var request *openapi.CreateApiTokenRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		impl.logger.Errorw("err in decoding request in CreateApiToken", "err", err)
+		handler.logger.Errorw("err in decoding request in CreateApiToken", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// validate request
-	err = impl.validator.Struct(request)
+	err = handler.validator.Struct(request)
 	if err != nil {
-		impl.logger.Errorw("validation err in CreateApiToken", "err", err, "request", request)
+		handler.logger.Errorw("validation err in CreateApiToken", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -121,17 +121,17 @@ func (impl ApiTokenRestHandlerImpl) CreateApiToken(w http.ResponseWriter, r *htt
 	}
 
 	// service call
-	res, err := impl.apiTokenService.CreateApiToken(request, userId, impl.checkManagerAuth)
+	res, err := handler.apiTokenService.CreateApiToken(request, userId, handler.checkManagerAuth)
 	if err != nil {
-		impl.logger.Errorw("service err, CreateApiToken", "err", err, "payload", request)
+		handler.logger.Errorw("service err, CreateApiToken", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -139,7 +139,7 @@ func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *htt
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -148,7 +148,7 @@ func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *htt
 	vars := mux.Vars(r)
 	apiTokenId, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		impl.logger.Errorw("request err in getting apiTokenId in UpdateApiToken", "err", err)
+		handler.logger.Errorw("request err in getting apiTokenId in UpdateApiToken", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -158,30 +158,30 @@ func (impl ApiTokenRestHandlerImpl) UpdateApiToken(w http.ResponseWriter, r *htt
 	var request *openapi.UpdateApiTokenRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		impl.logger.Errorw("err in decoding request, UpdateApiToken", "err", err)
+		handler.logger.Errorw("err in decoding request, UpdateApiToken", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// validate request
-	err = impl.validator.Struct(request)
+	err = handler.validator.Struct(request)
 	if err != nil {
-		impl.logger.Errorw("validation err in UpdateApiToken", "err", err, "request", request)
+		handler.logger.Errorw("validation err in UpdateApiToken", "err", err, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	res, err := impl.apiTokenService.UpdateApiToken(apiTokenId, request, userId)
+	res, err := handler.apiTokenService.UpdateApiToken(apiTokenId, request, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateApiToken", "err", err, "apiTokenId", apiTokenId, "request", request)
+		handler.logger.Errorw("service err, UpdateApiToken", "err", err, "apiTokenId", apiTokenId, "request", request)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -189,7 +189,7 @@ func (impl ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *htt
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -198,29 +198,29 @@ func (impl ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *htt
 	vars := mux.Vars(r)
 	apiTokenId, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		impl.logger.Errorw("request err in getting apiTokenId in DeleteApiToken", "err", err)
+		handler.logger.Errorw("request err in getting apiTokenId in DeleteApiToken", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	res, err := impl.apiTokenService.DeleteApiToken(apiTokenId, userId)
+	res, err := handler.apiTokenService.DeleteApiToken(apiTokenId, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, DeleteApiToken", "err", err, "apiTokenId", apiTokenId)
+		handler.logger.Errorw("service err, DeleteApiToken", "err", err, "apiTokenId", apiTokenId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler ApiTokenRestHandlerImpl) checkManagerAuth(token string, object string) bool {
+func (handler *ApiTokenRestHandlerImpl) checkManagerAuth(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
 		return false
 	}
 	return true
 }
 
-func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -233,16 +233,16 @@ func (impl ApiTokenRestHandlerImpl) GetAllApiTokensForWebhook(w http.ResponseWri
 	appName := v.Get("appName")
 
 	// service call
-	res, err := impl.apiTokenService.GetAllApiTokensForWebhook(projectName, environmentName, appName, impl.CheckAuthorizationForWebhook)
+	res, err := handler.apiTokenService.GetAllApiTokensForWebhook(projectName, environmentName, appName, handler.CheckAuthorizationForWebhook)
 	if err != nil {
-		impl.logger.Errorw("service err, GetAllApiTokensForWebhook", "err", err)
+		handler.logger.Errorw("service err, GetAllApiTokensForWebhook", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler ApiTokenRestHandlerImpl) CheckAuthorizationForWebhook(token string, projectObject string, envObject string) bool {
+func (handler *ApiTokenRestHandlerImpl) CheckAuthorizationForWebhook(token string, projectObject string, envObject string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
 		return false
 	}

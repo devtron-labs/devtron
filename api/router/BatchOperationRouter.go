@@ -39,8 +39,8 @@ func NewBatchOperationRouterImpl(handler restHandler.BatchOperationRestHandler, 
 	}
 }
 
-func (r BatchOperationRouterImpl) initBatchOperationRouter(router *mux.Router) {
-	router.Path("/operate").
+func (router *BatchOperationRouterImpl) initBatchOperationRouter(batchOperationRouter *mux.Router) {
+	batchOperationRouter.Path("/operate").
 		Methods("POST").
-		HandlerFunc(r.handler.Operate)
+		HandlerFunc(router.handler.Operate)
 }

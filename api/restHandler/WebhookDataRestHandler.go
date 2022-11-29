@@ -60,9 +60,9 @@ func NewWebhookDataRestHandlerImpl(logger *zap.SugaredLogger, userAuthService us
 	}
 }
 
-func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadDataForPipelineMaterialId(w http.ResponseWriter, r *http.Request) {
+func (handler *WebhookDataRestHandlerImpl) GetWebhookPayloadDataForPipelineMaterialId(w http.ResponseWriter, r *http.Request) {
 
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -71,24 +71,24 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadDataForPipelineMaterialI
 	vars := mux.Vars(r)
 	pipelineMaterialId, err := strconv.Atoi(vars["pipelineMaterialId"])
 	if err != nil {
-		impl.logger.Error("can not get pipelineMaterialId from request")
+		handler.logger.Error("can not get pipelineMaterialId from request")
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	impl.logger.Infow("request payload, GetWebhookPayloadDataForPipelineMaterialId", "pipelineMaterialId", pipelineMaterialId)
+	handler.logger.Infow("request payload, GetWebhookPayloadDataForPipelineMaterialId", "pipelineMaterialId", pipelineMaterialId)
 
-	ciPipelineMaterial, err := impl.ciPipelineMaterialRepository.GetById(pipelineMaterialId)
+	ciPipelineMaterial, err := handler.ciPipelineMaterialRepository.GetById(pipelineMaterialId)
 	if err != nil {
-		impl.logger.Errorw("Error in fetching ciPipelineMaterial", "err", err, "pipelineMaterialId", pipelineMaterialId)
+		handler.logger.Errorw("Error in fetching ciPipelineMaterial", "err", err, "pipelineMaterialId", pipelineMaterialId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	//RBAC
 	token := r.Header.Get("token")
-	object := impl.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -97,14 +97,14 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadDataForPipelineMaterialI
 	v := r.URL.Query()
 	limit, err := strconv.Atoi(v.Get("limit"))
 	if err != nil {
-		impl.logger.Error("can not get limit from request")
+		handler.logger.Error("can not get limit from request")
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	offset, err := strconv.Atoi(v.Get("offset"))
 	if err != nil {
-		impl.logger.Error("can not get offset from request")
+		handler.logger.Error("can not get offset from request")
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -118,9 +118,9 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadDataForPipelineMaterialI
 		EventTimeSortOrder:   eventTimeSortOrder,
 	}
 
-	response, err := impl.gitSensorClient.GetWebhookPayloadDataForPipelineMaterialId(webhookPayloadDataRequest)
+	response, err := handler.gitSensorClient.GetWebhookPayloadDataForPipelineMaterialId(webhookPayloadDataRequest)
 	if err != nil {
-		impl.logger.Errorw("service err, GetWebhookPayloadDataForPipelineMaterialId", "err", err)
+		handler.logger.Errorw("service err, GetWebhookPayloadDataForPipelineMaterialId", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -129,9 +129,9 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadDataForPipelineMaterialI
 
 }
 
-func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMaterialId(w http.ResponseWriter, r *http.Request) {
+func (handler *WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMaterialId(w http.ResponseWriter, r *http.Request) {
 
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -140,24 +140,24 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 	vars := mux.Vars(r)
 	pipelineMaterialId, err := strconv.Atoi(vars["pipelineMaterialId"])
 	if err != nil {
-		impl.logger.Error("can not get pipelineMaterialId from request")
+		handler.logger.Error("can not get pipelineMaterialId from request")
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	impl.logger.Infow("request payload, GetWebhookPayloadDataForPipelineMaterialId", "pipelineMaterialId", pipelineMaterialId)
+	handler.logger.Infow("request payload, GetWebhookPayloadDataForPipelineMaterialId", "pipelineMaterialId", pipelineMaterialId)
 
-	ciPipelineMaterial, err := impl.ciPipelineMaterialRepository.GetById(pipelineMaterialId)
+	ciPipelineMaterial, err := handler.ciPipelineMaterialRepository.GetById(pipelineMaterialId)
 	if err != nil {
-		impl.logger.Errorw("Error in fetching ciPipelineMaterial", "err", err, "pipelineMaterialId", pipelineMaterialId)
+		handler.logger.Errorw("Error in fetching ciPipelineMaterial", "err", err, "pipelineMaterialId", pipelineMaterialId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	//RBAC
 	token := r.Header.Get("token")
-	object := impl.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	object := handler.enforcerUtil.GetAppRBACNameByAppId(ciPipelineMaterial.CiPipeline.AppId)
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -165,7 +165,7 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 
 	parsedDataId, err := strconv.Atoi(vars["parsedDataId"])
 	if err != nil {
-		impl.logger.Error("can not get parsedDataId from request")
+		handler.logger.Error("can not get parsedDataId from request")
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -175,18 +175,18 @@ func (impl WebhookDataRestHandlerImpl) GetWebhookPayloadFilterDataForPipelineMat
 		ParsedDataId:         parsedDataId,
 	}
 
-	response, err := impl.gitSensorClient.GetWebhookPayloadFilterDataForPipelineMaterialId(webhookPayloadFilterDataRequest)
+	response, err := handler.gitSensorClient.GetWebhookPayloadFilterDataForPipelineMaterialId(webhookPayloadFilterDataRequest)
 	if err != nil {
-		impl.logger.Errorw("service err, GetWebhookPayloadFilterDataForPipelineMaterialId", "err", err)
+		handler.logger.Errorw("service err, GetWebhookPayloadFilterDataForPipelineMaterialId", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	// set payload json
 	if response != nil && response.PayloadId != 0 {
-		webhookEventData, err := impl.webhookEventDataConfig.GetById(response.PayloadId)
+		webhookEventData, err := handler.webhookEventDataConfig.GetById(response.PayloadId)
 		if err != nil {
-			impl.logger.Errorw("error in getting webhook payload data", "err", err)
+			handler.logger.Errorw("error in getting webhook payload data", "err", err)
 			common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 			return
 		}

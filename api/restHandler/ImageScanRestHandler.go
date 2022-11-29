@@ -62,8 +62,8 @@ func NewImageScanRestHandlerImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -73,14 +73,14 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	var request *security.ImageScanRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		impl.logger.Errorw("request err, ScanExecutionList", "err", err, "payload", request)
+		handler.logger.Errorw("request err, ScanExecutionList", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	deployInfoList, err := impl.imageScanService.FetchAllDeployInfo(request)
+	deployInfoList, err := handler.imageScanService.FetchAllDeployInfo(request)
 	if err != nil {
-		impl.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
+		handler.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
 			responseList := make([]*security.ImageScanHistoryResponse, 0)
 			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
@@ -93,24 +93,24 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	var ids []int
 	for _, item := range deployInfoList {
 		if item.ScanObjectMetaId > 0 && (item.ObjectType == "app" || item.ObjectType == "chart") {
-			object := impl.enforcerUtil.GetAppRBACNameByAppId(item.ScanObjectMetaId)
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+			object := handler.enforcerUtil.GetAppRBACNameByAppId(item.ScanObjectMetaId)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 				common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 				return
 			}
-			object = impl.enforcerUtil.GetEnvRBACNameByAppId(item.ScanObjectMetaId, item.EnvId)
-			if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); ok {
+			object = handler.enforcerUtil.GetEnvRBACNameByAppId(item.ScanObjectMetaId, item.EnvId)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); ok {
 				ids = append(ids, item.Id)
 			}
 		} else if item.ScanObjectMetaId > 0 && (item.ObjectType == "pod") {
-			environments, err := impl.environmentService.GetByClusterId(item.ClusterId)
+			environments, err := handler.environmentService.GetByClusterId(item.ClusterId)
 			if err != nil {
 				common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 				return
 			}
 			pass := false
 			for _, environment := range environments {
-				if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, environment.EnvironmentIdentifier); ok {
+				if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, environment.EnvironmentIdentifier); ok {
 					pass = true
 					continue
 				}
@@ -122,9 +122,9 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 		// skip for pod
 	}
 
-	results, err := impl.imageScanService.FetchScanExecutionListing(request, ids)
+	results, err := handler.imageScanService.FetchScanExecutionListing(request, ids)
 	if err != nil {
-		impl.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
+		handler.logger.Errorw("service err, ScanExecutionList", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
 			responseList := make([]*security.ImageScanHistoryResponse, 0)
 			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
@@ -136,8 +136,8 @@ func (impl ImageScanRestHandlerImpl) ScanExecutionList(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, err, results, http.StatusOK)
 }
 
-func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -148,7 +148,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 	if len(imageScanDeployInfoIdS) > 0 {
 		imageScanDeployInfoId, err = strconv.Atoi(imageScanDeployInfoIdS)
 		if err != nil {
-			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "imageScanDeployInfoIdS", imageScanDeployInfoIdS)
+			handler.logger.Errorw("request err, FetchExecutionDetail", "err", err, "imageScanDeployInfoIdS", imageScanDeployInfoIdS)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
 	}
@@ -156,7 +156,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 	if len(artifactIdS) > 0 {
 		artifactId, err = strconv.Atoi(artifactIdS)
 		if err != nil {
-			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "artifactIdS", artifactIdS)
+			handler.logger.Errorw("request err, FetchExecutionDetail", "err", err, "artifactIdS", artifactIdS)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
 	}
@@ -164,7 +164,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 	if len(appIds) > 0 {
 		appId, err = strconv.Atoi(appIds)
 		if err != nil {
-			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "appIds", appIds)
+			handler.logger.Errorw("request err, FetchExecutionDetail", "err", err, "appIds", appIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
 	}
@@ -172,7 +172,7 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 	if len(envIds) > 0 {
 		envId, err = strconv.Atoi(envIds)
 		if err != nil {
-			impl.logger.Errorw("request err, FetchExecutionDetail", "err", err, "envIds", envIds)
+			handler.logger.Errorw("request err, FetchExecutionDetail", "err", err, "envIds", envIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
 	}
@@ -185,9 +185,9 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 		EnvId:                 envId,
 	}
 
-	executionDetail, err := impl.imageScanService.FetchExecutionDetailResult(request)
+	executionDetail, err := handler.imageScanService.FetchExecutionDetailResult(request)
 	if err != nil {
-		impl.logger.Errorw("service err, FetchExecutionDetail", "err", err, "payload", request)
+		handler.logger.Errorw("service err, FetchExecutionDetail", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
 			common.WriteJsonResp(w, nil, &security.ImageScanExecutionDetail{}, http.StatusOK)
 		} else {
@@ -198,19 +198,19 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 	//RBAC
 	token := r.Header.Get("token")
 	if executionDetail.AppId > 0 && executionDetail.EnvId > 0 {
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
-		object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
+		object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	} else if executionDetail.AppId > 0 {
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
@@ -222,8 +222,8 @@ func (impl ImageScanRestHandlerImpl) FetchExecutionDetail(w http.ResponseWriter,
 	common.WriteJsonResp(w, err, executionDetail, http.StatusOK)
 }
 
-func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -234,7 +234,7 @@ func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.Re
 	if len(appIds) > 0 {
 		appId, err = strconv.Atoi(appIds)
 		if err != nil {
-			impl.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "appIds", appIds)
+			handler.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "appIds", appIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
 	}
@@ -242,7 +242,7 @@ func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.Re
 	if len(envIds) > 0 {
 		envId, err = strconv.Atoi(envIds)
 		if err != nil {
-			impl.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "envIds", envIds)
+			handler.logger.Errorw("request err, FetchMinScanResultByAppIdAndEnvId", "err", err, "envIds", envIds)
 			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		}
 	}
@@ -254,22 +254,22 @@ func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.Re
 	//RBAC
 	token := r.Header.Get("token")
 	if appId > 0 && envId > 0 {
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(appId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
-		object = impl.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
+		object = handler.enforcerUtil.GetEnvRBACNameByAppId(appId, envId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	}
 	//RBAC
 
-	result, err := impl.imageScanService.FetchMinScanResultByAppIdAndEnvId(request)
+	result, err := handler.imageScanService.FetchMinScanResultByAppIdAndEnvId(request)
 	if err != nil {
-		impl.logger.Errorw("service err, FetchMinScanResultByAppIdAndEnvId", "err", err, "payload", request)
+		handler.logger.Errorw("service err, FetchMinScanResultByAppIdAndEnvId", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
 			err = &util.ApiError{InternalMessage: err.Error(), UserMessage: "no data found"}
 			common.WriteJsonResp(w, err, nil, http.StatusOK)
@@ -281,8 +281,8 @@ func (impl ImageScanRestHandlerImpl) FetchMinScanResultByAppIdAndEnvId(w http.Re
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (impl ImageScanRestHandlerImpl) VulnerabilityExposure(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ImageScanRestHandlerImpl) VulnerabilityExposure(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -292,13 +292,13 @@ func (impl ImageScanRestHandlerImpl) VulnerabilityExposure(w http.ResponseWriter
 	var request *security2.VulnerabilityRequest
 	err = decoder.Decode(&request)
 	if err != nil {
-		impl.logger.Errorw("request err, VulnerabilityExposure", "err", err, "payload", request)
+		handler.logger.Errorw("request err, VulnerabilityExposure", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	results, err := impl.imageScanService.VulnerabilityExposure(request)
+	results, err := handler.imageScanService.VulnerabilityExposure(request)
 	if err != nil {
-		impl.logger.Errorw("service err, VulnerabilityExposure", "err", err, "payload", request)
+		handler.logger.Errorw("service err, VulnerabilityExposure", "err", err, "payload", request)
 		if util.IsErrNoRows(err) {
 			responseList := make([]*security.ImageScanHistoryResponse, 0)
 			common.WriteJsonResp(w, nil, &security.ImageScanHistoryListingResponse{ImageScanHistoryResponse: responseList}, http.StatusOK)
@@ -312,13 +312,13 @@ func (impl ImageScanRestHandlerImpl) VulnerabilityExposure(w http.ResponseWriter
 	token := r.Header.Get("token")
 	var vulnerabilityExposure []*security2.VulnerabilityExposure
 	for _, item := range results.VulnerabilityExposure {
-		object := impl.enforcerUtil.GetAppRBACNameByAppId(item.AppId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(item.AppId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), "Unauthorized User", http.StatusForbidden)
 			return
 		}
-		object = impl.enforcerUtil.GetEnvRBACNameByAppId(item.AppId, item.EnvId)
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); ok {
+		object = handler.enforcerUtil.GetEnvRBACNameByAppId(item.AppId, item.EnvId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceEnvironment, casbin.ActionGet, object); ok {
 			vulnerabilityExposure = append(vulnerabilityExposure, item)
 		}
 	}

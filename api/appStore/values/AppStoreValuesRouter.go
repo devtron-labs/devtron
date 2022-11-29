@@ -35,7 +35,7 @@ func NewAppStoreValuesRouterImpl(appStoreValuesRestHandler AppStoreValuesRestHan
 	}
 }
 
-func (router AppStoreValuesRouterImpl) Init(configRouter *mux.Router) {
+func (router *AppStoreValuesRouterImpl) Init(configRouter *mux.Router) {
 
 	configRouter.Path("/template/values").
 		HandlerFunc(router.appStoreValuesRestHandler.CreateAppStoreVersionValues).Methods("POST")

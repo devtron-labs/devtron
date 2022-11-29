@@ -48,9 +48,9 @@ func NewJiraRestHandlerImpl(jiraService jira.ProjectManagementService, logger *z
 	}
 }
 
-func (impl JiraRestHandlerImpl) SaveAccountConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *JiraRestHandlerImpl) SaveAccountConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -58,29 +58,29 @@ func (impl JiraRestHandlerImpl) SaveAccountConfig(w http.ResponseWriter, r *http
 	var jiraConfigBean jira.ConfigBean
 	err = decoder.Decode(&jiraConfigBean)
 	if err != nil {
-		impl.logger.Errorw("request err, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
+		handler.logger.Errorw("request err, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
-	err = impl.validator.Struct(jiraConfigBean)
+	handler.logger.Infow("request payload, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
+	err = handler.validator.Struct(jiraConfigBean)
 	if err != nil {
-		impl.logger.Errorw("validation err, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
+		handler.logger.Errorw("validation err, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
-	account, err := impl.jiraService.SaveAccountDetails(&jiraConfigBean, userId)
+	account, err := handler.jiraService.SaveAccountDetails(&jiraConfigBean, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
+		handler.logger.Errorw("service err, SaveAccountConfig", "err", err, "payload", jiraConfigBean)
 		common.WriteJsonResp(w, err, "error in saving jira config", http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, account.Id, http.StatusOK)
 }
 
-func (impl JiraRestHandlerImpl) UpdateIssueStatus(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *JiraRestHandlerImpl) UpdateIssueStatus(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -88,20 +88,20 @@ func (impl JiraRestHandlerImpl) UpdateIssueStatus(w http.ResponseWriter, r *http
 	var updateBean jira.UpdateIssueBean
 	err = json.NewDecoder(r.Body).Decode(&updateBean)
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateIssueStatus", "err", err, "payload", updateBean)
+		handler.logger.Errorw("request err, UpdateIssueStatus", "err", err, "payload", updateBean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, UpdateIssueStatus", "err", err, "payload", updateBean)
-	err = impl.validator.Struct(updateBean)
+	handler.logger.Infow("request payload, UpdateIssueStatus", "err", err, "payload", updateBean)
+	err = handler.validator.Struct(updateBean)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateIssueStatus", "err", err, "payload", updateBean)
+		handler.logger.Errorw("validation err, UpdateIssueStatus", "err", err, "payload", updateBean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := impl.jiraService.UpdateJiraStatus(&updateBean, userId)
+	res, err := handler.jiraService.UpdateJiraStatus(&updateBean, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateIssueStatus", "err", err, "payload", updateBean)
+		handler.logger.Errorw("service err, UpdateIssueStatus", "err", err, "payload", updateBean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

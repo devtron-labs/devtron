@@ -17,7 +17,7 @@ type DevtronAppAutoCompleteRestHandler interface {
 	GetAppListForAutocomplete(w http.ResponseWriter, r *http.Request)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -77,7 +77,7 @@ func (handler PipelineConfigRestHandlerImpl) GetAppListForAutocomplete(w http.Re
 	common.WriteJsonResp(w, err, accessedApps, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) EnvironmentListAutocomplete(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) EnvironmentListAutocomplete(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -102,7 +102,7 @@ func (handler PipelineConfigRestHandlerImpl) EnvironmentListAutocomplete(w http.
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) GitListAutocomplete(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) GitListAutocomplete(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -128,7 +128,7 @@ func (handler PipelineConfigRestHandlerImpl) GitListAutocomplete(w http.Response
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) DockerListAutocomplete(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) DockerListAutocomplete(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
@@ -154,7 +154,7 @@ func (handler PipelineConfigRestHandlerImpl) DockerListAutocomplete(w http.Respo
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler PipelineConfigRestHandlerImpl) TeamListAutocomplete(w http.ResponseWriter, r *http.Request) {
+func (handler *PipelineConfigRestHandlerImpl) TeamListAutocomplete(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])

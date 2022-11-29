@@ -37,7 +37,7 @@ func NewAttributesRouterImpl(attributesRestHandler restHandler.AttributesRestHan
 	return router
 }
 
-func (router AttributesRouterImpl) initAttributesRouter(attributesRouter *mux.Router) {
+func (router *AttributesRouterImpl) initAttributesRouter(attributesRouter *mux.Router) {
 	attributesRouter.Path("/create").
 		HandlerFunc(router.attributesRestHandler.AddAttributes).Methods("POST")
 	attributesRouter.Path("/update").

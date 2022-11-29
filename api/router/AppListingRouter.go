@@ -37,7 +37,7 @@ func NewAppListingRouterImpl(appListingRestHandler restHandler.AppListingRestHan
 	return router
 }
 
-func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Router) {
+func (router *AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Router) {
 	appListingRouter.Path("/allApps").HandlerFunc(router.appListingRestHandler.FetchAllDevtronManagedApps).
 		Methods("GET")
 
