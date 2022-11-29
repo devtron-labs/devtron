@@ -1,4 +1,4 @@
-docker exec -it $INTEGRATION_TEST_ENV_ID /bin/sh
+docker exec -i $INTEGRATION_TEST_ENV_ID /bin/sh
 git clone https://github.com/devtron-labs/devtron.git
 cd devtron || exit
 git checkout $TEST_BRANCH

@@ -1,6 +1,6 @@
 # shellcheck disable=SC2155
 export INTEGRATION_TEST_ENV_ID=$(docker run --env TEST_BRANCH --env LATEST_HASH --privileged -d --name dind-test docker:dind)
-docker exec -it dind-test /bin/sh
+docker exec -i dind-test /bin/sh
 apk update && apk add wget && apk add curl && apk add vim  && apk add bash && apk add git
 wget -q -O - https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
 k3d cluster create it-cluster
