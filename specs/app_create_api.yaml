@@ -461,6 +461,13 @@ components:
                 type: object
                 description: interface{}
             description: map of template fields and values
+        isBasicViewLocked:
+          type: boolean
+        currentViewEditor:
+          type: string
+          enum:
+            - "BASIC"
+            - "ADVANCED"
     AppWorkflow:
       type: object
       properties:
