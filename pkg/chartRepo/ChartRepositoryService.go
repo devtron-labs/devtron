@@ -640,7 +640,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.logger.Errorw("error in Finding active repos with name", "name", chartRepo.Name, "err", err)
 	}
-	if repoCountWithName == 0 {
+	if repoCountWithName == 1 {
 		clusterBean, err := impl.clusterService.FindOne(cluster.DefaultClusterName)
 		if err != nil {
 			return err
