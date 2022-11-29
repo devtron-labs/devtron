@@ -251,17 +251,18 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 }
 
 func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool) (bool, error) {
-	atLeastOneSuccess := false
+	isAnyTriggered := false
+	var authError error
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
-		return atLeastOneSuccess, err
+		return isAnyTriggered, err
 	}
 	for _, appWorkflowMapping := range appWorkflowMappings {
 		pipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
-			return atLeastOneSuccess, err
+			return isAnyTriggered, err
 		}
 		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
 			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
@@ -269,25 +270,27 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		}
 		user, err := impl.user.GetById(triggeredBy)
 		if err != nil {
-			return atLeastOneSuccess, err
+			return isAnyTriggered, err
 		}
 		projectObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		envObject := impl.enforcerUtil.GetAppRBACByAppIdAndPipelineId(pipeline.AppId, pipeline.Id)
 		if !auth(user.EmailId, projectObject, envObject) {
-			//err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
-			//return err
+			authError = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
 			continue
 		}
 
-		//applyAuth=false, becouze already auth applied for this flow
+		//applyAuth=false, already auth applied for this flow
 		err = impl.triggerStage(nil, pipeline, artifact, false, triggeredBy)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
-			return atLeastOneSuccess, err
+			return isAnyTriggered, err
 		}
-		atLeastOneSuccess = true
+		isAnyTriggered = true
 	}
-	return atLeastOneSuccess, nil
+	if authError != nil {
+		err = authError
+	}
+	return isAnyTriggered, err
 }
 
 func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error {
