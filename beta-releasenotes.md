@@ -1,4 +1,5 @@
 ## Bugs
+- fix: deployment template editor view support in create app api (#2697)
 - Fix:  External ci webhook response for api token. (#2699)
 - fix: wf deletion bug and bulk cd pipeline req (#2693)
 - fix: updated cluster connection status for update api (#2686)
