@@ -1,4 +1,5 @@
 ## Bugs
+- Fix: Skip external ci webhook clone while app clone (#2704)
 - fix: deployment template editor view support in create app api (#2697)
 - Fix:  External ci webhook response for api token. (#2699)
 - fix: wf deletion bug and bulk cd pipeline req (#2693)
