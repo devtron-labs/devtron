@@ -583,14 +583,21 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 	impl.logger.Debugw("wf mapping cloning", "refWfMappings", refWfMappings)
 	var ciMapping []appWorkflow.AppWorkflowMappingDto
 	var cdMappings []appWorkflow.AppWorkflowMappingDto
+	var webhookMappings []appWorkflow.AppWorkflowMappingDto
 	for _, appWf := range refWfMappings {
 		if appWf.Type == appWorkflow2.CIPIPELINE {
 			ciMapping = append(ciMapping, appWf)
 		} else if appWf.Type == appWorkflow2.CDPIPELINE {
 			cdMappings = append(cdMappings, appWf)
+		} else if appWf.Type == appWorkflow2.WEBHOOK {
+			webhookMappings = append(webhookMappings, appWf)
 		} else {
 			return fmt.Errorf("unsupported wf type: %s", appWf.Type)
 		}
+	}
+	if len(webhookMappings) > 0 {
+		impl.logger.Warn("external ci webhook found in workflow, not supported for clone")
+		return nil
 	}
 	if len(ciMapping) == 0 {
 		impl.logger.Warn("no ci pipeline found")
