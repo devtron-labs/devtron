@@ -116,7 +116,6 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/devtron-labs/devtron/util/session"
 )
 
 import (
@@ -183,7 +182,7 @@ func InitializeApp() (*App, error) {
 	if err != nil {
 		return nil, err
 	}
-	settingsManager, err := session.SettingsManager(argocdServerConfig)
+	settingsManager, err := argocdServer.SettingsManager(argocdServerConfig)
 	if err != nil {
 		return nil, err
 	}

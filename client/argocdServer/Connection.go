@@ -18,10 +18,13 @@
 package argocdServer
 
 import (
+	"context"
 	"fmt"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	"log"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -40,6 +43,7 @@ type ArgoCdConnectionImpl struct {
 	logger           *zap.SugaredLogger
 	settingsManager  *settings.SettingsManager
 	moduleRepository moduleRepo.ModuleRepository
+	argoCDSettings   *settings.ArgoCDSettings
 }
 
 func NewArgoCdConnectionImpl(Logger *zap.SugaredLogger, settingsManager *settings.SettingsManager,
@@ -48,29 +52,40 @@ func NewArgoCdConnectionImpl(Logger *zap.SugaredLogger, settingsManager *setting
 		logger:           Logger,
 		settingsManager:  settingsManager,
 		moduleRepository: moduleRepository,
+		argoCDSettings:   nil,
 	}
 	return argoUserServiceImpl, nil
 }
 
+const (
+	ModuleNameArgoCd      string = "argo-cd"
+	ModuleStatusInstalled string = "installed"
+)
+
+// GetConnection - this function will call only for acd connection
 func (impl *ArgoCdConnectionImpl) GetConnection(token string) *grpc.ClientConn {
 	conf, err := GetConfig()
 	if err != nil {
 		impl.logger.Errorw("error on get acd connection", "err", err)
 		log.Fatal(err)
 	}
-	module, err := impl.moduleRepository.FindOne("acd")
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error on get acd connection", "err", err)
-		log.Fatal(err)
-	}
-	if module == nil || module.Status != "installed" {
-		impl.logger.Errorw("error on get acd connection", "err", err)
-		log.Fatal(err)
-	}
-	settings, err := impl.settingsManager.GetSettings()
-	if err != nil {
-		impl.logger.Errorw("error on get acd connection", "err", err)
-		log.Fatal(err)
+	settings := impl.argoCDSettings
+	if settings == nil {
+		module, err := impl.moduleRepository.FindOne(ModuleNameArgoCd)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error on get acd connection", "err", err)
+			log.Fatal(err)
+		}
+		if module == nil || module.Status != ModuleStatusInstalled {
+			impl.logger.Errorw("error on get acd connection", "err", err)
+			log.Fatal(err)
+		}
+		settings, err = impl.settingsManager.GetSettings()
+		if err != nil {
+			impl.logger.Errorw("error on get acd connection", "err", err)
+			log.Fatal(err)
+		}
+		impl.argoCDSettings = settings
 	}
 	var option []grpc.DialOption
 	option = append(option, grpc.WithTransportCredentials(GetTLS(settings.Certificate)))
@@ -83,4 +98,30 @@ func (impl *ArgoCdConnectionImpl) GetConnection(token string) *grpc.ClientConn {
 		log.Fatal(err)
 	}
 	return conn
+}
+
+func SettingsManager(cfg *Config) (*settings.SettingsManager, error) {
+	clientset, kubeconfig := GetK8sclient()
+	namespace, _, err := kubeconfig.Namespace()
+	if err != nil {
+		return nil, err
+	}
+	//TODO: remove this hardcoding
+	if len(cfg.Namespace) >= 0 {
+		namespace = cfg.Namespace
+	}
+	return settings.NewSettingsManager(context.Background(), clientset, namespace), nil
+}
+
+func GetK8sclient() (k8sClient *kubernetes.Clientset, k8sConfig clientcmd.ClientConfig) {
+	kubeconfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
+		clientcmd.NewDefaultClientConfigLoadingRules(),
+		&clientcmd.ConfigOverrides{},
+	)
+	config, err := kubeconfig.ClientConfig()
+	if err != nil {
+		log.Fatal(err)
+	}
+	clientset := kubernetes.NewForConfigOrDie(config)
+	return clientset, kubeconfig
 }

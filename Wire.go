@@ -105,7 +105,6 @@ import (
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
-	"github.com/devtron-labs/devtron/util/session"
 	"github.com/google/wire"
 )
 
@@ -148,7 +147,7 @@ func InitializeApp() (*App, error) {
 		wire.Value(appStoreBean.RefChartProxyDir("scripts/devtron-reference-helm-charts")),
 		wire.Value(chart.DefaultChart("reference-app-rolling")),
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
-		session.SettingsManager,
+		argocdServer.SettingsManager,
 		//session.CDSettingsManager,
 		//auth.GetConfig,
 

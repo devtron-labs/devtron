@@ -17,15 +17,6 @@
 
 package session
 
-import (
-	"context"
-	"github.com/argoproj/argo-cd/v2/util/settings"
-	"github.com/devtron-labs/devtron/client/argocdServer"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/tools/clientcmd"
-	"log"
-)
-
 /*func CDSettingsManager(settings *settings.SettingsManager) (*settings.ArgoCDSettings, error) {
 	at, err := settings.GetSettings()
 	if err != nil {
@@ -37,7 +28,7 @@ import (
 	return at, nil
 }*/
 
-func SettingsManager(cfg *argocdServer.Config) (*settings.SettingsManager, error) {
+/*func SettingsManager(cfg *argocdServer.Config) (*settings.SettingsManager, error) {
 	clientset, kubeconfig := GetK8sclient()
 	namespace, _, err := kubeconfig.Namespace()
 	if err != nil {
@@ -62,3 +53,4 @@ func GetK8sclient() (k8sClient *kubernetes.Clientset, k8sConfig clientcmd.Client
 	clientset := kubernetes.NewForConfigOrDie(config)
 	return clientset, kubeconfig
 }
+*/
