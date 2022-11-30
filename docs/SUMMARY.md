@@ -65,6 +65,7 @@
   * [App Details](user-guide/creating-application/app-details.md)
     * [Debugging Deployment And Monitoring](user-guide/debugging-deployment-and-monitoring.md)
     * [Application Metrics](user-guide/creating-application/app-metrics.md) 
+  * [Overview](user-guide/creating-application/overview.md)  
 * [Charts](user-guide/deploy-chart/README.md)
   * [Charts Overview](user-guide/deploy-chart/overview-of-charts.md)
   * [Deploy & Observe](user-guide/deploy-chart/deployment-of-charts.md)
