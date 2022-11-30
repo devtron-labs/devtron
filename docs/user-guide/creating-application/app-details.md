@@ -7,27 +7,41 @@ The users can access the [configured external links](../../user-guide/global-con
 1. Select **Applications** from the left navigation pane.
 2. After selecting a configured application, select the **App Details** tab.
    
-> **Note**: If you enable `App admins can edit` on the `External Links` page, then only non-super admin users can view the selected links on the `App-Details` page.
+> **Note**: The external link configured on the cluster where your app is located is the only one that is visible.
 
-As shown in the screenshot, the external links appear on the `App-Details` level:
+As shown in the screenshot, the monitoring tool appears at the configured component level:
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/app-details-external-link.png)
+![External links at apps and pod level](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/link-app-pod-level.png)
+
+![External links at container level](https://devtron-public-asset.s3.us-east-2.amazonaws.com/external-tools/link-container-level.png)
 
 
-3. You can hover around an external link (e.g. Grafana) to view the description.
+3. Click on an external link to access the Monitoring Tool.
 
 The link opens in a new tab with the context you specified as env variables in the [Add an external link](./global-configurations/../../global-configurations/external-links.md) section.
 
+## Change Project of your Application
 
-## Manage External Links
+You can change the project of your application by selecting **About app** from your application.
 
-On the `App Configuration` page, select `External Links` from the navigation pane.
-You can see the configured external links which can be searched, edited or deleted.
+![About app](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/about-app3.png)
 
-You can also `Add Link` to add a new external link.
+![Project Change](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/debugging-deployment-and-monitoring/project-change.png)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/app-config-external-link.jpg)
+The following fields are provided on the **About** page:
 
+| Fields | Description |
+| :---    |     :---       |
+| **App Name**  | Displays the name of the application. |
+| **Created on** | Displays the day, date and time the application was created. |
+| **Created by**  | Displays the email address of a user who created the application. |
+| **Project**   | Displays the currect project of the application. You can change the project by selecting a different project from the drop-down list. |
+
+Click **Save**. The application will be moved to the selected project.
+
+**Note**: If you change the project:
+* The current users will lose the access to the application.
+* The users who already have an access to the selected project, will get an access to the application automatically.
 
 
 ## Ingress Host URL
