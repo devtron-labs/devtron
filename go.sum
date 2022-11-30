@@ -309,6 +309,8 @@ github.com/devtron-labs/common-lib v0.0.0-20221117072858-bd2f19e16dd2 h1:dEtjnQq
 github.com/devtron-labs/common-lib v0.0.0-20221117072858-bd2f19e16dd2/go.mod h1:PWHsHmhRVy50rvYlTv2bfoW/4oX8lPTcITiF8l9+ULg=
 github.com/devtron-labs/common-lib v0.0.0-20221126093411-794588b004ea h1:cJWdGd6bXNGqt7yWjsIhV3mHcnhe2T3s3e7hKOgK2iU=
 github.com/devtron-labs/common-lib v0.0.0-20221126093411-794588b004ea/go.mod h1:R24nOqgk4buk9zv+BXzORfObZsOe3NE9P55KrZXGX9k=
+github.com/devtron-labs/common-lib v0.0.0-20221130083108-d35a1c63675b h1:Z9tehff98lhxdX9Z7ggdBuFzrCNacr4hIjdNCRubVt8=
+github.com/devtron-labs/common-lib v0.0.0-20221130083108-d35a1c63675b/go.mod h1:R24nOqgk4buk9zv+BXzORfObZsOe3NE9P55KrZXGX9k=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f h1:lO4WD4F/rVNCu3HqELle0jiPLLBs70cWOduZpkS1E78=
 github.com/dgryski/go-rendezvous v0.0.0-20200823014737-9f7001d12a5f/go.mod h1:cuUVRXasLTGF7a8hSLbxyZXjz+1KgoB3wDUb6vlszIc=
