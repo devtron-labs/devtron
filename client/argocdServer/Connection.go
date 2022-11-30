@@ -74,11 +74,13 @@ func (impl *ArgoCdConnectionImpl) GetConnection(token string) *grpc.ClientConn {
 		module, err := impl.moduleRepository.FindOne(ModuleNameArgoCd)
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error on get acd connection", "err", err)
-			log.Fatal(err)
+			//log.Fatal(err)
+			return nil
 		}
 		if module == nil || module.Status != ModuleStatusInstalled {
 			impl.logger.Errorw("error on get acd connection", "err", err)
-			log.Fatal(err)
+			//log.Fatal(err)
+			return nil
 		}
 		settings, err = impl.settingsManager.GetSettings()
 		if err != nil {

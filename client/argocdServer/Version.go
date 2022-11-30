@@ -38,6 +38,7 @@ func NewVersionServiceImpl(logger *zap.SugaredLogger, argoCdConnection ArgoCdCon
 	return &VersionServiceImpl{logger: logger, argoCdConnection: argoCdConnection}
 }
 
+// CheckVersion deprecated
 func (service VersionServiceImpl) CheckVersion() (err error) {
 	conn := service.argoCdConnection.GetConnection("")
 	version, err := version.NewVersionServiceClient(conn).Version(context.Background(), &empty.Empty{})
@@ -48,6 +49,7 @@ func (service VersionServiceImpl) CheckVersion() (err error) {
 	return nil
 }
 
+// GetVersion deprecated
 func (service VersionServiceImpl) GetVersion() (apiVersion string, err error) {
 	conn := service.argoCdConnection.GetConnection("")
 	version, err := version.NewVersionServiceClient(conn).Version(context.Background(), &empty.Empty{})
