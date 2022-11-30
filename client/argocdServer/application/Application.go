@@ -28,7 +28,6 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/util"
 	"go.uber.org/zap"
@@ -114,17 +113,16 @@ type Manifests struct {
 }
 
 type ServiceClientImpl struct {
-	settings *settings.ArgoCDSettings
-	logger   *zap.SugaredLogger
+	logger        *zap.SugaredLogger
+	acdConnection argocdServer.ArgoCdConnection
 }
 
 func NewApplicationClientImpl(
-	settings *settings.ArgoCDSettings,
-	logger *zap.SugaredLogger,
+	logger *zap.SugaredLogger, acdConnection argocdServer.ArgoCdConnection,
 ) *ServiceClientImpl {
 	return &ServiceClientImpl{
-		settings: settings,
-		logger:   logger,
+		logger:        logger,
+		acdConnection: acdConnection,
 	}
 }
 
@@ -135,7 +133,7 @@ func (c ServiceClientImpl) ManagedResources(ctxt context.Context, query *applica
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.ManagedResources(ctx, query)
@@ -149,7 +147,7 @@ func (c ServiceClientImpl) Rollback(ctxt context.Context, query *application.App
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.Rollback(ctx, query)
@@ -163,7 +161,7 @@ func (c ServiceClientImpl) Patch(ctxt context.Context, query *application.Applic
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.Patch(ctx, query)
@@ -177,7 +175,7 @@ func (c ServiceClientImpl) GetManifests(ctxt context.Context, query *application
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.GetManifests(ctx, query)
@@ -191,7 +189,7 @@ func (c ServiceClientImpl) Get(ctxt context.Context, query *application.Applicat
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.Get(ctx, query)
@@ -205,7 +203,7 @@ func (c ServiceClientImpl) Update(ctxt context.Context, query *application.Appli
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.Update(ctx, query)
@@ -232,7 +230,7 @@ func (c ServiceClientImpl) Sync(ctxt context.Context, query *application.Applica
 	if !ok {
 		return nil, NewErrUnauthorized("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.Sync(ctx, query)
@@ -246,7 +244,7 @@ func (c ServiceClientImpl) TerminateOperation(ctxt context.Context, query *appli
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.TerminateOperation(ctx, query)
@@ -260,7 +258,7 @@ func (c ServiceClientImpl) PatchResource(ctxt context.Context, query *applicatio
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.PatchResource(ctx, query)
@@ -274,7 +272,7 @@ func (c ServiceClientImpl) DeleteResource(ctxt context.Context, query *applicati
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.DeleteResource(ctx, query)
@@ -288,7 +286,7 @@ func (c ServiceClientImpl) List(ctxt context.Context, query *application.Applica
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.List(ctx, query)
@@ -297,7 +295,7 @@ func (c ServiceClientImpl) List(ctxt context.Context, query *application.Applica
 
 func (c ServiceClientImpl) PodLogs(ctx context.Context, query *application.ApplicationPodLogsQuery) (application.ApplicationService_PodLogsClient, *grpc.ClientConn, error) {
 	token, _ := ctx.Value("token").(string)
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	//defer conn.Close()
 	asc := application.NewApplicationServiceClient(conn)
 	logs, err := asc.PodLogs(ctx, query)
@@ -306,7 +304,7 @@ func (c ServiceClientImpl) PodLogs(ctx context.Context, query *application.Appli
 
 func (c ServiceClientImpl) Watch(ctx context.Context, query *application.ApplicationQuery) (application.ApplicationService_WatchClient, *grpc.ClientConn, error) {
 	token, _ := ctx.Value("token").(string)
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	//defer conn.Close()
 	asc := application.NewApplicationServiceClient(conn)
 	logs, err := asc.Watch(ctx, query)
@@ -320,7 +318,7 @@ func (c ServiceClientImpl) GetResource(ctxt context.Context, query *application.
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	return asc.GetResource(ctx, query)
@@ -333,7 +331,7 @@ func (c ServiceClientImpl) Delete(ctxt context.Context, query *application.Appli
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	return asc.Delete(ctx, query)
@@ -346,7 +344,7 @@ func (c ServiceClientImpl) ListResourceEvents(ctxt context.Context, query *appli
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.ListResourceEvents(ctx, query)
@@ -360,7 +358,7 @@ func (c ServiceClientImpl) Create(ctxt context.Context, query *application.Appli
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	resp, err := asc.Create(ctx, query)
@@ -374,7 +372,7 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	if !ok {
 		return nil, errors.New("unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, c.settings)
+	conn := c.acdConnection.GetConnection(token)
 	defer util.Close(conn, c.logger)
 	asc := application.NewApplicationServiceClient(conn)
 	c.logger.Debugw("GRPC_GET_RESOURCETREE", "req", query)

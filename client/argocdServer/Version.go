@@ -20,7 +20,6 @@ package argocdServer
 import (
 	"context"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/version"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/golang/protobuf/ptypes/empty"
 	"go.uber.org/zap"
 )
@@ -31,16 +30,16 @@ type VersionService interface {
 }
 
 type VersionServiceImpl struct {
-	settings *settings.ArgoCDSettings
-	logger   *zap.SugaredLogger
+	logger           *zap.SugaredLogger
+	argoCdConnection ArgoCdConnection
 }
 
-func NewVersionServiceImpl(settings *settings.ArgoCDSettings, logger *zap.SugaredLogger) *VersionServiceImpl {
-	return &VersionServiceImpl{settings: settings, logger: logger}
+func NewVersionServiceImpl(logger *zap.SugaredLogger, argoCdConnection ArgoCdConnection) *VersionServiceImpl {
+	return &VersionServiceImpl{logger: logger, argoCdConnection: argoCdConnection}
 }
 
 func (service VersionServiceImpl) CheckVersion() (err error) {
-	conn := GetConnection("", service.settings)
+	conn := service.argoCdConnection.GetConnection("")
 	version, err := version.NewVersionServiceClient(conn).Version(context.Background(), &empty.Empty{})
 	if err != nil {
 		return err
@@ -50,7 +49,7 @@ func (service VersionServiceImpl) CheckVersion() (err error) {
 }
 
 func (service VersionServiceImpl) GetVersion() (apiVersion string, err error) {
-	conn := GetConnection("", service.settings)
+	conn := service.argoCdConnection.GetConnection("")
 	version, err := version.NewVersionServiceClient(conn).Version(context.Background(), &empty.Empty{})
 	if err != nil {
 		return "", err

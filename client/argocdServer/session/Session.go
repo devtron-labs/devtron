@@ -20,7 +20,6 @@ package session
 import (
 	"context"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/session"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"time"
 )
@@ -33,8 +32,8 @@ type ServiceClientImpl struct {
 	ssc session.SessionServiceClient
 }
 
-func NewSessionServiceClient(settings *settings.ArgoCDSettings) *ServiceClientImpl {
-	conn := argocdServer.GetConnection("", settings)
+func NewSessionServiceClient(acdConnection argocdServer.ArgoCdConnection) *ServiceClientImpl {
+	conn := acdConnection.GetConnection("")
 	ssc := session.NewSessionServiceClient(conn)
 	return &ServiceClientImpl{ssc: ssc}
 }

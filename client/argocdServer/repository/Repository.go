@@ -23,7 +23,6 @@ import (
 	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v2/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"go.uber.org/zap"
@@ -45,26 +44,23 @@ type ServiceClient interface {
 }
 
 type ServiceClientImpl struct {
-	settings *settings.ArgoCDSettings
-	logger   *zap.SugaredLogger
+	logger        *zap.SugaredLogger
+	acdConnection argocdServer.ArgoCdConnection
 }
 
-func NewServiceClientImpl(
-	settings *settings.ArgoCDSettings,
-	logger *zap.SugaredLogger,
-) *ServiceClientImpl {
+func NewServiceClientImpl(logger *zap.SugaredLogger, acdConnection argocdServer.ArgoCdConnection) *ServiceClientImpl {
 	return &ServiceClientImpl{
-		settings: settings,
-		logger:   logger,
+		logger:        logger,
+		acdConnection: acdConnection,
 	}
 }
 
-func getService(ctx context.Context, settings *settings.ArgoCDSettings) (repository2.RepositoryServiceClient, error) {
+func (r ServiceClientImpl) getService(ctx context.Context) (repository2.RepositoryServiceClient, error) {
 	token, ok := ctx.Value("token").(string)
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, settings)
+	conn := r.acdConnection.GetConnection(token)
 	//defer conn.Close()
 	return repository2.NewRepositoryServiceClient(conn), nil
 }
@@ -72,7 +68,7 @@ func getService(ctx context.Context, settings *settings.ArgoCDSettings) (reposit
 func (r ServiceClientImpl) List(ctx context.Context, query *repository2.RepoQuery) (*v1alpha1.RepositoryList, error) {
 	ctx, cancel := context.WithTimeout(ctx, application.TimeoutFast)
 	defer cancel()
-	client, err := getService(ctx, r.settings)
+	client, err := r.getService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +78,7 @@ func (r ServiceClientImpl) List(ctx context.Context, query *repository2.RepoQuer
 func (r ServiceClientImpl) ListApps(ctx context.Context, query *repository2.RepoAppsQuery) (*repository2.RepoAppsResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, application.TimeoutFast)
 	defer cancel()
-	client, err := getService(ctx, r.settings)
+	client, err := r.getService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +88,7 @@ func (r ServiceClientImpl) ListApps(ctx context.Context, query *repository2.Repo
 func (r ServiceClientImpl) GetAppDetails(ctx context.Context, query *repository2.RepoAppDetailsQuery) (*apiclient.RepoAppDetailsResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, application.TimeoutFast)
 	defer cancel()
-	client, err := getService(ctx, r.settings)
+	client, err := r.getService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -102,7 +98,7 @@ func (r ServiceClientImpl) GetAppDetails(ctx context.Context, query *repository2
 func (r ServiceClientImpl) Create(ctx context.Context, query *repository2.RepoCreateRequest) (*v1alpha1.Repository, error) {
 	ctx, cancel := context.WithTimeout(ctx, application.TimeoutSlow)
 	defer cancel()
-	client, err := getService(ctx, r.settings)
+	client, err := r.getService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -112,7 +108,7 @@ func (r ServiceClientImpl) Create(ctx context.Context, query *repository2.RepoCr
 func (r ServiceClientImpl) Update(ctx context.Context, query *repository2.RepoUpdateRequest) (*v1alpha1.Repository, error) {
 	ctx, cancel := context.WithTimeout(ctx, application.TimeoutSlow)
 	defer cancel()
-	client, err := getService(ctx, r.settings)
+	client, err := r.getService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -122,7 +118,7 @@ func (r ServiceClientImpl) Update(ctx context.Context, query *repository2.RepoUp
 func (r ServiceClientImpl) Delete(ctx context.Context, query *repository2.RepoQuery) (*repository2.RepoResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, application.TimeoutSlow)
 	defer cancel()
-	client, err := getService(ctx, r.settings)
+	client, err := r.getService(ctx)
 	if err != nil {
 		return nil, err
 	}

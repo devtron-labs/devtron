@@ -149,7 +149,7 @@ func InitializeApp() (*App, error) {
 		wire.Value(chart.DefaultChart("reference-app-rolling")),
 		wire.Value(util.ChartWorkingDir("/tmp/charts/")),
 		session.SettingsManager,
-		session.CDSettingsManager,
+		//session.CDSettingsManager,
 		//auth.GetConfig,
 
 		argocdServer.GetConfig,
@@ -738,6 +738,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.PipelineStageService), new(*pipeline.PipelineStageServiceImpl)),
 		//plugin ends
 
+		argocdServer.NewArgoCdConnectionImpl,
+		wire.Bind(new(argocdServer.ArgoCdConnection), new(*argocdServer.ArgoCdConnectionImpl)),
 		argo.NewArgoUserServiceImpl,
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
 		util2.GetDevtronSecretName,

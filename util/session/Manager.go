@@ -19,7 +19,6 @@ package session
 
 import (
 	"context"
-	"fmt"
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"k8s.io/client-go/kubernetes"
@@ -27,7 +26,7 @@ import (
 	"log"
 )
 
-func CDSettingsManager(settings *settings.SettingsManager) (*settings.ArgoCDSettings, error) {
+/*func CDSettingsManager(settings *settings.SettingsManager) (*settings.ArgoCDSettings, error) {
 	at, err := settings.GetSettings()
 	if err != nil {
 		//return nil, err
@@ -36,7 +35,7 @@ func CDSettingsManager(settings *settings.SettingsManager) (*settings.ArgoCDSett
 
 	}
 	return at, nil
-}
+}*/
 
 func SettingsManager(cfg *argocdServer.Config) (*settings.SettingsManager, error) {
 	clientset, kubeconfig := GetK8sclient()
@@ -62,10 +61,4 @@ func GetK8sclient() (k8sClient *kubernetes.Clientset, k8sConfig clientcmd.Client
 	}
 	clientset := kubernetes.NewForConfigOrDie(config)
 	return clientset, kubeconfig
-}
-
-//workaround for wire single value return
-func NewK8sClient() *kubernetes.Clientset {
-	client, _ := GetK8sclient()
-	return client
 }

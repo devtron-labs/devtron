@@ -19,6 +19,9 @@ package argocdServer
 
 import (
 	"fmt"
+	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
+	"github.com/go-pg/pg"
+	"go.uber.org/zap"
 	"log"
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
@@ -27,13 +30,46 @@ import (
 )
 
 func init() {
-
 	grpc_prometheus.EnableClientHandlingTimeHistogram()
 }
 
-func GetConnection(token string, settings *settings.ArgoCDSettings) *grpc.ClientConn {
+type ArgoCdConnection interface {
+	GetConnection(token string) *grpc.ClientConn
+}
+type ArgoCdConnectionImpl struct {
+	logger           *zap.SugaredLogger
+	settingsManager  *settings.SettingsManager
+	moduleRepository moduleRepo.ModuleRepository
+}
+
+func NewArgoCdConnectionImpl(Logger *zap.SugaredLogger, settingsManager *settings.SettingsManager,
+	moduleRepository moduleRepo.ModuleRepository) (*ArgoCdConnectionImpl, error) {
+	argoUserServiceImpl := &ArgoCdConnectionImpl{
+		logger:           Logger,
+		settingsManager:  settingsManager,
+		moduleRepository: moduleRepository,
+	}
+	return argoUserServiceImpl, nil
+}
+
+func (impl *ArgoCdConnectionImpl) GetConnection(token string) *grpc.ClientConn {
 	conf, err := GetConfig()
 	if err != nil {
+		impl.logger.Errorw("error on get acd connection", "err", err)
+		log.Fatal(err)
+	}
+	module, err := impl.moduleRepository.FindOne("acd")
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error on get acd connection", "err", err)
+		log.Fatal(err)
+	}
+	if module == nil || module.Status != "installed" {
+		impl.logger.Errorw("error on get acd connection", "err", err)
+		log.Fatal(err)
+	}
+	settings, err := impl.settingsManager.GetSettings()
+	if err != nil {
+		impl.logger.Errorw("error on get acd connection", "err", err)
 		log.Fatal(err)
 	}
 	var option []grpc.DialOption
@@ -42,10 +78,6 @@ func GetConnection(token string, settings *settings.ArgoCDSettings) *grpc.Client
 		option = append(option, grpc.WithPerRPCCredentials(TokenAuth{token: token}))
 	}
 	option = append(option, grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor), grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor))
-
-	//if conf.Environment=="DEV"{
-	//	option=append(option,grpc.WithInsecure())
-	//}
 	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", conf.Host, conf.Port), option...)
 	if err != nil {
 		log.Fatal(err)

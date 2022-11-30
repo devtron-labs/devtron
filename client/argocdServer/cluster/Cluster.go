@@ -22,7 +22,6 @@ import (
 	"errors"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/cluster"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"go.uber.org/zap"
 	"time"
@@ -44,26 +43,23 @@ type ServiceClient interface {
 }
 
 type ServiceClientImpl struct {
-	settings *settings.ArgoCDSettings
-	logger   *zap.SugaredLogger
+	logger           *zap.SugaredLogger
+	argoCdConnection argocdServer.ArgoCdConnection
 }
 
-func NewServiceClientImpl(
-	settings *settings.ArgoCDSettings,
-	logger *zap.SugaredLogger,
-) *ServiceClientImpl {
+func NewServiceClientImpl(logger *zap.SugaredLogger, argoCdConnection argocdServer.ArgoCdConnection) *ServiceClientImpl {
 	return &ServiceClientImpl{
-		settings: settings,
-		logger:   logger,
+		logger:           logger,
+		argoCdConnection: argoCdConnection,
 	}
 }
 
-func getService(ctx context.Context, settings *settings.ArgoCDSettings) (cluster.ClusterServiceClient, error) {
+func (c ServiceClientImpl) getService(ctx context.Context) (cluster.ClusterServiceClient, error) {
 	token, ok := ctx.Value("token").(string)
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := argocdServer.GetConnection(token, settings)
+	conn := c.argoCdConnection.GetConnection(token)
 	//defer conn.Close()
 	return cluster.NewClusterServiceClient(conn), nil
 }
@@ -71,7 +67,7 @@ func getService(ctx context.Context, settings *settings.ArgoCDSettings) (cluster
 func (c ServiceClientImpl) List(ctx context.Context, query *cluster.ClusterQuery) (*v1alpha1.ClusterList, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	client, err := getService(ctx, c.settings)
+	client, err := c.getService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -81,7 +77,7 @@ func (c ServiceClientImpl) List(ctx context.Context, query *cluster.ClusterQuery
 func (c ServiceClientImpl) Create(ctx context.Context, query *cluster.ClusterCreateRequest) (*v1alpha1.Cluster, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	client, err := getService(ctx, c.settings)
+	client, err := c.getService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +87,7 @@ func (c ServiceClientImpl) Create(ctx context.Context, query *cluster.ClusterCre
 func (c ServiceClientImpl) CreateFromKubeConfig(ctx context.Context, query *cluster.ClusterCreateRequest) (*v1alpha1.Cluster, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	client, err := getService(ctx, c.settings)
+	client, err := c.getService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +97,7 @@ func (c ServiceClientImpl) CreateFromKubeConfig(ctx context.Context, query *clus
 func (c ServiceClientImpl) Get(ctx context.Context, query *cluster.ClusterQuery) (*v1alpha1.Cluster, error) {
 	ctx, cancel := context.WithTimeout(ctx, 10*time.Second)
 	defer cancel()
-	client, err := getService(ctx, c.settings)
+	client, err := c.getService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +107,7 @@ func (c ServiceClientImpl) Get(ctx context.Context, query *cluster.ClusterQuery)
 func (c ServiceClientImpl) Update(ctx context.Context, query *cluster.ClusterUpdateRequest) (*v1alpha1.Cluster, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	client, err := getService(ctx, c.settings)
+	client, err := c.getService(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -121,7 +117,7 @@ func (c ServiceClientImpl) Update(ctx context.Context, query *cluster.ClusterUpd
 func (c ServiceClientImpl) Delete(ctx context.Context, query *cluster.ClusterQuery) (*cluster.ClusterResponse, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	client, err := getService(ctx, c.settings)
+	client, err := c.getService(ctx)
 	if err != nil {
 		return nil, err
 	}
