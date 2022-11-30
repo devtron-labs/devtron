@@ -6,6 +6,7 @@
 ## Enhancements
 - Feat: External Ci webhook new interface, Deployment separated from build node. (#2664)
 ## Documentation
+- docs: external-links-docs (#2679)
 ## Others
 - sql migration error fix (#2695)
 - External links extention for app level  (#2573)
