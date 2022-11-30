@@ -1,4 +1,5 @@
 ## Bugs
+- fix: migration down sql for 84 (#2706)
 - Fix: Skip external ci webhook clone while app clone (#2704)
 - fix: deployment template editor view support in create app api (#2697)
 - Fix:  External ci webhook response for api token. (#2699)
