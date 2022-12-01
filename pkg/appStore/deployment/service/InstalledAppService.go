@@ -24,7 +24,6 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
@@ -910,17 +909,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		elapsed := time.Since(start)
 		impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, appDetail.InstalledAppId, appDetail.EnvironmentId)
 		if err != nil {
-			userMessage := "app detail fetched, failed to get resource tree from acd"
-			msg := err.Error()
-			if strings.Contains(msg, "NotFound") {
-				userMessage = "App details not found, deleted from argocd"
-			}
 			impl.logger.Errorw("service err, FetchAppDetailsForInstalledApp, fetching resource tree", "err", err, "installedAppId", appDetail.InstalledAppId, "envId", appDetail.EnvironmentId)
-			err = &util.ApiError{
-				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
-				UserMessage:     userMessage,
-			}
 			appDetail.ResourceTree = map[string]interface{}{}
 			return *appDetail, err
 		}
@@ -939,17 +928,6 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		detail, err := impl.helmAppClient.GetAppDetail(context.Background(), req)
 		if err != nil {
 			impl.logger.Errorw("error in fetching app detail", "err", err)
-			userMessage := "app detail fetched, failed to get resource tree from helm"
-			msg := err.Error()
-			if strings.Contains(msg, ErrorReleaseNotFound) {
-				userMessage = "App details not found, deleted from argocd"
-			}
-			err = &util.ApiError{
-				Code:            constants.AppDetailResourceTreeNotFound,
-				InternalMessage: "app detail fetched, failed to get resource tree from acd",
-				UserMessage:     userMessage,
-			}
-			return *appDetail, err
 		}
 		if detail != nil {
 			resourceTree := util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
@@ -959,6 +937,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		} else {
 			appDetail.ResourceTree = map[string]interface{}{}
 		}
+		return *appDetail, err
 	}
 	return *appDetail, nil
 }

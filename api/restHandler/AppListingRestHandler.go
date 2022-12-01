@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
+	grpc_logging "github.com/grpc-ecosystem/go-grpc-middleware/logging"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -338,8 +339,8 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	appDetail, err = handler.fetchResourceTree(w, r, appId, envId, appDetail)
-	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+	appDetail = handler.fetchResourceTree(w, r, appId, envId, appDetail)
+	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 }
 
 func (handler AppListingRestHandlerImpl) FetchAppTriggerView(w http.ResponseWriter, r *http.Request) {
@@ -653,13 +654,10 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	if installedAppIdParam != "" {
 		appDetail, err = handler.fetchResourceTreeFromInstallAppService(w, r, appDetail)
 		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusOK)
+			handler.logger.Errorw("Error occured while fetching resource tree", "installedAppIdParam", installedAppIdParam, "err", err)
 		}
 	} else {
-		appDetail, err = handler.fetchResourceTree(w, r, appId, envId, appDetail)
-		if err != nil {
-			common.WriteJsonResp(w, err, nil, http.StatusOK)
-		}
+		appDetail = handler.fetchResourceTree(w, r, appId, envId, appDetail)
 	}
 
 	resourceTree := appDetail.ResourceTree
@@ -709,7 +707,7 @@ func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppI
 	return appDetail, err, appId
 }
 
-func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer) (bean.AppDetailContainer, error) {
+func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsAcdApp(appDetail.DeploymentAppType) {
 		//RBAC enforcer Ends
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
@@ -731,7 +729,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		if err != nil {
 			handler.logger.Errorw("error in getting acd token", "err", err)
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-			return appDetail, err
+			return appDetail
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)
 		start := time.Now()
@@ -740,9 +738,9 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 
 		if err != nil {
 			userMessage := "Error fetching detail, if you have recently created this deployment pipeline please try after sometime."
-			msg := err.Error()
-			if strings.Contains(msg, "NotFound") {
-				userMessage = "App details not found, deleted from argocd"
+			errCode := grpc_logging.DefaultErrorToCode(err)
+			if errCode == util.ErrorGrpcNotFound {
+				userMessage = "App details not found, deleted from " + appDetail.DeploymentAppType
 			}
 			handler.logger.Errorw("service err, FetchAppDetails, resource tree", "err", err, "app", appId, "env", envId)
 			err = &util.ApiError{
@@ -750,7 +748,8 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
 				UserMessage:     userMessage,
 			}
-			return appDetail, err
+			common.WriteJsonResp(w, err, "", http.StatusPartialContent)
+			return appDetail
 		}
 		if resp.Status == string(health.HealthStatusHealthy) {
 			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
@@ -789,14 +788,18 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		detail, err := handler.helmAppClient.GetAppDetail(context.Background(), req)
 		if err != nil {
-			userMessage := "Apps details not found ,deleted from helm"
+			userMessage := "Apps details not found ,failed to fetch from " + appDetail.DeploymentAppType
+			errCode := grpc_logging.DefaultErrorToCode(err)
+			if errCode == util.ErrorGrpcNotFound || errCode == util.ErrorGrpcUnKnown {
+				userMessage = "App details not found, deleted from " + appDetail.DeploymentAppType
+			}
 			handler.logger.Errorw("error in fetching app detail", "err", err)
 			err = &util.ApiError{
 				Code:            constants.AppDetailResourceTreeNotFound,
 				InternalMessage: "app detail failed to fetch from helm",
 				UserMessage:     userMessage,
 			}
-			return appDetail, err
+			common.WriteJsonResp(w, err, "", http.StatusPartialContent)
 		}
 		if detail != nil {
 			resourceTree := util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
@@ -810,5 +813,5 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		appDetail.ResourceTree = map[string]interface{}{}
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
-	return appDetail, nil
+	return appDetail
 }

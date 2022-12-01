@@ -20,6 +20,12 @@ package util
 import (
 	"fmt"
 	"github.com/go-pg/pg"
+	"google.golang.org/grpc/codes"
+)
+
+const (
+	ErrorGrpcNotFound codes.Code = codes.NotFound
+	ErrorGrpcUnKnown  codes.Code = codes.Unknown
 )
 
 type ApiError struct {
