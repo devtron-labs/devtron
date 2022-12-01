@@ -367,9 +367,9 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	}
 	if err != nil {
 		common.WriteJsonResp(w, err, appDetail, http.StatusOK)
-		//return
+		return
 	}
-	//common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
+	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 }
 
 func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) error {
