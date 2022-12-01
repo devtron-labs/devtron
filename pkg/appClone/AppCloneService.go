@@ -20,7 +20,6 @@ package appClone
 import (
 	"context"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"strings"
 
@@ -597,8 +596,8 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 		}
 	}
 	if len(webhookMappings) > 0 {
-		err := &util.ApiError{Code: "501", HttpStatusCode: 501, UserMessage: "ref app has external ci configured, app clone does not supported this"}
-		return err
+		impl.logger.Warn("external ci webhook found in workflow, not supported for clone")
+		return nil
 	}
 	if len(ciMapping) == 0 {
 		impl.logger.Warn("no ci pipeline found")
