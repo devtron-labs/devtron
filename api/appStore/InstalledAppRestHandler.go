@@ -366,7 +366,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
 	if err != nil {
-		common.WriteJsonResp(w, err, appDetail, http.StatusNotFound)
+		common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 		//return
 	}
 	//common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
