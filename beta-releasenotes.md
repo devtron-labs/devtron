@@ -1,4 +1,5 @@
 ## Bugs
+- fix: removed required validation for deployment template (#2713)
 - fix: env variable tag bug in ci cd config (#2698)
 - fix: Block deletion of devtronapp(devtron-operator chart)  in helm apps (#2701)
 - fix: migration down sql for 84 (#2706)
