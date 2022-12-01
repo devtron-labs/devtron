@@ -1,4 +1,5 @@
 ## Bugs
+- fix: Block deletion of devtronapp(devtron-operator chart)  in helm apps (#2701)
 - fix: migration down sql for 84 (#2706)
 - Fix: Skip external ci webhook clone while app clone (#2704)
 - fix: deployment template editor view support in create app api (#2697)
