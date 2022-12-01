@@ -360,19 +360,19 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	}
 	//rback block ends here
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 {
-		err = handler.fetchResourceTree(w, r, &appDetail)
+		handler.fetchResourceTree(w, r, &appDetail)
 	} else {
 		appDetail.ResourceTree = map[string]interface{}{}
 		handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
-	if err != nil {
-		common.WriteJsonResp(w, err, appDetail, http.StatusOK)
-		return
-	}
+	//if err != nil {
+	//	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
+	//	return
+	//}
 	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 }
 
-func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) error {
+func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) {
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
 	_, err := handler.installedAppService.FetchResourceTree(ctx, cn, appDetail)
@@ -390,5 +390,7 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWri
 		//common.WriteJsonResp(w, err, "", http.StatusNotFound)
 
 	}
-	return err
+	if err != nil {
+		handler.Logger.Errorw("error occurred while fetching resource tree", "appName", appDetail.AppName, "envName", appDetail.EnvironmentName, "err", err)
+	}
 }

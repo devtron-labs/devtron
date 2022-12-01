@@ -341,8 +341,9 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 	}
 	appDetail, err = handler.fetchResourceTree(w, r, appId, envId, appDetail)
 	if err != nil {
-		common.WriteJsonResp(w, err, nil, http.StatusNotFound)
-		return
+		//common.WriteJsonResp(w, err, nil, http.StatusNotFound)
+		//return
+		handler.logger.Errorw("error occurred while fetching resource tree ", "appName", appDetail.AppName, "envName", appDetail.EnvironmentName, "err", err)
 	}
 	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 }
