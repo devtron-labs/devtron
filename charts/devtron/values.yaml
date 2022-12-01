@@ -1,7 +1,7 @@
 installer:
   repo: "devtron-labs/devtron"
-#  For Kubernetes version < 1.16, set release: "v0.6.9-rc.0"
-  release: "v0.6.9-rc.0"
+#  For Kubernetes version < 1.16, set release: "v0.6.9"
+  release: "v0.6.9"
   image: quay.io/devtron/inception
   tag: 1d2b87e5-185-11095
   source: "github" # Available options are github and gitee
@@ -48,7 +48,7 @@ components:
 
   devtron:
     image: "quay.io/devtron/hyperion:78b8a5ef-280-11767"
-    cicdImage: "quay.io/devtron/devtron:df3d6ed6-326-11760"
+    cicdImage: "quay.io/devtron/devtron:78b8a5ef-326-11765"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
     serviceMonitor:
@@ -98,13 +98,13 @@ components:
         SCRIPT_LOCATION: "scripts/sql/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "orchestrator"
-        GIT_HASH: "df3d6ed65ab277066e768c3b7a47c3d8efb0d321"
+        GIT_HASH: "78b8a5efb0cc1264a341e86ff8fb2eab1c95f61e"
       casbin:
         GIT_BRANCH: "main"
         SCRIPT_LOCATION: "scripts/casbin/"
         GIT_REPO_URL: "https://github.com/devtron-labs/devtron.git"
         DB_NAME: "casbin"
-        GIT_HASH: "df3d6ed65ab277066e768c3b7a47c3d8efb0d321"
+        GIT_HASH: "78b8a5efb0cc1264a341e86ff8fb2eab1c95f61e"
 
 # values for argocd integration
 argo-cd:
