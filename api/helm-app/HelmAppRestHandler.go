@@ -11,6 +11,7 @@ import (
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
@@ -48,12 +49,13 @@ type HelmAppRestHandlerImpl struct {
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	userAuthService                 user.UserService
 	attributesService               attributes.AttributesService
+	serverEnvConfig                 *serverEnvConfig.ServerEnvConfig
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	helmAppService HelmAppService, enforcer casbin.Enforcer,
 	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	userAuthService user.UserService, attributesService attributes.AttributesService) *HelmAppRestHandlerImpl {
+	userAuthService user.UserService, attributesService attributes.AttributesService, serverEnvConfig *serverEnvConfig.ServerEnvConfig) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
 		logger:                          logger,
 		helmAppService:                  helmAppService,
@@ -63,6 +65,7 @@ func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 		appStoreDeploymentCommonService: appStoreDeploymentCommonService,
 		userAuthService:                 userAuthService,
 		attributesService:               attributesService,
+		serverEnvConfig:                 serverEnvConfig,
 	}
 }
 
@@ -276,6 +279,15 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 		return
 	}
 	//RBAC enforcer Ends
+
+	// validate if the devtron-operator helm release, block that for deletion
+	if appIdentifier.ReleaseName == handler.serverEnvConfig.DevtronHelmReleaseName &&
+		appIdentifier.Namespace == handler.serverEnvConfig.DevtronHelmReleaseNamespace &&
+		appIdentifier.ClusterId == DEFAULT_CLUSTER_ID {
+		common.WriteJsonResp(w, errors.New("cannot delete this default helm app"), nil, http.StatusForbidden)
+		return
+	}
+
 	res, err := handler.helmAppService.DeleteApplication(context.Background(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
