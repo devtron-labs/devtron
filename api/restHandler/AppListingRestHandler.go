@@ -748,7 +748,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
 				UserMessage:     userMessage,
 			}
-			common.WriteJsonResp(w, err, "", http.StatusOK)
+			common.WriteJsonResp(w, err, "", http.StatusNotFound)
 			return appDetail
 		}
 		if resp.Status == string(health.HealthStatusHealthy) {
@@ -799,7 +799,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				InternalMessage: "app detail failed to fetch from helm",
 				UserMessage:     userMessage,
 			}
-			common.WriteJsonResp(w, err, "", http.StatusOK)
+			common.WriteJsonResp(w, err, "", http.StatusNotFound)
 		}
 		if detail != nil {
 			resourceTree := util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
