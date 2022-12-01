@@ -140,7 +140,12 @@ func (impl AppStoreDeploymentServiceImpl) AppStoreDeployOperationDB(installAppVe
 
 	if isInternalUse && !isGitOpsConfigured && installAppVersionRequest.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
 		impl.logger.Errorw("gitops not configured but selected for CD")
-		return nil, errors.New("gitops not configured but selected")
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: "Gitops integration is not installed/configured. Please install/configure gitops or use helm option.",
+			UserMessage:     "Gitops integration is not installed/configured. Please install/configure gitops or use helm option.",
+		}
+		return nil, err
 	}
 
 	appStoreAppVersion, err := impl.appStoreApplicationVersionRepository.FindById(installAppVersionRequest.AppStoreVersion)

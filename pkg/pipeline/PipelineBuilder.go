@@ -274,7 +274,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	}
 }
 
-//internal use only
+// internal use only
 const (
 	teamIdKey                string = "teamId"
 	teamNameKey              string = "teamName"
@@ -1326,8 +1326,8 @@ func (impl PipelineBuilderImpl) ValidateCDPipelineRequest(pipelineCreateRequest 
 		impl.logger.Errorw("Gitops not configured but selected in creating cd pipeline")
 		err := &util.ApiError{
 			HttpStatusCode:  http.StatusBadRequest,
-			InternalMessage: "GitOps not configured but selected in creating cd pipeline",
-			UserMessage:     "GitOps not configured but selected in creating cd pipeline",
+			InternalMessage: "Gitops integration is not installed/configured. Please install/configure gitops or use helm option.",
+			UserMessage:     "Gitops integration is not installed/configured. Please install/configure gitops or use helm option.",
 		}
 		return false, err
 	}
