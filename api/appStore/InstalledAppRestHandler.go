@@ -383,6 +383,6 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWri
 			InternalMessage: "app detail failed to fetch from " + appDetail.DeploymentAppType,
 			UserMessage:     userMessage,
 		}
-		common.WriteJsonResp(w, err, "", http.StatusPartialContent)
+		common.WriteJsonResp(w, err, "", http.StatusOK)
 	}
 }
