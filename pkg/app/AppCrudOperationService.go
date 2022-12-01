@@ -23,6 +23,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
+	"github.com/devtron-labs/devtron/pkg/globalTag"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -45,19 +46,31 @@ type AppCrudOperationServiceImpl struct {
 	appLabelRepository pipelineConfig.AppLabelRepository
 	appRepository      app.AppRepository
 	userRepository     repository.UserRepository
+	globalTagService   globalTag.GlobalTagService
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository) *AppCrudOperationServiceImpl {
+	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository, globalTagService globalTag.GlobalTagService) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
 		appLabelRepository: appLabelRepository,
 		logger:             logger,
 		appRepository:      appRepository,
 		userRepository:     userRepository,
+		globalTagService:   globalTagService,
 	}
 }
 
 func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+	// validate the labels key-value
+	labelsMap := make(map[string]string)
+	for _, label := range request.AppLabels {
+		labelsMap[label.Key] = label.Value
+	}
+	err := impl.globalTagService.ValidateLabels(request.TeamId, labelsMap)
+	if err != nil {
+		return nil, err
+	}
+
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
