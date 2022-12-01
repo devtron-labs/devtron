@@ -32,8 +32,9 @@ type ServiceClientImpl struct {
 	ssc session.SessionServiceClient
 }
 
-func NewSessionServiceClient(acdConnection argocdServer.ArgoCdConnection) *ServiceClientImpl {
-	conn := acdConnection.GetConnection("")
+func NewSessionServiceClient(argoCDConnectionManager argocdServer.ArgoCDConnectionManager) *ServiceClientImpl {
+	// this function only called when gitops configured and user ask for creating acd token
+	conn := argoCDConnectionManager.GetConnection("")
 	ssc := session.NewSessionServiceClient(conn)
 	return &ServiceClientImpl{ssc: ssc}
 }

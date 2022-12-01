@@ -30,17 +30,16 @@ type VersionService interface {
 }
 
 type VersionServiceImpl struct {
-	logger           *zap.SugaredLogger
-	argoCdConnection ArgoCdConnection
+	logger                  *zap.SugaredLogger
+	argoCDConnectionManager ArgoCDConnectionManager
 }
 
-func NewVersionServiceImpl(logger *zap.SugaredLogger, argoCdConnection ArgoCdConnection) *VersionServiceImpl {
-	return &VersionServiceImpl{logger: logger, argoCdConnection: argoCdConnection}
+func NewVersionServiceImpl(logger *zap.SugaredLogger, argoCDConnectionManager ArgoCDConnectionManager) *VersionServiceImpl {
+	return &VersionServiceImpl{logger: logger, argoCDConnectionManager: argoCDConnectionManager}
 }
 
-// CheckVersion deprecated
 func (service VersionServiceImpl) CheckVersion() (err error) {
-	conn := service.argoCdConnection.GetConnection("")
+	conn := service.argoCDConnectionManager.GetConnection("")
 	version, err := version.NewVersionServiceClient(conn).Version(context.Background(), &empty.Empty{})
 	if err != nil {
 		return err
@@ -51,7 +50,7 @@ func (service VersionServiceImpl) CheckVersion() (err error) {
 
 // GetVersion deprecated
 func (service VersionServiceImpl) GetVersion() (apiVersion string, err error) {
-	conn := service.argoCdConnection.GetConnection("")
+	conn := service.argoCDConnectionManager.GetConnection("")
 	version, err := version.NewVersionServiceClient(conn).Version(context.Background(), &empty.Empty{})
 	if err != nil {
 		return "", err

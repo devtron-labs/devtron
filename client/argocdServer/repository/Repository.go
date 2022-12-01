@@ -45,13 +45,13 @@ type ServiceClient interface {
 
 type ServiceClientImpl struct {
 	logger        *zap.SugaredLogger
-	acdConnection argocdServer.ArgoCdConnection
+	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
 }
 
-func NewServiceClientImpl(logger *zap.SugaredLogger, acdConnection argocdServer.ArgoCdConnection) *ServiceClientImpl {
+func NewServiceClientImpl(logger *zap.SugaredLogger, argoCDConnectionManager argocdServer.ArgoCDConnectionManager) *ServiceClientImpl {
 	return &ServiceClientImpl{
 		logger:        logger,
-		acdConnection: acdConnection,
+		argoCDConnectionManager: argoCDConnectionManager,
 	}
 }
 
@@ -60,7 +60,7 @@ func (r ServiceClientImpl) getService(ctx context.Context) (repository2.Reposito
 	if !ok {
 		return nil, errors.New("Unauthorized")
 	}
-	conn := r.acdConnection.GetConnection(token)
+	conn := r.argoCDConnectionManager.GetConnection(token)
 	//defer conn.Close()
 	return repository2.NewRepositoryServiceClient(conn), nil
 }
