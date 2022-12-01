@@ -279,11 +279,7 @@ func (impl CiCdPipelineOrchestratorImpl) PatchMaterialValue(createRequest *bean.
 	materials = append(materials, materialsUpdate...)
 
 	if ciPipelineObject.IsExternal {
-		createRequest, err = impl.updateExternalCiDetails(createRequest, userId, tx)
-		if err != nil {
-			impl.logger.Errorw("err", "err", err)
-			return nil, err
-		}
+
 	} else {
 		err = impl.AddPipelineMaterialInGitSensor(materials)
 		if err != nil {
@@ -468,19 +464,12 @@ func (impl CiCdPipelineOrchestratorImpl) DeleteCiPipeline(pipeline *pipelineConf
 		materials = append(materials, pipelineMaterial)
 	}
 
-	rows, err := impl.deleteExternalCiDetails(p, userId, tx)
+	err = impl.AddPipelineMaterialInGitSensor(materials)
 	if err != nil {
-		impl.logger.Errorw("err", err)
+		impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", materials, "err", err)
 		return err
 	}
 
-	if rows == 0 {
-		err = impl.AddPipelineMaterialInGitSensor(materials)
-		if err != nil {
-			impl.logger.Errorf("error in saving pipelineMaterials in git sensor", "materials", materials, "err", err)
-			return err
-		}
-	}
 	err = impl.ciPipelineMaterialRepository.Update(tx, materials...)
 
 	if !request.CiPipeline.IsDockerConfigOverridden {
@@ -604,11 +593,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCiConf(createRequest *bean.CiConf
 			r.Id = pmIds[key]
 		}
 		if ciPipeline.IsExternal {
-			ciPipeline, err = impl.saveExternalCiDetails(ciPipeline, createRequest, tx)
-			if err != nil {
-				impl.logger.Errorw("err", err)
-				return nil, err
-			}
+
 		} else {
 			//save pipeline in db end
 			err = impl.AddPipelineMaterialInGitSensor(pipelineMaterials)
@@ -774,64 +759,6 @@ func (impl CiCdPipelineOrchestratorImpl) generateExternalCiPayload(ciPipeline *b
 		Payload:    impl.ciConfig.ExternalCiPayload,
 	}
 	return ciPipeline
-}
-
-func (impl CiCdPipelineOrchestratorImpl) saveExternalCiDetails(ciPipeline *bean.CiPipeline, createRequest *bean.CiConfigRequest, tx *pg.Tx) (*bean.CiPipeline, error) {
-	var err error
-	if ciPipeline.ParentCiPipeline == 0 {
-		keyPrefix, apiKey := impl.generateApiKey(ciPipeline.Id, ciPipeline.Name, impl.ciConfig.ExternalCiApiSecret)
-		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-			CiPipelineId: ciPipeline.Id,
-			Active:       true,
-			AuditLog:     sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
-			AccessToken:  apiKey,
-		}
-		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
-		ciPipeline = impl.generateExternalCiPayload(ciPipeline, externalCiPipeline, keyPrefix, apiKey)
-	} else {
-		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-			CiPipelineId: ciPipeline.Id,
-			Active:       true,
-			AuditLog:     sql.AuditLog{UpdatedBy: createRequest.UserId, CreatedBy: createRequest.UserId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
-			AccessToken:  "",
-		}
-		externalCiPipeline, err = impl.ciPipelineRepository.SaveExternalCi(externalCiPipeline, tx)
-	}
-	return ciPipeline, err
-}
-
-func (impl CiCdPipelineOrchestratorImpl) updateExternalCiDetails(ciPipeline *bean.CiPipeline, userId int32, tx *pg.Tx) (*bean.CiPipeline, error) {
-	var err error
-	if ciPipeline.ParentCiPipeline == 0 {
-		keyPrefix, apiKey := impl.generateApiKey(ciPipeline.Id, ciPipeline.Name, impl.ciConfig.ExternalCiApiSecret)
-		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-			CiPipelineId: ciPipeline.Id,
-			Active:       true,
-			AuditLog:     sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-			AccessToken:  apiKey,
-		}
-		externalCiPipeline, _, err = impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
-		ciPipeline = impl.generateExternalCiPayload(ciPipeline, externalCiPipeline, keyPrefix, apiKey)
-	} else {
-		externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-			CiPipelineId: ciPipeline.Id,
-			Active:       true,
-			AuditLog:     sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-			AccessToken:  "",
-		}
-		externalCiPipeline, _, err = impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
-	}
-	return ciPipeline, err
-}
-
-func (impl CiCdPipelineOrchestratorImpl) deleteExternalCiDetails(ciPipeline *pipelineConfig.CiPipeline, userId int32, tx *pg.Tx) (int, error) {
-	externalCiPipeline := &pipelineConfig.ExternalCiPipeline{
-		CiPipelineId: ciPipeline.Id,
-		Active:       false,
-		AuditLog:     sql.AuditLog{UpdatedBy: userId, UpdatedOn: time.Now()},
-	}
-	externalCiPipeline, rows, err := impl.ciPipelineRepository.UpdateExternalCi(externalCiPipeline, tx)
-	return rows, err
 }
 
 func (impl CiCdPipelineOrchestratorImpl) AddPipelineMaterialInGitSensor(pipelineMaterials []*pipelineConfig.CiPipelineMaterial) error {
