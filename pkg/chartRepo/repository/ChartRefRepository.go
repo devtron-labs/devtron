@@ -188,7 +188,6 @@ type GlobalStrategyMetadataChartRefMapping struct {
 }
 
 type GlobalStrategyMetadataChartRefMappingRepository interface {
-	FindByChartRefId()
 }
 type GlobalStrategyMetadataChartRefMappingRepositoryImpl struct {
 	dbConnection *pg.DB
@@ -201,8 +200,4 @@ func NewGlobalStrategyMetadataChartRefMappingRepositoryImpl(dbConnection *pg.DB,
 		dbConnection: dbConnection,
 		logger:       logger,
 	}
-}
-
-func (impl *GlobalStrategyMetadataChartRefMappingRepositoryImpl) FindByChartRefId() {
-
 }
