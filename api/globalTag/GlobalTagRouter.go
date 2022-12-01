@@ -17,6 +17,7 @@ func NewGlobalTagRouterImpl(globalTagRestHandler GlobalTagRestHandler) *GlobalTa
 }
 
 func (impl GlobalTagRouterImpl) InitGlobalTagRouter(configRouter *mux.Router) {
+	configRouter.Path("/filter").Queries("projectId", "{projectId}").HandlerFunc(impl.globalTagRestHandler.GetAllActiveTagsForProject).Methods("GET")
 	configRouter.Path("").HandlerFunc(impl.globalTagRestHandler.GetAllActiveTags).Methods("GET")
 	configRouter.Path("").HandlerFunc(impl.globalTagRestHandler.CreateTags).Methods("POST")
 	configRouter.Path("").HandlerFunc(impl.globalTagRestHandler.UpdateTags).Methods("PUT")

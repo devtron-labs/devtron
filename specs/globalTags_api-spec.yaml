@@ -48,6 +48,25 @@ paths:
       responses:
         "200":
           description: global-tags delete response
+  /orchestrator/global-tag/filter:
+    get:
+      description: Get All active Global tags for that projectId
+      parameters:
+        - name: projectId
+          in: query
+          description: projectId
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Successfully fetched active global tags for that projectId
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/GlobalTagDtoForProject"
 components:
   schemas:
     GlobalTagDto:
@@ -83,6 +102,19 @@ components:
           description: Updation time in milliseconds for that global tag
           example: "12344546"
           format: int64
+    GlobalTagDtoForProject:
+      type: object
+      properties:
+        key:
+          type: string
+          description: key of that global-tag
+          example: "somekey"
+          nullable: false
+        isMandatory:
+          type: boolean
+          description: if the key is mandatory or not
+          example: true
+          nullable: false
     CreateGlobalTagsRequest:
       type: object
       properties:

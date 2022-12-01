@@ -22,15 +22,20 @@ import (
 	"errors"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/globalTag"
+	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
+	"strconv"
+	"strings"
 )
 
 type GlobalTagRestHandler interface {
 	GetAllActiveTags(w http.ResponseWriter, r *http.Request)
+	GetAllActiveTagsForProject(w http.ResponseWriter, r *http.Request)
 	CreateTags(w http.ResponseWriter, r *http.Request)
 	UpdateTags(w http.ResponseWriter, r *http.Request)
 	DeleteTags(w http.ResponseWriter, r *http.Request)
@@ -42,16 +47,18 @@ type GlobalTagRestHandlerImpl struct {
 	globalTagService globalTag.GlobalTagService
 	enforcer         casbin.Enforcer
 	validator        *validator.Validate
+	teamService      team.TeamService
 }
 
 func NewGlobalTagRestHandlerImpl(logger *zap.SugaredLogger, userService user.UserService, globalTagService globalTag.GlobalTagService,
-	enforcer casbin.Enforcer, validator *validator.Validate) *GlobalTagRestHandlerImpl {
+	enforcer casbin.Enforcer, validator *validator.Validate, teamService team.TeamService) *GlobalTagRestHandlerImpl {
 	return &GlobalTagRestHandlerImpl{
 		logger:           logger,
 		userService:      userService,
 		globalTagService: globalTagService,
 		enforcer:         enforcer,
 		validator:        validator,
+		teamService:      teamService,
 	}
 }
 
@@ -73,6 +80,45 @@ func (impl GlobalTagRestHandlerImpl) GetAllActiveTags(w http.ResponseWriter, r *
 	res, err := impl.globalTagService.GetAllActiveTags()
 	if err != nil {
 		impl.logger.Errorw("service err, GetAllActiveTags", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, err, res, http.StatusOK)
+}
+
+func (impl GlobalTagRestHandlerImpl) GetAllActiveTagsForProject(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	vars := mux.Vars(r)
+	projectIdStr := vars["projectId"]
+	projectId, err := strconv.Atoi(projectIdStr)
+	if err != nil {
+		impl.logger.Errorw("validation err in GetAllActiveTagsForProject. can not convert projectId to int", "err", err, "projectIdStr", projectIdStr)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// check RBAC for this projectId (get team using projectId and check RBAC)
+	token := r.Header.Get("token")
+	project, err := impl.teamService.FetchOne(projectId)
+	if err != nil {
+		impl.logger.Errorw("service err in fetching team, GetAllActiveTagsForProject", "err", err, "projectId", projectId)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	if ok := impl.enforcer.Enforce(token, casbin.ResourceTeam, casbin.ActionGet, strings.ToLower(project.Name)); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	// service call
+	res, err := impl.globalTagService.GetAllActiveTagsForProject(projectId)
+	if err != nil {
+		impl.logger.Errorw("service err, GetAllActiveTagsForProject", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

@@ -9,6 +9,11 @@ type GlobalTagDto struct {
 	UpdatedOnInMs          int64  `json:"updatedOnInMs"`
 }
 
+type GlobalTagDtoForProject struct {
+	Key         string `json:"key,notnull"`
+	IsMandatory bool   `json:"isMandatory,notnull"`
+}
+
 type CreateGlobalTagsRequest struct {
 	Tags []*CreateGlobalTagDto `json:"tags,notnull"`
 }

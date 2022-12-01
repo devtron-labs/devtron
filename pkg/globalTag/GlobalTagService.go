@@ -29,9 +29,11 @@ import (
 
 type GlobalTagService interface {
 	GetAllActiveTags() ([]*GlobalTagDto, error)
+	GetAllActiveTagsForProject(projectId int) ([]*GlobalTagDtoForProject, error)
 	CreateTags(request *CreateGlobalTagsRequest, createdBy int32) error
 	UpdateTags(request *UpdateGlobalTagsRequest, updatedBy int32) error
 	DeleteTags(request *DeleteGlobalTagsRequest, deletedBy int32) error
+	ValidateLabels(projectId int, labels map[string]string) error
 }
 
 type GlobalTagServiceImpl struct {
@@ -68,6 +70,30 @@ func (impl GlobalTagServiceImpl) GetAllActiveTags() ([]*GlobalTagDto, error) {
 		}
 		if !globalTagFromDb.UpdatedOn.IsZero() {
 			globalTag.UpdatedOnInMs = globalTagFromDb.UpdatedOn.UnixMilli()
+		}
+		globalTags = append(globalTags, globalTag)
+	}
+
+	return globalTags, nil
+}
+
+func (impl GlobalTagServiceImpl) GetAllActiveTagsForProject(projectId int) ([]*GlobalTagDtoForProject, error) {
+	impl.logger.Infow("Getting all active global tags", "projectId", projectId)
+
+	// get from DB
+	globalTagsFromDb, err := impl.globalTagRepository.FindAllActive()
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while getting all active global tags from DB", "error", err)
+		return nil, err
+	}
+
+	// convert to DTO
+	var globalTags []*GlobalTagDtoForProject
+	for _, globalTagFromDb := range globalTagsFromDb {
+		isMandatory := CheckIfTagIsMandatoryForProject(globalTagFromDb.MandatoryProjectIdsCsv, projectId)
+		globalTag := &GlobalTagDtoForProject{
+			Key:         globalTagFromDb.Key,
+			IsMandatory: isMandatory,
 		}
 		globalTags = append(globalTags, globalTag)
 	}
@@ -228,6 +254,21 @@ func (impl GlobalTagServiceImpl) DeleteTags(request *DeleteGlobalTagsRequest, de
 	// commit TX
 	err = tx.Commit()
 	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (impl GlobalTagServiceImpl) ValidateLabels(projectId int, labels map[string]string) error {
+	impl.logger.Infow("Validating labels", "projectId", projectId, "labels", labels)
+
+	tags, err := impl.GetAllActiveTagsForProject(projectId)
+	if err != nil {
+		return err
+	}
+	err = CheckIfValidLabels(labels, tags)
+	if err != nil {
+		impl.logger.Errorw("error in validating labels", "error", err)
 		return err
 	}
 	return nil
