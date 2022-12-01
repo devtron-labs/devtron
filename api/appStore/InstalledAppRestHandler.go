@@ -357,7 +357,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	}
 	//rback block ends here
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 {
-		handler.fetchResourceTree(w, r, &appDetail)
+		err = handler.fetchResourceTree(w, r, &appDetail)
 	} else {
 		appDetail.ResourceTree = map[string]interface{}{}
 		handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
@@ -365,8 +365,9 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
 }
 
-func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) {
+func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appDetail *bean2.AppDetailContainer) error {
 	ctx := r.Context()
 	cn, _ := w.(http.CloseNotifier)
-	handler.installedAppService.FetchResourceTree(ctx, cn, appDetail)
+	_, err := handler.installedAppService.FetchResourceTree(ctx, cn, appDetail)
+	return err
 }

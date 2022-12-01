@@ -68,6 +68,7 @@ import (
 const (
 	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
+	ErrorReleaseNotFound                        = "release: not found"
 )
 
 type InstalledAppService interface {
@@ -78,7 +79,7 @@ type InstalledAppService interface {
 	DeployDefaultChartOnCluster(bean *cluster2.ClusterBean, userId int32) (bool, error)
 	FindAppDetailsForAppstoreApplication(installedAppId, envId int) (bean2.AppDetailContainer, error)
 	UpdateInstalledAppVersionStatus(application *v1alpha1.Application) (bool, error)
-	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer
+	FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) (bean2.AppDetailContainer, error)
 }
 
 type InstalledAppServiceImpl struct {
@@ -881,7 +882,7 @@ func (impl InstalledAppServiceImpl) GetInstalledAppVersionHistoryValues(installe
 	values.ValuesYaml = versionHistory.ValuesYamlRaw
 	return values, err
 }
-func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) bean2.AppDetailContainer {
+func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn http.CloseNotifier, appDetail *bean2.AppDetailContainer) (bean2.AppDetailContainer, error) {
 	if util.IsAcdApp(appDetail.DeploymentAppType) {
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
 		query := &application.ResourcesQuery{
@@ -900,7 +901,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 		if err != nil {
 			impl.logger.Errorw("error in getting acd token", "err", err)
-			return *appDetail
+			return *appDetail, err
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)
 		defer cancel()
@@ -909,14 +910,19 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		elapsed := time.Since(start)
 		impl.logger.Debugf("Time elapsed %s in fetching app-store installed application %s for environment %s", elapsed, appDetail.InstalledAppId, appDetail.EnvironmentId)
 		if err != nil {
+			userMessage := "app detail fetched, failed to get resource tree from acd"
+			msg := err.Error()
+			if strings.Contains(msg, "NotFound") {
+				userMessage = "App details not found, deleted from argocd"
+			}
 			impl.logger.Errorw("service err, FetchAppDetailsForInstalledApp, fetching resource tree", "err", err, "installedAppId", appDetail.InstalledAppId, "envId", appDetail.EnvironmentId)
 			err = &util.ApiError{
 				Code:            constants.AppDetailResourceTreeNotFound,
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
-				UserMessage:     "app detail fetched, failed to get resource tree from acd",
+				UserMessage:     userMessage,
 			}
 			appDetail.ResourceTree = map[string]interface{}{}
-			return *appDetail
+			return *appDetail, err
 		}
 		appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
 		impl.logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
@@ -933,6 +939,17 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 		detail, err := impl.helmAppClient.GetAppDetail(context.Background(), req)
 		if err != nil {
 			impl.logger.Errorw("error in fetching app detail", "err", err)
+			userMessage := "app detail fetched, failed to get resource tree from helm"
+			msg := err.Error()
+			if strings.Contains(msg, ErrorReleaseNotFound) {
+				userMessage = "App details not found, deleted from argocd"
+			}
+			err = &util.ApiError{
+				Code:            constants.AppDetailResourceTreeNotFound,
+				InternalMessage: "app detail fetched, failed to get resource tree from acd",
+				UserMessage:     userMessage,
+			}
+			return *appDetail, err
 		}
 		if detail != nil {
 			resourceTree := util3.InterfaceToMapAdapter(detail.ResourceTreeResponse)
@@ -943,5 +960,5 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			appDetail.ResourceTree = map[string]interface{}{}
 		}
 	}
-	return *appDetail
+	return *appDetail, nil
 }
