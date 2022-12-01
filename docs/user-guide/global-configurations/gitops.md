@@ -1,8 +1,17 @@
 # GitOps
 
-## Why Devtron takes GitOps Configuration?
+`GitOps` is a branch of DevOps that focuses on using git repositories to manage infrastructure and application code deployments.
+
+## Benefits of GitOps Configuration
+
 Devtron uses GitOps and stores configurations in git; Git Credentials can be entered at `Global Configuration > GitOps` which is used by Devtron for configuration management and storing desired state of the application configuration. 
-In case GitOps is not configured, Devtron cannot deploy any application or charts. 
+
+Some of the major benefits for configuring GitOps are:
+
+* Using GitOps can help development teams to solve a number of systemic issues through the implementation of new infrastructure configurations.
+* With GitOps, whenever there is any divergence between Git and what's running in a cluster, developers are alerted. 
+* GitOps allows delivery pipelines to seamlessly roll out changes to infrastructure initiated through Git.
+* While working as a team, team members can collaborate with one another to easily identify and correct errors within a given time.
 
 
 Areas impacted by GitOps are:
@@ -11,26 +20,29 @@ Areas impacted by GitOps are:
 * Charts, [click here](https://docs.devtron.ai/user-guide/deploy-chart) to learn more.
 
 
-## Add Git Configuration
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/git-providers.jpg)
 
-Select the GitOps section of global configuration. At the top of the section, four Git providers are available.
+## Add Git Configuration 
+
+To add GitOps, go to the `Gitops` section of `Global Configurations`. Click **GitOps**.
+
+Below are the Git providers which are available in Devtron. Select one of the Git providers (e.g., GitHub) to configure GitOps:
 
 * **GitHub**
 * **GitLab**
 * **Azure**
 * **BitBucket Cloud**
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/git-providers.jpg)
+Provide the information in the following fields to configure GitOps:
 
-Select one of the Git providers. To add git account, You need to provide the following inputs as given below:
-1. Git Host / Azure DevOps Organisation Url / BitBucket Host <br />
-2. GitHub Organization Name / Gitlab Group id / Azure DevOps Project Name / BitBucket Workspace ID <br />
-3. BitBucket Project Key (only for BitBucket Cloud) <br />
-4. Git access credential <br />
+| Fields | Description |
+| --- | --- |
+| **Git Host** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://github.com/ for GitHub, https://gitlab.com/ for GitLab, https://dev.azure.com/ for Azure and https://bitbucket.org/ for BitBucket.</br> |
+| **GitHub Organisation Name** | Enter the GitHub organization name.<br>If you do not have one, create using:ul><li>[Github Organization Name](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations)</li></ul> <ul><li>[Gitlab group Id](https://docs.gitlab.com/ee/user/group/)</li></ul><ul><li>[Azure DevOps Project Name](https://docs.microsoft.com/en-us/azure/devops/organizations/projects/create-project?view=azure-devops&tabs=preview-page)</li></ul><ul><li>Bitbucket Workspace Id](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/)</li></ul>. |
+| **GitHub Username** | Provide the username of your git account. |
+| **Personal Access Token** | A personal access token (PAT) is used as an alternate password to authenticate into your git accounts. |
 
-### 1. Git Host: 
 
-This field is filled by default, Showing the URL of the selected git providers. For example- https://github.com for GitHub, https://gitlab.com for GitLab, https://dev.azure.com/ for Azure & https://bitbucket.org for BitBucket. Please replace them(not available for GitHub & BitBucket) if they are not the url you want to use.
 
 ### 2. GitHub Organization Name / GitLab Group ID / Azure DevOps Project Name / BitBucket Workspace ID:
 
