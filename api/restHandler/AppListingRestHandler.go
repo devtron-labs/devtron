@@ -339,7 +339,11 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 		return
 	}
-	appDetail = handler.fetchResourceTree(w, r, appId, envId, appDetail)
+	appDetail, err = handler.fetchResourceTree(w, r, appId, envId, appDetail)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusNotFound)
+		return
+	}
 	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 }
 
@@ -657,7 +661,10 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 			handler.logger.Errorw("Error occured while fetching resource tree", "installedAppIdParam", installedAppIdParam, "err", err)
 		}
 	} else {
-		appDetail = handler.fetchResourceTree(w, r, appId, envId, appDetail)
+		appDetail, err = handler.fetchResourceTree(w, r, appId, envId, appDetail)
+		if err != nil {
+			handler.logger.Errorw("Error occured while fetching resource tree", "AppIdParam", appIdParam, "err", err)
+		}
 	}
 
 	resourceTree := appDetail.ResourceTree
@@ -707,7 +714,7 @@ func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppI
 	return appDetail, err, appId
 }
 
-func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
+func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer) (bean.AppDetailContainer, error) {
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsAcdApp(appDetail.DeploymentAppType) {
 		//RBAC enforcer Ends
 		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
@@ -729,7 +736,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		if err != nil {
 			handler.logger.Errorw("error in getting acd token", "err", err)
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
-			return appDetail
+			return appDetail, err
 		}
 		ctx = context.WithValue(ctx, "token", acdToken)
 		start := time.Now()
@@ -748,8 +755,8 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				InternalMessage: "app detail fetched, failed to get resource tree from acd",
 				UserMessage:     userMessage,
 			}
-			common.WriteJsonResp(w, err, "", http.StatusNotFound)
-			return appDetail
+			//common.WriteJsonResp(w, err, "", http.StatusNotFound)
+			return appDetail, err
 		}
 		if resp.Status == string(health.HealthStatusHealthy) {
 			status, err := handler.appListingService.ISLastReleaseStopType(appId, envId)
@@ -799,7 +806,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				InternalMessage: "app detail failed to fetch from helm",
 				UserMessage:     userMessage,
 			}
-			common.WriteJsonResp(w, err, "", http.StatusNotFound)
+			//common.WriteJsonResp(w, err, "", http.StatusNotFound)
 		}
 		if detail != nil {
 			resourceTree := util2.InterfaceToMapAdapter(detail.ResourceTreeResponse)
@@ -809,9 +816,10 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		} else {
 			appDetail.ResourceTree = map[string]interface{}{}
 		}
+		return appDetail, err
 	} else {
 		appDetail.ResourceTree = map[string]interface{}{}
 		handler.logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
-	return appDetail
+	return appDetail, nil
 }
