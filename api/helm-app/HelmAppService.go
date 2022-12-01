@@ -32,6 +32,7 @@ import (
 )
 
 const DEFAULT_CLUSTER = "default_cluster"
+const DEFAULT_CLUSTER_ID = 1
 
 type HelmAppService interface {
 	ListHelmApplications(clusterIds []int, w http.ResponseWriter, token string, helmAuth func(token string, object string) bool)
