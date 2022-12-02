@@ -5,35 +5,39 @@ import (
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
+	"strconv"
 )
 
 type CiStatusUpdateCron interface {
-	UpdateStatusForStuckCi()
 }
 
 type CiStatusUpdateCronImpl struct {
-	logger                   *zap.SugaredLogger
-	cron                     *cron.Cron
-	appService               app.AppService
-	ciStatusUpdateCronConfig *CiStatusUpdateCronConfig
-	ciPipelineRepository     pipelineConfig.CiPipelineRepository
+	logger                       *zap.SugaredLogger
+	cron                         *cron.Cron
+	appService                   app.AppService
+	ciWorkflowStatusUpdateConfig *CiWorkflowStatusUpdateConfig
+	ciPipelineRepository         pipelineConfig.CiPipelineRepository
+	ciHandler                    pipeline.CiHandler
 }
 
 func NewCiStatusUpdateCronImpl(logger *zap.SugaredLogger, appService app.AppService,
-	ciStatusUpdateCronConfig *CiStatusUpdateCronConfig, ciPipelineRepository pipelineConfig.CiPipelineRepository) *CiStatusUpdateCronImpl {
+	ciWorkflowStatusUpdateConfig *CiWorkflowStatusUpdateConfig, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	ciHandler pipeline.CiHandler) *CiStatusUpdateCronImpl {
 	cron := cron.New(
 		cron.WithChain())
 	cron.Start()
 	impl := &CiStatusUpdateCronImpl{
-		logger:                   logger,
-		cron:                     cron,
-		appService:               appService,
-		ciStatusUpdateCronConfig: ciStatusUpdateCronConfig,
-		ciPipelineRepository:     ciPipelineRepository,
+		logger:                       logger,
+		cron:                         cron,
+		appService:                   appService,
+		ciWorkflowStatusUpdateConfig: ciWorkflowStatusUpdateConfig,
+		ciPipelineRepository:         ciPipelineRepository,
+		ciHandler:                    ciHandler,
 	}
-	_, err := cron.AddFunc(ciStatusUpdateCronConfig.CiPipelineStatusCronTime, impl.UpdateStatusForStuckCi)
+	_, err := cron.AddFunc(ciWorkflowStatusUpdateConfig.CiWorkflowStatusUpdateCron, impl.UpdateCiWorkflowStatusFailedCron)
 	if err != nil {
 		logger.Errorw("error in starting ci application status update cron job", "err", err)
 		return nil
@@ -41,13 +45,13 @@ func NewCiStatusUpdateCronImpl(logger *zap.SugaredLogger, appService app.AppServ
 	return impl
 }
 
-type CiStatusUpdateCronConfig struct {
-	CiPipelineStatusCronTime string `env:"CI_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
-	PipelineFailedTime       string `env:"PIPELINE_FAILED_TIME" envDefault:"10"` //in minutes
+type CiWorkflowStatusUpdateConfig struct {
+	CiWorkflowStatusUpdateCron string `env:"CI_WORKFLOW_STATUS_UPDATE_CRON" envDefault:"*/2 * * * *"`
+	TimeoutForFailedCiBuild    string `env:"TIMEOUT_FOR_FAILED_CI_BUILD" envDefault:"15"` //in minutes
 }
 
-func GetCiStatusUpdateCronConfig() (*CiStatusUpdateCronConfig, error) {
-	cfg := &CiStatusUpdateCronConfig{}
+func GetCiWorkflowStatusUpdateConfig() (*CiWorkflowStatusUpdateConfig, error) {
+	cfg := &CiWorkflowStatusUpdateConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
 		fmt.Println("failed to parse server app status config: " + err.Error())
@@ -56,7 +60,16 @@ func GetCiStatusUpdateCronConfig() (*CiStatusUpdateCronConfig, error) {
 	return cfg, nil
 }
 
-func (impl *CiStatusUpdateCronImpl) UpdateStatusForStuckCi() {
-
+func (impl *CiStatusUpdateCronImpl) UpdateCiWorkflowStatusFailedCron() {
+	timeoutForFailureCiBuild, err := strconv.Atoi(impl.ciWorkflowStatusUpdateConfig.TimeoutForFailedCiBuild)
+	if err != nil {
+		impl.logger.Errorw("error in converting string to int", "err", err)
+		return
+	}
+	err = impl.ciHandler.UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild)
+	if err != nil {
+		impl.logger.Errorw("error in updating ci workflow status for failed workflows", "err", err)
+		return
+	}
 	return
 }
