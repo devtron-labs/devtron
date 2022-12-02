@@ -3,7 +3,7 @@ INSERT INTO "public"."chart_ref" ("name","location", "version", "is_default", "a
     ('Deployment','reference-chart_4-17-0', '4.17.0','t', 't', 'now()', 1, 'now()', 1);
 
 
-ALTER TABLE "chart_ref" ADD COLUMN "file_path_containing_strategy" text;
+ALTER TABLE "chart_ref" ADD COLUMN "deployment_strategy_path" text;
 ALTER TABLE "chart_ref" ADD COLUMN "json_path_for_strategy" text;
 ALTER TABLE "chart_ref" ADD COLUMN "is_app_metrics_supported" bool NOT NULL DEFAULT TRUE;
 
@@ -36,7 +36,7 @@ CREATE TABLE public.global_strategy_metadata_chart_ref_mapping (
 PRIMARY KEY ("id")
 );
 
-UPDATE chart_ref set file_path_containing_strategy='pipeline-values.yaml' where user_uploaded=false;
+UPDATE chart_ref set deployment_strategy_path='pipeline-values.yaml' where user_uploaded=false;
 
 UPDATE chart_ref set is_app_metrics_supported=true where version in ('3.7.0','3.8.0','3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','4.10.0','4.11.0','4.12.0','4.13.0','4.14.0','4.15.0','4.16.0','4.17.0') and (name is null or name='Deployment') and user_uploaded=false;
 

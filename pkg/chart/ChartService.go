@@ -659,7 +659,7 @@ func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (strin
 		}
 		template = chartRef.Location
 		version = chartRef.Version
-		pipelineStrategyPath = chartRef.FilePathContainingStrategy
+		pipelineStrategyPath = chartRef.DeploymentStrategyPath
 	} else {
 		chartRef, err := impl.chartRefRepository.GetDefault()
 		if err != nil {
@@ -667,7 +667,7 @@ func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (strin
 		}
 		template = chartRef.Location
 		version = chartRef.Version
-		pipelineStrategyPath = chartRef.FilePathContainingStrategy
+		pipelineStrategyPath = chartRef.DeploymentStrategyPath
 	}
 
 	//TODO VIKI- fetch from chart ref table

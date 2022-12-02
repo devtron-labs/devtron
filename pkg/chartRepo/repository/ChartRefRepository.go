@@ -9,19 +9,19 @@ import (
 
 type RefChartDir string
 type ChartRef struct {
-	tableName                  struct{} `sql:"chart_ref" pg:",discard_unknown_columns"`
-	Id                         int      `sql:"id,pk"`
-	Location                   string   `sql:"location"`
-	Version                    string   `sql:"version"`
-	Active                     bool     `sql:"active,notnull"`
-	Default                    bool     `sql:"is_default,notnull"`
-	Name                       string   `sql:"name"`
-	ChartData                  []byte   `sql:"chart_data"`
-	ChartDescription           string   `sql:"chart_description"`
-	UserUploaded               bool     `sql:"user_uploaded,notnull"`
-	IsAppMetricsSupported      bool     `sql:"is_app_metrics_supported,notnull"`
-	FilePathContainingStrategy string   `sql:"file_path_containing_strategy"`
-	JsonPathForStrategy        string   `sql:"json_path_for_strategy"`
+	tableName              struct{} `sql:"chart_ref" pg:",discard_unknown_columns"`
+	Id                     int      `sql:"id,pk"`
+	Location               string   `sql:"location"`
+	Version                string   `sql:"version"`
+	Active                 bool     `sql:"active,notnull"`
+	Default                bool     `sql:"is_default,notnull"`
+	Name                   string   `sql:"name"`
+	ChartData              []byte   `sql:"chart_data"`
+	ChartDescription       string   `sql:"chart_description"`
+	UserUploaded           bool     `sql:"user_uploaded,notnull"`
+	IsAppMetricsSupported  bool     `sql:"is_app_metrics_supported,notnull"`
+	DeploymentStrategyPath string   `sql:"deployment_strategy_path"`
+	JsonPathForStrategy    string   `sql:"json_path_for_strategy"`
 	sql.AuditLog
 }
 
