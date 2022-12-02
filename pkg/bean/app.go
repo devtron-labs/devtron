@@ -493,7 +493,7 @@ type CdStage struct {
 }
 
 type Strategy struct {
-	DeploymentTemplate pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
+	DeploymentTemplate pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty""` //
 	Config             json.RawMessage                   `json:"config,omitempty" validate:"string"`
 	Default            bool                              `json:"default"`
 }
