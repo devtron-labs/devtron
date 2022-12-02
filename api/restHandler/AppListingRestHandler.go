@@ -748,7 +748,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			userMessage := "Error fetching detail, if you have recently created this deployment pipeline please try after sometime."
 			errCode := grpc_logging.DefaultErrorToCode(err)
 			if errCode == util.ErrorGrpcNotFound {
-				userMessage = "App details not found, deleted from " + appDetail.DeploymentAppType
+				userMessage = "App details not found,release deleted from " + appDetail.DeploymentAppType
 			}
 			handler.logger.Errorw("service err, FetchAppDetails, resource tree", "err", err, "app", appId, "env", envId)
 			err = &util.ApiError{
@@ -799,7 +799,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 			userMessage := "Apps details not found ,failed to fetch from " + appDetail.DeploymentAppType
 			errCode := grpc_logging.DefaultErrorToCode(err)
 			if errCode == util.ErrorGrpcNotFound || errCode == util.ErrorGrpcUnKnown {
-				userMessage = "App details not found, deleted from " + appDetail.DeploymentAppType
+				userMessage = "App details not found,release deleted from " + appDetail.DeploymentAppType
 			}
 			handler.logger.Errorw("error in fetching app detail", "err", err)
 			err = &util.ApiError{

@@ -26,7 +26,6 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
-	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
@@ -365,10 +364,7 @@ func (handler *InstalledAppRestHandlerImpl) FetchAppDetailsForInstalledApp(w htt
 		appDetail.ResourceTree = map[string]interface{}{}
 		handler.Logger.Warnw("appName and envName not found - avoiding resource tree call", "app", appDetail.AppName, "env", appDetail.EnvironmentName)
 	}
-	//if err != nil {
-	//	common.WriteJsonResp(w, err, appDetail, http.StatusOK)
-	//	return
-	//}
+
 	common.WriteJsonResp(w, nil, appDetail, http.StatusOK)
 }
 
@@ -377,20 +373,11 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWri
 	cn, _ := w.(http.CloseNotifier)
 	_, err := handler.installedAppService.FetchResourceTree(ctx, cn, appDetail)
 	if err != nil {
-		userMessage := "Apps details not found ,failed to fetch from " + appDetail.DeploymentAppType
 		errCode := grpc_logging.DefaultErrorToCode(err)
 		if errCode == util.ErrorGrpcNotFound || errCode == util.ErrorGrpcUnKnown {
-			userMessage = "App details not found, deleted from " + appDetail.DeploymentAppType
+			userMessage := "Deleted From " + appDetail.DeploymentAppType
+			appDetail.AppDeleteError = userMessage
 		}
-		err = &util.ApiError{
-			Code:            constants.AppDetailResourceTreeNotFound,
-			InternalMessage: "app detail failed to fetch from " + appDetail.DeploymentAppType,
-			UserMessage:     userMessage,
-		}
-		//common.WriteJsonResp(w, err, "", http.StatusNotFound)
-
-	}
-	if err != nil {
 		handler.Logger.Errorw("error occurred while fetching resource tree", "appName", appDetail.AppName, "envName", appDetail.EnvironmentName, "err", err)
 	}
 }
