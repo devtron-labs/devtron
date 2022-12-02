@@ -159,12 +159,12 @@ type PipelineBuilderImpl struct {
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
 	//ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
 	//ciBuildConfigService CiBuildConfigService
-	ciTemplateService            CiTemplateService
-	userService                  user.UserService
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
-	gitMaterialHistoryService    history.GitMaterialHistoryService
-	CiTemplateHistoryService     history.CiTemplateHistoryService
-	CiPipelineHistoryService     history.CiPipelineHistoryService
+	ciTemplateService                               CiTemplateService
+	userService                                     user.UserService
+	ciTemplateOverrideRepository                    pipelineConfig.CiTemplateOverrideRepository
+	gitMaterialHistoryService                       history.GitMaterialHistoryService
+	CiTemplateHistoryService                        history.CiTemplateHistoryService
+	CiPipelineHistoryService                        history.CiPipelineHistoryService
 	globalStrategyMetadataRepository                chartRepoRepository.GlobalStrategyMetadataRepository
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
 }
@@ -255,17 +255,17 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciTemplateService:                ciTemplateService,
 		//ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
 		//ciBuildConfigService: ciBuildConfigService,
-		userService:                  userService,
-		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
-		gitMaterialHistoryService:    gitMaterialHistoryService,
-		CiTemplateHistoryService:     CiTemplateHistoryService,
-		CiPipelineHistoryService:     CiPipelineHistoryService,
-		globalStrategyMetadataRepository: globalStrategyMetadataRepository,
+		userService:                                     userService,
+		ciTemplateOverrideRepository:                    ciTemplateOverrideRepository,
+		gitMaterialHistoryService:                       gitMaterialHistoryService,
+		CiTemplateHistoryService:                        CiTemplateHistoryService,
+		CiPipelineHistoryService:                        CiPipelineHistoryService,
+		globalStrategyMetadataRepository:                globalStrategyMetadataRepository,
 		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
 	}
 }
 
-//internal use only
+// internal use only
 const (
 	teamIdKey                string = "teamId"
 	teamNameKey              string = "teamName"
@@ -2463,13 +2463,17 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		if err != nil {
 			return pipelineStrategiesResponse, err
 		}
-		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
+		pipelineStrategy := PipelineStrategy{
 			DeploymentTemplate: globalStrategy.Name,
 			Config:             []byte(config),
-			Default:            true,
-		})
+		}
+		if globalStrategy.Name == chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING {
+			pipelineStrategy.Default = true
+		} else {
+			pipelineStrategy.Default = false
+		}
+		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, pipelineStrategy)
 	}
-
 	return pipelineStrategiesResponse, nil
 }
 
