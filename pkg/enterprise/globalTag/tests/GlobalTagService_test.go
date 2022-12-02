@@ -55,7 +55,7 @@ func TestGlobalTagService(t *testing.T) {
 			Key:                    "key2",
 			MandatoryProjectIdsCsv: "2",
 			Description:            "someDescription2",
-			AuditLog:               sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 2},
+			AuditLog:               sql.AuditLog{CreatedOn: time.Now(), CreatedBy: 2, UpdatedOn: time.Now()},
 		})
 		globalTagRepositoryMocked.On("FindAllActive").Return(globalTagsFromDb, nil)
 		globalTagServiceImpl := globalTag.NewGlobalTagServiceImpl(sugaredLogger, globalTagRepositoryMocked)
