@@ -76,9 +76,10 @@ query text;
 BEGIN
 FOR temprow IN SELECT * FROM chart_ref where version ='4.17.0' and name='Deployment' and user_uploaded=false
     LOOP
-                  query := E'INSERT INTO global_strategy_metadata_chart_ref_mapping ("global_strategy_metadata_id", "chart_ref_id", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
-                      (1,$1, ''true'', ''now()'', 1, ''now()'', 1),
-                      (4,$1, ''true'', ''now()'', 1, ''now()'', 1);';
+                  query := E'INSERT INTO global_strategy_metadata_chart_ref_mapping ("global_strategy_metadata_id", "chart_ref_id", "active", "created_on", "created_by", "updated_on", "updated_by") ' ||
+                     'VALUES (1,$1, ''true'', ''now()'', 1, ''now()'', 1),' ||
+                     '(4,$1, ''true'', ''now()'', 1, ''now()'', 1);';
+                  EXECUTE query USING temprow.id;
 END LOOP;
 END$$;
 
@@ -91,8 +92,9 @@ query text;
 BEGIN
 FOR temprow IN SELECT * FROM chart_ref where not (version in ('3.2.0','3.3.0','3.4.0','3.5.0','3.6.0','3.7.0','3.8.0','3.9.0','3.10.0','3.11.0','3.12.0','3.13.0','4.10.0','4.11.0','4.12.0','4.13.0','4.14.0','4.15.0','4.16.0','4.17.0') and (name is null or name='Deployment')) and user_uploaded=false
     LOOP
-                  query := E'INSERT INTO global_strategy_metadata_chart_ref_mapping ("global_strategy_metadata_id", "chart_ref_id", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
-                      (1,$1, ''true'', ''now()'', 1, ''now()'', 1),
-                      (2,$1, ''true'', ''now()'', 1, ''now()'', 1);';
+                  query := E'INSERT INTO global_strategy_metadata_chart_ref_mapping ("global_strategy_metadata_id", "chart_ref_id", "active", "created_on", "created_by", "updated_on", "updated_by") ' ||
+                     'VALUES (1,$1, ''true'', ''now()'', 1, ''now()'', 1),' ||
+                      '(2,$1, ''true'', ''now()'', 1, ''now()'', 1);';
+                  EXECUTE query USING temprow.id;
 END LOOP;
 END$$;
