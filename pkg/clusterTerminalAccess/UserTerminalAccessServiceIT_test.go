@@ -147,6 +147,7 @@ func createAndUpdateSessionForUser(t *testing.T, terminalAccessServiceImpl *User
 		BaseImage: baseImage,
 		ShellName: "sh",
 		NodeName:  "demo-new",
+		Namespace: "default",
 	}
 	time.Sleep(5 * time.Second)
 	startTerminalSession, err := terminalAccessServiceImpl.StartTerminalSession(request)
