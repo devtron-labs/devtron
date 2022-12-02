@@ -7,8 +7,8 @@
 A CI Workflow can be created in one of the following ways:
 
 * [Build and Deploy from Source Code](#1-build-and-deploy-from-source-code)
-* [Linked Build Pipeline](#2.-linked-build-pipeline)
-* [Deploy Image from External Service](#3.-deploy-image-from-external-service)
+* [Linked Build Pipeline](#2-linked-build-pipeline)
+* [Deploy Image from External Service](#3-deploy-image-from-external-service)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/workflow-ci.jpg)
 
