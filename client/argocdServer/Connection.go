@@ -65,7 +65,7 @@ func (impl *ArgoCDConnectionManagerImpl) GetConnection(token string) *grpc.Clien
 	conf, err := GetConfig()
 	if err != nil {
 		impl.logger.Errorw("error on get acd config while creating connection", "err", err)
-		panic(err)
+		return nil
 	}
 	settings := impl.getArgoCdSettings()
 	var option []grpc.DialOption
@@ -76,7 +76,7 @@ func (impl *ArgoCDConnectionManagerImpl) GetConnection(token string) *grpc.Clien
 	option = append(option, grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor), grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor))
 	conn, err := grpc.Dial(fmt.Sprintf("%s:%s", conf.Host, conf.Port), option...)
 	if err != nil {
-		panic(err)
+		return nil
 	}
 	return conn
 }
@@ -122,7 +122,7 @@ func (impl *ArgoCDConnectionManagerImpl) getArgoCdSettings() *settings.ArgoCDSet
 		settings, err = impl.settingsManager.GetSettings()
 		if err != nil {
 			impl.logger.Errorw("error on get acd connection", "err", err)
-			panic(err)
+			return nil
 		}
 		impl.argoCDSettings = settings
 	}
