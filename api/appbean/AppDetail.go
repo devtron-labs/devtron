@@ -65,7 +65,7 @@ type DeploymentTemplate struct {
 	ShowAppMetrics    bool                        `json:"showAppMetrics"`
 	IsOverride        bool                        `json:"isOverride"`
 	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
-	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor" validate:"required"`
+	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 }
 
 type AppWorkflow struct {
