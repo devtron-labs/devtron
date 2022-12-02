@@ -494,7 +494,7 @@ type CdStage struct {
 }
 
 type Strategy struct {
-	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
+	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
 	Config             json.RawMessage                        `json:"config,omitempty" validate:"string"`
 	Default            bool                                   `json:"default"`
 }
