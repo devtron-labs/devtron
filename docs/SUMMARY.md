@@ -5,6 +5,7 @@
 * [Getting Started](setup/getting-started/getting-started.md)
 * [Install Devtron](setup/install/README.md)
   * [Install Devtron with CI/CD Integration](setup/install/install-devtron-with-cicd.md)
+  * [Install Devtron with CI/CD along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md)
   * [Install Devtron](setup/install/install-devtron.md)
   * [Install Devtron with CI/CD on AWS EKS](setup/install/install-devtron-on-AWS-EKS.md)
   * [Install Devtron on Minikube, Microk8s, K3s, Kind](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
