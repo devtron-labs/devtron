@@ -2481,7 +2481,7 @@ type PipelineStrategiesResponse struct {
 	PipelineStrategy []PipelineStrategy `json:"pipelineStrategy"`
 }
 type PipelineStrategy struct {
-	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING"` //
+	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
 	Config             json.RawMessage                        `json:"config"`
 	Default            bool                                   `json:"default"`
 }

@@ -460,7 +460,7 @@ type CDPipelineConfigObject struct {
 	Strategies                    []Strategy                             `json:"strategies,omitempty"`
 	Namespace                     string                                 `json:"namespace,omitempty" validate:"name-space-component,max=50"` //namespace
 	AppWorkflowId                 int                                    `json:"appWorkflowId,omitempty" `
-	DeploymentTemplate            chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
+	DeploymentTemplate            chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
 	PreStage                      CdStage                                `json:"preStage"`
 	PostStage                     CdStage                                `json:"postStage"`
 	PreStageConfigMapSecretNames  PreStageConfigMapSecretNames           `json:"preStageConfigMapSecretNames"`
