@@ -104,7 +104,7 @@ type CdPipelineDetails struct {
 	Name                          string                                 `json:"name"` //pipelineName
 	EnvironmentName               string                                 `json:"environmentName" `
 	TriggerType                   pipelineConfig.TriggerType             `json:"triggerType" validate:"required"`
-	DeploymentType                chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
+	DeploymentStrategyType        chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
 	DeploymentStrategies          []*DeploymentStrategy                  `json:"deploymentStrategies"`
 	PreStage                      *CdStage                               `json:"preStage"`
 	PostStage                     *CdStage                               `json:"postStage"`
@@ -116,9 +116,9 @@ type CdPipelineDetails struct {
 }
 
 type DeploymentStrategy struct {
-	DeploymentType chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
-	Config         map[string]interface{}                 `json:"config,omitempty" validate:"string"`
-	IsDefault      bool                                   `json:"isDefault" validate:"required"`
+	DeploymentStrategyType chartRepoRepository.DeploymentStrategy `json:"deploymentType,omitempty" validate:"oneof=BLUE-GREEN ROLLING CANARY RECREATE"` //
+	Config                 map[string]interface{}                 `json:"config,omitempty" validate:"string"`
+	IsDefault              bool                                   `json:"isDefault" validate:"required"`
 }
 
 type CdStage struct {

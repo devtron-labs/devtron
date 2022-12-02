@@ -745,21 +745,21 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 	}
 
 	cdPipelineResp := &appBean.CdPipelineDetails{
-		Name:              cdPipeline.Name,
-		EnvironmentName:   cdPipeline.EnvironmentName,
-		TriggerType:       cdPipeline.TriggerType,
-		DeploymentType:    cdPipeline.DeploymentTemplate,
-		RunPreStageInEnv:  cdPipeline.RunPreStageInEnv,
-		RunPostStageInEnv: cdPipeline.RunPostStageInEnv,
-		IsClusterCdActive: cdPipeline.CdArgoSetup,
+		Name:                   cdPipeline.Name,
+		EnvironmentName:        cdPipeline.EnvironmentName,
+		TriggerType:            cdPipeline.TriggerType,
+		DeploymentStrategyType: cdPipeline.DeploymentTemplate,
+		RunPreStageInEnv:       cdPipeline.RunPreStageInEnv,
+		RunPostStageInEnv:      cdPipeline.RunPostStageInEnv,
+		IsClusterCdActive:      cdPipeline.CdArgoSetup,
 	}
 
 	//build DeploymentStrategies resp
 	var deploymentTemplateStrategiesResp []*appBean.DeploymentStrategy
 	for _, strategy := range cdPipeline.Strategies {
 		deploymentTemplateStrategyResp := &appBean.DeploymentStrategy{
-			DeploymentType: strategy.DeploymentTemplate,
-			IsDefault:      strategy.Default,
+			DeploymentStrategyType: strategy.DeploymentTemplate,
+			IsDefault:              strategy.Default,
 		}
 		var configObj map[string]interface{}
 		if strategy.Config != nil {
@@ -1630,7 +1630,7 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			Namespace:                     envModel.Namespace,
 			AppWorkflowId:                 workflowId,
 			CiPipelineId:                  ciPipelineId,
-			DeploymentTemplate:            cdPipeline.DeploymentType,
+			DeploymentTemplate:            cdPipeline.DeploymentStrategyType,
 			TriggerType:                   cdPipeline.TriggerType,
 			CdArgoSetup:                   cdPipeline.IsClusterCdActive,
 			RunPreStageInEnv:              cdPipeline.RunPreStageInEnv,
@@ -1962,7 +1962,7 @@ func convertCdDeploymentStrategies(deploymentStrategies []*appBean.DeploymentStr
 	var convertedStrategies []bean.Strategy
 	for _, deploymentStrategy := range deploymentStrategies {
 		convertedStrategy := bean.Strategy{
-			DeploymentTemplate: deploymentStrategy.DeploymentType,
+			DeploymentTemplate: deploymentStrategy.DeploymentStrategyType,
 			Default:            deploymentStrategy.IsDefault,
 		}
 		strategyConfig, err := json.Marshal(deploymentStrategy.Config)

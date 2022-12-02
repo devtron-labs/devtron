@@ -631,6 +631,7 @@ func (impl ChartServiceImpl) getChartMetaData(templateRequest TemplateRequest) (
 func (impl ChartServiceImpl) getRefChart(templateRequest TemplateRequest) (string, string, error, string, string) {
 	var template string
 	var version string
+	//path of file in chart from where strategy config is to be taken
 	var pipelineStrategyPath string
 	if templateRequest.ChartRefId > 0 {
 		chartRef, err := impl.chartRefRepository.FindById(templateRequest.ChartRefId)
