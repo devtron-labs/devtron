@@ -6,9 +6,9 @@
 
 A CI Workflow can be created in one of the following ways:
 
-* [Build and Deploy from Source Code](#1-continuous-integration)
-* [Linked Build Pipeline](#2.-linked-ci-pipeline)
-* [Deploy Image from External Service](#3.-incoming-webhook)
+* [Build and Deploy from Source Code](#1-build-and-deploy-from-source-code)
+* [Linked Build Pipeline](#2.-linked-build-pipeline)
+* [Deploy Image from External Service](#3.-deploy-image-from-external-service)
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/workflow-ci-pipeline/workflow-ci.jpg)
 
@@ -198,13 +198,13 @@ Builds cannot be triggered from a linked CI pipeline; they can only be triggered
 
 The CI pipeline can receive container images from an external source via webhook API.
 
-You can use Devtron for deployments on Kubernetes while using an external CI tool such as Jenkins, Github actions, Gitlab CI or CircleCI. External CI feature can be used when the CI tool is hosted outside the Devtron platform. However, by using an external CI, you will not be able to use some of the Devtron features such as Image scanning and security policies, configuring pre-post CI stages etc. 
+You can use Devtron for deployments on Kubernetes while using an external CI tool such as Jenkins or CircleCI. External CI feature can be used when the CI tool is hosted outside the Devtron platform. However, by using an external CI, you will not be able to use some of the Devtron features such as Image scanning and security policies, configuring pre-post CI stages etc. 
 
 
 * Create a [new](https://docs.devtron.ai/usage/applications/create-application) or [clone](https://docs.devtron.ai/usage/applications/cloning-application) an application.
 * To configure `Git Repository`, you can add any Git repository account (e.g., dummy account) and click **Next**.
 * To configure the `Container Registry` and `Container Repository`, you can leave the fields blank or simply add any test repository and click **Save & Next**.
-* On the `Base Deployment Template` page, select the Chart type from the drop-down list and configure as per your [requirements](https://docs.devtron.ai/usage/applications/creating-application/deployment-template) and click **Save & Next**.
+* On the `Base Deployment Template` page, select the `Chart type` from the drop-down list and configure as per your [requirements](https://docs.devtron.ai/usage/applications/creating-application/deployment-template) and click **Save & Next**.
 * On the **Workflow Editor** page, click **New Workflow** and select **Deploy image from external service**.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/click-new-workflow.png)
@@ -223,7 +223,7 @@ You can use Devtron for deployments on Kubernetes while using an external CI too
 
 * Click **Create Pipeline**.
 A new CI pipeline will be created for the external source.
-To get the webhook URL and JSON sample payload to be used in external CI pipeline, click **Show Web Details**.
+To get the webhook URL and JSON sample payload to be used in external CI pipeline, click **Show webhook details**.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/webhook-ci/show-webhook-details.jpg)
 

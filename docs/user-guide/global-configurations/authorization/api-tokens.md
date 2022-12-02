@@ -79,7 +79,7 @@ To update API token permissions, give the permissions as you want to and click o
 
 ## Delete API Token
 
-To delete an API token, click on the `delete` icon. Any applications or scripts using this token will no longer be able to access the Devtron API.
+To delete an API token, click `delete` icon. Any applications or scripts using this token will no longer be able to access the Devtron API.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-14.png)
 
