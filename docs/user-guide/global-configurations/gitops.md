@@ -28,65 +28,80 @@ To add GitOps, go to the `Gitops` section of `Global Configurations`. Click **Gi
 
 Below are the Git providers which are available in Devtron. Select one of the Git providers (e.g., GitHub) to configure GitOps:
 
-* **GitHub**
-* **GitLab**
-* **Azure**
-* **BitBucket Cloud**
+* [GitHub](#github)
+* [GitLab](#gitlab)
+* [Azure](#azure)
+* [BitBucket Cloud](#bitbucket-cloud)
 
-Provide the information in the following fields to configure GitOps:
+### GitHub
+
+If you select `GitHuB` as your git provider, please provide the information in the following fields to configure GitOps:
 
 | Fields | Description |
 | --- | --- |
-| **Git Host** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://github.com/ for GitHub, https://gitlab.com/ for GitLab, https://dev.azure.com/ for Azure and https://bitbucket.org/ for BitBucket.</br> |
-| **GitHub Organisation Name** | Enter the GitHub organization name.<br>If you do not have one, create using:ul><li>[Github Organization Name](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations)</li></ul> <ul><li>[Gitlab group Id](https://docs.gitlab.com/ee/user/group/)</li></ul><ul><li>[Azure DevOps Project Name](https://docs.microsoft.com/en-us/azure/devops/organizations/projects/create-project?view=azure-devops&tabs=preview-page)</li></ul><ul><li>Bitbucket Workspace Id](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/)</li></ul>. |
-| **GitHub Username** | Provide the username of your git account. |
-| **Personal Access Token** | A personal access token (PAT) is used as an alternate password to authenticate into your git accounts. |
+| **Git Host** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://github.com/ for GitHub. |
+| **GitHub Organisation Name** | Enter the GitHub organization name.<br>If you do not have one, create using [Github Organization Name](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations)</br>. |
+| **GitHub Username** | Provide the username of your GitHub account. |
+| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitHub account.<br>If you do not have one, create a GitHub PAT [here](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token)</br>. |
 
 
-
-### 2. GitHub Organization Name / GitLab Group ID / Azure DevOps Project Name / BitBucket Workspace ID:
-
-In the case of GitHub provide `Github Organization Name*`. Learn more about [Github organization Name](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations). <br />
-In the case of Gitlab provide `Gitlab group Id*`. Learn more about [Gitlab group Id](https://docs.gitlab.com/ee/user/group/). <br />
-Similarly in the case of Azure provide `Azure DevOps Project Name*`. Learn more about [Azure DevOps Project Name](https://docs.microsoft.com/en-us/azure/devops/organizations/projects/create-project?view=azure-devops&tabs=preview-page). <br />
-For Bitbucket Cloud, provide `Bitbucket Workspace Id*`. Learn more about [Bitbucket Workspace Id](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/).
-
-### 3. BitBucket Project Key: 
-
-This field is non-mandatory and is only to be filled when you have chosen `Bitbucket Cloud` as your git provider. If not provided, the oldest project in the workspace will be used. Learn more about [Bitbucket Project Key](https://support.atlassian.com/bitbucket-cloud/docs/group-repositories-into-projects/).
-### 4. Git access credential
-
-Provide Git `Username` and `Personal Access Token` of your git account. 
-
-**\(a\) Username** 
-Username for your git account.
-
-**\(b\) Personal Access Token**  
-A personal access token (PAT) is used as an alternate password to authenticate into your git accounts. 
-
-#### For GitHub [Creating a GitHub Personal Access Token](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token):
-
-* repo - Full control of private repositories(Access commit status , Access deployment status and Access public repositories).
-* admin:org - Full control of organizations and teams(Read and write access).
+**Note**: 
+* repo - Full control of private repositories (able to access commit status, deployment status and public repositories).
+* admin:org - Full control of organizations and teams (Read and write access).
 * delete_repo - Grants delete repo access on private repositories.
 
-#### For GitLab [Creating a GitLab Personal Access Token](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html):
 
+### GitLab
+
+If you select `GitLab` as your git provider, please provide the information in the following fields to configure GitOps:
+
+| Fields | Description |
+| --- | --- |
+| **Git Host** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://gitlab.com/ for GitLab. |
+| **GitLab Group ID** | Enter the GitLab group ID.<br>If you do not have one, create using [GitLab Group ID](https://docs.gitlab.com/ee/user/group/)</br>. |
+| **GitLab Username** | Provide the username of your GitLab account. |
+| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitLab account.<br>If you do not have one, create a GitLab PAT [here](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)</br>. |
+
+**Note**:
 * api - Grants complete read/write access to the scoped project API.
-* write_repository - Allows read-write access (pull, push) to the repository. 
+* write_repository - Allows read/write access (pull, push) to the repository.
 
-#### For Azure DevOps [Creating a Azure DevOps Access Token](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page): 
 
-* code - Grants the ability to read source code and metadata about commits, change sets, branches, and other version control artifacts.
-[More Information on scopes in Azure devops](https://docs.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/oauth?view=azure-devops#scopes).
+### Azure
 
-#### For BitBucket Cloud [Creating a Bitbucket Cloud Personal Access Token (App passwords)](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/)
+If you select `GitAzureLab` as your git provider, please provide the information in the following fields to configure GitOps:
 
-* repo - Full control of repositories (Read, Write, Admin, Delete access). 
+| Fields | Description |
+| --- | --- |
+| **Azure DevOps Organisation Url*** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://dev.azure.com/ for Azure. |
+| **Azure DevOps Project Name** | Enter the Azure DevOps project name.<br>If you do not have one, create using [Azure DevOps Project Name](https://docs.microsoft.com/en-us/azure/devops/organizations/projects/create-project?view=azure-devops&tabs=preview-page)</br>. |
+| **Azure DevOps Username*** | Provide the username of your Azure DevOps account. |
+| **Azure DevOps Access Token*** | Provide your Azure DevOps access token. It is used as an alternate password to authenticate your Azure DevOps account.<br>If you do not have one, create a Azure DevOps access token [here](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page)</br>. |
 
-Click on Save to save your gitOps configuration details.
+**Note**:
+* code - Grants the ability to read source code and metadata about commits, change sets, branches, and other version control artifacts. [More Information on scopes in Azure devops](https://docs.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/oauth?view=azure-devops#scopes).
+
+
+### Bitbucket Cloud
+
+If you select `Bitbucket Cloud` as your git provider, please provide the information in the following fields to configure GitOps:
+
+| Fields | Description |
+| --- | --- |
+| **Bitbucket Host** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://bitbucket.org/ for Bitbucket. |
+| **Bitbucket Workspace ID** | Enter the Bitbucker workspace ID.<br>If you do not have one, create using [Bitbucket Workspace Id](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/)</br>. |
+| **Bitbucket Project Key** | Enter the Bitbucket project key.<br>If you do not have one, create using [Bitbucket Project Key](https://support.atlassian.com/bitbucket-cloud/docs/group-repositories-into-projects/)</br>.<br>Note: This field is not mandatory. If the project is not provided, the repository is automatically assigned to the oldest project in the workspace.</br> |
+| **Bitbucket Username*** | Provide the username of your Bitbucket account. |
+| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your Bitbucket Cloud account.<br>If you do not have one, create a Bitbucket Cloud PAT [here](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/)</br>. |
+
+**Note**:
+* repo - Full control of repositories (Read, Write, Admin, Delete) access. 
+
+
+ 
+Click **Save** to save your GitOps configuration details.
  
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket-cloud.jpg)
 
-> Note: A Green tick will appear on the active gitOps provider.
+**Note** : A Green tick will appear on the active GitOp provider.
