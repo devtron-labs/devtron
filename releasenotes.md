@@ -1,3 +1,14 @@
+## v0.6.9-rc.1
+
+## Bugs
+## Enhancements
+- feat: Gitops or helm options for cd (#2673)
+## Documentation
+- docs: webhook updates links (#2716)
+- docs: webhook ci documentation updates (#2637)
+## Others
+
+
 ## v0.6.9-rc.0
 
 ## Bugs
