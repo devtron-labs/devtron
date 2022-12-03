@@ -12,7 +12,7 @@ components:
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
-      authenticator: "quay.io/devtron/authenticator:aecda793-393-11109"
+      authenticator: "quay.io/devtron/authenticator:461b5cb7-381-11808"
   kubelink:
     image: "quay.io/devtron/kubelink:1d2cc28a-318-11533"
   postgres:
