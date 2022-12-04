@@ -99,7 +99,21 @@ type WorkflowDagExecutorImpl struct {
 	argoUserService               argo.ArgoUserService
 	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
 	CiTemplateRepository          pipelineConfig.CiTemplateRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	appLabelRepository            pipelineConfig.AppLabelRepository
 }
+
+const (
+	CD_PIPELINE_ENV_NAME_KEY     = "CD_PIPELINE_ENV_NAME"
+	CD_PIPELINE_CLUSTER_NAME_KEY = "CD_PIPELINE_CLUSTER_NAME"
+	GIT_COMMIT_HASH_PREFIX       = "GIT_COMMIT_HASH"
+	GIT_SOURCE_TYPE_PREFIX       = "GIT_SOURCE_TYPE"
+	GIT_SOURCE_VALUE_PREFIX      = "GIT_SOURCE_VALUE"
+	GIT_SOURCE_COUNT             = "GIT_SOURCE_COUNT"
+	APP_LABEL_KEY_PREFIX         = "APP_LABEL_KEY"
+	APP_LABEL_VALUE_PREFIX       = "APP_LABEL_VALUE"
+	APP_LABEL_COUNT              = "APP_LABEL_COUNT"
+)
 
 type CiArtifactDTO struct {
 	Id                   int    `json:"id"`
@@ -145,7 +159,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,
 	argoUserService argo.ArgoUserService,
 	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
-	CiTemplateRepository pipelineConfig.CiTemplateRepository) *WorkflowDagExecutorImpl {
+	CiTemplateRepository pipelineConfig.CiTemplateRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	appLabelRepository pipelineConfig.AppLabelRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -173,6 +189,8 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		argoUserService:               argoUserService,
 		cdPipelineStatusTimelineRepo:  cdPipelineStatusTimelineRepo,
 		CiTemplateRepository:          CiTemplateRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		appLabelRepository:            appLabelRepository,
 	}
 	err := util4.AddStream(wde.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM, util4.CI_RUNNER_STREAM)
 	if err != nil {
@@ -670,11 +688,36 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		OrchestratorToken: impl.cdConfig.OrchestratorToken,
 		CloudProvider:     impl.cdConfig.CloudProvider,
 	}
+	extraEnvVariables := make(map[string]string)
+	env, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting environment by id", "err", err)
+		return nil, err
+	}
+	if env != nil {
+		extraEnvVariables[CD_PIPELINE_ENV_NAME_KEY] = env.Name
+		if env.Cluster != nil {
+			extraEnvVariables[CD_PIPELINE_CLUSTER_NAME_KEY] = env.Cluster.ClusterName
+		}
+	}
+	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifact.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting ciWf by artifactId", "err", err, "artifactId", artifact.Id)
+		return nil, err
+	}
 
+	if ciWf != nil && ciWf.GitTriggers != nil {
+		i := 1
+		for _, gitTrigger := range ciWf.GitTriggers {
+			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_COMMIT_HASH_PREFIX, i)] = gitTrigger.Commit
+			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_TYPE_PREFIX, i)] = string(gitTrigger.CiConfigureSourceType)
+			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
+			i++
+		}
+		extraEnvVariables[GIT_SOURCE_COUNT] = strconv.Itoa(i)
+	}
 	if ciPipeline != nil && ciPipeline.Id > 0 {
-		extraEnvVariables := make(map[string]string)
 		extraEnvVariables["APP_NAME"] = ciPipeline.App.AppName
-		cdStageWorkflowRequest.ExtraEnvironmentVariables = extraEnvVariables
 		cdStageWorkflowRequest.DockerUsername = ciPipeline.CiTemplate.DockerRegistry.Username
 		cdStageWorkflowRequest.DockerPassword = ciPipeline.CiTemplate.DockerRegistry.Password
 		cdStageWorkflowRequest.AwsRegion = ciPipeline.CiTemplate.DockerRegistry.AWSRegion
@@ -689,9 +732,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		if err != nil {
 			return nil, err
 		}
-		extraEnvVariables := make(map[string]string)
 		extraEnvVariables["APP_NAME"] = ciTemplate.App.AppName
-		cdStageWorkflowRequest.ExtraEnvironmentVariables = extraEnvVariables
 		cdStageWorkflowRequest.DockerUsername = ciTemplate.DockerRegistry.Username
 		cdStageWorkflowRequest.DockerPassword = ciTemplate.DockerRegistry.Password
 		cdStageWorkflowRequest.AwsRegion = ciTemplate.DockerRegistry.AWSRegion
@@ -701,8 +742,18 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.SecretKey = ciTemplate.DockerRegistry.AWSSecretAccessKey
 		cdStageWorkflowRequest.DockerRegistryType = string(ciTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciTemplate.DockerRegistry.RegistryURL
+		appLabels, err := impl.appLabelRepository.FindAllByAppId(cdPipeline.AppId)
+		if err != nil {
+			impl.logger.Errorw("error in getting labels by appId", "err", err, "appId", cdPipeline.AppId)
+			return nil, err
+		}
+		for i, appLabel := range appLabels {
+			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_KEY_PREFIX, i+1)] = appLabel.Key
+			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_VALUE_PREFIX, i+1)] = appLabel.Value
+		}
+		extraEnvVariables[APP_LABEL_COUNT] = strconv.Itoa(len(appLabels))
 	}
-
+	cdStageWorkflowRequest.ExtraEnvironmentVariables = extraEnvVariables
 	if deployStageTriggeredByUser != nil {
 		cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
 		cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUser.EmailId
