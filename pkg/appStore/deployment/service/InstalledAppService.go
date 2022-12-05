@@ -67,7 +67,6 @@ import (
 const (
 	DEFAULT_ENVIRONMENT_OR_NAMESPACE_OR_PROJECT = "devtron"
 	CLUSTER_COMPONENT_DIR_PATH                  = "/cluster/component"
-	ErrorReleaseNotFound                        = "release: not found"
 )
 
 type InstalledAppService interface {
