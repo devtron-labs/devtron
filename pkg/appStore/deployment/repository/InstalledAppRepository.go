@@ -449,7 +449,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionByClusterIdsV2(clus
 func (impl InstalledAppRepositoryImpl) GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_apps.*", "App", "Environment").
+		Column("installed_apps.*", "App", "Environment", "Team").
 		Where("environment.cluster_id = ?", clusterId).
 		Where("environment.namespace = ?", namespace).
 		Where("app.app_name = ?", appName).
