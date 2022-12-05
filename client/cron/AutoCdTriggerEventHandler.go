@@ -48,7 +48,7 @@ func NewAutoCdTriggerEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *p
 func (impl *AutoCdTriggerEventHandlerImpl) SubscribeAutoCdTriggerEventHandler() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("received auto trigger stages event after ci completion")
-		defer msg.Ack()
+		defer msg.AckSync()
 		eventPayload := pipeline.AutoTriggerStagesAfterCiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &eventPayload)
 		if err != nil {
