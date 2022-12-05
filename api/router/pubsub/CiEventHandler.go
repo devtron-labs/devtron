@@ -92,6 +92,7 @@ func (impl *CiEventHandlerImpl) Subscribe() error {
 			impl.logger.Error(err)
 			return
 		}
+		impl.logger.Debug("ci complete event processed")
 		impl.logger.Debug(resp)
 	}, nats.Durable(util.CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.CI_RUNNER_STREAM))
 	if err != nil {
