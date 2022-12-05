@@ -75,7 +75,7 @@ func NewCiEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSu
 func (impl *CiEventHandlerImpl) Subscribe() error {
 	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.CI_COMPLETE_TOPIC, util.CI_COMPLETE_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("ci complete event received")
-		defer msg.Ack()
+		defer msg.AckSync()
 		ciCompleteEvent := CiCompleteEvent{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciCompleteEvent)
 		if err != nil {
