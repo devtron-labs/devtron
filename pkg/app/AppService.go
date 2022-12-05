@@ -1587,16 +1587,20 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	pipeline *pipelineConfig.Pipeline, configMapJson, appLabelJsonByte []byte, strategy *chartConfig.PipelineStrategy, ctx context.Context,
 	triggeredAt time.Time, deployedBy int32, appMetrics *bool) (releaseId int, overrideId int, mergedValues string, err error) {
 
+	impl.logger.Debugw("TriggerRelease mergeAndSave savePipelineOverride")
 	//register release , obtain release id TODO: populate releaseId to template
 	override, err := impl.savePipelineOverride(overrideRequest, envOverride.Id, triggeredAt)
+	impl.logger.Debugw("TriggerRelease mergeAndSave savePipelineOverride Done")
 	if err != nil {
 		return 0, 0, "", err
 	}
 	//TODO: check status and apply lock
+	impl.logger.Debugw("TriggerRelease mergeAndSave getReleaseOverride")
 	overrideJson, err := impl.getReleaseOverride(envOverride, overrideRequest, artifact, pipeline, override, strategy, appMetrics)
 	if err != nil {
 		return 0, 0, "", err
 	}
+	impl.logger.Debugw("TriggerRelease mergeAndSave getReleaseOverride Done")
 
 	//merge three values on the fly
 	//ordering is important here
@@ -1645,20 +1649,26 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	}
 
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
+	impl.logger.Debugw("TriggerRelease mergeAndSave hpaCheckBeforeTrigger")
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
+	impl.logger.Debugw("TriggerRelease mergeAndSave hpaCheckBeforeTrigger Done")
 
 	// handle image pull secret if access given
+	impl.logger.Debugw("TriggerRelease mergeAndSave HandleImagePullSecretOnApplicationDeployment")
 	merged, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, merged)
 	if err != nil {
 		return 0, 0, "", err
 	}
+	impl.logger.Debugw("TriggerRelease mergeAndSave HandleImagePullSecretOnApplicationDeployment Done")
 
 	commitHash := ""
 	commitTime := time.Time{}
 	if IsAcdApp(pipeline.DeploymentAppType) {
 		chartRepoName := impl.GetChartRepoName(envOverride.Chart.GitRepoUrl)
 		//getting username & emailId for commit author data
+		impl.logger.Debugw("TriggerRelease mergeAndSave chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit")
 		userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(overrideRequest.UserId)
+		impl.logger.Debugw("TriggerRelease mergeAndSave chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit Done")
 		chartGitAttr := &ChartConfig{
 			FileName:       fmt.Sprintf("_%d-values.yaml", envOverride.TargetEnvironment),
 			FileContent:    string(merged),
@@ -1669,7 +1679,9 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 			UserName:       userName,
 			UserEmailId:    userEmailId,
 		}
+		impl.logger.Debugw("TriggerRelease mergeAndSave gitFactory.Client.CommitValues")
 		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr)
+		impl.logger.Debugw("TriggerRelease mergeAndSave gitFactory.Client.CommitValues Done")
 		if err != nil {
 			impl.logger.Errorw("error in git commit", "err", err)
 			return 0, 0, "", err
@@ -1686,7 +1698,9 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 		PipelineMergedValues:   string(merged),
 		AuditLog:               sql.AuditLog{UpdatedOn: triggeredAt, UpdatedBy: deployedBy},
 	}
+	impl.logger.Debugw("TriggerRelease mergeAndSave pipelineOverrideRepository.Update")
 	err = impl.pipelineOverrideRepository.Update(pipelineOverride)
+	impl.logger.Debugw("TriggerRelease mergeAndSave pipelineOverrideRepository.Update Done")
 	if err != nil {
 		return 0, 0, "", err
 	}

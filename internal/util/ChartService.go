@@ -236,15 +236,21 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 
 func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir string, repoUrl string, userId int32) (err error) {
 	chartDir := fmt.Sprintf("%s-%s", gitOpsRepoName, impl.GetDir())
+	impl.logger.Debugw("TriggerRelease pushChartToGitRepo gitService.GetCloneDirectory")
 	clonedDir := impl.gitFactory.gitService.GetCloneDirectory(chartDir)
+	impl.logger.Debugw("TriggerRelease pushChartToGitRepo gitService.GetCloneDirectory Done")
 	if _, err := os.Stat(clonedDir); os.IsNotExist(err) {
+		impl.logger.Debugw("TriggerRelease pushChartToGitRepo gitService.Clone")
 		clonedDir, err = impl.gitFactory.gitService.Clone(repoUrl, chartDir)
+		impl.logger.Debugw("TriggerRelease pushChartToGitRepo gitService.Clone Done")
 		if err != nil {
 			impl.logger.Errorw("error in cloning repo", "url", repoUrl, "err", err)
 			return err
 		}
 	} else {
+		impl.logger.Debugw("TriggerRelease pushChartToGitRepo GitPull")
 		err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
+		impl.logger.Debugw("TriggerRelease pushChartToGitRepo GitPull Done")
 		if err != nil {
 			impl.logger.Errorw("error in pulling git repo", "url", repoUrl, "err", err)
 			return err
@@ -285,12 +291,18 @@ func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenc
 
 	// if push needed, then only push
 	if pushChartToGit {
+		impl.logger.Debugw("TriggerRelease pushChartToGitRepo GetUserEmailIdAndNameForGitOpsCommit")
 		userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
+		impl.logger.Debugw("TriggerRelease pushChartToGitRepo GetUserEmailIdAndNameForGitOpsCommit Done")
+		impl.logger.Debugw("TriggerRelease pushChartToGitRepo gitService.CommitAndPushAllChanges")
 		commit, err := impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+		impl.logger.Debugw("TriggerRelease pushChartToGitRepo gitService.CommitAndPushAllChanges Done")
 		if err != nil {
 			impl.logger.Errorw("error in pushing git", "err", err)
 			impl.logger.Warn("re-trying, taking pull and then push again")
+			impl.logger.Debugw("TriggerRelease pushChartToGitRepo GitPull")
 			err = impl.GitPull(clonedDir, repoUrl, gitOpsRepoName)
+			impl.logger.Debugw("TriggerRelease pushChartToGitRepo GitPull Done")
 			if err != nil {
 				return err
 			}
@@ -299,7 +311,9 @@ func (impl ChartTemplateServiceImpl) pushChartToGitRepo(gitOpsRepoName, referenc
 				impl.logger.Errorw("error copying dir", "err", err)
 				return err
 			}
+			impl.logger.Debugw("TriggerRelease pushChartToGitRepo gitService.CommitAndPushAllChanges")
 			commit, err = impl.gitFactory.gitService.CommitAndPushAllChanges(clonedDir, "first commit", userName, userEmailId)
+			impl.logger.Debugw("TriggerRelease pushChartToGitRepo gitService.CommitAndPushAllChanges Done")
 			if err != nil {
 				impl.logger.Errorw("error in pushing git", "err", err)
 				return err
