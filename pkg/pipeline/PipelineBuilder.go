@@ -1475,22 +1475,17 @@ func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateReque
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
 	isGitOpsConfigured, err := impl.IsGitopsConfigured()
-
+	impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
-
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
 		return nil, err
 	}
-
 	_, err = impl.ValidateCDPipelineRequest(pipelineCreateRequest, isGitOpsConfigured, isGitOpsRequiredForCD)
 	if err != nil {
 		return nil, err
 	}
-
-	impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
-
 	if isGitOpsConfigured && isGitOpsRequiredForCD {
 		err = impl.RegisterInACD(app, pipelineCreateRequest, ctx)
 		if err != nil {

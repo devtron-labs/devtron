@@ -30,7 +30,7 @@ Before you begin, configure an application in the Devtron dashboard.
 - Super admin access
 - Monitoring tool URL
 
-**Note**: External links can only be added/managed by a super admin, but non-super admin users can [access the configured external links](././../creating-application/app-details.md) on the `App Details` page.
+**Note**: External links can only be added/managed by a super admin, but non-super admin users can [access the configured external links](././../creating-application/app-details.md) on the `App Configuration` page.
 
 ## Add an External Link
 
@@ -56,7 +56,7 @@ The following fields are provided on the **Add Link** page:
     </row>
     <tr>
         <td><b>Link name</b></td>
-        <td>Provide name for the tool you want to link.</td>
+        <td>Provide name of the link.</td>
     </tr>
     <tr>
         <td><b>Description</b></td>
@@ -72,7 +72,7 @@ The following fields are provided on the **Add Link** page:
     <tr>
         <td><b>Clusters</b></td>
         <td>
-            Choose the clusters for which you want to configure the selected external tool with.
+            Choose the clusters for which you want to configure the selected external link with.
             <ul>
                 <li>Select one or more than one cluster to enable the link on the specified clusters.</li>
                 <li>Select All Clusters to enable the link on all the clusters.</li>                
@@ -82,7 +82,7 @@ The following fields are provided on the **Add Link** page:
     <tr>
         <td><b>Applications</b></td>
         <td>
-            Choose the application for which you want to configure the selected external tool with.
+            Choose the application for which you want to configure the selected external link with.
             <ul>
                 <li>Select one or more than one application to enable the link on the specified application.</li>
                 <li>Select All applications to enable the link on all the applications.<br>Note: If you enable `App admins can edit`, then you can view the selected links on the App-Details page. </li>                
@@ -120,7 +120,7 @@ Click **Save**.
 
 The users (admin and others) can access the configured external link on the [App Details](././../creating-application/app-details.md) page. 
 
-**Note**: If you enable `App admins can edit` on the `External Links` page, then only non-super admin users can view the selected links on the `App-Details` page. 
+**Note**: If you enable `App admins can edit` on the `External Links` page, then only non-super admin users can view the selected links on the `App Details` page. 
 
 ## Manage External links
 
@@ -130,6 +130,6 @@ Select `Global Configurations > External links`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/external-links/manage-external-links.png)
 
-* Filter and search the links based on the tool's name or a user-defined name.
+* Filter and search the links based on the link's name or a user-defined name.
 * Edit a link by selecting the edit icon next to an external link.
 * Delete an external link by selecting the delete icon next to a link. The bookmarked link will be removed in the clusters for which it was configured.
