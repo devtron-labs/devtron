@@ -728,64 +728,80 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	var appMetrics *bool
 	strategy := &chartConfig.PipelineStrategy{}
 	if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_SPECIFIC_TRIGGER {
+		impl.logger.Debugw("TriggerRelease GetHistoryByPipelineIdAndWfrId", "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 		deploymentTemplateHistory, err := impl.deploymentTemplateHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 		if err != nil {
 			impl.logger.Errorw("error in getting deployed deployment template history by pipelineId and wfrId", "err", err, "pipelineId", &overrideRequest, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 			return 0, err
 		}
+		impl.logger.Debugw("TriggerRelease GetHistoryByPipelineIdAndWfrId Done", "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 		templateName := deploymentTemplateHistory.TemplateName
 		templateVersion := deploymentTemplateHistory.TemplateVersion
 		if templateName == "Rollout Deployment" {
 			templateName = ""
 		}
 		//getting chart_ref by id
+		impl.logger.Debugw("TriggerRelease FindByVersionAndName", "templateName", templateName, "templateVersion", templateVersion)
 		chartRef, err := impl.chartRefRepository.FindByVersionAndName(templateName, templateVersion)
 		if err != nil {
 			impl.logger.Errorw("error in getting chartRef by version and name", "err", err, "version", templateVersion, "name", templateName)
 			return 0, err
 		}
+		impl.logger.Debugw("TriggerRelease FindByVersionAndName Done", "templateName", templateName, "templateVersion", templateVersion)
 		//assuming that if a chartVersion is deployed then it's envConfigOverride will be available
+		impl.logger.Debugw("TriggerRelease GetByAppIdEnvIdAndChartRefId", "appId", pipeline.AppId, "EnvironmentId", pipeline.EnvironmentId)
 		envOverride, err = impl.environmentConfigRepository.GetByAppIdEnvIdAndChartRefId(pipeline.AppId, pipeline.EnvironmentId, chartRef.Id)
 		if err != nil {
 			impl.logger.Errorw("error in getting envConfigOverride for pipeline for specific chartVersion", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "chartRefId", chartRef.Id)
 			return 0, err
 		}
+		impl.logger.Debugw("TriggerRelease GetByAppIdEnvIdAndChartRefId Done", "appId", pipeline.AppId, "EnvironmentId", pipeline.EnvironmentId)
 		//updating historical data in envConfigOverride and appMetrics flag
 		envOverride.IsOverride = true
 		envOverride.EnvOverrideValues = deploymentTemplateHistory.Template
 		appMetrics = &deploymentTemplateHistory.IsAppMetricsEnabled
+		impl.logger.Debugw("TriggerRelease strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId", "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 		strategyHistory, err := impl.strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId(overrideRequest.PipelineId, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 		if err != nil {
 			impl.logger.Errorw("error in getting deployed strategy history by pipleinId and wfrId", "err", err, "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 			return 0, err
 		}
+		impl.logger.Debugw("TriggerRelease strategyHistoryRepository.GetHistoryByPipelineIdAndWfrId Done", "pipelineId", overrideRequest.PipelineId, "wfrId", overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 		strategy.Strategy = strategyHistory.Strategy
 		strategy.Config = strategyHistory.Config
 		strategy.PipelineId = pipeline.Id
 	} else if overrideRequest.DeploymentWithConfig == bean.DEPLOYMENT_CONFIG_TYPE_LAST_SAVED {
+		impl.logger.Debugw("TriggerRelease ActiveEnvConfigOverride", "appId", overrideRequest.AppId, "envId", pipeline.EnvironmentId)
 		envOverride, err = impl.environmentConfigRepository.ActiveEnvConfigOverride(overrideRequest.AppId, pipeline.EnvironmentId)
 		if err != nil {
 			impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 			return 0, err
 		}
+		impl.logger.Debugw("TriggerRelease ActiveEnvConfigOverride Done", "appId", overrideRequest.AppId, "envId", pipeline.EnvironmentId)
 		if envOverride.Id == 0 {
+			impl.logger.Debugw("TriggerRelease FindLatestChartForAppByAppId", "appId", overrideRequest.AppId)
 			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
 			if err != nil {
 				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 				return 0, err
 			}
+			impl.logger.Debugw("TriggerRelease FindLatestChartForAppByAppId Done", "appId", overrideRequest.AppId)
+			impl.logger.Debugw("TriggerRelease FindChartByAppIdAndEnvIdAndChartRefId", "appId", overrideRequest.AppId)
 			envOverride, err = impl.environmentConfigRepository.FindChartByAppIdAndEnvIdAndChartRefId(overrideRequest.AppId, pipeline.EnvironmentId, chart.ChartRefId)
 			if err != nil && !errors2.IsNotFound(err) {
 				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 				return 0, err
 			}
+			impl.logger.Debugw("TriggerRelease FindChartByAppIdAndEnvIdAndChartRefId Done", "appId", overrideRequest.AppId)
 
 			//creating new env override config
 			if errors2.IsNotFound(err) || envOverride == nil {
+				impl.logger.Debugw("TriggerRelease envRepository.FindById", "EnvironmentId", pipeline.EnvironmentId)
 				environment, err := impl.envRepository.FindById(pipeline.EnvironmentId)
 				if err != nil && !IsErrNoRows(err) {
 					return 0, err
 				}
+				impl.logger.Debugw("TriggerRelease envRepository.FindById Done", "EnvironmentId", pipeline.EnvironmentId)
 				envOverride = &chartConfig.EnvConfigOverride{
 					Active:            true,
 					ManualReviewed:    true,
@@ -800,34 +816,42 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 					IsBasicViewLocked: chart.IsBasicViewLocked,
 					CurrentViewEditor: chart.CurrentViewEditor,
 				}
+				impl.logger.Debugw("TriggerRelease environmentConfigRepository.Save")
 				err = impl.environmentConfigRepository.Save(envOverride)
 				if err != nil {
 					impl.logger.Errorw("error in creating envconfig", "data", envOverride, "error", err)
 					return 0, err
 				}
+				impl.logger.Debugw("TriggerRelease environmentConfigRepository.Save Done")
 			}
 			envOverride.Chart = chart
 		} else if envOverride.Id > 0 && !envOverride.IsOverride {
+			impl.logger.Debugw("TriggerRelease chartRepository.FindLatestChartForAppByAppId")
 			chart, err := impl.chartRepository.FindLatestChartForAppByAppId(overrideRequest.AppId)
 			if err != nil {
 				impl.logger.Errorw("invalid state", "err", err, "req", overrideRequest)
 				return 0, err
 			}
+			impl.logger.Debugw("TriggerRelease chartRepository.FindLatestChartForAppByAppId Done")
 			envOverride.Chart = chart
 		}
 
+		impl.logger.Debugw("TriggerRelease appLevelMetricsRepository.FindByAppId")
 		appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(pipeline.AppId)
 		if err != nil && !IsErrNoRows(err) {
 			impl.logger.Errorw("err", err)
 			return 0, &ApiError{InternalMessage: "unable to fetch app level metrics flag"}
 		}
+		impl.logger.Debugw("TriggerRelease appLevelMetricsRepository.FindByAppId Done")
 		appMetrics = &appLevelMetrics.AppMetrics
 
+		impl.logger.Debugw("TriggerRelease envLevelMetricsRepository.FindByAppIdAndEnvId")
 		envLevelMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
 		if err != nil && !IsErrNoRows(err) {
 			impl.logger.Errorw("err", err)
 			return 0, &ApiError{InternalMessage: "unable to fetch env level metrics flag"}
 		}
+		impl.logger.Debugw("TriggerRelease envLevelMetricsRepository.FindByAppIdAndEnvId Done")
 		if envLevelMetrics.Id != 0 && envLevelMetrics.AppMetrics != nil {
 			appMetrics = envLevelMetrics.AppMetrics
 		}
@@ -835,7 +859,9 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 
 		//forceTrigger true if CD triggered Auto, triggered occurred from CI
 		if overrideRequest.ForceTrigger {
+			impl.logger.Debugw("TriggerRelease pipelineConfigRepository.GetDefaultStrategyByPipelineId")
 			strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
+			impl.logger.Debugw("TriggerRelease pipelineConfigRepository.GetDefaultStrategyByPipelineId Done")
 		} else {
 			var deploymentTemplate pipelineConfig.DeploymentTemplate
 			if overrideRequest.DeploymentTemplate == "ROLLING" {
@@ -849,9 +875,13 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			}
 
 			if len(deploymentTemplate) > 0 {
+				impl.logger.Debugw("TriggerRelease pipelineConfigRepository.FindByStrategyAndPipelineId")
 				strategy, err = impl.pipelineConfigRepository.FindByStrategyAndPipelineId(deploymentTemplate, overrideRequest.PipelineId)
+				impl.logger.Debugw("TriggerRelease pipelineConfigRepository.FindByStrategyAndPipelineId Done")
 			} else {
+				impl.logger.Debugw("TriggerRelease pipelineConfigRepository.GetDefaultStrategyByPipelineId")
 				strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
+				impl.logger.Debugw("TriggerRelease pipelineConfigRepository.GetDefaultStrategyByPipelineId Done")
 			}
 		}
 		if err != nil && errors2.IsNotFound(err) == false {
@@ -859,25 +889,31 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 			return 0, err
 		}
 	}
+	impl.logger.Debugw("TriggerRelease CreateHistoriesForDeploymentTrigger")
 	err = impl.CreateHistoriesForDeploymentTrigger(pipeline, strategy, envOverride, envOverride.Chart.ImageDescriptorTemplate, triggeredAt, deployedBy)
 	if err != nil {
 		impl.logger.Errorw("error in creating history entries for deployment trigger", "err", err)
 		return 0, err
 	}
+	impl.logger.Debugw("TriggerRelease CreateHistoriesForDeploymentTrigger Done")
 
 	// auto-healing :  data corruption fix - if ChartLocation in chart is not correct, need correction
 	if !strings.HasSuffix(envOverride.Chart.ChartLocation, fmt.Sprintf("%s%s", "/", envOverride.Chart.ChartVersion)) {
+		impl.logger.Debugw("TriggerRelease autoHealChartLocationInChart")
 		err = impl.autoHealChartLocationInChart(envOverride)
 		if err != nil {
 			return 0, err
 		}
+		impl.logger.Debugw("TriggerRelease autoHealChartLocationInChart Done")
 	}
 
+	impl.logger.Debugw("TriggerRelease envRepository.FindById")
 	env, err := impl.envRepository.FindById(envOverride.TargetEnvironment)
 	if err != nil {
 		impl.logger.Errorw("unable to find env", "err", err)
 		return 0, err
 	}
+	impl.logger.Debugw("TriggerRelease envRepository.FindById Done")
 	envOverride.Environment = env
 
 	// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
@@ -890,23 +926,30 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 	if IsAcdApp(pipeline.DeploymentAppType) {
 		// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
+		impl.logger.Debugw("TriggerRelease chartTemplateService.GetGitOpsRepoName")
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
-
+		impl.logger.Debugw("TriggerRelease chartTemplateService.GetGitOpsRepoName Done")
+		impl.logger.Debugw("TriggerRelease chartRefRepository.FindById")
 		chartData, err = impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
 		if err != nil {
 			impl.logger.Errorw("err in getting chart info", "err", err)
 			return 0, err
 		}
+		impl.logger.Debugw("TriggerRelease chartRefRepository.FindById Done")
+		impl.logger.Debugw("TriggerRelease chartService.CheckChartExists")
 		err = impl.chartService.CheckChartExists(envOverride.Chart.ChartRefId)
 		if err != nil {
 			impl.logger.Errorw("err in getting chart info", "err", err)
 			return 0, err
 		}
+		impl.logger.Debugw("TriggerRelease chartService.CheckChartExists Done")
 
 		userUploaded = chartData.UserUploaded
 		var gitCommitStatus pipelineConfig.TimelineStatus
 		var gitCommitStatusDetail string
+		impl.logger.Debugw("TriggerRelease chartTemplateService.BuildChartAndPushToGitRepo")
 		err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
+		impl.logger.Debugw("TriggerRelease chartTemplateService.BuildChartAndPushToGitRepo Done")
 		if err != nil {
 			impl.logger.Errorw("Ref chart commit error on cd trigger", "err", err, "req", overrideRequest)
 			gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT_FAILED
@@ -924,10 +967,12 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 					UpdatedOn: time.Now(),
 				},
 			}
+			impl.logger.Debugw("TriggerRelease cdPipelineStatusTimelineRepo.SaveTimeline")
 			timelineErr := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 			if timelineErr != nil {
 				impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
 			}
+			impl.logger.Debugw("TriggerRelease cdPipelineStatusTimelineRepo.SaveTimeline Done")
 			return 0, err
 		} else {
 			gitCommitStatus = pipelineConfig.TIMELINE_STATUS_GIT_COMMIT
@@ -945,10 +990,12 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 					UpdatedOn: time.Now(),
 				},
 			}
+			impl.logger.Debugw("TriggerRelease cdPipelineStatusTimelineRepo.SaveTimeline")
 			err := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
 			}
+			impl.logger.Debugw("TriggerRelease cdPipelineStatusTimelineRepo.SaveTimeline Done")
 		}
 
 		// ACD app creation STARTS HERE, it will use existing if already created
@@ -962,10 +1009,12 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		// ENDS HERE
 	}
 
+	impl.logger.Debugw("TriggerRelease ciArtifactRepository.Get")
 	artifact, err := impl.ciArtifactRepository.Get(overrideRequest.CiArtifactId)
 	if err != nil {
 		return 0, err
 	}
+	impl.logger.Debugw("TriggerRelease ciArtifactRepository.Get Done")
 	materialInfoMap, mErr := artifact.ParseMaterialInfo()
 	if mErr != nil {
 		impl.logger.Errorw("material info map error", mErr)
@@ -974,11 +1023,13 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 
 	//FIXME: how to determine rollback
 	//we can't depend on ciArtifact ID because CI pipeline can be manually triggered in any order regardless of sourcecode status
+	impl.logger.Debugw("TriggerRelease getDbMigrationOverride")
 	dbMigrationOverride, err := impl.getDbMigrationOverride(overrideRequest, artifact, false)
 	if err != nil {
 		impl.logger.Errorw("error in fetching db migration config", "req", overrideRequest, "err", err)
 		return 0, err
 	}
+	impl.logger.Debugw("TriggerRelease getDbMigrationOverride Done")
 	if !userUploaded {
 		valid, err := impl.validateVersionForStrategy(envOverride, strategy)
 		if err != nil || !valid {
@@ -987,21 +1038,28 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		}
 	}
 	chartVersion := envOverride.Chart.ChartVersion
+	impl.logger.Debugw("TriggerRelease getDbMigrationOverride")
 	configMapJson, err := impl.getConfigMapAndSecretJsonV2(overrideRequest.AppId, envOverride.TargetEnvironment, overrideRequest.PipelineId, chartVersion, overrideRequest.DeploymentWithConfig, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 	if err != nil {
 		impl.logger.Errorw("error in fetching config map n secret ", "err", err)
 		configMapJson = nil
 	}
+	impl.logger.Debugw("TriggerRelease getDbMigrationOverride Done")
 
+	impl.logger.Debugw("TriggerRelease appCrudOperationService.GetLabelsByAppIdForDeployment")
 	appLabelJsonByte, err := impl.appCrudOperationService.GetLabelsByAppIdForDeployment(overrideRequest.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app labels for gitOps commit", "err", err)
 		appLabelJsonByte = nil
 	}
+	impl.logger.Debugw("TriggerRelease appCrudOperationService.GetLabelsByAppIdForDeployment Done")
+	impl.logger.Debugw("TriggerRelease mergeAndSave")
 	releaseId, pipelineOverrideId, mergeAndSave, saveErr := impl.mergeAndSave(envOverride, overrideRequest, dbMigrationOverride, artifact, pipeline, configMapJson, appLabelJsonByte, strategy, ctx, triggeredAt, deployedBy, appMetrics)
+	impl.logger.Debugw("TriggerRelease mergeAndSave Done")
 	if releaseId != 0 {
 		//updating the acd app with updated values and sync operation
 		if IsAcdApp(pipeline.DeploymentAppType) {
+			impl.logger.Debugw("TriggerRelease updateArgoPipeline")
 			updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
 			if err != nil {
 				impl.logger.Errorw("error in updating argocd  app ", "err", err)
@@ -1030,11 +1088,13 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		}
 		// Rollback tx on error.
 		defer tx.Rollback()
+		impl.logger.Debugw("TriggerRelease appListingRepository.SaveNewDeployment")
 		err = impl.appListingRepository.SaveNewDeployment(deploymentStatus, tx)
 		if err != nil {
 			impl.logger.Errorw("error in saving new deployment history", "req", overrideRequest, "err", err)
 			return 0, err
 		}
+		impl.logger.Debugw("TriggerRelease appListingRepository.SaveNewDeployment Done")
 		err = tx.Commit()
 		if err != nil {
 			return 0, err
@@ -1042,11 +1102,13 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 
 		//for helm type cd pipeline, create install helm application, update deployment status, update workflow runner for app detail status.
 		if IsHelmApp(pipeline.DeploymentAppType) {
+			impl.logger.Debugw("TriggerRelease createHelmAppForCdPipeline")
 			_, err = impl.createHelmAppForCdPipeline(overrideRequest, envOverride, referenceTemplatePath, chartMetaData, triggeredAt, pipeline, mergeAndSave, ctx)
 			if err != nil {
 				impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 				return 0, err
 			}
+			impl.logger.Debugw("TriggerRelease createHelmAppForCdPipeline Done")
 		}
 
 		go impl.WriteCDTriggerEvent(overrideRequest, pipeline, envOverride, materialInfoMap, artifact, releaseId, pipelineOverrideId)
