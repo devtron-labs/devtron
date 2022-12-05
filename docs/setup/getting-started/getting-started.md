@@ -1,7 +1,6 @@
 # Getting Started
  
-
-Before effectively using Devtron, it is very IMPORTANT to know the prerequisite requirements so that you can onboard Devtron as smoothly as possible. Please make sure to meet all the prerequisite requirements before you proceed with Devtron installation.
+This section includes information about the minimum requirements you need to install and use **Devtron**.
 
 Devtron is installed over a Kubernetes cluster. Once you create a Kubernetes cluster, Devtron can be installed standalone or along with CI/CD integration:
 
@@ -30,9 +29,6 @@ You can create a cluster using one of the following cloud providers as per your 
 | **Azure Kubernetes Service (AKS)** | Create a cluster using [AKS](https://learn.microsoft.com/en-us/azure/aks/). | 
 | **k3s - Lightweight Kubernetes** | Create a cluster using [k3s - Lightweight Kubernetes](https://devtron.ai/blog/deploy-your-applications-over-k3s-lightweight-kubernetes-in-no-time/).<br>`Note`: You can also refer our customized documentation for installing `Helm Dashboard by Devtron` on `Minikube, Microk8s, K3s, Kind` [here](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md).</br> | 
 
-**Note**: 
-* We recommend to create a cluster on [AWS EKS](https://docs.aws.amazon.com/eks/latest/userguide/getting-started-console.html), [GKE](https://cloud.google.com/kubernetes-engine/) or [AKS](https://learn.microsoft.com/en-us/azure/aks/) for installing Devtron on production environment. 
-* For development environment, we recommend [k3s - Lightweight Kubernetes](https://devtron.ai/blog/deploy-your-applications-over-k3s-lightweight-kubernetes-in-no-time/).
 
 
 ### Install Helm
@@ -63,14 +59,12 @@ The minimum requirements for installing `Helm Dashboard by Devtron` and `Devtron
 
 >**Note:** 
 * Please make sure that the recommended resources are available on your Kubernetes cluster before you proceed with Devtron installation.
-* It is NOT recommended to use brustable CPU VMs (T series in AWS, B Series in Azure and E2/N1 in GCP) for Devtron installation.
+* It is NOT recommended to use brustable CPU VMs (T series in AWS, B Series in Azure and E2/N1 in GCP) for Devtron installation to experience consistency in performance.
  
-
 
 ## Installation of Devtron
 
-As it is mentioned before, you can install Devtron standalone (Helm Dashboard by Devtron) or along with CI/CD integration. 
-Or, you can upgrade Devtron to the latest version.
+You can install Devtron standalone (Helm Dashboard by Devtron) or along with CI/CD integration. Or, you can upgrade Devtron to the latest version.
 
 Choose one of the options as per your requirements:
 
