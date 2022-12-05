@@ -44,7 +44,7 @@ import (
 
 type ChartRepositoryService interface {
 	CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
-	UpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
+	UpdateChartRepo(request *ChartRepoDto, chartRepoId int) (*chartRepoRepository.ChartRepo, error)
 	GetChartRepoById(id int) (*ChartRepoDto, error)
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoDto, error)
@@ -148,7 +148,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	return chartRepo, nil
 }
 
-func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
+func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto, chartRepoId int) (*chartRepoRepository.ChartRepo, error) {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -156,22 +156,35 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
-	chartRepo, err := impl.repoRepository.FindById(request.Id)
+	var repoId int
+	if chartRepoId > 0 {
+		repoId = chartRepoId
+	} else {
+		repoId = request.Id
+	}
+	chartRepo, err := impl.repoRepository.FindById(repoId)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
 
-	chartRepo.Url = request.Url
-	chartRepo.AuthMode = request.AuthMode
-	chartRepo.UserName = request.UserName
-	chartRepo.Password = request.Password
-	chartRepo.Active = request.Active
-	chartRepo.AccessToken = request.AccessToken
-	chartRepo.SshKey = request.SshKey
-	chartRepo.Active = request.Active
-	chartRepo.UpdatedBy = request.UserId
-	chartRepo.UpdatedOn = time.Now()
+	if chartRepoId > 0 {
+		if chartRepo.Active {
+			chartRepo.Active = false
+		} else {
+			chartRepo.Active = true
+		}
+	} else {
+		chartRepo.Url = request.Url
+		chartRepo.AuthMode = request.AuthMode
+		chartRepo.UserName = request.UserName
+		chartRepo.Password = request.Password
+		chartRepo.Active = request.Active
+		chartRepo.AccessToken = request.AccessToken
+		chartRepo.SshKey = request.SshKey
+		chartRepo.Active = request.Active
+		chartRepo.UpdatedBy = request.UserId
+		chartRepo.UpdatedOn = time.Now()
+	}
 	err = impl.repoRepository.Update(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -258,7 +271,7 @@ func (impl *ChartRepositoryServiceImpl) convertFromDbResponse(model *chartRepoRe
 
 func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, error) {
 	var chartRepos []*ChartRepoDto
-	models, err := impl.repoRepository.FindAll()
+	models, err := impl.repoRepository.FindAllWithDeploymentCount()
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
@@ -274,6 +287,10 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, err
 		chartRepo.AccessToken = model.AccessToken
 		chartRepo.Default = model.Default
 		chartRepo.Active = model.Active
+		chartRepo.IsEditable = true
+		if model.ActiveDeploymentCount > 0 {
+			chartRepo.IsEditable = false
+		}
 		chartRepos = append(chartRepos, chartRepo)
 	}
 	return chartRepos, nil
@@ -353,7 +370,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 	if validationResult.CustomErrMsg != ValidationSuccessMsg {
 		return nil, nil, validationResult
 	}
-	chartRepo, err := impl.UpdateChartRepo(request)
+	chartRepo, err := impl.UpdateChartRepo(request, 0)
 	if err != nil {
 		return nil, err, validationResult
 	}

@@ -176,6 +176,40 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
+	v := r.URL.Query()
+	chartRepoIdParam := v.Get("id")
+	if v.Has("id") {
+		var chartRepoId int
+		chartRepoId, err = strconv.Atoi(chartRepoIdParam)
+		if err != nil {
+			err = &util.ApiError{
+				InternalMessage: "Invalid query param id = " + chartRepoIdParam,
+				UserMessage:     "Invalid chart repo id = " + chartRepoIdParam,
+			}
+			handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "chartRepoId", chartRepoIdParam)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		res, err := handler.chartRepositoryService.UpdateChartRepo(nil, chartRepoId)
+		if err != nil {
+			err = &util.ApiError{
+				InternalMessage: "Error in Updating chart repo,Internal Server error",
+				UserMessage:     "Error in Updating chart repo,Internal Server error",
+			}
+			handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "chartRepoId", chartRepoIdParam)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		common.WriteJsonResp(w, err, res, http.StatusOK)
+		return
+	}
 	var request *chartRepo.ChartRepoDto
 	err = decoder.Decode(&request)
 	if err != nil {
@@ -188,12 +222,6 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 		handler.Logger.Errorw("validation err, UpdateChartRepo", "err", err, "payload", request)
 		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
