@@ -406,6 +406,9 @@ func InitializeApp() (*App, error) {
 		pubsub.NewCiEventHandlerImpl,
 		wire.Bind(new(pubsub.CiEventHandler), new(*pubsub.CiEventHandlerImpl)),
 
+		cron.NewAutoCdTriggerEventHandlerImpl,
+		wire.Bind(new(cron.AutoCdTriggerEventHandler), new(*cron.AutoCdTriggerEventHandlerImpl)),
+
 		rbac.NewEnforcerUtilImpl,
 		wire.Bind(new(rbac.EnforcerUtil), new(*rbac.EnforcerUtilImpl)),
 

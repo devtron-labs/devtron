@@ -69,6 +69,14 @@ type WorkflowDagExecutor interface {
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
 	TriggerBulkHibernateAsync(request StopDeploymentGroupRequest, ctx context.Context) (interface{}, error)
+	TriggerStage(pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error
+}
+
+type AutoTriggerStagesAfterCiCompleteEvent struct {
+	PipelineId   int   `json:"pipelineId"`
+	CiArtifactId int   `json:"ciArtifactId"`
+	ApplyAuth    bool  `json:"applyAuth"`
+	TriggeredBy  int32 `json:"triggeredBy"`
 }
 
 type WorkflowDagExecutorImpl struct {
@@ -242,9 +250,17 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 		return err
 	}
 	for _, pipeline := range pipelines {
-		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, triggeredBy)
+		eventPayload := AutoTriggerStagesAfterCiCompleteEvent{
+			PipelineId:   pipeline.Id,
+			CiArtifactId: artifact.Id,
+			ApplyAuth:    applyAuth,
+			TriggeredBy:  triggeredBy,
+		}
+		// build event on NATS
+		err = impl.eventClient.WriteNatsEvent(util4.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, eventPayload)
 		if err != nil {
-			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
+			impl.logger.Errorw("error in writing nats event", "topic", util4.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, "payload", eventPayload, "err", err)
+			return err
 		}
 	}
 	return nil
@@ -291,6 +307,10 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		err = authError
 	}
 	return isAnyTriggered, err
+}
+
+func (impl *WorkflowDagExecutorImpl) TriggerStage(pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error {
+	return impl.triggerStage(nil, pipeline, artifact, applyAuth, triggeredBy)
 }
 
 func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error {
