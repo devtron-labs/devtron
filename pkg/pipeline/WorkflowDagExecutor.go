@@ -113,6 +113,9 @@ const (
 	APP_LABEL_KEY_PREFIX         = "APP_LABEL_KEY"
 	APP_LABEL_VALUE_PREFIX       = "APP_LABEL_VALUE"
 	APP_LABEL_COUNT              = "APP_LABEL_COUNT"
+	CHILD_CD_ENV_NAME_PREFIX     = "CHILD_CD_ENV_NAME"
+	CHILD_CD_CLUSTER_NAME_PREFIX = "CHILD_CD_CLUSTER_NAME"
+	CHILD_CD_COUNT               = "CHILD_CD_COUNT"
 )
 
 type CiArtifactDTO struct {
@@ -714,7 +717,25 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
 			i++
 		}
-		extraEnvVariables[GIT_SOURCE_COUNT] = strconv.Itoa(i)
+		extraEnvVariables[GIT_SOURCE_COUNT] = strconv.Itoa(len(ciWf.GitTriggers))
+	}
+
+	childCdIds, err := impl.appWorkflowRepository.FindChildCDIdsByParentCDPipelineId(cdPipeline.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting child cdPipelineIds by parent cdPipelineId", "err", err, "parent cdPipelineId", cdPipeline.Id)
+		return nil, err
+	}
+	if len(childCdIds) > 0 {
+		childPipelines, err := impl.pipelineRepository.FindByIdsIn(childCdIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting pipelines by ids", "err", err, "ids", childCdIds)
+			return nil, err
+		}
+		for i, childPipeline := range childPipelines {
+			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_ENV_NAME_PREFIX, i+1)] = childPipeline.Environment.Name
+			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_CLUSTER_NAME_PREFIX, i+1)] = childPipeline.Environment.Cluster.ClusterName
+		}
+		extraEnvVariables[CHILD_CD_COUNT] = strconv.Itoa(len(childPipelines))
 	}
 	if ciPipeline != nil && ciPipeline.Id > 0 {
 		extraEnvVariables["APP_NAME"] = ciPipeline.App.AppName
@@ -743,7 +764,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		cdStageWorkflowRequest.DockerRegistryType = string(ciTemplate.DockerRegistry.RegistryType)
 		cdStageWorkflowRequest.DockerRegistryURL = ciTemplate.DockerRegistry.RegistryURL
 		appLabels, err := impl.appLabelRepository.FindAllByAppId(cdPipeline.AppId)
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in getting labels by appId", "err", err, "appId", cdPipeline.AppId)
 			return nil, err
 		}
@@ -751,7 +772,9 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_KEY_PREFIX, i+1)] = appLabel.Key
 			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_VALUE_PREFIX, i+1)] = appLabel.Value
 		}
-		extraEnvVariables[APP_LABEL_COUNT] = strconv.Itoa(len(appLabels))
+		if len(appLabels) > 0 {
+			extraEnvVariables[APP_LABEL_COUNT] = strconv.Itoa(len(appLabels))
+		}
 	}
 	cdStageWorkflowRequest.ExtraEnvironmentVariables = extraEnvVariables
 	if deployStageTriggeredByUser != nil {
