@@ -156,35 +156,35 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto, c
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-	var repoId int
-	if chartRepoId > 0 {
-		repoId = chartRepoId
-	} else {
-		repoId = request.Id
-	}
-	chartRepo, err := impl.repoRepository.FindById(repoId)
+	//var repoId int
+	//if chartRepoId > 0 {
+	//	repoId = chartRepoId
+	//} else {
+	//	repoId = request.Id
+	//}
+	chartRepo, err := impl.repoRepository.FindById(request.Id)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
 	}
 
-	if chartRepoId > 0 {
-		if chartRepo.Active {
-			chartRepo.Active = false
-		} else {
-			chartRepo.Active = true
-		}
-	} else {
-		chartRepo.Url = request.Url
-		chartRepo.AuthMode = request.AuthMode
-		chartRepo.UserName = request.UserName
-		chartRepo.Password = request.Password
-		chartRepo.Active = request.Active
-		chartRepo.AccessToken = request.AccessToken
-		chartRepo.SshKey = request.SshKey
-		chartRepo.Active = request.Active
-		chartRepo.UpdatedBy = request.UserId
-		chartRepo.UpdatedOn = time.Now()
-	}
+	//if chartRepoId > 0 {
+	//	if chartRepo.Active {
+	//		chartRepo.Active = false
+	//	} else {
+	//		chartRepo.Active = true
+	//	}
+	//} else {
+	chartRepo.Url = request.Url
+	chartRepo.AuthMode = request.AuthMode
+	chartRepo.UserName = request.UserName
+	chartRepo.Password = request.Password
+	chartRepo.Active = request.Active
+	chartRepo.AccessToken = request.AccessToken
+	chartRepo.SshKey = request.SshKey
+	chartRepo.Active = request.Active
+	chartRepo.UpdatedBy = request.UserId
+	chartRepo.UpdatedOn = time.Now()
+	//}
 	err = impl.repoRepository.Update(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err

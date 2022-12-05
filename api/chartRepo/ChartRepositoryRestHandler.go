@@ -183,33 +183,33 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 		return
 	}
 
-	v := r.URL.Query()
-	chartRepoIdParam := v.Get("id")
-	if v.Has("id") {
-		var chartRepoId int
-		chartRepoId, err = strconv.Atoi(chartRepoIdParam)
-		if err != nil {
-			err = &util.ApiError{
-				InternalMessage: "Invalid query param id = " + chartRepoIdParam,
-				UserMessage:     "Invalid chart repo id = " + chartRepoIdParam,
-			}
-			handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "chartRepoId", chartRepoIdParam)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		res, err := handler.chartRepositoryService.UpdateChartRepo(nil, chartRepoId)
-		if err != nil {
-			err = &util.ApiError{
-				InternalMessage: "Error in Updating chart repo,Internal Server error",
-				UserMessage:     "Error in Updating chart repo,Internal Server error",
-			}
-			handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "chartRepoId", chartRepoIdParam)
-			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-			return
-		}
-		common.WriteJsonResp(w, err, res, http.StatusOK)
-		return
-	}
+	//v := r.URL.Query()
+	//chartRepoIdParam := v.Get("id")
+	//if v.Has("id") {
+	//	var chartRepoId int
+	//	chartRepoId, err = strconv.Atoi(chartRepoIdParam)
+	//	if err != nil {
+	//		err = &util.ApiError{
+	//			InternalMessage: "Invalid query param id = " + chartRepoIdParam,
+	//			UserMessage:     "Invalid chart repo id = " + chartRepoIdParam,
+	//		}
+	//		handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "chartRepoId", chartRepoIdParam)
+	//		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//		return
+	//	}
+	//	res, err := handler.chartRepositoryService.UpdateChartRepo(nil, chartRepoId)
+	//	if err != nil {
+	//		err = &util.ApiError{
+	//			InternalMessage: "Error in Updating chart repo,Internal Server error",
+	//			UserMessage:     "Error in Updating chart repo,Internal Server error",
+	//		}
+	//		handler.Logger.Errorw("request err, UpdateChartRepo", "err", err, "chartRepoId", chartRepoIdParam)
+	//		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//		return
+	//	}
+	//	common.WriteJsonResp(w, err, res, http.StatusOK)
+	//	return
+	//}
 	var request *chartRepo.ChartRepoDto
 	err = decoder.Decode(&request)
 	if err != nil {
