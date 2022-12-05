@@ -375,7 +375,7 @@ func (handler *InstalledAppRestHandlerImpl) fetchResourceTree(w http.ResponseWri
 	if err != nil {
 		errCode := grpc_logging.DefaultErrorToCode(err)
 		if errCode == util.ErrorGrpcNotFound || errCode == util.ErrorGrpcUnKnown {
-			userMessage := "release deleted From " + appDetail.DeploymentAppType
+			userMessage := "release deleted from " + appDetail.DeploymentAppType
 			appDetail.AppDeleteError = userMessage
 		}
 		handler.Logger.Errorw("error occurred while fetching resource tree", "appName", appDetail.AppName, "envName", appDetail.EnvironmentName, "err", err)
