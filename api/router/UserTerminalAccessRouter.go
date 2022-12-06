@@ -38,4 +38,9 @@ func (router UserTerminalAccessRouterImpl) InitTerminalAccessRouter(userTerminal
 		HandlerFunc(router.userTerminalAccessRestHandler.StopTerminalSession).Queries("terminalAccessId", "{terminalAccessId}").Methods("POST")
 	userTerminalAccessRouter.Path("/disconnectAndRetry").
 		HandlerFunc(router.userTerminalAccessRestHandler.DisconnectAllTerminalSessionAndRetry).Methods("POST")
+
+	//TODO fetch all user running/starting pods
+	//TODO fetch all running/starting pods also include sessionIds if session exists
+	//TODO terminate all Sessions
+	//TODO delete all terminal-pods from k8s directly
 }
