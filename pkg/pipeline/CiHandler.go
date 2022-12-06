@@ -173,6 +173,8 @@ type Trigger struct {
 
 const WorkflowCancel = "CANCELLED"
 const DefaultCiWorkflowNamespace = "devtron-ci"
+const Running = "Running"
+const Starting = "Starting"
 
 func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error) {
 	impl.Logger.Debugw("HandleCIManual for pipeline ", "PipelineId", ciTriggerRequest.PipelineId)
@@ -1204,7 +1206,7 @@ func (impl *CiHandlerImpl) listFiles(file *zip.File, payload map[string]interfac
 }
 
 func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error {
-	ciWorkflows, err := impl.ciWorkflowRepository.FindByStatusesIn([]string{"Starting", "Running"})
+	ciWorkflows, err := impl.ciWorkflowRepository.FindByStatusesIn([]string{Starting, Running})
 	if err != nil {
 		impl.Logger.Errorw("error on fetching ci workflows", "err", err)
 		return err
@@ -1216,7 +1218,7 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 	}
 	for _, ciWorkflow := range ciWorkflows {
 		isEligibleToMarkFailed := false
-		if ciWorkflow.StartedOn.Before(time.Now().Add(-time.Minute * time.Duration(timeoutForFailureCiBuild))) {
+		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
 			//check weather pod is exists or not, if exits check its status
 			_, err := impl.workflowService.GetWorkflow(ciWorkflow.Name, DefaultCiWorkflowNamespace)
 			if err != nil {

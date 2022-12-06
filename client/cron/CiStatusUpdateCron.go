@@ -42,14 +42,14 @@ func NewCiStatusUpdateCronImpl(logger *zap.SugaredLogger, appService app.AppServ
 	// execute periodically, update ci workflow status for failed process
 	_, err := cron.AddFunc(ciWorkflowStatusUpdateConfig.CiWorkflowStatusUpdateCron, impl.UpdateCiWorkflowStatusFailedCron)
 	if err != nil {
-		logger.Errorw("error in starting ci application status update cron job", "err", err)
+		logger.Errorw("error while configure cron job for ci workflow status update", "err", err)
 		return impl
 	}
 	return impl
 }
 
 type CiWorkflowStatusUpdateConfig struct {
-	CiWorkflowStatusUpdateCron string `env:"CI_WORKFLOW_STATUS_UPDATE_CRON" envDefault:"*/2 * * * *"`
+	CiWorkflowStatusUpdateCron string `env:"CI_WORKFLOW_STATUS_UPDATE_CRON" envDefault:"*/5 * * * *"`
 	TimeoutForFailedCiBuild    string `env:"TIMEOUT_FOR_FAILED_CI_BUILD" envDefault:"15"` //in minutes
 }
 
@@ -57,7 +57,7 @@ func GetCiWorkflowStatusUpdateConfig() (*CiWorkflowStatusUpdateConfig, error) {
 	cfg := &CiWorkflowStatusUpdateConfig{}
 	err := env.Parse(cfg)
 	if err != nil {
-		fmt.Println("failed to parse server app status config: " + err.Error())
+		fmt.Println("failed to parse ci workflow status update config: " + err.Error())
 		return nil, err
 	}
 	return cfg, nil
