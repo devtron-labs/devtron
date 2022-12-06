@@ -837,15 +837,15 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		if overrideRequest.ForceTrigger {
 			strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
 		} else {
-			var deploymentTemplate pipelineConfig.DeploymentTemplate
+			var deploymentTemplate chartRepoRepository.DeploymentStrategy
 			if overrideRequest.DeploymentTemplate == "ROLLING" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_ROLLING
+				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING
 			} else if overrideRequest.DeploymentTemplate == "BLUE-GREEN" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_BLUE_GREEN
+				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_BLUE_GREEN
 			} else if overrideRequest.DeploymentTemplate == "CANARY" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY
+				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_CANARY
 			} else if overrideRequest.DeploymentTemplate == "RECREATE" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE
+				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_RECREATE
 			}
 
 			if len(deploymentTemplate) > 0 {
@@ -1147,7 +1147,7 @@ func (impl AppServiceImpl) validateVersionForStrategy(envOverride *chartConfig.E
 	}
 
 	if (chartMajorVersion <= 3 && chartMinorVersion < 2) &&
-		(strategy.Strategy == pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY || strategy.Strategy == pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE) {
+		(strategy.Strategy == chartRepoRepository.DEPLOYMENT_STRATEGY_CANARY || strategy.Strategy == chartRepoRepository.DEPLOYMENT_STRATEGY_RECREATE) {
 		err = &ApiError{
 			Code:            "422",
 			InternalMessage: "incompatible chart for selected cd strategy:" + string(strategy.Strategy),

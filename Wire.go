@@ -792,6 +792,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(clusterTerminalAccess.UserTerminalAccessService), new(*clusterTerminalAccess.UserTerminalAccessServiceImpl)),
 		repository.NewTerminalAccessRepositoryImpl,
 		wire.Bind(new(repository.TerminalAccessRepository), new(*repository.TerminalAccessRepositoryImpl)),
+
+		chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
+		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
+		chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl,
+		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository), new(*chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepositoryImpl)),
 	)
 	return &App{}, nil
 }
