@@ -587,7 +587,8 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		gitMaterialIds := make(map[int]bool)
 
 		for _, material := range pipeline.CiPipelineMaterials {
-			if material.Active != true {
+			// ignore those materials which have inactive git material
+			if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
 				continue
 			}
 			gitMaterialIds[material.GitMaterialId] = true
@@ -612,7 +613,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			}
 			ciMaterial := &bean.CiMaterial{
 				Id:              0,
-				CheckoutPath:    material.CheckoutPath,
+				CheckoutPath:    "",
 				Path:            "",
 				ScmId:           "",
 				GitMaterialId:   material.Id,
@@ -2841,6 +2842,9 @@ func (impl PipelineBuilderImpl) GetCiPipelineById(pipelineId int) (ciPipeline *b
 		}
 	}
 	for _, material := range pipeline.CiPipelineMaterials {
+		if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
+			continue
+		}
 		ciMaterial := &bean.CiMaterial{
 			Id:              material.Id,
 			CheckoutPath:    material.CheckoutPath,
