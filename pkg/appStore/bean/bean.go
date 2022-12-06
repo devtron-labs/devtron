@@ -67,6 +67,7 @@ type InstallAppVersionDTO struct {
 	AppId                     int                        `json:"appId,omitempty"`
 	AppName                   string                     `json:"appName,omitempty"`
 	TeamId                    int                        `json:"teamId,omitempty"`
+	TeamName                  string                     `json:"teamName,omitempty"`
 	EnvironmentId             int                        `json:"environmentId,omitempty"`
 	InstalledAppId            int                        `json:"installedAppId,omitempty,notnull"`
 	InstalledAppVersionId     int                        `json:"installedAppVersionId,omitempty,notnull"`

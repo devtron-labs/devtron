@@ -412,6 +412,7 @@ func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) 
 		AppStoreChartRepoName: chartInfo.InstallAppVersionChartRepoDTO.RepoName,
 		AppStoreChartName:     chartInfo.ChartName,
 		TeamId:                installedApp.TeamId,
+		TeamName:              installedApp.TeamName,
 	}
 }
 
@@ -442,4 +443,5 @@ type InstalledAppInfo struct {
 	AppStoreChartRepoName string `json:"appStoreChartRepoName"`
 	AppStoreChartName     string `json:"appStoreChartName"`
 	TeamId                int    `json:"teamId"`
+	TeamName              string `json:"teamName"`
 }
