@@ -48,7 +48,7 @@ type CiHandler interface {
 	HandleCIWebhook(gitCiTriggerRequest bean.GitCiTriggerRequest) (int, error)
 	HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error)
 
-	FetchMaterialsByPipelineId(pipelineId int) ([]CiPipelineMaterialResponse, error)
+	FetchMaterialsByPipelineId(pipelineId int, appId int) ([]CiPipelineMaterialResponse, error)
 	FetchWorkflowDetails(appId int, pipelineId int, buildId int) (WorkflowResponse, error)
 
 	//FetchBuildById(appId int, pipelineId int) (WorkflowResponse, error)
@@ -83,12 +83,13 @@ type CiHandlerImpl struct {
 	eventFactory                 client.EventFactory
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	appListingRepository         repository.AppListingRepository
+	materialRepo                 pipelineConfig.MaterialRepository
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	gitSensorClient gitSensor.GitSensorClient, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient,
-	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository) *CiHandlerImpl {
+	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository, materialRepo pipelineConfig.MaterialRepository) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -104,6 +105,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		eventFactory:                 eventFactory,
 		ciPipelineRepository:         ciPipelineRepository,
 		appListingRepository:         appListingRepository,
+		materialRepo:                 materialRepo,
 	}
 }
 
@@ -256,7 +258,7 @@ func (impl *CiHandlerImpl) RefreshMaterialByCiPipelineMaterialId(gitMaterialId i
 	return refreshRes, err
 }
 
-func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipelineMaterialResponse, error) {
+func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, appId int) ([]CiPipelineMaterialResponse, error) {
 	ciMaterials, err := impl.ciPipelineMaterialRepository.GetByPipelineId(pipelineId)
 	impl.Logger.Infow("Testing Fetch Ci materials by pipeline Id ", "ci materials", ciMaterials)
 	if err != nil {
@@ -282,8 +284,11 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 		}
 		ciMaterialHistoryMap[m] = changesResp
 	}
+	gitMaterials, err := impl.materialRepo.FindByAppId(appId)
+	gitMaterialIds := make(map[int]bool)
 
 	for k, v := range ciMaterialHistoryMap {
+		gitMaterialIds[k.GitMaterialId] = true
 		r := CiPipelineMaterialResponse{
 			Id:              k.Id,
 			GitMaterialId:   k.GitMaterialId,
@@ -302,6 +307,29 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int) ([]CiPipel
 		}
 		responseMap[k.GitMaterialId] = true
 		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
+	}
+
+	for _, material := range gitMaterials {
+		if gitMaterialIds[material.Id] == true {
+			continue
+		}
+		r := CiPipelineMaterialResponse{
+			Id:              0,
+			GitMaterialId:   material.Id,
+			GitMaterialName: material.Name[strings.Index(material.Name, "-")+1:],
+			Type:            "",
+			Value:           "--",
+			Active:          false,
+			GitMaterialUrl:  "",
+			IsRepoError:     false,
+			RepoErrorMsg:    "",
+			IsBranchError:   true,
+			BranchErrorMsg:  "Source not configured",
+			Regex:           "",
+		}
+		responseMap[material.Id] = true
+		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
+
 	}
 
 	regexMaterials, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(pipelineId)

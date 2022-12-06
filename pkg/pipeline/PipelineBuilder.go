@@ -613,11 +613,11 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			}
 			ciMaterial := &bean.CiMaterial{
 				Id:              0,
-				CheckoutPath:    "",
+				CheckoutPath:    material.CheckoutPath,
 				Path:            "",
 				ScmId:           "",
 				GitMaterialId:   material.Id,
-				GitMaterialName: material.Name,
+				GitMaterialName: material.Name[strings.Index(material.Name, "-")+1:],
 				ScmName:         "",
 				ScmVersion:      "",
 				IsRegex:         false,

@@ -1208,7 +1208,7 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 				}
 				ciPipelineId = ciPipeline.ParentCiPipeline
 			}
-			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId)
+			materialResponse, err := impl.ciHandler.FetchMaterialsByPipelineId(ciPipelineId, pipeline.AppId)
 			if err != nil {
 				impl.logger.Errorw("error in fetching ci pipeline materials", "CiPipelineId", ciPipelineId, "err", err)
 				return nil, err
