@@ -517,6 +517,7 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		ciTemplateOverride := templateBeanOverride.CiTemplateOverride
 		ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
 	}
+	gitMaterials, err := impl.materialRepo.FindByAppId(appId)
 	var ciPipelineResp []*bean.CiPipeline
 	for _, pipeline := range pipelines {
 
@@ -582,7 +583,14 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				CiBuildConfig:    ciTemplateBean.CiBuildConfig,
 			}
 		}
+
+		gitMaterialIds := make(map[int]bool)
+
 		for _, material := range pipeline.CiPipelineMaterials {
+			if material.Active != true {
+				continue
+			}
+			gitMaterialIds[material.GitMaterialId] = true
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
 				CheckoutPath:    material.CheckoutPath,
@@ -594,6 +602,25 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				ScmVersion:      material.ScmVersion,
 				IsRegex:         material.Regex != "",
 				Source:          &bean.SourceTypeConfig{Type: material.Type, Value: material.Value, Regex: material.Regex},
+			}
+			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
+		}
+
+		for _, material := range gitMaterials {
+			if gitMaterialIds[material.Id] == true {
+				continue
+			}
+			ciMaterial := &bean.CiMaterial{
+				Id:              0,
+				CheckoutPath:    material.CheckoutPath,
+				Path:            "",
+				ScmId:           "",
+				GitMaterialId:   material.Id,
+				GitMaterialName: material.Name,
+				ScmName:         "",
+				ScmVersion:      "",
+				IsRegex:         false,
+				Source:          &bean.SourceTypeConfig{Type: "", Value: "Not Configured", Regex: ""},
 			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
