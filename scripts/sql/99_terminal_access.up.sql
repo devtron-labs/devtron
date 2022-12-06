@@ -13,6 +13,9 @@ CREATE TABLE IF NOT EXISTS "public"."terminal_access_templates"
     PRIMARY KEY ("id")
 );
 
+ALTER TABLE ONLY public.terminal_access_templates
+    ADD CONSTRAINT terminal_access_template_name_unique UNIQUE (template_name);
+
 
 CREATE SEQUENCE IF NOT EXISTS id_seq_user_terminal_access_data;
 

@@ -1,3 +1,5 @@
+ALTER TABLE public.terminal_access_templates DROP constraint terminal_access_template_name_unique;
+
 DROP TABLE IF EXISTS "public"."terminal_access_templates";
 DROP TABLE IF EXISTS "public"."user_terminal_access_data";
 
