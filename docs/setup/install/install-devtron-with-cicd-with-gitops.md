@@ -152,7 +152,6 @@ helm install devtron devtron/devtron-operator \
 
 Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cache](./installation-configuration.md#google-cloud-storage-specific) page.
 
-
 Run the following command to install Devtron along with Google Cloud Storage for storing build logs and cache:
 
 

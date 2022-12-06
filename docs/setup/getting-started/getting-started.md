@@ -57,7 +57,7 @@ The minimum requirements for installing `Helm Dashboard by Devtron` and `Devtron
 
 > Refer to the [Override Configurations](setup/install/override-default-devtron-installation-configs.md) section for more information.
 
->**Note:** 
+**Note:**
 * Please make sure that the recommended resources are available on your Kubernetes cluster before you proceed with Devtron installation.
 * It is NOT recommended to use brustable CPU VMs (T series in AWS, B Series in Azure and E2/N1 in GCP) for Devtron installation to experience consistency in performance.
  
