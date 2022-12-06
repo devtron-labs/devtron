@@ -2,6 +2,7 @@
 
 In this section, we describe the steps in detail on how you can install Devtron with CI/CD integration.
 
+
 ## Before you begin
 
 Install [Helm](https://helm.sh/docs/intro/install/), if you have not installed it.
@@ -42,7 +43,7 @@ helm upgrade --install aws-ebs-csi-driver \
 To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the Devtron installation command with `--set installer.arch=multi-arch`.
 
 **Note**: 
-* To install a particular version of Devtron where `vx.x.x` is the [release tag](https://github.com/devtron-labs/devtron/releases), append the command with `--set installer.release="vX.X.X"`.
+* To install a particular version of Devtron where `vx.x.x` is the [release tag](https://github.com/devtron-labs/devtron/releases), append the installation command with `--set installer.release="vX.X.X"`.
 * If you want to install Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
 
 
@@ -176,22 +177,21 @@ helm install devtron devtron/devtron-operator \
 --set configs.DEFAULT_BUILD_LOGS_BUCKET=log-bucket
 ```
 
-{% endtab %}
-{% endtabs %}
 
 
-For those countries/users where GitHub is blocked, you can use Gitee as the installation source:
 
-{% tabs %}
-{% tab title="Install with Gitee" %}
-```bash
-helm repo add devtron https://helm.devtron.ai
+[//]: #  (For those countries/users where GitHub is blocked, you can use Gitee as the installation source:)
 
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \
---set installer.source=gitee
-```
-{% endtab %}
-{% endtabs %}
+[//]: #  ({% tabs %})
+[//]: #  ({% tab title="Install with Gitee" %})
+[//]: #  (```bash)
+[//]: #  (helm repo add devtron https://helm.devtron.ai)
+
+[//]: #  (helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \)
+[//]: #  (--set installer.source=gitee)
+[//]: #  (```)
+[//]: #  ({% endtab %})
+
 
 
 ## Check Status of Devtron Installation
@@ -252,20 +252,22 @@ Please wait until the installation is completed.
 
 ### For Devtron version v0.6.0 and higher
 
-Username: `admin`
-For Password, run the following command to get the password:
+**Username**: `admin` <br>
+**Password**: Run the following command to get the admin password:
 
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret \
+-o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
 ### For Devtron version less than v0.6.0
 
-Username: `admin`
-For Password, run the following command to get the password:
+**Username**: `admin` <br>
+**Password**: Run the following command to get the admin password:
 
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret \
+-o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
 * If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](setup/install/uninstall-devtron.md).

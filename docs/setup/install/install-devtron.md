@@ -69,39 +69,32 @@ The hostname `aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws
 | :--- | :--- | :--- |
 | devtron.yourdomain.com | CNAME | aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com |
 
-### Devtron Admin credentials
 
-#### For Devtron version v0.6.0 and higher
+## Devtron Admin credentials
 
-For username: use `admin`.
-For password, run the following command to get password:
+### For Devtron version v0.6.0 and higher
 
-```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
-```
-
-#### For Devtron version less than v0.6.0
-
-Use username: use`admin`.
-For password, run the following command to get password:
+**Username**: `admin` <br>
+**Password**: Run the following command to get the admin password:
 
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret \
+-o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
-### Cleaning Helm installer
+### For Devtron version less than v0.6.0
 
-Please make sure that you do not have anything inside namespaces devtroncd, devtron-cd devtron-ci, and devtron-demo as the below steps will clean everything inside these namespaces.
+**Username**: `admin` <br>
+**Password**: Run the following command to get the admin password:
 
+```bash
+kubectl -n devtroncd get secret devtron-secret \
+-o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
-helm uninstall devtron --namespace devtroncd
 
-kubectl delete -n devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
+**Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](setup/install/uninstall-devtron.md).
 
-kubectl delete ns devtroncd
-```
 
 ## Upgrade
 
-To use the CI/CD capabilities with Devtron, you can Install the [CI/CD integration](install-devtron-with-cicd.md) or [CI/CD integration along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md).
+To use the CI/CD capabilities with Devtron, you can Install the [Devtron with CI/CD](setup/install/install-devtron-with-cicd.md) or [Devtron with CI/CD along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md).
