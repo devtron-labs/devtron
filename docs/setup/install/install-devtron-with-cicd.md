@@ -179,20 +179,6 @@ helm install devtron devtron/devtron-operator \
 {% endtabs %}
 
 
-[//]: #  (For those countries/users where GitHub is blocked, you can use Gitee as the installation source:)
-
-[//]: #  ({% tabs %})
-[//]: #  ({% tab title="Install with Gitee" %})
-[//]: #  (```bash)
-[//]: #  (helm repo add devtron https://helm.devtron.ai)
-
-[//]: #  (helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd \)
-[//]: #  (--set installer.source=gitee)
-[//]: #  (```)
-[//]: #  ({% endtab %})
-
-
-
 ## Check Status of Devtron Installation
 
 **Note**: The installation takes about 15 to 20 minutes to spin up all of the Devtron microservices one by one.

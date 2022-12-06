@@ -93,7 +93,7 @@ kubectl -n devtroncd get secret devtron-secret \
 
 It is recommended to use Cloud VM with 2vCPU+, 4GB+ free Memory, 20GB+ Storage, Compute Optimized VM type & Ubuntu Flavoured OS.
 
- 1. Create Microk8s Cluster
+### Create Microk8s Cluster
 
 ```bash
 sudo snap install microk8s --classic --channel=1.22
@@ -106,8 +106,7 @@ echo "alias helm='microk8s helm3 '" >> .bashrc
 source .bashrc
 ```
 
-
-2. Install devtron
+### Install devtron
 
 ```bash
 helm repo add devtron https://helm.devtron.ai
@@ -117,13 +116,13 @@ helm install devtron devtron/devtron-operator \
 --set components.devtron.service.type=NodePort 
 
 ```
-3. Run the following command to get the devtron-service port number:
+### Run the following command to get the devtron-service port number:
 
 ```bash
 kubectl get svc -n devtroncd devtron-service -o jsonpath='{.spec.ports[0].nodePort}'
 ```
 
-Ensure that the port on which the devtron-service runs is open in the VM's security group or network Security group.
+Make sure that the port on which the devtron-service runs remain open in the VM's security group or network Security group.
 
 **Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](setup/install/uninstall-devtron.md).
 
