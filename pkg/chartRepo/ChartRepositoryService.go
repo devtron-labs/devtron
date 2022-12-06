@@ -165,7 +165,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto, c
 	chartRepo.AuthMode = request.AuthMode
 	chartRepo.UserName = request.UserName
 	chartRepo.Password = request.Password
-	chartRepo.Active = request.Active
+	chartRepo.Name = request.Name
 	chartRepo.AccessToken = request.AccessToken
 	chartRepo.SshKey = request.SshKey
 	chartRepo.Active = request.Active
@@ -568,7 +568,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	chartRepo.Active = request.Active
 	chartRepo.AccessToken = request.AccessToken
 	chartRepo.SshKey = request.SshKey
-	chartRepo.Active = request.Active
+	chartRepo.Active = false
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
 	err = impl.repoRepository.MarkChartRepoDeleted(chartRepo, tx)
