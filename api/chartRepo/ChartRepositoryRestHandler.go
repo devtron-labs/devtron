@@ -176,13 +176,6 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
-		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-
 	var request *chartRepo.ChartRepoDto
 	err = decoder.Decode(&request)
 	if err != nil {
@@ -195,6 +188,12 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 		handler.Logger.Errorw("validation err, UpdateChartRepo", "err", err, "payload", request)
 		err = &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 

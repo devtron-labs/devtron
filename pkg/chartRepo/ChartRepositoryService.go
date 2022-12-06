@@ -44,7 +44,7 @@ import (
 
 type ChartRepositoryService interface {
 	CreateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
-	UpdateChartRepo(request *ChartRepoDto, chartRepoId int) (*chartRepoRepository.ChartRepo, error)
+	UpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error)
 	GetChartRepoById(id int) (*ChartRepoDto, error)
 	GetChartRepoByName(name string) (*ChartRepoDto, error)
 	GetChartRepoList() ([]*ChartRepoDto, error)
@@ -148,7 +148,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	return chartRepo, nil
 }
 
-func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto, chartRepoId int) (*chartRepoRepository.ChartRepo, error) {
+func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (*chartRepoRepository.ChartRepo, error) {
 	dbConnection := impl.repoRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
@@ -357,7 +357,7 @@ func (impl *ChartRepositoryServiceImpl) ValidateAndUpdateChartRepo(request *Char
 	if validationResult.CustomErrMsg != ValidationSuccessMsg {
 		return nil, nil, validationResult
 	}
-	chartRepo, err := impl.UpdateChartRepo(request, 0)
+	chartRepo, err := impl.UpdateChartRepo(request)
 	if err != nil {
 		return nil, err, validationResult
 	}
