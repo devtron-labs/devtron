@@ -2,6 +2,7 @@ package cron
 
 import (
 	"encoding/json"
+	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
@@ -9,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/util"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"time"
 )
 
 type AutoCdTriggerEventHandler interface {
@@ -21,18 +23,30 @@ type AutoCdTriggerEventHandlerImpl struct {
 	workflowDagExecutor  pipeline.WorkflowDagExecutor
 	pipelineRepository   pipelineConfig.PipelineRepository
 	ciArtifactRepository repository.CiArtifactRepository
+	config               *AutoCdTriggerHandlerConfig
+}
+
+type AutoCdTriggerHandlerConfig struct {
+	AutoCdTriggerConsumerAckWaitInSecs int `env:"AUTO_CD_TRIGGER_ACK_WAIT_IN_SECS" envDefault:"150"`
 }
 
 func NewAutoCdTriggerEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, workflowDagExecutor pipeline.WorkflowDagExecutor,
 	pipelineRepository pipelineConfig.PipelineRepository, ciArtifactRepository repository.CiArtifactRepository) (*AutoCdTriggerEventHandlerImpl, error) {
+	config := &AutoCdTriggerHandlerConfig{}
+	err := env.Parse(config)
+	if err != nil {
+		logger.Error("error occurred while parsing config", "err", err)
+		return nil, err
+	}
 	impl := &AutoCdTriggerEventHandlerImpl{
 		logger:               logger,
 		pubsubClient:         pubsubClient,
 		workflowDagExecutor:  workflowDagExecutor,
 		pipelineRepository:   pipelineRepository,
 		ciArtifactRepository: ciArtifactRepository,
+		config:               config,
 	}
-	err := util.AddStream(impl.pubsubClient.JetStrCtxt, util.ORCHESTRATOR_STREAM)
+	err = util.AddStream(impl.pubsubClient.JetStrCtxt, util.ORCHESTRATOR_STREAM)
 	if err != nil {
 		logger.Errorw("error while adding stream", "streamName", util.ORCHESTRATOR_STREAM, "err", err)
 		return nil, err
@@ -76,10 +90,10 @@ func (impl *AutoCdTriggerEventHandlerImpl) SubscribeAutoCdTriggerEventHandler() 
 			impl.logger.Errorw("error on triggering stages", "err", err, "msg", string(msg.Data))
 			return
 		}
-	}, nats.Durable(util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
+	}, nats.AckWait(time.Duration(impl.config.AutoCdTriggerConsumerAckWaitInSecs)*time.Second), nats.Durable(util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
 	if err != nil {
 		impl.logger.Error("error in subscribing", "topic", util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, "err", err)
 		return err
 	}
-	return nil
+	return err
 }
