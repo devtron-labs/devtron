@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
+	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
 )
@@ -31,14 +32,17 @@ type UserTerminalAccessRestHandlerImpl struct {
 	UserTerminalAccessService clusterTerminalAccess.UserTerminalAccessService
 	Enforcer                  casbin.Enforcer
 	UserService               user.UserService
+	validator                 *validator.Validate
 }
 
-func NewUserTerminalAccessRestHandlerImpl(logger *zap.SugaredLogger, userTerminalAccessService clusterTerminalAccess.UserTerminalAccessService, Enforcer casbin.Enforcer, UserService user.UserService) *UserTerminalAccessRestHandlerImpl {
+func NewUserTerminalAccessRestHandlerImpl(logger *zap.SugaredLogger, userTerminalAccessService clusterTerminalAccess.UserTerminalAccessService, Enforcer casbin.Enforcer,
+	UserService user.UserService, validator *validator.Validate) *UserTerminalAccessRestHandlerImpl {
 	return &UserTerminalAccessRestHandlerImpl{
 		Logger:                    logger,
 		UserTerminalAccessService: userTerminalAccessService,
 		Enforcer:                  Enforcer,
 		UserService:               UserService,
+		validator:                 validator,
 	}
 }
 
@@ -57,6 +61,12 @@ func (handler UserTerminalAccessRestHandlerImpl) StartTerminalSession(w http.Res
 		return
 	}
 	request.UserId = userId
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, StartTerminalSession", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	token := r.Header.Get("token")
 	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
@@ -87,6 +97,12 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalSession(w http.Re
 		return
 	}
 	request.UserId = userId
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, UpdateTerminalSession", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	token := r.Header.Get("token")
 	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
@@ -113,6 +129,12 @@ func (handler UserTerminalAccessRestHandlerImpl) UpdateTerminalShellSession(w ht
 	err = decoder.Decode(&request)
 	if err != nil {
 		handler.Logger.Errorw("request err, UpdateTerminalShellSession", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, UpdateTerminalShellSession", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
@@ -283,9 +305,15 @@ func (handler UserTerminalAccessRestHandlerImpl) DisconnectAllTerminalSessionAnd
 		return
 	}
 	request.UserId = userId
+	err = handler.validator.Struct(request)
+	if err != nil {
+		handler.Logger.Errorw("validation err, DisconnectAllTerminalSessionAndRetry", "err", err, "payload", request)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
 
 	token := r.Header.Get("token")
-	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	if ok := handler.Enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
