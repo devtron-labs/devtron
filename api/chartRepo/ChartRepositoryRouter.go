@@ -42,7 +42,7 @@ func (router ChartRepositoryRouterImpl) Init(configRouter *mux.Router) {
 		HandlerFunc(router.chartRepositoryRestHandler.GetChartRepoById).Methods("GET")
 	configRouter.Path("/create").
 		HandlerFunc(router.chartRepositoryRestHandler.CreateChartRepo).Methods("POST")
-	configRouter.Path("/update").Queries("id", "{id}").
+	configRouter.Path("/update").
 		HandlerFunc(router.chartRepositoryRestHandler.UpdateChartRepo).Methods("POST")
 	configRouter.Path("/validate").
 		HandlerFunc(router.chartRepositoryRestHandler.ValidateChartRepo).Methods("POST")
