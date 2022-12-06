@@ -56,6 +56,7 @@ type EnvironmentRepository interface {
 	FindOneByNamespaceAndClusterId(namespace string, clusterId int) (*Environment, error)
 	FindByClusterIdAndNamespace(namespaceClusterPair []*ClusterNamespacePair) ([]*Environment, error)
 	FindByClusterIds(clusterIds []int) ([]*Environment, error)
+	FindIdsByNames(envNames []string) ([]int, error)
 }
 
 func NewEnvironmentRepositoryImpl(dbConnection *pg.DB) *EnvironmentRepositoryImpl {
@@ -241,4 +242,11 @@ func (repo EnvironmentRepositoryImpl) MarkEnvironmentDeleted(deleteReq *Environm
 }
 func (repo EnvironmentRepositoryImpl) GetConnection() (dbConnection *pg.DB) {
 	return repo.dbConnection
+}
+
+func (repo EnvironmentRepositoryImpl) FindIdsByNames(envNames []string) ([]int, error) {
+	var ids []int
+	query := "select id from environment where environment_name in (?) and active=?;"
+	_, err := repo.dbConnection.Query(&ids, query, pg.In(envNames), true)
+	return ids, err
 }

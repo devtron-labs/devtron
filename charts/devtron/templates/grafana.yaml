@@ -163,7 +163,7 @@ data:
         -H "Content-Type: application/json;charset=UTF-8" \
           "https://grafana.com/api/dashboards/13324/revisions/3/download" > "/var/lib/grafana/dashboards/devtron-provider/cpu-usage-below-k8s1-15.json"
     EOF
-    kubectl rollout restart deployment/devtron-grafana -n devtroncd
+    kubectl get po -n devtroncd -l app.kubernetes.io/name=grafana | awk '{print $1}' | grep -v devtron-grafana-test | grep -v NAME | xargs kubectl delete po -n devtroncd
 ---
 # Source: grafana/templates/serviceaccount.yaml
 apiVersion: v1
