@@ -196,6 +196,7 @@ func (handler PipelineConfigRestHandlerImpl) CreateCdPipeline(w http.ResponseWri
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
 	createResp, err := handler.pipelineBuilder.CreateCdPipelines(&cdPipeline, ctx)
+
 	if err != nil {
 		handler.Logger.Errorw("service err, CreateCdPipeline", "err", err, "payload", cdPipeline)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
