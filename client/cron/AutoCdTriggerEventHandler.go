@@ -35,7 +35,7 @@ func NewAutoCdTriggerEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *p
 	config := &AutoCdTriggerHandlerConfig{}
 	err := env.Parse(config)
 	if err != nil {
-		logger.Error("error occurred while parsing config", "err", err)
+		logger.Errorw("error occurred while parsing config", "err", err)
 		return nil, err
 	}
 	impl := &AutoCdTriggerEventHandlerImpl{
@@ -92,7 +92,7 @@ func (impl *AutoCdTriggerEventHandlerImpl) SubscribeAutoCdTriggerEventHandler() 
 		}
 	}, nats.AckWait(time.Duration(impl.config.AutoCdTriggerConsumerAckWaitInSecs)*time.Second), nats.Durable(util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
 	if err != nil {
-		impl.logger.Error("error in subscribing", "topic", util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, "err", err)
+		impl.logger.Errorw("error in subscribing", "topic", util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, "err", err)
 		return err
 	}
 	return err
