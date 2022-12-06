@@ -349,10 +349,7 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplateData(request *models.Use
 	templateName := terminalTemplate.TemplateName
 	templateData := terminalTemplate.TemplateData
 	clusterId := request.ClusterId
-	namespace := impl.Config.TerminalPodDefaultNamespace
-	if request.Namespace != "" {
-		namespace = request.Namespace
-	}
+	namespace := request.Namespace
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessClusterIdTemplateVar, strconv.Itoa(clusterId))
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessUserIdTemplateVar, strconv.FormatInt(int64(request.UserId), 10))
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessNodeNameVar, request.NodeName)
