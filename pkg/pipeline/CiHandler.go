@@ -1248,9 +1248,14 @@ func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuil
 			}
 		}
 		if isEligibleToMarkFailed {
+			ciWorkflow.Status = "Failed"
+			ciWorkflow.PodStatus = "Failed"
+			ciWorkflow.Message = "marked failed by job"
 			err := impl.ciWorkflowRepository.UpdateWorkFlow(ciWorkflow)
 			if err != nil {
 				impl.Logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
+				continue
+				// skip this and process for next ci workflow
 			}
 		}
 	}

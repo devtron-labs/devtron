@@ -12,6 +12,7 @@ import (
 )
 
 type CiStatusUpdateCron interface {
+	UpdateCiWorkflowStatusFailedCron()
 }
 
 type CiStatusUpdateCronImpl struct {
@@ -37,10 +38,12 @@ func NewCiStatusUpdateCronImpl(logger *zap.SugaredLogger, appService app.AppServ
 		ciPipelineRepository:         ciPipelineRepository,
 		ciHandler:                    ciHandler,
 	}
+
+	// execute periodically, update ci workflow status for failed process
 	_, err := cron.AddFunc(ciWorkflowStatusUpdateConfig.CiWorkflowStatusUpdateCron, impl.UpdateCiWorkflowStatusFailedCron)
 	if err != nil {
 		logger.Errorw("error in starting ci application status update cron job", "err", err)
-		return nil
+		return impl
 	}
 	return impl
 }
@@ -60,6 +63,7 @@ func GetCiWorkflowStatusUpdateConfig() (*CiWorkflowStatusUpdateConfig, error) {
 	return cfg, nil
 }
 
+// UpdateCiWorkflowStatusFailedCron this function will execute periodically
 func (impl *CiStatusUpdateCronImpl) UpdateCiWorkflowStatusFailedCron() {
 	timeoutForFailureCiBuild, err := strconv.Atoi(impl.ciWorkflowStatusUpdateConfig.TimeoutForFailedCiBuild)
 	if err != nil {
