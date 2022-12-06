@@ -230,21 +230,36 @@ func (repositoryImpl ChartRepositoryImpl) FindNumberOfAppsWithDeploymentTemplate
 //---------------------------chart repository------------------
 
 type ChartRepo struct {
-	tableName             struct{}            `sql:"chart_repo"`
-	Id                    int                 `sql:"id,pk"`
-	Name                  string              `sql:"name"`
-	Url                   string              `sql:"url"`
-	Active                bool                `sql:"active,notnull"`
-	Default               bool                `sql:"is_default,notnull"`
-	UserName              string              `sql:"user_name"`
-	Password              string              `sql:"password"`
-	SshKey                string              `sql:"ssh_key"`
-	AccessToken           string              `sql:"access_token"`
-	AuthMode              repository.AuthMode `sql:"auth_mode,notnull"`
-	External              bool                `sql:"external,notnull"`
-	Deleted               bool                `sql:"deleted,notnull"`
-	ActiveDeploymentCount int                 `sql:"deployment_count,notnull"`
+	tableName   struct{}            `sql:"chart_repo"`
+	Id          int                 `sql:"id,pk"`
+	Name        string              `sql:"name"`
+	Url         string              `sql:"url"`
+	Active      bool                `sql:"active,notnull"`
+	Default     bool                `sql:"is_default,notnull"`
+	UserName    string              `sql:"user_name"`
+	Password    string              `sql:"password"`
+	SshKey      string              `sql:"ssh_key"`
+	AccessToken string              `sql:"access_token"`
+	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
+	External    bool                `sql:"external,notnull"`
+	Deleted     bool                `sql:"deleted,notnull"`
 	sql.AuditLog
+}
+type ChartRepoWithDeploymentCount struct {
+	Id          int                 `sql:"id,pk"`
+	Name        string              `sql:"name"`
+	Url         string              `sql:"url"`
+	Active      bool                `sql:"active,notnull"`
+	Default     bool                `sql:"is_default,notnull"`
+	UserName    string              `sql:"user_name"`
+	Password    string              `sql:"password"`
+	SshKey      string              `sql:"ssh_key"`
+	AccessToken string              `sql:"access_token"`
+	AuthMode    repository.AuthMode `sql:"auth_mode,notnull"`
+	External    bool                `sql:"external,notnull"`
+	Deleted     bool                `sql:"deleted,notnull"`
+	sql.AuditLog
+	ActiveDeploymentCount int `sql:"deployment_count,notnull"`
 }
 
 type ChartRepoRepository interface {
@@ -253,7 +268,7 @@ type ChartRepoRepository interface {
 	GetDefault() (*ChartRepo, error)
 	FindById(id int) (*ChartRepo, error)
 	FindAll() ([]*ChartRepo, error)
-	FindAllWithDeploymentCount() ([]*ChartRepo, error)
+	FindAllWithDeploymentCount() ([]*ChartRepoWithDeploymentCount, error)
 	GetConnection() *pg.DB
 	MarkChartRepoDeleted(chartRepo *ChartRepo, tx *pg.Tx) error
 	FindByName(name string) (*ChartRepo, error)
@@ -306,8 +321,8 @@ func (impl ChartRepoRepositoryImpl) FindAll() ([]*ChartRepo, error) {
 		Select()
 	return repo, err
 }
-func (impl ChartRepoRepositoryImpl) FindAllWithDeploymentCount() ([]*ChartRepo, error) {
-	var repo []*ChartRepo
+func (impl ChartRepoRepositoryImpl) FindAllWithDeploymentCount() ([]*ChartRepoWithDeploymentCount, error) {
+	var repo []*ChartRepoWithDeploymentCount
 	query := "select chart_repo.*,count(jq.ia_id ) as deployment_count" +
 		" from chart_repo left join" +
 		" (select aps.chart_repo_id as cr_id ,ia.id as ia_id from installed_app_versions iav" +
