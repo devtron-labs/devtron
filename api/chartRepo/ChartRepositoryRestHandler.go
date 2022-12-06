@@ -203,7 +203,7 @@ func (handler *ChartRepositoryRestHandlerImpl) UpdateChartRepo(w http.ResponseWr
 	handler.Logger.Infow("request payload, UpdateChartRepo", "payload", request)
 	res, err, validationResult := handler.chartRepositoryService.ValidateAndUpdateChartRepo(request)
 	if validationResult.CustomErrMsg != chartRepo.ValidationSuccessMsg {
-		common.WriteJsonResp(w, nil, validationResult, http.StatusOK)
+		common.WriteJsonResp(w, nil, validationResult, http.StatusPreconditionFailed)
 		return
 	}
 	if err != nil {
