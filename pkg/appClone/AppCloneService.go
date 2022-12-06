@@ -140,6 +140,10 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 		impl.logger.Errorw("status not", "TEMPLATE", cloneReq.RefAppId)
 		return app, nil
 	}
+	if !refAppStatus["CHART"] {
+		impl.logger.Errorw("status not", "CHART", cloneReq.RefAppId)
+		return app, nil
+	}
 	_, err = impl.CreateDeploymentTemplate(cloneReq.RefAppId, newAppId, userId, context)
 	if err != nil {
 		impl.logger.Errorw("error in creating deployment template", "ref", cloneReq.RefAppId, "new", newAppId, "err", err)
