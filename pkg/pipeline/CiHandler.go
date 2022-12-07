@@ -309,35 +309,13 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, appId int)
 		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
 	}
 
-	for _, material := range gitMaterials {
-		if gitMaterialIds[material.Id] == true {
-			continue
-		}
-		r := CiPipelineMaterialResponse{
-			Id:              0,
-			GitMaterialId:   material.Id,
-			GitMaterialName: material.Name[strings.Index(material.Name, "-")+1:],
-			Type:            "",
-			Value:           "--",
-			Active:          false,
-			GitMaterialUrl:  "",
-			IsRepoError:     false,
-			RepoErrorMsg:    "",
-			IsBranchError:   true,
-			BranchErrorMsg:  "Source not configured",
-			Regex:           "",
-		}
-		responseMap[material.Id] = true
-		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
-
-	}
-
 	regexMaterials, err := impl.ciPipelineMaterialRepository.GetRegexByPipelineId(pipelineId)
 	if err != nil {
 		impl.Logger.Errorw("regex ciMaterials fetch failed", "err", err)
 		return []CiPipelineMaterialResponse{}, err
 	}
 	for _, k := range regexMaterials {
+		gitMaterialIds[k.GitMaterialId] = true
 		r := CiPipelineMaterialResponse{
 			Id:              k.Id,
 			GitMaterialId:   k.GitMaterialId,
@@ -357,6 +335,27 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, appId int)
 		if !exists {
 			ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
 		}
+	}
+	for _, material := range gitMaterials {
+		if gitMaterialIds[material.Id] {
+			continue
+		}
+		r := CiPipelineMaterialResponse{
+			Id:              0,
+			GitMaterialId:   material.Id,
+			GitMaterialName: material.Name[strings.Index(material.Name, "-")+1:],
+			Type:            "",
+			Value:           "--",
+			Active:          false,
+			GitMaterialUrl:  "",
+			IsRepoError:     false,
+			RepoErrorMsg:    "",
+			IsBranchError:   true,
+			BranchErrorMsg:  "Source not configured",
+			Regex:           "",
+		}
+		responseMap[material.Id] = true
+		ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
 	}
 
 	return ciPipelineMaterialResponses, nil
