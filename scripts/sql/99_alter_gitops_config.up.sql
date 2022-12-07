@@ -1,0 +1,1 @@
+ALTER TABLE "public"."gitops_config" ADD COLUMN "allow_insecure_tls" bool DEFAULT FALSE;
