@@ -24,7 +24,7 @@ import (
 )
 
 type AppRouter interface {
-	initAppRouter(router *mux.Router)
+	InitAppRouter(router *mux.Router)
 }
 
 type AppRouterImpl struct {

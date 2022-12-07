@@ -162,9 +162,12 @@ func (r *MuxRouter) Init() {
 	dashboardRouter := r.Router.PathPrefix("/dashboard").Subrouter()
 	r.dashboardRouter.InitDashboardRouter(dashboardRouter)
 
-	applicationSubRouter := r.Router.PathPrefix("/orchestrator/application").Subrouter()
-	r.helmAppRouter.InitAppListRouter(applicationSubRouter)
-	r.commonDeploymentRouter.Init(applicationSubRouter)
+	HelmApplicationSubRouter := r.Router.PathPrefix("/orchestrator/application").Subrouter()
+	r.helmAppRouter.InitAppListRouter(HelmApplicationSubRouter)
+	r.commonDeploymentRouter.Init(HelmApplicationSubRouter)
+
+	ApplicationSubRouter := r.Router.PathPrefix("/orchestrator/app").Subrouter()
+	r.appRouter.InitAppRouter(ApplicationSubRouter)
 
 	k8sApp := r.Router.PathPrefix("/orchestrator/k8s").Subrouter()
 	r.k8sApplicationRouter.InitK8sApplicationRouter(k8sApp)
