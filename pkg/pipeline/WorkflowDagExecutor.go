@@ -58,12 +58,13 @@ import (
 
 type WorkflowDagExecutor interface {
 	HandleCiSuccessEvent(artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error
+	HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool) (bool, error)
 	HandlePreStageSuccessEvent(cdStageCompleteEvent CdStageCompleteEvent) error
 	HandleDeploymentSuccessEvent(gitHash string, pipelineOverrideId int) error
 	HandlePostStageSuccessEvent(cdWorkflowId int, cdPipelineId int, triggeredBy int32) error
 	Subscribe() error
 	TriggerPostStage(cdWf *pipelineConfig.CdWorkflow, cdPipeline *pipelineConfig.Pipeline, triggeredBy int32) error
-	TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, async bool, triggeredBy int32) error
+	TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, triggeredBy int32) error
 	ManualCdTrigger(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context) (int, error)
 	TriggerBulkDeploymentAsync(requests []*BulkTriggerRequest, UserId int32) (interface{}, error)
 	StopStartApp(stopRequest *StopAppRequest, ctx context.Context) (int, error)
@@ -97,7 +98,25 @@ type WorkflowDagExecutorImpl struct {
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService
 	argoUserService               argo.ArgoUserService
 	cdPipelineStatusTimelineRepo  pipelineConfig.PipelineStatusTimelineRepository
+	CiTemplateRepository          pipelineConfig.CiTemplateRepository
+	ciWorkflowRepository          pipelineConfig.CiWorkflowRepository
+	appLabelRepository            pipelineConfig.AppLabelRepository
 }
+
+const (
+	CD_PIPELINE_ENV_NAME_KEY     = "CD_PIPELINE_ENV_NAME"
+	CD_PIPELINE_CLUSTER_NAME_KEY = "CD_PIPELINE_CLUSTER_NAME"
+	GIT_COMMIT_HASH_PREFIX       = "GIT_COMMIT_HASH"
+	GIT_SOURCE_TYPE_PREFIX       = "GIT_SOURCE_TYPE"
+	GIT_SOURCE_VALUE_PREFIX      = "GIT_SOURCE_VALUE"
+	GIT_SOURCE_COUNT             = "GIT_SOURCE_COUNT"
+	APP_LABEL_KEY_PREFIX         = "APP_LABEL_KEY"
+	APP_LABEL_VALUE_PREFIX       = "APP_LABEL_VALUE"
+	APP_LABEL_COUNT              = "APP_LABEL_COUNT"
+	CHILD_CD_ENV_NAME_PREFIX     = "CHILD_CD_ENV_NAME"
+	CHILD_CD_CLUSTER_NAME_PREFIX = "CHILD_CD_CLUSTER_NAME"
+	CHILD_CD_COUNT               = "CHILD_CD_COUNT"
+)
 
 type CiArtifactDTO struct {
 	Id                   int    `json:"id"`
@@ -142,7 +161,10 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 	appWorkflowRepository appWorkflow.AppWorkflowRepository,
 	prePostCdScriptHistoryService history2.PrePostCdScriptHistoryService,
 	argoUserService argo.ArgoUserService,
-	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository) *WorkflowDagExecutorImpl {
+	cdPipelineStatusTimelineRepo pipelineConfig.PipelineStatusTimelineRepository,
+	CiTemplateRepository pipelineConfig.CiTemplateRepository,
+	ciWorkflowRepository pipelineConfig.CiWorkflowRepository,
+	appLabelRepository pipelineConfig.AppLabelRepository) *WorkflowDagExecutorImpl {
 	wde := &WorkflowDagExecutorImpl{logger: Logger,
 		pipelineRepository:            pipelineRepository,
 		cdWorkflowRepository:          cdWorkflowRepository,
@@ -169,6 +191,9 @@ func NewWorkflowDagExecutorImpl(Logger *zap.SugaredLogger, pipelineRepository pi
 		prePostCdScriptHistoryService: prePostCdScriptHistoryService,
 		argoUserService:               argoUserService,
 		cdPipelineStatusTimelineRepo:  cdPipelineStatusTimelineRepo,
+		CiTemplateRepository:          CiTemplateRepository,
+		ciWorkflowRepository:          ciWorkflowRepository,
+		appLabelRepository:            appLabelRepository,
 	}
 	err := util4.AddStream(wde.pubsubClient.JetStrCtxt, util4.ORCHESTRATOR_STREAM, util4.CI_RUNNER_STREAM)
 	if err != nil {
@@ -238,7 +263,7 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 		return err
 	}
 	for _, pipeline := range pipelines {
-		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, async, triggeredBy)
+		err = impl.triggerStage(nil, pipeline, artifact, applyAuth, triggeredBy)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
 		}
@@ -246,7 +271,50 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 	return nil
 }
 
-func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, async bool, triggeredBy int32) error {
+func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool) (bool, error) {
+	isAnyTriggered := false
+	var authError error
+	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiId)
+	if err != nil {
+		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
+		return isAnyTriggered, err
+	}
+	for _, appWorkflowMapping := range appWorkflowMappings {
+		pipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
+		if err != nil {
+			impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
+			return isAnyTriggered, err
+		}
+		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
+			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
+			continue
+		}
+		user, err := impl.user.GetById(triggeredBy)
+		if err != nil {
+			return isAnyTriggered, err
+		}
+		projectObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
+		envObject := impl.enforcerUtil.GetAppRBACByAppIdAndPipelineId(pipeline.AppId, pipeline.Id)
+		if !auth(user.EmailId, projectObject, envObject) {
+			authError = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
+			continue
+		}
+
+		//applyAuth=false, already auth applied for this flow
+		err = impl.triggerStage(nil, pipeline, artifact, false, triggeredBy)
+		if err != nil {
+			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
+			return isAnyTriggered, err
+		}
+		isAnyTriggered = true
+	}
+	if authError != nil {
+		err = authError
+	}
+	return isAnyTriggered, err
+}
+
+func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error {
 	var err error
 	if len(pipeline.PreStageConfig) > 0 {
 		// pre stage exists
@@ -258,7 +326,7 @@ func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflo
 	} else if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_AUTOMATIC {
 		// trigger deployment
 		impl.logger.Debugw("trigger cd for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
-		err = impl.TriggerDeployment(cdWf, artifact, pipeline, applyAuth, async, triggeredBy)
+		err = impl.TriggerDeployment(cdWf, artifact, pipeline, applyAuth, triggeredBy)
 		return err
 	}
 	return nil
@@ -274,7 +342,7 @@ func (impl *WorkflowDagExecutorImpl) triggerStageForBulk(cdWf *pipelineConfig.Cd
 	} else {
 		// trigger deployment
 		impl.logger.Debugw("trigger cd for pipeline", "artifactId", artifact.Id, "pipelineId", pipeline.Id)
-		err = impl.TriggerDeployment(cdWf, artifact, pipeline, applyAuth, async, triggeredBy)
+		err = impl.TriggerDeployment(cdWf, artifact, pipeline, applyAuth, triggeredBy)
 		return err
 	}
 }
@@ -302,7 +370,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePreStageSuccessEvent(cdStageCompleteE
 			if cdStageCompleteEvent.TriggeredBy != 1 {
 				applyAuth = true
 			}
-			err = impl.TriggerDeployment(cdWorkflow, ciArtifact, pipeline, applyAuth, false, cdStageCompleteEvent.TriggeredBy)
+			err = impl.TriggerDeployment(cdWorkflow, ciArtifact, pipeline, applyAuth, cdStageCompleteEvent.TriggeredBy)
 			if err != nil {
 				return err
 			}
@@ -500,71 +568,73 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	}
 
 	var ciProjectDetails []CiProjectDetails
-	ciPipeline, err := impl.ciPipelineRepository.FindById(cdPipeline.CiPipelineId)
-	if err != nil && !util.IsErrNoRows(err) {
-		impl.logger.Errorw("cannot find ciPipeline", "err", err)
-		return nil, err
-	}
-
-	for _, m := range ciPipeline.CiPipelineMaterials {
-		var ciMaterialCurrent repository.CiMaterialInfo
-		for _, ciMaterial := range ciMaterialInfo {
-			if ciMaterial.Material.GitConfiguration.URL == m.GitMaterial.Url {
-				ciMaterialCurrent = ciMaterial
-				break
-			}
-		}
-		gitMaterial, err := impl.materialRepository.FindById(m.GitMaterialId)
+	var ciPipeline *pipelineConfig.CiPipeline
+	if cdPipeline.CiPipelineId > 0 {
+		ciPipeline, err = impl.ciPipelineRepository.FindById(cdPipeline.CiPipelineId)
 		if err != nil && !util.IsErrNoRows(err) {
-			impl.logger.Errorw("could not fetch git materials", "err", err)
+			impl.logger.Errorw("cannot find ciPipeline", "err", err)
 			return nil, err
 		}
 
-		ciProjectDetail := CiProjectDetails{
-			GitRepository:   ciMaterialCurrent.Material.GitConfiguration.URL,
-			MaterialName:    gitMaterial.Name,
-			CheckoutPath:    gitMaterial.CheckoutPath,
-			FetchSubmodules: gitMaterial.FetchSubmodules,
-			SourceType:      m.Type,
-			SourceValue:     m.Value,
-			Type:            string(m.Type),
-			GitOptions: GitOptions{
-				UserName:      gitMaterial.GitProvider.UserName,
-				Password:      gitMaterial.GitProvider.Password,
-				SshPrivateKey: gitMaterial.GitProvider.SshPrivateKey,
-				AccessToken:   gitMaterial.GitProvider.AccessToken,
-				AuthMode:      gitMaterial.GitProvider.AuthMode,
-			},
-		}
-
-		if len(ciMaterialCurrent.Modifications) > 0 {
-			ciProjectDetail.CommitHash = ciMaterialCurrent.Modifications[0].Revision
-			ciProjectDetail.Author = ciMaterialCurrent.Modifications[0].Author
-			ciProjectDetail.GitTag = ciMaterialCurrent.Modifications[0].Tag
-			ciProjectDetail.Message = ciMaterialCurrent.Modifications[0].Message
-			commitTime, err := convert(ciMaterialCurrent.Modifications[0].ModifiedTime)
-			if err != nil {
+		for _, m := range ciPipeline.CiPipelineMaterials {
+			var ciMaterialCurrent repository.CiMaterialInfo
+			for _, ciMaterial := range ciMaterialInfo {
+				if ciMaterial.Material.GitConfiguration.URL == m.GitMaterial.Url {
+					ciMaterialCurrent = ciMaterial
+					break
+				}
+			}
+			gitMaterial, err := impl.materialRepository.FindById(m.GitMaterialId)
+			if err != nil && !util.IsErrNoRows(err) {
+				impl.logger.Errorw("could not fetch git materials", "err", err)
 				return nil, err
 			}
-			ciProjectDetail.CommitTime = commitTime.Format(bean2.LayoutRFC3339)
-		} else {
-			impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
-			return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
-		}
 
-		// set webhook data
-		if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
-			webhookData := ciMaterialCurrent.Modifications[0].WebhookData
-			ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
-				Id:              webhookData.Id,
-				EventActionType: webhookData.EventActionType,
-				Data:            webhookData.Data,
+			ciProjectDetail := CiProjectDetails{
+				GitRepository:   ciMaterialCurrent.Material.GitConfiguration.URL,
+				MaterialName:    gitMaterial.Name,
+				CheckoutPath:    gitMaterial.CheckoutPath,
+				FetchSubmodules: gitMaterial.FetchSubmodules,
+				SourceType:      m.Type,
+				SourceValue:     m.Value,
+				Type:            string(m.Type),
+				GitOptions: GitOptions{
+					UserName:      gitMaterial.GitProvider.UserName,
+					Password:      gitMaterial.GitProvider.Password,
+					SshPrivateKey: gitMaterial.GitProvider.SshPrivateKey,
+					AccessToken:   gitMaterial.GitProvider.AccessToken,
+					AuthMode:      gitMaterial.GitProvider.AuthMode,
+				},
 			}
+
+			if len(ciMaterialCurrent.Modifications) > 0 {
+				ciProjectDetail.CommitHash = ciMaterialCurrent.Modifications[0].Revision
+				ciProjectDetail.Author = ciMaterialCurrent.Modifications[0].Author
+				ciProjectDetail.GitTag = ciMaterialCurrent.Modifications[0].Tag
+				ciProjectDetail.Message = ciMaterialCurrent.Modifications[0].Message
+				commitTime, err := convert(ciMaterialCurrent.Modifications[0].ModifiedTime)
+				if err != nil {
+					return nil, err
+				}
+				ciProjectDetail.CommitTime = commitTime.Format(bean2.LayoutRFC3339)
+			} else {
+				impl.logger.Debugw("devtronbug#1062", ciPipeline.Id, cdPipeline.Id)
+				return nil, fmt.Errorf("modifications not found for %d", ciPipeline.Id)
+			}
+
+			// set webhook data
+			if m.Type == pipelineConfig.SOURCE_TYPE_WEBHOOK && len(ciMaterialCurrent.Modifications) > 0 {
+				webhookData := ciMaterialCurrent.Modifications[0].WebhookData
+				ciProjectDetail.WebhookData = pipelineConfig.WebhookData{
+					Id:              webhookData.Id,
+					EventActionType: webhookData.EventActionType,
+					Data:            webhookData.Data,
+				}
+			}
+
+			ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
 		}
-
-		ciProjectDetails = append(ciProjectDetails, ciProjectDetail)
 	}
-
 	var stageYaml string
 	var deployStageWfr pipelineConfig.CdWorkflowRunner
 	deployStageTriggeredByUser := &bean.UserInfo{}
@@ -594,8 +664,7 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 	} else {
 		return nil, fmt.Errorf("unsupported workflow triggerd")
 	}
-	extraEnvVariables := make(map[string]string)
-	extraEnvVariables["APP_NAME"] = ciPipeline.App.AppName
+
 	cdStageWorkflowRequest := &CdWorkflowRequest{
 		EnvironmentId:         cdPipeline.EnvironmentId,
 		AppId:                 cdPipeline.AppId,
@@ -609,15 +678,6 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 		CiProjectDetails:      ciProjectDetails,
 		Namespace:             runner.Namespace,
 		ActiveDeadlineSeconds: impl.cdConfig.DefaultTimeout,
-		DockerUsername:        ciPipeline.CiTemplate.DockerRegistry.Username,
-		DockerPassword:        ciPipeline.CiTemplate.DockerRegistry.Password,
-		AwsRegion:             ciPipeline.CiTemplate.DockerRegistry.AWSRegion,
-		DockerConnection:      ciPipeline.CiTemplate.DockerRegistry.Connection,
-		DockerCert:            ciPipeline.CiTemplate.DockerRegistry.Cert,
-		AccessKey:             ciPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId,
-		SecretKey:             ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey,
-		DockerRegistryType:    string(ciPipeline.CiTemplate.DockerRegistry.RegistryType),
-		DockerRegistryURL:     ciPipeline.CiTemplate.DockerRegistry.RegistryURL,
 		CiArtifactDTO: CiArtifactDTO{
 			Id:           artifact.Id,
 			PipelineId:   artifact.PipelineId,
@@ -627,11 +687,96 @@ func (impl *WorkflowDagExecutorImpl) buildWFRequest(runner *pipelineConfig.CdWor
 			DataSource:   artifact.DataSource,
 			WorkflowId:   artifact.WorkflowId,
 		},
-		OrchestratorHost:          impl.cdConfig.OrchestratorHost,
-		OrchestratorToken:         impl.cdConfig.OrchestratorToken,
-		ExtraEnvironmentVariables: extraEnvVariables,
-		CloudProvider:             impl.cdConfig.CloudProvider,
+		OrchestratorHost:  impl.cdConfig.OrchestratorHost,
+		OrchestratorToken: impl.cdConfig.OrchestratorToken,
+		CloudProvider:     impl.cdConfig.CloudProvider,
 	}
+	extraEnvVariables := make(map[string]string)
+	env, err := impl.envRepository.FindById(cdPipeline.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting environment by id", "err", err)
+		return nil, err
+	}
+	if env != nil {
+		extraEnvVariables[CD_PIPELINE_ENV_NAME_KEY] = env.Name
+		if env.Cluster != nil {
+			extraEnvVariables[CD_PIPELINE_CLUSTER_NAME_KEY] = env.Cluster.ClusterName
+		}
+	}
+	ciWf, err := impl.ciWorkflowRepository.FindLastTriggeredWorkflowByArtifactId(artifact.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting ciWf by artifactId", "err", err, "artifactId", artifact.Id)
+		return nil, err
+	}
+
+	if ciWf != nil && ciWf.GitTriggers != nil {
+		i := 1
+		for _, gitTrigger := range ciWf.GitTriggers {
+			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_COMMIT_HASH_PREFIX, i)] = gitTrigger.Commit
+			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_TYPE_PREFIX, i)] = string(gitTrigger.CiConfigureSourceType)
+			extraEnvVariables[fmt.Sprintf("%s_%d", GIT_SOURCE_VALUE_PREFIX, i)] = gitTrigger.CiConfigureSourceValue
+			i++
+		}
+		extraEnvVariables[GIT_SOURCE_COUNT] = strconv.Itoa(len(ciWf.GitTriggers))
+	}
+
+	childCdIds, err := impl.appWorkflowRepository.FindChildCDIdsByParentCDPipelineId(cdPipeline.Id)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting child cdPipelineIds by parent cdPipelineId", "err", err, "parent cdPipelineId", cdPipeline.Id)
+		return nil, err
+	}
+	if len(childCdIds) > 0 {
+		childPipelines, err := impl.pipelineRepository.FindByIdsIn(childCdIds)
+		if err != nil {
+			impl.logger.Errorw("error in getting pipelines by ids", "err", err, "ids", childCdIds)
+			return nil, err
+		}
+		for i, childPipeline := range childPipelines {
+			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_ENV_NAME_PREFIX, i+1)] = childPipeline.Environment.Name
+			extraEnvVariables[fmt.Sprintf("%s_%d", CHILD_CD_CLUSTER_NAME_PREFIX, i+1)] = childPipeline.Environment.Cluster.ClusterName
+		}
+		extraEnvVariables[CHILD_CD_COUNT] = strconv.Itoa(len(childPipelines))
+	}
+	if ciPipeline != nil && ciPipeline.Id > 0 {
+		extraEnvVariables["APP_NAME"] = ciPipeline.App.AppName
+		cdStageWorkflowRequest.DockerUsername = ciPipeline.CiTemplate.DockerRegistry.Username
+		cdStageWorkflowRequest.DockerPassword = ciPipeline.CiTemplate.DockerRegistry.Password
+		cdStageWorkflowRequest.AwsRegion = ciPipeline.CiTemplate.DockerRegistry.AWSRegion
+		cdStageWorkflowRequest.DockerConnection = ciPipeline.CiTemplate.DockerRegistry.Connection
+		cdStageWorkflowRequest.DockerCert = ciPipeline.CiTemplate.DockerRegistry.Cert
+		cdStageWorkflowRequest.AccessKey = ciPipeline.CiTemplate.DockerRegistry.AWSAccessKeyId
+		cdStageWorkflowRequest.SecretKey = ciPipeline.CiTemplate.DockerRegistry.AWSSecretAccessKey
+		cdStageWorkflowRequest.DockerRegistryType = string(ciPipeline.CiTemplate.DockerRegistry.RegistryType)
+		cdStageWorkflowRequest.DockerRegistryURL = ciPipeline.CiTemplate.DockerRegistry.RegistryURL
+	} else if cdPipeline.AppId > 0 {
+		ciTemplate, err := impl.CiTemplateRepository.FindByAppId(cdPipeline.AppId)
+		if err != nil {
+			return nil, err
+		}
+		extraEnvVariables["APP_NAME"] = ciTemplate.App.AppName
+		cdStageWorkflowRequest.DockerUsername = ciTemplate.DockerRegistry.Username
+		cdStageWorkflowRequest.DockerPassword = ciTemplate.DockerRegistry.Password
+		cdStageWorkflowRequest.AwsRegion = ciTemplate.DockerRegistry.AWSRegion
+		cdStageWorkflowRequest.DockerConnection = ciTemplate.DockerRegistry.Connection
+		cdStageWorkflowRequest.DockerCert = ciTemplate.DockerRegistry.Cert
+		cdStageWorkflowRequest.AccessKey = ciTemplate.DockerRegistry.AWSAccessKeyId
+		cdStageWorkflowRequest.SecretKey = ciTemplate.DockerRegistry.AWSSecretAccessKey
+		cdStageWorkflowRequest.DockerRegistryType = string(ciTemplate.DockerRegistry.RegistryType)
+		cdStageWorkflowRequest.DockerRegistryURL = ciTemplate.DockerRegistry.RegistryURL
+		appLabels, err := impl.appLabelRepository.FindAllByAppId(cdPipeline.AppId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting labels by appId", "err", err, "appId", cdPipeline.AppId)
+			return nil, err
+		}
+		for i, appLabel := range appLabels {
+			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_KEY_PREFIX, i+1)] = appLabel.Key
+			extraEnvVariables[fmt.Sprintf("%s_%d", APP_LABEL_VALUE_PREFIX, i+1)] = appLabel.Value
+		}
+		if len(appLabels) > 0 {
+			extraEnvVariables[APP_LABEL_COUNT] = strconv.Itoa(len(appLabels))
+		}
+	}
+	cdStageWorkflowRequest.ExtraEnvironmentVariables = extraEnvVariables
 	if deployStageTriggeredByUser != nil {
 		cdStageWorkflowRequest.DeploymentTriggerTime = deployStageWfr.StartedOn
 		cdStageWorkflowRequest.DeploymentTriggeredBy = deployStageTriggeredByUser.EmailId
@@ -781,7 +926,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 		}
 		//finding ci artifact by ciPipelineID and pipelineId
 		//TODO : confirm values for applyAuth, async & triggeredBy
-		err = impl.triggerStage(nil, pipeline, ciArtifact, applyAuth, false, triggeredBy)
+		err = impl.triggerStage(nil, pipeline, ciArtifact, applyAuth, triggeredBy)
 		if err != nil {
 			impl.logger.Errorw("error in triggering cd pipeline after successful post stage", "err", err, "pipelineId", pipeline.Id)
 			return err
@@ -791,7 +936,7 @@ func (impl *WorkflowDagExecutorImpl) HandlePostStageSuccessEvent(cdWorkflowId in
 }
 
 // Only used for auto trigger
-func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, async bool, triggeredBy int32) error {
+func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWorkflow, artifact *repository.CiArtifact, pipeline *pipelineConfig.Pipeline, applyAuth bool, triggeredBy int32) error {
 	//in case of manual ci RBAC need to apply, this method used for auto cd deployment
 	if applyAuth {
 		user, err := impl.user.GetById(triggeredBy)
@@ -803,7 +948,8 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		object := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		impl.logger.Debugw("Triggered Request (App Permission Checking):", "token", token, "object", object)
 		if ok := impl.enforcer.EnforceByEmail(strings.ToLower(token), casbin.ResourceApplications, casbin.ActionTrigger, object); !ok {
-			return fmt.Errorf("unauthorized for pipeline " + strconv.Itoa(pipeline.Id))
+			err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "unauthorized for pipeline " + strconv.Itoa(pipeline.Id)}
+			return err
 		}
 	}
 
@@ -913,7 +1059,7 @@ func (impl *WorkflowDagExecutorImpl) TriggerDeployment(cdWf *pipelineConfig.CdWo
 		return nil
 	}
 
-	err = impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, async, triggeredAt)
+	err = impl.appService.TriggerCD(artifact, cdWf.Id, savedWfr.Id, pipeline, triggeredAt)
 	err1 := impl.updatePreviousDeploymentStatus(runner, pipeline.Id, err, triggeredAt)
 	if err1 != nil || err != nil {
 		impl.logger.Errorw("error while update previous cd workflow runners", "err", err, "runner", runner, "pipelineId", pipeline.Id)
