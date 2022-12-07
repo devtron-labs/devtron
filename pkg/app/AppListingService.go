@@ -26,7 +26,6 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
-	"github.com/devtron-labs/devtron/pkg/pipeline"
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
 	"net/http"
@@ -51,10 +50,16 @@ import (
 	"go.uber.org/zap"
 )
 
+type AppBean struct {
+	Id     int    `json:"id"`
+	Name   string `json:"name,notnull"`
+	TeamId int    `json:"teamId,omitempty"`
+}
+
 type TeamAppBean struct {
-	ProjectId   int                 `json:"projectId"`
-	ProjectName string              `json:"projectName"`
-	AppList     []*pipeline.AppBean `json:"appList"`
+	ProjectId   int        `json:"projectId"`
+	ProjectName string     `json:"projectName"`
+	AppList     []*AppBean `json:"appList"`
 }
 
 type AppListingService interface {
@@ -1559,17 +1564,17 @@ func (impl AppListingServiceImpl) GetAppListByTeamIds(teamIds []int, appType str
 	}
 	for _, app := range apps {
 		if _, ok := teamMap[app.TeamId]; ok {
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &pipeline.AppBean{Id: app.Id, Name: app.AppName})
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
 		} else {
 
 			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &pipeline.AppBean{Id: app.Id, Name: app.AppName})
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
 		}
 	}
 
 	for _, v := range teamMap {
 		if len(v.AppList) == 0 {
-			v.AppList = make([]*pipeline.AppBean, 0)
+			v.AppList = make([]*AppBean, 0)
 		}
 		appsRes = append(appsRes, v)
 	}

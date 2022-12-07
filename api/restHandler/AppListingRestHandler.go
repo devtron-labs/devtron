@@ -838,7 +838,7 @@ func (handler AppListingRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWrit
 	token := r.Header.Get("token")
 	// RBAC
 	for _, project := range projectWiseApps {
-		var accessedApps []*pipeline.AppBean
+		var accessedApps []*app.AppBean
 		for _, app := range project.AppList {
 			if isActionUserSuperAdmin {
 				accessedApps = append(accessedApps, app)
@@ -850,7 +850,7 @@ func (handler AppListingRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWrit
 			}
 		}
 		if len(accessedApps) == 0 {
-			accessedApps = make([]*pipeline.AppBean, 0)
+			accessedApps = make([]*app.AppBean, 0)
 		}
 		project.AppList = accessedApps
 	}
