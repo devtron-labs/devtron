@@ -5,7 +5,7 @@ This section includes information about the minimum requirements you need to ins
 Devtron is installed over a Kubernetes cluster. Once you create a Kubernetes cluster, Devtron can be installed standalone or along with CI/CD integration:
 
 * [Devtron with CI/CD](setup/install/install-devtron-with-cicd.md): Devtron installation with the CI/CD integration is used to perform CI/CD, security scanning, GitOps, debugging, and observability.
-* [Helm Dashboard by Devtron](setup/install/install-devtron.md): The Helm Dashboard by Devtron, which is a standalone installation, includes functionalities to deploy, observe, manage, and debug existing Helm applications in multiple clusters. You can also install integrations from [Devtron Stack Manager](https://docs.devtron.ai/v/v0.6/usage/integrations?q=).
+* [Helm Dashboard by Devtron](setup/install/install-devtron.md): The Helm Dashboard by Devtron, which is a standalone installation, includes functionalities to deploy, observe, manage, and debug existing Helm applications in multiple clusters. You can also install integrations from [Devtron Stack Manager](https://docs.devtron.ai/v/v0.6/usage/integrations).
 
 In this section, we will cover the basic details on how you can quickly get started with **Devtron**.
 First, lets see what are the prerequisite requirements before you install Devtron.
@@ -71,8 +71,8 @@ Choose one of the options as per your requirements:
 | Installation Options | Description |
 | --- | --- |
 | [Devtron with CI/CD](setup/install/install-devtron-with-cicd.md) | Devtron installation with the CI/CD integration is used to perform CI/CD, security scanning, GitOps, debugging, and observability. |
-| [Helm Dashboard by Devtron](setup/install/install-devtron.md) | The Helm Dashboard by Devtron which is a standalone installation includes functionalities to deploy, observe, manage, and debug existing Helm applications in multiple clusters. You can also install integrations from [Devtron Stack Manager](https://docs.devtron.ai/v/v0.6/usage/integrations?q=). |
-| [Devtron with CI/CD along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md) | With this option, you can install Devtron with CI/CD by enabling GitOps during the installation. You can also install other integrations from [Devtron Stack Manager](https://docs.devtron.ai/v/v0.6/usage/integrations?q=). |
+| [Helm Dashboard by Devtron](setup/install/install-devtron.md) | The Helm Dashboard by Devtron which is a standalone installation includes functionalities to deploy, observe, manage, and debug existing Helm applications in multiple clusters. You can also install integrations from [Devtron Stack Manager](https://docs.devtron.ai/v/v0.6/usage/integrations). |
+| [Devtron with CI/CD along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md) | With this option, you can install Devtron with CI/CD by enabling GitOps during the installation. You can also install other integrations from [Devtron Stack Manager](https://docs.devtron.ai/v/v0.6/usage/integrations). |
 | **Upgrade Devtron to latest version** | You can upgrade Devtron in one of the following ways:<ul><li>[Upgrade Devtron using Helm](https://docs.devtron.ai/v/v0.5/getting-started/upgrade#upgrade-devtron-using-helm)</ul></li><ul><li>[Upgrade Devtron from UI](https://docs.devtron.ai/v/v0.5/getting-started/upgrade/upgrade-devtron-ui)</ul></li> |
 
 **Note**: If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)
