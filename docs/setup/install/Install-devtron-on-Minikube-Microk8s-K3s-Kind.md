@@ -124,7 +124,7 @@ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.spec.ports[0].nodePo
 
 Make sure that the port on which the devtron-service runs remain open in the VM's security group or network Security group.
 
-**Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](setup/install/uninstall-devtron.md).
+**Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](https://docs.devtron.ai/install/uninstall-devtron).
 
 
 If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)
