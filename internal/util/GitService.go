@@ -21,6 +21,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
+	"net/url"
 	"path/filepath"
 	"time"
 
@@ -98,7 +99,25 @@ func (factory *GitFactory) Reload() error {
 }
 
 func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDto) (string, error) {
-	gitLabClient, err := CreateGitlabClient(gitOpsConfig.Host, gitOpsConfig.Token, gitOpsConfig.AllowInsecureTLS)
+	var gitLabClient *gitlab.Client
+	var err error
+	if len(gitOpsConfig.Host) > 0 {
+		_, err = url.ParseRequestURI(gitOpsConfig.Host)
+		if err != nil {
+			return "", err
+		}
+		gitLabClient, err = gitlab.NewClient(gitOpsConfig.Token, gitlab.WithBaseURL(gitOpsConfig.Host))
+		if err != nil {
+			factory.logger.Errorw("error in getting new gitlab client", "err", err)
+			return "", err
+		}
+	} else {
+		gitLabClient, err = gitlab.NewClient(gitOpsConfig.Token)
+		if err != nil {
+			factory.logger.Errorw("error in getting new gitlab client", "err", err)
+			return "", err
+		}
+	}
 	group, _, err := gitLabClient.Groups.GetGroup(gitOpsConfig.GitLabGroupId, &gitlab.GetGroupOptions{})
 	if err != nil {
 		factory.logger.Errorw("error in fetching gitlab group name", "err", err, "gitLab groupID", gitOpsConfig.GitLabGroupId)
@@ -122,7 +141,6 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 		GitHost:            gitOpsConfig.Host,
 		AzureToken:         gitOpsConfig.Token,
 		AzureProject:       gitOpsConfig.AzureProjectName,
-		AllowInsecureTLS:   gitOpsConfig.AllowInsecureTLS,
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
 	//factory.gitService = gitService
@@ -169,7 +187,6 @@ type GitConfig struct {
 	AzureProject         string
 	BitbucketWorkspaceId string
 	BitbucketProjectKey  string
-	AllowInsecureTLS     bool
 }
 
 func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfig, error) {
@@ -199,7 +216,6 @@ func GetGitConfig(gitOpsRepository repository.GitOpsConfigRepository) (*GitConfi
 		AzureProject:         gitOpsConfig.AzureProject,
 		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
 		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
-		AllowInsecureTLS:     gitOpsConfig.AllowInsecureTLS,
 	}
 	return cfg, err
 }

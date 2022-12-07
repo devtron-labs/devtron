@@ -193,7 +193,6 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 		AzureProject:         request.AzureProjectName,
 		BitBucketWorkspaceId: request.BitBucketWorkspaceId,
 		BitBucketProjectKey:  request.BitBucketProjectKey,
-		AllowInsecureTLS:     request.AllowInsecureTLS,
 		AuditLog:             sql.AuditLog{CreatedBy: request.UserId, CreatedOn: time.Now(), UpdatedOn: time.Now(), UpdatedBy: request.UserId},
 	}
 	model, err = impl.gitOpsRepository.CreateGitOpsConfig(model, tx)
@@ -404,7 +403,6 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	model.AzureProject = request.AzureProjectName
 	model.BitBucketWorkspaceId = request.BitBucketWorkspaceId
 	model.BitBucketProjectKey = request.BitBucketProjectKey
-	model.AllowInsecureTLS = request.AllowInsecureTLS
 	err = impl.gitOpsRepository.UpdateGitOpsConfig(model, tx)
 	if err != nil {
 		impl.logger.Errorw("error in updating team", "data", model, "err", err)
@@ -701,7 +699,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		return detailedErrorGitOpsConfigResponse
 	}
 	appName := DryrunRepoName + util2.Generate(6)
-	//getting username & emailId for commit author data
+	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
 	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", userName, userEmailId)
 
