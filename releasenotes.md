@@ -12,6 +12,10 @@
 
 ## v0.6.9-rc.1
 
+
+
+## v0.6.9-rc.1
+
 ## Bugs
 ## Enhancements
 - feat: Gitops or helm options for cd (#2673)
