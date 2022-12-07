@@ -39,6 +39,7 @@ type AppCrudOperationService interface {
 	UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
 	UpdateProjectForApps(request *bean.UpdateProjectBulkAppsRequest) (*bean.UpdateProjectBulkAppsRequest, error)
 	GetAppMetaInfoByAppName(appName string) (*bean.AppMetaInfoDto, error)
+	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 }
 type AppCrudOperationServiceImpl struct {
 	logger             *zap.SugaredLogger
@@ -55,6 +56,18 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 		appRepository:      appRepository,
 		userRepository:     userRepository,
 	}
+}
+
+type AppBean struct {
+	Id     int    `json:"id"`
+	Name   string `json:"name,notnull"`
+	TeamId int    `json:"teamId,omitempty"`
+}
+
+type TeamAppBean struct {
+	ProjectId   int        `json:"projectId"`
+	ProjectName string     `json:"projectName"`
+	AppList     []*AppBean `json:"appList"`
 }
 
 func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
@@ -338,4 +351,39 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfoByAppName(appName string) 
 		Active:      app.Active,
 	}
 	return info, nil
+}
+
+func (impl AppCrudOperationServiceImpl) GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error) {
+	var appsRes []*TeamAppBean
+	teamMap := make(map[int]*TeamAppBean)
+	if len(teamIds) == 0 {
+		return appsRes, nil
+	}
+	apps, err := impl.appRepository.FindAppsByTeamIds(teamIds, appType)
+	if err != nil {
+		impl.logger.Errorw("error while fetching app", "err", err)
+		return nil, err
+	}
+	for _, app := range apps {
+		if _, ok := teamMap[app.TeamId]; ok {
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+		} else {
+
+			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
+			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
+		}
+	}
+
+	for _, v := range teamMap {
+		if len(v.AppList) == 0 {
+			v.AppList = make([]*AppBean, 0)
+		}
+		appsRes = append(appsRes, v)
+	}
+
+	if len(appsRes) == 0 {
+		appsRes = make([]*TeamAppBean, 0)
+	}
+
+	return appsRes, err
 }

@@ -50,24 +50,11 @@ import (
 	"go.uber.org/zap"
 )
 
-type AppBean struct {
-	Id     int    `json:"id"`
-	Name   string `json:"name,notnull"`
-	TeamId int    `json:"teamId,omitempty"`
-}
-
-type TeamAppBean struct {
-	ProjectId   int        `json:"projectId"`
-	ProjectName string     `json:"projectName"`
-	AppList     []*AppBean `json:"appList"`
-}
-
 type AppListingService interface {
 	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
 	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(appId int, envId int) (bean.AppDetailContainer, error)
-	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 
 	PodCountByAppLabel(appLabel string, namespace string, env string, proEndpoint string) int
 	PodListByAppLabel(appLabel string, namespace string, env string, proEndpoint string) map[string]string
@@ -1549,39 +1536,4 @@ func (impl AppListingServiceImpl) RedirectToLinkouts(Id int, appId int, envId in
 	}
 
 	return link, nil
-}
-
-func (impl AppListingServiceImpl) GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error) {
-	var appsRes []*TeamAppBean
-	teamMap := make(map[int]*TeamAppBean)
-	if len(teamIds) == 0 {
-		return appsRes, nil
-	}
-	apps, err := impl.appRepository.FindAppsByTeamIds(teamIds, appType)
-	if err != nil {
-		impl.Logger.Errorw("error while fetching app", "err", err)
-		return nil, err
-	}
-	for _, app := range apps {
-		if _, ok := teamMap[app.TeamId]; ok {
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
-		} else {
-
-			teamMap[app.TeamId] = &TeamAppBean{ProjectId: app.Team.Id, ProjectName: app.Team.Name}
-			teamMap[app.TeamId].AppList = append(teamMap[app.TeamId].AppList, &AppBean{Id: app.Id, Name: app.AppName})
-		}
-	}
-
-	for _, v := range teamMap {
-		if len(v.AppList) == 0 {
-			v.AppList = make([]*AppBean, 0)
-		}
-		appsRes = append(appsRes, v)
-	}
-
-	if len(appsRes) == 0 {
-		appsRes = make([]*TeamAppBean, 0)
-	}
-
-	return appsRes, err
 }

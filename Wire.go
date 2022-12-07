@@ -655,7 +655,7 @@ func InitializeApp() (*App, error) {
 		router.NewAppRouterImpl,
 		wire.Bind(new(router.AppRouter), new(*router.AppRouterImpl)),
 		restHandler.NewAppRestHandlerImpl,
-		wire.Bind(new(restHandler.AppRestHandlerHandler), new(*restHandler.AppRestHandlerImpl)),
+		wire.Bind(new(restHandler.AppRestHandler), new(*restHandler.AppRestHandlerImpl)),
 
 		app.NewAppCrudOperationServiceImpl,
 		wire.Bind(new(app.AppCrudOperationService), new(*app.AppCrudOperationServiceImpl)),

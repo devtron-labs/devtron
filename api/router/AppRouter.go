@@ -29,10 +29,10 @@ type AppRouter interface {
 
 type AppRouterImpl struct {
 	logger  *zap.SugaredLogger
-	handler restHandler.AppRestHandlerHandler
+	handler restHandler.AppRestHandler
 }
 
-func NewAppRouterImpl(logger *zap.SugaredLogger, handler restHandler.AppRestHandlerHandler) *AppRouterImpl {
+func NewAppRouterImpl(logger *zap.SugaredLogger, handler restHandler.AppRestHandler) *AppRouterImpl {
 	router := &AppRouterImpl{
 		logger:  logger,
 		handler: handler,
@@ -49,4 +49,7 @@ func (router AppRouterImpl) initAppRouter(appRouter *mux.Router) {
 		HandlerFunc(router.handler.UpdateApp).Methods("POST")
 	appRouter.Path("/edit/projects").
 		HandlerFunc(router.handler.UpdateProjectForApps).Methods("POST")
+
+	appRouter.Path("/min").HandlerFunc(router.handler.GetAppListByTeamIds).Methods("GET")
+
 }

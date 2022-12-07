@@ -19,6 +19,7 @@ package restHandler
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -30,13 +31,15 @@ import (
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
 	"strconv"
+	"strings"
 )
 
-type AppRestHandlerHandler interface {
+type AppRestHandler interface {
 	GetAllLabels(w http.ResponseWriter, r *http.Request)
 	GetAppMetaInfo(w http.ResponseWriter, r *http.Request)
 	UpdateApp(w http.ResponseWriter, r *http.Request)
 	UpdateProjectForApps(w http.ResponseWriter, r *http.Request)
+	GetAppListByTeamIds(w http.ResponseWriter, r *http.Request)
 }
 
 type AppRestHandlerImpl struct {
@@ -212,4 +215,66 @@ func (handler AppRestHandlerImpl) UpdateProjectForApps(w http.ResponseWriter, r 
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (handler AppRestHandlerImpl) GetAppListByTeamIds(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	//vars := mux.Vars(r)
+	v := r.URL.Query()
+	params := v.Get("teamIds")
+	if len(params) == 0 {
+		common.WriteJsonResp(w, err, "StatusBadRequest", http.StatusBadRequest)
+		return
+	}
+
+	isActionUserSuperAdmin, err := handler.userAuthService.IsSuperAdmin(int(userId))
+	if err != nil {
+		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
+		return
+	}
+
+	appType := v.Get("appType")
+	handler.logger.Infow("request payload, GetAppListByTeamIds", "payload", params)
+	var teamIds []int
+	teamIdList := strings.Split(params, ",")
+	for _, item := range teamIdList {
+		teamId, err := strconv.Atoi(item)
+		if err != nil {
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		teamIds = append(teamIds, teamId)
+	}
+	projectWiseApps, err := handler.appService.GetAppListByTeamIds(teamIds, appType)
+	if err != nil {
+		handler.logger.Errorw("service err, GetAppListByTeamIds", "err", err, "payload", params)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	token := r.Header.Get("token")
+	// RBAC
+	for _, project := range projectWiseApps {
+		var accessedApps []*app.AppBean
+		for _, app := range project.AppList {
+			if isActionUserSuperAdmin {
+				accessedApps = append(accessedApps, app)
+				continue
+			}
+			object := fmt.Sprintf("%s/%s", project.ProjectName, app.Name)
+			if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); ok {
+				accessedApps = append(accessedApps, app)
+			}
+		}
+		if len(accessedApps) == 0 {
+			accessedApps = make([]*app.AppBean, 0)
+		}
+		project.AppList = accessedApps
+	}
+	// RBAC
+	common.WriteJsonResp(w, err, projectWiseApps, http.StatusOK)
 }

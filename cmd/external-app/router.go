@@ -53,6 +53,7 @@ type MuxRouter struct {
 	webhookHelmRouter        webhookHelm.WebhookHelmRouter
 	userAttributesRouter     router.UserAttributesRouter
 	telemetryRouter          router.TelemetryRouter
+	appRouter                router.AppRouter
 }
 
 func NewMuxRouter(
@@ -79,7 +80,7 @@ func NewMuxRouter(
 	webhookHelmRouter webhookHelm.WebhookHelmRouter,
 	userAttributesRouter router.UserAttributesRouter,
 	telemetryRouter router.TelemetryRouter,
-) *MuxRouter {
+	appRouter router.AppRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
 		logger:                   logger,
@@ -106,6 +107,7 @@ func NewMuxRouter(
 		webhookHelmRouter:        webhookHelmRouter,
 		userAttributesRouter:     userAttributesRouter,
 		telemetryRouter:          telemetryRouter,
+		appRouter:                appRouter,
 	}
 	return r
 }

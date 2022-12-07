@@ -70,6 +70,4 @@ func (router AppListingRouterImpl) initAppListingRouter(appListingRouter *mux.Ro
 		HandlerFunc(router.appListingRestHandler.RedirectToLinkouts).
 		Methods("GET")
 
-	appListingRouter.Path("/min").HandlerFunc(router.appListingRestHandler.GetAppListByTeamIds).Methods("GET")
-
 }
