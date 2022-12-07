@@ -303,7 +303,7 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 
 		// if labelKey or labelValue is empty then don't add in labels
 		if len(labelKey) == 0 || len(labelValue) == 0 {
-			impl.logger.Warnw("Ignoring label to propagate to app level", "labelKey", labelKey, "labelValue", labelKey, "appId", appId)
+			impl.logger.Warnw("Ignoring label to propagate to app level", "labelKey", labelKey, "labelValue", labelValue, "appId", appId)
 			continue
 		}
 
