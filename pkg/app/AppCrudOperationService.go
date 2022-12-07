@@ -27,6 +27,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"strings"
 	"time"
 )
 
@@ -297,8 +298,8 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 	}
 	labelsDto := make(map[string]string)
 	for _, label := range labels {
-		labelKey := label.Key
-		labelValue := label.Value
+		labelKey := strings.TrimSpace(label.Key)
+		labelValue := strings.TrimSpace(label.Value)
 
 		// if labelKey or labelValue is empty then don't add in labels
 		if len(labelKey) == 0 || len(labelValue) == 0 {
