@@ -126,9 +126,10 @@ func (impl PipelineRepositoryImpl) GetConnection() *pg.DB {
 func (impl PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
-		Column("pipeline.*", "App.app_name", "Environment.environment_name").
+		Column("pipeline.*", "App.app_name", "Environment.environment_name", "Environment.Cluster").
 		Join("inner join app a on pipeline.app_id = a.id").
 		Join("inner join environment e on pipeline.environment_id = e.id").
+		Join("inner join cluster c on c.id = e.cluster_id").
 		Where("pipeline.id in (?)", pg.In(ids)).
 		Where("pipeline.deleted = false").
 		Select()
