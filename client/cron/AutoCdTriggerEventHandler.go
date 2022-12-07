@@ -10,6 +10,7 @@ import (
 	"github.com/devtron-labs/devtron/util"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
+	"time"
 )
 
 type AutoCdTriggerEventHandler interface {
@@ -26,7 +27,7 @@ type AutoCdTriggerEventHandlerImpl struct {
 }
 
 type AutoCdTriggerHandlerConfig struct {
-	AutoCdTriggerConsumerAckWaitInSecs int `env:"AUTO_CD_TRIGGER_ACK_WAIT_IN_SECS" envDefault:"150"`
+	AutoCdTriggerConsumerAckWaitInSecs int `env:"AUTO_CD_TRIGGER_ACK_WAIT_IN_SECS" envDefault:"3600"`
 }
 
 func NewAutoCdTriggerEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSubClient, workflowDagExecutor pipeline.WorkflowDagExecutor,
@@ -89,7 +90,7 @@ func (impl *AutoCdTriggerEventHandlerImpl) SubscribeAutoCdTriggerEventHandler() 
 			impl.logger.Errorw("error on triggering stages", "err", err, "msg", string(msg.Data))
 			return
 		}
-	}, nats.MaxAckPending(1), nats.Durable(util.AUTO_CD_TRIGGER_TOPIC_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
+	}, nats.MaxAckPending(1), nats.AckWait(time.Duration(impl.config.AutoCdTriggerConsumerAckWaitInSecs)*time.Second), nats.Durable(util.AUTO_CD_TRIGGER_TOPIC_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
 	if err != nil {
 		impl.logger.Errorw("error in subscribing", "topic", util.AUTO_CD_TRIGGER_TOPIC, "err", err)
 		return err
