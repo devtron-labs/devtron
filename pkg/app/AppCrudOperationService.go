@@ -308,6 +308,7 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 		}
 
 		// if labelKey is not satisfying the label key criteria don't add in labels
+		// label key must be a 'qualified name' (https://github.com/kubernetes/website/issues/17969)
 		errs := validation.IsQualifiedName(labelKey)
 		if len(errs) > 0 {
 			impl.logger.Warnw("Ignoring label to propagate to app level", "err", errors.New(fmt.Sprintf("Validation error - label key - %s is not satisfying the label key criteria", labelKey)), "appId", appId)
