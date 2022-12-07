@@ -16,7 +16,7 @@ helm repo add devtron https://helm.devtron.ai
 
 ## Install Helm Dashboard by Devtron
 
-**Note**: This installation command will not install CI/CD integration. For CI/CD, refer [install Devtron with CI/CD](setup/install/install-devtron-with-cdcd.md) section.
+**Note**: This installation command will not install CI/CD integration. For CI/CD, refer [install Devtron with CI/CD](https://docs.devtron.ai/install/install-devtron-with-cicd) section.
 
 Run the following command to install Helm Dashboard by Devtron:
 
@@ -92,9 +92,9 @@ kubectl -n devtroncd get secret devtron-secret \
 -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
-**Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](setup/install/uninstall-devtron.md).
+**Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](https://docs.devtron.ai/install/uninstall-devtron).
 
 
 ## Upgrade
 
-To use the CI/CD capabilities with Devtron, you can Install the [Devtron with CI/CD](setup/install/install-devtron-with-cicd.md) or [Devtron with CI/CD along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md).
+To use the CI/CD capabilities with Devtron, you can Install the [Devtron with CI/CD](https://docs.devtron.ai/install/install-devtron-with-cicd) or [Devtron with CI/CD along with GitOps (Argo CD)](https://docs.devtron.ai/install/install-devtron-with-cicd-with-gitops).
