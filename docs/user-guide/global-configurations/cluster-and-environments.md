@@ -1,4 +1,4 @@
-# Cluster And Environments
+# Clusters and Environments
 
 You can add your existing Kubernetes clusters and environments here.
 

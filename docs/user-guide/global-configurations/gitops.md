@@ -24,7 +24,7 @@ Areas impacted by GitOps are:
 
 ## Add Git Configuration 
 
-To add GitOps, go to the `Gitops` section of `Global Configurations`. Click **GitOps**.
+To add GitOps, go to the `Global Configurations` section and click `Gitops`.
 
 Below are the Git providers which are available in Devtron. Select one of the Git providers (e.g., GitHub) to configure GitOps:
 
@@ -97,11 +97,6 @@ If you select `Bitbucket Cloud` as your git provider, please provide the informa
 **Note**:
 * repo - Full control of repositories (Read, Write, Admin, Delete) access. 
 
-
- 
 Click **Save** to save your GitOps configuration details.
- 
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket-cloud.jpg)
 
 **Note** : A Green tick will appear on the active GitOp provider.

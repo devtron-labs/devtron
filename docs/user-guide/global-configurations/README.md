@@ -6,11 +6,16 @@ _**This documentation consists of the Global Configurations available in Devtron
 
 {% embed url="https://www.youtube.com/watch?v=4VFjrjtieMI" caption="" %}
 
-**These are the global configurations available in Devtron**.
 
 **Note**: Make sure to enter the `Host URL` or auto-detect from your browser on the **Host URL** page. The Host URL is the domain address at which your devtron dashboard can be reached.
 
+**These are the global configurations available in Devtron**.
+
 [GitOps](gitops.md)
+
+[Projects](projects.md)
+
+[Cluster And Environments](cluster-and-environments.md)
 
 [Git Accounts](git-accounts.md)
 
@@ -18,13 +23,11 @@ _**This documentation consists of the Global Configurations available in Devtron
 
 [Chart Repositories](chart-repo.md)
 
-[Cluster And Environments](cluster-and-environments.md)
+[SSO Login Services](sso-login.md)
 
-[Projects](projects.md)
-
-[SSO Login Service](sso-login.md)
-
-[User Access](user-access.md)
+[Authorization](user-guide/global-configurations/authorization/README.md)
 
 [Manage Notification](manage-notification.md)
+
+[External Links](external-links.md)
 
