@@ -20,7 +20,6 @@ package appStoreDeploymentFullMode
 import (
 	"context"
 	"github.com/devtron-labs/devtron/client/argocdServer"
-	repository2 "github.com/devtron-labs/devtron/internal/sql/repository"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -36,6 +35,8 @@ import (
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
+	repository2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
+	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	application2 "github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -53,6 +54,7 @@ const (
 type AppStoreDeploymentFullModeService interface {
 	AppStoreDeployOperationGIT(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, *util.ChartGitAttribute, error)
 	AppStoreDeployOperationACD(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
+	RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error
 	SyncACD(acdAppName string, ctx context.Context)
 	UpdateValuesYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementYaml(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
@@ -74,7 +76,6 @@ type AppStoreDeploymentFullModeServiceImpl struct {
 	installedAppRepository               repository4.InstalledAppRepository
 	tokenCache                           *util2.TokenCache
 	argoUserService                      argo.ArgoUserService
-	gitOpsConfigRepository               repository2.GitOpsConfigRepository
 }
 
 func NewAppStoreDeploymentFullModeServiceImpl(logger *zap.SugaredLogger,
@@ -236,13 +237,8 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, chartGitAttr *util.ChartGitAttribute, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error) {
 	ctx, cancel := context.WithTimeout(ctx, 1*time.Minute)
 	defer cancel()
-	gitOpsConfig, err := impl.gitOpsConfigRepository.GetGitOpsConfigActive()
-	if err != nil {
-		impl.logger.Errorw("error in getting active gitOps config", "err", err)
-		return nil, err
-	}
 	//STEP 4: registerInArgo
-	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx, gitOpsConfig.AllowInsecureTLS)
+	err := impl.RegisterInArgo(chartGitAttr, ctx)
 	if err != nil {
 		impl.logger.Errorw("error in argo registry", "err", err)
 		return nil, err
@@ -257,6 +253,18 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationACD(ins
 	//impl.SyncACD(installAppVersionRequest.ACDAppName, ctx)
 
 	return installAppVersionRequest, nil
+}
+
+func (impl AppStoreDeploymentFullModeServiceImpl) RegisterInArgo(chartGitAttribute *util.ChartGitAttribute, ctx context.Context) error {
+	repo := &v1alpha1.Repository{
+		Repo: chartGitAttribute.RepoUrl,
+	}
+	repo, err := impl.repositoryService.Create(ctx, &repository2.RepoCreateRequest{Repo: repo, Upsert: true})
+	if err != nil {
+		impl.logger.Errorw("error in creating argo Repository ", "err", err)
+	}
+	impl.logger.Debugw("repo registered in argo", "name", chartGitAttribute.RepoUrl)
+	return err
 }
 
 func (impl AppStoreDeploymentFullModeServiceImpl) SyncACD(acdAppName string, ctx context.Context) {

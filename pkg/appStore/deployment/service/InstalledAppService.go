@@ -377,6 +377,16 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 			impl.logger.Errorw("fetching error", "err", err)
 			return nil, err
 		}
+		gitOpsConfigBitbucket, err := impl.gitOpsRepository.GetGitOpsConfigByProvider(util.BITBUCKET_PROVIDER)
+		if err != nil {
+			if err == pg.ErrNoRows {
+				gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+				gitOpsConfigBitbucket.BitBucketProjectKey = ""
+			} else {
+				return nil, err
+			}
+		}
+
 		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(installedAppVersion.AppStoreName)
 		if err != nil {
 			//will allow to continue to persist status on next operation

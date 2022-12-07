@@ -54,7 +54,6 @@ type GitOpsConfig struct {
 	BitBucketWorkspaceId string   `sql:"bitbucket_workspace_id"`
 	BitBucketProjectKey  string   `sql:"bitbucket_project_key"`
 	EmailId              string   `sql:"email_id"`
-	AllowInsecureTLS     bool     `sql:"allow_insecure_tls,notnull"`
 	sql.AuditLog
 }
 

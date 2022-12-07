@@ -1303,18 +1303,20 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 
 }
 
-func (impl PipelineBuilderImpl) CheckIfGitOpsIsConfiguredAndGetConfig() (bool, *repository.GitOpsConfig, error) {
+func (impl PipelineBuilderImpl) IsGitopsConfigured() (bool, error) {
 
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
-		return false, nil, err
+		return false, err
 	}
 	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
 		isGitOpsConfigured = true
 	}
-	return isGitOpsConfigured, gitOpsConfig, nil
+
+	return isGitOpsConfigured, nil
 
 }
 
@@ -1378,8 +1380,9 @@ func (impl PipelineBuilderImpl) ValidateCDPipelineRequest(pipelineCreateRequest 
 
 }
 
-func (impl PipelineBuilderImpl) RegisterInACD(app *app2.App, pipelineCreateRequest *bean.CdPipelines, ctx context.Context, gitOpsConfig *repository.GitOpsConfig) error {
-	//creating GIT repository and register into ACD
+func (impl PipelineBuilderImpl) RegisterInACD(app *app2.App, pipelineCreateRequest *bean.CdPipelines, ctx context.Context) error {
+
+	//if gitops configured create GIT repository and register into ACD
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
 	if err != nil && pg.ErrNoRows != err {
 		return err
@@ -1390,7 +1393,7 @@ func (impl PipelineBuilderImpl) RegisterInACD(app *app2.App, pipelineCreateReque
 		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
 		return err
 	}
-	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx, gitOpsConfig.AllowInsecureTLS)
+	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
 	if err != nil {
 		impl.logger.Errorw("error while register git repo in argo", "err", err)
 		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
@@ -1402,7 +1405,7 @@ func (impl PipelineBuilderImpl) RegisterInACD(app *app2.App, pipelineCreateReque
 				return err
 			}
 			// - retry register in argo
-			err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx, gitOpsConfig.AllowInsecureTLS)
+			err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
 			if err != nil {
 				impl.logger.Errorw("error in re-try register in argo", "err", err)
 				return err
@@ -1465,7 +1468,7 @@ func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateReque
 
 func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
 
-	isGitOpsConfigured, gitOpsConfig, err := impl.CheckIfGitOpsIsConfiguredAndGetConfig()
+	isGitOpsConfigured, err := impl.IsGitopsConfigured()
 	impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
 	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
 	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
@@ -1478,7 +1481,7 @@ func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.Cd
 		return nil, err
 	}
 	if isGitOpsConfigured && isGitOpsRequiredForCD {
-		err = impl.RegisterInACD(app, pipelineCreateRequest, ctx, gitOpsConfig)
+		err = impl.RegisterInACD(app, pipelineCreateRequest, ctx)
 		if err != nil {
 			return nil, err
 		}
