@@ -10,7 +10,6 @@ import (
 	"github.com/devtron-labs/devtron/util"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
-	"time"
 )
 
 type AutoCdTriggerEventHandler interface {
@@ -90,7 +89,7 @@ func (impl *AutoCdTriggerEventHandlerImpl) SubscribeAutoCdTriggerEventHandler() 
 			impl.logger.Errorw("error on triggering stages", "err", err, "msg", string(msg.Data))
 			return
 		}
-	}, nats.AckWait(time.Duration(impl.config.AutoCdTriggerConsumerAckWaitInSecs)*time.Second), nats.Durable(util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
+	}, nats.MaxAckPending(1), nats.Durable(util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
 	if err != nil {
 		impl.logger.Errorw("error in subscribing", "topic", util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, "err", err)
 		return err
