@@ -137,10 +137,25 @@ type CiScript struct {
 }
 
 type ExternalCiConfig struct {
-	Id         int    `json:"id"`
-	WebhookUrl string `json:"webhookUrl"`
-	Payload    string `json:"payload"`
-	AccessKey  string `json:"accessKey"`
+	Id            int                    `json:"id"`
+	WebhookUrl    string                 `json:"webhookUrl"`
+	Payload       string                 `json:"payload"`
+	AccessKey     string                 `json:"accessKey"`
+	PayloadOption []PayloadOptionObject  `json:"payloadOption"`
+	Schema        map[string]interface{} `json:"schema"`
+	Responses     []ResponseSchemaObject `json:"responses"`
+	ExternalCiConfigRole
+}
+
+type ExternalCiConfigRole struct {
+	ProjectId             int    `json:"projectId"`
+	ProjectName           string `json:"projectName"`
+	EnvironmentId         string `json:"environmentId"`
+	EnvironmentName       string `json:"environmentName"`
+	EnvironmentIdentifier string `json:"environmentIdentifier"`
+	AppId                 int    `json:"appId"`
+	AppName               string `json:"appName"`
+	Role                  string `json:"role"`
 }
 
 // -------------------
@@ -267,6 +282,10 @@ type CiConfigRequest struct {
 	BeforeDockerBuild []*Task                 `json:"beforeDockerBuild,omitempty" validate:"dive"`
 	AfterDockerBuild  []*Task                 `json:"afterDockerBuild,omitempty" validate:"dive"`
 	ScanEnabled       bool                    `json:"scanEnabled,notnull"`
+	CreatedOn         time.Time               `sql:"created_on,type:timestamptz"`
+	CreatedBy         int32                   `sql:"created_by,type:integer"`
+	UpdatedOn         time.Time               `sql:"updated_on,type:timestamptz"`
+	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
 }
 
 type TestExecutorImageProperties struct {
@@ -434,7 +453,7 @@ type CDPipelineConfigObject struct {
 	Id                            int                               `json:"id,omitempty"  validate:"number" `
 	EnvironmentId                 int                               `json:"environmentId,omitempty"  validate:"number,required" `
 	EnvironmentName               string                            `json:"environmentName,omitempty" `
-	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number,required"`
+	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number"`
 	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                            `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
 	Strategies                    []Strategy                        `json:"strategies,omitempty"`
@@ -590,4 +609,64 @@ type UpdateProjectBulkAppsRequest struct {
 	AppIds []int `json:"appIds"`
 	TeamId int   `json:"teamId"`
 	UserId int32 `json:"-"`
+}
+
+type CdBulkAction int
+
+const (
+	CD_BULK_DELETE CdBulkAction = iota
+)
+
+type CdBulkActionRequestDto struct {
+	Action      CdBulkAction `json:"action"`
+	EnvIds      []int        `json:"envIds"`
+	AppIds      []int        `json:"appIds"`
+	ProjectIds  []int        `json:"projectIds"`
+	ForceDelete bool         `json:"forceDelete"`
+	UserId      int32        `json:"-"`
+}
+
+type CdBulkActionResponseDto struct {
+	PipelineName    string `json:"pipelineName"`
+	AppName         string `json:"appName"`
+	EnvironmentName string `json:"environmentName"`
+	DeletionResult  string `json:"deletionResult,omitempty"`
+}
+
+type SchemaObject struct {
+	Description string      `json:"description"`
+	DataType    string      `json:"dataType"`
+	Example     string      `json:"example"`
+	Optional    bool        `json:"optional"`
+	Child       interface{} `json:"child"`
+}
+
+type PayloadOptionObject struct {
+	Key        string   `json:"key"`
+	PayloadKey []string `json:"payloadKey"`
+	Label      string   `json:"label"`
+	Mandatory  bool     `json:"mandatory"`
+}
+
+type ResponseSchemaObject struct {
+	Description ResponseDescriptionSchemaObject `json:"description"`
+	Code        string                          `json:"code"`
+}
+
+type ResponseDescriptionSchemaObject struct {
+	Description  string                 `json:"description,omitempty"`
+	ExampleValue ExampleValueDto        `json:"exampleValue,omitempty"`
+	Schema       map[string]interface{} `json:"schema,omitempty"`
+}
+
+type ErrorDto struct {
+	Code        int    `json:"code"`
+	UserMessage string `json:"userMessage"`
+}
+
+type ExampleValueDto struct {
+	Code   int        `json:"code,omitempty"`
+	Errors []ErrorDto `json:"errors,omitempty"`
+	Result string     `json:"result,omitempty"`
+	Status string     `json:"status,omitempty"`
 }

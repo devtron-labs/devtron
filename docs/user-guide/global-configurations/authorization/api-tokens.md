@@ -1,16 +1,17 @@
 # API Tokens
-API tokens are like ordinary OAuth access tokens. They can be used instead of username and password for programmatic access to API.
-API token allows users to generate API tokens with the desired access. Only super admin users can generate tokens and see generated tokens.
+
+API tokens are the access tokens for authentication. Instead of using username and password, it can be used for programmatic access to API. It allows users to generate API tokens with the desired access. Only super admin users can generate API tokens and see the generated tokens.
 
 ## Generate API Token
 
-To generate API tokens, go to global configurations -> Authorizations -> API tokens and click on Generate New Token.
+To generate API tokens, go to Global Configurations -> Authorization -> API tokens and click `Generate New Token`.
+
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-1.png)
 
-1. Enter a name for the token
+1. Enter a name for the token.
 2. Add Description. 
 
-3. Select an Expiration date for the token(7 days, 30 days, 60 days, 90 days, custom and no expiration) 
+3. Select an Expiration date for the token (7 days, 30 days, 60 days, 90 days, custom and no expiration).
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-2.png)
 
@@ -27,7 +28,6 @@ Or select specific permission if you want to generate a token with a specific ro
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-3.png)
 
 5. Now click on Generate Token.
-
 
 
 A pop-up window will appear over the screen from where you can copy the API token.
@@ -68,7 +68,7 @@ Select a new expiration date and click on regenerated token.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-11.png)
 
-This will generated a new token with new expiration date.
+This will generated a new token with a new expiration date.
 
 
 To update API token permissions, give the permissions as you want to and click on update token.
@@ -79,7 +79,7 @@ To update API token permissions, give the permissions as you want to and click o
 
 ## Delete API Token
 
-To delete an API token, click on the delete icon. Any applications or scripts using this token will no longer be able to access the Devtron API.
+To delete an API token, click `delete` icon. Any applications or scripts using this token will no longer be able to access the Devtron API.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/api-token/api-token-14.png)
 

@@ -983,7 +983,12 @@ func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, erro
 	return response, nil
 }
 func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
-	token := r.Header.Get("token")
+	token := ""
+	if strings.Contains(r.URL.Path, "/orchestrator/webhook/ext-ci/") {
+		token = r.Header.Get("api-token")
+	} else {
+		token = r.Header.Get("token")
+	}
 	userId, userType, err := impl.GetUserByToken(token)
 	// if user is of api-token type, then update lastUsedBy and lastUsedAt
 	if err == nil && userType == bean.USER_TYPE_API_TOKEN {

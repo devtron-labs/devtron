@@ -24,11 +24,11 @@ jobs:
         RELEASE_TYPE=$(echo $RELEASE_FILE_CONTENTS | awk '{print $1}')
         FILE_NAME=${FILE_NAME:=releasenotes.md}
         echo $RELEASE_TYPE
+        echo $GITHUB_REPOSITORY
+        gh repo clone $GITHUB_REPOSITORY
+        cd devtron
         if [[ "$RELEASE_TYPE" == "stable" ]]
           then
-            echo $GITHUB_REPOSITORY
-            gh repo clone $GITHUB_REPOSITORY
-            cd devtron
             tag=$(git tag --sort=committerdate | tail -1)
             echo $tag
             echo $RELEASE_BRANCH

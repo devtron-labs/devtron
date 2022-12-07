@@ -90,5 +90,17 @@ func IntValidator() (*validator.Validate, error) {
 	if err != nil {
 		return v, err
 	}
+	err = v.RegisterValidation("image-validator", validateDockerImage)
+	if err != nil {
+		return v, err
+	}
 	return v, err
+}
+
+func validateDockerImage(fl validator.FieldLevel) bool {
+	value := fl.Field().String()
+	if strings.Contains(value, ":") {
+		return true
+	}
+	return false
 }
