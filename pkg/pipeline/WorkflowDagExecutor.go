@@ -257,9 +257,9 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 			TriggeredBy:  triggeredBy,
 		}
 		// build event on NATS
-		err = impl.eventClient.WriteNatsEvent(util4.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, eventPayload)
+		err = impl.eventClient.WriteNatsEvent(util4.AUTO_CD_TRIGGER_TOPIC, eventPayload)
 		if err != nil {
-			impl.logger.Errorw("error in writing nats event", "topic", util4.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, "payload", eventPayload, "err", err)
+			impl.logger.Errorw("error in writing nats event", "topic", util4.AUTO_CD_TRIGGER_TOPIC, "payload", eventPayload, "err", err)
 			return err
 		}
 	}

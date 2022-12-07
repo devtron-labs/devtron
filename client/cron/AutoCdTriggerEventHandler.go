@@ -52,14 +52,14 @@ func NewAutoCdTriggerEventHandlerImpl(logger *zap.SugaredLogger, pubsubClient *p
 	}
 	err = impl.SubscribeAutoCdTriggerEventHandler()
 	if err != nil {
-		logger.Errorw("error while subscribing", "topic", util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, "err", err)
+		logger.Errorw("error while subscribing", "topic", util.AUTO_CD_TRIGGER_TOPIC, "err", err)
 		return nil, err
 	}
 	return impl, nil
 }
 
 func (impl *AutoCdTriggerEventHandlerImpl) SubscribeAutoCdTriggerEventHandler() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_GROUP, func(msg *nats.Msg) {
+	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.AUTO_CD_TRIGGER_TOPIC, util.AUTO_CD_TRIGGER_TOPIC_GROUP, func(msg *nats.Msg) {
 		impl.logger.Debug("received auto trigger stages event after ci completion")
 		defer msg.AckSync()
 		eventPayload := pipeline.AutoTriggerStagesAfterCiCompleteEvent{}
@@ -89,9 +89,9 @@ func (impl *AutoCdTriggerEventHandlerImpl) SubscribeAutoCdTriggerEventHandler() 
 			impl.logger.Errorw("error on triggering stages", "err", err, "msg", string(msg.Data))
 			return
 		}
-	}, nats.MaxAckPending(1), nats.Durable(util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
+	}, nats.MaxAckPending(1), nats.Durable(util.AUTO_CD_TRIGGER_TOPIC_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.ORCHESTRATOR_STREAM))
 	if err != nil {
-		impl.logger.Errorw("error in subscribing", "topic", util.AUTO_TRIGGER_STAGES_AFTER_CI_COMPLETE_TOPIC, "err", err)
+		impl.logger.Errorw("error in subscribing", "topic", util.AUTO_CD_TRIGGER_TOPIC, "err", err)
 		return err
 	}
 	return err
