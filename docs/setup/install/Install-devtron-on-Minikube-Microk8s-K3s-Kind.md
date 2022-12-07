@@ -1,28 +1,30 @@
 # Install Devtron on Minikube, Microk8s, K3s, Kind
+
 You can install and try Devtron on a high-end machine or on a Cloud VM. If you install it on a laptop/PC, it may start to respond slow, so it is recommended to uninstall Devtron from your system before shutting it down.
 
-#### System Configurations for Devtron Installation
+## System Configurations for Devtron Installation
 1. 2 vCPUs
 2. 4GB+ of free memory
 3. 20GB+ free disk space
 
 ## Before you begin
-Before we get started and install Devtron, we need to set up the cluster in our servers & install required tools
- * Create cluster using [Minikube](https://minikube.sigs.k8s.io/docs/start/) or [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/) or [K3s](https://rancher.com/docs/k3s/latest/en/installation/)
- * Install [Helm3](https://helm.sh/docs/intro/install/)
- * Install [kubectl](https://kubernetes.io/docs/tasks/tools/)
+
+Before we get started and install Devtron, you must set up the cluster in you server and  install the pre-requisite requirements:
+
+ * Create cluster using [Minikube](https://minikube.sigs.k8s.io/docs/start/) or [Kind](https://kind.sigs.k8s.io/docs/user/quick-start/) or [K3s](https://rancher.com/docs/k3s/latest/en/installation/).
+ * Install [Helm3](https://helm.sh/docs/intro/install/).
+ * Install [kubectl](https://kubernetes.io/docs/tasks/tools/).
 
 
-## Install Devtron on your machine
-1. Add Devtron repository
-2. Install Devtron 
-3. Port-forward the devtron-service to access dashboard
+## Install Devtron
+
 
 {% tabs %}
 
-{% tab title=" Minikube/kind cluster" %}
+{% tab title=" Minikube/Kind cluster" %}
 
- To install devtron on ``Minikube/kind`` Cluster use the Following commands
+ To install devtron on ``Minikube/kind`` cluster, run the following command:
+
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
@@ -34,7 +36,8 @@ helm install devtron devtron/devtron-operator \
 {% endtab %}
 
 {% tab title="k3s Cluster" %}
-To install devtron on ``k3s`` Cluster use the Following commands
+To install devtron on ``k3s`` cluster, run the following command:
+
 ```bash
 kubectl apply -f https://raw.githubusercontent.com/rancher/local-path-provisioner/master/deploy/local-path-storage.yaml
 
@@ -49,39 +52,49 @@ helm install devtron devtron/devtron-operator \
 
 {% endtabs %}
  
-### Devtron dashboard
+## Devtron dashboard
 
-To access dashboard when using ``Minikube`` as Cluster use this command, dashboard will automatically open on default browser.
-
+To access Devtron dashboard when using ``Minikube`` as cluster, run the following command:
 ```bash
 minikube service devtron-service --namespace devtroncd
 ```
 
-To access dashboard when using ``Kind/k3s`` as Cluster, use this command to port forward the devtron service to port 8000  
+To access Devtron dashboard when using ``Kind/k3s`` as cluster, run the following command to port forward the devtron service to port 8000:
+
 ```bash
 kubectl -ndevtroncd port-forward service/devtron-service 8000:80
 ```
-Dashboard [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
-### Devtron Admin credentials
+**Dashboard**: [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
-#### For Devtron version v0.6.0 and higher
+## Devtron Admin credentials
 
-Use username:`admin` and for password run command mentioned below.
+### For Devtron version v0.6.0 and higher
+
+**Username**: `admin` <br>
+**Password**: Run the following command to get the admin password:
+
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret \
+-o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
-#### For Devtron version less than v0.6.0
+### For Devtron version less than v0.6.0
 
-Use username:`admin` and for password run command mentioned below.
+**Username**: `admin` <br>
+**Password**: Run the following command to get the admin password:
+
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret \
+-o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
 ## Install Devtron on Cloud VM (AWS ec2, Azure VM, GCP VM)
-It is preferd to use Cloud VM with 2vCPU+, 4GB+ free Memory, 20GB+ Storage, Compute Optimized VM type & Ubuntu Flavoured OS.
- 1. Create Microk8s Cluster
+
+It is recommended to use Cloud VM with 2vCPU+, 4GB+ free Memory, 20GB+ Storage, Compute Optimized VM type & Ubuntu Flavoured OS.
+
+### Create Microk8s Cluster
+
 ```bash
 sudo snap install microk8s --classic --channel=1.22
 sudo usermod -a -G microk8s $USER
@@ -93,8 +106,8 @@ echo "alias helm='microk8s helm3 '" >> .bashrc
 source .bashrc
 ```
 
+### Install devtron
 
-2. Install devtron
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
@@ -103,9 +116,15 @@ helm install devtron devtron/devtron-operator \
 --set components.devtron.service.type=NodePort 
 
 ```
-3. Ensure that the port on which the devtron-service runs is open in the VM's security group or network Security group.
+### Run the following command to get the devtron-service port number:
 
-Commad to get the devtron-service Port number
 ```bash
 kubectl get svc -n devtroncd devtron-service -o jsonpath='{.spec.ports[0].nodePort}'
 ```
+
+Make sure that the port on which the devtron-service runs remain open in the VM's security group or network Security group.
+
+**Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](setup/install/uninstall-devtron.md).
+
+
+If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)

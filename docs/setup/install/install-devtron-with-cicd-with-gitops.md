@@ -1,49 +1,35 @@
-# Install Devtron with CICD
+# Install Devtron with CI/CD along with GitOps (Argo CD)
 
-In this section, we describe the steps in detail on how you can install Devtron with CI/CD integration.
+In this section, we describe the steps in detail on how you can install Devtron with CI/CD by enabling GitOps during the installation.
 
 
 ## Before you begin
 
-Install [Helm](https://helm.sh/docs/intro/install/), if you have not installed it.
+Install [Helm](https://helm.sh/docs/intro/install/) if you have not installed it.
 
 
-## Install Devtron with CI/CD
+## Install Devtron with CI/CD along with GitOps (Argo CD)
 
-Run the following command to install the latest version of Devtron along with the CI/CD module:
+Run the following command to install the latest version of Devtron with CI/CD along with GitOps (Argo CD) module:
 
 ```bash
-helm repo add devtron https://helm.devtron.ai 
+helm repo add devtron https://helm.devtron.ai
 
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
---set installer.modules={cicd}
+--set installer.modules={cicd} \
+--set argo-cd.enabled=true
 ```
 
 **Note**: If you want to configure Blob Storage during the installation, refer [configure blob storage duing installation](#configure-blob-storage-duing-installation).
 
-
-## Install AWS EBS CSI Driver, if require
-
-If you are using EKS version 1.23 or above, you must install [aws-ebs-csi-driver](https://docs.aws.amazon.com/eks/latest/userguide/ebs-csi.html).
-
-
-Run the following command to install aws ebs csi driver using Helm:
-
-```bash
-helm repo add aws-ebs-csi-driver \
-https://kubernetes-sigs.github.io/aws-ebs-csi-driver \
-helm repo update \
-helm upgrade --install aws-ebs-csi-driver \
---namespace kube-system aws-ebs-csi-driver/aws-ebs-csi-driver
-```
 
 ## Install Multi-Architecture Nodes (ARM and AMD)
 
 To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the Devtron installation command with `--set installer.arch=multi-arch`.
 
 **Note**: 
-* To install a particular version of Devtron where `vx.x.x` is the [release tag](https://github.com/devtron-labs/devtron/releases), append the installation command with `--set installer.release="vX.X.X"`.
+* To install a particular version of Devtron where `vx.x.x` is the [release tag](https://github.com/devtron-labs/devtron/releases), append the command with `--set installer.release="vX.X.X"`.
 * If you want to install Devtron for `production deployments`, please refer to our recommended overrides for [Devtron Installation](override-default-devtron-installation-configs.md).
 
 
@@ -70,7 +56,8 @@ helm repo add devtron https://helm.devtron.ai
 helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd \
 --set installer.modules={cicd} \
---set minio.enabled=true
+--set minio.enabled=true \
+--set argo-cd.enabled=true
 ```
 **Note**: Unlike global cloud providers such as AWS S3 Bucket, Azure Blob Storage and Google Cloud Storage, MinIO can be hosted locally also.
 
@@ -96,7 +83,8 @@ helm install devtron devtron/devtron-operator \
 --set configs.DEFAULT_CACHE_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CACHE_BUCKET_REGION=us-east-1 \
 --set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
---set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1
+--set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
+--set argo-cd.enabled=true
 ```
 
 *  Install using access-key and secret-key for AWS S3 authentication:
@@ -113,7 +101,8 @@ helm install devtron devtron/devtron-operator \
 --set configs.DEFAULT_BUILD_LOGS_BUCKET=demo-s3-bucket \
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
 --set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
---set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key>
+--set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
+--set argo-cd.enabled=true
 ```
 
 *  Install using S3 compatible storages: 
@@ -131,7 +120,8 @@ helm install devtron devtron/devtron-operator \
 --set configs.DEFAULT_CD_LOGS_BUCKET_REGION=us-east-1 \
 --set secrets.BLOB_STORAGE_S3_ACCESS_KEY=<access-key> \
 --set secrets.BLOB_STORAGE_S3_SECRET_KEY=<secret-key> \
---set configs.BLOB_STORAGE_S3_ENDPOINT=<endpoint>
+--set configs.BLOB_STORAGE_S3_ENDPOINT=<endpoint> \
+--set argo-cd.enabled=true
 ```
 
 {% endtab %}
@@ -152,7 +142,8 @@ helm install devtron devtron/devtron-operator \
 --set configs.BLOB_STORAGE_PROVIDER=AZURE \
 --set configs.AZURE_ACCOUNT_NAME=test-account \
 --set configs.AZURE_BLOB_CONTAINER_CI_LOG=ci-log-container \
---set configs.AZURE_BLOB_CONTAINER_CI_CACHE=ci-cache-container
+--set configs.AZURE_BLOB_CONTAINER_CI_CACHE=ci-cache-container \
+--set argo-cd.enabled=true
 ```
 
 {% endtab %}
@@ -163,6 +154,7 @@ Refer to the `Google Cloud specific` parameters on the [Storage for Logs and Cac
 
 Run the following command to install Devtron along with Google Cloud Storage for storing build logs and cache:
 
+
 ```bash
 helm repo add devtron https://helm.devtron.ai
 
@@ -172,7 +164,8 @@ helm install devtron devtron/devtron-operator \
 --set configs.BLOB_STORAGE_PROVIDER=GCP \
 --set secrets.BLOB_STORAGE_GCP_CREDENTIALS_JSON=eyJ0eXBlIjogInNlcnZpY2VfYWNjb3VudCIsInByb2plY3RfaWQiOiAiPHlvdXItcHJvamVjdC1pZD4iLCJwcml2YXRlX2tleV9pZCI6ICI8eW91ci1wcml2YXRlLWtleS1pZD4iLCJwcml2YXRlX2tleSI6ICI8eW91ci1wcml2YXRlLWtleT4iLCJjbGllbnRfZW1haWwiOiAiPHlvdXItY2xpZW50LWVtYWlsPiIsImNsaWVudF9pZCI6ICI8eW91ci1jbGllbnQtaWQ+IiwiYXV0aF91cmkiOiAiaHR0cHM6Ly9hY2NvdW50cy5nb29nbGUuY29tL28vb2F1dGgyL2F1dGgiLCJ0b2tlbl91cmkiOiAiaHR0cHM6Ly9vYXV0aDIuZ29vZ2xlYXBpcy5jb20vdG9rZW4iLCJhdXRoX3Byb3ZpZGVyX3g1MDlfY2VydF91cmwiOiAiaHR0cHM6Ly93d3cuZ29vZ2xlYXBpcy5jb20vb2F1dGgyL3YxL2NlcnRzIiwiY2xpZW50X3g1MDlfY2VydF91cmwiOiAiPHlvdXItY2xpZW50LWNlcnQtdXJsPiJ9Cg== \
 --set configs.DEFAULT_CACHE_BUCKET=cache-bucket \
---set configs.DEFAULT_BUILD_LOGS_BUCKET=log-bucket
+--set configs.DEFAULT_BUILD_LOGS_BUCKET=log-bucket \
+--set argo-cd.enabled=true
 ```
 
 {% endtab %}
@@ -260,6 +253,4 @@ kubectl -n devtroncd get secret devtron-secret \
 * Related to installaltion, please also refer [FAQ](setup/install/faq-on-installation.md) section also.
 
 
-
 **Note**: If you have questions, please let us know on our discord channel. [![Join Discord](https://img.shields.io/badge/Join%20us%20on-Discord-e01563.svg)](https://discord.gg/jsRG5qx2gp)
-
