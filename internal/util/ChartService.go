@@ -60,7 +60,7 @@ type ChartTemplateService interface {
 	GetGitOpsRepoName(appName string) string
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
-	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error
+	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context, allowInsecureTLS bool) error
 	BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error
 	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
@@ -104,9 +104,10 @@ func NewChartTemplateServiceImpl(logger *zap.SugaredLogger,
 		repositoryService:      repositoryService,
 	}
 }
-func (impl ChartTemplateServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error {
+func (impl ChartTemplateServiceImpl) RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context, allowInsecureTLS bool) error {
 	repo := &v1alpha1.Repository{
-		Repo: chartGitAttribute.RepoUrl,
+		Repo:     chartGitAttribute.RepoUrl,
+		Insecure: allowInsecureTLS,
 	}
 	repo, err := impl.repositoryService.Create(ctx, &repository3.RepoCreateRequest{Repo: repo, Upsert: true})
 	if err != nil {

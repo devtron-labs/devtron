@@ -12,5 +12,6 @@ type GitOpsConfigDto struct {
 	AzureProjectName     string `json:"azureProjectName"`
 	BitBucketWorkspaceId string `json:"bitBucketWorkspaceId"`
 	BitBucketProjectKey  string `json:"bitBucketProjectKey"`
+	AllowInsecureTLS     bool   `json:"allowInsecureTLS"`
 	UserId               int32  `json:"-"`
 }
