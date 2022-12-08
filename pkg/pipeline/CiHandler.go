@@ -336,6 +336,7 @@ func (impl *CiHandlerImpl) FetchMaterialsByPipelineId(pipelineId int, appId int)
 			ciPipelineMaterialResponses = append(ciPipelineMaterialResponses, r)
 		}
 	}
+	//filtering those material which are not configured
 	for _, material := range gitMaterials {
 		if gitMaterialIds[material.Id] {
 			continue
