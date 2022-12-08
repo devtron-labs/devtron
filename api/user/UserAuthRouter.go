@@ -30,6 +30,7 @@ import (
 
 type UserAuthRouter interface {
 	InitUserAuthRouter(router *mux.Router)
+	GetClientApp() *oidc.ClientApp
 }
 
 type UserAuthRouterImpl struct {
@@ -60,6 +61,10 @@ func (router UserAuthRouterImpl) RedirectUrlSanitiser(redirectUrl string) string
 		redirectUrl = strings.ReplaceAll(redirectUrl, argocdServer.Orchestrator, "")
 	}
 	return redirectUrl
+}
+
+func (router UserAuthRouterImpl) GetClientApp() *oidc.ClientApp {
+	return router.clientApp
 }
 
 func (router UserAuthRouterImpl) InitUserAuthRouter(userAuthRouter *mux.Router) {

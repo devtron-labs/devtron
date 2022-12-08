@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
+	user2 "github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -56,17 +57,17 @@ type SsoLoginRestHandlerImpl struct {
 	dexConfig                    *client.DexConfig
 	settings                     *oidc.Settings
 	sessionManager               *authMiddleware.SessionManager
-	clientApp                    *oidc.ClientApp
 	selfRegistrationRolesService user.SelfRegistrationRolesService
+	userAuthRouter               user2.UserAuthRouter
 }
 
 func NewSsoLoginRestHandlerImpl(validator *validator.Validate,
 	logger *zap.SugaredLogger, enforcer casbin.Enforcer, userService user.UserService,
 	ssoLoginService sso.SSOLoginService, dexConfig *client.DexConfig, settings *oidc.Settings, sessionManager *authMiddleware.SessionManager,
-	selfRegistrationRolesService user.SelfRegistrationRolesService) *SsoLoginRestHandlerImpl {
+	selfRegistrationRolesService user.SelfRegistrationRolesService, userAuthRouter user2.UserAuthRouter) *SsoLoginRestHandlerImpl {
 	handler := &SsoLoginRestHandlerImpl{validator: validator, logger: logger,
 		enforcer: enforcer, userService: userService, ssoLoginService: ssoLoginService, dexConfig: dexConfig, settings: settings, sessionManager: sessionManager,
-		selfRegistrationRolesService: selfRegistrationRolesService}
+		selfRegistrationRolesService: selfRegistrationRolesService, userAuthRouter: userAuthRouter}
 	return handler
 }
 
@@ -125,10 +126,10 @@ func (handler SsoLoginRestHandlerImpl) updateDex(w http.ResponseWriter, url stri
 		return true
 	}
 
-	handler.logger.Infow("handler.clientApp", "handler.clientApp", handler.clientApp)
+	handler.logger.Infow("handler.clientApp", "handler.clientApp", handler.userAuthRouter.GetClientApp())
 	handler.logger.Infow("oidcClient", "oidcClient", oidcClient)
 
-	handler.clientApp.UpdateConfig(oidcClient)
+	handler.userAuthRouter.GetClientApp().UpdateConfig(oidcClient)
 	return false
 }
 
