@@ -13,8 +13,8 @@ ALTER SEQUENCE IF EXISTS id_seq_external_link_cluster_mapping RENAME TO id_seq_e
 ALTER TABLE IF EXISTS "public"."external_link_cluster_mapping" RENAME TO external_link_identifier_mapping;
 ALTER TABLE IF EXISTS "public"."external_link_identifier_mapping" DROP CONSTRAINT external_link_cluster_mapping_cluster_id_fkey;
 
-DELETE FROM "public"."external_link_monitoring_tool" WHERE name = 'Other';
 UPDATE "public"."external_link_monitoring_tool" SET category = 2;
+UPDATE "public"."external_link_monitoring_tool" SET name = 'Webpage',category = 3 WHERE name = 'Other';
 INSERT INTO "public"."external_link_monitoring_tool" ("name", "icon", "active", "created_on", "created_by", "updated_on", "updated_by", "category") VALUES
 ('Swagger', '', 't', 'now()', 1, 'now()', 1,2),
 ('Document', '', 't', 'now()', 1, 'now()', 1,1),
@@ -26,7 +26,6 @@ INSERT INTO "public"."external_link_monitoring_tool" ("name", "icon", "active", 
 ('Jira', '', 't', 'now()', 1, 'now()', 1,1),
 ('Bugs', '', 't', 'now()', 1, 'now()', 1,3),
 ('Alerts', '', 't', 'now()', 1, 'now()', 1,3),
-('Webpage', '', 't', 'now()', 1, 'now()', 1,3),
 ('Performance', '', 't', 'now()', 1, 'now()', 1,3);
 
 

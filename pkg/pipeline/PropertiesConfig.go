@@ -54,7 +54,7 @@ type EnvironmentProperties struct {
 	ChartRefId        int                         `json:"chartRefId,omitempty"  validate:"number"`
 	IsOverride        bool                        `sql:"isOverride"`
 	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
-	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"`
+	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 }
 
 type EnvironmentPropertiesResponse struct {

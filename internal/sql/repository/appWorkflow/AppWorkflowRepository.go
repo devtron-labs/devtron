@@ -54,6 +54,7 @@ type AppWorkflowRepository interface {
 	FindByTypeAndComponentId(wfId int, componentId int, componentType string) (*AppWorkflowMapping, error)
 	FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(envIds []int, appIds []int) ([]*AppWorkflowMapping, error)
 	FindCiPipelineIdsFromAppWfIds(appWfIds []int) ([]int, error)
+	FindChildCDIdsByParentCDPipelineId(cdPipelineId int) ([]int, error)
 }
 
 type AppWorkflowRepositoryImpl struct {
@@ -382,4 +383,11 @@ func (impl AppWorkflowRepositoryImpl) FindWFCDMappingByExternalCiId(externalCiId
 		Where("active = ?", true).
 		Select()
 	return models, err
+}
+
+func (impl AppWorkflowRepositoryImpl) FindChildCDIdsByParentCDPipelineId(cdPipelineId int) ([]int, error) {
+	var ids []int
+	query := `select component_id from app_workflow_mapping where parent_id=? and parent_type=? and type=? and active=?;`
+	_, err := impl.dbConnection.Query(&ids, query, cdPipelineId, CDPIPELINE, CDPIPELINE, true)
+	return ids, err
 }

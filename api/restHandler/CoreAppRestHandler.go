@@ -555,6 +555,8 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 	var deploymentTemplateRaw json.RawMessage
 	var chartRefId int
 	var isOverride bool
+	var isBasicViewLocked bool
+	var currentViewEditor models.ChartsViewEditorType
 	if envId > 0 {
 		//on env level
 		env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, chartRefData.LatestEnvChartRef)
@@ -567,15 +569,21 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 			deploymentTemplateRaw = env.EnvironmentConfig.EnvOverrideValues
 			showAppMetrics = *env.AppMetrics
 			isOverride = true
+			isBasicViewLocked = env.EnvironmentConfig.IsBasicViewLocked
+			currentViewEditor = env.EnvironmentConfig.CurrentViewEditor
 		} else {
 			showAppMetrics = appDeploymentTemplate.IsAppMetricsEnabled
 			deploymentTemplateRaw = appDeploymentTemplate.DefaultAppOverride
+			isBasicViewLocked = appDeploymentTemplate.IsBasicViewLocked
+			currentViewEditor = appDeploymentTemplate.CurrentViewEditor
 		}
 	} else {
 		//on app level
 		showAppMetrics = appDeploymentTemplate.IsAppMetricsEnabled
 		deploymentTemplateRaw = appDeploymentTemplate.DefaultAppOverride
 		chartRefId = chartRefData.LatestAppChartRef
+		isBasicViewLocked = appDeploymentTemplate.IsBasicViewLocked
+		currentViewEditor = appDeploymentTemplate.CurrentViewEditor
 	}
 
 	var deploymentTemplateObj map[string]interface{}
@@ -588,10 +596,12 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 	}
 
 	deploymentTemplateResp := &appBean.DeploymentTemplate{
-		ChartRefId:     chartRefId,
-		Template:       deploymentTemplateObj,
-		ShowAppMetrics: showAppMetrics,
-		IsOverride:     isOverride,
+		ChartRefId:        chartRefId,
+		Template:          deploymentTemplateObj,
+		ShowAppMetrics:    showAppMetrics,
+		IsOverride:        isOverride,
+		IsBasicViewLocked: isBasicViewLocked,
+		CurrentViewEditor: currentViewEditor,
 	}
 
 	return deploymentTemplateResp, nil, http.StatusOK
@@ -1294,6 +1304,8 @@ func (handler CoreAppRestHandlerImpl) createDeploymentTemplate(ctx context.Conte
 		ChartRefId:          deploymentTemplate.ChartRefId,
 		IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
 		UserId:              userId,
+		IsBasicViewLocked:   deploymentTemplate.IsBasicViewLocked,
+		CurrentViewEditor:   deploymentTemplate.CurrentViewEditor,
 	}
 
 	//marshalling template
@@ -1733,6 +1745,8 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		Namespace:         env.Namespace,
 		Status:            models.CHARTSTATUS_NEW,
 		EnvOverrideValues: template,
+		IsBasicViewLocked: deploymentTemplateOverride.IsBasicViewLocked,
+		CurrentViewEditor: deploymentTemplateOverride.CurrentViewEditor,
 	}
 	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
 	if err != nil {
