@@ -26,7 +26,6 @@ import (
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	user2 "github.com/devtron-labs/devtron/api/user"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -37,7 +36,6 @@ import (
 	"net/url"
 	"path"
 	"strconv"
-	"strings"
 )
 
 type SsoLoginRestHandler interface {
@@ -119,7 +117,7 @@ func (handler SsoLoginRestHandlerImpl) updateDex(w http.ResponseWriter, url stri
 	handler.settings.OIDCConfig.Issuer = proxyUrl
 	handler.sessionManager.UpdateSettings(handler.settings, handler.dexConfig)
 
-	oidcClient, _, err := client.GetOidcClient(handler.dexConfig, handler.selfRegistrationRolesService.CheckAndCreateUserIfConfigured, handler.RedirectUrlSanitiser)
+	oidcClient, _, err := client.GetOidcClient(handler.dexConfig, handler.selfRegistrationRolesService.CheckAndCreateUserIfConfigured, handler.userAuthRouter.RedirectUrlSanitiser)
 	if err != nil {
 		handler.logger.Errorw("service err, client.GetOidcClient", "err", err, "url", url)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -131,13 +129,6 @@ func (handler SsoLoginRestHandlerImpl) updateDex(w http.ResponseWriter, url stri
 
 	handler.userAuthRouter.GetClientApp().UpdateConfig(oidcClient)
 	return false
-}
-
-func (handler SsoLoginRestHandlerImpl) RedirectUrlSanitiser(redirectUrl string) string {
-	if strings.Contains(redirectUrl, argocdServer.Dashboard) {
-		redirectUrl = strings.ReplaceAll(redirectUrl, argocdServer.Orchestrator, "")
-	}
-	return redirectUrl
 }
 
 func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {

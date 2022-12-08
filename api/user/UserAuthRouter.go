@@ -31,6 +31,7 @@ import (
 type UserAuthRouter interface {
 	InitUserAuthRouter(router *mux.Router)
 	GetClientApp() *oidc.ClientApp
+	RedirectUrlSanitiser(redirectUrl string) string
 }
 
 type UserAuthRouterImpl struct {
