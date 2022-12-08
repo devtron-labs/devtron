@@ -75,6 +75,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/appStore/values/service"
 	appWorkflow2 "github.com/devtron-labs/devtron/pkg/appWorkflow"
 	"github.com/devtron-labs/devtron/pkg/attributes"
+	"github.com/devtron-labs/devtron/pkg/auth"
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/chartRepo"
@@ -447,10 +448,11 @@ func InitializeApp() (*App, error) {
 	userAuthHandlerImpl := user2.NewUserAuthHandlerImpl(userAuthServiceImpl, validate, sugaredLogger)
 	selfRegistrationRolesRepositoryImpl := repository4.NewSelfRegistrationRolesRepositoryImpl(db, sugaredLogger)
 	selfRegistrationRolesServiceImpl := user.NewSelfRegistrationRolesServiceImpl(sugaredLogger, selfRegistrationRolesRepositoryImpl, userServiceImpl)
-	userAuthRouterImpl, err := user2.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, selfRegistrationRolesServiceImpl, dexConfig)
+	userAuthOidcHelperImpl, err := auth.NewUserAuthOidcHelperImpl(sugaredLogger, selfRegistrationRolesServiceImpl, dexConfig, settings, sessionManager)
 	if err != nil {
 		return nil, err
 	}
+	userAuthRouterImpl := user2.NewUserAuthRouterImpl(sugaredLogger, userAuthHandlerImpl, userAuthOidcHelperImpl)
 	terminalSessionHandlerImpl := terminal.NewTerminalSessionHandlerImpl(environmentServiceImpl, clusterServiceImplExtended, sugaredLogger)
 	argoApplicationRestHandlerImpl := restHandler.NewArgoApplicationRestHandlerImpl(applicationServiceClientImpl, pumpImpl, enforcerImpl, teamServiceImpl, environmentServiceImpl, sugaredLogger, enforcerUtilImpl, terminalSessionHandlerImpl, argoUserServiceImpl)
 	applicationRouterImpl := router.NewApplicationRouterImpl(argoApplicationRestHandlerImpl, sugaredLogger)
@@ -570,8 +572,8 @@ func InitializeApp() (*App, error) {
 	}
 	grafanaRouterImpl := router.NewGrafanaRouterImpl(sugaredLogger, grafanaConfig)
 	ssoLoginRepositoryImpl := sso.NewSSOLoginRepositoryImpl(db)
-	ssoLoginServiceImpl := sso.NewSSOLoginServiceImpl(sugaredLogger, ssoLoginRepositoryImpl, k8sUtil, devtronSecretConfig)
-	ssoLoginRestHandlerImpl := sso2.NewSsoLoginRestHandlerImpl(validate, sugaredLogger, enforcerImpl, userServiceImpl, ssoLoginServiceImpl, dexConfig, settings, sessionManager, selfRegistrationRolesServiceImpl, userAuthRouterImpl)
+	ssoLoginServiceImpl := sso.NewSSOLoginServiceImpl(sugaredLogger, ssoLoginRepositoryImpl, k8sUtil, devtronSecretConfig, userAuthOidcHelperImpl)
+	ssoLoginRestHandlerImpl := sso2.NewSsoLoginRestHandlerImpl(validate, sugaredLogger, enforcerImpl, userServiceImpl, ssoLoginServiceImpl)
 	ssoLoginRouterImpl := sso2.NewSsoLoginRouterImpl(ssoLoginRestHandlerImpl)
 	posthogClient, err := telemetry.NewPosthogClient(sugaredLogger)
 	if err != nil {

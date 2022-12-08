@@ -20,12 +20,8 @@ package sso
 import (
 	"encoding/json"
 	"errors"
-	"github.com/devtron-labs/authenticator/client"
-	authMiddleware "github.com/devtron-labs/authenticator/middleware"
-	"github.com/devtron-labs/authenticator/oidc"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
-	user2 "github.com/devtron-labs/devtron/api/user"
 	"github.com/devtron-labs/devtron/pkg/sso"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
@@ -33,8 +29,6 @@ import (
 	"go.uber.org/zap"
 	"gopkg.in/go-playground/validator.v9"
 	"net/http"
-	"net/url"
-	"path"
 	"strconv"
 )
 
@@ -47,25 +41,18 @@ type SsoLoginRestHandler interface {
 }
 
 type SsoLoginRestHandlerImpl struct {
-	validator                    *validator.Validate
-	logger                       *zap.SugaredLogger
-	enforcer                     casbin.Enforcer
-	userService                  user.UserService
-	ssoLoginService              sso.SSOLoginService
-	dexConfig                    *client.DexConfig
-	settings                     *oidc.Settings
-	sessionManager               *authMiddleware.SessionManager
-	selfRegistrationRolesService user.SelfRegistrationRolesService
-	userAuthRouter               user2.UserAuthRouter
+	validator       *validator.Validate
+	logger          *zap.SugaredLogger
+	enforcer        casbin.Enforcer
+	userService     user.UserService
+	ssoLoginService sso.SSOLoginService
 }
 
 func NewSsoLoginRestHandlerImpl(validator *validator.Validate,
 	logger *zap.SugaredLogger, enforcer casbin.Enforcer, userService user.UserService,
-	ssoLoginService sso.SSOLoginService, dexConfig *client.DexConfig, settings *oidc.Settings, sessionManager *authMiddleware.SessionManager,
-	selfRegistrationRolesService user.SelfRegistrationRolesService, userAuthRouter user2.UserAuthRouter) *SsoLoginRestHandlerImpl {
+	ssoLoginService sso.SSOLoginService) *SsoLoginRestHandlerImpl {
 	handler := &SsoLoginRestHandlerImpl{validator: validator, logger: logger,
-		enforcer: enforcer, userService: userService, ssoLoginService: ssoLoginService, dexConfig: dexConfig, settings: settings, sessionManager: sessionManager,
-		selfRegistrationRolesService: selfRegistrationRolesService, userAuthRouter: userAuthRouter}
+		enforcer: enforcer, userService: userService, ssoLoginService: ssoLoginService}
 	return handler
 }
 
@@ -98,37 +85,7 @@ func (handler SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWrite
 		return
 	}
 
-	if handler.updateDex(w, dto.Url) {
-		return
-	}
-
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
-}
-
-func (handler SsoLoginRestHandlerImpl) updateDex(w http.ResponseWriter, url string) bool {
-	handler.dexConfig.Url = url
-	proxyUrl, err := getDexProxyUrl(url)
-	if err != nil {
-		handler.logger.Errorw("service err, getDexProxyUrl", "err", err, "url", url)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return true
-	}
-	handler.settings.URL = url
-	handler.settings.OIDCConfig.Issuer = proxyUrl
-	handler.sessionManager.UpdateSettings(handler.settings, handler.dexConfig)
-
-	oidcClient, _, err := client.GetOidcClient(handler.dexConfig, handler.selfRegistrationRolesService.CheckAndCreateUserIfConfigured, handler.userAuthRouter.RedirectUrlSanitiser)
-	if err != nil {
-		handler.logger.Errorw("service err, client.GetOidcClient", "err", err, "url", url)
-		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return true
-	}
-
-	handler.logger.Infow("handler.clientApp", "handler.clientApp", handler.userAuthRouter.GetClientApp())
-	handler.logger.Infow("oidcClient", "oidcClient", oidcClient)
-
-	handler.userAuthRouter.GetClientApp().UpdateConfig(oidcClient)
-	return false
 }
 
 func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
@@ -158,10 +115,6 @@ func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWrite
 	if err != nil {
 		handler.logger.Errorw("service err, UpdateSSOLoginConfig", "err", err, "payload", dto)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
-		return
-	}
-
-	if handler.updateDex(w, dto.Url) {
 		return
 	}
 
@@ -230,14 +183,4 @@ func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfigByName(w http.ResponseWr
 		return
 	}
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
-}
-
-func getDexProxyUrl(urlStr string) (string, error) {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return "", err
-	}
-	u.Path = path.Join(u.Path, "api/dex")
-	s := u.String()
-	return s, nil
 }
