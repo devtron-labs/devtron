@@ -81,8 +81,8 @@ If you see `Not Found` on this page, then follow all the given steps or if the p
 3. Copy the following and change `grafana-password` with your password of grafana and change the value of `prometheusUrl` with your prometheus endpoint
 ```
 cat << EOF
-grafanaUrl = "http://admin:grafana-password@devtron-grafana.devtroncd/grafana"
-prometheusUrl = "http://prometheus.example.com"
+grafanaUrl="http://admin:grafana-password@devtron-grafana.devtroncd/grafana"
+prometheusUrl="http://prometheus.example.com"
 
 ORG_ID=$( curl -d '{"name":"devtron-metrics-view"}' -H "Content-Type: application/json" -X POST "${grafanaUrl}/api/orgs" )
 
@@ -235,7 +235,7 @@ DETAIL: There is 1 other session using the database.
 
 You have to terminate the connections to the database first, for that you can use the command.
 ```bash
-SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'TARGET_DB';
+SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname='TARGET_DB';
 ```
 Then run the command to delete database - `drop databases <db-name>`
 

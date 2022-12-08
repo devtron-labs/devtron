@@ -50,11 +50,11 @@ type AppWorkflowService interface {
 }
 
 type AppWorkflowServiceImpl struct {
-	Logger                 *zap.SugaredLogger
-	appWorkflowRepository  appWorkflow.AppWorkflowRepository
-	dbPipelineOrchestrator pipeline.DbPipelineOrchestrator
-	ciPipelineRepository   pipelineConfig.CiPipelineRepository
-	pipelineRepository     pipelineConfig.PipelineRepository
+	Logger                   *zap.SugaredLogger
+	appWorkflowRepository    appWorkflow.AppWorkflowRepository
+	ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator
+	ciPipelineRepository     pipelineConfig.CiPipelineRepository
+	pipelineRepository       pipelineConfig.PipelineRepository
 }
 
 type AppWorkflowDto struct {
@@ -87,13 +87,13 @@ type WorkflowComponentNamesDto struct {
 	CdPipelines    []string `json:"cdPipelines"`
 }
 
-func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository, dbPipelineOrchestrator pipeline.DbPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) *AppWorkflowServiceImpl {
+func NewAppWorkflowServiceImpl(logger *zap.SugaredLogger, appWorkflowRepository appWorkflow.AppWorkflowRepository, ciCdPipelineOrchestrator pipeline.CiCdPipelineOrchestrator, ciPipelineRepository pipelineConfig.CiPipelineRepository, pipelineRepository pipelineConfig.PipelineRepository) *AppWorkflowServiceImpl {
 	return &AppWorkflowServiceImpl{
-		Logger:                 logger,
-		appWorkflowRepository:  appWorkflowRepository,
-		dbPipelineOrchestrator: dbPipelineOrchestrator,
-		ciPipelineRepository:   ciPipelineRepository,
-		pipelineRepository:     pipelineRepository,
+		Logger:                   logger,
+		appWorkflowRepository:    appWorkflowRepository,
+		ciCdPipelineOrchestrator: ciCdPipelineOrchestrator,
+		ciPipelineRepository:     ciPipelineRepository,
+		pipelineRepository:       pipelineRepository,
 	}
 }
 
@@ -104,8 +104,9 @@ func (impl AppWorkflowServiceImpl) CreateAppWorkflow(req AppWorkflowDto) (AppWor
 
 	if req.Id != 0 {
 		wf = &appWorkflow.AppWorkflow{
-			Id:   req.Id,
-			Name: req.Name,
+			Id:     req.Id,
+			Name:   req.Name,
+			Active: true,
 			AuditLog: sql.AuditLog{
 				UpdatedOn: time.Now(),
 				UpdatedBy: req.UserId,
@@ -180,16 +181,16 @@ func (impl AppWorkflowServiceImpl) DeleteAppWorkflow(appWorkflowId int, userId i
 		return err
 	}
 
-	mappingForCI, err := impl.appWorkflowRepository.FindWFCIMappingByWorkflowId(wf.Id)
+	mappingForCI, err := impl.appWorkflowRepository.FindWFAllMappingByWorkflowId(wf.Id)
 	if err != nil {
 		impl.Logger.Errorw("err", err)
 		return err
 	}
 	if len(mappingForCI) > 0 {
 		return &util.ApiError{
-			InternalMessage:   "workflow has ci pipeline",
-			UserDetailMessage: fmt.Sprintf("workflow has ci pipeline"),
-			UserMessage:       fmt.Sprintf("workflow has ci pipeline")}
+			InternalMessage:   "Workflow contains pipelines. First delete all pipelines in the workflow.",
+			UserDetailMessage: fmt.Sprintf("Workflow contains pipelines. First delete all pipelines in the workflow."),
+			UserMessage:       fmt.Sprintf("Workflow contains pipelines. First delete all pipelines in the workflow.")}
 	}
 
 	dbConnection := impl.pipelineRepository.GetConnection()

@@ -30,6 +30,7 @@ import (
 	"go.uber.org/zap"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -38,6 +39,7 @@ type ApiTokenService interface {
 	CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32, managerAuth func(token string, object string) bool) (*openapi.CreateApiTokenResponse, error)
 	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.UpdateApiTokenResponse, error)
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
+	GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error)
 }
 
 type ApiTokenServiceImpl struct {
@@ -66,6 +68,51 @@ var invalidCharsInApiTokenName = regexp.MustCompile("[,\\s]")
 type ApiTokenCustomClaims struct {
 	Email string `json:"email"`
 	jwt.RegisteredClaims
+}
+
+func (impl ApiTokenServiceImpl) GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error) {
+	impl.logger.Info("Getting active api tokens")
+	apiTokensFromDb, err := impl.apiTokenRepository.FindAllActive()
+	if err != nil {
+		impl.logger.Errorw("error while getting all active api tokens from DB", "error", err)
+		return nil, err
+	}
+
+	apiTokens := make([]*openapi.ApiToken, 0)
+	for _, apiTokenFromDb := range apiTokensFromDb {
+		authPassed := true
+		userId := apiTokenFromDb.User.Id
+		//checking permission on each of the roles associated with this API Token
+		environmentNames := strings.Split(environmentName, ",")
+		for _, environment := range environmentNames {
+			projectObject := fmt.Sprintf("%s/%s", projectName, appName)
+			envObject := fmt.Sprintf("%s/%s", environment, appName)
+			isValidAuth := auth(apiTokenFromDb.Token, projectObject, envObject)
+			if !isValidAuth {
+				impl.logger.Debugw("authentication for token failed", "apiTokenFromDb", apiTokenFromDb)
+				authPassed = false
+				continue
+			}
+		}
+
+		if authPassed {
+			apiTokenIdI32 := int32(apiTokenFromDb.Id)
+			updatedAtStr := apiTokenFromDb.UpdatedOn.String()
+			apiToken := &openapi.ApiToken{
+				Id:             &apiTokenIdI32,
+				UserId:         &userId,
+				UserIdentifier: &apiTokenFromDb.User.EmailId,
+				Name:           &apiTokenFromDb.Name,
+				Description:    &apiTokenFromDb.Description,
+				ExpireAtInMs:   &apiTokenFromDb.ExpireAtInMs,
+				Token:          &apiTokenFromDb.Token,
+				UpdatedAt:      &updatedAtStr,
+			}
+			apiTokens = append(apiTokens, apiToken)
+		}
+	}
+
+	return apiTokens, nil
 }
 
 func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, error) {
@@ -245,6 +292,13 @@ func (impl ApiTokenServiceImpl) DeleteApiToken(apiTokenId int, deletedBy int32) 
 	}
 	if apiToken == nil || apiToken.Id == 0 {
 		return nil, errors.New(fmt.Sprintf("api-token corresponds to apiTokenId '%d' is not found", apiTokenId))
+	}
+
+	apiToken.ExpireAtInMs = time.Now().UnixMilli()
+	err = impl.apiTokenRepository.Update(apiToken)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error while getting api token by id", "apiTokenId", apiTokenId, "error", err)
+		return nil, err
 	}
 
 	// step-2 inactivate user corresponds to this api-token

@@ -1,16 +1,18 @@
 # Summary
 
-* [Overview](README.md)
-
-### Getting Started
-
+* [Introduction](README.md)
+* [Getting Started](setup/getting-started/getting-started.md)
 * [Install Devtron](setup/install/README.md)
-  * [Install Devtron with CI/CD integration](setup/install/install-devtron-with-cicd.md)
+  * [Install Devtron with CI/CD Integration](setup/install/install-devtron-with-cicd.md)
+  * [Install Devtron with CI/CD along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md)
   * [Install Devtron](setup/install/install-devtron.md)
   * [Install Devtron on Minikube, Microk8s, K3s, Kind](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
+  * [FAQ on Installation](setup/install/faq-on-installation.md)
+  * [Unsintall Devtron](setup/install/uninstall-devtron.md)
+* [Configurations](setup/configurations/configurations-overview.md)
   * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
-  * [Ingress setup for Devtron Installation](setup/install/ingress-setup.md)
+  * [Ingress Setup](setup/install/ingress-setup.md)
 * [Global Configurations](user-guide/global-configurations/README.md)
   * [GitOps](user-guide/global-configurations/gitops.md)
   * [Projects](user-guide/global-configurations/projects.md)
@@ -65,6 +67,7 @@
   * [App Details](user-guide/creating-application/app-details.md)
     * [Debugging Deployment And Monitoring](user-guide/debugging-deployment-and-monitoring.md)
     * [Application Metrics](user-guide/creating-application/app-metrics.md) 
+  * [Overview](user-guide/creating-application/overview.md)  
 * [Charts](user-guide/deploy-chart/README.md)
   * [Charts Overview](user-guide/deploy-chart/overview-of-charts.md)
   * [Deploy & Observe](user-guide/deploy-chart/deployment-of-charts.md)

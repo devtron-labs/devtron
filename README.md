@@ -47,11 +47,11 @@ Devtron deeply integrates with products across the lifecycle of microservices,i.
 [Devtron](#install-devtron) helps you deploy, observe, manage & debug existing Helm apps in all your clusters.
 
 
-## Devtron Demo environment
+## Devtron Demo Environment
 
 Please log in the <a href="https://preview.devtron.ai/dashboard/" rel="nofollow">Demo environment</a> using github credentials. Please note the user is granted view access.
 
-## Devtron features
+## Devtron Features
 
 <details><summary><b>Application-level Resource grouping for easier Debugging</b></summary>
 <br>
@@ -77,7 +77,7 @@ Please log in the <a href="https://preview.devtron.ai/dashboard/" rel="nofollow"
 
 Devtron is designed to be modular, and its functionality can be easily extended with the help of integrations.
 
-### CI/CD integration
+### CI/CD Integration
 
 [Devtron CI/CD with GitOps](#install-devtron-with-cicd-integration) integration is used to automate the builds and deployments and enables the software development teams to focus on meeting the business requirements, code quality, and security.
 
@@ -85,7 +85,7 @@ Devtron is designed to be modular, and its functionality can be easily extended 
 * Supports pre-CI and post-CI integrations for code quality monitoring.
 * Seamlessly integrates with Clair for image vulnerability scanning.
 * Supports different deployment strategies: Blue/Green, Rolling, Canary, and Recreate.
-* Implements GitOps to manage the state of Kubernetes applications,
+* Implements GitOps to manage the state of Kubernetes applications.
 * Integrates with ArgoCD for continuous deployment.
 * Checks logs, events, and manifests or exec inside containers for debugging.
 * Provides deployment metrics like; deployment frequency, lead time, change failure rate, and mean-time recovery.
@@ -99,7 +99,7 @@ Devtron is designed to be modular, and its functionality can be easily extended 
 
 Before you begin, you must create a [Kubernetes cluster](https://kubernetes.io/docs/tutorials/kubernetes-basics/create-cluster/) (preferably K8s 1.16 or higher) and install [Helm](https://helm.sh/docs/intro/install/).
 
-### 1. Install Devtron with CI/CD integration
+### 1. Install Devtron with CI/CD Integration
 
 Run the following command to install the latest version of Devtron along with the CI/CD module:
 
@@ -122,15 +122,22 @@ kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.
 **Credentials**:
 
 **UserName**:  `admin` <br>
-**Password**:   Run the following command to get the admin password
+**Password**:   Run the following command to get the admin password for Devtron version v0.6.0 and higher
+
+```bash
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
+```
+
+For Devtron version less than v0.6.0, run the following command to get the admin password:
 
 ```bash
 kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
+
 Please refer to the document for more information on how to [access the Devtron Dashboard](./docs/setup/install/install-devtron-with-cicd.md/#access-devtron-dashboard).
 
-#### Installation status
+#### Installation Status
 
 The above install command for CI/CD integration starts Devtron-operator, which takes about 20 minutes to spin up all of the Devtron microservices one by one. You can check the status of the installation with the following command:
 

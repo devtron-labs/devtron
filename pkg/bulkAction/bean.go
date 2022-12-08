@@ -102,8 +102,11 @@ const (
 type CdBulkActionRequestDto struct {
 	Action                CdBulkAction `json:"action"`
 	EnvIds                []int        `json:"envIds"`
+	EnvNames              []string     `json:"envNames"`
 	AppIds                []int        `json:"appIds"`
+	AppNames              []string     `json:"appNames"`
 	ProjectIds            []int        `json:"projectIds"`
+	ProjectNames          []string     `json:"projectNames"`
 	DeleteWfAndCiPipeline bool         `json:"deleteWfAndCiPipeline"`
 	ForceDelete           bool         `json:"forceDelete"`
 	UserId                int32        `json:"-"`

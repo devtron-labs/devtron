@@ -62,10 +62,10 @@ const (
 	NEW_CI_MATERIAL_TOPIC_GROUP         string = "NEW-CI-MATERIAL_GROUP-1"
 	NEW_CI_MATERIAL_TOPIC_DURABLE       string = "NEW-CI-MATERIAL_DURABLE-1"
 	CD_SUCCESS                          string = "CD.TRIGGER"
-	CD_TRIGGER_GROUP                    string = "CD_TRIGGER_GROUP-1"
-	CD_TRIGGER_DURABLE                  string = "CD_TRIGGER_DURABLE-1"
+	CD_TRIGGER_GROUP                    string = "CD_TRIGGER_GRP1"
+	CD_TRIGGER_DURABLE                  string = "CD-TRIGGER-DURABLE1"
 	WEBHOOK_EVENT_TOPIC                 string = "WEBHOOK_EVENT"
-	WEBHOOK_EVENT_GROUP                 string = "WEBHOOK_EVENT_GROUP"
+	WEBHOOK_EVENT_GROUP                 string = "WEBHOOK_EVENT_GRP"
 	WEBHOOK_EVENT_DURABLE               string = "WEBHOOK_EVENT_DURABLE"
 	DEVTRON_TEST_TOPIC                  string = "Test_Topic"
 	DEVTRON_TEST_STREAM                 string = "Devtron_Test_Stream"
@@ -261,7 +261,8 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 
 func checkConfigChangeReqd(existingConfig *nats.StreamConfig, toUpdateConfig *nats.StreamConfig) bool {
 	configChanged := false
-	if toUpdateConfig.MaxAge != time.Duration(0) && toUpdateConfig.MaxAge != existingConfig.MaxAge {
+	newStreamSubjects := GetStreamSubjects(toUpdateConfig.Name)
+	if toUpdateConfig.MaxAge != time.Duration(0) && toUpdateConfig.MaxAge != existingConfig.MaxAge || len(newStreamSubjects) != len(existingConfig.Subjects) {
 		existingConfig.MaxAge = toUpdateConfig.MaxAge
 		configChanged = true
 	}

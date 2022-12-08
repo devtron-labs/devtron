@@ -264,6 +264,7 @@ func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *
 	if dbUser.Active == false {
 		updateUserInfo = &bean.UserInfo{Id: dbUser.Id}
 		userInfo.Id = dbUser.Id
+		updateUserInfo.SuperAdmin = userInfo.SuperAdmin
 	}
 	updateUserInfo.RoleFilters = impl.mergeRoleFilter(updateUserInfo.RoleFilters, userInfo.RoleFilters)
 	updateUserInfo.Groups = impl.mergeGroups(updateUserInfo.Groups, userInfo.Groups)
@@ -982,7 +983,12 @@ func (impl UserServiceImpl) GetUserByEmail(emailId string) (*bean.UserInfo, erro
 	return response, nil
 }
 func (impl UserServiceImpl) GetLoggedInUser(r *http.Request) (int32, error) {
-	token := r.Header.Get("token")
+	token := ""
+	if strings.Contains(r.URL.Path, "/orchestrator/webhook/ext-ci/") {
+		token = r.Header.Get("api-token")
+	} else {
+		token = r.Header.Get("token")
+	}
 	userId, userType, err := impl.GetUserByToken(token)
 	// if user is of api-token type, then update lastUsedBy and lastUsedAt
 	if err == nil && userType == bean.USER_TYPE_API_TOKEN {
@@ -1165,7 +1171,6 @@ func (impl UserServiceImpl) SyncOrchestratorToCasbin() (bool, error) {
 	return true, nil
 }
 
-// Deprecated
 func (impl UserServiceImpl) IsSuperAdmin(userId int) (bool, error) {
 	//validating if action user is not admin and trying to update user who has super admin polices, return 403
 	isSuperAdmin := false
