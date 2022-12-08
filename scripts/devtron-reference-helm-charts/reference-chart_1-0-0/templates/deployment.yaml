@@ -48,11 +48,11 @@ metadata:
 {{- end }}
 
 spec:
-  replicas: {{ $.Values.replicaCount }}
   selector:
     matchLabels:
       app: {{ template ".Chart.Name .name" $ }}
       release: {{ $.Release.Name }}
+  replicas: {{ $.Values.replicaCount }}
   minReadySeconds: {{ $.Values.MinReadySeconds }}
   template:
     metadata:
@@ -166,6 +166,16 @@ spec:
 {{- if $.Values.appMetrics }}
         - name: envoy
           image: {{ $.Values.envoyproxy.image | default "envoyproxy/envoy:v1.14.1"}}
+          {{- if $.Values.envoyproxy.lifecycle }}
+          lifecycle:
+{{ toYaml .Values.envoyproxy.lifecycle | indent 12 -}}
+          {{- else if $.Values.containerSpec.lifecycle.enabled }}
+          lifecycle:
+           {{- if $.Values.containerSpec.lifecycle.preStop }}
+           preStop:
+{{ toYaml $.Values.containerSpec.lifecycle.preStop | indent 12 -}}
+           {{- end }}
+          {{- end }}
           resources:
 {{ toYaml $.Values.envoyproxy.resources | trim | indent 12 }}
           ports:
@@ -189,6 +199,17 @@ spec:
         - name: {{ $.Chart.Name }}
           image: "{{ .Values.server.deployment.image }}:{{ .Values.server.deployment.image_tag }}"
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          {{- if $.Values.containerSpec.lifecycle.enabled }}
+          lifecycle:
+           {{- if $.Values.containerSpec.lifecycle.preStop }}
+           preStop:
+{{ toYaml $.Values.containerSpec.lifecycle.preStop | indent 12 -}}
+           {{- end }}
+           {{- if $.Values.containerSpec.lifecycle.postStart }}
+           postStart:
+{{ toYaml $.Values.containerSpec.lifecycle.postStart | indent 12 -}}
+           {{- end }}
+          {{- end }}
 {{- if and $.Values.containerSecurityContext $.Values.privileged }}
           securityContext:
             privileged: true
@@ -231,6 +252,10 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: metadata.name
+            - name: DEVTRON_CONTAINER_REPO
+              value: "{{ .Values.server.deployment.image }}"
+            - name: DEVTRON_CONTAINER_TAG
+              value: "{{ .Values.server.deployment.image_tag }}"
           {{- range $.Values.EnvVariablesFromFieldPath }}
             - name: {{ .name }}
               valueFrom:
@@ -426,4 +451,13 @@ spec:
   revisionHistoryLimit: 3
 ##  pauseForSecondsBeforeSwitchActive: {{ $.Values.pauseForSecondsBeforeSwitchActive }}
 #  waitForSecondsBeforeScalingDown: {{ $.Values.waitForSecondsBeforeScalingDown }}
-
+  strategy:
+    {{- if eq .Values.deploymentType "ROLLING" }}
+    canary:
+      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+      maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
+      maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
+    {{- else if eq .Values.deploymentType "RECREATE" }}
+    recreate:
+      activeService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
+    {{- end }}
