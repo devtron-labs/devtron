@@ -125,7 +125,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 	if rbacObject2 == "" {
 		ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject)
 	} else {
-		ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject2)
+		ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject) || handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject2)
 	}
 
 	if !ok {
