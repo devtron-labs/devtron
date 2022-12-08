@@ -49,9 +49,11 @@ type UserAuthOidcHelperImpl struct {
 func NewUserAuthOidcHelperImpl(logger *zap.SugaredLogger, selfRegistrationRolesService user.SelfRegistrationRolesService, dexConfig *client.DexConfig,
 	settings *oidc.Settings, sessionManager *authMiddleware.SessionManager) (*UserAuthOidcHelperImpl, error) {
 	impl := &UserAuthOidcHelperImpl{
-		logger:         logger,
-		settings:       settings,
-		sessionManager: sessionManager,
+		logger:                       logger,
+		settings:                     settings,
+		dexConfig:                    dexConfig,
+		sessionManager:               sessionManager,
+		selfRegistrationRolesService: selfRegistrationRolesService,
 	}
 	logger.Infow("auth starting with dex conf", "conf", dexConfig)
 	oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, selfRegistrationRolesService.CheckAndCreateUserIfConfigured, impl.sanitiseRedirectUrl)
