@@ -83,6 +83,8 @@ func (impl UserAuthOidcHelperImpl) GetDexProxy() func(writer http.ResponseWriter
 }
 
 func (impl UserAuthOidcHelperImpl) UpdateInMemoryDataOnSsoAddUpdate(ssoUrl string) error {
+	impl.logger.Infow("updating in memory data on sso update", "ssoUrl", ssoUrl)
+
 	// set url in dexConfig
 	impl.dexConfig.Url = ssoUrl
 	proxyUrl, err := getDexProxyUrl(ssoUrl)
