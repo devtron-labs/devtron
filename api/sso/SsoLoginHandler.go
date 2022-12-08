@@ -124,6 +124,10 @@ func (handler SsoLoginRestHandlerImpl) updateDex(w http.ResponseWriter, url stri
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return true
 	}
+
+	handler.logger.Infow("handler.clientApp", "handler.clientApp", handler.clientApp)
+	handler.logger.Infow("oidcClient", "oidcClient", oidcClient)
+
 	handler.clientApp.UpdateConfig(oidcClient)
 	return false
 }
