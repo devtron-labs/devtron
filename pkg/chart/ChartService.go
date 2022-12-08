@@ -488,7 +488,7 @@ func (impl ChartServiceImpl) CreateChartFromEnvOverride(templateRequest Template
 	}
 	var appLevelMetrics *repository3.AppLevelMetrics
 	if appMetrics && !(chartMajorVersion >= 3 && chartMinorVersion >= 7) {
-		impl.logger.Error("cannot enable app metrics for older chart versions < 3.1.0")
+		impl.logger.Error("cannot enable app metrics for older chart versions < 3.7.0")
 		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
 		appLevelMetrics, err = impl.updateAppLevelMetrics(&appMetricsRequest)
 		if err != nil {
