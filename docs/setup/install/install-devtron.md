@@ -1,25 +1,36 @@
 # Install Devtron
 
-Are you installing Devtron on Minikube, Microk8s, K3s, Kind? See Instructions [here](./Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
+In this section, we describe on how you can install Helm Dashboard by Devtron without any integrations. Integrations can be added later using [Devtron Stack Manager](https://docs.devtron.ai/v/v0.6/usage/integrations).
 
-This page helps you to install Devtron without any integrations. Integrations can be added later using [Devtron Stack Manager](./../../user-guide/stack-manager.md).
+If you want to install Devtron on Minikube, Microk8s, K3s, Kind, refer this [section](./Install-devtron-on-Minikube-Microk8s-K3s-Kind.md).
 
 ## Before you begin
 
-Install [Helm](https://helm.sh/docs/intro/install/) if you haven't done that already!
+Install [Helm](https://helm.sh/docs/intro/install/) if you have not installed it.
 
-{% tabs %}
-{% tab title="Install with default configurations" %}
+## Add Helm Repo
+
 ```bash
 helm repo add devtron https://helm.devtron.ai
-
-helm install devtron devtron/devtron-operator --create-namespace --namespace devtroncd
-
 ```
-{% endtab %}
-{% endtabs %}
 
-> To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the installation command with `--set installer.arch=multi-arch`.
+## Install Helm Dashboard by Devtron
+
+**Note**: This installation command will not install CI/CD integration. For CI/CD, refer [install Devtron with CI/CD](https://docs.devtron.ai/install/install-devtron-with-cicd) section.
+
+Run the following command to install Helm Dashboard by Devtron:
+
+```bash
+helm install devtron devtron/devtron-operator\
+--create-namespace --namespace devtroncd
+```
+
+
+## Install Multi-Architecture Nodes (ARM and AMD)
+
+To install Devtron on clusters with the multi-architecture nodes (ARM and AMD), append the Devtron installation command with `--set installer.arch=multi-arch`.
+
+
 
 [//]: # (If you are planning to use Hyperion for `production deployments`, please refer to our recommended overrides for [Devtron Installation]&#40;override-default-devtron-installation-configs.md&#41;.)
 
@@ -35,9 +46,9 @@ helm install devtron devtron/devtron-operator --create-namespace --namespace dev
 
 [//]: # (```)
 
-## Devtron dashboard
+## Devtron Dashboard
 
-Use the following command to get the dashboard URL:
+Run the following command to get the dashboard URL:
 
 ```text
 kubectl get svc -n devtroncd devtron-service -o jsonpath='{.status.loadBalancer.ingress}'
@@ -58,34 +69,32 @@ The hostname `aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws
 | :--- | :--- | :--- |
 | devtron.yourdomain.com | CNAME | aaff16e9760594a92afa0140dbfd99f7-305259315.us-east-1.elb.amazonaws.com |
 
-### Devtron Admin credentials
 
-#### For Devtron version v0.6.0 and higher
+## Devtron Admin credentials
 
-Use username:`admin` and for password run command mentioned below.
+### For Devtron version v0.6.0 and higher
+
+**Username**: `admin` <br>
+**Password**: Run the following command to get the admin password:
+
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret \
+-o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
-#### For Devtron version less than v0.6.0
+### For Devtron version less than v0.6.0
 
-Use username:`admin` and for password run command mentioned below.
+**Username**: `admin` <br>
+**Password**: Run the following command to get the admin password:
+
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret \
+-o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
 ```
 
-### Cleaning Helm installer
+**Note**: If you want to uninstall Devtron or clean Devtron helm installer, refer our [uninstall Devtron](https://docs.devtron.ai/install/uninstall-devtron).
 
-Please make sure that you do not have anything inside namespaces devtroncd, devtron-cd devtron-ci, and devtron-demo as the below steps will clean everything inside these namespaces
-```
-helm uninstall devtron --namespace devtroncd
-
-kubectl delete -n devtroncd \
--f https://raw.githubusercontent.com/devtron-labs/charts/main/charts/devtron/crds/crd-devtron.yaml
-
-kubectl delete ns devtroncd
-```
 
 ## Upgrade
 
-To use the CI/CD capabilities with Devtron, users can Install the [CI/CD integration](install-devtron-with-cicd.md).
+To use the CI/CD capabilities with Devtron, you can Install the [Devtron with CI/CD](https://docs.devtron.ai/install/install-devtron-with-cicd) or [Devtron with CI/CD along with GitOps (Argo CD)](https://docs.devtron.ai/install/install-devtron-with-cicd-with-gitops).
