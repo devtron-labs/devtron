@@ -1,7 +1,7 @@
 # Default values for myapp.
 # This is a YAML-formatted file.
 # Declare variables to be passed into your templates.
-kind: CronJob
+kind: ScaledJob
 
 jobConfigs:
   backoffLimit: 5
@@ -75,6 +75,7 @@ secret:
   enabled: false
 
 service:
+  enabled: false
   type: ClusterIP
   #  name: "1234567890123456789012345678901234567890123456789012345678901234567890"
   annotations: {}
@@ -98,6 +99,30 @@ prometheus:
 servicemonitor:
   additionalLabels: {}
 
+kedaAutoscaling:
+  envSourceContainerName: "" 
+  minReplicaCount: 1 
+  maxReplicaCount: 2
+  pollingInterval: 30                         
+  successfulJobsHistoryLimit: 5              
+  failedJobsHistoryLimit: 5
+  rolloutStrategy: default
+  scalingStrategy:
+    strategy: "custom"                        
+    customScalingQueueLengthDeduction: 1      
+    customScalingRunningJobPercentage: "0.5"  
+    pendingPodConditions:                     
+      - "Ready"
+      - "PodScheduled"
+      - "AnyOtherCustomPodCondition"
+    multipleScalersCalculation : "max"
+  triggers: 
+  - type: rabbitmq
+    metadata:
+      queueName: hello
+      host: RabbitMqHost
+      queueLength  : '5'
+  authenticationRef: {}
 
 prometheusRule:
   enabled: true
@@ -158,27 +183,27 @@ nodeSelector: {}
 orchestrator.deploymant.algo: 1
 
 ConfigMaps:
-  enabled: true
-  maps:
-  - name: config-map-1
-    type: environment
-    external: false
-    data:
-      key1: key1value-1
-      key2: key2value-1
-      key3: key3value-1
-  - name: config-map-2
-    type: volume
-    external: false
-    mountPath: /etc/config/2
-    subPath: false
-    filePermission: "777"
-    data:
-      key1: |
-        club : manchester utd
-        nation : england
-      key2: abc-2
-      key3: abc-2
+  enabled: false
+  # maps:
+  # - name: config-map-1
+  #   type: environment
+  #   external: false
+  #   data:
+  #     key1: key1value-1
+  #     key2: key2value-1
+  #     key3: key3value-1
+  # - name: config-map-2
+  #   type: volume
+  #   external: false
+  #   mountPath: /etc/config/2
+  #   subPath: false
+  #   filePermission: "777"
+  #   data:
+  #     key1: |
+  #       club : manchester utd
+  #       nation : england
+  #     key2: abc-2
+  #     key3: abc-2
   # - name: config-map-3
   #   type: environment
   #   external: true
@@ -192,7 +217,7 @@ ConfigMaps:
 
 
 ConfigSecrets:
-  enabled: true
+  enabled: false
   secrets:
   # - name: config-secret-1
   #   type: environment
@@ -201,18 +226,18 @@ ConfigSecrets:
   #     key1: key1value-1
   #     key2: key2value-1
   #     key3: key3value-1
-  - name: config-secret-2
-    type: volume
-    external: false
-    mountPath: /etc/config/2
-    subPath: false
-    filePermission: "777"
-    data:
-      key1: |
-        club : manchester utd
-        nation : england
-      key2: abc-2
-      key3: abc-2
+  # - name: config-secret-2x
+  #   type: volume
+  #   external: false
+  #   mountPath: /etc/config/2
+  #   subPath: false
+  #   filePermission: "777"
+  #   data:
+  #     key1: |
+  #       club : manchester utd
+  #       nation : england
+  #     key2: abc-2
+  #     key3: abc-2
 
 
 initContainers:

@@ -23,23 +23,5 @@ spec:
   failedJobsHistoryLimit: {{ $.Values.cronjobConfigs.failedJobsHistoryLimit }}
   jobTemplate:
     spec:
-      parallelism: {{ $.Values.cronjobConfigs.parallelism }}
-      template:
-        metadata:
-        {{- if .Values.podAnnotations }}
-          annotations:
-          {{- range $key, $value := .Values.podAnnotations }}
-            {{ $key }}: {{ $value | quote }}
-          {{- end }}
-        {{- end }}
-          labels:
-            app: {{ template ".Chart.Name .name" $ }}
-            appId: {{ $.Values.app | quote }}
-            envId: {{ $.Values.env | quote }}
-            release: {{ $.Release.Name }}
-    {{- if .Values.podLabels }}
-{{ toYaml .Values.podLabels | indent 12 }}
-    {{- end }}
-        spec:
-          {{- include "pod-template-spec" . | indent 8 }}
+      {{- include "job-template-spec" . | indent 6 }}
 {{ end }}
