@@ -2,17 +2,23 @@
 
 ## Bugs
 - fix: Ignoring propagating invalid labels in app to values.yaml during deployment (#2734)
+- fix: app clone response update for empty material and templates (#2717)
 ## Enhancements
 - feat: Gitops or helm options for cd (#2673)
+- feat: added BE support for allowing insecure tls connection in gitOps (#2738)
 ## Documentation
 - docs: minor updates (#2)
 - docs: webhook updates links (#2716)
 - docs: webhook ci documentation updates (#2637)
+- docs: add getting started doc (#2658)
 ## Others
 - minor updates (#2722)
 - fix for app type setting (#2723)
 - task: updated environment variables in pre/post cd workflow request (#2727)
 - getting error message on deleting linked ci pipeline (#2732)
+- Revert "feat: added BE support for allowing insecure tls connection in gitOps (#2738)" (#2739)
+- broken links fixed (#2741)
+- minor updates (#2742)
 
 
 ## v0.6.9-rc.0
