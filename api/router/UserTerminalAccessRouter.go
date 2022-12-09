@@ -21,11 +21,11 @@ func NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandler restHandler.U
 
 func (router UserTerminalAccessRouterImpl) InitTerminalAccessRouter(userTerminalAccessRouter *mux.Router) {
 	userTerminalAccessRouter.Path("/update").
-		HandlerFunc(router.userTerminalAccessRestHandler.UpdateTerminalSession).Methods("POST")
+		HandlerFunc(router.userTerminalAccessRestHandler.UpdateTerminalSession).Methods("PUT")
 	userTerminalAccessRouter.Path("/update/shell").
-		HandlerFunc(router.userTerminalAccessRestHandler.UpdateTerminalShellSession).Methods("POST")
+		HandlerFunc(router.userTerminalAccessRestHandler.UpdateTerminalShellSession).Methods("PUT")
 	userTerminalAccessRouter.Path("/start").
-		HandlerFunc(router.userTerminalAccessRestHandler.StartTerminalSession).Methods("PUT")
+		HandlerFunc(router.userTerminalAccessRestHandler.StartTerminalSession).Methods("POST")
 	userTerminalAccessRouter.Path("/get").
 		HandlerFunc(router.userTerminalAccessRestHandler.FetchTerminalStatus).Queries("terminalAccessId", "{terminalAccessId}").Methods("GET")
 	userTerminalAccessRouter.Path("/pod/events").
@@ -35,7 +35,7 @@ func (router UserTerminalAccessRouterImpl) InitTerminalAccessRouter(userTerminal
 	userTerminalAccessRouter.Path("/disconnect").
 		HandlerFunc(router.userTerminalAccessRestHandler.DisconnectTerminalSession).Queries("terminalAccessId", "{terminalAccessId}").Methods("POST")
 	userTerminalAccessRouter.Path("/stop").
-		HandlerFunc(router.userTerminalAccessRestHandler.StopTerminalSession).Queries("terminalAccessId", "{terminalAccessId}").Methods("POST")
+		HandlerFunc(router.userTerminalAccessRestHandler.StopTerminalSession).Queries("terminalAccessId", "{terminalAccessId}").Methods("PUT")
 	userTerminalAccessRouter.Path("/disconnectAndRetry").
 		HandlerFunc(router.userTerminalAccessRestHandler.DisconnectAllTerminalSessionAndRetry).Methods("POST")
 
