@@ -13,23 +13,25 @@ import (
 type EnforcerUtilHelm interface {
 	GetHelmObjectByClusterId(clusterId int, namespace string, appName string) string
 	GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string
-	GetHelmObjectForEAMode(appName string, clusterId int, namespace string) string
+	GetHelmObject(appName string, clusterId int, namespace string, envId int) string
 }
 type EnforcerUtilHelmImpl struct {
-	logger            *zap.SugaredLogger
-	clusterRepository repository.ClusterRepository
-	teamRepository    team.TeamRepository
-	appRepository     app.AppRepository
+	logger                *zap.SugaredLogger
+	clusterRepository     repository.ClusterRepository
+	teamRepository        team.TeamRepository
+	appRepository         app.AppRepository
+	environmentRepository repository.EnvironmentRepository
 }
 
 func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
-	clusterRepository repository.ClusterRepository, teamRepository team.TeamRepository, appRepository app.AppRepository,
+	clusterRepository repository.ClusterRepository, teamRepository team.TeamRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository,
 ) *EnforcerUtilHelmImpl {
 	return &EnforcerUtilHelmImpl{
-		logger:            logger,
-		clusterRepository: clusterRepository,
-		teamRepository:    teamRepository,
-		appRepository:     appRepository,
+		logger:                logger,
+		clusterRepository:     clusterRepository,
+		teamRepository:        teamRepository,
+		appRepository:         appRepository,
+		environmentRepository: environmentRepository,
 	}
 }
 
@@ -53,7 +55,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, c
 	return fmt.Sprintf("%s/%s__%s/%s", teamObj.Name, cluster.ClusterName, namespace, strings.ToLower(appName))
 }
 
-func (impl EnforcerUtilHelmImpl) GetHelmObjectForEAMode(appName string, clusterId int, namespace string) string {
+func (impl EnforcerUtilHelmImpl) GetHelmObject(appName string, clusterId int, namespace string, envId int) string {
 
 	application, err := impl.appRepository.FindAppAndProjectByAppName(appName)
 	if err != nil && err != pg.ErrNoRows {
@@ -61,6 +63,8 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectForEAMode(appName string, clusterI
 		return ""
 	}
 	cluster, err := impl.clusterRepository.FindById(clusterId)
+
+	env, err := impl.environmentRepository.FindById(envId)
 
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error on fetching data for rbac object from cluster repository", "err", err)
@@ -70,7 +74,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectForEAMode(appName string, clusterI
 	if application.TeamId == 0 {
 		return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName))
 	} else {
-		return fmt.Sprintf("%s/%s__%s/%s", application.Team, cluster.ClusterName, namespace, strings.ToLower(appName))
+		return fmt.Sprintf("%s/%s/%s", application.Team.Name, env.EnvironmentIdentifier, strings.ToLower(appName))
 	}
 
 }
