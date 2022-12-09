@@ -1,12 +1,12 @@
 titleOnly: true
 
 types:
-  - fix
-  - feat
-  - feature
-  - fixes
-  - chore
-  - perf
-  - docs
-  - doc
-  - release
+  - fix:
+  - feat:
+  - feature:
+  - fixes:
+  - chore:
+  - perf:
+  - docs:
+  - doc:
+  - release:
