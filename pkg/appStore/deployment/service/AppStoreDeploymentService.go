@@ -44,6 +44,7 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
 	"net/http"
 	"time"
 )
@@ -995,6 +996,12 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 				err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion)
 				if err != nil {
 					impl.logger.Errorw("error while commit required dependencies to git", "error", err)
+					statusError, ok := err.(*errors2.StatusError)
+					if ok && statusError.Status().Code == http.StatusNotFound {
+						impl.logger.Errorw("no content found while updating requirement file, git repo, do auto fix", "error", err)
+						//if by mistake no content found while updating git repo, do auto fix
+						installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
+					}
 					return nil, err
 				}
 			}
