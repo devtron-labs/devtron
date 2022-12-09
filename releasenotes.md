@@ -1,9 +1,5 @@
 ## v0.6.9-rc.1
 
-
-
-## v0.6.9-rc.1
-
 ## Bugs
 - fix: Ignoring propagating invalid labels in app to values.yaml during deployment (#2734)
 - fix: app clone response update for empty material and templates (#2717)
