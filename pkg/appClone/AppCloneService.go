@@ -123,7 +123,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	newAppId := app.Id
 	if !refAppStatus["MATERIAL"] {
 		impl.logger.Errorw("status not", "MATERIAL", cloneReq.RefAppId)
-		return nil, nil
+		return app, nil
 	}
 	_, gitMaerialMap, err := impl.CloneGitRepo(cloneReq.RefAppId, newAppId, userId)
 	if err != nil {
@@ -138,7 +138,11 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	}
 	if !refAppStatus["TEMPLATE"] {
 		impl.logger.Errorw("status not", "TEMPLATE", cloneReq.RefAppId)
-		return nil, nil
+		return app, nil
+	}
+	if !refAppStatus["CHART"] {
+		impl.logger.Errorw("status not", "CHART", cloneReq.RefAppId)
+		return app, nil
 	}
 	_, err = impl.CreateDeploymentTemplate(cloneReq.RefAppId, newAppId, userId, context)
 	if err != nil {
