@@ -75,7 +75,7 @@ Enable the application metrics to configure prometheus and provide the informati
 | Field | Description |
 | :--- | :--- |
 | `Prometheus endpoint` | Provide the URL of your prometheus. |
-| `Authentication Type` | Prometheus supports two authentication types:<ul><li>**Basic:** If you select the `Basic` authentication type, then you have to provide the `Username` and `Password` of prometheus for authentication.</li></ul> <ul><li>**Anonymous:** If you select the `Anonymous` authentication type, then you do not need to provide the `Username` and `Password`.<br>Note: The fields `Username` and `Password` will not be available by default.</li></ul> |
+| `Authentication Type` | Prometheus supports two authentication types:<ul><li>**Basic:** If you select the `Basic` authentication type, then you must provide the `Username` and `Password` of prometheus for authentication.</li></ul> <ul><li>**Anonymous:** If you select the `Anonymous` authentication type, then you do not need to provide the `Username` and `Password`.<br>Note: The fields `Username` and `Password` will not be available by default.</li></ul> |
 | `TLS Key` & `TLS Certificate` | `TLS Key` and `TLS Certificate` are optional, these options are used when you use a customized URL. |
 
 Now, click `Save Cluster` to save your cluster on Devtron.
