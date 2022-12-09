@@ -1,6 +1,7 @@
 ## v0.6.9-rc.1
 
 ## Bugs
+- fix: Ignoring propagating invalid labels in app to values.yaml during deployment (#2734)
 ## Enhancements
 - feat: Gitops or helm options for cd (#2673)
 ## Documentation
@@ -8,6 +9,10 @@
 - docs: webhook updates links (#2716)
 - docs: webhook ci documentation updates (#2637)
 ## Others
+- minor updates (#2722)
+- fix for app type setting (#2723)
+- task: updated environment variables in pre/post cd workflow request (#2727)
+- getting error message on deleting linked ci pipeline (#2732)
 
 
 ## v0.6.9-rc.0
