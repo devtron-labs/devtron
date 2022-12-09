@@ -56,8 +56,6 @@ podSpec: {}
   # enableServiceLinks: false
   # dnsConfig: {}
 
-ephemeralContainers: []
-
 Spec:
  Affinity:
   Key:
