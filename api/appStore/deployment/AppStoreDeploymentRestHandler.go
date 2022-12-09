@@ -125,9 +125,9 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 	var ok bool
 
 	if rbacObject2 == "" {
-		ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject)
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject)
 	} else {
-		ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject) || handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject2)
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionCreate, rbacObject2)
 	}
 
 	if !ok {
@@ -220,7 +220,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w 
 		}
 		var ok bool
 		if rbacObject2 == "" {
-			ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
+			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
 		} else {
 			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 		}
@@ -282,7 +282,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 
 	var ok bool
 	if rbacObject2 == "" {
-		ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject)
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject)
 	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject2)
 	}
@@ -416,7 +416,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	var ok bool
 
 	if rbacObject2 == "" {
-		ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
 	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
 	}
@@ -496,7 +496,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.R
 	}
 	var ok bool
 	if rbacObject2 == "" {
-		ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
 	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 	}

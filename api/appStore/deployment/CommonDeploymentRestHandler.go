@@ -154,7 +154,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistory(w http.Resp
 
 	var ok bool
 	if rbacObject2 == "" {
-		ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
 	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 	}
@@ -209,7 +209,7 @@ func (handler *CommonDeploymentRestHandlerImpl) GetDeploymentHistoryValues(w htt
 	var ok bool
 
 	if rbacObject2 == "" {
-		ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject)
 	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 	}
@@ -275,7 +275,7 @@ func (handler *CommonDeploymentRestHandlerImpl) RollbackApplication(w http.Respo
 	}
 	var ok bool
 	if rbacObject2 == "" {
-		ok = handler.enforcer.EnforceByEmail("ayush@devtron.ai", casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
 	} else {
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
 	}
