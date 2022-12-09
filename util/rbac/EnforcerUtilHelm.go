@@ -36,11 +36,25 @@ func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
 }
 
 func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterId(clusterId int, namespace string, appName string) string {
+
+	application, err := impl.appRepository.FindAppAndProjectByAppName(appName)
+
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error on fetching data for rbac object from app repository", "err", err)
+		return ""
+	}
+
 	cluster, err := impl.clusterRepository.FindById(clusterId)
 	if err != nil {
 		return fmt.Sprintf("%s/%s/%s", "", "", "")
 	}
-	return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName))
+
+	if application.TeamId == 0 {
+		return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName))
+	} else {
+		return fmt.Sprintf("%s/%s__%s/%s", application.Team.Name, cluster.ClusterName, namespace, strings.ToLower(appName))
+	}
+
 }
 
 func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string {
