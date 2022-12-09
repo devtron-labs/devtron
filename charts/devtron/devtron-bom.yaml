@@ -7,7 +7,7 @@ components:
   dashboard:
     image: "quay.io/devtron/test:b1985a06-4751-5258"
   devtron:
-    image: "quay.io/devtron/test:3cd06c4e-4751-5267"
+    image: "quay.io/devtron/test:3cd06c4e-3263-5272"
     cicdImage: "quay.io/devtron/test:3cd06c4e-4751-5255"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
