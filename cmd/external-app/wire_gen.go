@@ -183,7 +183,7 @@ func InitializeApp() (*App, error) {
 	helmAppClientImpl := client2.NewHelmAppClientImpl(sugaredLogger, helmClientConfig)
 	pumpImpl := connector.NewPumpImpl(sugaredLogger)
 	appRepositoryImpl := app.NewAppRepositoryImpl(db, sugaredLogger)
-	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl)
+	enforcerUtilHelmImpl := rbac.NewEnforcerUtilHelmImpl(sugaredLogger, clusterRepositoryImpl, teamRepositoryImpl, appRepositoryImpl, environmentRepositoryImpl, installedAppRepositoryImpl)
 	serverDataStoreServerDataStore := serverDataStore.InitServerDataStore()
 	appStoreApplicationVersionRepositoryImpl := appStoreDiscoverRepository.NewAppStoreApplicationVersionRepositoryImpl(sugaredLogger, db)
 	pipelineRepositoryImpl := pipelineConfig.NewPipelineRepositoryImpl(db, sugaredLogger)

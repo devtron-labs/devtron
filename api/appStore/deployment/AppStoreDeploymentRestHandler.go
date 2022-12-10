@@ -214,7 +214,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w 
 		var rbacObject string
 		var rbacObject2 string
 		if util2.IsHelmApp(app.AppOfferingMode) {
-			rbacObject = handler.enforcerUtilHelm.GetHelmObject(app.AppName, app.ClusterId, app.Namespace, app.EnvironmentId)
+			rbacObject = handler.enforcerUtilHelm.GetHelmObject(app.ClusterId, app.Namespace, app.AppName)
 		} else {
 			rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(app.AppName, app.EnvironmentId)
 		}
@@ -275,7 +275,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	var rbacObject string
 	var rbacObject2 string
 	if util2.IsHelmApp(installedApp.AppOfferingMode) {
-		rbacObject = handler.enforcerUtilHelm.GetHelmObject(installedApp.AppName, installedApp.ClusterId, installedApp.Namespace, installedApp.EnvironmentId)
+		rbacObject = handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
 	}
@@ -408,7 +408,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	var rbacObject string
 	var rbacObject2 string
 	if util2.IsHelmApp(installedApp.AppOfferingMode) {
-		rbacObject = handler.enforcerUtilHelm.GetHelmObject(installedApp.AppName, installedApp.ClusterId, installedApp.Namespace, installedApp.EnvironmentId)
+		rbacObject = handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
 	}
@@ -490,7 +490,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.R
 	var rbacObject string
 	var rbacObject2 string
 	if util2.IsHelmApp(dto.AppOfferingMode) {
-		rbacObject = handler.enforcerUtilHelm.GetHelmObject(dto.AppName, dto.ClusterId, dto.Namespace, dto.EnvironmentId)
+		rbacObject = handler.enforcerUtilHelm.GetHelmObject(dto.ClusterId, dto.Namespace, dto.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(dto.AppName, dto.EnvironmentId)
 	}

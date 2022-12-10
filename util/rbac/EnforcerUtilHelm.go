@@ -3,6 +3,7 @@ package rbac
 import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -13,25 +14,31 @@ import (
 type EnforcerUtilHelm interface {
 	GetHelmObjectByClusterId(clusterId int, namespace string, appName string) string
 	GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string
-	GetHelmObject(appName string, clusterId int, namespace string, envId int) string
+	GetHelmObject(clusterId int, namespace string, appName string) string
 }
 type EnforcerUtilHelmImpl struct {
-	logger                *zap.SugaredLogger
-	clusterRepository     repository.ClusterRepository
-	teamRepository        team.TeamRepository
-	appRepository         app.AppRepository
-	environmentRepository repository.EnvironmentRepository
+	logger                 *zap.SugaredLogger
+	clusterRepository      repository.ClusterRepository
+	teamRepository         team.TeamRepository
+	appRepository          app.AppRepository
+	environmentRepository  repository.EnvironmentRepository
+	InstalledAppRepository repository2.InstalledAppRepository
 }
 
 func NewEnforcerUtilHelmImpl(logger *zap.SugaredLogger,
-	clusterRepository repository.ClusterRepository, teamRepository team.TeamRepository, appRepository app.AppRepository, environmentRepository repository.EnvironmentRepository,
+	clusterRepository repository.ClusterRepository,
+	teamRepository team.TeamRepository,
+	appRepository app.AppRepository,
+	environmentRepository repository.EnvironmentRepository,
+	installedAppRepository repository2.InstalledAppRepository,
 ) *EnforcerUtilHelmImpl {
 	return &EnforcerUtilHelmImpl{
-		logger:                logger,
-		clusterRepository:     clusterRepository,
-		teamRepository:        teamRepository,
-		appRepository:         appRepository,
-		environmentRepository: environmentRepository,
+		logger:                 logger,
+		clusterRepository:      clusterRepository,
+		teamRepository:         teamRepository,
+		appRepository:          appRepository,
+		environmentRepository:  environmentRepository,
+		InstalledAppRepository: installedAppRepository,
 	}
 }
 
@@ -69,26 +76,37 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, c
 	return fmt.Sprintf("%s/%s__%s/%s", teamObj.Name, cluster.ClusterName, namespace, strings.ToLower(appName))
 }
 
-func (impl EnforcerUtilHelmImpl) GetHelmObject(appName string, clusterId int, namespace string, envId int) string {
+func (impl EnforcerUtilHelmImpl) GetHelmObject(clusterId int, namespace string, appName string) string {
 
-	application, err := impl.appRepository.FindAppAndProjectByAppName(appName)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error on fetching data for rbac object from app repository", "err", err)
+	installedApp, installedAppErr := impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appName)
+
+	if installedAppErr != nil && installedAppErr != pg.ErrNoRows {
+		impl.logger.Errorw("error on fetching data for rbac object from installed app repository", "err", installedAppErr)
 		return ""
 	}
+
 	cluster, err := impl.clusterRepository.FindById(clusterId)
 
-	env, err := impl.environmentRepository.FindById(envId)
-
-	if err != nil && err != pg.ErrNoRows {
+	if err != nil {
 		impl.logger.Errorw("error on fetching data for rbac object from cluster repository", "err", err)
 		return ""
 	}
 
-	if application.TeamId == 0 {
+	if installedApp == nil || installedAppErr == pg.ErrNoRows {
+		// for cli apps which are not yet linked
+		return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName))
+	}
+
+	if installedApp.App.TeamId == 0 {
+		// for EA apps which have no project assigned to them
 		return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName))
 	} else {
-		return fmt.Sprintf("%s/%s/%s", application.Team.Name, env.EnvironmentIdentifier, strings.ToLower(appName))
+		if installedApp.EnvironmentId == 0 {
+			// for apps in EA mode, initally env id is 0.
+			return fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, strings.ToLower(appName))
+		}
+		// for apps which are assigned to a project and have env ID
+		return fmt.Sprintf("%s/%s/%s", installedApp.App.Team.Name, installedApp.Environment.EnvironmentIdentifier, strings.ToLower(appName))
 	}
 
 }

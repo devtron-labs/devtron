@@ -100,7 +100,7 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	rbacObject := handler.enforcerUtil.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
