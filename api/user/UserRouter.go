@@ -36,7 +36,7 @@ func NewUserRouterImpl(userRestHandler UserRestHandler) *UserRouterImpl {
 	return router
 }
 
-func (router UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
+func (router *UserRouterImpl) InitUserRouter(userAuthRouter *mux.Router) {
 	//User management
 	userAuthRouter.Path("/{id}").
 		HandlerFunc(router.userRestHandler.GetById).Methods("GET")

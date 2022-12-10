@@ -66,9 +66,9 @@ func NewMigrateDbRestHandlerImpl(dockerRegistryConfig pipeline.DockerRegistryCon
 	}
 }
 
-func (impl MigrateDbRestHandlerImpl) SaveDbConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *MigrateDbRestHandlerImpl) SaveDbConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -76,40 +76,40 @@ func (impl MigrateDbRestHandlerImpl) SaveDbConfig(w http.ResponseWriter, r *http
 	var bean pipeline.DbConfigBean
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, SaveDbConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, SaveDbConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Errorw("request payload, SaveDbConfig", "err", err, "payload", bean)
-	err = impl.validator.Struct(bean)
+	handler.logger.Errorw("request payload, SaveDbConfig", "err", err, "payload", bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, SaveDbConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("validation err, SaveDbConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionCreate, strings.ToLower(bean.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
 
-	res, err := impl.dbConfigService.Save(&bean)
+	res, err := handler.dbConfigService.Save(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, SaveDbConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, SaveDbConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl MigrateDbRestHandlerImpl) FetchAllDbConfig(w http.ResponseWriter, r *http.Request) {
-	res, err := impl.dbConfigService.GetAll()
+func (handler *MigrateDbRestHandlerImpl) FetchAllDbConfig(w http.ResponseWriter, r *http.Request) {
+	res, err := handler.dbConfigService.GetAll()
 	if err != nil {
-		impl.logger.Errorw("service err, FetchAllDbConfig", "err", err)
+		handler.logger.Errorw("service err, FetchAllDbConfig", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -118,7 +118,7 @@ func (impl MigrateDbRestHandlerImpl) FetchAllDbConfig(w http.ResponseWriter, r *
 	token := r.Header.Get("token")
 	var result []pipeline.DbConfigBean
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, *item)
 		}
 	}
@@ -127,24 +127,24 @@ func (impl MigrateDbRestHandlerImpl) FetchAllDbConfig(w http.ResponseWriter, r *
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (impl MigrateDbRestHandlerImpl) FetchOneDbConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *MigrateDbRestHandlerImpl) FetchOneDbConfig(w http.ResponseWriter, r *http.Request) {
 	params := mux.Vars(r)
 	id, err := strconv.Atoi(params["id"])
 	if err != nil {
-		impl.logger.Errorw("request err, FetchOneDbConfig", "err", err, "id", id)
+		handler.logger.Errorw("request err, FetchOneDbConfig", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := impl.dbConfigService.GetById(id)
+	res, err := handler.dbConfigService.GetById(id)
 	if err != nil {
-		impl.logger.Errorw("service err, FetchOneDbConfig", "err", err, "id", id)
+		handler.logger.Errorw("service err, FetchOneDbConfig", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(res.Name)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(res.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
@@ -153,9 +153,9 @@ func (impl MigrateDbRestHandlerImpl) FetchOneDbConfig(w http.ResponseWriter, r *
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl MigrateDbRestHandlerImpl) UpdateDbConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *MigrateDbRestHandlerImpl) UpdateDbConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -164,40 +164,40 @@ func (impl MigrateDbRestHandlerImpl) UpdateDbConfig(w http.ResponseWriter, r *ht
 
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateDbConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, UpdateDbConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Errorw("request payload, UpdateDbConfig", "err", err, "payload", bean)
-	err = impl.validator.Struct(bean)
+	handler.logger.Errorw("request payload, UpdateDbConfig", "err", err, "payload", bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateDbConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, UpdateDbConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionUpdate, strings.ToLower(bean.Name)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionUpdate, strings.ToLower(bean.Name)); !ok {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
 
-	res, err := impl.dbConfigService.Update(&bean)
+	res, err := handler.dbConfigService.Update(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateDbConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, UpdateDbConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl MigrateDbRestHandlerImpl) FetchDbConfigForAutoComp(w http.ResponseWriter, r *http.Request) {
-	res, err := impl.dbConfigService.GetForAutocomplete()
+func (handler *MigrateDbRestHandlerImpl) FetchDbConfigForAutoComp(w http.ResponseWriter, r *http.Request) {
+	res, err := handler.dbConfigService.GetForAutocomplete()
 	if err != nil {
-		impl.logger.Errorw("service err, FetchDbConfigForAutoComp", "err", err)
+		handler.logger.Errorw("service err, FetchDbConfigForAutoComp", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -206,7 +206,7 @@ func (impl MigrateDbRestHandlerImpl) FetchDbConfigForAutoComp(w http.ResponseWri
 	token := r.Header.Get("token")
 	var result []pipeline.DbConfigBean
 	for _, item := range res {
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(item.Name)); ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceMigrate, casbin.ActionGet, strings.ToLower(item.Name)); ok {
 			result = append(result, *item)
 		}
 	}

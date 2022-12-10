@@ -36,11 +36,11 @@ func NewWebhookListenerRouterImpl(webhookEventHandler restHandler.WebhookEventHa
 	}
 }
 
-func (impl WebhookListenerRouterImpl) InitWebhookListenerRouter(configRouter *mux.Router) {
+func (router *WebhookListenerRouterImpl) InitWebhookListenerRouter(configRouter *mux.Router) {
 	configRouter.Path("/{gitHostId}").
-		HandlerFunc(impl.webhookEventHandler.OnWebhookEvent).
+		HandlerFunc(router.webhookEventHandler.OnWebhookEvent).
 		Methods("POST")
 	configRouter.Path("/{gitHostId}/{secret}").
-		HandlerFunc(impl.webhookEventHandler.OnWebhookEvent).
+		HandlerFunc(router.webhookEventHandler.OnWebhookEvent).
 		Methods("POST")
 }

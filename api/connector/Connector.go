@@ -57,7 +57,7 @@ func NewPumpImpl(logger *zap.SugaredLogger) *PumpImpl {
 	}
 }
 
-func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, stream io.ReadCloser, err error) {
+func (impl *PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, stream io.ReadCloser, err error) {
 	f, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)
@@ -128,7 +128,7 @@ func (impl PumpImpl) StartK8sStreamWithHeartBeat(w http.ResponseWriter, isReconn
 	}
 }
 
-func (impl PumpImpl) StartStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, recv func() (*application.LogEntry, error), err error) {
+func (impl *PumpImpl) StartStreamWithHeartBeat(w http.ResponseWriter, isReconnect bool, recv func() (*application.LogEntry, error), err error) {
 	f, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)
@@ -233,7 +233,7 @@ func (impl *PumpImpl) sendEvent(eventId []byte, eventName []byte, payload []byte
 	return nil
 }
 
-func (impl PumpImpl) StartStream(w http.ResponseWriter, recv func() (proto.Message, error), err error) {
+func (impl *PumpImpl) StartStream(w http.ResponseWriter, recv func() (proto.Message, error), err error) {
 	f, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)
@@ -274,7 +274,7 @@ func (impl PumpImpl) StartStream(w http.ResponseWriter, recv func() (proto.Messa
 	}
 }
 
-func (impl PumpImpl) StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{}) interface{}) {
+func (impl *PumpImpl) StartStreamWithTransformer(w http.ResponseWriter, recv func() (proto.Message, error), err error, transformer func(interface{}) interface{}) {
 	f, ok := w.(http.Flusher)
 	if !ok {
 		http.Error(w, "unexpected server doesnt support streaming", http.StatusInternalServerError)
@@ -315,7 +315,7 @@ func (impl PumpImpl) StartStreamWithTransformer(w http.ResponseWriter, recv func
 	}
 }
 
-func (impl PumpImpl) handleForwardResponseStreamError(wroteHeader bool, w http.ResponseWriter, err error) {
+func (impl *PumpImpl) handleForwardResponseStreamError(wroteHeader bool, w http.ResponseWriter, err error) {
 	code := "000"
 	if !wroteHeader {
 		s, ok := status.FromError(err)
@@ -340,7 +340,7 @@ func (impl PumpImpl) handleForwardResponseStreamError(wroteHeader bool, w http.R
 	}
 }
 
-func (impl PumpImpl) StartMessage(w http.ResponseWriter, resp proto.Message, perr error) {
+func (impl *PumpImpl) StartMessage(w http.ResponseWriter, resp proto.Message, perr error) {
 	//w.Header().Set("Transfer-Encoding", "chunked")
 	w.Header().Set("Content-Type", "application/json")
 
@@ -368,7 +368,7 @@ func (impl PumpImpl) StartMessage(w http.ResponseWriter, resp proto.Message, per
 	}
 }
 
-func (impl PumpImpl) handleForwardResponseMessageError(w http.ResponseWriter, err error) {
+func (impl *PumpImpl) handleForwardResponseMessageError(w http.ResponseWriter, err error) {
 	code := "000"
 	s, ok := status.FromError(err)
 	if !ok {

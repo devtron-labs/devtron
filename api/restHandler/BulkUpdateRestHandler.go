@@ -121,7 +121,7 @@ func NewBulkUpdateRestHandlerImpl(pipelineBuilder pipeline.PipelineBuilder, logg
 	}
 }
 
-func (handler BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWriter, r *http.Request) {
+func (handler *BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWriter, r *http.Request) {
 	var operation string
 	vars := mux.Vars(r)
 	apiVersion := vars["apiVersion"]
@@ -138,7 +138,7 @@ func (handler BulkUpdateRestHandlerImpl) FindBulkUpdateReadme(w http.ResponseWri
 	common.WriteJsonResp(w, nil, responseArr, http.StatusOK)
 }
 
-func (handler BulkUpdateRestHandlerImpl) CheckAuthForImpactedObjects(AppId int, EnvId int, appResourceObjects map[int]string, envResourceObjects map[string]string, token string) bool {
+func (handler *BulkUpdateRestHandlerImpl) CheckAuthForImpactedObjects(AppId int, EnvId int, appResourceObjects map[int]string, envResourceObjects map[string]string, token string) bool {
 	resourceName := appResourceObjects[AppId]
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, resourceName); !ok {
 		return ok
@@ -153,7 +153,7 @@ func (handler BulkUpdateRestHandlerImpl) CheckAuthForImpactedObjects(AppId int, 
 	return true
 
 }
-func (handler BulkUpdateRestHandlerImpl) GetImpactedAppsName(w http.ResponseWriter, r *http.Request) {
+func (handler *BulkUpdateRestHandlerImpl) GetImpactedAppsName(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var script bulkAction.BulkUpdateScript
 	err := decoder.Decode(&script)
@@ -194,7 +194,7 @@ func (handler BulkUpdateRestHandlerImpl) GetImpactedAppsName(w http.ResponseWrit
 	}
 	common.WriteJsonResp(w, err, impactedApps, http.StatusOK)
 }
-func (handler BulkUpdateRestHandlerImpl) CheckAuthForBulkUpdate(AppId int, EnvId int, AppName string, rbacObjects map[int]string, token string) bool {
+func (handler *BulkUpdateRestHandlerImpl) CheckAuthForBulkUpdate(AppId int, EnvId int, AppName string, rbacObjects map[int]string, token string) bool {
 	resourceName := rbacObjects[AppId]
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, resourceName); !ok {
 		return ok
@@ -208,7 +208,7 @@ func (handler BulkUpdateRestHandlerImpl) CheckAuthForBulkUpdate(AppId int, EnvId
 	return true
 
 }
-func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *http.Request) {
+func (handler *BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	var script bulkAction.BulkUpdateScript
 	err := decoder.Decode(&script)
@@ -252,7 +252,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUpdate(w http.ResponseWriter, r *ht
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler BulkUpdateRestHandlerImpl) BulkHibernate(w http.ResponseWriter, r *http.Request) {
+func (handler *BulkUpdateRestHandlerImpl) BulkHibernate(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -289,7 +289,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkHibernate(w http.ResponseWriter, r 
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler BulkUpdateRestHandlerImpl) BulkUnHibernate(w http.ResponseWriter, r *http.Request) {
+func (handler *BulkUpdateRestHandlerImpl) BulkUnHibernate(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -326,7 +326,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkUnHibernate(w http.ResponseWriter, 
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *http.Request) {
+func (handler *BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -362,7 +362,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkDeploy(w http.ResponseWriter, r *ht
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler BulkUpdateRestHandlerImpl) BulkBuildTrigger(w http.ResponseWriter, r *http.Request) {
+func (handler *BulkUpdateRestHandlerImpl) BulkBuildTrigger(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -398,7 +398,7 @@ func (handler BulkUpdateRestHandlerImpl) BulkBuildTrigger(w http.ResponseWriter,
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler BulkUpdateRestHandlerImpl) checkAuthForBulkActions(token string, appObject string, envObject string) bool {
+func (handler *BulkUpdateRestHandlerImpl) checkAuthForBulkActions(token string, appObject string, envObject string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionUpdate, strings.ToLower(appObject)); !ok {
 		return false
 	}
@@ -408,7 +408,7 @@ func (handler BulkUpdateRestHandlerImpl) checkAuthForBulkActions(token string, a
 	return true
 }
 
-func (handler BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.ResponseWriter, r *http.Request) {
+func (handler *BulkUpdateRestHandlerImpl) HandleCdPipelineBulkAction(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {

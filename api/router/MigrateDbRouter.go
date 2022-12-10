@@ -32,21 +32,21 @@ type MigrateDbRouterImpl struct {
 func NewMigrateDbRouterImpl(migrateDbRestHandler restHandler.MigrateDbRestHandler) *MigrateDbRouterImpl {
 	return &MigrateDbRouterImpl{migrateDbRestHandler: migrateDbRestHandler}
 }
-func (impl MigrateDbRouterImpl) InitMigrateDbRouter(migrateRouter *mux.Router) {
+func (router *MigrateDbRouterImpl) InitMigrateDbRouter(migrateRouter *mux.Router) {
 
 	migrateRouter.Path("/db").
-		HandlerFunc(impl.migrateDbRestHandler.SaveDbConfig).
+		HandlerFunc(router.migrateDbRestHandler.SaveDbConfig).
 		Methods("POST")
 	migrateRouter.Path("/db").
-		HandlerFunc(impl.migrateDbRestHandler.FetchAllDbConfig).
+		HandlerFunc(router.migrateDbRestHandler.FetchAllDbConfig).
 		Methods("GET")
 	migrateRouter.Path("/db/{id}").
-		HandlerFunc(impl.migrateDbRestHandler.FetchOneDbConfig).
+		HandlerFunc(router.migrateDbRestHandler.FetchOneDbConfig).
 		Methods("GET")
 	migrateRouter.Path("/db").
-		HandlerFunc(impl.migrateDbRestHandler.UpdateDbConfig).
+		HandlerFunc(router.migrateDbRestHandler.UpdateDbConfig).
 		Methods("PUT")
 	migrateRouter.Path("/db/autocomplete").
-		HandlerFunc(impl.migrateDbRestHandler.FetchDbConfigForAutoComp).
+		HandlerFunc(router.migrateDbRestHandler.FetchDbConfigForAutoComp).
 		Methods("GET")
 }

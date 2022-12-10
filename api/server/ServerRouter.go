@@ -16,7 +16,7 @@ func NewServerRouterImpl(serverRestHandler ServerRestHandler) *ServerRouterImpl 
 	return &ServerRouterImpl{serverRestHandler: serverRestHandler}
 }
 
-func (impl ServerRouterImpl) Init(configRouter *mux.Router) {
-	configRouter.Path("").HandlerFunc(impl.serverRestHandler.GetServerInfo).Methods("GET")
-	configRouter.Path("").HandlerFunc(impl.serverRestHandler.HandleServerAction).Methods("POST")
+func (router *ServerRouterImpl) Init(configRouter *mux.Router) {
+	configRouter.Path("").HandlerFunc(router.serverRestHandler.GetServerInfo).Methods("GET")
+	configRouter.Path("").HandlerFunc(router.serverRestHandler.HandleServerAction).Methods("POST")
 }

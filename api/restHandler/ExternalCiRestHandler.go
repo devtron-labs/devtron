@@ -62,10 +62,10 @@ func NewExternalCiRestHandlerImpl(logger *zap.SugaredLogger, webhookService pipe
 	}
 }
 
-func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWriter, r *http.Request) {
+func (handler *ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWriter, r *http.Request) {
 	setupResponse(&w, r)
 	vars := mux.Vars(r)
-	userId, err := impl.userService.GetLoggedInUser(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized", http.StatusUnauthorized)
 		return
@@ -79,29 +79,29 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 	var req pubsub.CiCompleteEvent
 	err = decoder.Decode(&req)
 	if err != nil {
-		impl.logger.Errorw("request err, HandleExternalCiWebhook", "err", err, "payload", req)
+		handler.logger.Errorw("request err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	req.TriggeredBy = userId
-	impl.logger.Infow("request payload, HandleExternalCiWebhook", "payload", req)
+	handler.logger.Infow("request payload, HandleExternalCiWebhook", "payload", req)
 
-	err = impl.validator.Struct(req)
+	err = handler.validator.Struct(req)
 	if err != nil {
-		impl.logger.Errorw("validation err, HandleExternalCiWebhook", "err", err, "payload", req)
+		handler.logger.Errorw("validation err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	//fetching request
-	ciArtifactReq, err := impl.ciEventHandler.BuildCiArtifactRequestForWebhook(req)
+	ciArtifactReq, err := handler.ciEventHandler.BuildCiArtifactRequestForWebhook(req)
 	if err != nil {
-		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
+		handler.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	_, err = impl.webhookService.HandleExternalCiWebhook(externalCiId, ciArtifactReq, impl.checkExternalCiDeploymentAuth)
+	_, err = handler.webhookService.HandleExternalCiWebhook(externalCiId, ciArtifactReq, handler.checkExternalCiDeploymentAuth)
 	if err != nil {
-		impl.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
+		handler.logger.Errorw("service err, HandleExternalCiWebhook", "err", err, "payload", req)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -109,11 +109,11 @@ func (impl ExternalCiRestHandlerImpl) HandleExternalCiWebhook(w http.ResponseWri
 	common.WriteJsonResp(w, err, nil, http.StatusOK)
 }
 
-func (impl ExternalCiRestHandlerImpl) checkExternalCiDeploymentAuth(email string, projectObject string, envObject string) bool {
-	if ok := impl.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
+func (handler *ExternalCiRestHandlerImpl) checkExternalCiDeploymentAuth(email string, projectObject string, envObject string) bool {
+	if ok := handler.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceApplications, casbin.ActionTrigger, strings.ToLower(projectObject)); !ok {
 		return false
 	}
-	if ok := impl.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
+	if ok := handler.enforcer.EnforceByEmail(strings.ToLower(email), casbin.ResourceEnvironment, casbin.ActionTrigger, strings.ToLower(envObject)); !ok {
 		return false
 	}
 	return true

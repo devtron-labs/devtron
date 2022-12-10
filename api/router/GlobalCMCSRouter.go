@@ -17,7 +17,7 @@ func NewGlobalCMCSRouterImpl(restHandler restHandler.GlobalCMCSRestHandler) *Glo
 
 }
 
-func (router GlobalCMCSRouterImpl) initGlobalCMCSRouter(configRouter *mux.Router) {
+func (router *GlobalCMCSRouterImpl) initGlobalCMCSRouter(configRouter *mux.Router) {
 	configRouter.Path("").
 		HandlerFunc(router.restHandler.CreateGlobalCMCSConfig).Methods("POST")
 }

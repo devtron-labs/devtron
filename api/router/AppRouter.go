@@ -40,7 +40,7 @@ func NewAppRouterImpl(logger *zap.SugaredLogger, handler restHandler.AppRestHand
 	return router
 }
 
-func (router AppRouterImpl) initAppRouter(appRouter *mux.Router) {
+func (router *AppRouterImpl) initAppRouter(appRouter *mux.Router) {
 	appRouter.Path("/labels/list").
 		HandlerFunc(router.handler.GetAllLabels).Methods("GET")
 	appRouter.Path("/meta/info/{appId}").

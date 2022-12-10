@@ -85,9 +85,9 @@ func NewEnvironmentRestHandlerImpl(svc request.EnvironmentService, logger *zap.S
 	}
 }
 
-func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Request) {
+func (handler *EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userService.GetLoggedInUser(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -95,50 +95,50 @@ func (impl EnvironmentRestHandlerImpl) Create(w http.ResponseWriter, r *http.Req
 	var bean request.EnvironmentBean
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, Create", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, Create", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Errorw("request payload, Create", "payload", bean)
+	handler.logger.Errorw("request payload, Create", "payload", bean)
 
-	err = impl.validator.Struct(bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, Create", "err", err, "payload", bean)
+		handler.logger.Errorw("validation err, Create", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
 
-	res, err := impl.environmentClusterMappingsService.Create(&bean, userId)
+	res, err := handler.environmentClusterMappingsService.Create(&bean, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, Create", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, Create", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Request) {
+func (handler *EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	environment := vars["environment"]
 
-	bean, err := impl.environmentClusterMappingsService.FindOne(environment)
+	bean, err := handler.environmentClusterMappingsService.FindOne(environment)
 	if err != nil {
-		impl.logger.Errorw("service err, Get", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, Get", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.EnvironmentIdentifier)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.EnvironmentIdentifier)); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -147,10 +147,10 @@ func (impl EnvironmentRestHandlerImpl) Get(w http.ResponseWriter, r *http.Reques
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
-func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
-	bean, err := impl.environmentClusterMappingsService.GetAll()
+func (handler *EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request) {
+	bean, err := handler.environmentClusterMappingsService.GetAll()
 	if err != nil {
-		impl.logger.Errorw("service err, GetAll", "err", err)
+		handler.logger.Errorw("service err, GetAll", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -159,7 +159,7 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 	token := r.Header.Get("token")
 	for _, item := range bean {
 		// RBAC enforcer applying
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
 			result = append(result, item)
 		}
 		//RBAC enforcer Ends
@@ -168,10 +168,10 @@ func (impl EnvironmentRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Req
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (impl EnvironmentRestHandlerImpl) GetAllActive(w http.ResponseWriter, r *http.Request) {
-	bean, err := impl.environmentClusterMappingsService.GetAllActive()
+func (handler *EnvironmentRestHandlerImpl) GetAllActive(w http.ResponseWriter, r *http.Request) {
+	bean, err := handler.environmentClusterMappingsService.GetAllActive()
 	if err != nil {
-		impl.logger.Errorw("service err, GetAllActive", "err", err)
+		handler.logger.Errorw("service err, GetAllActive", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -180,7 +180,7 @@ func (impl EnvironmentRestHandlerImpl) GetAllActive(w http.ResponseWriter, r *ht
 	token := r.Header.Get("token")
 	for _, item := range bean {
 		// RBAC enforcer applying
-		if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(item.EnvironmentIdentifier)); ok {
 			result = append(result, item)
 		}
 		//RBAC enforcer Ends
@@ -189,9 +189,9 @@ func (impl EnvironmentRestHandlerImpl) GetAllActive(w http.ResponseWriter, r *ht
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
+func (handler *EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userService.GetLoggedInUser(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -200,57 +200,57 @@ func (impl EnvironmentRestHandlerImpl) Update(w http.ResponseWriter, r *http.Req
 	var bean request.EnvironmentBean
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, Update", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, Update", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Infow("request payload, Update", "payload", bean)
-	err = impl.validator.Struct(bean)
+	handler.logger.Infow("request payload, Update", "payload", bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, Update", "err", err, "payload", bean)
+		handler.logger.Errorw("validation err, Update", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	modifiedEnvironment, err := impl.environmentClusterMappingsService.FindById(bean.Id)
+	modifiedEnvironment, err := handler.environmentClusterMappingsService.FindById(bean.Id)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionUpdate, strings.ToLower(modifiedEnvironment.EnvironmentIdentifier)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionUpdate, strings.ToLower(modifiedEnvironment.EnvironmentIdentifier)); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
 
-	res, err := impl.environmentClusterMappingsService.Update(&bean, userId)
+	res, err := handler.environmentClusterMappingsService.Update(&bean, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, Update", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, Update", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
+func (handler *EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	envId, err := strconv.Atoi(vars["id"])
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	bean, err := impl.environmentClusterMappingsService.FindById(envId)
+	bean, err := handler.environmentClusterMappingsService.FindById(envId)
 	if err != nil {
-		impl.logger.Errorw("service err, FindById", "err", err, "envId", envId)
+		handler.logger.Errorw("service err, FindById", "err", err, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.EnvironmentIdentifier)); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(bean.EnvironmentIdentifier)); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -259,16 +259,16 @@ func (impl EnvironmentRestHandlerImpl) FindById(w http.ResponseWriter, r *http.R
 	common.WriteJsonResp(w, err, bean, http.StatusOK)
 }
 
-func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	start := time.Now()
-	environments, err := impl.environmentClusterMappingsService.GetEnvironmentListForAutocomplete()
+	environments, err := handler.environmentClusterMappingsService.GetEnvironmentListForAutocomplete()
 	if err != nil {
-		impl.logger.Errorw("service err, GetEnvironmentListForAutocomplete", "err", err)
+		handler.logger.Errorw("service err, GetEnvironmentListForAutocomplete", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -277,16 +277,16 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 	token := r.Header.Get("token")
 	var grantedEnvironment = environments
 	start = time.Now()
-	if !impl.cfg.IgnoreAuthCheck {
+	if !handler.cfg.IgnoreAuthCheck {
 		grantedEnvironment = make([]request.EnvironmentBean, 0)
-		emailId, _ := impl.userService.GetEmailFromToken(token)
+		emailId, _ := handler.userService.GetEmailFromToken(token)
 		// RBAC enforcer applying
 		var envIdentifierList []string
 		for _, item := range environments {
 			envIdentifierList = append(envIdentifierList, strings.ToLower(item.EnvironmentIdentifier))
 		}
 
-		result := impl.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
+		result := handler.enforcer.EnforceByEmailInBatch(emailId, casbin.ResourceGlobalEnvironment, casbin.ActionGet, envIdentifierList)
 		for _, item := range environments {
 			if hasAccess := result[strings.ToLower(item.EnvironmentIdentifier)]; hasAccess {
 				grantedEnvironment = append(grantedEnvironment, item)
@@ -295,27 +295,27 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		//RBAC enforcer Ends
 	}
 	elapsedTime := time.Since(start)
-	impl.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
+	handler.logger.Infow("Env elapsed Time for enforcer", "dbElapsedTime", dbElapsedTime, "elapsedTime",
 		elapsedTime, "token", token, "envSize", len(grantedEnvironment))
 
 	common.WriteJsonResp(w, err, grantedEnvironment, http.StatusOK)
 }
 
-func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := impl.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check admin check", http.StatusInternalServerError)
 		return
 	}
 	token := r.Header.Get("token")
-	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, isActionUserSuperAdmin, impl.CheckAuthorizationForGlobalEnvironment)
+	clusters, err := handler.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDown(token, isActionUserSuperAdmin, handler.CheckAuthorizationForGlobalEnvironment)
 	if err != nil {
-		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
+		handler.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -325,16 +325,16 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDown(w h
 	common.WriteJsonResp(w, err, clusters, http.StatusOK)
 }
 
-func (handler EnvironmentRestHandlerImpl) CheckAuthorizationForGlobalEnvironment(token string, object string) bool {
+func (handler *EnvironmentRestHandlerImpl) CheckAuthorizationForGlobalEnvironment(token string, object string) bool {
 	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionGet, strings.ToLower(object)); !ok {
 		return false
 	}
 	return true
 }
 
-func (impl EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
+func (handler *EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userService.GetLoggedInUser(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -342,37 +342,37 @@ func (impl EnvironmentRestHandlerImpl) DeleteEnvironment(w http.ResponseWriter, 
 	var bean request.EnvironmentBean
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, Delete", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, Delete", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	impl.logger.Debugw("request payload, Delete", "payload", bean)
+	handler.logger.Debugw("request payload, Delete", "payload", bean)
 
-	err = impl.validator.Struct(bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, Delete", "err", err, "payload", bean)
+		handler.logger.Errorw("validation err, Delete", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobalEnvironment, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 	//RBAC enforcer Ends
-	err = impl.deleteService.DeleteEnvironment(&bean, userId)
+	err = handler.deleteService.DeleteEnvironment(&bean, userId)
 	if err != nil {
-		impl.logger.Errorw("service err, Delete", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, Delete", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, ENV_DELETE_SUCCESS_RESP, http.StatusOK)
 }
 
-func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByClusterIds(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByClusterIds(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -385,7 +385,7 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByCl
 		for _, clusterId := range clusterIdSlices {
 			id, err := strconv.Atoi(clusterId)
 			if err != nil {
-				impl.logger.Errorw("request err, GetCombinedEnvironmentListForDropDownByClusterIds", "err", err, "clusterIdString", clusterIdString)
+				handler.logger.Errorw("request err, GetCombinedEnvironmentListForDropDownByClusterIds", "err", err, "clusterIdString", clusterIdString)
 				common.WriteJsonResp(w, err, "please send valid cluster Ids", http.StatusBadRequest)
 				return
 			}
@@ -393,9 +393,9 @@ func (impl EnvironmentRestHandlerImpl) GetCombinedEnvironmentListForDropDownByCl
 		}
 	}
 	token := r.Header.Get("token")
-	clusters, err := impl.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDownByClusterIds(token, clusterIds, impl.CheckAuthorizationForGlobalEnvironment)
+	clusters, err := handler.environmentClusterMappingsService.GetCombinedEnvironmentListForDropDownByClusterIds(token, clusterIds, handler.CheckAuthorizationForGlobalEnvironment)
 	if err != nil {
-		impl.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
+		handler.logger.Errorw("service err, GetCombinedEnvironmentListForDropDown", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

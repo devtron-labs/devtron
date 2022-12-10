@@ -49,7 +49,7 @@ func NewPipelineRouterImpl(restHandler app.PipelineConfigRestHandler,
 
 }
 
-func (router PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mux.Router) {
+func (router *PipelineConfigRouterImpl) initPipelineConfigRouter(configRouter *mux.Router) {
 	configRouter.Path("").HandlerFunc(router.restHandler.CreateApp).Methods("POST")
 	configRouter.Path("/{appId}").HandlerFunc(router.restHandler.DeleteApp).Methods("DELETE")
 	configRouter.Path("/material").HandlerFunc(router.restHandler.CreateMaterial).Methods("POST")

@@ -33,13 +33,13 @@ func NewImageScanRouterImpl(imageScanRestHandler restHandler.ImageScanRestHandle
 	return &ImageScanRouterImpl{imageScanRestHandler: imageScanRestHandler}
 }
 
-func (impl ImageScanRouterImpl) InitImageScanRouter(configRouter *mux.Router) {
-	configRouter.Path("/list").HandlerFunc(impl.imageScanRestHandler.ScanExecutionList).Methods("POST")
+func (router *ImageScanRouterImpl) InitImageScanRouter(configRouter *mux.Router) {
+	configRouter.Path("/list").HandlerFunc(router.imageScanRestHandler.ScanExecutionList).Methods("POST")
 
 	//image=image:abc&envId=3&appId=100&artifactId=100&executionId=100
-	configRouter.Path("/executionDetail").HandlerFunc(impl.imageScanRestHandler.FetchExecutionDetail).Methods("GET")
-	configRouter.Path("/executionDetail/min").HandlerFunc(impl.imageScanRestHandler.FetchMinScanResultByAppIdAndEnvId).Methods("GET")
+	configRouter.Path("/executionDetail").HandlerFunc(router.imageScanRestHandler.FetchExecutionDetail).Methods("GET")
+	configRouter.Path("/executionDetail/min").HandlerFunc(router.imageScanRestHandler.FetchMinScanResultByAppIdAndEnvId).Methods("GET")
 
-	configRouter.Path("/cve/exposure").HandlerFunc(impl.imageScanRestHandler.VulnerabilityExposure).Methods("POST")
+	configRouter.Path("/cve/exposure").HandlerFunc(router.imageScanRestHandler.VulnerabilityExposure).Methods("POST")
 
 }

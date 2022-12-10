@@ -62,7 +62,7 @@ func NewBatchOperationRestHandlerImpl(userAuthService user.UserService, enforcer
 	}
 }
 
-func (handler BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *http.Request) {
+func (handler *BatchOperationRestHandlerImpl) Operate(w http.ResponseWriter, r *http.Request) {
 	token := r.Header.Get("token")
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)

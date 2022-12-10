@@ -57,25 +57,25 @@ func NewGitWebhookHandler(logger *zap.SugaredLogger, pubsubClient *pubsub.PubSub
 	return gitWebhookHandlerImpl
 }
 
-func (impl *GitWebhookHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.NEW_CI_MATERIAL_TOPIC, util.NEW_CI_MATERIAL_TOPIC_GROUP, func(msg *nats.Msg) {
+func (handler *GitWebhookHandlerImpl) Subscribe() error {
+	_, err := handler.pubsubClient.JetStrCtxt.QueueSubscribe(util.NEW_CI_MATERIAL_TOPIC, util.NEW_CI_MATERIAL_TOPIC_GROUP, func(msg *nats.Msg) {
 		defer msg.Ack()
 		ciPipelineMaterial := gitSensor.CiPipelineMaterial{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &ciPipelineMaterial)
 		if err != nil {
-			impl.logger.Error("Error while unmarshalling json response", "error", err)
+			handler.logger.Error("Error while unmarshalling json response", "error", err)
 			return
 		}
-		resp, err := impl.gitWebhookService.HandleGitWebhook(ciPipelineMaterial)
-		impl.logger.Debug(resp)
+		resp, err := handler.gitWebhookService.HandleGitWebhook(ciPipelineMaterial)
+		handler.logger.Debug(resp)
 		if err != nil {
-			impl.logger.Error("err", err)
+			handler.logger.Error("err", err)
 			return
 		}
 	}, nats.Durable(util.NEW_CI_MATERIAL_TOPIC_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.GIT_SENSOR_STREAM))
 
 	if err != nil {
-		impl.logger.Error("err", err)
+		handler.logger.Error("err", err)
 		return err
 	}
 	return nil

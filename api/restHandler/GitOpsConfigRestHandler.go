@@ -69,16 +69,16 @@ func NewGitOpsConfigRestHandlerImpl(
 	}
 }
 
-func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -86,37 +86,37 @@ func (impl GitOpsConfigRestHandlerImpl) CreateGitOpsConfig(w http.ResponseWriter
 	var bean bean2.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, CreateGitOpsConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, CreateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, CreateGitOpsConfig", "err", err, "payload", bean)
-	err = impl.validator.Struct(bean)
+	handler.logger.Infow("request payload, CreateGitOpsConfig", "err", err, "payload", bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, CreateGitOpsConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("validation err, CreateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	detailedErrorGitOpsConfigResponse, err := impl.gitOpsConfigService.ValidateAndCreateGitOpsConfig(&bean)
+	detailedErrorGitOpsConfigResponse, err := handler.gitOpsConfigService.ValidateAndCreateGitOpsConfig(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, SaveGitRepoConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 
 }
 
-func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -124,50 +124,50 @@ func (impl GitOpsConfigRestHandlerImpl) UpdateGitOpsConfig(w http.ResponseWriter
 	var bean bean2.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, UpdateGitOpsConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, UpdateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, UpdateGitOpsConfig", "payload", bean)
-	err = impl.validator.Struct(bean)
+	handler.logger.Infow("request payload, UpdateGitOpsConfig", "payload", bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, UpdateGitOpsConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("validation err, UpdateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	detailedErrorGitOpsConfigResponse, err := impl.gitOpsConfigService.ValidateAndUpdateGitOpsConfig(&bean)
+	detailedErrorGitOpsConfigResponse, err := handler.gitOpsConfigService.ValidateAndUpdateGitOpsConfig(&bean)
 	if err != nil {
-		impl.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("service err, UpdateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 	}
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 
 }
 
-func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigById(w http.ResponseWriter, r *http.Request) {
+func (handler *GitOpsConfigRestHandlerImpl) GetGitOpsConfigById(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	id, err := strconv.Atoi(vars["id"])
 	if err != nil {
-		impl.logger.Errorw("request err, GetGitOpsConfigById", "err", err, "chart repo id", id)
+		handler.logger.Errorw("request err, GetGitOpsConfigById", "err", err, "chart repo id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	res, err := impl.gitOpsConfigService.GetGitOpsConfigById(id)
+	res, err := handler.gitOpsConfigService.GetGitOpsConfigById(id)
 	if err != nil {
-		impl.logger.Errorw("service err, GetGitOpsConfigById", "err", err, "id", id)
+		handler.logger.Errorw("service err, GetGitOpsConfigById", "err", err, "id", id)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -176,15 +176,15 @@ func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigById(w http.ResponseWrite
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	result, err := impl.gitOpsConfigService.GetAllGitOpsConfig()
+	result, err := handler.gitOpsConfigService.GetAllGitOpsConfig()
 	if err != nil {
-		impl.logger.Errorw("service err, GetAllGitOpsConfig", "err", err)
+		handler.logger.Errorw("service err, GetAllGitOpsConfig", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -201,22 +201,22 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsConfigured(w http.ResponseWriter, 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl GitOpsConfigRestHandlerImpl) GetAllGitOpsConfig(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *GitOpsConfigRestHandlerImpl) GetAllGitOpsConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	result, err := impl.gitOpsConfigService.GetAllGitOpsConfig()
+	result, err := handler.gitOpsConfigService.GetAllGitOpsConfig()
 	if err != nil {
-		impl.logger.Errorw("service err, GetAllGitOpsConfig", "err", err)
+		handler.logger.Errorw("service err, GetAllGitOpsConfig", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -225,17 +225,17 @@ func (impl GitOpsConfigRestHandlerImpl) GetAllGitOpsConfig(w http.ResponseWriter
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigByProvider(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+func (handler *GitOpsConfigRestHandlerImpl) GetGitOpsConfigByProvider(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	vars := mux.Vars(r)
 	provider := vars["provider"]
-	res, err := impl.gitOpsConfigService.GetGitOpsConfigByProvider(provider)
+	res, err := handler.gitOpsConfigService.GetGitOpsConfigByProvider(provider)
 	if err != nil {
-		impl.logger.Errorw("service err, GetGitOpsConfigByProvider", "err", err, "provider", provider)
+		handler.logger.Errorw("service err, GetGitOpsConfigByProvider", "err", err, "provider", provider)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
@@ -243,7 +243,7 @@ func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigByProvider(w http.Respons
 	// RBAC enforcer applying
 
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -251,16 +251,16 @@ func (impl GitOpsConfigRestHandlerImpl) GetGitOpsConfigByProvider(w http.Respons
 
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
-func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r *http.Request) {
+func (handler *GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	userId, err := impl.userAuthService.GetLoggedInUser(r)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
 	// RBAC enforcer applying
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionCreate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -268,18 +268,18 @@ func (impl GitOpsConfigRestHandlerImpl) GitOpsValidator(w http.ResponseWriter, r
 	var bean bean2.GitOpsConfigDto
 	err = decoder.Decode(&bean)
 	if err != nil {
-		impl.logger.Errorw("request err, ValidateGitOpsConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("request err, ValidateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 	bean.UserId = userId
-	impl.logger.Infow("request payload, ValidateGitOpsConfig", "err", err, "payload", bean)
-	err = impl.validator.Struct(bean)
+	handler.logger.Infow("request payload, ValidateGitOpsConfig", "err", err, "payload", bean)
+	err = handler.validator.Struct(bean)
 	if err != nil {
-		impl.logger.Errorw("validation err, ValidateGitOpsConfig", "err", err, "payload", bean)
+		handler.logger.Errorw("validation err, ValidateGitOpsConfig", "err", err, "payload", bean)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	detailedErrorGitOpsConfigResponse := impl.gitOpsConfigService.GitOpsValidateDryRun(&bean)
+	detailedErrorGitOpsConfigResponse := handler.gitOpsConfigService.GitOpsValidateDryRun(&bean)
 	common.WriteJsonResp(w, nil, detailedErrorGitOpsConfigResponse, http.StatusOK)
 }

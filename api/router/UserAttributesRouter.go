@@ -37,7 +37,7 @@ func NewUserAttributesRouterImpl(userAttributesRestHandler user.UserAttributesRe
 	return router
 }
 
-func (router UserAttributesRouterImpl) InitUserAttributesRouter(attributesRouter *mux.Router) {
+func (router *UserAttributesRouterImpl) InitUserAttributesRouter(attributesRouter *mux.Router) {
 	attributesRouter.Path("/update").
 		HandlerFunc(router.userAttributesRestHandler.UpdateUserAttributes).Methods("POST")
 	attributesRouter.Path("/get").

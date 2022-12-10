@@ -55,14 +55,14 @@ func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHa
 }
 
 // RedirectUrlSanitiser replaces initial "/orchestrator" from url
-func (router UserAuthRouterImpl) RedirectUrlSanitiser(redirectUrl string) string {
+func (router *UserAuthRouterImpl) RedirectUrlSanitiser(redirectUrl string) string {
 	if strings.Contains(redirectUrl, argocdServer.Dashboard) {
 		redirectUrl = strings.ReplaceAll(redirectUrl, argocdServer.Orchestrator, "")
 	}
 	return redirectUrl
 }
 
-func (router UserAuthRouterImpl) InitUserAuthRouter(userAuthRouter *mux.Router) {
+func (router *UserAuthRouterImpl) InitUserAuthRouter(userAuthRouter *mux.Router) {
 	userAuthRouter.Path("/").
 		HandlerFunc(func(writer http.ResponseWriter, request *http.Request) {
 			router.writeSuccess("Welcome @Devtron", writer)
@@ -82,7 +82,7 @@ func (router UserAuthRouterImpl) InitUserAuthRouter(userAuthRouter *mux.Router) 
 		HandlerFunc(router.userAuthHandler.AuthVerification).Methods("GET")
 }
 
-func (router UserAuthRouterImpl) writeSuccess(message string, w http.ResponseWriter) {
+func (router *UserAuthRouterImpl) writeSuccess(message string, w http.ResponseWriter) {
 	w.WriteHeader(http.StatusOK)
 	_, err := w.Write([]byte(message))
 	if err != nil {

@@ -33,43 +33,43 @@ func NewEnvironmentRouterImpl(environmentClusterMappingsRestHandler EnvironmentR
 	return &EnvironmentRouterImpl{environmentClusterMappingsRestHandler: environmentClusterMappingsRestHandler}
 }
 
-func (impl EnvironmentRouterImpl) InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter *mux.Router) {
+func (router *EnvironmentRouterImpl) InitEnvironmentClusterMappingsRouter(environmentClusterMappingsRouter *mux.Router) {
 	/*environmentClusterMappingsRouter.Path("/").
 	Methods("GET").
 	Queries("clusterName", "{clusterName}").
-	HandlerFunc(impl.environmentClusterMappingsRestHandler.Get)*/
+	HandlerFunc(router.environmentClusterMappingsRestHandler.Get)*/
 	environmentClusterMappingsRouter.Path("/name").
 		Methods("GET").
 		Queries("environment", "{environment}").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.Get)
+		HandlerFunc(router.environmentClusterMappingsRestHandler.Get)
 	environmentClusterMappingsRouter.Path("").
 		Methods("GET").
 		Queries("id", "{id}").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.FindById)
+		HandlerFunc(router.environmentClusterMappingsRestHandler.FindById)
 	environmentClusterMappingsRouter.Path("").
 		Methods("GET").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetAll)
+		HandlerFunc(router.environmentClusterMappingsRestHandler.GetAll)
 	environmentClusterMappingsRouter.Path("/active").
 		Methods("GET").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetAllActive)
+		HandlerFunc(router.environmentClusterMappingsRestHandler.GetAllActive)
 	environmentClusterMappingsRouter.Path("").
 		Methods("POST").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.Create)
+		HandlerFunc(router.environmentClusterMappingsRestHandler.Create)
 
 	environmentClusterMappingsRouter.Path("").
 		Methods("PUT").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.Update)
+		HandlerFunc(router.environmentClusterMappingsRestHandler.Update)
 	environmentClusterMappingsRouter.Path("/autocomplete").
 		Methods("GET").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetEnvironmentListForAutocomplete)
+		HandlerFunc(router.environmentClusterMappingsRestHandler.GetEnvironmentListForAutocomplete)
 	environmentClusterMappingsRouter.Path("/autocomplete/helm").
 		Methods("GET").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetCombinedEnvironmentListForDropDown)
+		HandlerFunc(router.environmentClusterMappingsRestHandler.GetCombinedEnvironmentListForDropDown)
 	environmentClusterMappingsRouter.Path("").
 		Methods("DELETE").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.DeleteEnvironment)
+		HandlerFunc(router.environmentClusterMappingsRestHandler.DeleteEnvironment)
 	environmentClusterMappingsRouter.Path("/namespace/autocomplete").
 		Methods("GET").
-		HandlerFunc(impl.environmentClusterMappingsRestHandler.GetCombinedEnvironmentListForDropDownByClusterIds)
+		HandlerFunc(router.environmentClusterMappingsRestHandler.GetCombinedEnvironmentListForDropDownByClusterIds)
 
 }

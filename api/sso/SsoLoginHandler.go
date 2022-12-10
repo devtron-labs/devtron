@@ -56,7 +56,7 @@ func NewSsoLoginRestHandlerImpl(validator *validator.Validate,
 	return handler
 }
 
-func (handler SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -87,7 +87,7 @@ func (handler SsoLoginRestHandlerImpl) CreateSSOLoginConfig(w http.ResponseWrite
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -119,7 +119,7 @@ func (handler SsoLoginRestHandlerImpl) UpdateSSOLoginConfig(w http.ResponseWrite
 	common.WriteJsonResp(w, nil, resp, http.StatusOK)
 }
 
-func (handler SsoLoginRestHandlerImpl) GetAllSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *SsoLoginRestHandlerImpl) GetAllSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	res, err := handler.ssoLoginService.GetAll()
 	if err != nil {
 		handler.logger.Errorw("service err, GetAllSSOLoginConfig", "err", err)
@@ -129,7 +129,7 @@ func (handler SsoLoginRestHandlerImpl) GetAllSSOLoginConfig(w http.ResponseWrite
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
+func (handler *SsoLoginRestHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -159,7 +159,7 @@ func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfig(w http.ResponseWriter, 
 	common.WriteJsonResp(w, nil, res, http.StatusOK)
 }
 
-func (handler SsoLoginRestHandlerImpl) GetSSOLoginConfigByName(w http.ResponseWriter, r *http.Request) {
+func (handler *SsoLoginRestHandlerImpl) GetSSOLoginConfigByName(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)

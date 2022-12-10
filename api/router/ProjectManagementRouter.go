@@ -34,12 +34,12 @@ func NewProjectManagementRouterImpl(jiraRestHandler restHandler.JiraRestHandler)
 	return &ProjectManagementRouterImpl{jiraRestHandler: jiraRestHandler}
 }
 
-func (impl ProjectManagementRouterImpl) InitProjectManagementRouter(jiraRouter *mux.Router) {
+func (router *ProjectManagementRouterImpl) InitProjectManagementRouter(jiraRouter *mux.Router) {
 	jiraRouter.Path("/jira/config").
 		Methods("POST").
-		HandlerFunc(impl.jiraRestHandler.SaveAccountConfig)
+		HandlerFunc(router.jiraRestHandler.SaveAccountConfig)
 	jiraRouter.Path("/jira/release").
 		Methods("POST").
-		HandlerFunc(impl.jiraRestHandler.UpdateIssueStatus)
+		HandlerFunc(router.jiraRestHandler.UpdateIssueStatus)
 
 }

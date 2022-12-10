@@ -33,7 +33,7 @@ func NewChartRepositoryRouterImpl(chartRepositoryRestHandler ChartRepositoryRest
 	return &ChartRepositoryRouterImpl{chartRepositoryRestHandler: chartRepositoryRestHandler}
 }
 
-func (router ChartRepositoryRouterImpl) Init(configRouter *mux.Router) {
+func (router *ChartRepositoryRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/sync-charts").
 		HandlerFunc(router.chartRepositoryRestHandler.TriggerChartSyncManual).Methods("POST")
 	configRouter.Path("/list").

@@ -42,7 +42,7 @@ func NewChartRefRestHandlerImpl(chartService chart.ChartService, logger *zap.Sug
 	return handler
 }
 
-func (handler ChartRefRestHandlerImpl) ChartRefAutocomplete(w http.ResponseWriter, r *http.Request) {
+func (handler *ChartRefRestHandlerImpl) ChartRefAutocomplete(w http.ResponseWriter, r *http.Request) {
 	result, err := handler.chartService.ChartRefAutocomplete()
 	if err != nil {
 		handler.logger.Errorw("service err, ChartRefAutocomplete", "err", err)
@@ -53,7 +53,7 @@ func (handler ChartRefRestHandlerImpl) ChartRefAutocomplete(w http.ResponseWrite
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (handler ChartRefRestHandlerImpl) ChartRefAutocompleteForApp(w http.ResponseWriter, r *http.Request) {
+func (handler *ChartRefRestHandlerImpl) ChartRefAutocompleteForApp(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {
@@ -71,7 +71,7 @@ func (handler ChartRefRestHandlerImpl) ChartRefAutocompleteForApp(w http.Respons
 	common.WriteJsonResp(w, err, result, http.StatusOK)
 }
 
-func (handler ChartRefRestHandlerImpl) ChartRefAutocompleteForEnv(w http.ResponseWriter, r *http.Request) {
+func (handler *ChartRefRestHandlerImpl) ChartRefAutocompleteForEnv(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	appId, err := strconv.Atoi(vars["appId"])
 	if err != nil {

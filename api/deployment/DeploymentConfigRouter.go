@@ -16,7 +16,7 @@ func NewDeploymentRouterImpl(deploymentRestHandler DeploymentConfigRestHandler) 
 	}
 }
 
-func (router DeploymentConfigRouterImpl) Init(configRouter *mux.Router) {
+func (router *DeploymentConfigRouterImpl) Init(configRouter *mux.Router) {
 	configRouter.Path("/validate").
 		HandlerFunc(router.deploymentRestHandler.CreateChartFromFile).Methods("POST")
 	configRouter.Path("/upload").

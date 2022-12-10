@@ -59,8 +59,8 @@ func NewModuleRestHandlerImpl(logger *zap.SugaredLogger,
 	}
 }
 
-func (impl ModuleRestHandlerImpl) GetModuleConfig(w http.ResponseWriter, r *http.Request) {
-	userId, err := impl.userService.GetLoggedInUser(r)
+func (handler *ModuleRestHandlerImpl) GetModuleConfig(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -70,23 +70,23 @@ func (impl ModuleRestHandlerImpl) GetModuleConfig(w http.ResponseWriter, r *http
 	params := mux.Vars(r)
 	moduleName := params["name"]
 	if len(moduleName) == 0 {
-		impl.logger.Error("module name is not supplied")
+		handler.logger.Error("module name is not supplied")
 		common.WriteJsonResp(w, errors.New("module name is not supplied"), nil, http.StatusBadRequest)
 		return
 	}
 
-	config, err := impl.moduleService.GetModuleConfig(moduleName)
+	config, err := handler.moduleService.GetModuleConfig(moduleName)
 	if err != nil {
-		impl.logger.Errorw("service err, GetModuleConfig", "name", moduleName, "err", err)
+		handler.logger.Errorw("service err, GetModuleConfig", "name", moduleName, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, config, http.StatusOK)
 }
 
-func (impl ModuleRestHandlerImpl) GetModuleInfo(w http.ResponseWriter, r *http.Request) {
+func (handler *ModuleRestHandlerImpl) GetModuleInfo(w http.ResponseWriter, r *http.Request) {
 	// check if user is logged in or not
-	userId, err := impl.userService.GetLoggedInUser(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -96,24 +96,24 @@ func (impl ModuleRestHandlerImpl) GetModuleInfo(w http.ResponseWriter, r *http.R
 	params := mux.Vars(r)
 	moduleName := params["name"]
 	if len(moduleName) == 0 {
-		impl.logger.Error("module name is not supplied")
+		handler.logger.Error("module name is not supplied")
 		common.WriteJsonResp(w, errors.New("module name is not supplied"), nil, http.StatusBadRequest)
 		return
 	}
 
 	// service call
-	res, err := impl.moduleService.GetModuleInfo(moduleName)
+	res, err := handler.moduleService.GetModuleInfo(moduleName)
 	if err != nil {
-		impl.logger.Errorw("service err, GetModuleInfo", "err", err)
+		handler.logger.Errorw("service err, GetModuleInfo", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (impl ModuleRestHandlerImpl) HandleModuleAction(w http.ResponseWriter, r *http.Request) {
+func (handler *ModuleRestHandlerImpl) HandleModuleAction(w http.ResponseWriter, r *http.Request) {
 	// check if user is logged in or not
-	userId, err := impl.userService.GetLoggedInUser(r)
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -123,7 +123,7 @@ func (impl ModuleRestHandlerImpl) HandleModuleAction(w http.ResponseWriter, r *h
 	params := mux.Vars(r)
 	moduleName := params["name"]
 	if len(moduleName) == 0 {
-		impl.logger.Error("module name is not supplied")
+		handler.logger.Error("module name is not supplied")
 		common.WriteJsonResp(w, errors.New("module name is not supplied"), nil, http.StatusBadRequest)
 		return
 	}
@@ -133,28 +133,28 @@ func (impl ModuleRestHandlerImpl) HandleModuleAction(w http.ResponseWriter, r *h
 	var moduleActionRequestDto *module.ModuleActionRequestDto
 	err = decoder.Decode(&moduleActionRequestDto)
 	if err != nil {
-		impl.logger.Errorw("error in decoding request in HandleModuleAction", "err", err)
+		handler.logger.Errorw("error in decoding request in HandleModuleAction", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	err = impl.validator.Struct(moduleActionRequestDto)
+	err = handler.validator.Struct(moduleActionRequestDto)
 	if err != nil {
-		impl.logger.Errorw("error in validating request in HandleModuleAction", "err", err)
+		handler.logger.Errorw("error in validating request in HandleModuleAction", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
 
 	// handle super-admin RBAC
 	token := r.Header.Get("token")
-	if ok := impl.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
 
 	// service call
-	res, err := impl.moduleService.HandleModuleAction(userId, moduleName, moduleActionRequestDto)
+	res, err := handler.moduleService.HandleModuleAction(userId, moduleName, moduleActionRequestDto)
 	if err != nil {
-		impl.logger.Errorw("service err, HandleModuleAction", "err", err)
+		handler.logger.Errorw("service err, HandleModuleAction", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

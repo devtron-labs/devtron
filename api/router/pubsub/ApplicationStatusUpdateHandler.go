@@ -72,15 +72,15 @@ type ApplicationDetail struct {
 	StatusTime     time.Time              `json:"statusTime"`
 }
 
-func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
-	_, err := impl.pubsubClient.JetStrCtxt.QueueSubscribe(util.APPLICATION_STATUS_UPDATE_TOPIC, util.APPLICATION_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
-		impl.logger.Debug("received app update request")
+func (handler *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
+	_, err := handler.pubsubClient.JetStrCtxt.QueueSubscribe(util.APPLICATION_STATUS_UPDATE_TOPIC, util.APPLICATION_STATUS_UPDATE_GROUP, func(msg *nats.Msg) {
+		handler.logger.Debug("received app update request")
 		defer msg.Ack()
-		impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "raw", "data", msg.Data)
+		handler.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "raw", "data", msg.Data)
 		applicationDetail := ApplicationDetail{}
 		err := json.Unmarshal([]byte(string(msg.Data)), &applicationDetail)
 		if err != nil {
-			impl.logger.Errorw("unmarshal error on app update status", "err", err)
+			handler.logger.Errorw("unmarshal error on app update status", "err", err)
 			return
 		}
 		newApp := applicationDetail.Application
@@ -88,20 +88,20 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 		if newApp == nil {
 			return
 		}
-		//impl.logger.Infow("app update request", "application", newApp)
+		//handler.logger.Infow("app update request", "application", newApp)
 		if applicationDetail.StatusTime.IsZero() {
 			applicationDetail.StatusTime = time.Now()
 		}
-		isHealthy, err := impl.appService.UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp, applicationDetail.StatusTime)
+		isHealthy, err := handler.appService.UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp, applicationDetail.StatusTime)
 		if err != nil {
-			impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
+			handler.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 
 			//TODO - check update for charts - fix this call
 			if err == pg.ErrNoRows {
 				// if not found in charts (which is for devtron apps) try to find in installed app (which is for devtron charts)
-				_, err := impl.installedAppService.UpdateInstalledAppVersionStatus(newApp)
+				_, err := handler.installedAppService.UpdateInstalledAppVersionStatus(newApp)
 				if err != nil {
-					impl.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
+					handler.logger.Errorw("error on application status update", "err", err, "msg", string(msg.Data))
 					return
 				}
 			}
@@ -111,24 +111,24 @@ func (impl *ApplicationStatusUpdateHandlerImpl) Subscribe() error {
 
 		// invoke DagExecutor, for cd success which will trigger post stage if exist.
 		if isHealthy {
-			impl.logger.Debugw("git hash history", "list", newApp.Status.History)
+			handler.logger.Debugw("git hash history", "list", newApp.Status.History)
 			var gitHash string
 			if newApp.Operation != nil && newApp.Operation.Sync != nil {
 				gitHash = newApp.Operation.Sync.Revision
 			} else if newApp.Status.OperationState != nil && newApp.Status.OperationState.Operation.Sync != nil {
 				gitHash = newApp.Status.OperationState.Operation.Sync.Revision
 			}
-			err = impl.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
+			err = handler.workflowDagExecutor.HandleDeploymentSuccessEvent(gitHash, 0)
 			if err != nil {
-				impl.logger.Errorw("deployment success event error", "gitHash", gitHash, "err", err)
+				handler.logger.Errorw("deployment success event error", "gitHash", gitHash, "err", err)
 				return
 			}
 		}
-		impl.logger.Debugw("application status update completed", "app", newApp.Name)
+		handler.logger.Debugw("application status update completed", "app", newApp.Name)
 	}, nats.Durable(util.APPLICATION_STATUS_UPDATE_DURABLE), nats.DeliverLast(), nats.ManualAck(), nats.BindStream(util.KUBEWATCH_STREAM))
 
 	if err != nil {
-		impl.logger.Error(err)
+		handler.logger.Error(err)
 		return err
 	}
 	return nil

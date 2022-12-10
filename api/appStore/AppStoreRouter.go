@@ -46,7 +46,7 @@ func NewAppStoreRouterImpl(restHandler InstalledAppRestHandler,
 	}
 }
 
-func (router AppStoreRouterImpl) Init(configRouter *mux.Router) {
+func (router *AppStoreRouterImpl) Init(configRouter *mux.Router) {
 	// deployment router starts
 	appStoreDeploymentSubRouter := configRouter.PathPrefix("/deployment").Subrouter()
 	router.appStoreDeploymentRouter.Init(appStoreDeploymentSubRouter)

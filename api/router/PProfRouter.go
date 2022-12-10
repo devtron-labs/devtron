@@ -1,9 +1,9 @@
 package router
 
 import (
-"github.com/devtron-labs/devtron/api/restHandler"
-"github.com/gorilla/mux"
-"go.uber.org/zap"
+	"github.com/devtron-labs/devtron/api/restHandler"
+	"github.com/gorilla/mux"
+	"go.uber.org/zap"
 )
 
 type PProfRouter interface {
@@ -23,18 +23,17 @@ func NewPProfRouter(logger *zap.SugaredLogger,
 	}
 }
 
-func (ppr PProfRouterImpl) initPProfRouter(router *mux.Router) {
+func (router *PProfRouterImpl) initPProfRouter(pprofRouter *mux.Router) {
 
-	router.HandleFunc("/", ppr.pprofRestHandler.Index)
-	router.HandleFunc("/cmdline", ppr.pprofRestHandler.Cmdline)
-	router.HandleFunc("/profile", ppr.pprofRestHandler.Profile)
-	router.HandleFunc("/symbol", ppr.pprofRestHandler.Symbol)
-	router.HandleFunc("/trace", ppr.pprofRestHandler.Trace)
-	router.HandleFunc("/goroutine", ppr.pprofRestHandler.Goroutine)
-	router.HandleFunc("/threadcreate", ppr.pprofRestHandler.Threadcreate)
-	router.HandleFunc("/heap", ppr.pprofRestHandler.Heap)
-	router.HandleFunc("/block", ppr.pprofRestHandler.Block)
-	router.HandleFunc("/mutex", ppr.pprofRestHandler.Mutex)
-	router.HandleFunc("/allocs", ppr.pprofRestHandler.Allocs)
+	pprofRouter.HandleFunc("/", router.pprofRestHandler.Index)
+	pprofRouter.HandleFunc("/cmdline", router.pprofRestHandler.Cmdline)
+	pprofRouter.HandleFunc("/profile", router.pprofRestHandler.Profile)
+	pprofRouter.HandleFunc("/symbol", router.pprofRestHandler.Symbol)
+	pprofRouter.HandleFunc("/trace", router.pprofRestHandler.Trace)
+	pprofRouter.HandleFunc("/goroutine", router.pprofRestHandler.Goroutine)
+	pprofRouter.HandleFunc("/threadcreate", router.pprofRestHandler.Threadcreate)
+	pprofRouter.HandleFunc("/heap", router.pprofRestHandler.Heap)
+	pprofRouter.HandleFunc("/block", router.pprofRestHandler.Block)
+	pprofRouter.HandleFunc("/mutex", router.pprofRestHandler.Mutex)
+	pprofRouter.HandleFunc("/allocs", router.pprofRestHandler.Allocs)
 }
-

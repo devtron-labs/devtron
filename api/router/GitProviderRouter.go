@@ -32,23 +32,23 @@ type GitProviderRouterImpl struct {
 func NewGitProviderRouterImpl(gitRestHandler restHandler.GitProviderRestHandler) *GitProviderRouterImpl {
 	return &GitProviderRouterImpl{gitRestHandler: gitRestHandler}
 }
-func (impl GitProviderRouterImpl) InitGitProviderRouter(configRouter *mux.Router) {
+func (router *GitProviderRouterImpl) InitGitProviderRouter(configRouter *mux.Router) {
 	configRouter.Path("/provider").
-		HandlerFunc(impl.gitRestHandler.SaveGitRepoConfig).
+		HandlerFunc(router.gitRestHandler.SaveGitRepoConfig).
 		Methods("POST")
 	configRouter.Path("/provider/autocomplete").
-		HandlerFunc(impl.gitRestHandler.GetGitProviders).
+		HandlerFunc(router.gitRestHandler.GetGitProviders).
 		Methods("GET")
 	configRouter.Path("/provider").
-		HandlerFunc(impl.gitRestHandler.FetchAllGitProviders).
+		HandlerFunc(router.gitRestHandler.FetchAllGitProviders).
 		Methods("GET")
 	configRouter.Path("/provider/{id}").
-		HandlerFunc(impl.gitRestHandler.FetchOneGitProviders).
+		HandlerFunc(router.gitRestHandler.FetchOneGitProviders).
 		Methods("GET")
 	configRouter.Path("/provider").
-		HandlerFunc(impl.gitRestHandler.UpdateGitRepoConfig).
+		HandlerFunc(router.gitRestHandler.UpdateGitRepoConfig).
 		Methods("PUT")
 	configRouter.Path("/provider").
-		HandlerFunc(impl.gitRestHandler.DeleteGitRepoConfig).
+		HandlerFunc(router.gitRestHandler.DeleteGitRepoConfig).
 		Methods("DELETE")
 }

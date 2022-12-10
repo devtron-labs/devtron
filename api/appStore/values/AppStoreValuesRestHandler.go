@@ -55,7 +55,7 @@ func NewAppStoreValuesRestHandlerImpl(Logger *zap.SugaredLogger, userAuthService
 	}
 }
 
-func (handler AppStoreValuesRestHandlerImpl) CreateAppStoreVersionValues(w http.ResponseWriter, r *http.Request) {
+func (handler *AppStoreValuesRestHandlerImpl) CreateAppStoreVersionValues(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -80,7 +80,7 @@ func (handler AppStoreValuesRestHandlerImpl) CreateAppStoreVersionValues(w http.
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler AppStoreValuesRestHandlerImpl) UpdateAppStoreVersionValues(w http.ResponseWriter, r *http.Request) {
+func (handler *AppStoreValuesRestHandlerImpl) UpdateAppStoreVersionValues(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
@@ -105,7 +105,7 @@ func (handler AppStoreValuesRestHandlerImpl) UpdateAppStoreVersionValues(w http.
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler AppStoreValuesRestHandlerImpl) FindValuesById(w http.ResponseWriter, r *http.Request) {
+func (handler *AppStoreValuesRestHandlerImpl) FindValuesById(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -134,7 +134,7 @@ func (handler AppStoreValuesRestHandlerImpl) FindValuesById(w http.ResponseWrite
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler AppStoreValuesRestHandlerImpl) DeleteAppStoreVersionValues(w http.ResponseWriter, r *http.Request) {
+func (handler *AppStoreValuesRestHandlerImpl) DeleteAppStoreVersionValues(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusUnauthorized)
@@ -158,7 +158,7 @@ func (handler AppStoreValuesRestHandlerImpl) DeleteAppStoreVersionValues(w http.
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler AppStoreValuesRestHandlerImpl) FindValuesByAppStoreIdAndReferenceType(w http.ResponseWriter, r *http.Request) {
+func (handler *AppStoreValuesRestHandlerImpl) FindValuesByAppStoreIdAndReferenceType(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -182,7 +182,7 @@ func (handler AppStoreValuesRestHandlerImpl) FindValuesByAppStoreIdAndReferenceT
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler AppStoreValuesRestHandlerImpl) FetchTemplateValuesByAppStoreId(w http.ResponseWriter, r *http.Request) {
+func (handler *AppStoreValuesRestHandlerImpl) FetchTemplateValuesByAppStoreId(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
@@ -218,7 +218,7 @@ func (handler AppStoreValuesRestHandlerImpl) FetchTemplateValuesByAppStoreId(w h
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler AppStoreValuesRestHandlerImpl) GetSelectedChartMetadata(w http.ResponseWriter, r *http.Request) {
+func (handler *AppStoreValuesRestHandlerImpl) GetSelectedChartMetadata(w http.ResponseWriter, r *http.Request) {
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)

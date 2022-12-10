@@ -32,26 +32,26 @@ type GitOpsConfigRouterImpl struct {
 func NewGitOpsConfigRouterImpl(gitOpsConfigRestHandler restHandler.GitOpsConfigRestHandler) *GitOpsConfigRouterImpl {
 	return &GitOpsConfigRouterImpl{gitOpsConfigRestHandler: gitOpsConfigRestHandler}
 }
-func (impl GitOpsConfigRouterImpl) InitGitOpsConfigRouter(configRouter *mux.Router) {
+func (router *GitOpsConfigRouterImpl) InitGitOpsConfigRouter(configRouter *mux.Router) {
 	configRouter.Path("/config").
-		HandlerFunc(impl.gitOpsConfigRestHandler.CreateGitOpsConfig).
+		HandlerFunc(router.gitOpsConfigRestHandler.CreateGitOpsConfig).
 		Methods("POST")
 	configRouter.Path("/config").
-		HandlerFunc(impl.gitOpsConfigRestHandler.UpdateGitOpsConfig).
+		HandlerFunc(router.gitOpsConfigRestHandler.UpdateGitOpsConfig).
 		Methods("PUT")
 	configRouter.Path("/config/{id}").
-		HandlerFunc(impl.gitOpsConfigRestHandler.GetGitOpsConfigById).
+		HandlerFunc(router.gitOpsConfigRestHandler.GetGitOpsConfigById).
 		Methods("GET")
 	configRouter.Path("/config").
-		HandlerFunc(impl.gitOpsConfigRestHandler.GetAllGitOpsConfig).
+		HandlerFunc(router.gitOpsConfigRestHandler.GetAllGitOpsConfig).
 		Methods("GET")
 	configRouter.Path("/config-by-provider").
-		HandlerFunc(impl.gitOpsConfigRestHandler.GetGitOpsConfigByProvider).Queries("provider", "{provider}").
+		HandlerFunc(router.gitOpsConfigRestHandler.GetGitOpsConfigByProvider).Queries("provider", "{provider}").
 		Methods("GET")
 	configRouter.Path("/configured").
-		HandlerFunc(impl.gitOpsConfigRestHandler.GitOpsConfigured).
+		HandlerFunc(router.gitOpsConfigRestHandler.GitOpsConfigured).
 		Methods("GET")
 	configRouter.Path("/validate").
-		HandlerFunc(impl.gitOpsConfigRestHandler.GitOpsValidator).
+		HandlerFunc(router.gitOpsConfigRestHandler.GitOpsValidator).
 		Methods("POST")
 }

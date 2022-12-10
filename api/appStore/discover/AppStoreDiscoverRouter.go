@@ -35,7 +35,7 @@ func NewAppStoreDiscoverRouterImpl(appStoreRestHandler AppStoreRestHandler) *App
 	}
 }
 
-func (router AppStoreDiscoverRouterImpl) Init(configRouter *mux.Router) {
+func (router *AppStoreDiscoverRouterImpl) Init(configRouter *mux.Router) {
 
 	configRouter.Path("/").
 		HandlerFunc(router.appStoreRestHandler.FindAllApps).Methods("GET")

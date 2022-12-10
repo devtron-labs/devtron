@@ -1,10 +1,10 @@
 package restHandler
 
 import (
-"github.com/devtron-labs/devtron/api/restHandler/common"
-"github.com/devtron-labs/devtron/pkg/user"
-"net/http"
-"net/http/pprof"
+	"github.com/devtron-labs/devtron/api/restHandler/common"
+	"github.com/devtron-labs/devtron/pkg/user"
+	"net/http"
+	"net/http/pprof"
 )
 
 type PProfRestHandler interface {
@@ -29,13 +29,13 @@ func NewPProfRestHandler(userService user.UserService) *PProfRestHandlerImpl {
 	return &PProfRestHandlerImpl{userService: userService}
 }
 
-func (p PProfRestHandlerImpl) Index(w http.ResponseWriter, r *http.Request) {
-	userId, err := p.userService.GetLoggedInUser(r)
+func (handler *PProfRestHandlerImpl) Index(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
@@ -45,13 +45,13 @@ func (p PProfRestHandlerImpl) Index(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p PProfRestHandlerImpl) Cmdline(w http.ResponseWriter, r *http.Request) {
-	userId, err := p.userService.GetLoggedInUser(r)
+func (handler *PProfRestHandlerImpl) Cmdline(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
@@ -61,13 +61,13 @@ func (p PProfRestHandlerImpl) Cmdline(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p PProfRestHandlerImpl) Profile(w http.ResponseWriter, r *http.Request) {
-	userId, err := p.userService.GetLoggedInUser(r)
+func (handler *PProfRestHandlerImpl) Profile(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
@@ -77,13 +77,13 @@ func (p PProfRestHandlerImpl) Profile(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p PProfRestHandlerImpl) Symbol(w http.ResponseWriter, r *http.Request) {
-	userId, err := p.userService.GetLoggedInUser(r)
+func (handler *PProfRestHandlerImpl) Symbol(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
@@ -93,13 +93,13 @@ func (p PProfRestHandlerImpl) Symbol(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p PProfRestHandlerImpl) Trace(w http.ResponseWriter, r *http.Request) {
-	userId, err := p.userService.GetLoggedInUser(r)
+func (handler *PProfRestHandlerImpl) Trace(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
@@ -109,13 +109,13 @@ func (p PProfRestHandlerImpl) Trace(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p PProfRestHandlerImpl) Goroutine(w http.ResponseWriter, r *http.Request) {
-	userId, err := p.userService.GetLoggedInUser(r)
+func (handler *PProfRestHandlerImpl) Goroutine(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
@@ -125,13 +125,13 @@ func (p PProfRestHandlerImpl) Goroutine(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (p PProfRestHandlerImpl) Threadcreate(w http.ResponseWriter, r *http.Request) {
-	userId, err := p.userService.GetLoggedInUser(r)
+func (handler *PProfRestHandlerImpl) Threadcreate(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
@@ -141,13 +141,13 @@ func (p PProfRestHandlerImpl) Threadcreate(w http.ResponseWriter, r *http.Reques
 	}
 }
 
-func (p PProfRestHandlerImpl) Heap(w http.ResponseWriter, r *http.Request) {
-	userId, err := p.userService.GetLoggedInUser(r)
+func (handler *PProfRestHandlerImpl) Heap(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
@@ -157,13 +157,13 @@ func (p PProfRestHandlerImpl) Heap(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p PProfRestHandlerImpl) Block(w http.ResponseWriter, r *http.Request) {
-	userId, err := p.userService.GetLoggedInUser(r)
+func (handler *PProfRestHandlerImpl) Block(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
@@ -173,13 +173,13 @@ func (p PProfRestHandlerImpl) Block(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p PProfRestHandlerImpl) Mutex(w http.ResponseWriter, r *http.Request) {
-	userId, err := p.userService.GetLoggedInUser(r)
+func (handler *PProfRestHandlerImpl) Mutex(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
@@ -189,13 +189,13 @@ func (p PProfRestHandlerImpl) Mutex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (p PProfRestHandlerImpl) Allocs(w http.ResponseWriter, r *http.Request) {
-	userId, err := p.userService.GetLoggedInUser(r)
+func (handler *PProfRestHandlerImpl) Allocs(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-	isActionUserSuperAdmin, err := p.userService.IsSuperAdmin(int(userId))
+	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
 	if err != nil {
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
 		return
@@ -204,5 +204,3 @@ func (p PProfRestHandlerImpl) Allocs(w http.ResponseWriter, r *http.Request) {
 		pprof.Handler("allocs").ServeHTTP(w, r)
 	}
 }
-
-
