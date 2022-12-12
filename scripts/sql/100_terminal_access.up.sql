@@ -49,4 +49,4 @@ INSERT into terminal_access_templates(template_name, template_data, created_on, 
 ('terminal-access-pod','{"apiVersion":"v1","kind":"Pod","metadata":{"name":"${pod_name}"},"spec":{"serviceAccountName":"${pod_name}-sa","nodeSelector":{"kubernetes.io/hostname":"${node_name}"},"containers":[{"name":"devtron-debug-terminal","image":"${base_image}","command":["/bin/sh","-c","--"],"args":["while true; do sleep 600; done;"]}],"tolerations":[{"key":"kubernetes.azure.com/scalesetpriority","operator":"Equal","value":"spot","effect":"NoSchedule"}]}}', now(), 1, now(), 1);
 
 INSERT INTO attributes(key, value, active, created_on, created_by, updated_on, updated_by)
-VALUES ('DEFAULT_TERMINAL_IMAGE_LIST', 'ubuntu:latest,alpine:latest,centos:latest,curlimages/curl:latest,nicolaka/netshoot:latest,busybox:latest', 't', NOW(), 1,NOW(), 1);
+VALUES ('DEFAULT_TERMINAL_IMAGE_LIST', 'quay.io/devtron/kubectl:latest,ubuntu:latest,alpine:latest,centos:latest,curlimages/curl:latest,nicolaka/netshoot:latest,busybox:latest', 't', NOW(), 1,NOW(), 1);
