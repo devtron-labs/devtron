@@ -13,6 +13,7 @@ spec:
   {{- if $.Values.kedaAutoscaling.pollingInterval }}
   pollingInterval: {{ $.Values.kedaAutoscaling.pollingInterval | default 30 }}
   {{- end }}
+  {{- if $.Values.kedaAutoscaling.scalingStrategy }}
   scalingStrategy:
 {{ toYaml $.Values.kedaAutoscaling.scalingStrategy | indent 4 }}
   {{- end }}
