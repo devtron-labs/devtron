@@ -32,7 +32,5 @@ spec:
   triggers:
 {{ toYaml $.Values.kedaAutoscaling.triggers | indent 4 }}
   jobTargetRef:
-    template:
-      spec:
-{{- include "job-template-spec" . | indent 8 }}
+{{- include "job-template-spec" . | indent 4 }}
 {{- end }}
