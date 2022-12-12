@@ -1,3 +1,4 @@
+{{- if .Values.service.enabled }}
 apiVersion: v1
 kind: Service
 metadata:
@@ -36,6 +37,9 @@ spec:
       targetPort: {{ .name }}
       {{- end }}
       protocol: TCP
+      {{- if (and (eq $.Values.service.type "NodePort") .nodePort ) }}
+      nodePort: {{ .nodePort }}
+      {{- end }}
       name: {{ .name }}
     {{- end }}
       {{- if $.Values.appMetrics }}
@@ -75,4 +79,5 @@ spec:
       {{- end }}
   selector:
     app: {{ template ".Chart.Name .name" . }}
+{{- end }}
 {{- end }}

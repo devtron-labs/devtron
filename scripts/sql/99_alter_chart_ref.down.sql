@@ -1,4 +1,4 @@
-DELETE FROM "public"."chart_ref" WHERE ("location" = 'reference-chart_1-0-0' AND "version" = '1.0.0');
+DELETE FROM "public"."chart_ref" WHERE ("location" = 'deployment-chart_1-0-0' AND "version" = '1.0.0');
 
 UPDATE "public"."chart_ref" SET "is_default" = 't' WHERE "location" = 'reference-chart_4-16-0' AND "version" = '4.16.0';
 

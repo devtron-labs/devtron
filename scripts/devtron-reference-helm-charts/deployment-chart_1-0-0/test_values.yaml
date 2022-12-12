@@ -294,9 +294,9 @@ nodeSelector: {}
 #used for deployment algo selection
 orchestrator.deploymant.algo: 1
 
-ConfigMaps: []
-#  enabled: true
-#  maps:
+ConfigMaps:
+  enabled: false
+  maps: []
 #  - name: config-map-1
 #    type: environment
 #    external: false

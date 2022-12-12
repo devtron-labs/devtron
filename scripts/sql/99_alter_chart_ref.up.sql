@@ -1,6 +1,6 @@
 UPDATE chart_ref SET is_default=false;
 INSERT INTO "public"."chart_ref" ("name","location", "version", "is_default", "active", "created_on", "created_by", "updated_on", "updated_by") VALUES
-    ('Deployment','reference-chart_1-0-0', '1.0.0','t', 't', 'now()', 1, 'now()', 1);
+    ('Deployment','deployment-chart_1-0-0', '1.0.0','t', 't', 'now()', 1, 'now()', 1);
 
 
 ALTER TABLE "chart_ref" ADD COLUMN "deployment_strategy_path" text;
