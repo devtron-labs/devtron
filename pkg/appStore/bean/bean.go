@@ -23,7 +23,7 @@ import (
 	"time"
 )
 
-//v1
+// v1
 type InstallAppVersionHistoryDto struct {
 	InstalledAppInfo *InstalledAppDto `json:"installedAppInfo"`
 	IAVHistory       []*IAVHistory    `json:"deploymentHistory"`
@@ -93,7 +93,7 @@ type InstallAppVersionDTO struct {
 	GitHash                   string                     `json:"gitHash"`
 	EnvironmentName           string                     `json:"-"`
 	InstallAppVersionChartDTO *InstallAppVersionChartDTO `json:"-"`
-	DeploymentAppType         string                     `json:"-"`
+	DeploymentAppType         string                     `json:"deploymentAppType"`
 }
 
 type InstallAppVersionChartDTO struct {
@@ -110,7 +110,7 @@ type InstallAppVersionChartRepoDTO struct {
 	Password string `json:"-"`
 }
 
-/// bean for v2
+// / bean for v2
 type ChartGroupInstallRequest struct {
 	ProjectId                     int                              `json:"projectId"  validate:"required,number"`
 	ChartGroupInstallChartRequest []*ChartGroupInstallChartRequest `json:"charts" validate:"dive,required"`
@@ -131,7 +131,7 @@ type ChartGroupInstallChartRequest struct {
 type ChartGroupInstallAppRes struct {
 }
 
-///
+// /
 type RefChartProxyDir string
 
 var CHART_PROXY_TEMPLATE = "reference-chart-proxy"

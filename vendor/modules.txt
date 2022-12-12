@@ -320,7 +320,7 @@ github.com/cyphar/filepath-securejoin
 # github.com/davecgh/go-spew v1.1.1
 ## explicit
 github.com/davecgh/go-spew/spew
-# github.com/devtron-labs/authenticator v0.4.31-0.20220913121257-aecda79359cc
+# github.com/devtron-labs/authenticator v0.4.31-0.20221115125816-95ec958147f5
 ## explicit; go 1.16
 github.com/devtron-labs/authenticator/apiToken
 github.com/devtron-labs/authenticator/client

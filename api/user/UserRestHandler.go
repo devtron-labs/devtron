@@ -740,9 +740,45 @@ func (handler UserRestHandlerImpl) CheckUserRoles(w http.ResponseWriter, r *http
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
+	v := r.URL.Query()
+
+	if v.Has("appName") {
+		appName := v.Get("appName")
+		result := make(map[string]interface{})
+		var isSuperAdmin, isAdmin, isManager, isTrigger bool
+		for _, role := range roles {
+			if role == bean.SUPERADMIN {
+				isSuperAdmin = true
+				break
+			}
+			frags := strings.Split(role, "_")
+			n := len(frags)
+			if n >= 2 && (frags[n-1] == appName || frags[n-1] == "") {
+				isManager = strings.Contains(frags[0], "manager")
+				isAdmin = strings.Contains(frags[0], "admin")
+				isTrigger = strings.Contains(frags[0], "trigger")
+			}
+		}
+		if isSuperAdmin {
+			result["role"] = "SuperAdmin"
+		} else if isManager {
+			result["role"] = "Manager"
+		} else if isAdmin {
+			result["role"] = "Admin"
+		} else if isTrigger {
+			result["role"] = "Trigger"
+		} else {
+			result["role"] = "View"
+		}
+		result["roles"] = roles
+
+		common.WriteJsonResp(w, err, result, http.StatusOK)
+		return
+	}
 	result := make(map[string]interface{})
 	result["roles"] = roles
-	result["superAdmin"] = true
+	result["superAdmin"] = false
 	for _, item := range roles {
 		if item == bean.SUPERADMIN {
 			result["superAdmin"] = true

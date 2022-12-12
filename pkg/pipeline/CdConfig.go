@@ -67,7 +67,7 @@ type CdConfig struct {
 	AzureBlobContainerCiLog        string                       `env:"AZURE_BLOB_CONTAINER_CI_LOG"`
 	AzureBlobContainerCiCache      string                       `env:"AZURE_BLOB_CONTAINER_CI_CACHE"`
 	AzureAccountKey                string                       `env:"AZURE_ACCOUNT_KEY"`
-	BuildLogTTLValue               int                          `json:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
+	BuildLogTTLValue               int                          `env:"BUILD_LOG_TTL_VALUE_IN_SECS" envDefault:"3600"`
 	DefaultAddressPoolBaseCidr     string                       `env:"CD_DEFAULT_ADDRESS_POOL_BASE_CIDR"`
 	DefaultAddressPoolSize         int                          `env:"CD_DEFAULT_ADDRESS_POOL_SIZE"`
 }

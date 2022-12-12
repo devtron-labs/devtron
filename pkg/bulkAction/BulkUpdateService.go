@@ -1284,15 +1284,14 @@ func (impl BulkUpdateServiceImpl) BulkBuildTrigger(request *BulkApplicationForEn
 
 func (impl BulkUpdateServiceImpl) GetBulkActionImpactedPipelinesAndWfs(dto *CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, []int, []int, error) {
 	var err error
-	if len(dto.EnvIds) == 0 || (len(dto.AppIds) == 0 && len(dto.ProjectIds) == 0) {
-		//invalid payload, envIds are must and either of appIds or projectIds are must
+	if (len(dto.EnvIds) == 0 && len(dto.EnvNames) == 0) || ((len(dto.AppIds) == 0 && len(dto.AppNames) == 0) && (len(dto.ProjectIds) == 0 && len(dto.ProjectNames) == 0)) {
+		//invalid payload, envIds or envNames are must and at least one of appIds, appNames, projectIds, projectNames is must
 		return nil, nil, nil, &util.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "invalid payload, can not get pipelines for this filter"}
 	}
-
-	if len(dto.ProjectIds) > 0 {
-		appIdsInProjects, err := impl.appRepository.FindIdsByTeamIds(dto.ProjectIds)
+	if len(dto.ProjectIds) > 0 || len(dto.ProjectNames) > 0 {
+		appIdsInProjects, err := impl.appRepository.FindIdsByTeamIdsAndTeamNames(dto.ProjectIds, dto.ProjectNames)
 		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in getting appIds by projectIds", "err", err, "projectIds", dto.ProjectIds)
+			impl.logger.Errorw("error in getting appIds by projectIds and projectNames", "err", err, "projectIds", dto.ProjectIds, "projectNames", dto.ProjectNames)
 			return nil, nil, nil, err
 		}
 		dto.AppIds = append(dto.AppIds, appIdsInProjects...)
@@ -1300,7 +1299,23 @@ func (impl BulkUpdateServiceImpl) GetBulkActionImpactedPipelinesAndWfs(dto *CdBu
 	var impactedWfIds []int
 	var impactedPipelineIds []int
 	var impactedCiPipelineIds []int
-	if len(dto.AppIds) > 0 && len(dto.EnvIds) > 0 {
+	if (len(dto.AppIds) > 0 || len(dto.AppNames) > 0) && (len(dto.EnvIds) > 0 || len(dto.EnvNames) > 0) {
+		if len(dto.AppNames) > 0 {
+			appIdsByNames, err := impl.appRepository.FindIdsByNames(dto.AppNames)
+			if err != nil {
+				impl.logger.Errorw("error in getting appIds by names", "err", err, "names", dto.AppNames)
+				return nil, nil, nil, err
+			}
+			dto.AppIds = append(dto.AppIds, appIdsByNames...)
+		}
+		if len(dto.EnvNames) > 0 {
+			envIdsByNames, err := impl.environmentRepository.FindIdsByNames(dto.EnvNames)
+			if err != nil {
+				impl.logger.Errorw("error in getting envIds by names", "err", err, "names", dto.EnvNames)
+				return nil, nil, nil, err
+			}
+			dto.EnvIds = append(dto.EnvIds, envIdsByNames...)
+		}
 		if !dto.DeleteWfAndCiPipeline {
 			//getting pipeline IDs for app level deletion request
 			impactedPipelineIds, err = impl.pipelineRepository.FindIdsByAppIdsAndEnvironmentIds(dto.AppIds, dto.EnvIds)
@@ -1308,24 +1323,28 @@ func (impl BulkUpdateServiceImpl) GetBulkActionImpactedPipelinesAndWfs(dto *CdBu
 				impl.logger.Errorw("error in getting cd pipelines by appIds and envIds", "err", err)
 				return nil, nil, nil, err
 			}
-
 		} else {
 			//getting all workflows in given apps which do not have pipelines of other than given environments
-			appWfs, err := impl.appWorkflowRepository.FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(dto.EnvIds, dto.AppIds)
+			appWfsHavingSpecificCdPipelines, err := impl.appWorkflowRepository.FindAllWfsHavingCdPipelinesFromSpecificEnvsOnly(dto.EnvIds, dto.AppIds)
 			if err != nil && err != pg.ErrNoRows {
 				impl.logger.Errorw("error in getting wfs having cd pipelines from specific env only", "err", err)
 				return nil, nil, nil, err
 			}
 			impactedWfIdsMap := make(map[int]bool)
-			for _, appWf := range appWfs {
+			for _, appWf := range appWfsHavingSpecificCdPipelines {
 				if appWf.Type == appWorkflow.CDPIPELINE {
 					impactedPipelineIds = append(impactedPipelineIds, appWf.ComponentId)
-				} else if appWf.Type == appWorkflow.CIPIPELINE {
-					impactedCiPipelineIds = append(impactedCiPipelineIds, appWf.ComponentId)
 				}
 				if _, ok := impactedWfIdsMap[appWf.AppWorkflowId]; !ok {
 					impactedWfIds = append(impactedWfIds, appWf.AppWorkflowId)
 					impactedWfIdsMap[appWf.AppWorkflowId] = true
+				}
+			}
+			if len(impactedWfIds) > 0 {
+				impactedCiPipelineIds, err = impl.appWorkflowRepository.FindCiPipelineIdsFromAppWfIds(impactedWfIds)
+				if err != nil {
+					impl.logger.Errorw("error in getting ciPipelineIds from appWfIds", "err", err, "wfIds", impactedWfIds)
+					return nil, nil, nil, err
 				}
 			}
 		}
@@ -1377,7 +1396,7 @@ func (impl BulkUpdateServiceImpl) PerformBulkDeleteActionOnCdPipelines(impactedP
 			EnvironmentName: pipeline.Environment.Name,
 		}
 		if !dryRun {
-			err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, forceDelete)
+			err := impl.pipelineBuilder.DeleteCdPipeline(pipeline, ctx, forceDelete, userId)
 			if err != nil {
 				impl.logger.Errorw("error in deleting cd pipeline", "err", err, "pipelineId", pipeline.Id)
 				respDto.DeletionResult = fmt.Sprintf("Not able to delete pipeline, %v", err)
