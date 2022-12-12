@@ -12,6 +12,7 @@
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
   * [Ingress setup for Devtron Installation](setup/install/ingress-setup.md)
 * [Global Configurations](user-guide/global-configurations/README.md)
+  * [Host URL](user-guide/global-configurations/host-url.md)
   * [GitOps](user-guide/global-configurations/gitops.md)
   * [Projects](user-guide/global-configurations/projects.md)
   * [Cluster And Environments](user-guide/global-configurations/cluster-and-environments.md)

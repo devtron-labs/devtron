@@ -1,15 +1,10 @@
 # Global Configurations
 
-One of the important functions of Global Configuration is defining the state of each application. By orchestrating these processes within a platform, Devtron can ensure consistency across integrated applications and increase efficiency.
+A global configuration allows you to easily share common configuration between multiple repositories without copy/pasting it to these repositories.
 
-_**This documentation consists of the Global Configurations available in Devtron.**_
+Before you start creating an application, we recommend to provide basic information in different sections of Global Configurations available in `Devtron`.
 
-{% embed url="https://www.youtube.com/watch?v=4VFjrjtieMI" caption="" %}
-
-
-**Note**: Make sure to enter the `Host URL` or auto-detect from your browser on the **Host URL** page. The Host URL is the domain address at which your devtron dashboard can be reached.
-
-**These are the global configurations available in Devtron**.
+[Host URL](host-url.md)
 
 [GitOps](gitops.md)
 
@@ -30,4 +25,10 @@ _**This documentation consists of the Global Configurations available in Devtron
 [Manage Notification](manage-notification.md)
 
 [External Links](external-links.md)
+
+
+You can also refer our youtube video provided here.
+
+{% embed url="https://www.youtube.com/watch?v=4VFjrjtieMI" caption="" %}
+
 
