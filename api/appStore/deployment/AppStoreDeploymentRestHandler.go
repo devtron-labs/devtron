@@ -114,10 +114,8 @@ func (handler AppStoreDeploymentRestHandlerImpl) InstallApp(w http.ResponseWrite
 	//rbac block starts from here
 	var rbacObject string
 	var rbacObject2 string
-	if util2.IsBaseStack() && request.EnvironmentId == 0 {
-
-		rbacObject = handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, request.ClusterId, request.Namespace, request.AppName)
-		//rbacObject = handler.enforcerUtilHelm.GetHelmObjectByClusterId(request.ClusterId, request.Namespace, request.AppName)
+	if util2.IsBaseStack() {
+		rbacObject = handler.enforcerUtilHelm.GetHelmObject(request.ClusterId, request.Namespace, request.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByProjectIdAndEnvId(request.TeamId, request.EnvironmentId)
 	}
