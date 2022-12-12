@@ -304,7 +304,14 @@ func (e *EnforcerImpl) storeCacheData(emailId string, resource string, action st
 	if !found {
 		emailResult = make(map[string]map[string]bool)
 	}
-	emailResult.(map[string]map[string]bool)[getCacheKey(resource, action)] = result
+	existingCachedResult, found := emailResult.(map[string]map[string]bool)[getCacheKey(resource, action)]
+	if found {
+		for key, value := range result {
+			existingCachedResult[key] = value
+		}
+	} else {
+		emailResult.(map[string]map[string]bool)[getCacheKey(resource, action)] = result
+	}
 	e.Cache.Set(emailId, emailResult, cache.DefaultExpiration)
 }
 

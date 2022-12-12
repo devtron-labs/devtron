@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
+	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
@@ -115,13 +116,14 @@ type AppServiceImpl struct {
 	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
+	dockerRegistryIpsConfigService      dockerRegistry.DockerRegistryIpsConfigService
 }
 
 type AppService interface {
 	TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32, wfrId int) (id int, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
 	UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp *v1alpha1.Application, statusTime time.Time) (bool, error)
-	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, async bool, triggeredAt time.Time) error
+	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
 	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWorkflowId int) error
 	GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
@@ -163,7 +165,8 @@ func NewAppService(
 	appCrudOperationService AppCrudOperationService,
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
-	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository) *AppServiceImpl {
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:         environmentConfigRepository,
 		mergeUtil:                           mergeUtil,
@@ -209,6 +212,7 @@ func NewAppService(
 		configMapHistoryRepository:          configMapHistoryRepository,
 		strategyHistoryRepository:           strategyHistoryRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
+		dockerRegistryIpsConfigService:      dockerRegistryIpsConfigService,
 	}
 	return appServiceImpl
 }
@@ -255,6 +259,12 @@ func (impl AppServiceImpl) createArgoApplicationIfRequired(appId int, appName st
 
 		argoAppName, err := impl.ArgoK8sClient.CreateAcdApp(appRequest, envModel.Cluster)
 		if err != nil {
+			return "", err
+		}
+		//update cd pipeline to mark deployment app created
+		_, err = impl.updatePipeline(pipeline, userId)
+		if err != nil {
+			impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
 			return "", err
 		}
 		return argoAppName, nil
@@ -572,7 +582,7 @@ func (conf *EnvironmentOverride) appendEnvironmentVariable(key, value string) {
 	conf.EnvValues = append(conf.EnvValues, item)
 }
 
-func (impl *AppServiceImpl) TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, async bool, triggeredAt time.Time) error {
+func (impl *AppServiceImpl) TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error {
 	impl.logger.Debugw("automatic pipeline trigger attempt async", "artifactId", artifact.Id)
 
 	return impl.triggerReleaseAsync(artifact, cdWorkflowId, wfrId, pipeline, triggeredAt)
@@ -943,7 +953,7 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 
 		// ACD app creation STARTS HERE, it will use existing if already created
 		impl.logger.Debugw("new pipeline found", "pipeline", pipeline)
-		name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride, pipeline, deployedBy)
+		name, err := impl.createArgoApplicationIfRequired(overrideRequest.AppId, pipeline.App.AppName, envOverride, pipeline, overrideRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("acd application create error on cd trigger", "err", err, "req", overrideRequest)
 			return 0, err
@@ -1037,13 +1047,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 				impl.logger.Errorw("error in creating or updating helm application for cd pipeline", "err", err)
 				return 0, err
 			}
-		}
-
-		//update cd pipeline to mark deployment app created
-		_, err = impl.updatePipeline(pipeline, overrideRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
-			return 0, err
 		}
 
 		go impl.WriteCDTriggerEvent(overrideRequest, pipeline, envOverride, materialInfoMap, artifact, releaseId, pipelineOverrideId)
@@ -1582,6 +1585,12 @@ func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverri
 	appName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
 	merged = impl.hpaCheckBeforeTrigger(ctx, appName, envOverride.Namespace, merged, pipeline.AppId)
 
+	// handle image pull secret if access given
+	merged, err = impl.dockerRegistryIpsConfigService.HandleImagePullSecretOnApplicationDeployment(envOverride.Environment, pipeline.CiPipelineId, merged)
+	if err != nil {
+		return 0, 0, "", err
+	}
+
 	commitHash := ""
 	commitTime := time.Time{}
 	if IsAcdApp(pipeline.DeploymentAppType) {
@@ -1931,6 +1940,12 @@ func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Valu
 				return false, err
 			}
 			isSuccess = helmResponse.Success
+			//update cd pipeline to mark deployment app created
+			_, err = impl.updatePipeline(pipeline, overrideRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
+				return false, err
+			}
 		}
 
 		// update deployment status, used in deployment history

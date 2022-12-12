@@ -57,6 +57,7 @@ type InstalledAppRepository interface {
 	GetInstalledAppVersionByClusterIdsV2(clusterIds []int) ([]*InstalledAppVersions, error)
 	GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId int, namespace string, appName string) (*InstalledApps, error)
 	GetAppAndEnvDetailsForDeploymentAppTypeInstalledApps(deploymentAppType string, clusterIds []int) ([]*InstalledApps, error)
+	GetDeploymentSuccessfulStatusCountForTelemetry() (int, error)
 }
 
 type InstalledAppRepositoryImpl struct {
@@ -229,7 +230,7 @@ func (impl InstalledAppRepositoryImpl) GetInstalledAppVersion(id int) (*Installe
 	return model, err
 }
 
-//it returns enable and disabled both version
+// it returns enable and disabled both version
 func (impl InstalledAppRepositoryImpl) GetInstalledAppVersionAny(id int) (*InstalledAppVersions, error) {
 	model := &InstalledAppVersions{}
 	err := impl.dbConnection.Model(model).
@@ -470,4 +471,15 @@ func (impl InstalledAppRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypeIn
 		Where("installed_apps.active = ?", true).
 		Select()
 	return installedApps, err
+}
+
+func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTelemetry() (int, error) {
+
+	countQuery := "select count(Id) from installed_apps where status=?;"
+	var count int
+	_, err := impl.dbConnection.Query(&count, countQuery, appStoreBean.DEPLOY_SUCCESS)
+	if err != nil {
+		impl.Logger.Errorw("unable to get deployment count of successfully deployed Helm apps")
+	}
+	return count, err
 }

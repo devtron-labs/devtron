@@ -228,7 +228,7 @@ func (impl *GitOpsConfigServiceImpl) CreateGitOpsConfig(ctx context.Context, req
 	data["username"] = []byte(request.Username)
 	data["password"] = []byte(request.Token)
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, "", client)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return nil, err
@@ -438,7 +438,7 @@ func (impl *GitOpsConfigServiceImpl) UpdateGitOpsConfig(request *bean2.GitOpsCon
 	data["username"] = []byte(request.Username)
 	data["password"] = []byte(request.Token)
 	if secret == nil {
-		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, client)
+		secret, err = impl.K8sUtil.CreateSecret(impl.aCDAuthConfig.ACDConfigMapNamespace, data, GitOpsSecretName, "", client)
 		if err != nil {
 			impl.logger.Errorw("err on creating secret", "err", err)
 			return err

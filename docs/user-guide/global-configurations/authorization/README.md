@@ -6,4 +6,4 @@ _**This documentaion consist of authorizations available in Devtron**_
 
 [Permission Groups](permission-groups.md)
 
-[API Tokens](api-token.md)
+[API Tokens](api-tokens.md)

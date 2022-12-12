@@ -20,6 +20,10 @@ func (impl *HelmAppRouterImpl) InitAppListRouter(helmRouter *mux.Router) {
 		HandlerFunc(impl.helmAppRestHandler.ListApplications).Methods("GET")
 	helmRouter.Path("/app").Queries("appId", "{appId}").
 		HandlerFunc(impl.helmAppRestHandler.GetApplicationDetail).Methods("GET")
+
+	helmRouter.Path("/app/save-telemetry").Queries("appId", "{appId}").
+		HandlerFunc(impl.helmAppRestHandler.SaveHelmAppDetailsViewedTelemetryData).Methods("GET")
+
 	helmRouter.Path("/hibernate").HandlerFunc(impl.helmAppRestHandler.Hibernate).Methods("POST")
 	helmRouter.Path("/unhibernate").HandlerFunc(impl.helmAppRestHandler.UnHibernate).Methods("POST")
 

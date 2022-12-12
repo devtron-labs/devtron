@@ -394,6 +394,9 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 	if app != nil {
 		appResp, err := app.Recv()
 		if err == nil {
+			// https://github.com/argoproj/argo-cd/issues/11234 workaround
+			c.updateNodeHealthStatus(resp, appResp)
+
 			status = string(appResp.Application.Status.Health.Status)
 			hash = appResp.Application.Status.Sync.Revision
 			conditions = appResp.Application.Status.Conditions
@@ -408,6 +411,36 @@ func (c ServiceClientImpl) ResourceTree(ctxt context.Context, query *application
 		}
 	}
 	return &ResourceTreeResponse{resp, newReplicaSets, status, hash, podMetadata, conditions}, err
+}
+
+// fill the health status in node from app resources
+func (c ServiceClientImpl) updateNodeHealthStatus(resp *v1alpha1.ApplicationTree, appResp *v1alpha1.ApplicationWatchEvent) {
+	if resp == nil || len(resp.Nodes) == 0 || appResp == nil || len(appResp.Application.Status.Resources) == 0 {
+		return
+	}
+
+	for index, node := range resp.Nodes {
+		if node.Health != nil {
+			continue
+		}
+		for _, resource := range appResp.Application.Status.Resources {
+			if node.Group != resource.Group || node.Version != resource.Version || node.Kind != resource.Kind ||
+				node.Name != resource.Name || node.Namespace != resource.Namespace {
+				continue
+			}
+			resourceHealth := resource.Health
+			if resourceHealth != nil {
+				node.Health = &v1alpha1.HealthStatus{
+					Message: resourceHealth.Message,
+					Status:  resourceHealth.Status,
+				}
+				// updating the element in slice
+				// https://medium.com/@xcoulon/3-ways-to-update-elements-in-a-slice-d5df54c9b2f8
+				resp.Nodes[index] = node
+			}
+			break
+		}
+	}
 }
 
 func (c ServiceClientImpl) buildPodMetadata(resp *v1alpha1.ApplicationTree, responses []*Result) (podMetaData []*PodMetadata, newReplicaSets []string) {

@@ -111,9 +111,10 @@ type CiPipeline struct {
 }
 
 type DockerConfigOverride struct {
-	DockerRegistry    string             `json:"dockerRegistry,omitempty"`
-	DockerRepository  string             `json:"dockerRepository,omitempty"`
-	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty"`
+	DockerRegistry   string                  `json:"dockerRegistry,omitempty"`
+	DockerRepository string                  `json:"dockerRepository,omitempty"`
+	CiBuildConfig    *bean.CiBuildConfigBean `json:"ciBuildConfig,omitEmpty"`
+	//DockerBuildConfig *DockerBuildConfig  `json:"dockerBuildConfig,omitempty"`
 }
 
 type CiPipelineMin struct {
@@ -136,10 +137,25 @@ type CiScript struct {
 }
 
 type ExternalCiConfig struct {
-	Id         int    `json:"id"`
-	WebhookUrl string `json:"webhookUrl"`
-	Payload    string `json:"payload"`
-	AccessKey  string `json:"accessKey"`
+	Id            int                    `json:"id"`
+	WebhookUrl    string                 `json:"webhookUrl"`
+	Payload       string                 `json:"payload"`
+	AccessKey     string                 `json:"accessKey"`
+	PayloadOption []PayloadOptionObject  `json:"payloadOption"`
+	Schema        map[string]interface{} `json:"schema"`
+	Responses     []ResponseSchemaObject `json:"responses"`
+	ExternalCiConfigRole
+}
+
+type ExternalCiConfigRole struct {
+	ProjectId             int    `json:"projectId"`
+	ProjectName           string `json:"projectName"`
+	EnvironmentId         string `json:"environmentId"`
+	EnvironmentName       string `json:"environmentName"`
+	EnvironmentIdentifier string `json:"environmentIdentifier"`
+	AppId                 int    `json:"appId"`
+	AppName               string `json:"appName"`
+	Role                  string `json:"role"`
 }
 
 // -------------------
@@ -250,37 +266,32 @@ type Material struct {
 }
 
 type CiConfigRequest struct {
-	Id                int                `json:"id,omitempty" validate:"number"` //ciTemplateId
-	AppId             int                `json:"appId,omitempty" validate:"required,number"`
-	DockerRegistry    string             `json:"dockerRegistry,omitempty" `  //repo id example ecr mapped one-one with gocd registry entry
-	DockerRepository  string             `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
-	DockerBuildConfig *DockerBuildConfig `json:"dockerBuildConfig,omitempty" validate:"required,dive"`
-	CiPipelines       []*CiPipeline      `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
-	AppName           string             `json:"appName,omitempty"`
-	Version           string             `json:"version,omitempty"` //gocd etag used for edit purpose
-	DockerRegistryUrl string             `json:"-"`
-	CiTemplateName    string             `json:"-"`
-	UserId            int32              `json:"-"`
-	Materials         []Material         `json:"materials"`
-	AppWorkflowId     int                `json:"appWorkflowId,omitempty"`
-	BeforeDockerBuild []*Task            `json:"beforeDockerBuild,omitempty" validate:"dive"`
-	AfterDockerBuild  []*Task            `json:"afterDockerBuild,omitempty" validate:"dive"`
-	ScanEnabled       bool               `json:"scanEnabled,notnull"`
+	Id                int                     `json:"id,omitempty" validate:"number"` //ciTemplateId
+	AppId             int                     `json:"appId,omitempty" validate:"required,number"`
+	DockerRegistry    string                  `json:"dockerRegistry,omitempty" `  //repo id example ecr mapped one-one with gocd registry entry
+	DockerRepository  string                  `json:"dockerRepository,omitempty"` // example test-app-1 which is inside ecr
+	CiBuildConfig     *bean.CiBuildConfigBean `json:"ciBuildConfig"`
+	CiPipelines       []*CiPipeline           `json:"ciPipelines,omitempty" validate:"dive"` //a pipeline will be built for each ciMaterial
+	AppName           string                  `json:"appName,omitempty"`
+	Version           string                  `json:"version,omitempty"` //gocd etag used for edit purpose
+	DockerRegistryUrl string                  `json:"-"`
+	CiTemplateName    string                  `json:"-"`
+	UserId            int32                   `json:"-"`
+	Materials         []Material              `json:"materials"`
+	AppWorkflowId     int                     `json:"appWorkflowId,omitempty"`
+	BeforeDockerBuild []*Task                 `json:"beforeDockerBuild,omitempty" validate:"dive"`
+	AfterDockerBuild  []*Task                 `json:"afterDockerBuild,omitempty" validate:"dive"`
+	ScanEnabled       bool                    `json:"scanEnabled,notnull"`
+	CreatedOn         time.Time               `sql:"created_on,type:timestamptz"`
+	CreatedBy         int32                   `sql:"created_by,type:integer"`
+	UpdatedOn         time.Time               `sql:"updated_on,type:timestamptz"`
+	UpdatedBy         int32                   `sql:"updated_by,type:integer"`
 }
 
 type TestExecutorImageProperties struct {
 	ImageName string `json:"imageName,omitempty"`
 	Arg       string `json:"arg,omitempty"`
 	ReportDir string `json:"reportDir,omitempty"`
-}
-
-type DockerBuildConfig struct {
-	GitMaterialId      int               `json:"gitMaterialId,omitempty" validate:"required"`
-	DockerfilePath     string            `json:"dockerfileRelativePath,omitempty" validate:"required"`
-	Args               map[string]string `json:"args,omitempty"`
-	TargetPlatform     string            `json:"targetPlatform"`
-	DockerBuildOptions map[string]string `json:"dockerBuildOptions,omitempty"`
-	//Name Tag DockerfilePath RepoUrl
 }
 
 type PipelineCreateResponse struct {
@@ -442,7 +453,7 @@ type CDPipelineConfigObject struct {
 	Id                            int                               `json:"id,omitempty"  validate:"number" `
 	EnvironmentId                 int                               `json:"environmentId,omitempty"  validate:"number,required" `
 	EnvironmentName               string                            `json:"environmentName,omitempty" `
-	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number,required"`
+	CiPipelineId                  int                               `json:"ciPipelineId,omitempty" validate:"number"`
 	TriggerType                   pipelineConfig.TriggerType        `json:"triggerType,omitempty" validate:"oneof=AUTOMATIC MANUAL"`
 	Name                          string                            `json:"name,omitempty" validate:"name-component,max=50"` //pipelineName
 	Strategies                    []Strategy                        `json:"strategies,omitempty"`
@@ -598,4 +609,64 @@ type UpdateProjectBulkAppsRequest struct {
 	AppIds []int `json:"appIds"`
 	TeamId int   `json:"teamId"`
 	UserId int32 `json:"-"`
+}
+
+type CdBulkAction int
+
+const (
+	CD_BULK_DELETE CdBulkAction = iota
+)
+
+type CdBulkActionRequestDto struct {
+	Action      CdBulkAction `json:"action"`
+	EnvIds      []int        `json:"envIds"`
+	AppIds      []int        `json:"appIds"`
+	ProjectIds  []int        `json:"projectIds"`
+	ForceDelete bool         `json:"forceDelete"`
+	UserId      int32        `json:"-"`
+}
+
+type CdBulkActionResponseDto struct {
+	PipelineName    string `json:"pipelineName"`
+	AppName         string `json:"appName"`
+	EnvironmentName string `json:"environmentName"`
+	DeletionResult  string `json:"deletionResult,omitempty"`
+}
+
+type SchemaObject struct {
+	Description string      `json:"description"`
+	DataType    string      `json:"dataType"`
+	Example     string      `json:"example"`
+	Optional    bool        `json:"optional"`
+	Child       interface{} `json:"child"`
+}
+
+type PayloadOptionObject struct {
+	Key        string   `json:"key"`
+	PayloadKey []string `json:"payloadKey"`
+	Label      string   `json:"label"`
+	Mandatory  bool     `json:"mandatory"`
+}
+
+type ResponseSchemaObject struct {
+	Description ResponseDescriptionSchemaObject `json:"description"`
+	Code        string                          `json:"code"`
+}
+
+type ResponseDescriptionSchemaObject struct {
+	Description  string                 `json:"description,omitempty"`
+	ExampleValue ExampleValueDto        `json:"exampleValue,omitempty"`
+	Schema       map[string]interface{} `json:"schema,omitempty"`
+}
+
+type ErrorDto struct {
+	Code        int    `json:"code"`
+	UserMessage string `json:"userMessage"`
+}
+
+type ExampleValueDto struct {
+	Code   int        `json:"code,omitempty"`
+	Errors []ErrorDto `json:"errors,omitempty"`
+	Result string     `json:"result,omitempty"`
+	Status string     `json:"status,omitempty"`
 }

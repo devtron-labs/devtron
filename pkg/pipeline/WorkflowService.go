@@ -71,10 +71,8 @@ type WorkflowRequest struct {
 	DockerRegistryURL          string                            `json:"dockerRegistryURL"`
 	DockerConnection           string                            `json:"dockerConnection"`
 	DockerCert                 string                            `json:"dockerCert"`
-	DockerBuildArgs            string                            `json:"dockerBuildArgs"`
-	DockerBuildTargetPlatform  string                            `json:"dockerBuildTargetPlatform"`
 	DockerRepository           string                            `json:"dockerRepository"`
-	DockerFileLocation         string                            `json:"dockerfileLocation"`
+	CheckoutPath               string                            `json:"checkoutPath"`
 	DockerUsername             string                            `json:"dockerUsername"`
 	DockerPassword             string                            `json:"dockerPassword"`
 	AwsRegion                  string                            `json:"awsRegion"`
@@ -110,7 +108,8 @@ type WorkflowRequest struct {
 	RefPlugins                 []*bean2.RefPluginObject          `json:"refPlugins"`
 	AppName                    string                            `json:"appName"`
 	TriggerByAuthor            string                            `json:"triggerByAuthor"`
-	DockerBuildOptions         string                            `json:"dockerBuildOptions"`
+	CiBuildConfig              *bean2.CiBuildConfigBean          `json:"ciBuildConfig"`
+	CiBuildDockerMtuValue      int                               `json:"ciBuildDockerMtuValue"`
 	IgnoreDockerCachePush      bool                              `json:"ignoreDockerCachePush"`
 	IgnoreDockerCachePull      bool                              `json:"ignoreDockerCachePull"`
 }

@@ -79,7 +79,7 @@ func (impl CiPipelineMaterialRepositoryImpl) GetById(id int) (*CiPipelineMateria
 func (impl CiPipelineMaterialRepositoryImpl) GetByPipelineId(id int) ([]*CiPipelineMaterial, error) {
 	var ciPipelineMaterials []*CiPipelineMaterial
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
-		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
 		Where("ci_pipeline_material.active = ?", true).
 		Where("ci_pipeline_material.type != ?", SOURCE_TYPE_BRANCH_REGEX).
@@ -127,7 +127,7 @@ func (impl CiPipelineMaterialRepositoryImpl) Update(tx *pg.Tx, materials ...*CiP
 func (impl CiPipelineMaterialRepositoryImpl) GetRegexByPipelineId(id int) ([]*CiPipelineMaterial, error) {
 	var ciPipelineMaterials []*CiPipelineMaterial
 	err := impl.dbConnection.Model(&ciPipelineMaterials).
-		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.ci_pipeline_id = ?", id).
 		Where("ci_pipeline_material.active = ?", true).
 		Where("ci_pipeline_material.type = ?", SOURCE_TYPE_BRANCH_REGEX).
@@ -138,7 +138,7 @@ func (impl CiPipelineMaterialRepositoryImpl) GetRegexByPipelineId(id int) ([]*Ci
 func (impl CiPipelineMaterialRepositoryImpl) CheckRegexExistsForMaterial(id int) bool {
 	var ciPipelineMaterials []*CiPipelineMaterial
 	exists, err := impl.dbConnection.Model(&ciPipelineMaterials).
-		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "GitMaterial", "GitMaterial.GitProvider").
+		Column("ci_pipeline_material.*", "CiPipeline", "CiPipeline.CiTemplate", "CiPipeline.CiTemplate.GitMaterial", "CiPipeline.App", "CiPipeline.CiTemplate.DockerRegistry", "CiPipeline.CiTemplate.CiBuildConfig", "GitMaterial", "GitMaterial.GitProvider").
 		Where("ci_pipeline_material.id = ?", id).
 		Where("ci_pipeline_material.regex != ?", "").
 		Exists()

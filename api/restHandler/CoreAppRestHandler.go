@@ -38,6 +38,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -491,22 +492,17 @@ func (handler CoreAppRestHandlerImpl) buildDockerConfig(appId int) (*appBean.Doc
 	}
 
 	//getting gitMaterialUrl by id
-	gitMaterial, err := handler.materialRepository.FindById(ciConfig.DockerBuildConfig.GitMaterialId)
+	gitMaterial, err := handler.materialRepository.FindById(ciConfig.CiBuildConfig.GitMaterialId)
 	if err != nil {
-		handler.logger.Errorw("error in fetching materialUrl by ID in GetAppAllDetail", "err", err, "gitMaterialId", ciConfig.DockerBuildConfig.GitMaterialId)
+		handler.logger.Errorw("error in fetching materialUrl by ID in GetAppAllDetail", "err", err, "gitMaterialId", ciConfig.CiBuildConfig.GitMaterialId)
 		return nil, err, http.StatusInternalServerError
 	}
 
 	dockerConfig := &appBean.DockerConfig{
 		DockerRegistry:   ciConfig.DockerRegistry,
 		DockerRepository: ciConfig.DockerRepository,
-		BuildConfig: &appBean.DockerBuildConfig{
-			Args:                   ciConfig.DockerBuildConfig.Args,
-			DockerfileRelativePath: ciConfig.DockerBuildConfig.DockerfilePath,
-			TargetPlatform:         ciConfig.DockerBuildConfig.TargetPlatform,
-			GitCheckoutPath:        gitMaterial.CheckoutPath,
-			DockerBuildOptions:     ciConfig.DockerBuildConfig.DockerBuildOptions,
-		},
+		CiBuildConfig:    ciConfig.CiBuildConfig,
+		CheckoutPath:     gitMaterial.CheckoutPath,
 	}
 
 	return dockerConfig, nil, http.StatusOK
@@ -559,6 +555,8 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 	var deploymentTemplateRaw json.RawMessage
 	var chartRefId int
 	var isOverride bool
+	var isBasicViewLocked bool
+	var currentViewEditor models.ChartsViewEditorType
 	if envId > 0 {
 		//on env level
 		env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, chartRefData.LatestEnvChartRef)
@@ -571,15 +569,21 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 			deploymentTemplateRaw = env.EnvironmentConfig.EnvOverrideValues
 			showAppMetrics = *env.AppMetrics
 			isOverride = true
+			isBasicViewLocked = env.EnvironmentConfig.IsBasicViewLocked
+			currentViewEditor = env.EnvironmentConfig.CurrentViewEditor
 		} else {
 			showAppMetrics = appDeploymentTemplate.IsAppMetricsEnabled
 			deploymentTemplateRaw = appDeploymentTemplate.DefaultAppOverride
+			isBasicViewLocked = appDeploymentTemplate.IsBasicViewLocked
+			currentViewEditor = appDeploymentTemplate.CurrentViewEditor
 		}
 	} else {
 		//on app level
 		showAppMetrics = appDeploymentTemplate.IsAppMetricsEnabled
 		deploymentTemplateRaw = appDeploymentTemplate.DefaultAppOverride
 		chartRefId = chartRefData.LatestAppChartRef
+		isBasicViewLocked = appDeploymentTemplate.IsBasicViewLocked
+		currentViewEditor = appDeploymentTemplate.CurrentViewEditor
 	}
 
 	var deploymentTemplateObj map[string]interface{}
@@ -592,10 +596,12 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 	}
 
 	deploymentTemplateResp := &appBean.DeploymentTemplate{
-		ChartRefId:     chartRefId,
-		Template:       deploymentTemplateObj,
-		ShowAppMetrics: showAppMetrics,
-		IsOverride:     isOverride,
+		ChartRefId:        chartRefId,
+		Template:          deploymentTemplateObj,
+		ShowAppMetrics:    showAppMetrics,
+		IsOverride:        isOverride,
+		IsBasicViewLocked: isBasicViewLocked,
+		CurrentViewEditor: currentViewEditor,
 	}
 
 	return deploymentTemplateResp, nil, http.StatusOK
@@ -1249,7 +1255,19 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 // create docker config
 func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig *appBean.DockerConfig, userId int32) (error, int) {
 	handler.logger.Infow("Create App - creating docker config", "appId", appId, "DockerConfig", dockerConfig)
-
+	dockerBuildConfig := dockerConfig.DockerBuildConfig
+	if dockerBuildConfig != nil {
+		dockerConfig.CheckoutPath = dockerBuildConfig.GitCheckoutPath
+		dockerConfig.CiBuildConfig = &bean2.CiBuildConfigBean{
+			CiBuildType: bean2.SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &bean2.DockerBuildConfig{
+				DockerfilePath:     dockerBuildConfig.DockerfileRelativePath,
+				DockerBuildOptions: dockerBuildConfig.DockerBuildOptions,
+				Args:               dockerBuildConfig.Args,
+				TargetPlatform:     dockerBuildConfig.TargetPlatform,
+			},
+		}
+	}
 	createDockerConfigRequest := &bean.CiConfigRequest{
 		AppId:            appId,
 		UserId:           userId,
@@ -1258,28 +1276,15 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 	}
 
 	//finding gitMaterial by appId and checkoutPath
-	gitMaterial, err := handler.materialRepository.FindByAppIdAndCheckoutPath(appId, dockerConfig.BuildConfig.GitCheckoutPath)
+	gitMaterial, err := handler.materialRepository.FindByAppIdAndCheckoutPath(appId, dockerConfig.CheckoutPath)
 	if err != nil {
 		handler.logger.Errorw("service err, FindByAppIdAndCheckoutPath in CreateDockerConfig", "err", err, "appId", appId)
 		return err, http.StatusInternalServerError
 	}
 
-	dockerBuildArgs := make(map[string]string)
-	if dockerConfig.BuildConfig.Args != nil {
-		dockerBuildArgs = dockerConfig.BuildConfig.Args
-	}
-	dockerBuildOptions := make(map[string]string)
-	if dockerConfig.BuildConfig.DockerBuildOptions != nil {
-		dockerBuildOptions = dockerConfig.BuildConfig.DockerBuildOptions
-	}
-	dockerBuildConfigRequest := &bean.DockerBuildConfig{
-		GitMaterialId:      gitMaterial.Id,
-		DockerfilePath:     dockerConfig.BuildConfig.DockerfileRelativePath,
-		Args:               dockerBuildArgs,
-		DockerBuildOptions: dockerBuildOptions,
-		TargetPlatform:     dockerConfig.BuildConfig.TargetPlatform,
-	}
-	createDockerConfigRequest.DockerBuildConfig = dockerBuildConfigRequest
+	ciBuildConfig := dockerConfig.CiBuildConfig
+	ciBuildConfig.GitMaterialId = gitMaterial.Id
+	createDockerConfigRequest.CiBuildConfig = ciBuildConfig
 
 	_, err = handler.pipelineBuilder.CreateCiPipeline(createDockerConfigRequest)
 	if err != nil {
@@ -1299,6 +1304,8 @@ func (handler CoreAppRestHandlerImpl) createDeploymentTemplate(ctx context.Conte
 		ChartRefId:          deploymentTemplate.ChartRefId,
 		IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
 		UserId:              userId,
+		IsBasicViewLocked:   deploymentTemplate.IsBasicViewLocked,
+		CurrentViewEditor:   deploymentTemplate.CurrentViewEditor,
 	}
 
 	//marshalling template
@@ -1738,6 +1745,8 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		Namespace:         env.Namespace,
 		Status:            models.CHARTSTATUS_NEW,
 		EnvOverrideValues: template,
+		IsBasicViewLocked: deploymentTemplateOverride.IsBasicViewLocked,
+		CurrentViewEditor: deploymentTemplateOverride.CurrentViewEditor,
 	}
 	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
 	if err != nil {

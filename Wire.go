@@ -64,6 +64,7 @@ import (
 	appWorkflow2 "github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/sql/repository/bulkUpdate"
 	"github.com/devtron-labs/devtron/internal/sql/repository/chartConfig"
+	dockerRegistryRepository "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/internal/sql/repository/helper"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	security2 "github.com/devtron-labs/devtron/internal/sql/repository/security"
@@ -85,6 +86,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
+	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
@@ -197,14 +199,15 @@ func InitializeApp() (*App, error) {
 		app2.NewAppRepositoryImpl,
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
 
+		pipeline.GetDeploymentServiceTypeConfig,
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
 		pipeline2.NewPipelineRestHandlerImpl,
 		wire.Bind(new(pipeline2.PipelineConfigRestHandler), new(*pipeline2.PipelineConfigRestHandlerImpl)),
 		router.NewPipelineRouterImpl,
 		wire.Bind(new(router.PipelineConfigRouter), new(*router.PipelineConfigRouterImpl)),
-		pipeline.NewDbPipelineOrchestrator,
-		wire.Bind(new(pipeline.DbPipelineOrchestrator), new(*pipeline.DbPipelineOrchestratorImpl)),
+		pipeline.NewCiCdPipelineOrchestrator,
+		wire.Bind(new(pipeline.CiCdPipelineOrchestrator), new(*pipeline.CiCdPipelineOrchestratorImpl)),
 		pipelineConfig.NewMaterialRepositoryImpl,
 		wire.Bind(new(pipelineConfig.MaterialRepository), new(*pipelineConfig.MaterialRepositoryImpl)),
 
@@ -214,8 +217,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(restHandler.MigrateDbRestHandler), new(*restHandler.MigrateDbRestHandlerImpl)),
 		pipeline.NewDockerRegistryConfigImpl,
 		wire.Bind(new(pipeline.DockerRegistryConfig), new(*pipeline.DockerRegistryConfigImpl)),
-		repository.NewDockerArtifactStoreRepositoryImpl,
-		wire.Bind(new(repository.DockerArtifactStoreRepository), new(*repository.DockerArtifactStoreRepositoryImpl)),
+		dockerRegistry.NewDockerRegistryIpsConfigServiceImpl,
+		wire.Bind(new(dockerRegistry.DockerRegistryIpsConfigService), new(*dockerRegistry.DockerRegistryIpsConfigServiceImpl)),
+		dockerRegistryRepository.NewDockerArtifactStoreRepositoryImpl,
+		wire.Bind(new(dockerRegistryRepository.DockerArtifactStoreRepository), new(*dockerRegistryRepository.DockerArtifactStoreRepositoryImpl)),
+		dockerRegistryRepository.NewDockerRegistryIpsConfigRepositoryImpl,
+		wire.Bind(new(dockerRegistryRepository.DockerRegistryIpsConfigRepository), new(*dockerRegistryRepository.DockerRegistryIpsConfigRepositoryImpl)),
 		util.NewChartTemplateServiceImpl,
 		wire.Bind(new(util.ChartTemplateService), new(*util.ChartTemplateServiceImpl)),
 		chart.NewChartServiceImpl,
@@ -680,6 +687,20 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository3.PrePostCdScriptHistoryRepository), new(*repository3.PrePostCdScriptHistoryRepositoryImpl)),
 		repository3.NewPipelineStrategyHistoryRepositoryImpl,
 		wire.Bind(new(repository3.PipelineStrategyHistoryRepository), new(*repository3.PipelineStrategyHistoryRepositoryImpl)),
+		repository3.NewGitMaterialHistoryRepositoyImpl,
+		wire.Bind(new(repository3.GitMaterialHistoryRepository), new(*repository3.GitMaterialHistoryRepositoryImpl)),
+
+		history3.NewCiTemplateHistoryServiceImpl,
+		wire.Bind(new(history3.CiTemplateHistoryService), new(*history3.CiTemplateHistoryServiceImpl)),
+
+		repository3.NewCiTemplateHistoryRepositoryImpl,
+		wire.Bind(new(repository3.CiTemplateHistoryRepository), new(*repository3.CiTemplateHistoryRepositoryImpl)),
+
+		history3.NewCiPipelineHistoryServiceImpl,
+		wire.Bind(new(history3.CiPipelineHistoryService), new(*history3.CiPipelineHistoryServiceImpl)),
+
+		repository3.NewCiPipelineHistoryRepositoryImpl,
+		wire.Bind(new(repository3.CiPipelineHistoryRepository), new(*repository3.CiPipelineHistoryRepositoryImpl)),
 
 		history3.NewPrePostCdScriptHistoryServiceImpl,
 		wire.Bind(new(history3.PrePostCdScriptHistoryService), new(*history3.PrePostCdScriptHistoryServiceImpl)),
@@ -691,6 +712,8 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(history3.ConfigMapHistoryService), new(*history3.ConfigMapHistoryServiceImpl)),
 		history3.NewPipelineStrategyHistoryServiceImpl,
 		wire.Bind(new(history3.PipelineStrategyHistoryService), new(*history3.PipelineStrategyHistoryServiceImpl)),
+		history3.NewGitMaterialHistoryServiceImpl,
+		wire.Bind(new(history3.GitMaterialHistoryService), new(*history3.GitMaterialHistoryServiceImpl)),
 
 		history3.NewDeployedConfigurationHistoryServiceImpl,
 		wire.Bind(new(history3.DeployedConfigurationHistoryService), new(*history3.DeployedConfigurationHistoryServiceImpl)),
@@ -740,13 +763,16 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
 		pipelineConfig.NewPipelineStatusTimelineRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineStatusTimelineRepository), new(*pipelineConfig.PipelineStatusTimelineRepositoryImpl)),
-
 		wire.Bind(new(pipeline.DeploymentConfigService), new(*pipeline.DeploymentConfigServiceImpl)),
 		pipeline.NewDeploymentConfigServiceImpl,
-
 		pipelineConfig.NewCiTemplateOverrideRepositoryImpl,
 		wire.Bind(new(pipelineConfig.CiTemplateOverrideRepository), new(*pipelineConfig.CiTemplateOverrideRepositoryImpl)),
-
+		pipelineConfig.NewCiBuildConfigRepositoryImpl,
+		wire.Bind(new(pipelineConfig.CiBuildConfigRepository), new(*pipelineConfig.CiBuildConfigRepositoryImpl)),
+		pipeline.NewCiBuildConfigServiceImpl,
+		wire.Bind(new(pipeline.CiBuildConfigService), new(*pipeline.CiBuildConfigServiceImpl)),
+		pipeline.NewCiTemplateServiceImpl,
+		wire.Bind(new(pipeline.CiTemplateService), new(*pipeline.CiTemplateServiceImpl)),
 		router.NewGlobalCMCSRouterImpl,
 		wire.Bind(new(router.GlobalCMCSRouter), new(*router.GlobalCMCSRouterImpl)),
 		restHandler.NewGlobalCMCSRestHandlerImpl,

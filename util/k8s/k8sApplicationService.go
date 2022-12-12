@@ -95,9 +95,20 @@ type BatchResourceResponse struct {
 
 func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTree map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean {
 	noOfNodes := len(resourceTree["nodes"].([]interface{}))
+	resourceNodeItemss := resourceTree["nodes"].([]interface{})
 	for i := 0; i < noOfNodes; i++ {
-		resourceItem := resourceTree["nodes"].([]interface{})[i].(map[string]interface{})
-		kind, name, namespace := resourceItem["kind"].(string), resourceItem["name"].(string), resourceItem["namespace"].(string)
+		resourceItem := resourceNodeItemss[i].(map[string]interface{})
+		var kind, name, namespace string
+		if _, ok := resourceItem["kind"]; ok && resourceItem["kind"] != nil {
+			kind = resourceItem["kind"].(string)
+		}
+		if _, ok := resourceItem["name"]; ok && resourceItem["name"] != nil {
+			name = resourceItem["name"].(string)
+		}
+		if _, ok := resourceItem["namespace"]; ok && resourceItem["namespace"] != nil {
+			namespace = resourceItem["namespace"].(string)
+		}
+
 		if appId == "" {
 			appId = strconv.Itoa(appDetail.ClusterId) + "|" + namespace + "|" + (appDetail.AppName + "-" + appDetail.EnvironmentName)
 		}

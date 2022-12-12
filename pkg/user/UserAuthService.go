@@ -365,10 +365,9 @@ func (impl UserAuthServiceImpl) HandleDexCallback(w http.ResponseWriter, r *http
 
 func WhitelistChecker(url string) bool {
 	urls := []string{
-		"/orchestrator/health",
+		"/health",
 		"/metrics",
 		"/orchestrator/webhook/ci/gocd/artifact",
-		"/orchestrator/webhook/ext-ci/",
 		"/orchestrator/auth/login",
 		"/orchestrator/auth/callback",
 		"/orchestrator/api/v1/session",
@@ -390,7 +389,6 @@ func WhitelistChecker(url string) bool {
 		}
 	}
 	prefixUrls := []string{
-		"/orchestrator/webhook/ext-ci/",
 		"/orchestrator/api/vi/pod/exec/ws",
 		"/orchestrator/k8s/pod/exec/sockjs/ws",
 		"/orchestrator/api/dex",

@@ -1,6 +1,7 @@
 package appbean
 
 import (
+	"github.com/devtron-labs/devtron/internal/sql/models"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/pipeline/bean"
 )
@@ -42,9 +43,11 @@ type GitMaterial struct {
 }
 
 type DockerConfig struct {
-	DockerRegistry   string             `json:"dockerRegistry" validate:"required"`
-	DockerRepository string             `json:"dockerRepository" validate:"required"`
-	BuildConfig      *DockerBuildConfig `json:"dockerBuildConfig"`
+	DockerRegistry    string                  `json:"dockerRegistry" validate:"required"`
+	DockerRepository  string                  `json:"dockerRepository" validate:"required"`
+	CiBuildConfig     *bean.CiBuildConfigBean `json:"ciBuildConfig"`
+	DockerBuildConfig *DockerBuildConfig      `json:"dockerBuildConfig,omitempty"` // Deprecated, should use CiBuildConfig for development
+	CheckoutPath      string                  `json:"checkoutPath"`
 }
 
 type DockerBuildConfig struct {
@@ -56,10 +59,12 @@ type DockerBuildConfig struct {
 }
 
 type DeploymentTemplate struct {
-	ChartRefId     int                    `json:"chartRefId,notnull" validate:"required"`
-	Template       map[string]interface{} `json:"template,notnull" validate:"required"`
-	ShowAppMetrics bool                   `json:"showAppMetrics"`
-	IsOverride     bool                   `json:"isOverride"`
+	ChartRefId        int                         `json:"chartRefId,notnull" validate:"required"`
+	Template          map[string]interface{}      `json:"template,notnull" validate:"required"`
+	ShowAppMetrics    bool                        `json:"showAppMetrics"`
+	IsOverride        bool                        `json:"isOverride"`
+	IsBasicViewLocked bool                        `json:"isBasicViewLocked"`
+	CurrentViewEditor models.ChartsViewEditorType `json:"currentViewEditor"` //default "UNDEFINED" in db
 }
 
 type AppWorkflow struct {

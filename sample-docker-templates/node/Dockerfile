@@ -24,6 +24,7 @@ WORKDIR /app
 # Adding complete files and dirs in app dir in container
 ADD . /app/
 
+# Refer https://raw.githubusercontent.com/devtron-labs/devtron/main/sample-docker-templates/node/nginx.default for sample nginx.default
 COPY nginx.default /etc/nginx/sites-available/default
 
 # Installing dependencies

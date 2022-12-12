@@ -25,6 +25,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	"github.com/devtron-labs/devtron/util/argo"
 	errors2 "github.com/juju/errors"
 	"net/http"
@@ -52,7 +53,7 @@ import (
 type AppListingService interface {
 	FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error)
 	BuildAppListingResponse(fetchAppListingRequest FetchAppListingRequest, envContainers []*bean.AppEnvironmentContainer) ([]*bean.AppContainer, error)
-
+	FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error)
 	FetchAppDetails(appId int, envId int) (bean.AppDetailContainer, error)
 
 	PodCountByAppLabel(appLabel string, namespace string, env string, proEndpoint string) int
@@ -106,6 +107,11 @@ type FetchAppListingRequest struct {
 	Namespaces        []string         `json:"namespaces"` //{clusterId}_{namespace}
 
 }
+type AppNameTypeIdContainer struct {
+	AppName string `json:"appName"`
+	Type    string `json:"type"`
+	AppId   int    `json:"appId"`
+}
 
 func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceClusterPair []*repository2.ClusterNamespacePair, clusterIds []int, err error) {
 	for _, ns := range req.Namespaces {
@@ -132,21 +138,23 @@ func (req FetchAppListingRequest) GetNamespaceClusterMapping() (namespaceCluster
 }
 
 type AppListingServiceImpl struct {
-	Logger                     *zap.SugaredLogger
-	application                application2.ServiceClient
-	appRepository              app.AppRepository
-	appListingRepository       repository.AppListingRepository
-	appListingViewBuilder      AppListingViewBuilder
-	pipelineRepository         pipelineConfig.PipelineRepository
-	cdWorkflowRepository       pipelineConfig.CdWorkflowRepository
-	linkoutsRepository         repository.LinkoutsRepository
-	appLevelMetricsRepository  repository.AppLevelMetricsRepository
-	envLevelMetricsRepository  repository.EnvLevelAppMetricsRepository
-	pipelineOverrideRepository chartConfig.PipelineOverrideRepository
-	environmentRepository      repository2.EnvironmentRepository
-	argoUserService            argo.ArgoUserService
-	envOverrideRepository      chartConfig.EnvConfigOverrideRepository
-	chartRepository            chartRepoRepository.ChartRepository
+	Logger                         *zap.SugaredLogger
+	application                    application2.ServiceClient
+	appRepository                  app.AppRepository
+	appListingRepository           repository.AppListingRepository
+	appListingViewBuilder          AppListingViewBuilder
+	pipelineRepository             pipelineConfig.PipelineRepository
+	cdWorkflowRepository           pipelineConfig.CdWorkflowRepository
+	linkoutsRepository             repository.LinkoutsRepository
+	appLevelMetricsRepository      repository.AppLevelMetricsRepository
+	envLevelMetricsRepository      repository.EnvLevelAppMetricsRepository
+	pipelineOverrideRepository     chartConfig.PipelineOverrideRepository
+	environmentRepository          repository2.EnvironmentRepository
+	argoUserService                argo.ArgoUserService
+	envOverrideRepository          chartConfig.EnvConfigOverrideRepository
+	chartRepository                chartRepoRepository.ChartRepository
+	ciPipelineRepository           pipelineConfig.CiPipelineRepository
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService
 }
 
 func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository repository.AppListingRepository,
@@ -156,23 +164,26 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 	envLevelMetricsRepository repository.EnvLevelAppMetricsRepository, cdWorkflowRepository pipelineConfig.CdWorkflowRepository,
 	pipelineOverrideRepository chartConfig.PipelineOverrideRepository, environmentRepository repository2.EnvironmentRepository,
 	argoUserService argo.ArgoUserService, envOverrideRepository chartConfig.EnvConfigOverrideRepository,
-	chartRepository chartRepoRepository.ChartRepository) *AppListingServiceImpl {
+	chartRepository chartRepoRepository.ChartRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppListingServiceImpl {
 	serviceImpl := &AppListingServiceImpl{
-		Logger:                     Logger,
-		appListingRepository:       appListingRepository,
-		application:                application,
-		appRepository:              appRepository,
-		appListingViewBuilder:      appListingViewBuilder,
-		pipelineRepository:         pipelineRepository,
-		linkoutsRepository:         linkoutsRepository,
-		appLevelMetricsRepository:  appLevelMetricsRepository,
-		envLevelMetricsRepository:  envLevelMetricsRepository,
-		cdWorkflowRepository:       cdWorkflowRepository,
-		pipelineOverrideRepository: pipelineOverrideRepository,
-		environmentRepository:      environmentRepository,
-		argoUserService:            argoUserService,
-		envOverrideRepository:      envOverrideRepository,
-		chartRepository:            chartRepository,
+		Logger:                         Logger,
+		appListingRepository:           appListingRepository,
+		application:                    application,
+		appRepository:                  appRepository,
+		appListingViewBuilder:          appListingViewBuilder,
+		pipelineRepository:             pipelineRepository,
+		linkoutsRepository:             linkoutsRepository,
+		appLevelMetricsRepository:      appLevelMetricsRepository,
+		envLevelMetricsRepository:      envLevelMetricsRepository,
+		cdWorkflowRepository:           cdWorkflowRepository,
+		pipelineOverrideRepository:     pipelineOverrideRepository,
+		environmentRepository:          environmentRepository,
+		argoUserService:                argoUserService,
+		envOverrideRepository:          envOverrideRepository,
+		chartRepository:                chartRepository,
+		ciPipelineRepository:           ciPipelineRepository,
+		dockerRegistryIpsConfigService: dockerRegistryIpsConfigService,
 	}
 	return serviceImpl
 }
@@ -180,6 +191,37 @@ func NewAppListingServiceImpl(Logger *zap.SugaredLogger, appListingRepository re
 const AcdInvalidAppErr = "invalid acd app name and env"
 const NotDeployed = "Not Deployed"
 
+func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdContainer, error) {
+	impl.Logger.Debug("reached at FetchAllDevtronManagedApps:")
+	apps := make([]AppNameTypeIdContainer, 0)
+	res, err := impl.appRepository.FetchAllActiveDevtronAppsWithAppIdAndName()
+	if err != nil {
+		impl.Logger.Errorw("failed to fetch devtron apps", "err", err)
+		return nil, err
+	}
+	for _, r := range res {
+		appContainer := AppNameTypeIdContainer{
+			AppId:   r.Id,
+			AppName: r.AppName,
+			Type:    "devtron-app",
+		}
+		apps = append(apps, appContainer)
+	}
+	res, err = impl.appRepository.FetchAllActiveInstalledAppsWithAppIdAndName()
+	if err != nil {
+		impl.Logger.Errorw("failed to fetch devtron installed apps", "err", err)
+		return nil, err
+	}
+	for _, r := range res {
+		appContainer := AppNameTypeIdContainer{
+			AppId:   r.Id,
+			AppName: r.AppName,
+			Type:    "devtron-installed-app",
+		}
+		apps = append(apps, appContainer)
+	}
+	return apps, nil
+}
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	// TODO: check statuses
@@ -631,8 +673,38 @@ func (impl AppListingServiceImpl) FetchAppDetails(appId int, envId int) (bean.Ap
 		impl.Logger.Errorw("error in fetching environment", "error", err)
 		return bean.AppDetailContainer{}, err
 	}
+	clusterId := envModel.ClusterId
 	appDetailContainer.K8sVersion = envModel.Cluster.K8sVersion
-	appDetailContainer.ClusterId = envModel.ClusterId
+	appDetailContainer.ClusterId = clusterId
+	appDetailContainer.ClusterName = envModel.Cluster.ClusterName
+
+	// set ifIpsAccess provided and relevant data
+	appDetailContainer.IsExternalCi = true
+	ciPipelineId := appDetailContainer.CiPipelineId
+	if ciPipelineId > 0 {
+		ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
+		if err != nil && err != pg.ErrNoRows {
+			impl.Logger.Errorw("error in fetching ciPipeline", "ciPipelineId", ciPipelineId, "error", err)
+			return bean.AppDetailContainer{}, err
+		}
+
+		if ciPipeline != nil && ciPipeline.CiTemplate != nil && len(ciPipeline.CiTemplate.DockerRegistryId) > 0 {
+			dockerRegistryId := ciPipeline.CiTemplate.DockerRegistryId
+			appDetailContainer.DockerRegistryId = dockerRegistryId
+			if !ciPipeline.IsExternal || ciPipeline.ParentCiPipeline != 0 {
+				appDetailContainer.IsExternalCi = false
+			}
+
+			// check ips access provided to this docker registry for that cluster
+			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(dockerRegistryId, clusterId)
+			if err != nil {
+				impl.Logger.Errorw("error in checking if docker registry ips access provided", "dockerRegistryId", dockerRegistryId, "clusterId", clusterId, "error", err)
+				return bean.AppDetailContainer{}, err
+			}
+			appDetailContainer.IpsAccessProvided = ipsAccessProvided
+		}
+	}
+
 	return appDetailContainer, nil
 }
 
