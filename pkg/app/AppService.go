@@ -979,13 +979,6 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		impl.logger.Errorw("error in fetching db migration config", "req", overrideRequest, "err", err)
 		return 0, err
 	}
-	if !userUploaded {
-		valid, err := impl.validateVersionForStrategy(envOverride, strategy)
-		if err != nil || !valid {
-			impl.logger.Errorw("error in validating pipeline strategy ", "strategy", strategy.Strategy, "err", err)
-			return 0, err
-		}
-	}
 	chartVersion := envOverride.Chart.ChartVersion
 	configMapJson, err := impl.getConfigMapAndSecretJsonV2(overrideRequest.AppId, envOverride.TargetEnvironment, overrideRequest.PipelineId, chartVersion, overrideRequest.DeploymentWithConfig, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
 	if err != nil {
@@ -1136,26 +1129,6 @@ func (impl AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDige
 		impl.logger.Debugw("pt", "ot", ot)
 	}
 	return err
-}
-
-func (impl AppServiceImpl) validateVersionForStrategy(envOverride *chartConfig.EnvConfigOverride, strategy *chartConfig.PipelineStrategy) (bool, error) {
-	chartVersion := envOverride.Chart.ChartVersion
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
-	if err != nil {
-		impl.logger.Errorw("chart version parsing", "err", err)
-		return false, err
-	}
-
-	if (chartMajorVersion <= 3 && chartMinorVersion < 2) &&
-		(strategy.Strategy == chartRepoRepository.DEPLOYMENT_STRATEGY_CANARY || strategy.Strategy == chartRepoRepository.DEPLOYMENT_STRATEGY_RECREATE) {
-		err = &ApiError{
-			Code:            "422",
-			InternalMessage: "incompatible chart for selected cd strategy:" + string(strategy.Strategy),
-			UserMessage:     "incompatible chart for selected cd strategy:" + string(strategy.Strategy),
-		}
-		return false, err
-	}
-	return true, nil
 }
 
 // FIXME tmp workaround
