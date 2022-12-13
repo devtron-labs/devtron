@@ -1188,22 +1188,22 @@ func (impl AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequ
 
 func (impl AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectClIAppDTO) error {
 
-	appIdentifier, err := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
+	appName := updateAppRequest.AppName
 
-	app, err := impl.appRepository.FindActiveByName(appIdentifier.ReleaseName)
+	if updateAppRequest.AppId == 0 {
+		// app id is zero for CLI apps
 
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in fetching app", "err", err)
-		return err
+		appIdentifier, err := impl.helmAppService.DecodeAppId(updateAppRequest.AppName)
+		appName = appIdentifier.ReleaseName
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in fetching app", "err", err)
+			return err
+		}
 	}
+
+	app, err := impl.appRepository.FindActiveByName(appName)
 
 	var appInstallationMode string
-
-	if util2.IsBaseStack() {
-		appInstallationMode = util2.SERVER_MODE_HYPERION
-	} else {
-		appInstallationMode = util2.SERVER_MODE_FULL
-	}
 
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -1215,8 +1215,15 @@ func (impl AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest 
 
 	if app.Id == 0 {
 		// for cli Helm app, if app is not yet created
+
+		if util2.IsBaseStack() {
+			appInstallationMode = util2.SERVER_MODE_HYPERION
+		} else {
+			appInstallationMode = util2.SERVER_MODE_FULL
+		}
+
 		createAppRequest := bean.CreateAppDTO{
-			AppName: appIdentifier.ReleaseName,
+			AppName: appName,
 			UserId:  updateAppRequest.UserId,
 			TeamId:  updateAppRequest.TeamId,
 		}
@@ -1227,6 +1234,7 @@ func (impl AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest 
 			return err
 		}
 	} else {
+		// update team id if app exist
 		app.TeamId = updateAppRequest.TeamId
 		app.UpdatedOn = time.Now()
 		app.UpdatedBy = updateAppRequest.UserId

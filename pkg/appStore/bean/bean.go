@@ -312,9 +312,10 @@ type ChartRepoSearch struct {
 }
 
 type UpdateProjectClIAppDTO struct {
-	AppId  string `json:"appId"`
-	TeamId int    `json:"teamId"`
-	UserId int32  `json:"userId"`
+	AppId   int    `json:"appId"`
+	AppName string `json:"appName"`
+	TeamId  int    `json:"teamId"`
+	UserId  int32  `json:"userId"`
 }
 
 type AppstoreDeploymentStatus int
