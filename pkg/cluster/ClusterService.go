@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -522,7 +523,14 @@ func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error 
 			return fmt.Errorf("Incorrect server url : %v", err)
 		} else if statusError, ok := err.(*errors.StatusError); ok {
 			if statusError != nil {
-				return fmt.Errorf("%s : %s", statusError.ErrStatus.Reason, statusError.ErrStatus.Message)
+				errReason := statusError.ErrStatus.Reason
+				var errMsg string
+				if errReason == v1.StatusReasonUnauthorized {
+					errMsg = "token seems invalid or does not have sufficient permissions"
+				} else {
+					errMsg = statusError.ErrStatus.Message
+				}
+				return fmt.Errorf("%s : %s", errReason, errMsg)
 			} else {
 				return fmt.Errorf("Validation failed : %v", err)
 			}
