@@ -454,7 +454,6 @@ spec:
   strategy:
     {{- if eq .Values.deploymentType "ROLLING" }}
     rollingUpdate:
-      stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
       maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
       maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
     {{- else if eq .Values.deploymentType "RECREATE" }}
