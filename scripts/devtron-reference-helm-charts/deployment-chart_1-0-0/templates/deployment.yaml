@@ -453,7 +453,7 @@ spec:
 #  waitForSecondsBeforeScalingDown: {{ $.Values.waitForSecondsBeforeScalingDown }}
   strategy:
     {{- if eq .Values.deploymentType "ROLLING" }}
-    canary:
+    rollingUpdate:
       stableService: {{ template ".servicename" . }} # Reference to a service that serves end-user traffic to the replica set
       maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
       maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
