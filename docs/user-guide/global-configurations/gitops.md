@@ -33,10 +33,16 @@ If you select `GitHuB` as your git provider, please provide the information in t
 
 **Note**: We do NOT recommend using GitHub organization which contains your source code.
 
-1. On the upper-right corner of your GitHub page, click your profile photo, then click `Settings`.
-2. On the `Access` section, click  `Organizations`.
-3. On the `Organizations` section, click `New organization`.
-4. Pick a plan for your organization. 
+1. Create a new account on GitHub (if you do not have one).
+2. On the upper-right corner of your GitHub page, click your profile photo, then click `Settings`.
+3. On the `Access` section, click  `Organizations`.
+4. On the `Organizations` section, click `New organization`.
+5. Pick a plan for your organization. 
+6. On the `Set up your organization` page, 
+   * Enter the `organization account name`, `contact email`.
+   * Select the option your organization belongs to.
+   * Verify your account and click `Next`.
+   * Your `GitHub organization name` will be created. 
 
 For more information about the plans available for your team, see [GitHub's products](https://docs.github.com/en/get-started/learning-about-github/githubs-products). You can also refer [GitHub organization](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations) official doc page for more detail.
 
@@ -53,17 +59,18 @@ If you select `GitLab` as your git provider, please provide the information in t
 | Fields | Description |
 | --- | --- |
 | **Git Host** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://gitlab.com/ for GitLab. |
-| **GitLab Group ID** | Enter the GitLab group ID.<br>If you do not have one, create using [GitLab Group ID]</br>. |
+| **GitLab Group ID** | Enter the GitLab group ID.<br>If you do not have one, create using [GitLab Group ID](#how-to-create-organization-in-gitlab).</br> |
 | **GitLab Username** | Provide the username of your GitLab account. |
-| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitLab account.<br>If you do not have one, create a GitLab PAT [here](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html)</br>. |
+| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitLab account.<br>If you do not have one, create a GitLab PAT [here](https://docs.gitlab.com/ee/user/profile/personal_access_tokens.html).</br> |
 
 
 ### How to create organization in GitLab
 
-1. You can create a group by going to the 'Groups' tab on the GitLab dashboard and click `New group`.
-2. Select `Creat group`.
-3. Enter the group name (required) and select the optional descriptions, if require and click `Create group`.
-4. When your group has been created, you will assigned the `Group ID` which will be of 8 digits (e.g. 61413736).
+1. Create a new account on GitLab (if you do have one).
+2. You can create a group by going to the 'Groups' tab on the GitLab dashboard and click `New group`.
+3. Select `Create group`.
+4. Enter the group name (required) and select the optional descriptions, if require and click `Create group`.
+5. When your group has been created, you will assigned the `Group ID` which will be of 8 digits (e.g. 61413736).
 
 
 **Note**:
@@ -78,9 +85,24 @@ If you select `GitAzureLab` as your git provider, please provide the information
 | Fields | Description |
 | --- | --- |
 | **Azure DevOps Organisation Url*** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://dev.azure.com/ for Azure. |
-| **Azure DevOps Project Name** | Enter the Azure DevOps project name.<br>If you do not have one, create using [Azure DevOps Project Name](https://docs.microsoft.com/en-us/azure/devops/organizations/projects/create-project?view=azure-devops&tabs=preview-page)</br>. |
+| **Azure DevOps Project Name** | Enter the Azure DevOps project name.<br>If you do not have one, create using [Azure DevOps Project Name](#how-to-create-azure-devops-project-name).</br> |
 | **Azure DevOps Username*** | Provide the username of your Azure DevOps account. |
-| **Azure DevOps Access Token*** | Provide your Azure DevOps access token. It is used as an alternate password to authenticate your Azure DevOps account.<br>If you do not have one, create a Azure DevOps access token [here](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page)</br>. |
+| **Azure DevOps Access Token*** | Provide your Azure DevOps access token. It is used as an alternate password to authenticate your Azure DevOps account.<br>If you do not have one, create a Azure DevOps access token [here](https://docs.microsoft.com/en-us/azure/devops/organizations/accounts/use-personal-access-tokens-to-authenticate?view=azure-devops&tabs=preview-page).</br> |
+
+
+### How to create Azure DevOps project name
+
+**Note**: You need an organization before you can create a project. If you have not created an organization yet, create one by following the instructions in [Sign up, sign in to Azure DevOps](https://learn.microsoft.com/en-us/azure/devops/user-guide/sign-up-invite-teammates?view=azure-devops), which also creates a project. Or see [Create an organization or project collection](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/create-organization?view=azure-devops).
+
+1. Sign in to your Azure DevOps organization (https://dev.azure.com/{yourorganization}).
+2. Click `New project`. 
+3. On the `Create new project` page, 
+   * Enter the `project name` and description of the project.
+   * Select the visibility option (private or public), initial source control type, and work item process.
+   * Click `Create`.
+   * Azure DevOps displays the project welcome page with the `project name`.
+
+You can also refer [Azure DevOps Project Name](https://docs.microsoft.com/en-us/azure/devops/organizations/projects/create-project?view=azure-devops&tabs=preview-page) official doc page for more detail.
 
 **Note**:
 * code - Grants the ability to read source code and metadata about commits, change sets, branches, and other version control artifacts. [More Information on scopes in Azure devops](https://docs.microsoft.com/en-us/azure/devops/integrate/get-started/authentication/oauth?view=azure-devops#scopes).
