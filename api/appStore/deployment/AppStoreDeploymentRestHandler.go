@@ -52,6 +52,7 @@ type AppStoreDeploymentRestHandler interface {
 	LinkHelmApplicationToChartStore(w http.ResponseWriter, r *http.Request)
 	UpdateInstalledApp(w http.ResponseWriter, r *http.Request)
 	GetInstalledAppVersion(w http.ResponseWriter, r *http.Request)
+	UpdateProjectHelmApp(w http.ResponseWriter, r *http.Request)
 }
 
 type AppStoreDeploymentRestHandlerImpl struct {
@@ -506,4 +507,35 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.R
 	//rbac block ends here
 
 	common.WriteJsonResp(w, err, dto, http.StatusOK)
+}
+
+func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	var request appStoreBean.UpdateProjectClIAppDTO
+
+	decoder := json.NewDecoder(r.Body)
+
+	err = decoder.Decode(&request)
+
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	request.UserId = userId
+
+	err = handler.appStoreDeploymentService.UpdateProjectHelmApp(&request)
+
+	if err != nil {
+		common.WriteJsonResp(w, err, "error in updating project", http.StatusBadRequest)
+	} else {
+		common.WriteJsonResp(w, nil, "Project Updated", http.StatusOK)
+	}
+
 }

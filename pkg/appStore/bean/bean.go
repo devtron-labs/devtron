@@ -311,6 +311,12 @@ type ChartRepoSearch struct {
 	Deprecated                   bool   `json:"deprecated"`
 }
 
+type UpdateProjectClIAppDTO struct {
+	AppId  string `json:"appId"`
+	TeamId int    `json:"teamId"`
+	UserId int32  `json:"userId"`
+}
+
 type AppstoreDeploymentStatus int
 
 const (
