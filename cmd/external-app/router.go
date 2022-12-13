@@ -53,6 +53,7 @@ type MuxRouter struct {
 	webhookHelmRouter        webhookHelm.WebhookHelmRouter
 	userAttributesRouter     router.UserAttributesRouter
 	telemetryRouter          router.TelemetryRouter
+	userTerminalAccessRouter router.UserTerminalAccessRouter
 }
 
 func NewMuxRouter(
@@ -79,6 +80,7 @@ func NewMuxRouter(
 	webhookHelmRouter webhookHelm.WebhookHelmRouter,
 	userAttributesRouter router.UserAttributesRouter,
 	telemetryRouter router.TelemetryRouter,
+	userTerminalAccessRouter router.UserTerminalAccessRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -106,6 +108,7 @@ func NewMuxRouter(
 		webhookHelmRouter:        webhookHelmRouter,
 		userAttributesRouter:     userAttributesRouter,
 		telemetryRouter:          telemetryRouter,
+		userTerminalAccessRouter: userTerminalAccessRouter,
 	}
 	return r
 }
@@ -219,4 +222,7 @@ func (r *MuxRouter) Init() {
 
 	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
 	r.telemetryRouter.InitTelemetryRouter(telemetryRouter)
+
+	userTerminalAccessRouter := r.Router.PathPrefix("/orchestrator/user/terminal").Subrouter()
+	r.userTerminalAccessRouter.InitTerminalAccessRouter(userTerminalAccessRouter)
 }

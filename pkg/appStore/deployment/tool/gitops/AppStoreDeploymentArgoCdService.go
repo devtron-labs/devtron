@@ -21,6 +21,7 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/golang/protobuf/ptypes/timestamp"
+	"github.com/google/go-github/github"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -385,7 +386,14 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 	installAppVersionRequest, err := impl.updateValuesYaml(environment, installedAppVersion, installAppVersionRequest)
 	if err != nil {
 		impl.Logger.Errorw("error while commit values to git", "error", err)
-		return nil, err
+		statusError, ok := err.(*github.ErrorResponse)
+		if ok && statusError.Response.StatusCode == http.StatusNotFound {
+			impl.Logger.Errorw("no content found while updating git repo, do auto fix", "error", err)
+			//if by mistake no content found while updating git repo, do auto fix
+			installAppVersionRequest, err = impl.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
+		} else {
+			return nil, err
+		}
 	}
 	installAppVersionRequest.Environment = environment
 

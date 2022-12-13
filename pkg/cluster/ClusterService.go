@@ -89,6 +89,7 @@ type ClusterService interface {
 	CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error)
 	GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error)
 	GetK8sClient() (*v12.CoreV1Client, error)
+	GetAllClusterNamespaces() map[string][]string
 }
 
 type ClusterServiceImpl struct {
@@ -533,4 +534,19 @@ func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error 
 		return fmt.Errorf("Validation failed with response : %s", string(response))
 	}
 	return nil
+}
+
+func (impl *ClusterServiceImpl) GetAllClusterNamespaces() map[string][]string {
+	result := make(map[string][]string)
+	namespaceListGroupByCLuster := impl.K8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
+	for clusterName, namespaces := range namespaceListGroupByCLuster {
+		copiedNamespaces := result[clusterName]
+		for namespace, value := range namespaces {
+			if value {
+				copiedNamespaces = append(copiedNamespaces, namespace)
+			}
+		}
+		result[clusterName] = copiedNamespaces
+	}
+	return result
 }

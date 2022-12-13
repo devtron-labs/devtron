@@ -34,6 +34,7 @@ import (
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
+	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
@@ -136,8 +137,17 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(attributes.UserAttributesService), new(*attributes.UserAttributesServiceImpl)),
 		repository.NewUserAttributesRepositoryImpl,
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
-
 		util3.GetDevtronSecretName,
+
+		router.NewUserTerminalAccessRouterImpl,
+		wire.Bind(new(router.UserTerminalAccessRouter), new(*router.UserTerminalAccessRouterImpl)),
+		restHandler.NewUserTerminalAccessRestHandlerImpl,
+		wire.Bind(new(restHandler.UserTerminalAccessRestHandler), new(*restHandler.UserTerminalAccessRestHandlerImpl)),
+		clusterTerminalAccess.GetTerminalAccessConfig,
+		clusterTerminalAccess.NewUserTerminalAccessServiceImpl,
+		wire.Bind(new(clusterTerminalAccess.UserTerminalAccessService), new(*clusterTerminalAccess.UserTerminalAccessServiceImpl)),
+		repository.NewTerminalAccessRepositoryImpl,
+		wire.Bind(new(repository.TerminalAccessRepository), new(*repository.TerminalAccessRepositoryImpl)),
 	)
 	return &App{}, nil
 }
