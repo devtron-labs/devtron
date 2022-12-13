@@ -131,3 +131,29 @@ Create chart name and version as used by the chart label.
    {{- end }}
    {{- $SMenabled -}}
 {{- end -}}
+
+  {{- $hasCMEnvExists := false -}}
+  {{- $hasCMVolumeExists := false -}}
+  {{- if .Values.ConfigMaps.enabled }}
+  {{- range .Values.ConfigMaps.maps }}
+  {{- if eq .type "volume"}}
+  {{- $hasCMVolumeExists = true}}
+  {{- end }}
+  {{- if eq .type "environment"}}
+  {{- $hasCMEnvExists = true}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
+
+  {{- $hasSecretEnvExists := false -}}
+  {{- $hasSecretVolumeExists := false -}}
+  {{- if .Values.ConfigSecrets.enabled }}
+  {{- range .Values.ConfigSecrets.secrets }}
+  {{- if eq .type "volume"}}
+  {{- $hasSecretVolumeExists = true}}
+  {{- end }}
+  {{- if eq .type "environment"}}
+  {{- $hasSecretEnvExists = true}}
+  {{- end }}
+  {{- end }}
+  {{- end }}
