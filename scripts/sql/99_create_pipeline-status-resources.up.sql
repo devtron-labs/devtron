@@ -37,3 +37,33 @@ CREATE TABLE public.pipeline_status_timeline_sync_detail (
  CONSTRAINT "pipeline_status_timeline_sync_detail_installed_app_version_history_id_fkey" FOREIGN KEY ("installed_app_version_history_id") REFERENCES "public"."installed_app_version_history" ("id"),
  PRIMARY KEY ("id")
 );
+
+ALTER TABLE pipeline ADD COLUMN deployment_app_name text;
+
+DO $$
+DECLARE
+temprow record;
+BEGIN
+    FOR temprow IN SELECT p.id, a.app_name, e.environment_name FROM pipeline p INNER JOIN app a on p.app_id = a.id INNER JOIN environment e on p.environment_id = e.id and p.deleted=false
+        LOOP
+            UPDATE pipeline SET deployment_app_name=FORMAT('%s-%s',temprow.app_name,temprow.environment_name) where id=temprow.id;
+        END LOOP;
+END$$;
+
+ALTER TABLE cd_workflow_runner ADD COLUMN created_on timestamptz;
+
+ALTER TABLE cd_workflow_runner ADD COLUMN created_by int4;
+
+ALTER TABLE cd_workflow_runner ADD COLUMN updated_on timestamptz;
+
+ALTER TABLE cd_workflow_runner ADD COLUMN updated_by int4;
+
+DO $$
+DECLARE
+temprow record;
+BEGIN
+FOR temprow IN SELECT * FROM cd_workflow_runner
+    LOOP
+UPDATE cd_workflow_runner SET created_on=temprow.started_on, created_by=1, updated_on=temprow.started_on, updated_by=1 where id=temprow.id;
+END LOOP;
+END$$;
