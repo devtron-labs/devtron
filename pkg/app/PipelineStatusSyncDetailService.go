@@ -11,7 +11,7 @@ import (
 type PipelineStatusSyncDetailService interface {
 	SaveOrUpdateSyncDetail(cdWfrId int, userId int32) error
 	GetSyncTimeAndCountByCdWfrId(cdWfrId int) (time.Time, int, error)
-	GetLastSyncTimeForLatestCdWfrByArgoAppName(argoAppName string) (time.Time, error)
+	GetLastSyncTimeForLatestCdWfrByCdPipelineId(pipelineId int) (time.Time, error)
 }
 
 type PipelineStatusSyncDetailServiceImpl struct {
@@ -80,11 +80,11 @@ func (impl *PipelineStatusSyncDetailServiceImpl) GetSyncTimeAndCountByCdWfrId(cd
 	return syncTime, syncCount, nil
 }
 
-func (impl *PipelineStatusSyncDetailServiceImpl) GetLastSyncTimeForLatestCdWfrByArgoAppName(argoAppName string) (time.Time, error) {
+func (impl *PipelineStatusSyncDetailServiceImpl) GetLastSyncTimeForLatestCdWfrByCdPipelineId(pipelineId int) (time.Time, error) {
 	lastSyncedAt := time.Time{}
-	syncDetailModel, err := impl.pipelineStatusSyncDetailRepository.GetOfLatestCdWfrByArgoAppName(argoAppName)
+	syncDetailModel, err := impl.pipelineStatusSyncDetailRepository.GetOfLatestCdWfrByCdPipelineId(pipelineId)
 	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("service err, GetLastSyncTimeForLatestCdWfrByArgoAppName", "err", err, "argoAppName", argoAppName)
+		impl.logger.Errorw("service err, GetLastSyncTimeForLatestCdWfrByCdPipelineId", "err", err, "pipelineId", pipelineId)
 		return lastSyncedAt, err
 	}
 	if syncDetailModel != nil {

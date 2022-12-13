@@ -30,6 +30,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/client/cron"
 	"github.com/devtron-labs/devtron/internal/constants"
+	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
@@ -82,6 +83,7 @@ type AppListingRestHandlerImpl struct {
 	k8sApplicationService            k8s.K8sApplicationService
 	installedAppService              service1.InstalledAppService
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
+	pipelineRepository               pipelineConfig.PipelineRepository
 }
 
 type AppStatus struct {
@@ -101,7 +103,8 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
 	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService,
-	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler) *AppListingRestHandlerImpl {
+	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler,
+	pipelineRepository pipelineConfig.PipelineRepository) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:                      application,
 		appListingService:                appListingService,
@@ -119,6 +122,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		k8sApplicationService:            k8sApplicationService,
 		installedAppService:              installedAppService,
 		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
+		pipelineRepository:               pipelineRepository,
 	}
 	return appListingHandler
 }
@@ -705,12 +709,23 @@ func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppI
 	return appDetail, err, appId
 }
 
+// TODO: move this to service
 func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter, r *http.Request, appId int, envId int, appDetail bean.AppDetailContainer) bean.AppDetailContainer {
 	if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsAcdApp(appDetail.DeploymentAppType) {
 		//RBAC enforcer Ends
-		acdAppName := appDetail.AppName + "-" + appDetail.EnvironmentName
+		cdPipelines, err := handler.pipelineRepository.FindActiveByAppIdAndEnvironmentId(appId, envId)
+		if err != nil {
+			handler.logger.Errorw("error in getting cdPipeline by appId and envId", "err", err, "appid", appId, "envId", envId)
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return appDetail
+		}
+		if len(cdPipelines) != 1 {
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return appDetail
+		}
+		cdPipeline := cdPipelines[0]
 		query := &application2.ResourcesQuery{
-			ApplicationName: &acdAppName,
+			ApplicationName: &cdPipeline.DeploymentAppName,
 		}
 		ctx, cancel := context.WithCancel(r.Context())
 		if cn, ok := w.(http.CloseNotifier); ok {
@@ -763,7 +778,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 		}
 		appDetail.ResourceTree = util2.InterfaceToMapAdapter(resp)
 		if resp.Status == string(health.HealthStatusHealthy) {
-			err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(acdAppName, appId, envId)
+			err = handler.cdApplicationStatusUpdateHandler.SyncPipelineStatusForResourceTreeCall(cdPipeline)
 			if err != nil {
 				handler.logger.Errorw("error in syncing pipeline status", "err", err)
 			}

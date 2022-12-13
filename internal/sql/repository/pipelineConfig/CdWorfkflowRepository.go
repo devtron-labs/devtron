@@ -151,6 +151,7 @@ type CdWorkflowRunner struct {
 	PodName            string               `sql:"pod_name"`
 	BlobStorageEnabled bool                 `sql:"blob_storage_enabled,notnull"`
 	CdWorkflow         *CdWorkflow
+	sql.AuditLog
 }
 
 type CdWorkflowWithArtifact struct {
