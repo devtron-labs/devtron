@@ -43,6 +43,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/api/user"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -83,7 +84,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/bulkAction"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
-	"github.com/devtron-labs/devtron/pkg/clusterTerminalAccess"
 	"github.com/devtron-labs/devtron/pkg/commonService"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
@@ -133,6 +133,7 @@ func InitializeApp() (*App, error) {
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
+		terminal.TerminalWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
@@ -782,16 +783,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.GlobalCMCSService), new(*pipeline.GlobalCMCSServiceImpl)),
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
-
-		router.NewUserTerminalAccessRouterImpl,
-		wire.Bind(new(router.UserTerminalAccessRouter), new(*router.UserTerminalAccessRouterImpl)),
-		restHandler.NewUserTerminalAccessRestHandlerImpl,
-		wire.Bind(new(restHandler.UserTerminalAccessRestHandler), new(*restHandler.UserTerminalAccessRestHandlerImpl)),
-		clusterTerminalAccess.GetTerminalAccessConfig,
-		clusterTerminalAccess.NewUserTerminalAccessServiceImpl,
-		wire.Bind(new(clusterTerminalAccess.UserTerminalAccessService), new(*clusterTerminalAccess.UserTerminalAccessServiceImpl)),
-		repository.NewTerminalAccessRepositoryImpl,
-		wire.Bind(new(repository.TerminalAccessRepository), new(*repository.TerminalAccessRepositoryImpl)),
 	)
 	return &App{}, nil
 }

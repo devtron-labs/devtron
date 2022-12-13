@@ -1,7 +1,6 @@
-package router
+package terminal
 
 import (
-	"github.com/devtron-labs/devtron/api/restHandler"
 	"github.com/gorilla/mux"
 )
 
@@ -10,10 +9,10 @@ type UserTerminalAccessRouter interface {
 }
 
 type UserTerminalAccessRouterImpl struct {
-	userTerminalAccessRestHandler restHandler.UserTerminalAccessRestHandler
+	userTerminalAccessRestHandler UserTerminalAccessRestHandler
 }
 
-func NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandler restHandler.UserTerminalAccessRestHandler) *UserTerminalAccessRouterImpl {
+func NewUserTerminalAccessRouterImpl(userTerminalAccessRestHandler UserTerminalAccessRestHandler) *UserTerminalAccessRouterImpl {
 	return &UserTerminalAccessRouterImpl{
 		userTerminalAccessRestHandler: userTerminalAccessRestHandler,
 	}

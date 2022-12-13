@@ -1,4 +1,4 @@
-package restHandler
+package terminal
 
 import (
 	"encoding/json"

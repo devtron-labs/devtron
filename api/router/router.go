@@ -34,6 +34,7 @@ import (
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
+	terminal2 "github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/api/user"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/cron"
@@ -113,7 +114,7 @@ type MuxRouter struct {
 	k8sCapacityRouter                  k8s.K8sCapacityRouter
 	webhookHelmRouter                  webhookHelm.WebhookHelmRouter
 	globalCMCSRouter                   GlobalCMCSRouter
-	userTerminalAccessRouter           UserTerminalAccessRouter
+	userTerminalAccessRouter           terminal2.UserTerminalAccessRouter
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -140,7 +141,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
-	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter, userTerminalAccessRouter UserTerminalAccessRouter) *MuxRouter {
+	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter, userTerminalAccessRouter terminal2.UserTerminalAccessRouter) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -327,7 +328,7 @@ func (r MuxRouter) Init() {
 	r.gitOpsConfigRouter.InitGitOpsConfigRouter(gitOpsRouter)
 
 	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
-	r.attributesRouter.initAttributesRouter(attributeRouter)
+	r.attributesRouter.InitAttributesRouter(attributeRouter)
 
 	userAttributeRouter := r.Router.PathPrefix("/orchestrator/attributes/user").Subrouter()
 	r.userAttributesRouter.InitUserAttributesRouter(userAttributeRouter)
