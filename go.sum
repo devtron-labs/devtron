@@ -297,10 +297,8 @@ github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSs
 github.com/daviddengcn/go-colortext v0.0.0-20160507010035-511bcaf42ccd/go.mod h1:dv4zxwHi5C/8AeI+4gX4dCWOIvNi7I6JCSX0HvlKPgE=
 github.com/denisenkom/go-mssqldb v0.0.0-20190707035753-2be1aa521ff4 h1:YcpmyvADGYw5LqMnHqSkyIELsHCGF6PkrmM31V8rF7o=
 github.com/denisenkom/go-mssqldb v0.0.0-20190707035753-2be1aa521ff4/go.mod h1:zAg7JM8CkOJ43xKXIj7eRO9kmWm/TW578qo+oDO6tuM=
-github.com/devtron-labs/authenticator v0.4.31-0.20220913121257-aecda79359cc h1:nPZxvb+YOo4KdlnlVUdhn7pw+c+q4XLvzUhH81xgOFQ=
-github.com/devtron-labs/authenticator v0.4.31-0.20220913121257-aecda79359cc/go.mod h1:ozNfT8WcruiSgnUbyp48WVfc41++W6xYXhKFp67lNTU=
-github.com/devtron-labs/authenticator v0.4.31-0.20221115125816-95ec958147f5 h1:nxBtmA6B2XySLY+eol+Lq4vWxO6w/d4Xj48LCGmlaLM=
-github.com/devtron-labs/authenticator v0.4.31-0.20221115125816-95ec958147f5/go.mod h1:ozNfT8WcruiSgnUbyp48WVfc41++W6xYXhKFp67lNTU=
+github.com/devtron-labs/authenticator v0.4.31 h1:CEMLek3JnMuH9ULsC6BHNJr+NiyGzBd4lgdSxH2IGnc=
+github.com/devtron-labs/authenticator v0.4.31/go.mod h1:ozNfT8WcruiSgnUbyp48WVfc41++W6xYXhKFp67lNTU=
 github.com/devtron-labs/common-lib v0.0.0-20220923064712-362252bd41d9 h1:Jd2zGbMPy5zPALO6+dVrTr8Cn99nIUIxlLYZDehIKlE=
 github.com/devtron-labs/common-lib v0.0.0-20220923064712-362252bd41d9/go.mod h1:wDldcLG0CzfnxCBEXeitEkYF9bk62yG+HLGqQg6VZ4o=
 github.com/dgrijalva/jwt-go v3.2.0+incompatible/go.mod h1:E3ru+11k8xSBh+hMPgOLZmtrrCbhqsmaPHjLKYnJCaQ=

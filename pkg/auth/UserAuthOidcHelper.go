@@ -25,8 +25,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"net/http"
-	"net/url"
-	"path"
 	"strings"
 )
 
@@ -87,7 +85,7 @@ func (impl UserAuthOidcHelperImpl) UpdateInMemoryDataOnSsoAddUpdate(ssoUrl strin
 
 	// set url in dexConfig
 	impl.dexConfig.Url = ssoUrl
-	proxyUrl, err := getDexProxyUrl(ssoUrl)
+	proxyUrl, err := impl.dexConfig.GetDexProxyUrl()
 	if err != nil {
 		impl.logger.Errorw("error in getting proxy url from ssoUrl", "err", err, "ssoUrl", ssoUrl)
 		return err
@@ -110,15 +108,4 @@ func (impl UserAuthOidcHelperImpl) UpdateInMemoryDataOnSsoAddUpdate(ssoUrl strin
 	// update client app config
 	impl.clientApp.UpdateConfig(oidcClient)
 	return nil
-}
-
-//TODO: remove below function and reuse that from library
-func getDexProxyUrl(urlStr string) (string, error) {
-	u, err := url.Parse(urlStr)
-	if err != nil {
-		return "", err
-	}
-	u.Path = path.Join(u.Path, "api/dex")
-	s := u.String()
-	return s, nil
 }
