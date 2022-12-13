@@ -885,25 +885,15 @@ func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRe
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	userUploaded := false
-	var chartData *chartRepoRepository.ChartRef
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 	if IsAcdApp(pipeline.DeploymentAppType) {
 		// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
-
-		chartData, err = impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
-		if err != nil {
-			impl.logger.Errorw("err in getting chart info", "err", err)
-			return 0, err
-		}
 		err = impl.chartService.CheckChartExists(envOverride.Chart.ChartRefId)
 		if err != nil {
 			impl.logger.Errorw("err in getting chart info", "err", err)
 			return 0, err
 		}
-
-		userUploaded = chartData.UserUploaded
 		var gitCommitStatus pipelineConfig.TimelineStatus
 		var gitCommitStatusDetail string
 		err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
