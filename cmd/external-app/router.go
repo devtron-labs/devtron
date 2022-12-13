@@ -54,6 +54,7 @@ type MuxRouter struct {
 	userAttributesRouter     router.UserAttributesRouter
 	telemetryRouter          router.TelemetryRouter
 	userTerminalAccessRouter router.UserTerminalAccessRouter
+	attributesRouter         router.AttributesRouter
 }
 
 func NewMuxRouter(
@@ -81,6 +82,7 @@ func NewMuxRouter(
 	userAttributesRouter router.UserAttributesRouter,
 	telemetryRouter router.TelemetryRouter,
 	userTerminalAccessRouter router.UserTerminalAccessRouter,
+	attributesRouter router.AttributesRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -109,6 +111,7 @@ func NewMuxRouter(
 		userAttributesRouter:     userAttributesRouter,
 		telemetryRouter:          telemetryRouter,
 		userTerminalAccessRouter: userTerminalAccessRouter,
+		attributesRouter:         attributesRouter,
 	}
 	return r
 }
