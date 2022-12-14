@@ -139,8 +139,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatuse
 	var timelines []*PipelineStatusTimeline
 	err := impl.dbConnection.Model(&timelines).
 		Where("cd_workflow_runner_id = ?", wfrId).
-		Where("status in (?)", pg.In(statuses)).
-		Limit(1).Select()
+		Where("status in (?)", pg.In(statuses)).Select()
 	if err != nil {
 		impl.logger.Errorw("error in getting timeline of latest wf by wfrId and statuses", "err", err, "wfrId", wfrId, "statuses", statuses)
 		return nil, err

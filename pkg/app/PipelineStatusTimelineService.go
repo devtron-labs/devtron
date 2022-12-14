@@ -69,7 +69,7 @@ func (impl *PipelineStatusTimelineServiceImpl) SaveTimeline(timeline *pipelineCo
 	if len(redundantTimelines) > 1 {
 		return fmt.Errorf("multiple unableToFetch/timedOut timelines found")
 	} else {
-		if redundantTimelines[0].Id > 0 {
+		if len(redundantTimelines) == 1 && redundantTimelines[0].Id > 0 {
 			timeline.Id = redundantTimelines[0].Id
 		} else {
 			// do nothing
