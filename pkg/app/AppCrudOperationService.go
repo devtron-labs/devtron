@@ -26,6 +26,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
+	"k8s.io/apimachinery/pkg/util/validation"
+	"strings"
 	"time"
 )
 
@@ -309,7 +311,31 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 	}
 	labelsDto := make(map[string]string)
 	for _, label := range labels {
-		labelsDto[label.Key] = label.Value
+		labelKey := strings.TrimSpace(label.Key)
+		labelValue := strings.TrimSpace(label.Value)
+
+		// if labelKey or labelValue is empty then don't add in labels
+		if len(labelKey) == 0 || len(labelValue) == 0 {
+			impl.logger.Warnw("Ignoring label to propagate to app level", "labelKey", labelKey, "labelValue", labelValue, "appId", appId)
+			continue
+		}
+
+		// if labelKey is not satisfying the label key criteria don't add in labels
+		// label key must be a 'qualified name' (https://github.com/kubernetes/website/issues/17969)
+		errs := validation.IsQualifiedName(labelKey)
+		if len(errs) > 0 {
+			impl.logger.Warnw("Ignoring label to propagate to app level", "message", fmt.Sprintf("Validation error - label key - %s is not satisfying the label key criteria", labelKey), "appId", appId)
+			continue
+		}
+
+		// if labelValue is not satisfying the label value criteria don't add in labels
+		errs = validation.IsValidLabelValue(labelValue)
+		if len(errs) > 0 {
+			impl.logger.Warnw("Ignoring label to propagate to app level", "message", fmt.Sprintf("Validation error - label value - %s is not satisfying the label value criteria", labelValue), "appId", appId)
+			continue
+		}
+
+		labelsDto[labelKey] = labelValue
 	}
 	appLabelJson.Labels = labelsDto
 	appLabelByte, err := json.Marshal(appLabelJson)
