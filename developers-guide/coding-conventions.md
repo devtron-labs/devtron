@@ -53,10 +53,10 @@ This coding convention guide aims to compile best approaches for writing readabl
   * InternalMessage must only be used for developer's understanding. Example - `Team creation failed`, here user is unaware with the term `Team` as it is used to denote `Projects` at BE.
   * UserMessage must always be filled with the simplest of words and only with terms known to the user. Example `Project creation failed, project already exists.`
   
-* Handle errors and avoid nesting (The reader has a cognitive load to process when using an if-statement, which demands more power to run our code).
+* Handle errors and avoid nesting (The reader has a cognitive load to process when using an if-statement, which demands more power to run our code). 
 
 ```
-Not Prefered - 
+Not Preferred - 
     err := request()
     if err != nil {
         // handling error 
@@ -64,7 +64,7 @@ Not Prefered -
         // some code
     }
  
-Prefered - 
+Preferred - 
     err := request()
     if err != nil {
         // handling error
@@ -79,12 +79,27 @@ Prefered -
 
 ### `/api`
 
-* This directory is used for storing `Routers` and `RestHandlers`. They are to be ideally categorised as entities. We aim to create subdirectories for routers and restHandlers according to the entity they belong to.
+Current implementation - 
+
+* This directory is currently used for storing `Routers` and `RestHandlers`. Most of them are stored in the `/router` and `/restHandler` package.
+
+Aim - 
+
+* The router and restHandler must be categorised according to different entities. We aim to create subdirectories for routers and restHandlers according to the entity they belong to.
 
 ### `/internal`
 
-* This directory enable us to export code for reuse in your project while reducing our public API.
-* Generally, private applications and library code is kept in this directory. Go enforces this by - 
+* This directory enable us to export code for reuse in our project while reducing our public API.
+
+Current implementation -
+
+* Third party library code. Example - GitOps services, Argo util etc.
+* DB Repositories (in the subdirectory `/sql`).
+
+Aim - 
+
+* Phase out db repositories from this location and keep them along with their respective services.
+* To keep only private applications and library code in this directory. Go itself enforces keeping of private code by - 
 
 ```
 When the go command sees an import of a package with internal in its path,
@@ -92,13 +107,19 @@ it verifies that the package doing the import is within the tree rooted at the p
 For example, a package .../a/b/c/internal/d/e/f can be imported only by code in the directory tree rooted at .../a/b/c.
 It cannot be imported by code in .../a/b/g or in any other repository.
 ```
-* Currently, many repositories are stored in this directory. We aim to phase out them from this location.
 
 ### `/pkg`
 
-* Library code that's ok to use by external applications is placed in this directory. Other projects will import these libraries expecting them to work. The /pkg directory is still a good way to explicitly communicate that the code in that directory is safe for use by others.
-* We keep our services and repositories in this directory. But we can generalise the use of this directory to follow the previous point.
+* Library code that's ok to use by external applications is placed in this directory. Other projects will import these libraries expecting them to work. This directory is a good way to explicitly communicate that the code in that directory is safe for use by others.
 
-### `/vendor`
+Current implementation - 
+*  Services and Repositories are placed in this directory. 
+
+Aim - 
+
+* We need to continue the current structure along with generalising the use of this directory to follow the first most point of this directory's description.
+* Objects used in the code must be preferably kept in `bean.go`.
+
+### `/vendor` (non-editable)
 
 Application dependencies (managed by [`Go Modules`](https://github.com/golang/go/wiki/Modules) dependency management). The `go mod vendor` command will create the `/vendor` directory for you if not present. 
