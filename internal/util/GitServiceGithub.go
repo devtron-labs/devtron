@@ -71,7 +71,7 @@ func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url st
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	repoExists := true
-	url, err := impl.GetRepoUrl(config.GitRepoName)
+	url, err := impl.GetRepoUrl(config)
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
@@ -102,7 +102,7 @@ func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url st
 	logger.Infow("github repo created ", "r", r.CloneURL)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 
-	validated, err := impl.ensureProjectAvailabilityOnHttp(config.GitRepoName)
+	validated, err := impl.ensureProjectAvailabilityOnHttp(config)
 	if err != nil {
 		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
@@ -114,7 +114,7 @@ func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url st
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.CreateReadme(config.GitRepoName, config.Username, config.UserEmailId)
+	_, err = impl.CreateReadme(config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -137,25 +137,25 @@ func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url st
 	return *r.CloneURL, true, detailedErrorGitOpsConfigActions
 }
 
-func (impl GitHubClient) CreateReadme(repoName, userName, userEmailId string) (string, error) {
+func (impl GitHubClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, error) {
 	cfg := &ChartConfig{
-		ChartName:      repoName,
+		ChartName:      config.GitRepoName,
 		ChartLocation:  "",
 		FileName:       "README.md",
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
-		ChartRepoName:  repoName,
-		UserName:       userName,
-		UserEmailId:    userEmailId,
+		ChartRepoName:  config.GitRepoName,
+		UserName:       config.Username,
+		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg)
+	hash, _, err := impl.CommitValues(cfg, "")
 	if err != nil {
-		impl.logger.Errorw("error in creating readme github", "repo", repoName, "err", err)
+		impl.logger.Errorw("error in creating readme github", "repo", config.GitRepoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error) {
+func (impl GitHubClient) CommitValues(config *ChartConfig, bitBucketWorkspaceId string) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	ctx := context.Background()
@@ -199,29 +199,29 @@ func (impl GitHubClient) CommitValues(config *ChartConfig) (commitHash string, c
 	return *c.SHA, *c.Commit.Author.Date, nil
 }
 
-func (impl GitHubClient) GetRepoUrl(projectName string) (repoUrl string, err error) {
+func (impl GitHubClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
 	ctx := context.Background()
-	repo, _, err := impl.client.Repositories.Get(ctx, impl.org, projectName)
+	repo, _, err := impl.client.Repositories.Get(ctx, impl.org, config.GitRepoName)
 	if err != nil {
 		return "", err
 	}
 	return *repo.CloneURL, nil
 }
 
-func (impl GitHubClient) ensureProjectAvailabilityOnHttp(projectName string) (bool, error) {
+func (impl GitHubClient) ensureProjectAvailabilityOnHttp(config *bean2.GitOpsConfigDto) (bool, error) {
 	count := 0
 	for count < 3 {
 		count = count + 1
-		_, err := impl.GetRepoUrl(projectName)
+		_, err := impl.GetRepoUrl(config)
 		if err == nil {
 			return true, nil
 		}
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
-			impl.logger.Errorw("error in validating repo github", "project", projectName, "err", err)
+			impl.logger.Errorw("error in validating repo github", "project", config.GitRepoName, "err", err)
 			return false, err
 		} else {
-			impl.logger.Errorw("error in validating repo github", "project", projectName, "err", err)
+			impl.logger.Errorw("error in validating repo github", "project", config.GitRepoName, "err", err)
 		}
 		time.Sleep(10 * time.Second)
 	}

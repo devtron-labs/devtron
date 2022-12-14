@@ -52,10 +52,10 @@ const (
 
 type GitClient interface {
 	CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
-	CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error)
-	GetRepoUrl(projectName string) (repoUrl string, err error)
+	CommitValues(config *ChartConfig, bitBucketWorkspaceId string) (commitHash string, commitTime time.Time, err error)
+	GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error)
 	DeleteRepository(config *bean2.GitOpsConfigDto) error
-	CreateReadme(name, userName, userEmailId string) (string, error)
+	CreateReadme(config *bean2.GitOpsConfigDto) (string, error)
 	GetCommits(repoName, projectName string) ([]*GitCommitDto, error)
 }
 

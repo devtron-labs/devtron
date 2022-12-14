@@ -654,7 +654,14 @@ func (impl ChartTemplateServiceImpl) GetByteArrayRefChart(chartMetaData *chart.M
 
 func (impl ChartTemplateServiceImpl) CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error {
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
-	_, err := impl.gitFactory.Client.CreateReadme(gitOpsRepoName, userName, userEmailId)
+	gitOpsConfig, err := impl.gitOpsConfigRepository.GetGitOpsConfigActive()
+	config := &bean.GitOpsConfigDto{
+		Username:             userName,
+		UserEmailId:          userEmailId,
+		GitRepoName:          gitOpsRepoName,
+		BitBucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
+	}
+	_, err = impl.gitFactory.Client.CreateReadme(config)
 	if err != nil {
 		return err
 	}

@@ -20,12 +20,12 @@ type GitAzureClient struct {
 	gitOpsConfigRepository repository.GitOpsConfigRepository
 }
 
-func (impl GitAzureClient) GetRepoUrl(repoName string) (repoUrl string, err error) {
-	url, exists, err := impl.repoExists(repoName, impl.project)
+func (impl GitAzureClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
+	url, exists, err := impl.repoExists(config.GitRepoName, impl.project)
 	if err != nil {
 		return "", err
 	} else if !exists {
-		return "", fmt.Errorf("%s :repo not found", repoName)
+		return "", fmt.Errorf("%s :repo not found", config.GitRepoName)
 	} else {
 		return url, nil
 	}
@@ -105,7 +105,7 @@ func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url 
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.CreateReadme(config.GitRepoName, config.Username, config.UserEmailId)
+	_, err = impl.CreateReadme(config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme azure", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -127,25 +127,25 @@ func (impl GitAzureClient) CreateRepository(config *bean2.GitOpsConfigDto) (url 
 	return *operationReference.WebUrl, true, detailedErrorGitOpsConfigActions
 }
 
-func (impl GitAzureClient) CreateReadme(repoName, userName, userEmailId string) (string, error) {
+func (impl GitAzureClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, error) {
 	cfg := &ChartConfig{
-		ChartName:      repoName,
+		ChartName:      config.GitRepoName,
 		ChartLocation:  "",
 		FileName:       "README.md",
 		FileContent:    "@devtron",
 		ReleaseMessage: "readme",
-		ChartRepoName:  repoName,
-		UserName:       userName,
-		UserEmailId:    userEmailId,
+		ChartRepoName:  config.GitRepoName,
+		UserName:       config.Username,
+		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg)
+	hash, _, err := impl.CommitValues(cfg, "")
 	if err != nil {
-		impl.logger.Errorw("error in creating readme azure", "repo", repoName, "err", err)
+		impl.logger.Errorw("error in creating readme azure", "repo", config.GitRepoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitAzureClient) CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error) {
+func (impl GitAzureClient) CommitValues(config *ChartConfig, bitBucketWorkspaceId string) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	branchfull := "refs/heads/master"
 	path := filepath.Join(config.ChartLocation, config.FileName)

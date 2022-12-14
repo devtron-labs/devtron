@@ -93,7 +93,7 @@ func (impl GitLabClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
 func (impl GitLabClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	impl.logger.Debugw("gitlab app create request ", "name", config.GitRepoName, "description", config.Description)
-	repoUrl, err := impl.GetRepoUrl(config.GitRepoName)
+	repoUrl, err := impl.GetRepoUrl(config)
 	if err != nil {
 		impl.logger.Errorw("error in getting repo url ", "gitlab project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
@@ -122,7 +122,7 @@ func (impl GitLabClient) CreateRepository(config *bean2.GitOpsConfigDto) (url st
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
-	_, err = impl.CreateReadme(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.GitRepoName), config.Username, config.UserEmailId)
+	_, err = impl.CreateReadme(config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme ", "gitlab project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
@@ -209,8 +209,8 @@ func (impl GitLabClient) ensureProjectAvailabilityOnSsh(projectName string, repo
 	return false, nil
 }
 
-func (impl GitLabClient) GetRepoUrl(projectName string) (repoUrl string, err error) {
-	pid := fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName)
+func (impl GitLabClient) GetRepoUrl(config *bean2.GitOpsConfigDto) (repoUrl string, err error) {
+	pid := fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.GitRepoName)
 	prop, res, err := impl.client.Projects.GetProject(pid, &gitlab.GetProjectOptions{})
 	if err != nil {
 		impl.logger.Debugw("gitlab get project err", "pid", pid, "err", err)
@@ -225,7 +225,7 @@ func (impl GitLabClient) GetRepoUrl(projectName string) (repoUrl string, err err
 	return "", nil
 }
 
-func (impl GitLabClient) CreateReadme(name, userName, userEmailId string) (string, error) {
+func (impl GitLabClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, error) {
 	fileAction := gitlab.FileCreate
 	filePath := "README.md"
 	fileContent := "devtron licence"
@@ -233,18 +233,20 @@ func (impl GitLabClient) CreateReadme(name, userName, userEmailId string) (strin
 		Branch:        gitlab.String("master"),
 		CommitMessage: gitlab.String("test commit"),
 		Actions:       []*gitlab.CommitActionOptions{{Action: &fileAction, FilePath: &filePath, Content: &fileContent}},
-		AuthorEmail:   &userEmailId,
-		AuthorName:    &userName,
+		AuthorEmail:   &config.UserEmailId,
+		AuthorName:    &config.Username,
 	}
-	c, _, err := impl.client.Commits.CreateCommit(name, actions)
+	gitRepoName := fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.GitRepoName)
+	c, _, err := impl.client.Commits.CreateCommit(gitRepoName, actions)
 	return c.ID, err
 }
+
 func (impl GitLabClient) checkIfFileExists(projectName, ref, file string) (exists bool, err error) {
 	_, _, err = impl.client.RepositoryFiles.GetFileMetaData(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, projectName), file, &gitlab.GetFileMetaDataOptions{Ref: &ref})
 	return err == nil, err
 }
 
-func (impl GitLabClient) CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error) {
+func (impl GitLabClient) CommitValues(config *ChartConfig, bitbucketWorkspaceId string) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	exists, err := impl.checkIfFileExists(config.ChartRepoName, branch, path)

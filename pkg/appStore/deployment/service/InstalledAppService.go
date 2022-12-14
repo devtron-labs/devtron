@@ -386,8 +386,12 @@ func (impl InstalledAppServiceImpl) performDeployStageOnAcd(installedAppVersion 
 				return nil, err
 			}
 		}
-
-		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(installedAppVersion.AppStoreName)
+		config := &bean2.GitOpsConfigDto{
+			GitRepoName:          installedAppVersion.GitOpsRepoName,
+			BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketProjectKey,
+			BitBucketProjectKey:  gitOpsConfigBitbucket.BitBucketProjectKey,
+		}
+		repoUrl, err := impl.gitFactory.Client.GetRepoUrl(config)
 		if err != nil {
 			//will allow to continue to persist status on next operation
 			impl.logger.Errorw("fetching error", "err", err)
