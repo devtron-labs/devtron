@@ -860,15 +860,15 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 		if overrideRequest.ForceTrigger {
 			strategy, err = impl.pipelineConfigRepository.GetDefaultStrategyByPipelineId(overrideRequest.PipelineId)
 		} else {
-			var deploymentTemplate pipelineConfig.DeploymentTemplate
+			var deploymentTemplate chartRepoRepository.DeploymentStrategy
 			if overrideRequest.DeploymentTemplate == "ROLLING" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_ROLLING
+				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING
 			} else if overrideRequest.DeploymentTemplate == "BLUE-GREEN" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_BLUE_GREEN
+				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_BLUE_GREEN
 			} else if overrideRequest.DeploymentTemplate == "CANARY" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY
+				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_CANARY
 			} else if overrideRequest.DeploymentTemplate == "RECREATE" {
-				deploymentTemplate = pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE
+				deploymentTemplate = chartRepoRepository.DEPLOYMENT_STRATEGY_RECREATE
 			}
 
 			if len(deploymentTemplate) > 0 {
@@ -908,25 +908,15 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 		Name:    pipeline.App.AppName,
 		Version: envOverride.Chart.ChartVersion,
 	}
-	userUploaded := false
-	var chartData *chartRepoRepository.ChartRef
 	referenceTemplatePath := path.Join(string(impl.refChartDir), envOverride.Chart.ReferenceTemplate)
 	if IsAcdApp(pipeline.DeploymentAppType) {
 		// CHART COMMIT and PUSH STARTS HERE, it will push latest version, if found modified on deployment template and overrides
 		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(pipeline.App.AppName)
-
-		chartData, err = impl.chartRefRepository.FindById(envOverride.Chart.ChartRefId)
-		if err != nil {
-			impl.logger.Errorw("err in getting chart info", "err", err)
-			return 0, err
-		}
 		err = impl.chartService.CheckChartExists(envOverride.Chart.ChartRefId)
 		if err != nil {
 			impl.logger.Errorw("err in getting chart info", "err", err)
 			return 0, err
 		}
-
-		userUploaded = chartData.UserUploaded
 		var gitCommitStatus pipelineConfig.TimelineStatus
 		var gitCommitStatusDetail string
 		err = impl.chartTemplateService.BuildChartAndPushToGitRepo(chartMetaData, referenceTemplatePath, gitOpsRepoName, envOverride.Chart.ReferenceTemplate, envOverride.Chart.ChartVersion, envOverride.Chart.GitRepoUrl, overrideRequest.UserId)
@@ -1001,13 +991,6 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 	if err != nil {
 		impl.logger.Errorw("error in fetching db migration config", "req", overrideRequest, "err", err)
 		return 0, err
-	}
-	if !userUploaded {
-		valid, err := impl.validateVersionForStrategy(envOverride, strategy)
-		if err != nil || !valid {
-			impl.logger.Errorw("error in validating pipeline strategy ", "strategy", strategy.Strategy, "err", err)
-			return 0, err
-		}
 	}
 	chartVersion := envOverride.Chart.ChartVersion
 	configMapJson, err := impl.getConfigMapAndSecretJsonV2(overrideRequest.AppId, envOverride.TargetEnvironment, overrideRequest.PipelineId, chartVersion, overrideRequest.DeploymentWithConfig, overrideRequest.WfrIdForDeploymentWithSpecificTrigger)
@@ -1133,26 +1116,6 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 		impl.logger.Debugw("pt", "ot", ot)
 	}
 	return err
-}
-
-func (impl *AppServiceImpl) validateVersionForStrategy(envOverride *chartConfig.EnvConfigOverride, strategy *chartConfig.PipelineStrategy) (bool, error) {
-	chartVersion := envOverride.Chart.ChartVersion
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
-	if err != nil {
-		impl.logger.Errorw("chart version parsing", "err", err)
-		return false, err
-	}
-
-	if (chartMajorVersion <= 3 && chartMinorVersion < 2) &&
-		(strategy.Strategy == pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY || strategy.Strategy == pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE) {
-		err = &ApiError{
-			Code:            "422",
-			InternalMessage: "incompatible chart for selected cd strategy:" + string(strategy.Strategy),
-			UserMessage:     "incompatible chart for selected cd strategy:" + string(strategy.Strategy),
-		}
-		return false, err
-	}
-	return true, nil
 }
 
 // FIXME tmp workaround
