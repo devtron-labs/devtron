@@ -150,7 +150,7 @@ func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConf
 	}
 
 	//factory.Client = client
-	logger.Infow("client changed successfully")
+	logger.Infow("client changed successfully", "cfg", cfg)
 	return client, gitService, nil
 }
 

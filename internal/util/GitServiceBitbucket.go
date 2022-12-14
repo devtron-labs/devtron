@@ -117,7 +117,7 @@ func (impl GitBitbucketClient) CreateRepository(name, description, userName, use
 	}
 	repoUrl, repoExists, err := impl.repoExists(repoOptions)
 	if err != nil {
-		impl.logger.Errorw("error in communication with bitbucket", "err", err)
+		impl.logger.Errorw("error in communication with bitbucket", "repoOptions", repoOptions, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
 		return "", false, detailedErrorGitOpsConfigActions
 	}
@@ -127,7 +127,7 @@ func (impl GitBitbucketClient) CreateRepository(name, description, userName, use
 	}
 	_, err = impl.client.Repositories.Repository.Create(repoOptions)
 	if err != nil {
-		impl.logger.Errorw("error in creating repo bitbucket", "project", name, "err", err)
+		impl.logger.Errorw("error in creating repo bitbucket", "repoOptions", repoOptions, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
