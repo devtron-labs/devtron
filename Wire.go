@@ -43,6 +43,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/api/user"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -132,6 +133,7 @@ func InitializeApp() (*App, error) {
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
+		terminal.TerminalWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
 		gitSensor.NewGitSensorSession,
