@@ -5,8 +5,9 @@
 ## Enhancements
 - feat: Resource status for integration (#2620)
 - feat: Cluster terminal access for Super Admins (#2654)
+- feat: Dynamic handling of deployment templates (#2596)
 ## Documentation
-## Others
+- docs: description for charts (#2646)
 
 
 ## v0.6.9-rc.1
