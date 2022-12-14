@@ -132,15 +132,17 @@ func (factory *GitFactory) GetGitLabGroupPath(gitOpsConfig *bean2.GitOpsConfigDt
 
 func (factory *GitFactory) NewClientForValidation(gitOpsConfig *bean2.GitOpsConfigDto) (GitClient, *GitServiceImpl, error) {
 	cfg := &GitConfig{
-		GitlabGroupId:      gitOpsConfig.GitLabGroupId,
-		GitToken:           gitOpsConfig.Token,
-		GitUserName:        gitOpsConfig.Username,
-		GitWorkingDir:      GIT_WORKING_DIR,
-		GithubOrganization: gitOpsConfig.GitHubOrgId,
-		GitProvider:        gitOpsConfig.Provider,
-		GitHost:            gitOpsConfig.Host,
-		AzureToken:         gitOpsConfig.Token,
-		AzureProject:       gitOpsConfig.AzureProjectName,
+		GitlabGroupId:        gitOpsConfig.GitLabGroupId,
+		GitToken:             gitOpsConfig.Token,
+		GitUserName:          gitOpsConfig.Username,
+		GitWorkingDir:        GIT_WORKING_DIR,
+		GithubOrganization:   gitOpsConfig.GitHubOrgId,
+		GitProvider:          gitOpsConfig.Provider,
+		GitHost:              gitOpsConfig.Host,
+		AzureToken:           gitOpsConfig.Token,
+		AzureProject:         gitOpsConfig.AzureProjectName,
+		BitbucketWorkspaceId: gitOpsConfig.BitBucketWorkspaceId,
+		BitbucketProjectKey:  gitOpsConfig.BitBucketProjectKey,
 	}
 	gitService := NewGitServiceImpl(cfg, logger, factory.gitCliUtil)
 	//factory.gitService = gitService
