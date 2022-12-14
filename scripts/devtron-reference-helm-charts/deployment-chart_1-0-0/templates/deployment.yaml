@@ -456,3 +456,4 @@ spec:
     rollingUpdate:
       maxSurge: {{ $.Values.deployment.strategy.rolling.maxSurge }}
       maxUnavailable: {{ $.Values.deployment.strategy.rolling.maxUnavailable }}
+    {{- end }}
