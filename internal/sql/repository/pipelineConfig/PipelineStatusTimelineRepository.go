@@ -63,7 +63,7 @@ type PipelineStatusTimeline struct {
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimelines(timelines []*PipelineStatusTimeline) error {
-	err := impl.dbConnection.Insert(timelines)
+	err := impl.dbConnection.Insert(&timelines)
 	if err != nil {
 		impl.logger.Errorw("error in saving timeline of cd pipeline status", "err", err, "timeline", timelines)
 		return err
@@ -81,7 +81,7 @@ func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimelinesWithTxn(timelines
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) UpdateTimelines(timelines []*PipelineStatusTimeline) error {
-	_, err := impl.dbConnection.Model(timelines).Update()
+	_, err := impl.dbConnection.Model(&timelines).Update()
 	if err != nil {
 		impl.logger.Errorw("error in updating timeline of cd pipeline status", "err", err, "timeline", timelines)
 		return err
