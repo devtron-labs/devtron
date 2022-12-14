@@ -14,7 +14,7 @@ components:
     initContainer:
       authenticator: "quay.io/devtron/authenticator:6e466830-393-11943"
   kubelink:
-    image: "quay.io/devtron/kubelink:1d2cc28a-318-11533"
+    image: "quay.io/devtron/kubelink:2ae4e7a7-318-11969"
   postgres:
     image: "quay.io/devtron/postgres:11.9.0-debian-10-r26"
     armImage: "quay.io/devtron/postgres:11.9"
