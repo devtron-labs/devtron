@@ -51,10 +51,10 @@ const (
 )
 
 type GitClient interface {
-	CreateRepository(name, description, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
+	CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions)
 	CommitValues(config *ChartConfig) (commitHash string, commitTime time.Time, err error)
 	GetRepoUrl(projectName string) (repoUrl string, err error)
-	DeleteRepository(name string) error
+	DeleteRepository(config *bean2.GitOpsConfigDto) error
 	CreateReadme(name, userName, userEmailId string) (string, error)
 	GetCommits(repoName, projectName string) ([]*GitCommitDto, error)
 }

@@ -23,6 +23,7 @@ import (
 	"fmt"
 	repository3 "github.com/argoproj/argo-cd/v2/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
+	"github.com/devtron-labs/devtron/api/bean"
 	repository4 "github.com/devtron-labs/devtron/client/argocdServer/repository"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
@@ -224,7 +225,13 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitOpsRepoName, fmt.Sprintf("helm chart for "+gitOpsRepoName), userName, userEmailId)
+	gitRepoRequest := &bean.GitOpsConfigDto{
+		GitRepoName: gitOpsRepoName,
+		Description: fmt.Sprintf("helm chart for " + gitOpsRepoName),
+		Username:    userName,
+		UserEmailId: userEmailId,
+	}
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoRequest)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", gitOpsRepoName, "err", err)
@@ -491,7 +498,13 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 	}
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
-	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(installAppVersionRequest.GitOpsRepoName, "helm chart for "+installAppVersionRequest.GitOpsRepoName, userName, userEmailId)
+	gitRepoRequest := &bean.GitOpsConfigDto{
+		GitRepoName: installAppVersionRequest.GitOpsRepoName,
+		Description: "helm chart for " + installAppVersionRequest.GitOpsRepoName,
+		Username:    userName,
+		UserEmailId: userEmailId,
+	}
+	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoRequest)
 	for _, err := range detailedError.StageErrorMap {
 		if err != nil {
 			impl.logger.Errorw("error in creating git project", "name", installAppVersionRequest.GitOpsRepoName, "err", err)

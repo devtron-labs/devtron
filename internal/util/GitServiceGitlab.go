@@ -2,6 +2,7 @@ package util
 
 import (
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"net/url"
@@ -81,19 +82,20 @@ func NewGitLabClient(config *GitConfig, logger *zap.SugaredLogger, gitService Gi
 	}, nil
 }
 
-func (impl GitLabClient) DeleteRepository(name string) error {
-	err := impl.DeleteProject(name)
+func (impl GitLabClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
+	err := impl.DeleteProject(config.GitRepoName)
 	if err != nil {
-		impl.logger.Errorw("error in deleting repo gitlab", "project", name, "err", err)
+		impl.logger.Errorw("error in deleting repo gitlab", "project", config.GitRepoName, "err", err)
 	}
 	return err
 }
-func (impl GitLabClient) CreateRepository(name, description, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+
+func (impl GitLabClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
-	impl.logger.Debugw("gitlab app create request ", "name", name, "description", description)
-	repoUrl, err := impl.GetRepoUrl(name)
+	impl.logger.Debugw("gitlab app create request ", "name", config.GitRepoName, "description", config.Description)
+	repoUrl, err := impl.GetRepoUrl(config.GitRepoName)
 	if err != nil {
-		impl.logger.Errorw("error in getting repo url ", "gitlab project", name, "err", err)
+		impl.logger.Errorw("error in getting repo url ", "gitlab project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[GetRepoUrlStage] = err
 		return "", false, detailedErrorGitOpsConfigActions
 	}
@@ -101,7 +103,7 @@ func (impl GitLabClient) CreateRepository(name, description, userName, userEmail
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, GetRepoUrlStage)
 		return repoUrl, false, detailedErrorGitOpsConfigActions
 	} else {
-		url, err = impl.createProject(name, description)
+		url, err = impl.createProject(config.GitRepoName, config.Description)
 		if err != nil {
 			detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
 			return "", true, detailedErrorGitOpsConfigActions
@@ -109,32 +111,32 @@ func (impl GitLabClient) CreateRepository(name, description, userName, userEmail
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 	}
 	repoUrl = url
-	validated, err := impl.ensureProjectAvailability(name)
+	validated, err := impl.ensureProjectAvailability(config.GitRepoName)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability ", "gitlab project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability ", "gitlab project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
-	_, err = impl.CreateReadme(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, name), userName, userEmailId)
+	_, err = impl.CreateReadme(fmt.Sprintf("%s/%s", impl.config.GitlabGroupPath, config.GitRepoName), config.Username, config.UserEmailId)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme ", "gitlab project", name, "err", err)
+		impl.logger.Errorw("error in creating readme ", "gitlab project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
-	validated, err = impl.ensureProjectAvailabilityOnSsh(name, repoUrl)
+	validated, err = impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, repoUrl)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability ", "gitlab project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability ", "gitlab project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)

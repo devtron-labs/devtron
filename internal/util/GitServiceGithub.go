@@ -3,8 +3,8 @@ package util
 import (
 	"context"
 	"fmt"
+	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository"
-	"github.com/go-pg/pg"
 	"github.com/google/go-github/github"
 	"go.uber.org/zap"
 	"golang.org/x/oauth2"
@@ -59,28 +59,19 @@ func NewGithubClient(host string, token string, org string, logger *zap.SugaredL
 		gitOpsConfigRepository: gitOpsConfigRepository,
 	}, err
 }
-func (impl GitHubClient) DeleteRepository(name string) error {
-	gitOpsConfig, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(GITHUB_PROVIDER)
+func (impl GitHubClient) DeleteRepository(config *bean2.GitOpsConfigDto) error {
+	_, err := impl.client.Repositories.Delete(context.Background(), config.GitHubOrgId, config.GitRepoName)
 	if err != nil {
-		if err == pg.ErrNoRows {
-			gitOpsConfig.GitHubOrgId = ""
-		} else {
-			impl.logger.Errorw("error in fetching gitOps github config", "err", err)
-			return err
-		}
-	}
-	_, err = impl.client.Repositories.Delete(context.Background(), gitOpsConfig.GitHubOrgId, name)
-	if err != nil {
-		impl.logger.Errorw("repo deletion failed for github", "repo", name, "err", err)
+		impl.logger.Errorw("repo deletion failed for github", "repo", config.GitRepoName, "err", err)
 		return err
 	}
 	return nil
 }
-func (impl GitHubClient) CreateRepository(name, description, userName, userEmailId string) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
+func (impl GitHubClient) CreateRepository(config *bean2.GitOpsConfigDto) (url string, isNew bool, detailedErrorGitOpsConfigActions DetailedErrorGitOpsConfigActions) {
 	detailedErrorGitOpsConfigActions.StageErrorMap = make(map[string]error)
 	ctx := context.Background()
 	repoExists := true
-	url, err := impl.GetRepoUrl(name)
+	url, err := impl.GetRepoUrl(config.GitRepoName)
 	if err != nil {
 		responseErr, ok := err.(*github.ErrorResponse)
 		if !ok || responseErr.Response.StatusCode != 404 {
@@ -98,47 +89,47 @@ func (impl GitHubClient) CreateRepository(name, description, userName, userEmail
 	private := true
 	//	visibility := "private"
 	r, _, err := impl.client.Repositories.Create(ctx, impl.org,
-		&github.Repository{Name: &name,
-			Description: &description,
+		&github.Repository{Name: &config.GitRepoName,
+			Description: &config.Description,
 			Private:     &private,
 			//			Visibility:  &visibility,
 		})
 	if err != nil {
-		impl.logger.Errorw("error in creating github repo, ", "repo", name, "err", err)
+		impl.logger.Errorw("error in creating github repo, ", "repo", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateRepoStage] = err
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	logger.Infow("github repo created ", "r", r.CloneURL)
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateRepoStage)
 
-	validated, err := impl.ensureProjectAvailabilityOnHttp(name)
+	validated, err := impl.ensureProjectAvailabilityOnHttp(config.GitRepoName)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability github", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = err
 		return *r.CloneURL, true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneHttpStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneHttpStage)
 
-	_, err = impl.CreateReadme(name, userName, userEmailId)
+	_, err = impl.CreateReadme(config.GitRepoName, config.Username, config.UserEmailId)
 	if err != nil {
-		impl.logger.Errorw("error in creating readme github", "project", name, "err", err)
+		impl.logger.Errorw("error in creating readme github", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CreateReadmeStage] = err
 		return *r.CloneURL, true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CreateReadmeStage)
 
-	validated, err = impl.ensureProjectAvailabilityOnSsh(name, *r.CloneURL)
+	validated, err = impl.ensureProjectAvailabilityOnSsh(config.GitRepoName, *r.CloneURL)
 	if err != nil {
-		impl.logger.Errorw("error in ensuring project availability github", "project", name, "err", err)
+		impl.logger.Errorw("error in ensuring project availability github", "project", config.GitRepoName, "err", err)
 		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = err
 		return *r.CloneURL, true, detailedErrorGitOpsConfigActions
 	}
 	if !validated {
-		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", name)
+		detailedErrorGitOpsConfigActions.StageErrorMap[CloneSshStage] = fmt.Errorf("unable to validate project:%s in given time", config.GitRepoName)
 		return "", true, detailedErrorGitOpsConfigActions
 	}
 	detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CloneSshStage)
