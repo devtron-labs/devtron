@@ -1,6 +1,6 @@
 # Clusters and Environments
 
-You can add your existing Kubernetes clusters and environments here. You must have a super admin access to add a cluster.
+You can add your existing Kubernetes clusters and environments on the `Clusters and Environments` section. You must have a super admin access to add a cluster.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/cluster-and-environments.png)
 
@@ -22,10 +22,10 @@ Provide the information in the following fields to add your kubernetes cluster:
 
 >**Prerequisites:** `kubectl` and `jq` must be installed on the bastion.
 
-You can get the **`Server URL`** & **`Bearer Token`** by running the following command.
+You can get the **`Server URL`** & **`Bearer Token`** by running the following command depending on the cluster provider:
 
 {% tabs %}
-{% tab title="k8s cluster providers" %}
+{% tab title="k8s Cluster Providers" %}
 If you are using EKS, AKS, GKE, Kops, Digital Ocean managed Kubernetes, run the following command to generate the server URL and bearer token:
 ```bash
 curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig \
@@ -35,7 +35,7 @@ https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig \
 -exporter/clusterrole.yaml
 ```
 {% endtab %}
-{% tab title="Microk8s clusters" %}
+{% tab title="Microk8s Cluster" %}
 If you are using a **`microk8s cluster`**, run the following command to generate the server URL and bearer token:
 
 ```bash
@@ -103,11 +103,10 @@ A new environment window pops up.
 | Field | Description |
 | :--- | :--- |
 | `Environment Name` | Enter a name of your environment. |
-| `Enter Namespace` | Enter a namespace corresponding to your environment.<br>**Note**: If this namespace does not already exist in your cluster, Devtron will create it. If it exists already, Devtron will map the environment to the existing namespace.</br> |
+| `Enter Namespace` | Enter a [namespace](namespaces-and-environments.md) corresponding to your [environment](namespaces-and-environments.md).<br>**Note**: If this namespace does not already exist in your cluster, Devtron will create it. If it exists already, Devtron will map the environment to the existing namespace.</br> |
 | `Environment Type` | Select your environment type:<ul><li>`Production`</li></ul> <ul><li>`Non-production`</li></ul>Note: Devtron shows deployment metrics for environments tagged as `Production` only. |
 
-
-Click Save and your environment will be created. 
+Click `Save` and your environment will be created. 
 
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/gc-cluster-add-environment.jpg)

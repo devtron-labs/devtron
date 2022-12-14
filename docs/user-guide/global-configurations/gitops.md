@@ -115,10 +115,24 @@ If you select `Bitbucket Cloud` as your git provider, please provide the informa
 | Fields | Description |
 | --- | --- |
 | **Bitbucket Host** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://bitbucket.org/ for Bitbucket. |
-| **Bitbucket Workspace ID** | Enter the Bitbucker workspace ID.<br>If you do not have one, create using [Bitbucket Workspace Id](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/)</br>. |
+| **Bitbucket Workspace ID** | Enter the Bitbucker workspace ID.<br>If you do not have one, create using [Bitbucket Workspace Id](#how-to-create-bitbucket-workspace-id).</br> |
 | **Bitbucket Project Key** | Enter the Bitbucket project key.<br>If you do not have one, create using [Bitbucket Project Key](https://support.atlassian.com/bitbucket-cloud/docs/group-repositories-into-projects/)</br>.<br>Note: This field is not mandatory. If the project is not provided, the repository is automatically assigned to the oldest project in the workspace.</br> |
 | **Bitbucket Username*** | Provide the username of your Bitbucket account. |
-| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your Bitbucket Cloud account.<br>If you do not have one, create a Bitbucket Cloud PAT [here](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/)</br>. |
+| **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your Bitbucket Cloud account.<br>If you do not have one, create a Bitbucket Cloud PAT [here](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/).</br> |
+
+
+### How to create Bitbucket workspace ID
+
+1. Create a new individual account on Bitbucket (if you do have one).
+2. Select your profile and settings avatar on the upper-right corner of the top navigation bar.
+3. Select `All workspaces` from the dropdown menu.
+4. Select the `Create workspace` on the upper-right corner of the `Workspaces` page.
+5. Enter a `Workspace name`. This name is what you see in the navigation in Bitbucket and what the other members of your workspace see in their invitation emails.
+6. Enter a `Workspace ID`. Your ID cannot have any spaces or special characters, but numbers and capital letters are fine. This ID becomes part of the URL for the workspace and anywhere else where there is a label that identifies the team (API's, permission groups, OAuth, etc.).
+7. Click `Create`.
+8. Your `Workspace name` and `Workspace ID` will be created.
+
+You can also refer [Bitbucket Workspace Id](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/) official doc page for more detail.
 
 **Note**:
 * repo - Full control of repositories (Read, Write, Admin, Delete) access. 
