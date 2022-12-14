@@ -1,6 +1,7 @@
 package app
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
@@ -59,33 +60,63 @@ type PipelineStatusTimelineDto struct {
 }
 
 func (impl *PipelineStatusTimelineServiceImpl) SaveTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error {
-	if tx == nil {
-		//delete unable to fetch or timed out timelines
-		err := impl.pipelineStatusTimelineRepository.DeleteByCdWfrIdAndTimelineStatuses(timeline.CdWorkflowRunnerId,
-			[]pipelineConfig.TimelineStatus{pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS, pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT})
-		if err != nil {
-			impl.logger.Errorw("error in deleting timelines by cdWfrId and timeline status", "err", err)
+	//get unableToFetch or timedOut timeline
+	redundantTimelines, err := impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatuses(timeline.CdWorkflowRunnerId, []pipelineConfig.TimelineStatus{pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS, pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT})
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting unableToFetch/timedOut timelines", "err", err, "cdWfrId", timeline.CdWorkflowRunnerId)
+		return err
+	}
+	if len(redundantTimelines) > 1 {
+		return fmt.Errorf("multiple unableToFetch/timedOut timelines found")
+	} else {
+		if redundantTimelines[0].Id > 0 {
+			timeline.Id = redundantTimelines[0].Id
+		} else {
+			// do nothing
 		}
-		err = impl.pipelineStatusTimelineRepository.SaveTimeline(timeline)
-		if err != nil {
-			impl.logger.Errorw("error in saving timeline", "err", err, "timeline", timeline)
-			return err
+	}
+	//saving/updating timeline
+	err = impl.saveOrUpdateTimeline(timeline, tx)
+	if err != nil {
+		impl.logger.Errorw("error in saving/updating timeline", "err", err, "timeline", timeline)
+		return err
+	}
+	return nil
+}
+
+func (impl *PipelineStatusTimelineServiceImpl) saveOrUpdateTimeline(timeline *pipelineConfig.PipelineStatusTimeline, tx *pg.Tx) error {
+	if tx == nil {
+		if timeline.Id > 0 {
+			err := impl.pipelineStatusTimelineRepository.UpdateTimelines([]*pipelineConfig.PipelineStatusTimeline{timeline})
+			if err != nil {
+				impl.logger.Errorw("error in updating timeline", "err", err, "timeline", timeline)
+				return err
+			}
+		} else {
+			err := impl.pipelineStatusTimelineRepository.SaveTimelines([]*pipelineConfig.PipelineStatusTimeline{timeline})
+			if err != nil {
+				impl.logger.Errorw("error in saving timeline", "err", err, "timeline", timeline)
+				return err
+			}
 		}
 	} else {
-		//delete unable to fetch or timed out timelines
-		err := impl.pipelineStatusTimelineRepository.DeleteByCdWfrIdAndTimelineStatusesWithTxn(timeline.CdWorkflowRunnerId,
-			[]pipelineConfig.TimelineStatus{pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS, pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT}, tx)
-		if err != nil {
-			impl.logger.Errorw("error in deleting timelines by cdWfrId and timeline status", "err", err)
-		}
-		err = impl.pipelineStatusTimelineRepository.SaveTimelinesWithTxn([]*pipelineConfig.PipelineStatusTimeline{timeline}, tx)
-		if err != nil {
-			impl.logger.Errorw("error in saving timeline status ", "err", err, "timeline", timeline)
-			return err
+		if timeline.Id > 0 {
+			err := impl.pipelineStatusTimelineRepository.UpdateTimelinesWithTxn([]*pipelineConfig.PipelineStatusTimeline{timeline}, tx)
+			if err != nil {
+				impl.logger.Errorw("error in updating timeline", "err", err, "timeline", timeline)
+				return err
+			}
+		} else {
+			err := impl.pipelineStatusTimelineRepository.SaveTimelinesWithTxn([]*pipelineConfig.PipelineStatusTimeline{timeline}, tx)
+			if err != nil {
+				impl.logger.Errorw("error in saving timeline", "err", err, "timeline", timeline)
+				return err
+			}
 		}
 	}
 	return nil
 }
+
 func (impl *PipelineStatusTimelineServiceImpl) FetchTimelines(appId, envId, wfrId int) (*PipelineTimelineDetailDto, error) {
 	var triggeredBy int32
 	var deploymentStartedOn time.Time

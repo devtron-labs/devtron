@@ -23,13 +23,14 @@ const (
 )
 
 type PipelineStatusTimelineRepository interface {
-	SaveTimeline(timeline *PipelineStatusTimeline) error
+	SaveTimelines(timelines []*PipelineStatusTimeline) error
 	SaveTimelinesWithTxn(timelines []*PipelineStatusTimeline, tx *pg.Tx) error
-	UpdateTimeline(timeline *PipelineStatusTimeline) error
+	UpdateTimelines(timelines []*PipelineStatusTimeline) error
 	UpdateTimelinesWithTxn(timelines []*PipelineStatusTimeline, tx *pg.Tx) error
 	FetchTimelinesByPipelineId(pipelineId int) ([]*PipelineStatusTimeline, error)
 	FetchTimelinesByWfrId(wfrId int) ([]*PipelineStatusTimeline, error)
 	FetchTimelineByWfrIdAndStatus(wfrId int, status TimelineStatus) (*PipelineStatusTimeline, error)
+	FetchTimelineByWfrIdAndStatuses(wfrId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error)
 	FetchLatestTimelineByWfrId(wfrId int) (*PipelineStatusTimeline, error)
 	CheckIfTerminalStatusTimelinePresentByWfrId(wfrId int) (bool, error)
 	FetchLatestTimelineByAppIdAndEnvId(appId, envId int) (*PipelineStatusTimeline, error)
@@ -61,10 +62,10 @@ type PipelineStatusTimeline struct {
 	sql.AuditLog
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimeline(timeline *PipelineStatusTimeline) error {
-	err := impl.dbConnection.Insert(timeline)
+func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimelines(timelines []*PipelineStatusTimeline) error {
+	err := impl.dbConnection.Insert(timelines)
 	if err != nil {
-		impl.logger.Errorw("error in saving timeline of cd pipeline status", "err", err, "timeline", timeline)
+		impl.logger.Errorw("error in saving timeline of cd pipeline status", "err", err, "timeline", timelines)
 		return err
 	}
 	return nil
@@ -79,17 +80,17 @@ func (impl *PipelineStatusTimelineRepositoryImpl) SaveTimelinesWithTxn(timelines
 	return nil
 }
 
-func (impl *PipelineStatusTimelineRepositoryImpl) UpdateTimeline(timeline *PipelineStatusTimeline) error {
-	err := impl.dbConnection.Update(timeline)
+func (impl *PipelineStatusTimelineRepositoryImpl) UpdateTimelines(timelines []*PipelineStatusTimeline) error {
+	_, err := impl.dbConnection.Model(timelines).Update()
 	if err != nil {
-		impl.logger.Errorw("error in updating timeline of cd pipeline status", "err", err, "timeline", timeline)
+		impl.logger.Errorw("error in updating timeline of cd pipeline status", "err", err, "timeline", timelines)
 		return err
 	}
 	return nil
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) UpdateTimelinesWithTxn(timelines []*PipelineStatusTimeline, tx *pg.Tx) error {
-	err := tx.Update(&timelines)
+	_, err := tx.Model(&timelines).Update()
 	if err != nil {
 		impl.logger.Errorw("error in updating timelines of cd pipeline status", "err", err, "timelines", timelines)
 		return err
@@ -132,6 +133,19 @@ func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatus(
 		return nil, err
 	}
 	return timeline, nil
+}
+
+func (impl *PipelineStatusTimelineRepositoryImpl) FetchTimelineByWfrIdAndStatuses(wfrId int, statuses []TimelineStatus) ([]*PipelineStatusTimeline, error) {
+	var timelines []*PipelineStatusTimeline
+	err := impl.dbConnection.Model(&timelines).
+		Where("cd_workflow_runner_id = ?", wfrId).
+		Where("status in (?)", pg.In(statuses)).
+		Limit(1).Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting timeline of latest wf by wfrId and statuses", "err", err, "wfrId", wfrId, "statuses", statuses)
+		return nil, err
+	}
+	return timelines, nil
 }
 
 func (impl *PipelineStatusTimelineRepositoryImpl) FetchLatestTimelineByWfrId(wfrId int) (*PipelineStatusTimeline, error) {
