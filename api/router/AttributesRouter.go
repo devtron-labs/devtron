@@ -23,7 +23,7 @@ import (
 )
 
 type AttributesRouter interface {
-	initAttributesRouter(helmRouter *mux.Router)
+	InitAttributesRouter(helmRouter *mux.Router)
 }
 
 type AttributesRouterImpl struct {
@@ -37,7 +37,7 @@ func NewAttributesRouterImpl(attributesRestHandler restHandler.AttributesRestHan
 	return router
 }
 
-func (router AttributesRouterImpl) initAttributesRouter(attributesRouter *mux.Router) {
+func (router AttributesRouterImpl) InitAttributesRouter(attributesRouter *mux.Router) {
 	attributesRouter.Path("/create").
 		HandlerFunc(router.attributesRestHandler.AddAttributes).Methods("POST")
 	attributesRouter.Path("/update").
