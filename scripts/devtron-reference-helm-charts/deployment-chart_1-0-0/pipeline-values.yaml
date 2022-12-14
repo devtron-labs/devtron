@@ -3,4 +3,3 @@ deployment:
     rolling:
       maxSurge: "25%"
       maxUnavailable: 1
-    recreate: {}
