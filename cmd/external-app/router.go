@@ -17,6 +17,7 @@ import (
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/api/user"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/dashboard"
@@ -53,6 +54,8 @@ type MuxRouter struct {
 	webhookHelmRouter        webhookHelm.WebhookHelmRouter
 	userAttributesRouter     router.UserAttributesRouter
 	telemetryRouter          router.TelemetryRouter
+	userTerminalAccessRouter terminal.UserTerminalAccessRouter
+	attributesRouter         router.AttributesRouter
 }
 
 func NewMuxRouter(
@@ -79,6 +82,8 @@ func NewMuxRouter(
 	webhookHelmRouter webhookHelm.WebhookHelmRouter,
 	userAttributesRouter router.UserAttributesRouter,
 	telemetryRouter router.TelemetryRouter,
+	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
+	attributesRouter router.AttributesRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -106,6 +111,8 @@ func NewMuxRouter(
 		webhookHelmRouter:        webhookHelmRouter,
 		userAttributesRouter:     userAttributesRouter,
 		telemetryRouter:          telemetryRouter,
+		userTerminalAccessRouter: userTerminalAccessRouter,
+		attributesRouter:         attributesRouter,
 	}
 	return r
 }
@@ -219,4 +226,10 @@ func (r *MuxRouter) Init() {
 
 	telemetryRouter := r.Router.PathPrefix("/orchestrator/telemetry").Subrouter()
 	r.telemetryRouter.InitTelemetryRouter(telemetryRouter)
+
+	userTerminalAccessRouter := r.Router.PathPrefix("/orchestrator/user/terminal").Subrouter()
+	r.userTerminalAccessRouter.InitTerminalAccessRouter(userTerminalAccessRouter)
+
+	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
+	r.attributesRouter.InitAttributesRouter(attributeRouter)
 }
