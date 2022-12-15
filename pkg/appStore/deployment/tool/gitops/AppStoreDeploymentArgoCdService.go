@@ -393,6 +393,10 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 		if noTargetFound {
 			//if by mistake no content found while updating git repo, do auto fix
 			installAppVersionRequest, err = impl.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
+			if err != nil {
+				impl.Logger.Errorw("error while update repo on helm update", "error", err)
+				return nil, err
+			}
 		} else {
 			return nil, err
 		}
@@ -483,6 +487,10 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) ParseGitRepoErrorResponse(err er
 			noTargetFound = true
 		}
 		if errorResponse, ok := err.(azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
+			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if errorResponse, ok := err.(*azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
 			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
 			noTargetFound = true
 		}

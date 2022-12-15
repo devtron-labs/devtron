@@ -999,6 +999,10 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 					if noTargetFound {
 						//if by mistake no content found while updating git repo, do auto fix
 						installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
+						if err != nil {
+							impl.logger.Errorw("error while update repo on helm update", "error", err)
+							return nil, err
+						}
 					} else {
 						return nil, err
 					}
