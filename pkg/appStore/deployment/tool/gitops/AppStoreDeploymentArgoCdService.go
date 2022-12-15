@@ -22,6 +22,7 @@ import (
 	"github.com/go-pg/pg"
 	"github.com/golang/protobuf/ptypes/timestamp"
 	"github.com/google/go-github/github"
+	"github.com/microsoft/azure-devops-go-api/azuredevops"
 	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"net/http"
@@ -394,16 +395,16 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 			//installAppVersionRequest, err = impl.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
 			notFound = true
 		}
-	/*	if errorResponse, ok := err.(azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
+		if errorResponse, ok := err.(azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
 			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
-			notFound = true
-		}*/
-		if errorResponse, ok := err.(*gitlab.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
 			notFound = true
 		}
 		if errorResponse, ok := err.(*gitlab.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
 			impl.Logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
+			notFound = true
+		}
+		if err.Error() == util.BITBUCKET_REPO_NOT_FOUND_ERROR {
+			impl.Logger.Errorw("no content found while updating git repo bitbucket, do auto fix", "error", err)
 			notFound = true
 		}
 		if notFound {
