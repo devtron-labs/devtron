@@ -146,7 +146,8 @@ type SessionMap struct {
 func (sm *SessionMap) Get(sessionId string) TerminalSession {
 	sm.Lock.RLock()
 	defer sm.Lock.RUnlock()
-	return sm.Sessions[sessionId]
+	session := sm.Sessions[sessionId]
+	return session
 }
 
 // Set store a TerminalSession to SessionMap
@@ -162,12 +163,15 @@ func (sm *SessionMap) Set(sessionId string, session TerminalSession) {
 func (sm *SessionMap) Close(sessionId string, status uint32, reason string) {
 	sm.Lock.Lock()
 	defer sm.Lock.Unlock()
-	err := sm.Sessions[sessionId].sockJSSession.Close(status, reason)
-	if err != nil {
-		log.Println(err)
+	terminalSession := sm.Sessions[sessionId]
+	if terminalSession.sockJSSession != nil {
+		err := terminalSession.sockJSSession.Close(status, reason)
+		if err != nil {
+			log.Println(err)
+		}
+		delete(sm.Sessions, sessionId)
 	}
 
-	delete(sm.Sessions, sessionId)
 }
 
 var terminalSessions = SessionMap{Sessions: make(map[string]TerminalSession)}
@@ -330,7 +334,10 @@ func WaitForTerminal(k8sClient kubernetes.Interface, cfg *rest.Config, request *
 
 type TerminalSessionHandler interface {
 	GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error)
+	Close(sessionId string, statusCode uint32, msg string)
+	ValidateSession(sessionId string) bool
 }
+
 type TerminalSessionHandlerImpl struct {
 	environmentService cluster.EnvironmentService
 	clusterService     cluster.ClusterService
@@ -345,6 +352,24 @@ func NewTerminalSessionHandlerImpl(environmentService cluster.EnvironmentService
 		logger:             logger,
 	}
 }
+
+func (impl *TerminalSessionHandlerImpl) Close(sessionId string, statusCode uint32, msg string) {
+	terminalSessions.Close(sessionId, statusCode, msg)
+}
+
+func (impl *TerminalSessionHandlerImpl) ValidateSession(sessionId string) bool {
+	if sessionId == "" {
+		return false
+	}
+	terminalSession := terminalSessions.Get(sessionId)
+	sockJSSession := terminalSession.sockJSSession
+	if sockJSSession != nil {
+		sessionState := sockJSSession.GetSessionState()
+		return sessionState == sockjs.SessionActive
+	}
+	return false
+}
+
 func (impl *TerminalSessionHandlerImpl) GetTerminalSession(req *TerminalSessionRequest) (statusCode int, message *TerminalMessage, err error) {
 	sessionID, err := genTerminalSessionId()
 	if err != nil {

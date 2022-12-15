@@ -21,6 +21,7 @@ import (
 	"github.com/devtron-labs/devtron/api/server"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/api/user"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
@@ -66,6 +67,7 @@ func InitializeApp() (*App, error) {
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
+		terminal.TerminalWireSet,
 
 		NewApp,
 		NewMuxRouter,
@@ -96,6 +98,10 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipelineConfig.PipelineRepository), new(*pipelineConfig.PipelineRepositoryImpl)),
 		app2.NewAppRepositoryImpl,
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
+		router.NewAttributesRouterImpl,
+		wire.Bind(new(router.AttributesRouter), new(*router.AttributesRouterImpl)),
+		restHandler.NewAttributesRestHandlerImpl,
+		wire.Bind(new(restHandler.AttributesRestHandler), new(*restHandler.AttributesRestHandlerImpl)),
 		attributes.NewAttributesServiceImpl,
 		wire.Bind(new(attributes.AttributesService), new(*attributes.AttributesServiceImpl)),
 		repository.NewAttributesRepositoryImpl,
@@ -136,7 +142,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(attributes.UserAttributesService), new(*attributes.UserAttributesServiceImpl)),
 		repository.NewUserAttributesRepositoryImpl,
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
-
 		util3.GetDevtronSecretName,
 	)
 	return &App{}, nil
