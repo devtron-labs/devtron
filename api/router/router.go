@@ -115,6 +115,7 @@ type MuxRouter struct {
 	webhookHelmRouter                  webhookHelm.WebhookHelmRouter
 	globalCMCSRouter                   GlobalCMCSRouter
 	userTerminalAccessRouter           terminal2.UserTerminalAccessRouter
+	ciStatusUpdateCron                 cron.CiStatusUpdateCron
 }
 
 func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, PipelineConfigRouter PipelineConfigRouter,
@@ -141,7 +142,8 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 	globalPluginRouter GlobalPluginRouter, moduleRouter module.ModuleRouter,
 	serverRouter server.ServerRouter, apiTokenRouter apiToken.ApiTokenRouter,
 	helmApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, k8sCapacityRouter k8s.K8sCapacityRouter,
-	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter, userTerminalAccessRouter terminal2.UserTerminalAccessRouter) *MuxRouter {
+	webhookHelmRouter webhookHelm.WebhookHelmRouter, globalCMCSRouter GlobalCMCSRouter,
+	userTerminalAccessRouter terminal2.UserTerminalAccessRouter, ciStatusUpdateCron cron.CiStatusUpdateCron) *MuxRouter {
 	r := &MuxRouter{
 		Router:                             mux.NewRouter(),
 		HelmRouter:                         HelmRouter,
@@ -207,6 +209,7 @@ func NewMuxRouter(logger *zap.SugaredLogger, HelmRouter PipelineTriggerRouter, P
 		webhookHelmRouter:                  webhookHelmRouter,
 		globalCMCSRouter:                   globalCMCSRouter,
 		userTerminalAccessRouter:           userTerminalAccessRouter,
+		ciStatusUpdateCron:                 ciStatusUpdateCron,
 	}
 	return r
 }
