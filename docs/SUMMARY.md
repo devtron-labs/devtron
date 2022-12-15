@@ -16,7 +16,6 @@
   * [GitOps](user-guide/global-configurations/gitops.md)
   * [Projects](user-guide/global-configurations/projects.md)
   * [Cluster And Environments](user-guide/global-configurations/cluster-and-environments.md)
-    * [Namespaces And Environments](user-guide/namespaces-and-environments.md)
   * [Git Accounts](user-guide/global-configurations/git-accounts.md)
   * [Container Registries](user-guide/global-configurations/docker-registries.md)
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)

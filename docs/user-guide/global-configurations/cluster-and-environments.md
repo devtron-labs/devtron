@@ -1,6 +1,6 @@
 # Clusters and Environments
 
-You can add your existing Kubernetes clusters and environments on the `Clusters and Environments` section. You must have a super admin access to add a cluster.
+You can add your existing Kubernetes clusters and environments on the `Clusters and Environments` section. You must have a [super admin](https://docs.devtron.ai/global-configurations/authorization/user-access#assign-super-admin-permissions) access to add a cluster.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/cluster-and-environments.png)
 
@@ -15,12 +15,14 @@ Provide the information in the following fields to add your kubernetes cluster:
 | Field | Description |
 | :--- | :--- |
 | `Name` | Enter a name of your cluster. |
-| `Server URL` |  Server URL of a cluster.<br>Note: It is recommended to use a [self-hosted URL](#benefits-of-self-hosted-url) instead of cloud hosted.</br>  |
+| `Server URL` |  Server URL of a cluster.<br>Note: We recommended to use a self-hosted URL instead of cloud hosted URL.</br>  |
 | `Bearer Token` | Bearer token of a cluster. |
 
 ### Get Cluster Credentials
 
 >**Prerequisites:** `kubectl` and `jq` must be installed on the bastion.
+
+**Note**: We recommend to use a self-hosted URL instead of cloud hosted URL. Refer the benefits of [self-hosted URL](#benefits-of-self-hosted-url).
 
 You can get the **`Server URL`** & **`Bearer Token`** by running the following command depending on the cluster provider:
 
@@ -51,8 +53,6 @@ devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconf
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/generate-cluster-credentials.png)
 
 #### Benefits of Self-hosted URL
-
-It is recommended to use a self-hosted URL instead of cloud hosted. 
 
 Self-hosted URL will provide the following benefits:
 
@@ -103,8 +103,8 @@ A new environment window pops up.
 | Field | Description |
 | :--- | :--- |
 | `Environment Name` | Enter a name of your environment. |
-| `Enter Namespace` | Enter a [namespace](namespaces-and-environments.md) corresponding to your [environment](namespaces-and-environments.md).<br>**Note**: If this namespace does not already exist in your cluster, Devtron will create it. If it exists already, Devtron will map the environment to the existing namespace.</br> |
-| `Environment Type` | Select your environment type:<ul><li>`Production`</li></ul> <ul><li>`Non-production`</li></ul>Note: Devtron shows deployment metrics for environments tagged as `Production` only. |
+| `Enter Namespace` | Enter a namespace corresponding to your environment.<br>**Note**: If this namespace does not already exist in your cluster, Devtron will create it. If it exists already, Devtron will map the environment to the existing namespace.</br> |
+| `Environment Type` | Select your environment type:<ul><li>`Production`</li></ul> <ul><li>`Non-production`</li></ul>Note: Devtron shows deployment metrics (DORA metrics) for environments tagged as `Production` only. |
 
 Click `Save` and your environment will be created. 
 

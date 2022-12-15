@@ -34,6 +34,5 @@ Updates can only be made within one Authentication type or one protocol type, i.
 Note:
 * You can enable or disable a git account. Enabled git accounts will be available on the App Configuration > [Git repository](../creating-application/git-material.md).
 
-* Disabled git accounts will be unavailable for use in future applications. Applications already using a disabled git account will not be affected.
 
 ![](../../user-guide/global-configurations/images/git-account-enable-disable.jpg)

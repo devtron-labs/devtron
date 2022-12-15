@@ -33,16 +33,33 @@ If you select `GitHuB` as your git provider, please provide the information in t
 
 **Note**: We do NOT recommend using GitHub organization which contains your source code.
 
-1. Create a new account on GitHub (if you do not have one).
-2. On the upper-right corner of your GitHub page, click your profile photo, then click `Settings`.
-3. On the `Access` section, click  `Organizations`.
-4. On the `Organizations` section, click `New organization`.
-5. Pick a plan for your organization. 
-6. On the `Set up your organization` page, 
+* Create a new account on GitHub (if you do not have one).
+* On the upper-right corner of your GitHub page, click your profile photo, then click `Settings`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/github-settings.jpg)
+
+* On the `Access` section, click  `Organizations`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/github-organizations.jpg)
+
+
+* On the `Organizations` section, click `New organization`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/github-new-organization.jpg)
+
+* Pick a plan for your organization. You have the option to select `create free organization` also.
+
+* On the `Set up your organization` page, 
    * Enter the `organization account name`, `contact email`.
    * Select the option your organization belongs to.
    * Verify your account and click `Next`.
    * Your `GitHub organization name` will be created. 
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/github-setup-your-org.jpg)
+
+* Go to your profile and click `Your organizations` to view all the organizations you created.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/your-organizations-github.jpg)
 
 For more information about the plans available for your team, see [GitHub's products](https://docs.github.com/en/get-started/learning-about-github/githubs-products). You can also refer [GitHub organization](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations) official doc page for more detail.
 
@@ -66,11 +83,22 @@ If you select `GitLab` as your git provider, please provide the information in t
 
 ### How to create organization in GitLab
 
-1. Create a new account on GitLab (if you do have one).
-2. You can create a group by going to the 'Groups' tab on the GitLab dashboard and click `New group`.
-3. Select `Create group`.
-4. Enter the group name (required) and select the optional descriptions, if require and click `Create group`.
-5. When your group has been created, you will assigned the `Group ID` which will be of 8 digits (e.g. 61413736).
+* Create a new account on GitLab (if you do not have one).
+* You can create a group by going to the 'Groups' tab on the GitLab dashboard and click `New group`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/new-group.jpg)
+
+* Select `Create group`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/click-create-new-group.jpg)
+
+* Enter the group name (required) and select the optional descriptions, if require and click `Create group`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/create-group-jpg.png)
+
+* Your group will be created and your group name will be assigned with a new `Group ID` (e.g. 61413736).
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/group-id.jpg)
 
 
 **Note**:
@@ -94,8 +122,8 @@ If you select `GitAzureLab` as your git provider, please provide the information
 
 **Note**: You need an organization before you can create a project. If you have not created an organization yet, create one by following the instructions in [Sign up, sign in to Azure DevOps](https://learn.microsoft.com/en-us/azure/devops/user-guide/sign-up-invite-teammates?view=azure-devops), which also creates a project. Or see [Create an organization or project collection](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/create-organization?view=azure-devops).
 
-1. Sign in to your Azure DevOps organization (https://dev.azure.com/{yourorganization}).
-2. Click `New project`. 
+1. Go to Azure DevOps and navigate to Projects.
+2. Select your organization and click `New project`. 
 3. On the `Create new project` page, 
    * Enter the `project name` and description of the project.
    * Select the visibility option (private or public), initial source control type, and work item process.
