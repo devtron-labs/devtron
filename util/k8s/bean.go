@@ -10,6 +10,7 @@ type ClusterCapacityDetail struct {
 	Name              string                                `json:"name,omitempty"`
 	ErrorInConnection string                                `json:"errorInNodeListing,omitempty"`
 	NodeCount         int                                   `json:"nodeCount,omitempty"`
+	NodeNames         []string                              `json:"nodeNames"`
 	NodeErrors        map[metav1.NodeConditionType][]string `json:"nodeErrors"`
 	NodeK8sVersions   []string                              `json:"nodeK8sVersions"`
 	ServerVersion     string                                `json:"serverVersion,omitempty"`
