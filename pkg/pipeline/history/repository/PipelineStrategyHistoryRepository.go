@@ -2,6 +2,7 @@ package repository
 
 import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
@@ -27,16 +28,16 @@ func NewPipelineStrategyHistoryRepositoryImpl(logger *zap.SugaredLogger, dbConne
 }
 
 type PipelineStrategyHistory struct {
-	TableName           struct{}                          `sql:"pipeline_strategy_history" pg:",discard_unknown_columns"`
-	Id                  int                               `sql:"id,pk"`
-	PipelineId          int                               `sql:"pipeline_id, notnull"`
-	Strategy            pipelineConfig.DeploymentTemplate `sql:"strategy,notnull"`
-	Config              string                            `sql:"config"`
-	Default             bool                              `sql:"default,notnull"`
-	Deployed            bool                              `sql:"deployed"`
-	DeployedOn          time.Time                         `sql:"deployed_on"`
-	DeployedBy          int32                             `sql:"deployed_by"`
-	PipelineTriggerType pipelineConfig.TriggerType        `sql:"pipeline_trigger_type"`
+	TableName           struct{}                               `sql:"pipeline_strategy_history" pg:",discard_unknown_columns"`
+	Id                  int                                    `sql:"id,pk"`
+	PipelineId          int                                    `sql:"pipeline_id, notnull"`
+	Strategy            chartRepoRepository.DeploymentStrategy `sql:"strategy,notnull"`
+	Config              string                                 `sql:"config"`
+	Default             bool                                   `sql:"default,notnull"`
+	Deployed            bool                                   `sql:"deployed"`
+	DeployedOn          time.Time                              `sql:"deployed_on"`
+	DeployedBy          int32                                  `sql:"deployed_by"`
+	PipelineTriggerType pipelineConfig.TriggerType             `sql:"pipeline_trigger_type"`
 	sql.AuditLog
 	//getting below data from cd_workflow_runner and users join
 	DeploymentStatus  string `sql:"-"`

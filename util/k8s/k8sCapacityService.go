@@ -107,11 +107,13 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 	var clusterCpuAllocatable resource.Quantity
 	var clusterMemoryAllocatable resource.Quantity
 	nodeCount := 0
+	var clusterNodeNames []string
 	nodesK8sVersionMap := make(map[string]bool)
 	//map of node condition and name of all nodes that condition is true on
 	nodeErrors := make(map[metav1.NodeConditionType][]string)
 	var nodesK8sVersion []string
 	for _, node := range nodeList.Items {
+		clusterNodeNames = append(clusterNodeNames, node.Name)
 		errorsInNode := findNodeErrors(&node)
 		for conditionName := range errorsInNode {
 			if nodeNames, ok := nodeErrors[conditionName]; ok {
@@ -133,6 +135,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 	}
 	clusterDetail.NodeErrors = nodeErrors
 	clusterDetail.NodeK8sVersions = nodesK8sVersion
+	clusterDetail.NodeNames = clusterNodeNames
 	clusterDetail.Cpu = &ResourceDetailObject{
 		Capacity: getResourceString(clusterCpuCapacity, metav1.ResourceCPU),
 	}
