@@ -22,6 +22,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"github.com/devtron-labs/devtron/client/telemetry"
+	"github.com/devtron-labs/devtron/otel"
 	"log"
 	"net/http"
 	"os"
@@ -37,6 +38,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/go-pg/pg"
 	_ "github.com/lib/pq"
+	"go.opentelemetry.io/contrib/instrumentation/github.com/gorilla/mux/otelmux"
 	"go.uber.org/zap"
 )
 
@@ -84,11 +86,23 @@ func (app *App) Start() {
 	port := 8080 //TODO: extract from environment variable
 	app.Logger.Debugw("starting server")
 	app.Logger.Infow("starting server on ", "port", port)
+
+	// setup tracer
+	serviceName := "orchestrator"
+	tp := otel.Init(serviceName)
+	defer func() {
+		if err := tp.Shutdown(context.Background()); err != nil {
+			log.Printf("Error shutting down tracer provider: %v", err)
+		}
+	}()
+
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
 
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker)(app.MuxRouter.Router)}
+
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
+	app.MuxRouter.Router.Use(otelmux.Middleware(serviceName))
 	app.server = server
 	var err error
 	if app.serveTls {
