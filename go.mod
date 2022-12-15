@@ -14,7 +14,7 @@ require (
 	github.com/casbin/xorm-adapter v1.0.1-0.20190716004226-a317737a1007
 	github.com/coreos/go-oidc v2.2.1+incompatible
 	github.com/davecgh/go-spew v1.1.1
-	github.com/devtron-labs/authenticator v0.4.31
+	github.com/devtron-labs/authenticator v0.4.31-0.20221213131053-6e4668309f53
 	github.com/devtron-labs/common-lib v0.0.0-20220923064712-362252bd41d9
 	github.com/evanphx/json-patch v5.6.0+incompatible
 	github.com/ghodss/yaml v1.0.1-0.20190212211648-25d852aebe32
@@ -63,6 +63,7 @@ require (
 	k8s.io/client-go v11.0.1-0.20190820062731-7e43eff7c80a+incompatible
 	k8s.io/helm v2.12.3+incompatible
 	k8s.io/kubectl v0.23.1
+	k8s.io/kubernetes v1.23.1
 	k8s.io/metrics v0.23.1
 	k8s.io/utils v0.0.0-20220210201930-3a6ce19ff2f9
 	sigs.k8s.io/yaml v1.3.0
@@ -248,7 +249,6 @@ require (
 	k8s.io/klog/v2 v2.40.1 // indirect
 	k8s.io/kube-aggregator v0.23.1 // indirect
 	k8s.io/kube-openapi v0.0.0-20220124234850-424119656bbf // indirect
-	k8s.io/kubernetes v1.23.1 // indirect
 	mellium.im/sasl v0.2.1 // indirect
 	sigs.k8s.io/json v0.0.0-20211208200746-9f7c6b3444d2 // indirect
 	sigs.k8s.io/kustomize/api v0.10.1 // indirect
