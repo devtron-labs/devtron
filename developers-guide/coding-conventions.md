@@ -126,7 +126,7 @@ Aim -
 * We must place repositories in `/repository` subdirectories under the service subdirectory. Example - [/internal/sql/repository/AppListingRepository.go](https://github.com/devtron-labs/devtron/blob/main/internal/sql/repository/AppListingRepository.go) can be moved to `pkg/app/appListing/repository`.
 * Objects used in the code must be preferably kept in `/bean` subdirectory under the service subdirectory.
 
-### `/vendor` 
+### [/vendor](https://github.com/devtron-labs/devtron/blob/main/vendor)
 
 * Application dependencies (managed by [`Go Modules`](https://github.com/golang/go/wiki/Modules) dependency management). The `go mod vendor` command will create the `/vendor` directory for you if not present. 
 * This directory is **NON-EDITABLE** as it is managed by go.
