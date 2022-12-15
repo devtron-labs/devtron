@@ -15,7 +15,7 @@ import (
 
 // Init configures an OpenTelemetry exporter and trace provider
 func Init(serviceName string) *sdktrace.TracerProvider {
-	var collectorURL = "otel-collector:4317"
+	var collectorURL = "otel-collector.observability:4317"
 
 	secureOption := otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")) // config can be passed to configure TLS
 	secureOption = otlptracegrpc.WithInsecure()
