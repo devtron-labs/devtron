@@ -20,7 +20,6 @@ package appClone
 import (
 	"context"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
-	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"strings"
 
@@ -124,7 +123,7 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	newAppId := app.Id
 	if !refAppStatus["MATERIAL"] {
 		impl.logger.Errorw("status not", "MATERIAL", cloneReq.RefAppId)
-		return nil, nil
+		return app, nil
 	}
 	_, gitMaerialMap, err := impl.CloneGitRepo(cloneReq.RefAppId, newAppId, userId)
 	if err != nil {
@@ -139,7 +138,11 @@ func (impl *AppCloneServiceImpl) CloneApp(createReq *bean.CreateAppDTO, context 
 	}
 	if !refAppStatus["TEMPLATE"] {
 		impl.logger.Errorw("status not", "TEMPLATE", cloneReq.RefAppId)
-		return nil, nil
+		return app, nil
+	}
+	if !refAppStatus["CHART"] {
+		impl.logger.Errorw("status not", "CHART", cloneReq.RefAppId)
+		return app, nil
 	}
 	_, err = impl.CreateDeploymentTemplate(cloneReq.RefAppId, newAppId, userId, context)
 	if err != nil {
@@ -597,8 +600,8 @@ func (impl *AppCloneServiceImpl) createWfMappings(refWfMappings []appWorkflow.Ap
 		}
 	}
 	if len(webhookMappings) > 0 {
-		err := &util.ApiError{Code: "501", HttpStatusCode: 501, UserMessage: "ref app has external ci configured, app clone does not supported this"}
-		return err
+		impl.logger.Warn("external ci webhook found in workflow, not supported for clone")
+		return nil
 	}
 	if len(ciMapping) == 0 {
 		impl.logger.Warn("no ci pipeline found")
@@ -829,6 +832,7 @@ func (impl *AppCloneServiceImpl) CreateCdPipeline(req *cloneCdPipelineRequest, c
 		PostStageConfigMapSecretNames: refCdPipeline.PostStageConfigMapSecretNames,
 		RunPostStageInEnv:             refCdPipeline.RunPostStageInEnv,
 		RunPreStageInEnv:              refCdPipeline.RunPreStageInEnv,
+		DeploymentAppType:             refCdPipeline.DeploymentAppType,
 	}
 	cdPipelineReq := &bean.CdPipelines{
 		Pipelines: []*bean.CDPipelineConfigObject{cdPipeline},

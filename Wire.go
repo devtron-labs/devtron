@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/api/sse"
 	"github.com/devtron-labs/devtron/api/sso"
 	"github.com/devtron-labs/devtron/api/team"
+	"github.com/devtron-labs/devtron/api/terminal"
 	"github.com/devtron-labs/devtron/api/user"
 	webhookHelm "github.com/devtron-labs/devtron/api/webhook/helm"
 	"github.com/devtron-labs/devtron/client/argocdServer"
@@ -133,6 +134,7 @@ func InitializeApp() (*App, error) {
 		module.ModuleWireSet,
 		apiToken.ApiTokenWireSet,
 		webhookHelm.WebhookHelmWireSet,
+		terminal.TerminalWireSet,
 		globalTag.GlobalTagWireSet,
 		// -------wireset end ----------
 		gitSensor.GetGitSensorConfig,
@@ -201,6 +203,7 @@ func InitializeApp() (*App, error) {
 		app2.NewAppRepositoryImpl,
 		wire.Bind(new(app2.AppRepository), new(*app2.AppRepositoryImpl)),
 
+		pipeline.GetDeploymentServiceTypeConfig,
 		pipeline.NewPipelineBuilderImpl,
 		wire.Bind(new(pipeline.PipelineBuilder), new(*pipeline.PipelineBuilderImpl)),
 		pipeline2.NewPipelineRestHandlerImpl,
@@ -748,6 +751,10 @@ func InitializeApp() (*App, error) {
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.CdApplicationStatusUpdateHandler), new(*cron.CdApplicationStatusUpdateHandlerImpl)),
 
+		cron.GetCiWorkflowStatusUpdateConfig,
+		cron.NewCiStatusUpdateCronImpl,
+		wire.Bind(new(cron.CiStatusUpdateCron), new(*cron.CiStatusUpdateCronImpl)),
+
 		restHandler.NewPipelineStatusTimelineRestHandlerImpl,
 		wire.Bind(new(restHandler.PipelineStatusTimelineRestHandler), new(*restHandler.PipelineStatusTimelineRestHandlerImpl)),
 
@@ -782,6 +789,11 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(pipeline.GlobalCMCSService), new(*pipeline.GlobalCMCSServiceImpl)),
 		repository.NewGlobalCMCSRepositoryImpl,
 		wire.Bind(new(repository.GlobalCMCSRepository), new(*repository.GlobalCMCSRepositoryImpl)),
+
+		chartRepoRepository.NewGlobalStrategyMetadataRepositoryImpl,
+		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
+		chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl,
+		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository), new(*chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepositoryImpl)),
 	)
 	return &App{}, nil
 }
