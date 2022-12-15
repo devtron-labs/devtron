@@ -41,6 +41,7 @@ type AppStoreDeploymentArgoCdService interface {
 	OnUpdateRepoInInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementDependencies(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error)
+	ParseGitRepoErrorResponse(err error) (bool, error)
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -387,27 +388,9 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 	//update values yaml in chart
 	installAppVersionRequest, err := impl.updateValuesYaml(environment, installedAppVersion, installAppVersionRequest)
 	if err != nil {
-		notFound := false
 		impl.Logger.Errorw("error while commit values to git", "error", err)
-		if errorResponse, ok := err.(*github.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo on github, do auto fix", "error", err)
-			//if by mistake no content found while updating git repo, do auto fix
-			//installAppVersionRequest, err = impl.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
-			notFound = true
-		}
-		if errorResponse, ok := err.(azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
-			notFound = true
-		}
-		if errorResponse, ok := err.(*gitlab.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
-			notFound = true
-		}
-		if err.Error() == util.BITBUCKET_REPO_NOT_FOUND_ERROR {
-			impl.Logger.Errorw("no content found while updating git repo bitbucket, do auto fix", "error", err)
-			notFound = true
-		}
-		if notFound {
+		noTargetFound, _ := impl.ParseGitRepoErrorResponse(err)
+		if noTargetFound {
 			//if by mistake no content found while updating git repo, do auto fix
 			installAppVersionRequest, err = impl.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
 		} else {
@@ -489,4 +472,28 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 	}
 	installAppVersionRequest.GitHash = commitHash
 	return installAppVersionRequest, nil
+}
+
+func (impl AppStoreDeploymentArgoCdServiceImpl) ParseGitRepoErrorResponse(err error) (bool, error) {
+	//update values yaml in chart
+	noTargetFound := false
+	if err != nil {
+		if errorResponse, ok := err.(*github.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
+			impl.Logger.Errorw("no content found while updating git repo on github, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if errorResponse, ok := err.(azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
+			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if errorResponse, ok := err.(*gitlab.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
+			impl.Logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if err.Error() == util.BITBUCKET_REPO_NOT_FOUND_ERROR {
+			impl.Logger.Errorw("no content found while updating git repo bitbucket, do auto fix", "error", err)
+			noTargetFound = true
+		}
+	}
+	return noTargetFound, err
 }
