@@ -62,6 +62,8 @@ message AppDetailRequest {
   ClusterConfig clusterConfig = 1;
   string namespace = 2;
   string ReleaseName = 3;
+  // Map key cannot be float, double, bytes, message, or enum types (map<Gvk, Labels> could be a better option)
+  ResourceTreeFilter resourceTreeFilter = 4;
 }
 
 message AppDetail{
@@ -271,4 +273,24 @@ message HelmInstallCustomResponse {
 
 message ChartContent {
   bytes Content = 1;
+}
+
+message Gvk {
+  string Group = 1;
+  string Version = 2;
+  string Kind = 3;
+}
+
+message ResourceFilter {
+  Gvk gvk = 1;
+  ResourceIdentifier resourceIdentifier = 2;
+}
+
+message ResourceIdentifier {
+  map<string, string> labels = 1;
+}
+
+message ResourceTreeFilter {
+  ResourceIdentifier globalFilter = 1;
+  repeated ResourceFilter resourceFilters = 2;
 }

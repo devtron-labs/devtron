@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
+	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	v12 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
@@ -89,6 +90,7 @@ type ClusterService interface {
 	CreateGrafanaDataSource(clusterBean *ClusterBean, env *repository.Environment) (int, error)
 	GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error)
 	GetK8sClient() (*v12.CoreV1Client, error)
+	GetAllClusterNamespaces() map[string][]string
 }
 
 type ClusterServiceImpl struct {
@@ -378,7 +380,7 @@ func (impl *ClusterServiceImpl) Update(ctx context.Context, bean *ClusterBean, u
 			model.PTlsClientKey = bean.PrometheusAuth.TlsClientKey
 		}
 	}
-
+	model.ErrorInConnecting = "" //setting empty because config to be updated is already validated
 	model.Active = bean.Active
 	model.Config = bean.Config
 	model.UpdatedBy = userId
@@ -522,7 +524,14 @@ func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error 
 			return fmt.Errorf("Incorrect server url : %v", err)
 		} else if statusError, ok := err.(*errors.StatusError); ok {
 			if statusError != nil {
-				return fmt.Errorf("%s : %s", statusError.ErrStatus.Reason, statusError.ErrStatus.Message)
+				errReason := statusError.ErrStatus.Reason
+				var errMsg string
+				if errReason == v1.StatusReasonUnauthorized {
+					errMsg = "token seems invalid or does not have sufficient permissions"
+				} else {
+					errMsg = statusError.ErrStatus.Message
+				}
+				return fmt.Errorf("%s : %s", errReason, errMsg)
 			} else {
 				return fmt.Errorf("Validation failed : %v", err)
 			}
@@ -533,4 +542,19 @@ func (impl ClusterServiceImpl) CheckIfConfigIsValid(cluster *ClusterBean) error 
 		return fmt.Errorf("Validation failed with response : %s", string(response))
 	}
 	return nil
+}
+
+func (impl *ClusterServiceImpl) GetAllClusterNamespaces() map[string][]string {
+	result := make(map[string][]string)
+	namespaceListGroupByCLuster := impl.K8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
+	for clusterName, namespaces := range namespaceListGroupByCLuster {
+		copiedNamespaces := result[clusterName]
+		for namespace, value := range namespaces {
+			if value {
+				copiedNamespaces = append(copiedNamespaces, namespace)
+			}
+		}
+		result[clusterName] = copiedNamespaces
+	}
+	return result
 }
