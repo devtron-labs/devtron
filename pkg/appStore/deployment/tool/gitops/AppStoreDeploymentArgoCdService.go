@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/Microsoft/azure-devops-go-api/azuredevops"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v2/pkg/apis/application/v1alpha1"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -395,10 +394,10 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 			//installAppVersionRequest, err = impl.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
 			notFound = true
 		}
-		if errorResponse, ok := err.(azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
+	/*	if errorResponse, ok := err.(azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
 			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
 			notFound = true
-		}
+		}*/
 		if errorResponse, ok := err.(*gitlab.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
 			impl.Logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
 			notFound = true
