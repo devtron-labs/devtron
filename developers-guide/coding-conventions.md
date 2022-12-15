@@ -77,28 +77,31 @@ Preferred -
 ## Directory Structure 
 
 
-### `/api`
+### [/api](https://github.com/devtron-labs/devtron/tree/main/api)
 
 Current implementation - 
 
-* This directory is currently used for storing `Routers` and `RestHandlers`. Most of them are stored in the `/router` and `/restHandler` package.
+* This directory is currently used for storing `Routers` and `RestHandlers`. 
+* Currently, many of them are stored in the [/router](https://github.com/devtron-labs/devtron/tree/main/api/router) and [/restHandler](https://github.com/devtron-labs/devtron/tree/main/api/restHandler) packages. Example - [/router/AppListingRouter.go](https://github.com/devtron-labs/devtron/blob/main/api/router/AppListingRouter.go) & [/router/AppListingRestHandler.go](https://github.com/devtron-labs/devtron/blob/main/api/restHandler/AppListingRestHandler.go).
+* Some Routers & RestHandlers are stored in a subdirectory inside the [/api](https://github.com/devtron-labs/devtron/tree/main/api) package according to the entity they belong to. Example - [/api/chartRepo](https://github.com/devtron-labs/devtron/tree/main/api/chartRepo). 
 
 Aim - 
 
-* The router and restHandler must be categorised according to different entities. We aim to create subdirectories for routers and restHandlers according to the entity they belong to.
+* The router and restHandler must be categorised according to different entities. We aim to create subdirectories for routers and restHandlers according to the entity they belong to. Example - In the previous section's example, we must group [AppListingRouter](https://github.com/devtron-labs/devtron/blob/main/api/router/AppListingRouter.go) & [AppListingRestHandler](https://github.com/devtron-labs/devtron/blob/main/api/restHandler/AppListingRestHandler.go) into a new subdirectory i.e.`/api/appListing`
+* Apart from the code files we must also include wire sets of the related interfaces in the same subdirectory.
 
-### `/internal`
+### [/internal](https://github.com/devtron-labs/devtron/tree/main/internal)
 
 * This directory enable us to export code for reuse in our project while reducing our public API.
 
 Current implementation -
 
-* Third party library code. Example - GitOps services, Argo util etc.
-* DB Repositories (in the subdirectory `/sql`).
+* Third party library code. Example - [/internal/util/ArgoUtil](https://github.com/devtron-labs/devtron/blob/main/internal/util/ArgoUtil) etc.
+* DB Repositories (in the subdirectory [/sql](https://github.com/devtron-labs/devtron/tree/main/internal/sql)).
 
 Aim - 
 
-* Phase out db repositories from this location and keep them along with their respective services.
+* Phase out db repositories from this location and keep them along with their respective services. Example - Move [/internal/sql/repository/AppListingRepository.go](https://github.com/devtron-labs/devtron/blob/main/internal/sql/repository/AppListingRepository.go) to a new subdirectory in the service subdirectory like `/appListing/repository`.
 * To keep only private applications and library code in this directory. Go itself enforces keeping of private code by - 
 
 ```
@@ -108,18 +111,22 @@ For example, a package .../a/b/c/internal/d/e/f can be imported only by code in 
 It cannot be imported by code in .../a/b/g or in any other repository.
 ```
 
-### `/pkg`
+### [/pkg](https://github.com/devtron-labs/devtron/blob/main/pkg)
 
 * Library code that's ok to use by external applications is placed in this directory. Other projects will import these libraries expecting them to work. This directory is a good way to explicitly communicate that the code in that directory is safe for use by others.
 
 Current implementation - 
-*  Services and Repositories are placed in this directory. 
+* Services are placed in this directory according to the entity they belong to. Example - [/pkg/app/AppListingService.go](https://github.com/devtron-labs/devtron/blob/main/pkg/app/AppListingService.go).
+* Some subdirectories also include further subdirectory for their repositories. Example - [/pkg/chartRepo](https://github.com/devtron-labs/devtron/tree/main/pkg/chartRepo) contains the subdirectory [/repository](https://github.com/devtron-labs/devtron/tree/main/pkg/chartRepo/repository).
 
 Aim - 
 
-* We need to continue the current structure along with generalising the use of this directory to follow the first most point of this directory's description.
-* Objects used in the code must be preferably kept in `bean.go`.
+* Generalise the use of this directory to follow the first most point of this directory's description.
+* We need to improve the current structure by improving the directory structure. Example - [/pkg/app/AppListingService.go](https://github.com/devtron-labs/devtron/blob/main/pkg/app/AppListingService.go) can be moved to a subdirectory `/pkg/app/appListing`.
+* We must place repositories in `/repository` subdirectories under the service subdirectory. Example - [/internal/sql/repository/AppListingRepository.go](https://github.com/devtron-labs/devtron/blob/main/internal/sql/repository/AppListingRepository.go) can be moved to `pkg/app/appListing/repository`.
+* Objects used in the code must be preferably kept in `/bean` subdirectory under the service subdirectory.
 
-### `/vendor` (non-editable)
+### `/vendor` 
 
-Application dependencies (managed by [`Go Modules`](https://github.com/golang/go/wiki/Modules) dependency management). The `go mod vendor` command will create the `/vendor` directory for you if not present. 
+* Application dependencies (managed by [`Go Modules`](https://github.com/golang/go/wiki/Modules) dependency management). The `go mod vendor` command will create the `/vendor` directory for you if not present. 
+* This directory is **NON-EDITABLE** as it is managed by go.
