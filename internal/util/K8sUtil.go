@@ -22,7 +22,9 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
+	"fmt"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"net/http"
 	"os/user"
 	"path/filepath"
 	"time"
@@ -72,9 +74,11 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	httpClientFor, err := rest.HTTPClientFor(cfg)
-	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
-	client, err := v12.NewForConfigAndClient(cfg, httpClientFor)
+	httpClient, err := OverrideK8sHttpClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	client, err := v12.NewForConfigAndClient(cfg, httpClient)
 	return client, err
 }
 
@@ -83,9 +87,11 @@ func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clie
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	httpClientFor, err := rest.HTTPClientFor(cfg)
-	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
-	client, err := kubernetes.NewForConfigAndClient(cfg, httpClientFor)
+	httpClient, err := OverrideK8sHttpClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	client, err := kubernetes.NewForConfigAndClient(cfg, httpClient)
 	return client, err
 }
 
@@ -109,9 +115,11 @@ func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	// creates the in-cluster config
 	config, err := impl.getKubeConfig(impl.runTimeConfig.LocalDevMode)
 	// creates the clientset
-	httpClientFor, err := rest.HTTPClientFor(config)
-	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
-	clientset, err := v12.NewForConfigAndClient(config, httpClientFor)
+	httpClient, err := OverrideK8sHttpClient(config)
+	if err != nil {
+		return nil, err
+	}
+	clientset, err := v12.NewForConfigAndClient(config, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
@@ -131,9 +139,11 @@ func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
 		impl.logger.Errorw("error fetching cluster config", "error", err)
 		return nil, err
 	}
-	httpClientFor, err := rest.HTTPClientFor(config)
-	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
-	client, err := v12.NewForConfigAndClient(config, httpClientFor)
+	httpClient, err := OverrideK8sHttpClient(config)
+	if err != nil {
+		return nil, err
+	}
+	client, err := v12.NewForConfigAndClient(config, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error creating k8s client", "error", err)
 		return nil, err
@@ -146,9 +156,11 @@ func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discov
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	httpClientFor, err := rest.HTTPClientFor(cfg)
-	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
-	client, err := discovery.NewDiscoveryClientForConfigAndClient(cfg, httpClientFor)
+	httpClient, err := OverrideK8sHttpClient(cfg)
+	if err != nil {
+		return nil, err
+	}
+	client, err := discovery.NewDiscoveryClientForConfigAndClient(cfg, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return nil, err
@@ -169,9 +181,11 @@ func (impl K8sUtil) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
 	}
-	httpClientFor, err := rest.HTTPClientFor(config)
-	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
-	client, err := discovery.NewDiscoveryClientForConfigAndClient(config, httpClientFor)
+	httpClient, err := OverrideK8sHttpClient(config)
+	if err != nil {
+		return nil, err
+	}
+	client, err := discovery.NewDiscoveryClientForConfigAndClient(config, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
@@ -534,4 +548,14 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	} else {
 		return pod, nil
 	}
+}
+
+func OverrideK8sHttpClient(restConfig *rest.Config) (*http.Client, error) {
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	if err != nil {
+		fmt.Println("error occurred while overriding k8s client", "reason", err)
+		return nil, err
+	}
+	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
+	return httpClientFor, nil
 }
