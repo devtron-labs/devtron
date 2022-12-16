@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"go.uber.org/zap"
 	"io"
 	apiv1 "k8s.io/api/core/v1"
@@ -205,7 +206,9 @@ func (impl K8sClientServiceImpl) ListEvents(restConfig *rest.Config, request *K8
 func (impl K8sClientServiceImpl) GetPodLogs(restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error) {
 	resourceIdentifier := request.ResourceIdentifier
 	podLogsRequest := request.PodLogsRequest
-	podClient, err := v1.NewForConfig(restConfig)
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
+	podClient, err := v1.NewForConfigAndClient(restConfig, httpClientFor)
 	if err != nil {
 		impl.logger.Errorw("error in getting client for resource", "err", err)
 		return nil, err
@@ -232,12 +235,14 @@ func (impl K8sClientServiceImpl) GetPodLogs(restConfig *rest.Config, request *K8
 
 func (impl K8sClientServiceImpl) GetResourceIf(restConfig *rest.Config, request *K8sRequestBean) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
 	resourceIdentifier := request.ResourceIdentifier
-	dynamicIf, err := dynamic.NewForConfig(restConfig)
+	httpClientFor, err := rest.HTTPClientFor(restConfig)
+	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
+	dynamicIf, err := dynamic.NewForConfigAndClient(restConfig, httpClientFor)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, false, err
 	}
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	discoveryClient, err := discovery.NewDiscoveryClientForConfigAndClient(restConfig, httpClientFor)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err)
 		return nil, false, err

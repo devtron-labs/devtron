@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 	"os/user"
 	"path/filepath"
 	"time"
@@ -71,7 +72,9 @@ func (impl K8sUtil) GetClient(clusterConfig *ClusterConfig) (*v12.CoreV1Client, 
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	client, err := v12.NewForConfig(cfg)
+	httpClientFor, err := rest.HTTPClientFor(cfg)
+	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
+	client, err := v12.NewForConfigAndClient(cfg, httpClientFor)
 	return client, err
 }
 
@@ -80,7 +83,9 @@ func (impl K8sUtil) GetClientSet(clusterConfig *ClusterConfig) (*kubernetes.Clie
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	client, err := kubernetes.NewForConfig(cfg)
+	httpClientFor, err := rest.HTTPClientFor(cfg)
+	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
+	client, err := kubernetes.NewForConfigAndClient(cfg, httpClientFor)
 	return client, err
 }
 
@@ -104,7 +109,9 @@ func (impl K8sUtil) GetClientForInCluster() (*v12.CoreV1Client, error) {
 	// creates the in-cluster config
 	config, err := impl.getKubeConfig(impl.runTimeConfig.LocalDevMode)
 	// creates the clientset
-	clientset, err := v12.NewForConfig(config)
+	httpClientFor, err := rest.HTTPClientFor(config)
+	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
+	clientset, err := v12.NewForConfigAndClient(config, httpClientFor)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
@@ -124,7 +131,9 @@ func (impl K8sUtil) GetK8sClient() (*v12.CoreV1Client, error) {
 		impl.logger.Errorw("error fetching cluster config", "error", err)
 		return nil, err
 	}
-	client, err := v12.NewForConfig(config)
+	httpClientFor, err := rest.HTTPClientFor(config)
+	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
+	client, err := v12.NewForConfigAndClient(config, httpClientFor)
 	if err != nil {
 		impl.logger.Errorw("error creating k8s client", "error", err)
 		return nil, err
@@ -137,7 +146,9 @@ func (impl K8sUtil) GetK8sDiscoveryClient(clusterConfig *ClusterConfig) (*discov
 	cfg.Host = clusterConfig.Host
 	cfg.BearerToken = clusterConfig.BearerToken
 	cfg.Insecure = true
-	client, err := discovery.NewDiscoveryClientForConfig(cfg)
+	httpClientFor, err := rest.HTTPClientFor(cfg)
+	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
+	client, err := discovery.NewDiscoveryClientForConfigAndClient(cfg, httpClientFor)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err, "clusterConfig", clusterConfig)
 		return nil, err
@@ -158,7 +169,9 @@ func (impl K8sUtil) GetK8sDiscoveryClientInCluster() (*discovery.DiscoveryClient
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
 	}
-	client, err := discovery.NewDiscoveryClientForConfig(config)
+	httpClientFor, err := rest.HTTPClientFor(config)
+	httpClientFor.Transport = otelhttp.NewTransport(httpClientFor.Transport)
+	client, err := discovery.NewDiscoveryClientForConfigAndClient(config, httpClientFor)
 	if err != nil {
 		impl.logger.Errorw("error", "error", err)
 		return nil, err
