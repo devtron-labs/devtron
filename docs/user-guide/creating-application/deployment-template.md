@@ -1,4 +1,4 @@
-# Devtron Charts
+# Deployment Template
 
 **Make sure Global Configuration > GitOps is configured before moving ahead.**
 
@@ -16,9 +16,10 @@ You can select a chart in one of the following ways:
 
 ## Select chart by Devtron
 
-1. [Rollout Deployment](deployment-template/rollout-deployment.md)
-2. [Job and Cronjob](deployment-template/job-and-cronjob.md)
-3. Knative
+1. [Deployment](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/deployment) (Recommended)
+2. [Rollout Deployment](deployment-template/rollout-deployment.md)
+3. [Job and Cronjob](deployment-template/job-and-cronjob.md)
+4. Knative
 
 ## Select chart from custom charts
 
