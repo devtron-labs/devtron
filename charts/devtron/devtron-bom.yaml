@@ -8,7 +8,7 @@ components:
     image: "quay.io/devtron/dashboard:7b2a16f9-325-12010"
   devtron:
     image: "quay.io/devtron/hyperion:230e1f15-280-12021"
-    cicdImage: "quay.io/devtron/devtron:0efd797b-326-12014"
+    cicdImage: "quay.io/devtron/devtron:1999b8ab-326-12022"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
     initContainer:
@@ -24,10 +24,10 @@ components:
     envVars:
       devtron:
         GIT_BRANCH: "main"
-        GIT_HASH: "0efd797b33cfb7b4814f216e1762546e76251df0"
+        GIT_HASH: "1999b8abad1c94ab9117c1a4cf7a757f1bf54516"
       casbin:
         GIT_BRANCH: "main"
-        GIT_HASH: "0efd797b33cfb7b4814f216e1762546e76251df0"
+        GIT_HASH: "1999b8abad1c94ab9117c1a4cf7a757f1bf54516"
         
 argo-cd:
   global:
