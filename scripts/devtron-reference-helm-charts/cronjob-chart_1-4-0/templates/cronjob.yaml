@@ -1,5 +1,5 @@
-{{ if eq .Values.kind "CronJob" }}
-{{ if semverCompare "<1.21" .Capabilities.KubeVersion.GitVersion -}}
+{{- if eq .Values.kind "CronJob" }}
+{{- if semverCompare "<1.21" .Capabilities.KubeVersion.GitVersion }}
 apiVersion: batch/v1beta1
 {{- else }}
 apiVersion: batch/v1
@@ -24,4 +24,4 @@ spec:
   jobTemplate:
     spec:
       {{- include "job-template-spec" . | indent 6 }}
-{{ end }}
+{{- end }}
