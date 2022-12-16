@@ -1,4 +1,1 @@
 DELETE FROM "public"."chart_ref" WHERE ("location" = 'cronjob-chart_1-4-0' AND "version" = '1.4.0');
-
-UPDATE "public"."chart_ref" SET "is_default" = 't' WHERE "location" = 'cronjob-chart_1-3-0' AND "version" = '1.3.0';
-
