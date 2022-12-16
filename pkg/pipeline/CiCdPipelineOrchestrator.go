@@ -806,10 +806,11 @@ func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateApp
 	if app.Active && len(createRequest.AppLabels) > 0 {
 		for _, label := range createRequest.AppLabels {
 			request := &bean.AppLabelDto{
-				AppId:  app.Id,
-				Key:    label.Key,
-				Value:  label.Value,
-				UserId: createRequest.UserId,
+				AppId:     app.Id,
+				Key:       label.Key,
+				Value:     label.Value,
+				Propagate: label.Propagate,
+				UserId:    createRequest.UserId,
 			}
 			_, err := impl.appLabelsService.Create(request, tx)
 			if err != nil {

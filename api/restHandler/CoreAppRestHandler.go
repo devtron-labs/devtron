@@ -439,6 +439,7 @@ func (handler CoreAppRestHandlerImpl) buildAppMetadata(appId int) (*appBean.AppM
 			appLabelsRes = append(appLabelsRes, &appBean.AppLabel{
 				Key:   label.Key,
 				Value: label.Value,
+				//TODO: manish check
 			})
 		}
 	}
@@ -1101,8 +1102,9 @@ func (handler CoreAppRestHandlerImpl) createBlankApp(appMetadata *appBean.AppMet
 	var appLabels []*bean.Label
 	for _, requestLabel := range appMetadata.Labels {
 		appLabel := &bean.Label{
-			Key:   requestLabel.Key,
-			Value: requestLabel.Value,
+			Key:       requestLabel.Key,
+			Value:     requestLabel.Value,
+			Propagate: true, // TODO: manish ask
 		}
 		appLabels = append(appLabels, appLabel)
 	}

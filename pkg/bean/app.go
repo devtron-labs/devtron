@@ -579,15 +579,17 @@ type AppLabelsDto struct {
 }
 
 type AppLabelDto struct {
-	Key    string `json:"key,notnull"`
-	Value  string `json:"value,notnull"`
-	AppId  int    `json:"appId,omitempty"`
-	UserId int32  `json:"-"`
+	Key       string `json:"key,notnull"`
+	Value     string `json:"value,notnull"`
+	Propagate bool   `json:"propagate,notnull"`
+	AppId     int    `json:"appId,omitempty"`
+	UserId    int32  `json:"-"`
 }
 
 type Label struct {
-	Key   string `json:"key" validate:"required"`
-	Value string `json:"value" validate:"required"`
+	Key       string `json:"key" validate:"required"`
+	Value     string `json:"value" validate:"required"`
+	Propagate bool   `json:"propagate" validate:"required"`
 }
 
 type AppMetaInfoDto struct {

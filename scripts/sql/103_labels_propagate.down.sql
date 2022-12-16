@@ -1,0 +1,1 @@
+ALTER TABLE app_label DROP COLUMN IF EXISTS propagate;

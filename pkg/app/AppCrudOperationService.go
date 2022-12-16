@@ -136,9 +136,10 @@ func (impl AppCrudOperationServiceImpl) Create(request *bean.AppLabelDto, tx *pg
 	}
 	if err == pg.ErrNoRows {
 		model := &pipelineConfig.AppLabel{
-			Key:   request.Key,
-			Value: request.Value,
-			AppId: request.AppId,
+			Key:       request.Key,
+			Value:     request.Value,
+			Propagate: request.Propagate,
+			AppId:     request.AppId,
 		}
 		model.CreatedBy = request.UserId
 		model.UpdatedBy = request.UserId
@@ -163,20 +164,21 @@ func (impl AppCrudOperationServiceImpl) UpdateLabelsInApp(request *bean.CreateAp
 	}
 	appLabelMap := make(map[string]*pipelineConfig.AppLabel)
 	for _, appLabel := range appLabels {
-		uniqueLabelExists := fmt.Sprintf("%s:%s", appLabel.Key, appLabel.Value)
+		uniqueLabelExists := fmt.Sprintf("%s:%s:%t", appLabel.Key, appLabel.Value, appLabel.Propagate)
 		if _, ok := appLabelMap[uniqueLabelExists]; !ok {
 			appLabelMap[uniqueLabelExists] = appLabel
 		}
 	}
 
 	for _, label := range request.AppLabels {
-		uniqueLabelRequest := fmt.Sprintf("%s:%s", label.Key, label.Value)
+		uniqueLabelRequest := fmt.Sprintf("%s:%s:%t", label.Key, label.Value, label.Propagate)
 		if _, ok := appLabelMap[uniqueLabelRequest]; !ok {
 			// create new
 			model := &pipelineConfig.AppLabel{
-				Key:   label.Key,
-				Value: label.Value,
-				AppId: request.Id,
+				Key:       label.Key,
+				Value:     label.Value,
+				Propagate: label.Propagate,
+				AppId:     request.Id,
 			}
 			model.CreatedBy = request.UserId
 			model.UpdatedBy = request.UserId
@@ -212,9 +214,10 @@ func (impl AppCrudOperationServiceImpl) FindById(id int) (*bean.AppLabelDto, err
 		return &bean.AppLabelDto{}, nil
 	}
 	label := &bean.AppLabelDto{
-		Key:   model.Key,
-		Value: model.Value,
-		AppId: model.AppId,
+		Key:       model.Key,
+		Value:     model.Value,
+		Propagate: model.Propagate,
+		AppId:     model.AppId,
 	}
 	return label, nil
 }
@@ -231,9 +234,10 @@ func (impl AppCrudOperationServiceImpl) FindAll() ([]*bean.AppLabelDto, error) {
 	}
 	for _, model := range models {
 		dto := &bean.AppLabelDto{
-			AppId: model.AppId,
-			Key:   model.Key,
-			Value: model.Value,
+			AppId:     model.AppId,
+			Key:       model.Key,
+			Value:     model.Value,
+			Propagate: model.Propagate,
 		}
 		results = append(results, dto)
 	}
@@ -257,8 +261,9 @@ func (impl AppCrudOperationServiceImpl) GetAppMetaInfo(appId int) (*bean.AppMeta
 	} else {
 		for _, model := range models {
 			dto := &bean.Label{
-				Key:   model.Key,
-				Value: model.Value,
+				Key:       model.Key,
+				Value:     model.Value,
+				Propagate: model.Propagate,
 			}
 			labels = append(labels, dto)
 		}
@@ -300,6 +305,11 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 	for _, label := range labels {
 		labelKey := strings.TrimSpace(label.Key)
 		labelValue := strings.TrimSpace(label.Value)
+
+		if !label.Propagate {
+			impl.logger.Warnw("Ignoring label to propagate to app level as propagation is false", "labelKey", labelKey, "labelValue", labelValue, "appId", appId)
+			continue
+		}
 
 		// if labelKey or labelValue is empty then don't add in labels
 		if len(labelKey) == 0 || len(labelValue) == 0 {
