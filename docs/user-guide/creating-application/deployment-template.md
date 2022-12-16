@@ -15,7 +15,7 @@ To configure a deployment chart for your application, do the following steps:
 
 You can select a default deployment chart from the following options:
 
-1. [Deployment](deployment-template/deployment.md) (Recommended)
+1. [Deployment](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/deployment) (Recommended)
 1. [Rollout Deployment](deployment-template/rollout-deployment.md)
 2. [Job & CronJob](deployment-template/job-and-cronjob.md)
 3. Knative
