@@ -401,6 +401,9 @@ func (impl AppStoreDeploymentServiceImpl) createAppForAppStore(createRequest *be
 
 		if !skipAppCreation {
 			return nil, err
+		} else {
+			createRequest.Id = app1.Id
+			return createRequest, nil
 		}
 	}
 	pg := &app.App{

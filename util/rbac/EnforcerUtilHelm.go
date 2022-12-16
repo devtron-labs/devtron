@@ -80,7 +80,22 @@ func (impl EnforcerUtilHelmImpl) GetHelmObject(clusterId int, namespace string, 
 
 	if installedApp == nil || installedAppErr == pg.ErrNoRows {
 		// for cli apps which are not yet linked
-		return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName))
+
+		app, err := impl.appRepository.FindAppAndProjectByAppName(appName)
+
+		if err != nil {
+			impl.logger.Errorw("error in fetching app details", "err", err)
+			return ""
+		}
+
+		if app.TeamId == 0 {
+			// case if project is not assigned to cli app
+			return fmt.Sprintf("%s/%s__%s/%s", team.UNASSIGNED_PROJECT, cluster.ClusterName, namespace, strings.ToLower(appName))
+		} else {
+			// case if project is assigned
+			return fmt.Sprintf("%s/%s__%s/%s", app.Team.Name, cluster.ClusterName, namespace, strings.ToLower(appName))
+		}
+
 	}
 
 	if installedApp.App.TeamId == 0 {
