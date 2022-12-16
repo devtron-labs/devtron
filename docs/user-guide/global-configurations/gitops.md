@@ -151,14 +151,24 @@ If you select `Bitbucket Cloud` as your git provider, please provide the informa
 
 ### How to create Bitbucket workspace ID
 
-1. Create a new individual account on Bitbucket (if you do have one).
-2. Select your profile and settings avatar on the upper-right corner of the top navigation bar.
-3. Select `All workspaces` from the dropdown menu.
-4. Select the `Create workspace` on the upper-right corner of the `Workspaces` page.
-5. Enter a `Workspace name`. This name is what you see in the navigation in Bitbucket and what the other members of your workspace see in their invitation emails.
-6. Enter a `Workspace ID`. Your ID cannot have any spaces or special characters, but numbers and capital letters are fine. This ID becomes part of the URL for the workspace and anywhere else where there is a label that identifies the team (API's, permission groups, OAuth, etc.).
-7. Click `Create`.
-8. Your `Workspace name` and `Workspace ID` will be created.
+* Create a new individual account on Bitbucket (if you do not have one).
+* Select your profile and settings avatar on the upper-right corner of the top navigation bar.
+* Select `All workspaces` from the dropdown menu.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket/bitbucket-settings-latest.jpg)
+
+* Select the `Create workspace` on the upper-right corner of the `Workspaces` page.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket/bitbucket-workspace-latest.png)
+
+* On the `Create a Workspace` page:
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket/bitbucket-create-workspace-latest.jpg)
+
+  * Enter a `Workspace name`. 
+  * Enter a `Workspace ID`. Your ID cannot have any spaces or special characters, but numbers and capital letters are fine. This ID becomes part of the URL for the workspace and anywhere else where there is a label that identifies the team (API's, permission groups, OAuth, etc.).
+  * Click `Create`.
+* Your `Workspace name` and `Workspace ID` will be created.
 
 You can also refer [Bitbucket Workspace Id](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/) official doc page for more detail.
 
