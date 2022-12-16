@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/caarlos0/env"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"time"
@@ -66,6 +67,8 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 	var opts []grpc.DialOption
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	opts = append(opts,
+		grpc.WithUnaryInterceptor(otelgrpc.UnaryClientInterceptor()),
+		grpc.WithStreamInterceptor(otelgrpc.StreamClientInterceptor()),
 		grpc.WithBlock(),
 		grpc.WithInsecure(),
 		grpc.WithDefaultCallOptions(

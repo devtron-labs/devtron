@@ -23,6 +23,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v2/util/settings"
 	grpc_prometheus "github.com/grpc-ecosystem/go-grpc-prometheus"
+	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
 )
 
@@ -41,7 +42,7 @@ func GetConnection(token string, settings *settings.ArgoCDSettings) *grpc.Client
 	if len(token) > 0 {
 		option = append(option, grpc.WithPerRPCCredentials(TokenAuth{token: token}))
 	}
-	option = append(option, grpc.WithUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor), grpc.WithStreamInterceptor(grpc_prometheus.StreamClientInterceptor))
+	option = append(option, grpc.WithChainUnaryInterceptor(grpc_prometheus.UnaryClientInterceptor, otelgrpc.UnaryClientInterceptor()), grpc.WithChainStreamInterceptor(grpc_prometheus.StreamClientInterceptor, otelgrpc.StreamClientInterceptor()))
 
 	//if conf.Environment=="DEV"{
 	//	option=append(option,grpc.WithInsecure())
