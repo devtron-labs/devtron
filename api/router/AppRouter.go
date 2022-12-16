@@ -45,6 +45,10 @@ func (router AppRouterImpl) InitAppRouter(appRouter *mux.Router) {
 		HandlerFunc(router.handler.GetAllLabels).Methods("GET")
 	appRouter.Path("/meta/info/{appId}").
 		HandlerFunc(router.handler.GetAppMetaInfo).Methods("GET")
+
+	appRouter.Path("/helm/meta/info/{appId}").
+		HandlerFunc(router.handler.GetHelmAppMetaInfo).Methods("GET")
+
 	appRouter.Path("/edit").
 		HandlerFunc(router.handler.UpdateApp).Methods("POST")
 	appRouter.Path("/edit/projects").

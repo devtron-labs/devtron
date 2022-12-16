@@ -517,7 +517,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 		return
 	}
 
-	var request appStoreBean.UpdateProjectClIAppDTO
+	var request appStoreBean.UpdateProjectHelmAppDTO
 
 	decoder := json.NewDecoder(r.Body)
 

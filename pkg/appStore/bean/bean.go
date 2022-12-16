@@ -312,8 +312,8 @@ type ChartRepoSearch struct {
 	Deprecated                   bool   `json:"deprecated"`
 }
 
-type UpdateProjectClIAppDTO struct {
-	AppId   int    `json:"appId"`
+type UpdateProjectHelmAppDTO struct {
+	AppId   string `json:"appId"`
 	AppName string `json:"appName"`
 	TeamId  int    `json:"teamId"`
 	UserId  int32  `json:"userId"`

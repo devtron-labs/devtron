@@ -37,6 +37,7 @@ import (
 type AppRestHandler interface {
 	GetAllLabels(w http.ResponseWriter, r *http.Request)
 	GetAppMetaInfo(w http.ResponseWriter, r *http.Request)
+	GetHelmAppMetaInfo(w http.ResponseWriter, r *http.Request)
 	UpdateApp(w http.ResponseWriter, r *http.Request)
 	UpdateProjectForApps(w http.ResponseWriter, r *http.Request)
 	GetAppListByTeamIds(w http.ResponseWriter, r *http.Request)
@@ -113,6 +114,41 @@ func (handler AppRestHandlerImpl) GetAppMetaInfo(w http.ResponseWriter, r *http.
 	//rback implementation ends here
 
 	res, err := handler.appService.GetAppMetaInfo(appId)
+	if err != nil {
+		handler.logger.Errorw("service err, GetAppMetaInfo", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, res, http.StatusOK)
+}
+
+func (handler AppRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	vars := mux.Vars(r)
+	//appId, err := strconv.Atoi(vars["appId"])
+
+	appId := vars["appId"]
+
+	//if err != nil {
+	//	handler.logger.Errorw("request err, GetAppMetaInfo", "err", err, "appId", appId)
+	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+	//	return
+	//}
+	//
+	////rback implementation starts here
+	//token := r.Header.Get("token")
+	//object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+	//if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+	//	common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+	//	return
+	//}
+	//rback implementation ends here
+
+	res, err := handler.appService.GetHelmAppMetaInfo(appId)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

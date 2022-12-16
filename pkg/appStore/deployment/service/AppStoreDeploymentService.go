@@ -45,6 +45,7 @@ import (
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"net/http"
+	"strings"
 	"time"
 )
 
@@ -64,7 +65,7 @@ type AppStoreDeploymentService interface {
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppVersion(id int, userId int32) (*appStoreBean.InstallAppVersionDTO, error)
 	InstallAppByHelm(installAppVersionRequest *appStoreBean.InstallAppVersionDTO, ctx context.Context) (*appStoreBean.InstallAppVersionDTO, error)
-	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectClIAppDTO) error
+	UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error
 }
 
 type DeploymentServiceTypeConfig struct {
@@ -1186,22 +1187,26 @@ func (impl AppStoreDeploymentServiceImpl) InstallAppByHelm(installAppVersionRequ
 	return installAppVersionRequest, nil
 }
 
-func (impl AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectClIAppDTO) error {
+func (impl AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest *appStoreBean.UpdateProjectHelmAppDTO) error {
+
+	appIdSplitted := strings.Split(updateAppRequest.AppId, "|")
 
 	appName := updateAppRequest.AppName
 
-	if updateAppRequest.AppId == 0 {
+	if len(appIdSplitted) > 1 {
 		// app id is zero for CLI apps
 
-		appIdentifier, err := impl.helmAppService.DecodeAppId(updateAppRequest.AppName)
+		appIdentifier, _ := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
 		appName = appIdentifier.ReleaseName
-		if err != nil && err != pg.ErrNoRows {
-			impl.logger.Errorw("error in fetching app", "err", err)
-			return err
-		}
+
 	}
 
 	app, err := impl.appRepository.FindActiveByName(appName)
+
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in fetching app", "err", err)
+		return err
+	}
 
 	var appInstallationMode string
 
