@@ -512,3 +512,13 @@ func (impl K8sUtil) GetK8sClusterRestConfig() (*rest.Config, error) {
 		return clusterConfig, nil
 	}
 }
+
+func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.CoreV1Client) (*v1.Pod, error) {
+	pod, err := client.Pods(namespace).Get(context.Background(), name, metav1.GetOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in fetch pod name", "err", err)
+		return nil, err
+	} else {
+		return pod, nil
+	}
+}
