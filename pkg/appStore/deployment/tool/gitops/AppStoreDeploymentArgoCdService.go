@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -21,9 +22,6 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/go-pg/pg"
 	"github.com/golang/protobuf/ptypes/timestamp"
-	"github.com/google/go-github/github"
-	"github.com/microsoft/azure-devops-go-api/azuredevops"
-	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
 	"net/http"
 	"strings"
@@ -41,7 +39,6 @@ type AppStoreDeploymentArgoCdService interface {
 	OnUpdateRepoInInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO) (*appStoreBean.InstallAppVersionDTO, error)
 	UpdateRequirementDependencies(environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, appStoreAppVersion *appStoreDiscoverRepository.AppStoreApplicationVersion) error
 	UpdateInstalledApp(ctx context.Context, installAppVersionRequest *appStoreBean.InstallAppVersionDTO, environment *clusterRepository.Environment, installedAppVersion *repository.InstalledAppVersions) (*appStoreBean.InstallAppVersionDTO, error)
-	ParseGitRepoErrorResponse(err error) (bool, error)
 }
 
 type AppStoreDeploymentArgoCdServiceImpl struct {
@@ -54,12 +51,13 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	chartTemplateService              util.ChartTemplateService
 	gitFactory                        *util.GitFactory
 	argoUserService                   argo.ArgoUserService
+	appStoreDeploymentCommonService   appStoreDeploymentCommon.AppStoreDeploymentCommonService
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
-	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService) *AppStoreDeploymentArgoCdServiceImpl {
+	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -70,6 +68,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		chartTemplateService:              chartTemplateService,
 		gitFactory:                        gitFactory,
 		argoUserService:                   argoUserService,
+		appStoreDeploymentCommonService:   appStoreDeploymentCommonService,
 	}
 }
 
@@ -389,7 +388,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 	installAppVersionRequest, err := impl.updateValuesYaml(environment, installedAppVersion, installAppVersionRequest)
 	if err != nil {
 		impl.Logger.Errorw("error while commit values to git", "error", err)
-		noTargetFound, _ := impl.ParseGitRepoErrorResponse(err)
+		noTargetFound, _ := impl.appStoreDeploymentCommonService.ParseGitRepoErrorResponse(err)
 		if noTargetFound {
 			//if by mistake no content found while updating git repo, do auto fix
 			installAppVersionRequest, err = impl.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
@@ -476,32 +475,4 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) updateValuesYaml(environment *cl
 	}
 	installAppVersionRequest.GitHash = commitHash
 	return installAppVersionRequest, nil
-}
-
-func (impl AppStoreDeploymentArgoCdServiceImpl) ParseGitRepoErrorResponse(err error) (bool, error) {
-	//update values yaml in chart
-	noTargetFound := false
-	if err != nil {
-		if errorResponse, ok := err.(*github.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo on github, do auto fix", "error", err)
-			noTargetFound = true
-		}
-		if errorResponse, ok := err.(azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
-			noTargetFound = true
-		}
-		if errorResponse, ok := err.(*azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
-			noTargetFound = true
-		}
-		if errorResponse, ok := err.(*gitlab.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
-			impl.Logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
-			noTargetFound = true
-		}
-		if err.Error() == util.BITBUCKET_REPO_NOT_FOUND_ERROR {
-			impl.Logger.Errorw("no content found while updating git repo bitbucket, do auto fix", "error", err)
-			noTargetFound = true
-		}
-	}
-	return noTargetFound, err
 }
