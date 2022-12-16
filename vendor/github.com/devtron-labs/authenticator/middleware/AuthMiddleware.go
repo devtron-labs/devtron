@@ -25,25 +25,27 @@ import (
 	"strings"
 )
 
+const ApiTokenHeaderKey = "api-token"
+const tokenHeaderKey = "token"
+const argocdTokenHeaderKey = "argocd.token"
+
 // Authorizer is a middleware for authorization
 func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string) bool) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
-			isExternalCiWebhook := false
-			if strings.Contains(r.URL.Path, "/orchestrator/webhook/ext-ci/") {
-				isExternalCiWebhook = true
-			}
 			token := ""
-			if isExternalCiWebhook {
-				token = r.Header.Get("api-token")
+			apiToken := r.Header.Get(ApiTokenHeaderKey)
+			if len(apiToken) > 0 {
+				// for external ci webhook request, will be authorize by api-token
+				token = apiToken
 			} else {
-				cookie, _ := r.Cookie("argocd.token")
+				cookie, _ := r.Cookie(argocdTokenHeaderKey)
 				if cookie != nil {
 					token = cookie.Value
-					r.Header.Set("token", token)
+					r.Header.Set(tokenHeaderKey, token)
 				}
 				if token == "" && cookie == nil {
-					token = r.Header.Get("token")
+					token = r.Header.Get(tokenHeaderKey)
 				}
 			}
 			//users = append(users, "anonymous")
@@ -56,8 +58,8 @@ func Authorizer(sessionManager *SessionManager, whitelistChecker func(url string
 				_, err := sessionManager.VerifyToken(token)
 				if err != nil {
 					log.Printf("Error verifying token: %+v\n", err)
-					if !isExternalCiWebhook {
-						http.SetCookie(w, &http.Cookie{Name: "argocd.token", Value: token, Path: "/", MaxAge: -1})
+					if len(apiToken) == 0 {
+						http.SetCookie(w, &http.Cookie{Name: argocdTokenHeaderKey, Value: token, Path: "/", MaxAge: -1})
 					}
 					writeResponse(http.StatusUnauthorized, "Unauthorized", w, err)
 					return
