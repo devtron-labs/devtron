@@ -69,3 +69,4 @@ redirects:
     user-guide/use-cases/connect-expressjs-with-mongodb-database: resources/use-cases/connect-expressjs-with-mongodb-database
     user-guide/use-cases/connect-django-with-mysql-database: resources/use-cases/connect-django-with-mysql-database
     user-guide/telemetry: resources/telemetry
+    ./v/v0.5/usage/applications/creating-application/deployment-template/deployment: usage/applications/creating-application/deployment-template/deployment.md
