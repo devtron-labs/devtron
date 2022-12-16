@@ -179,8 +179,9 @@ func (impl GitLabClient) createProject(name, description string) (url string, er
 		impl.logger.Errorw("err in creating gitlab app", "req", p, "name", name, "err", err)
 		return "", err
 	}
+	projectUrl := fmt.Sprintf("%s/%s/%s", impl.client.BaseURL(), namespace, name)
 	impl.logger.Infow("gitlab app created", "name", name, "url", project.HTTPURLToRepo)
-	return project.HTTPURLToRepo, nil
+	return projectUrl, nil
 }
 
 func (impl GitLabClient) ensureProjectAvailability(projectName string) (bool, error) {
