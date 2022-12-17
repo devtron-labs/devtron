@@ -16,6 +16,7 @@ type ChartRepoDto struct {
 	Active      bool                `json:"active"`
 	Default     bool                `json:"default"`
 	UserId      int32               `json:"-"`
+	Secured     bool                `json:"secured"`
 }
 
 type DetailedErrorHelmRepoValidation struct {

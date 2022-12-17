@@ -1,0 +1,1 @@
+ALTER TABLE "chart_repo" DROP COLUMN "secured";
