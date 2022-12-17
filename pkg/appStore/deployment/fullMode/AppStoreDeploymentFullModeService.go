@@ -315,6 +315,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		RepoUrl:         chartGitAttribute.RepoUrl,
 	}
 	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster)
+	fmt.Println("prakash-debugger: ", appreq.ApplicationName, appreq.Namespace, appreq.TargetNamespace, appreq.TargetServer, appreq.ValuesFile, appreq.RepoPath, appreq.RepoUrl)
 	//create
 	if err != nil {
 		impl.logger.Errorw("error in creating argo cd app ", "err", err)
