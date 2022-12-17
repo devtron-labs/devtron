@@ -19,6 +19,8 @@ package appStoreDeploymentFullMode
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -27,11 +29,9 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-
-	"encoding/json"
-	"fmt"
 	"path"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
@@ -139,13 +139,32 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 
 	//STEP 3 - update requirements and values
 
+	//adding username and password in url for accessing private helm chart repos
+	username := appStoreAppVersion.AppStore.ChartRepo.UserName
+	password := appStoreAppVersion.AppStore.ChartRepo.Password
+	var finalUrl string
+	if len(username) > 0 && len(password) > 0 {
+		chartRepoUrl := appStoreAppVersion.AppStore.ChartRepo.Url
+		splitRes := strings.Split(chartRepoUrl, "//")
+		finalUrl = splitRes[0] + "//" + username + ":" + password + "@" + splitRes[1]
+	}
 	//update requirements yaml in chart
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
-	dependency := appStoreBean.Dependency{
-		Name:       appStoreAppVersion.AppStore.Name,
-		Version:    appStoreAppVersion.Version,
-		Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
+	dependency := appStoreBean.Dependency{}
+	if len(finalUrl) == 0 {
+		dependency = appStoreBean.Dependency{
+			Name:       appStoreAppVersion.AppStore.Name,
+			Version:    appStoreAppVersion.Version,
+			Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
+		}
+	} else {
+		dependency = appStoreBean.Dependency{
+			Name:       appStoreAppVersion.AppStore.Name,
+			Version:    appStoreAppVersion.Version,
+			Repository: finalUrl,
+		}
 	}
+
 	var dependencies []appStoreBean.Dependency
 	dependencies = append(dependencies, dependency)
 	requirementDependencies := &appStoreBean.Dependencies{
