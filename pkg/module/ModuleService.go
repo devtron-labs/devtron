@@ -20,7 +20,6 @@ package module
 import (
 	"context"
 	"errors"
-	"fmt"
 	"github.com/caarlos0/env/v6"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	moduleRepo "github.com/devtron-labs/devtron/pkg/module/repo"
@@ -52,13 +51,16 @@ type ModuleServiceImpl struct {
 	serverDataStore                *serverDataStore.ServerDataStore
 	// no need to inject serverCacheService, moduleCacheService and cronService, but not generating in wire_gen (not triggering cache work in constructor) if not injecting. hence injecting
 	// serverCacheService should be injected first as it changes serverEnvConfig in its constructor, which is used by moduleCacheService and moduleCronService
-	serverCacheService server.ServerCacheService
-	moduleCacheService ModuleCacheService
-	moduleCronService  ModuleCronService
+	serverCacheService             server.ServerCacheService
+	moduleCacheService             ModuleCacheService
+	moduleCronService              ModuleCronService
+	moduleServiceHelper            ModuleServiceHelper
+	moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository
 }
 
 func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvConfig.ServerEnvConfig, moduleRepository moduleRepo.ModuleRepository,
-	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService, serverDataStore *serverDataStore.ServerDataStore, serverCacheService server.ServerCacheService, moduleCacheService ModuleCacheService, moduleCronService ModuleCronService) *ModuleServiceImpl {
+	moduleActionAuditLogRepository ModuleActionAuditLogRepository, helmAppService client.HelmAppService, serverDataStore *serverDataStore.ServerDataStore, serverCacheService server.ServerCacheService, moduleCacheService ModuleCacheService, moduleCronService ModuleCronService,
+	moduleServiceHelper ModuleServiceHelper, moduleResourceStatusRepository moduleRepo.ModuleResourceStatusRepository) *ModuleServiceImpl {
 	return &ModuleServiceImpl{
 		logger:                         logger,
 		serverEnvConfig:                serverEnvConfig,
@@ -69,6 +71,8 @@ func NewModuleServiceImpl(logger *zap.SugaredLogger, serverEnvConfig *serverEnvC
 		serverCacheService:             serverCacheService,
 		moduleCacheService:             moduleCacheService,
 		moduleCronService:              moduleCronService,
+		moduleServiceHelper:            moduleServiceHelper,
+		moduleResourceStatusRepository: moduleResourceStatusRepository,
 	}
 }
 
@@ -95,8 +99,43 @@ func (impl ModuleServiceImpl) GetModuleInfo(name string) (*ModuleInfoDto, error)
 		return nil, err
 	}
 
-	// otherwise send DB status
+	// now this is the case when data found in DB
+	// if module is in installing state, then trigger module status check and override module model
+	if module.Status == ModuleStatusInstalling {
+		impl.moduleCronService.HandleModuleStatusIfNotInProgress(module.Name)
+		// override module model
+		module, err = impl.moduleRepository.FindOne(name)
+		if err != nil {
+			impl.logger.Errorw("error in getting module from DB ", "name", name, "err", err)
+			return nil, err
+		}
+	}
+
+	// send DB status
 	moduleInfoDto.Status = module.Status
+
+	// handle module resources status data
+	moduleId := module.Id
+	moduleResourcesStatusFromDb, err := impl.moduleResourceStatusRepository.FindAllActiveByModuleId(moduleId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting module resources status from DB ", "moduleId", moduleId, "moduleName", name, "err", err)
+		return nil, err
+	}
+	if moduleResourcesStatusFromDb != nil {
+		var moduleResourcesStatus []*ModuleResourceStatusDto
+		for _, moduleResourceStatusFromDb := range moduleResourcesStatusFromDb {
+			moduleResourcesStatus = append(moduleResourcesStatus, &ModuleResourceStatusDto{
+				Group:         moduleResourceStatusFromDb.Group,
+				Version:       moduleResourceStatusFromDb.Version,
+				Kind:          moduleResourceStatusFromDb.Kind,
+				Name:          moduleResourceStatusFromDb.Name,
+				HealthStatus:  moduleResourceStatusFromDb.HealthStatus,
+				HealthMessage: moduleResourceStatusFromDb.HealthMessage,
+			})
+		}
+		moduleInfoDto.ModuleResourcesStatus = moduleResourcesStatus
+	}
+
 	return moduleInfoDto, nil
 }
 
@@ -117,7 +156,7 @@ func (impl ModuleServiceImpl) handleModuleNotFoundStatus(moduleName string) (Mod
 	//// (continuation of above line) if legacy -> check if cicd is installed with <= 0.5.3 from DB and moduleName != argo-cd -> then mark as installed in db and return as installed. otherwise return as not installed
 
 	// central-api call
-	moduleMetaData, err := util2.ReadFromUrlWithRetry(impl.buildModuleMetaDataUrl(moduleName))
+	moduleMetaData, err := impl.moduleServiceHelper.GetModuleMetadata(moduleName)
 	if err != nil {
 		impl.logger.Errorw("Error in getting module metadata", "moduleName", moduleName, "err", err)
 		return ModuleStatusNotInstalled, err
@@ -307,10 +346,6 @@ func (impl ModuleServiceImpl) HandleModuleAction(userId int32, moduleName string
 	return &ActionResponse{
 		Success: true,
 	}, nil
-}
-
-func (impl ModuleServiceImpl) buildModuleMetaDataUrl(moduleName string) string {
-	return fmt.Sprintf(impl.serverEnvConfig.ModuleMetaDataApiUrl, moduleName)
 }
 
 func (impl ModuleServiceImpl) saveModuleAsInstalled(moduleName string) (ModuleStatus, error) {

@@ -30,15 +30,9 @@ import (
 
 type PipelineType string
 type TriggerType string //HOW pipeline should be triggered
-type DeploymentTemplate string
 
 const TRIGGER_TYPE_AUTOMATIC TriggerType = "AUTOMATIC"
 const TRIGGER_TYPE_MANUAL TriggerType = "MANUAL"
-
-const DEPLOYMENT_TEMPLATE_BLUE_GREEN DeploymentTemplate = "BLUE-GREEN"
-const DEPLOYMENT_TEMPLATE_ROLLING DeploymentTemplate = "ROLLING"
-const DEPLOYMENT_TEMPLATE_CANARY DeploymentTemplate = "CANARY"
-const DEPLOYMENT_TEMPLATE_RECREATE DeploymentTemplate = "RECREATE"
 
 type Pipeline struct {
 	tableName                     struct{} `sql:"pipeline" pg:",discard_unknown_columns"`
