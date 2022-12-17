@@ -122,6 +122,7 @@ func (r *ChartRepository) DownloadIndexFile(cachePath string) error {
 
 	r.setCredentials()
 	resp, err := r.Client.Get(indexURL)
+	fmt.Println("prakash-debugger:", resp)
 	if err != nil {
 		return err
 	}
