@@ -218,7 +218,7 @@ func (handler CoreAppRestHandlerImpl) GetAppAllDetail(w http.ResponseWriter, r *
 	//get/build global secrets ends
 
 	//get/build environment override starts
-	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(appId, token)
+	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(r.Context(), appId, token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -1021,10 +1021,10 @@ func (handler CoreAppRestHandlerImpl) buildAppSecrets(appId int, envId int, secr
 }
 
 // get/build environment overrides
-func (handler CoreAppRestHandlerImpl) buildEnvironmentOverrides(appId int, token string) (map[string]*appBean.EnvironmentOverride, error, int) {
+func (handler CoreAppRestHandlerImpl) buildEnvironmentOverrides(ctx context.Context, appId int, token string) (map[string]*appBean.EnvironmentOverride, error, int) {
 	handler.logger.Debugw("Getting app detail - env override", "appId", appId)
 
-	appEnvironments, err := handler.appListingService.FetchOtherEnvironment(appId)
+	appEnvironments, err := handler.appListingService.FetchOtherEnvironment(ctx, appId)
 	if err != nil {
 		handler.logger.Errorw("service err, Fetch app environments in GetAppAllDetail", "err", err, "appId", appId)
 		return nil, err, http.StatusInternalServerError
@@ -2092,7 +2092,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflow(w http.ResponseWriter, r *h
 	//get/build app workflows ends
 
 	//get/build environment override starts
-	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(appId, token)
+	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(r.Context(), appId, token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
@@ -2141,7 +2141,7 @@ func (handler CoreAppRestHandlerImpl) GetAppWorkflowAndOverridesSample(w http.Re
 	//get/build app workflows ends
 
 	//get/build environment override starts
-	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(appId, token)
+	environmentOverrides, err, statusCode := handler.buildEnvironmentOverrides(r.Context(), appId, token)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, statusCode)
 		return
