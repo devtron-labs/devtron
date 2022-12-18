@@ -1,6 +1,7 @@
 package telemetry
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -226,7 +227,7 @@ func (impl *TelemetryEventClientImpl) SummaryDetailsForTelemetry() (cluster []cl
 		}
 		req.Clusters = append(req.Clusters, config)
 
-		applicatonStream, err := impl.helmAppClient.ListApplication(req)
+		applicatonStream, err := impl.helmAppClient.ListApplication(context.Background(), req)
 
 		if err == nil {
 

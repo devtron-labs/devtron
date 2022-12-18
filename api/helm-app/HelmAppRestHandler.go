@@ -87,7 +87,7 @@ func (handler *HelmAppRestHandlerImpl) ListApplications(w http.ResponseWriter, r
 		clusterIds = append(clusterIds, j)
 	}
 	token := r.Header.Get("token")
-	handler.helmAppService.ListHelmApplications(clusterIds, w, token, handler.checkHelmAuth)
+	handler.helmAppService.ListHelmApplications(r.Context(), clusterIds, w, token, handler.checkHelmAuth)
 }
 
 func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWriter, r *http.Request) {
@@ -149,7 +149,7 @@ func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.
 		return
 	}
 	//RBAC enforcer Ends
-	res, err := handler.helmAppService.HibernateApplication(context.Background(), appIdentifier, hibernateRequest)
+	res, err := handler.helmAppService.HibernateApplication(r.Context(), appIdentifier, hibernateRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -178,7 +178,7 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 		return
 	}
 	//RBAC enforcer Ends
-	res, err := handler.helmAppService.UnHibernateApplication(context.Background(), appIdentifier, hibernateRequest)
+	res, err := handler.helmAppService.UnHibernateApplication(r.Context(), appIdentifier, hibernateRequest)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -202,7 +202,7 @@ func (handler *HelmAppRestHandlerImpl) GetReleaseInfo(w http.ResponseWriter, r *
 		return
 	}
 	//RBAC enforcer Ends
-	releaseInfo, err := handler.helmAppService.GetValuesYaml(context.Background(), appIdentifier)
+	releaseInfo, err := handler.helmAppService.GetValuesYaml(r.Context(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -242,7 +242,7 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 		return
 	}
 	//RBAC enforcer Ends
-	res, err := handler.helmAppService.GetDesiredManifest(context.Background(), appIdentifier, desiredManifestRequest.Resource)
+	res, err := handler.helmAppService.GetDesiredManifest(r.Context(), appIdentifier, desiredManifestRequest.Resource)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -288,7 +288,7 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 		return
 	}
 
-	res, err := handler.helmAppService.DeleteApplication(context.Background(), appIdentifier)
+	res, err := handler.helmAppService.DeleteApplication(r.Context(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -319,7 +319,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 	//RBAC enforcer Ends
 
 	// update application externally
-	res, err := handler.helmAppService.UpdateApplication(context.Background(), appIdentifier, request)
+	res, err := handler.helmAppService.UpdateApplication(r.Context(), appIdentifier, request)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -345,7 +345,7 @@ func (handler *HelmAppRestHandlerImpl) TemplateChart(w http.ResponseWriter, r *h
 	//making this api rbac free
 
 	// template chart starts
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), 60*time.Second)
 	defer cancel()
 	response, err := handler.helmAppService.TemplateChart(ctx, request)
 	if err != nil {

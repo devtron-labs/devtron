@@ -930,7 +930,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			Namespace:     appDetail.Namespace,
 			ReleaseName:   fmt.Sprintf("%s", appDetail.AppName),
 		}
-		detail, err := impl.helmAppClient.GetAppDetail(context.Background(), req)
+		detail, err := impl.helmAppClient.GetAppDetail(rctx, req)
 		if err != nil {
 			impl.logger.Errorw("error in fetching app detail", "err", err)
 		}

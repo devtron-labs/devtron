@@ -11,7 +11,7 @@ import (
 )
 
 type HelmAppClient interface {
-	ListApplication(req *AppListRequest) (ApplicationService_ListApplicationsClient, error)
+	ListApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListApplicationsClient, error)
 	GetAppDetail(ctx context.Context, in *AppDetailRequest) (*AppDetail, error)
 	Hibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
 	UnHibernate(ctx context.Context, in *HibernateRequest) (*HibernateResponse, error)
@@ -84,12 +84,12 @@ func (impl *HelmAppClientImpl) getConnection() (*grpc.ClientConn, error) {
 	return conn, err
 }
 
-func (impl *HelmAppClientImpl) ListApplication(req *AppListRequest) (ApplicationService_ListApplicationsClient, error) {
+func (impl *HelmAppClientImpl) ListApplication(ctx context.Context, req *AppListRequest) (ApplicationService_ListApplicationsClient, error) {
 	applicationClient, err := impl.getApplicationClient()
 	if err != nil {
 		return nil, err
 	}
-	stream, err := applicationClient.ListApplications(context.Background(), req)
+	stream, err := applicationClient.ListApplications(ctx, req)
 	if err != nil {
 		return nil, err
 	}
