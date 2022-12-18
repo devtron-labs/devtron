@@ -20,12 +20,12 @@ import (
 )
 
 type K8sClientService interface {
-	GetResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
-	CreateResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (resp *ManifestResponse, err error)
-	UpdateResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
-	DeleteResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
-	ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error)
-	GetPodLogs(restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error)
+	GetResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
+	CreateResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean, manifest string) (resp *ManifestResponse, err error)
+	UpdateResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
+	DeleteResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
+	ListEvents(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error)
+	GetPodLogs(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error)
 }
 
 type K8sClientServiceImpl struct {
@@ -67,7 +67,7 @@ type EventsResponse struct {
 	Events *apiv1.EventList `json:"events,omitempty"`
 }
 
-func (impl K8sClientServiceImpl) GetResource(restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
+func (impl K8sClientServiceImpl) GetResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
@@ -87,7 +87,7 @@ func (impl K8sClientServiceImpl) GetResource(restConfig *rest.Config, request *K
 	return &ManifestResponse{*resp}, nil
 }
 
-func (impl K8sClientServiceImpl) CreateResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
+func (impl K8sClientServiceImpl) CreateResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
@@ -113,7 +113,7 @@ func (impl K8sClientServiceImpl) CreateResource(restConfig *rest.Config, request
 	return &ManifestResponse{*resp}, nil
 }
 
-func (impl K8sClientServiceImpl) UpdateResource(restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
+func (impl K8sClientServiceImpl) UpdateResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
@@ -138,7 +138,7 @@ func (impl K8sClientServiceImpl) UpdateResource(restConfig *rest.Config, request
 	}
 	return &ManifestResponse{*resp}, nil
 }
-func (impl K8sClientServiceImpl) DeleteResource(restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
+func (impl K8sClientServiceImpl) DeleteResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
@@ -168,7 +168,7 @@ func (impl K8sClientServiceImpl) DeleteResource(restConfig *rest.Config, request
 	return &ManifestResponse{*obj}, nil
 }
 
-func (impl K8sClientServiceImpl) ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error) {
+func (impl K8sClientServiceImpl) ListEvents(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error) {
 	_, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
@@ -203,7 +203,7 @@ func (impl K8sClientServiceImpl) ListEvents(restConfig *rest.Config, request *K8
 	return &EventsResponse{list}, nil
 }
 
-func (impl K8sClientServiceImpl) GetPodLogs(restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error) {
+func (impl K8sClientServiceImpl) GetPodLogs(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error) {
 	resourceIdentifier := request.ResourceIdentifier
 	podLogsRequest := request.PodLogsRequest
 	httpClient, err := util.OverrideK8sHttpClient(restConfig)

@@ -1,6 +1,7 @@
 package clusterTerminalAccess
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -24,15 +25,15 @@ import (
 )
 
 type UserTerminalAccessService interface {
-	StartTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
-	UpdateTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
-	UpdateTerminalShellSession(request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error)
-	FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error)
-	StopTerminalSession(userTerminalAccessId int)
-	DisconnectTerminalSession(userTerminalAccessId int) error
-	DisconnectAllSessionsForUser(userId int32)
-	FetchPodManifest(userTerminalAccessId int) (resp *application.ManifestResponse, err error)
-	FetchPodEvents(userTerminalAccessId int) (*application.EventsResponse, error)
+	StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
+	UpdateTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error)
+	UpdateTerminalShellSession(ctx context.Context, request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error)
+	FetchTerminalStatus(ctx context.Context, terminalAccessId int) (*models.UserTerminalSessionResponse, error)
+	StopTerminalSession(ctx context.Context, userTerminalAccessId int)
+	DisconnectTerminalSession(ctx context.Context, userTerminalAccessId int) error
+	DisconnectAllSessionsForUser(ctx context.Context, userId int32)
+	FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error)
+	FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error)
 }
 
 type UserTerminalAccessServiceImpl struct {
@@ -90,7 +91,7 @@ func NewUserTerminalAccessServiceImpl(logger *zap.SugaredLogger, terminalAccessR
 	return accessServiceImpl, err
 }
 
-func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal start request received for user", "request", request)
 	userId := request.UserId
 	// check for max session check
@@ -104,7 +105,7 @@ func (impl *UserTerminalAccessServiceImpl) StartTerminalSession(request *models.
 	if err != nil {
 		return nil, err
 	}
-	err = impl.startTerminalPod(podNameVar, request)
+	err = impl.startTerminalPod(ctx, podNameVar, request)
 	return terminalEntity, err
 }
 
@@ -173,10 +174,10 @@ func (impl *UserTerminalAccessServiceImpl) createTerminalEntity(request *models.
 	}, nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(ctx context.Context, request *models.UserTerminalShellSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal update shell request received for user", "request", request)
 	userTerminalAccessId := request.TerminalAccessId
-	impl.StopTerminalSession(userTerminalAccessId)
+	impl.StopTerminalSession(ctx, userTerminalAccessId)
 	terminalAccessData, err := impl.TerminalAccessRepository.GetUserTerminalAccessData(userTerminalAccessId)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching user terminal access data", "userTerminalAccessId", userTerminalAccessId, "err", err)
@@ -203,20 +204,20 @@ func (impl *UserTerminalAccessServiceImpl) UpdateTerminalShellSession(request *m
 	}, nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) UpdateTerminalSession(ctx context.Context, request *models.UserTerminalSessionRequest) (*models.UserTerminalSessionResponse, error) {
 	impl.Logger.Infow("terminal update request received for user", "request", request)
 	userTerminalAccessId := request.Id
-	err := impl.DisconnectTerminalSession(userTerminalAccessId)
+	err := impl.DisconnectTerminalSession(ctx, userTerminalAccessId)
 	if err != nil {
 		return nil, err
 	}
 
-	return impl.StartTerminalSession(request)
+	return impl.StartTerminalSession(ctx, request)
 }
 
-func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTerminalAccessId int) error {
+func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(ctx context.Context, userTerminalAccessId int) error {
 	impl.Logger.Info("Disconnect terminal session request received", "userTerminalAccessId", userTerminalAccessId)
-	impl.StopTerminalSession(userTerminalAccessId)
+	impl.StopTerminalSession(ctx, userTerminalAccessId)
 	impl.TerminalAccessDataArrayMutex.Lock()
 	defer impl.TerminalAccessDataArrayMutex.Unlock()
 	accessSessionDataMap := *impl.TerminalAccessSessionDataMap
@@ -228,7 +229,7 @@ func (impl *UserTerminalAccessServiceImpl) DisconnectTerminalSession(userTermina
 		return err
 	}
 	namespace := metadataMap["Namespace"]
-	err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
+	err = impl.DeleteTerminalPod(ctx, terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 	if err != nil {
 		if isResourceNotFoundErr(err) {
 			accessSessionData.terminateTriggered = true
@@ -247,7 +248,7 @@ func isResourceNotFoundErr(err error) bool {
 	return false
 }
 
-func (impl *UserTerminalAccessServiceImpl) StopTerminalSession(userTerminalAccessId int) {
+func (impl *UserTerminalAccessServiceImpl) StopTerminalSession(ctx context.Context, userTerminalAccessId int) {
 	impl.Logger.Infow("terminal stop request received for user", "userTerminalAccessId", userTerminalAccessId)
 	impl.TerminalAccessDataArrayMutex.Lock()
 	defer impl.TerminalAccessDataArrayMutex.Unlock()
@@ -258,7 +259,7 @@ func (impl *UserTerminalAccessServiceImpl) StopTerminalSession(userTerminalAcces
 	}
 }
 
-func (impl *UserTerminalAccessServiceImpl) DisconnectAllSessionsForUser(userId int32) {
+func (impl *UserTerminalAccessServiceImpl) DisconnectAllSessionsForUser(ctx context.Context, userId int32) {
 	impl.Logger.Infow("disconnecting all active session for user", "userId", userId)
 	impl.TerminalAccessDataArrayMutex.Lock()
 	defer impl.TerminalAccessDataArrayMutex.Unlock()
@@ -320,7 +321,7 @@ func (impl *UserTerminalAccessServiceImpl) getMetadataMap(metadata string) (map[
 	return metadataMap, nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) startTerminalPod(podNameVar string, request *models.UserTerminalSessionRequest) error {
+func (impl *UserTerminalAccessServiceImpl) startTerminalPod(ctx context.Context, podNameVar string, request *models.UserTerminalSessionRequest) error {
 
 	accessTemplates, err := impl.TerminalAccessRepository.FetchAllTemplates()
 	if err != nil {
@@ -328,7 +329,7 @@ func (impl *UserTerminalAccessServiceImpl) startTerminalPod(podNameVar string, r
 		return err
 	}
 	for _, accessTemplate := range accessTemplates {
-		err = impl.applyTemplateData(request, podNameVar, accessTemplate, false)
+		err = impl.applyTemplateData(ctx, request, podNameVar, accessTemplate, false)
 		if err != nil {
 			return err
 		}
@@ -344,7 +345,7 @@ func (impl *UserTerminalAccessServiceImpl) createPodName(request *models.UserTer
 	return podNameVar
 }
 
-func (impl *UserTerminalAccessServiceImpl) applyTemplateData(request *models.UserTerminalSessionRequest, podNameVar string,
+func (impl *UserTerminalAccessServiceImpl) applyTemplateData(ctx context.Context, request *models.UserTerminalSessionRequest, podNameVar string,
 	terminalTemplate *models.TerminalAccessTemplates, isUpdate bool) error {
 	templateName := terminalTemplate.TemplateName
 	templateData := terminalTemplate.TemplateData
@@ -356,7 +357,7 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplateData(request *models.Use
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessBaseImageVar, request.BaseImage)
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessNamespaceVar, namespace)
 	templateData = strings.ReplaceAll(templateData, models.TerminalAccessPodNameVar, podNameVar)
-	err := impl.applyTemplate(clusterId, terminalTemplate.TemplateData, templateData, isUpdate, namespace)
+	err := impl.applyTemplate(ctx, clusterId, terminalTemplate.TemplateData, templateData, isUpdate, namespace)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while applying template ", "name", templateName, "err", err)
 		return err
@@ -388,8 +389,8 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 				continue
 			}
 			namespace := metadataMap["Namespace"]
-			impl.deleteClusterTerminalTemplates(terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
-			err = impl.DeleteTerminalPod(terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
+			impl.deleteClusterTerminalTemplates(context.Background(), terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
+			err = impl.DeleteTerminalPod(context.Background(), terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 			if err != nil {
 				if isResourceNotFoundErr(err) {
 					terminalPodStatusString = string(models.TerminalPodTerminated)
@@ -421,7 +422,7 @@ func (impl *UserTerminalAccessServiceImpl) SyncPodStatus() {
 	impl.TerminalAccessSessionDataMap = &terminalAccessDataMap
 }
 
-func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessData *models.UserTerminalAccessData) (string, error) {
+func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(ctx context.Context, terminalAccessData *models.UserTerminalAccessData) (string, error) {
 	clusterId := terminalAccessData.ClusterId
 	terminalAccessPodName := terminalAccessData.PodName
 	metadata := terminalAccessData.Metadata
@@ -430,7 +431,7 @@ func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessDa
 		return "", err
 	}
 	namespace := metadataMap["Namespace"]
-	terminalPodStatusString, err := impl.getPodStatus(clusterId, terminalAccessPodName, namespace)
+	terminalPodStatusString, err := impl.getPodStatus(ctx, clusterId, terminalAccessPodName, namespace)
 	if err != nil {
 		return "", err
 	}
@@ -460,7 +461,7 @@ func (impl *UserTerminalAccessServiceImpl) checkAndStartSession(terminalAccessDa
 	return sessionID, err
 }
 
-func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId int) (*models.UserTerminalSessionResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(ctx context.Context, terminalAccessId int) (*models.UserTerminalSessionResponse, error) {
 	terminalAccessDataMap := *impl.TerminalAccessSessionDataMap
 	terminalAccessSessionData, present := terminalAccessDataMap[terminalAccessId]
 	var terminalSessionId = ""
@@ -497,7 +498,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId 
 		if err != nil {
 			return nil, err
 		}
-		terminalSessionId, err = impl.checkAndStartSession(existingTerminalAccessData)
+		terminalSessionId, err = impl.checkAndStartSession(ctx, existingTerminalAccessData)
 		if err != nil {
 			return nil, err
 		}
@@ -523,25 +524,25 @@ func (impl *UserTerminalAccessServiceImpl) FetchTerminalStatus(terminalAccessId 
 	return terminalAccessResponse, nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) DeleteTerminalPod(clusterId int, terminalPodName string, namespace string) error {
+func (impl *UserTerminalAccessServiceImpl) DeleteTerminalPod(ctx context.Context, clusterId int, terminalPodName string, namespace string) error {
 	terminalAccessPodTemplate, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessPodTemplateName)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching template", "template", models.TerminalAccessPodTemplateName, "err", err)
 		return err
 	}
 	gvkDataString := terminalAccessPodTemplate.TemplateData
-	err = impl.DeleteTerminalResource(clusterId, terminalPodName, gvkDataString, namespace)
+	err = impl.DeleteTerminalResource(ctx, clusterId, terminalPodName, gvkDataString, namespace)
 	return err
 }
 
-func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(clusterId int, terminalResourceName string, resourceTemplateString string, namespace string) error {
+func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(ctx context.Context, clusterId int, terminalResourceName string, resourceTemplateString string, namespace string) error {
 	_, groupVersionKind, err := legacyscheme.Codecs.UniversalDeserializer().Decode([]byte(resourceTemplateString), nil, nil)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while extracting data for gvk", "resourceTemplateString", resourceTemplateString, "err", err)
 		return err
 	}
 
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(clusterId)
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		return err
 	}
@@ -557,15 +558,15 @@ func (impl *UserTerminalAccessServiceImpl) DeleteTerminalResource(clusterId int,
 			},
 		},
 	}
-	_, err = impl.k8sClientService.DeleteResource(restConfig, k8sRequest)
+	_, err = impl.k8sClientService.DeleteResource(ctx, restConfig, k8sRequest)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while deleting resource for pod", "podName", terminalResourceName, "err", err)
 	}
 	return err
 }
 
-func (impl *UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataString string, templateData string, isUpdate bool, namespace string) error {
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(clusterId)
+func (impl *UserTerminalAccessServiceImpl) applyTemplate(ctx context.Context, clusterId int, gvkDataString string, templateData string, isUpdate bool, namespace string) error {
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		return err
 	}
@@ -589,9 +590,9 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataS
 
 	if isUpdate {
 		k8sRequest.Patch = templateData
-		_, err = impl.k8sClientService.UpdateResource(restConfig, k8sRequest)
+		_, err = impl.k8sClientService.UpdateResource(ctx, restConfig, k8sRequest)
 	} else {
-		_, err = impl.k8sClientService.CreateResource(restConfig, k8sRequest, templateData)
+		_, err = impl.k8sClientService.CreateResource(ctx, restConfig, k8sRequest, templateData)
 	}
 	if err != nil {
 		if errStatus, ok := err.(*k8sErrors.StatusError); !(ok && errStatus.Status().Reason == metav1.StatusReasonAlreadyExists) {
@@ -602,8 +603,8 @@ func (impl *UserTerminalAccessServiceImpl) applyTemplate(clusterId int, gvkDataS
 	return nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName string, namespace string) (string, error) {
-	response, err := impl.getPodManifest(clusterId, podName, namespace)
+func (impl *UserTerminalAccessServiceImpl) getPodStatus(ctx context.Context, clusterId int, podName string, namespace string) (string, error) {
+	response, err := impl.getPodManifest(ctx, clusterId, podName, namespace)
 	if err != nil {
 		if err.Error() == string(models.TerminalPodTerminated) {
 			return string(models.TerminalPodTerminated), nil
@@ -625,12 +626,12 @@ func (impl *UserTerminalAccessServiceImpl) getPodStatus(clusterId int, podName s
 	return status, nil
 }
 
-func (impl *UserTerminalAccessServiceImpl) getPodManifest(clusterId int, podName string, namespace string) (*application.ManifestResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) getPodManifest(ctx context.Context, clusterId int, podName string, namespace string) (*application.ManifestResponse, error) {
 	request, err := impl.getPodRequestBean(clusterId, podName, namespace)
 	if err != nil {
 		return nil, err
 	}
-	response, err := impl.k8sApplicationService.GetResource(request)
+	response, err := impl.k8sApplicationService.GetResource(ctx, request)
 	if err != nil {
 		if isResourceNotFoundErr(err) {
 			return nil, errors.New(string(models.TerminalPodTerminated))
@@ -691,14 +692,14 @@ func (impl *UserTerminalAccessServiceImpl) SyncRunningInstances() {
 	impl.Logger.Infow("all running/starting terminal pod loaded", "size", len(terminalAccessDataMap))
 }
 
-func (impl *UserTerminalAccessServiceImpl) deleteClusterTerminalTemplates(clusterId int, podName string, namespace string) {
+func (impl *UserTerminalAccessServiceImpl) deleteClusterTerminalTemplates(ctx context.Context, clusterId int, podName string, namespace string) {
 	templateData, err := impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessClusterRoleBindingTemplateName)
 	if err != nil {
 		impl.Logger.Errorw("error occurred while fetching terminal access template", "err", err)
 		return
 	}
 	templateName := strings.ReplaceAll(models.TerminalAccessClusterRoleBindingTemplate, models.TerminalAccessPodNameTemplate, podName)
-	impl.DeleteTerminalResource(clusterId, templateName, templateData.TemplateData, namespace)
+	impl.DeleteTerminalResource(ctx, clusterId, templateName, templateData.TemplateData, namespace)
 
 	templateData, err = impl.TerminalAccessRepository.FetchTerminalAccessTemplate(models.TerminalAccessServiceAccountTemplateName)
 	if err != nil {
@@ -706,10 +707,10 @@ func (impl *UserTerminalAccessServiceImpl) deleteClusterTerminalTemplates(cluste
 		return
 	}
 	templateName = strings.ReplaceAll(models.TerminalAccessServiceAccountTemplate, models.TerminalAccessPodNameTemplate, podName)
-	impl.DeleteTerminalResource(clusterId, templateName, templateData.TemplateData, namespace)
+	impl.DeleteTerminalResource(ctx, clusterId, templateName, templateData.TemplateData, namespace)
 }
 
-func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(userTerminalAccessId int) (resp *application.ManifestResponse, err error) {
+func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(ctx context.Context, userTerminalAccessId int) (resp *application.ManifestResponse, err error) {
 	terminalAccessData, err := impl.getTerminalAccessDataForId(userTerminalAccessId)
 	if err != nil {
 		return nil, errors.New("unable to fetch manifest")
@@ -722,14 +723,14 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodManifest(userTerminalAccessId
 		return nil, err
 	}
 	namespace := metadataMap["Namespace"]
-	manifest, err := impl.getPodManifest(terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
+	manifest, err := impl.getPodManifest(ctx, terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
 	if err == errors.New(string(models.TerminalPodTerminated)) {
 		return nil, errors.New("pod-terminated")
 	}
 	return manifest, err
 }
 
-func (impl *UserTerminalAccessServiceImpl) FetchPodEvents(userTerminalAccessId int) (*application.EventsResponse, error) {
+func (impl *UserTerminalAccessServiceImpl) FetchPodEvents(ctx context.Context, userTerminalAccessId int) (*application.EventsResponse, error) {
 	terminalAccessData, err := impl.getTerminalAccessDataForId(userTerminalAccessId)
 	if err != nil {
 		return nil, errors.New("unable to fetch pod event")
@@ -743,7 +744,7 @@ func (impl *UserTerminalAccessServiceImpl) FetchPodEvents(userTerminalAccessId i
 	}
 	namespace := metadataMap["Namespace"]
 	podRequestBean, err := impl.getPodRequestBean(terminalAccessData.ClusterId, terminalAccessData.PodName, namespace)
-	return impl.k8sApplicationService.ListEvents(podRequestBean)
+	return impl.k8sApplicationService.ListEvents(ctx, podRequestBean)
 }
 
 func (impl *UserTerminalAccessServiceImpl) getTerminalAccessDataForId(userTerminalAccessId int) (*models.UserTerminalAccessData, error) {

@@ -1,7 +1,6 @@
 package k8s
 
 import (
-	"context"
 	"encoding/json"
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -83,7 +82,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	}
 	//setting appIdentifier value in request
 	request.AppIdentifier = appIdentifier
-	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	ctx := r.Context()
+	valid, err := handler.k8sApplicationService.ValidateResourceRequest(ctx, request.AppIdentifier, request.K8sRequest)
 	if err != nil || !valid {
 		handler.logger.Errorw("error in validating resource request", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -99,7 +99,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	}
 	//RBAC enforcer Ends
 
-	resource, err := handler.k8sApplicationService.GetResource(&request)
+	resource, err := handler.k8sApplicationService.GetResource(r.Context(), &request)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -140,7 +140,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		return
 	}
 	//RBAC enforcer Ends
-	appDetail, err := handler.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
+	appDetail, err := handler.helmAppService.GetApplicationDetail(r.Context(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
@@ -159,7 +159,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		common.WriteJsonResp(w, fmt.Errorf("unmarshal error of resource tree response"), nil, http.StatusInternalServerError)
 		return
 	}
-	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(resourceTreeInf, validRequests, k8sAppDetail, clusterIdString)
+	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(r.Context(), resourceTreeInf, validRequests, k8sAppDetail, clusterIdString)
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for this app", "appId", clusterIdString)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
@@ -172,7 +172,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	result := handler.k8sApplicationService.GetUrlsByBatch(resp)
+	result := handler.k8sApplicationService.GetUrlsByBatch(r.Context(), resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
@@ -201,7 +201,7 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 		return
 	}
 	//RBAC enforcer Ends
-	resource, err := handler.k8sApplicationService.CreateResource(&request)
+	resource, err := handler.k8sApplicationService.CreateResource(r.Context(), &request)
 	if err != nil {
 		handler.logger.Errorw("error in creating resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -227,7 +227,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 	}
 	//setting appIdentifier value in request
 	request.AppIdentifier = appIdentifier
-	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
 	if err != nil || !valid {
 		handler.logger.Errorw("error in validating resource request", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -241,7 +241,7 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		return
 	}
 	//RBAC enforcer Ends
-	resource, err := handler.k8sApplicationService.UpdateResource(&request)
+	resource, err := handler.k8sApplicationService.UpdateResource(r.Context(), &request)
 	if err != nil {
 		handler.logger.Errorw("error in updating resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -267,7 +267,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 	}
 	//setting appIdentifier value in request
 	request.AppIdentifier = appIdentifier
-	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
 	if err != nil || !valid {
 		handler.logger.Errorw("error in validating resource request", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -281,7 +281,7 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		return
 	}
 	//RBAC enforcer Ends
-	resource, err := handler.k8sApplicationService.DeleteResource(&request)
+	resource, err := handler.k8sApplicationService.DeleteResource(r.Context(), &request)
 	if err != nil {
 		handler.logger.Errorw("error in deleting resource", "err", err)
 		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
@@ -307,7 +307,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 	}
 	//setting appIdentifier value in request
 	request.AppIdentifier = appIdentifier
-	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
 	if err != nil || !valid {
 		handler.logger.Errorw("error in validating resource request", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -321,7 +321,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		return
 	}
 	//RBAC enforcer Ends
-	events, err := handler.k8sApplicationService.ListEvents(&request)
+	events, err := handler.k8sApplicationService.ListEvents(r.Context(), &request)
 	if err != nil {
 		handler.logger.Errorw("error in getting events list", "err", err)
 		common.WriteJsonResp(w, err, events, http.StatusInternalServerError)
@@ -371,7 +371,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		},
 	}
 
-	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+	valid, err := handler.k8sApplicationService.ValidateResourceRequest(r.Context(), request.AppIdentifier, request.K8sRequest)
 	if err != nil || !valid {
 		handler.logger.Errorw("error in validating resource request", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -398,7 +398,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		request.K8sRequest.PodLogsRequest.SinceTime = &t
 		isReconnect = true
 	}
-	stream, err := handler.k8sApplicationService.GetPodLogs(request)
+	stream, err := handler.k8sApplicationService.GetPodLogs(r.Context(), request)
 	defer util.Close(stream, handler.logger)
 	handler.pump.StartK8sStreamWithHeartBeat(w, isReconnect, stream, err)
 }
@@ -441,7 +441,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceInfo(w http.ResponseWri
 	}
 
 	// this is auth free api
-	response, err := handler.k8sApplicationService.GetResourceInfo()
+	response, err := handler.k8sApplicationService.GetResourceInfo(r.Context())
 	if err != nil {
 		handler.logger.Errorw("error on resource info", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

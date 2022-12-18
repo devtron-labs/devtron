@@ -75,7 +75,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterList(w http.ResponseWriter,
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	clusterDetailList, err := handler.k8sCapacityService.GetClusterCapacityDetailList(authenticatedClusters)
+	clusterDetailList, err := handler.k8sCapacityService.GetClusterCapacityDetailList(r.Context(), authenticatedClusters)
 	if err != nil {
 		handler.logger.Errorw("error in getting cluster capacity detail list", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -115,7 +115,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetClusterDetail(w http.ResponseWrite
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	clusterDetail, err := handler.k8sCapacityService.GetClusterCapacityDetail(cluster, false)
+	clusterDetail, err := handler.k8sCapacityService.GetClusterCapacityDetail(r.Context(), cluster, false)
 	if err != nil {
 		handler.logger.Errorw("error in getting cluster capacity detail", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -155,7 +155,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetNodeList(w http.ResponseWriter, r 
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	nodeList, err := handler.k8sCapacityService.GetNodeCapacityDetailsListByCluster(cluster)
+	nodeList, err := handler.k8sCapacityService.GetNodeCapacityDetailsListByCluster(r.Context(), cluster)
 	if err != nil {
 		handler.logger.Errorw("error in getting node detail list by cluster", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -201,7 +201,7 @@ func (handler *K8sCapacityRestHandlerImpl) GetNodeDetail(w http.ResponseWriter, 
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	nodeDetail, err := handler.k8sCapacityService.GetNodeCapacityDetailByNameAndCluster(cluster, name)
+	nodeDetail, err := handler.k8sCapacityService.GetNodeCapacityDetailByNameAndCluster(r.Context(), cluster, name)
 	if err != nil {
 		handler.logger.Errorw("error in getting node detail by cluster", "err", err, "clusterId", clusterId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -230,7 +230,7 @@ func (handler *K8sCapacityRestHandlerImpl) UpdateNodeManifest(w http.ResponseWri
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	updatedManifest, err := handler.k8sCapacityService.UpdateNodeManifest(&manifestUpdateReq)
+	updatedManifest, err := handler.k8sCapacityService.UpdateNodeManifest(r.Context(), &manifestUpdateReq)
 	if err != nil {
 		handler.logger.Errorw("error in updating node manifest", "err", err, "updateRequest", manifestUpdateReq)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

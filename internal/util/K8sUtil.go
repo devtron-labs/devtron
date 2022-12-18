@@ -493,13 +493,13 @@ func (impl K8sUtil) GetClientByToken(serverUrl string, token map[string]string) 
 	return client, nil
 }
 
-func (impl K8sUtil) GetResourceInfoByLabelSelector(namespace string, labelSelector string) (*v1.Pod, error) {
+func (impl K8sUtil) GetResourceInfoByLabelSelector(ctx context.Context, namespace string, labelSelector string) (*v1.Pod, error) {
 	client, err := impl.GetClientForInCluster()
 	if err != nil {
 		impl.logger.Errorw("cluster config error", "err", err)
 		return nil, err
 	}
-	pods, err := client.Pods(namespace).List(context.Background(), metav1.ListOptions{
+	pods, err := client.Pods(namespace).List(ctx, metav1.ListOptions{
 		LabelSelector: labelSelector,
 	})
 	if err != nil {

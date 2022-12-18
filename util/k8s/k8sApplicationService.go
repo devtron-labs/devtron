@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"io"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -27,19 +28,19 @@ const (
 )
 
 type K8sApplicationService interface {
-	GetResource(request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
-	CreateResource(request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
-	UpdateResource(request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
-	DeleteResource(request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
-	ListEvents(request *ResourceRequestBean) (*application.EventsResponse, error)
-	GetPodLogs(request *ResourceRequestBean) (io.ReadCloser, error)
-	ValidateResourceRequest(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error)
-	GetResourceInfo() (*ResourceInfo, error)
-	GetRestConfigByClusterId(clusterId int) (*rest.Config, error)
-	GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error)
+	GetResource(ctx context.Context, request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
+	CreateResource(ctx context.Context, request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
+	UpdateResource(ctx context.Context, request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
+	DeleteResource(ctx context.Context, request *ResourceRequestBean) (resp *application.ManifestResponse, err error)
+	ListEvents(ctx context.Context, request *ResourceRequestBean) (*application.EventsResponse, error)
+	GetPodLogs(ctx context.Context, request *ResourceRequestBean) (io.ReadCloser, error)
+	ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error)
+	GetResourceInfo(ctx context.Context) (*ResourceInfo, error)
+	GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error)
+	GetRestConfigByCluster(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, error)
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
-	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
-	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
+	FilterServiceAndIngress(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
+	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -93,7 +94,7 @@ type BatchResourceResponse struct {
 	Err              error
 }
 
-func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTree map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean {
+func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(ctx context.Context, resourceTree map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean {
 	noOfNodes := len(resourceTree["nodes"].([]interface{}))
 	resourceNodeItemss := resourceTree["nodes"].([]interface{})
 	for i := 0; i < noOfNodes; i++ {
@@ -152,7 +153,7 @@ type Response struct {
 	Urls     []string `json:"urls"`
 }
 
-func (impl *K8sApplicationServiceImpl) GetUrlsByBatch(resp []BatchResourceResponse) []interface{} {
+func (impl *K8sApplicationServiceImpl) GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{} {
 	result := make([]interface{}, 0)
 	for _, res := range resp {
 		err := res.Err
@@ -238,7 +239,7 @@ func (impl *K8sApplicationServiceImpl) GetManifestsByBatch(ctx context.Context, 
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(impl.K8sApplicationServiceConfig.TimeOutInSeconds)*time.Second)
 	defer cancel()
 	go func() {
-		ans := impl.getManifestsByBatch(requests)
+		ans := impl.getManifestsByBatch(ctx, requests)
 		ch <- ans
 	}()
 	select {
@@ -251,7 +252,7 @@ func (impl *K8sApplicationServiceImpl) GetManifestsByBatch(ctx context.Context, 
 	return res, nil
 }
 
-func (impl *K8sApplicationServiceImpl) getManifestsByBatch(requests []ResourceRequestBean) []BatchResourceResponse {
+func (impl *K8sApplicationServiceImpl) getManifestsByBatch(ctx context.Context, requests []ResourceRequestBean) []BatchResourceResponse {
 	//total batch length
 	batchSize := impl.K8sApplicationServiceConfig.BatchSize
 	if requests == nil {
@@ -271,7 +272,7 @@ func (impl *K8sApplicationServiceImpl) getManifestsByBatch(requests []ResourceRe
 			wg.Add(1)
 			go func(j int) {
 				resp := BatchResourceResponse{}
-				resp.ManifestResponse, resp.Err = impl.GetResource(&requests[i+j])
+				resp.ManifestResponse, resp.Err = impl.GetResource(ctx, &requests[i+j])
 				res[i+j] = resp
 				wg.Done()
 			}(j)
@@ -282,14 +283,14 @@ func (impl *K8sApplicationServiceImpl) getManifestsByBatch(requests []ResourceRe
 	return res
 }
 
-func (impl *K8sApplicationServiceImpl) GetResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
+func (impl *K8sApplicationServiceImpl) GetResource(ctx context.Context, request *ResourceRequestBean) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
 	}
-	resp, err := impl.k8sClientService.GetResource(restConfig, request.K8sRequest)
+	resp, err := impl.k8sClientService.GetResource(ctx, restConfig, request.K8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "request", request)
 		return nil, err
@@ -297,7 +298,7 @@ func (impl *K8sApplicationServiceImpl) GetResource(request *ResourceRequestBean)
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) CreateResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
+func (impl *K8sApplicationServiceImpl) CreateResource(ctx context.Context, request *ResourceRequestBean) (*application.ManifestResponse, error) {
 	resourceIdentifier := &openapi.ResourceIdentifier{
 		Name:      &request.K8sRequest.ResourceIdentifier.Name,
 		Namespace: &request.K8sRequest.ResourceIdentifier.Namespace,
@@ -305,7 +306,7 @@ func (impl *K8sApplicationServiceImpl) CreateResource(request *ResourceRequestBe
 		Version:   &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Version,
 		Kind:      &request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind,
 	}
-	manifestRes, err := impl.helmAppService.GetDesiredManifest(context.Background(), request.AppIdentifier, resourceIdentifier)
+	manifestRes, err := impl.helmAppService.GetDesiredManifest(ctx, request.AppIdentifier, resourceIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting desired manifest for validation", "err", err)
 		return nil, err
@@ -317,12 +318,12 @@ func (impl *K8sApplicationServiceImpl) CreateResource(request *ResourceRequestBe
 	}
 
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
 	}
-	resp, err := impl.k8sClientService.CreateResource(restConfig, request.K8sRequest, *manifest)
+	resp, err := impl.k8sClientService.CreateResource(ctx, restConfig, request.K8sRequest, *manifest)
 	if err != nil {
 		impl.logger.Errorw("error in creating resource", "err", err, "request", request)
 		return nil, err
@@ -330,14 +331,14 @@ func (impl *K8sApplicationServiceImpl) CreateResource(request *ResourceRequestBe
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) UpdateResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
+func (impl *K8sApplicationServiceImpl) UpdateResource(ctx context.Context, request *ResourceRequestBean) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
 	}
-	resp, err := impl.k8sClientService.UpdateResource(restConfig, request.K8sRequest)
+	resp, err := impl.k8sClientService.UpdateResource(ctx, restConfig, request.K8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in updating resource", "err", err, "request", request)
 		return nil, err
@@ -345,14 +346,14 @@ func (impl *K8sApplicationServiceImpl) UpdateResource(request *ResourceRequestBe
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) DeleteResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
+func (impl *K8sApplicationServiceImpl) DeleteResource(ctx context.Context, request *ResourceRequestBean) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
 	}
-	resp, err := impl.k8sClientService.DeleteResource(restConfig, request.K8sRequest)
+	resp, err := impl.k8sClientService.DeleteResource(ctx, restConfig, request.K8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in deleting resource", "err", err, "request", request)
 		return nil, err
@@ -360,14 +361,14 @@ func (impl *K8sApplicationServiceImpl) DeleteResource(request *ResourceRequestBe
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) ListEvents(request *ResourceRequestBean) (*application.EventsResponse, error) {
+func (impl *K8sApplicationServiceImpl) ListEvents(ctx context.Context, request *ResourceRequestBean) (*application.EventsResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
 	}
-	resp, err := impl.k8sClientService.ListEvents(restConfig, request.K8sRequest)
+	resp, err := impl.k8sClientService.ListEvents(ctx, restConfig, request.K8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting events list", "err", err, "request", request)
 		return nil, err
@@ -375,14 +376,14 @@ func (impl *K8sApplicationServiceImpl) ListEvents(request *ResourceRequestBean) 
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetPodLogs(request *ResourceRequestBean) (io.ReadCloser, error) {
+func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *ResourceRequestBean) (io.ReadCloser, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(ctx, request.AppIdentifier.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
 		return nil, err
 	}
-	resp, err := impl.k8sClientService.GetPodLogs(restConfig, request.K8sRequest)
+	resp, err := impl.k8sClientService.GetPodLogs(ctx, restConfig, request.K8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting events list", "err", err, "request", request)
 		return nil, err
@@ -390,7 +391,9 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(request *ResourceRequestBean) 
 	return resp, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(clusterId int) (*rest.Config, error) {
+func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "GetRestConfigByClusterId")
+	defer span.End()
 	cluster, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
@@ -411,7 +414,7 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(clusterId int) (
 	return restConfig, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error) {
+func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(ctx context.Context, cluster *cluster.ClusterBean) (*rest.Config, error) {
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
 	var restConfig *rest.Config
@@ -428,8 +431,8 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(cluster *cluster.C
 	return restConfig, nil
 }
 
-func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error) {
-	app, err := impl.helmAppService.GetApplicationDetail(context.Background(), appIdentifier)
+func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(ctx context.Context, appIdentifier *client.AppIdentifier, request *application.K8sRequestBean) (bool, error) {
+	app, err := impl.helmAppService.GetApplicationDetail(ctx, appIdentifier)
 	if err != nil {
 		impl.logger.Errorw("error in getting app detail", "err", err, "appDetails", appIdentifier)
 		return false, err
@@ -465,8 +468,8 @@ func (impl *K8sApplicationServiceImpl) ValidateResourceRequest(appIdentifier *cl
 	return valid, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetResourceInfo() (*ResourceInfo, error) {
-	pod, err := impl.K8sUtil.GetResourceInfoByLabelSelector(impl.aCDAuthConfig.ACDConfigMapNamespace, "app=inception")
+func (impl *K8sApplicationServiceImpl) GetResourceInfo(ctx context.Context) (*ResourceInfo, error) {
+	pod, err := impl.K8sUtil.GetResourceInfoByLabelSelector(ctx, impl.aCDAuthConfig.ACDConfigMapNamespace, "app=inception")
 	if err != nil {
 		impl.logger.Errorw("error on getting resource from k8s, unable to fetch installer pod", "err", err)
 		return nil, err

@@ -326,7 +326,7 @@ func (handler AppListingRestHandlerImpl) FetchAppDetails(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appDetail, err := handler.appListingService.FetchAppDetails(appId, envId)
+	appDetail, err := handler.appListingService.FetchAppDetails(r.Context(), appId, envId)
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppDetails", "err", err, "appId", appId, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -626,7 +626,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, fmt.Errorf("error in parsing envId : %s must be integer", envIdParam), nil, http.StatusBadRequest)
 		return
 	}
-	appDetail, err, appId = handler.getAppDetails(appIdParam, installedAppIdParam, envId)
+	appDetail, err, appId = handler.getAppDetails(r.Context(), appIdParam, installedAppIdParam, envId)
 	if err != nil {
 		handler.logger.Errorw("error occurred while getting app details", "appId", appIdParam, "installedAppId", installedAppIdParam, "envId", envId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -666,7 +666,7 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 	}
 	//valid batch requests, only valid requests will be sent for batch processing
 	validRequests := make([]k8s.ResourceRequestBean, 0)
-	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(resourceTree, validRequests, appDetail, "")
+	validRequests = handler.k8sApplicationService.FilterServiceAndIngress(r.Context(), resourceTree, validRequests, appDetail, "")
 	if len(validRequests) == 0 {
 		handler.logger.Error("neither service nor ingress found for", "appId", appIdParam, "envId", envIdParam, "installedAppId", installedAppIdParam)
 		common.WriteJsonResp(w, err, nil, http.StatusNoContent)
@@ -678,11 +678,11 @@ func (handler AppListingRestHandlerImpl) GetHostUrlsByBatch(w http.ResponseWrite
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	result := handler.k8sApplicationService.GetUrlsByBatch(resp)
+	result := handler.k8sApplicationService.GetUrlsByBatch(r.Context(), resp)
 	common.WriteJsonResp(w, nil, result, http.StatusOK)
 }
 
-func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppIdParam string, envId int) (bean.AppDetailContainer, error, int) {
+func (handler AppListingRestHandlerImpl) getAppDetails(ctx context.Context, appIdParam, installedAppIdParam string, envId int) (bean.AppDetailContainer, error, int) {
 	var appDetail bean.AppDetailContainer
 	if appIdParam != "" {
 		appId, err := strconv.Atoi(appIdParam)
@@ -690,7 +690,7 @@ func (handler AppListingRestHandlerImpl) getAppDetails(appIdParam, installedAppI
 			handler.logger.Errorw("error in parsing appId from request body", "appId", appIdParam, "err", err)
 			return appDetail, err, appId
 		}
-		appDetail, err = handler.appListingService.FetchAppDetails(appId, envId)
+		appDetail, err = handler.appListingService.FetchAppDetails(ctx, appId, envId)
 		return appDetail, err, appId
 	}
 
