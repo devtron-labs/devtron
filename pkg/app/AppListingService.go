@@ -80,7 +80,7 @@ type AppListingService interface {
 	FetchAppTriggerView(appId int) ([]bean.TriggerView, error)
 	FetchAppStageStatus(appId int) ([]bean.AppStageStatus, error)
 
-	FetchOtherEnvironment(appId int) ([]*bean.Environment, error)
+	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
 	GetLastDeploymentStatusesByAppNames(appNames []string) ([]repository.DeploymentStatus, error)
 	GetLastDeploymentStatuses() (map[string]repository.DeploymentStatus, error)
@@ -1468,15 +1468,19 @@ func (impl AppListingServiceImpl) FetchAppStageStatus(appId int) ([]bean.AppStag
 	return impl.appListingRepository.FetchAppStageStatus(appId)
 }
 
-func (impl AppListingServiceImpl) FetchOtherEnvironment(appId int) ([]*bean.Environment, error) {
+func (impl AppListingServiceImpl) FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error) {
+	newCtx, span := otel.Tracer("appListingRepository").Start(ctx, "FetchOtherEnvironment")
 	envs, err := impl.appListingRepository.FetchOtherEnvironment(appId)
+	span.End()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("err", err)
 		return envs, err
 	}
 	appLevelAppMetrics := false  //default value
 	appLevelInfraMetrics := true //default val
+	newCtx, span = otel.Tracer("appLevelMetricsRepository").Start(newCtx, "FindByAppId")
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
+	span.End()
 	if err != nil && !util.IsErrNoRows(err) {
 		impl.Logger.Errorw("error in fetching app metrics", "err", err)
 		return envs, err
@@ -1488,13 +1492,17 @@ func (impl AppListingServiceImpl) FetchOtherEnvironment(appId int) ([]*bean.Envi
 		appLevelAppMetrics = appLevelMetrics.AppMetrics
 		appLevelInfraMetrics = appLevelMetrics.InfraMetrics
 	}
+	newCtx, span = otel.Tracer("chartRepository").Start(newCtx, "FindLatestChartForAppByAppId")
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
+	span.End()
 	if err != nil && err != pg.ErrNoRows {
 		impl.Logger.Errorw("error in fetching latest chart", "err", err)
 		return envs, err
 	}
 	for _, env := range envs {
+		newCtx, span = otel.Tracer("envOverrideRepository").Start(newCtx, "FindLatestChartForAppByAppIdAndEnvId")
 		envOverride, err := impl.envOverrideRepository.FindLatestChartForAppByAppIdAndEnvId(appId, env.EnvironmentId)
+		span.End()
 		if err != nil && !errors2.IsNotFound(err) {
 			impl.Logger.Errorw("error in fetching latest chart by appId and envId", "err", err, "appId", appId, "envId", env.EnvironmentId)
 			return envs, err

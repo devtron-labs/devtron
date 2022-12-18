@@ -44,6 +44,7 @@ import (
 	"github.com/devtron-labs/devtron/util/k8s"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"net/http"
 	"strconv"
@@ -515,7 +516,9 @@ func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWr
 		return
 	}
 	token := r.Header.Get("token")
+	newCtx, span := otel.Tracer("pipeline").Start(r.Context(), "GetApp")
 	app, err := handler.pipeline.GetApp(appId)
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchOtherEnvironment", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -530,7 +533,9 @@ func (handler AppListingRestHandlerImpl) FetchOtherEnvironment(w http.ResponseWr
 	}
 	//RBAC enforcer Ends
 
-	otherEnvironment, err := handler.appListingService.FetchOtherEnvironment(appId)
+	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "FetchOtherEnvironment")
+	otherEnvironment, err := handler.appListingService.FetchOtherEnvironment(newCtx, appId)
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchOtherEnvironment", "err", err, "appId", appId)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
