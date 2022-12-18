@@ -4,6 +4,10 @@
 
 ## v0.6.10
 
+
+
+## v0.6.10
+
 ## Bugs
 - fix: No need to bounce orchestrator if SSO config are added/updated (#2753)
 ## Enhancements
