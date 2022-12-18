@@ -43,7 +43,7 @@
   * [Deploy a sample application](user-guide/Deploy-sample-app/nodejs_app.md)
   * [App Configuration](user-guide/creating-application/README.md)
     * [Git Repository](user-guide/creating-application/git-material.md)
-    * [Docker Build Config](user-guide/creating-application/docker-build-configuration.md)
+    * [Docker Build Configuration](user-guide/creating-application/docker-build-configuration.md)
     * [Deployment Template](user-guide/creating-application/deployment-template.md)
       * [Deployment](user-guide/creating-application/deployment-template/deployment.md) 
       * [Rollout Deployment](user-guide/creating-application/deployment-template/rollout-deployment.md)
