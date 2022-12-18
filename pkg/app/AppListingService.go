@@ -226,13 +226,17 @@ func (impl AppListingServiceImpl) FetchAllDevtronManagedApps() ([]AppNameTypeIdC
 func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest FetchAppListingRequest, w http.ResponseWriter, r *http.Request, token string) ([]*bean.AppEnvironmentContainer, error) {
 	impl.Logger.Debug("reached at FetchAppsByEnvironment:")
 	// TODO: check statuses
+	newCtx, span := otel.Tracer("fetchAppListingRequest").Start(r.Context(), "GetNamespaceClusterMapping")
 	mappings, clusterIds, err := fetchAppListingRequest.GetNamespaceClusterMapping()
+	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err)
 		return []*bean.AppEnvironmentContainer{}, err
 	}
 	if len(mappings) > 0 {
+		newCtx, span = otel.Tracer("environmentRepository").Start(newCtx, "FindByClusterIdAndNamespace")
 		envs, err := impl.environmentRepository.FindByClusterIdAndNamespace(mappings)
+		span.End()
 		if err != nil {
 			impl.Logger.Errorw("error in cluster ns mapping")
 			return []*bean.AppEnvironmentContainer{}, err
@@ -242,7 +246,9 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 		}
 	}
 	if len(clusterIds) > 0 {
+		newCtx, span = otel.Tracer("environmentRepository").Start(newCtx, "FindByClusterIds")
 		envs, err := impl.environmentRepository.FindByClusterIds(clusterIds)
+		span.End()
 		if err != nil {
 			impl.Logger.Errorw("error in cluster ns mapping")
 			return []*bean.AppEnvironmentContainer{}, err
@@ -268,7 +274,9 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 		Size:              fetchAppListingRequest.Size,
 		DeploymentGroupId: fetchAppListingRequest.DeploymentGroupId,
 	}
+	newCtx, span = otel.Tracer("appListingRepository").Start(newCtx, "FetchAppsByEnvironment")
 	envContainers, err := impl.appListingRepository.FetchAppsByEnvironment(appListingFilter)
+	span.End()
 	if err != nil {
 		impl.Logger.Errorw("error in fetching app list", "error", err)
 		return []*bean.AppEnvironmentContainer{}, err

@@ -153,12 +153,16 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	t0 := time.Now()
 	t1 := time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "stage", "1")
+	newCtx, span := otel.Tracer("userService").Start(r.Context(), "GetLoggedInUser")
 	userId, err := handler.userService.GetLoggedInUser(r)
+	span.End()
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
+	newCtx, span = otel.Tracer("userService").Start(newCtx, "GetById")
 	user, err := handler.userService.GetById(userId)
+	span.End()
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
@@ -172,7 +176,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
+	newCtx, span = otel.Tracer("fetchAppListingRequest").Start(newCtx, "GetNamespaceClusterMapping")
 	_, _, err = fetchAppListingRequest.GetNamespaceClusterMapping()
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, GetNamespaceClusterMapping", "err", err, "payload", fetchAppListingRequest)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
@@ -181,14 +187,18 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 
 	var dg *deploymentGroup.DeploymentGroupDTO
 	if fetchAppListingRequest.DeploymentGroupId > 0 {
+		newCtx, span = otel.Tracer("deploymentGroupService").Start(newCtx, "FindById")
 		dg, err = handler.deploymentGroupService.FindById(fetchAppListingRequest.DeploymentGroupId)
+		span.End()
 		if err != nil {
 			handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
 		}
 	}
 
+	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "FetchAppsByEnvironment")
 	envContainers, err := handler.appListingService.FetchAppsByEnvironment(fetchAppListingRequest, w, r, token)
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
@@ -197,7 +207,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "2")
 	t1 = t2
 
+	newCtx, span = otel.Tracer("userService").Start(newCtx, "IsSuperAdmin")
 	isActionUserSuperAdmin, err := handler.userService.IsSuperAdmin(int(userId))
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("request err, FetchAppsByEnvironment", "err", err, "userId", userId)
 		common.WriteJsonResp(w, err, "Failed to check is super admin", http.StatusInternalServerError)
@@ -221,7 +233,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			objectArray = append(objectArray, object)
 		}
 
+		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForTeams")
 		resultMap := handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceTeam, casbin.ActionGet, objectArray)
+		span.End()
 		for teamId, teamName := range uniqueTeams {
 			object := strings.ToLower(teamName)
 			if ok := resultMap[object]; ok {
@@ -248,7 +262,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 			objectArray = append(objectArray, object)
 		}
 
+		newCtx, span = otel.Tracer("enforcer").Start(newCtx, "EnforceByEmailInBatchForApps")
 		resultMap = handler.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+		span.End()
 		for _, filteredAppEnvContainer := range filteredAppEnvContainers {
 			if fetchAppListingRequest.DeploymentGroupId > 0 {
 				if filteredAppEnvContainer.EnvironmentId != 0 && filteredAppEnvContainer.EnvironmentId != dg.EnvironmentId {
@@ -266,7 +282,9 @@ func (handler AppListingRestHandlerImpl) FetchAppsByEnvironment(w http.ResponseW
 	t2 = time.Now()
 	handler.logger.Infow("api response time testing", "time", time.Now().String(), "time diff", t2.Unix()-t1.Unix(), "stage", "3")
 	t1 = t2
+	newCtx, span = otel.Tracer("appListingService").Start(newCtx, "BuildAppListingResponse")
 	apps, err := handler.appListingService.BuildAppListingResponse(fetchAppListingRequest, appEnvContainers)
+	span.End()
 	if err != nil {
 		handler.logger.Errorw("service err, FetchAppsByEnvironment", "err", err, "payload", fetchAppListingRequest)
 		common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
