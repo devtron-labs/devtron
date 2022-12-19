@@ -20,6 +20,7 @@ package restHandler
 import (
 	"encoding/json"
 	"fmt"
+	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/pkg/app"
 	"github.com/devtron-labs/devtron/pkg/bean"
@@ -44,24 +45,28 @@ type AppRestHandler interface {
 }
 
 type AppRestHandlerImpl struct {
-	logger          *zap.SugaredLogger
-	appService      app.AppCrudOperationService
-	userAuthService user.UserService
-	validator       *validator.Validate
-	enforcerUtil    rbac.EnforcerUtil
-	enforcer        casbin.Enforcer
+	logger           *zap.SugaredLogger
+	appService       app.AppCrudOperationService
+	userAuthService  user.UserService
+	validator        *validator.Validate
+	enforcerUtil     rbac.EnforcerUtil
+	enforcer         casbin.Enforcer
+	helmAppService   client.HelmAppService
+	enforcerUtilHelm rbac.EnforcerUtilHelm
 }
 
 func NewAppRestHandlerImpl(logger *zap.SugaredLogger, appService app.AppCrudOperationService,
 	userAuthService user.UserService, validator *validator.Validate, enforcerUtil rbac.EnforcerUtil,
-	enforcer casbin.Enforcer) *AppRestHandlerImpl {
+	enforcer casbin.Enforcer, helmAppService client.HelmAppService, enforcerUtilHelm rbac.EnforcerUtilHelm) *AppRestHandlerImpl {
 	handler := &AppRestHandlerImpl{
-		logger:          logger,
-		appService:      appService,
-		userAuthService: userAuthService,
-		validator:       validator,
-		enforcerUtil:    enforcerUtil,
-		enforcer:        enforcer,
+		logger:           logger,
+		appService:       appService,
+		userAuthService:  userAuthService,
+		validator:        validator,
+		enforcerUtil:     enforcerUtil,
+		enforcer:         enforcer,
+		helmAppService:   helmAppService,
+		enforcerUtilHelm: enforcerUtilHelm,
 	}
 	return handler
 }
@@ -131,24 +136,39 @@ func (handler AppRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, r *h
 	vars := mux.Vars(r)
 	//appId, err := strconv.Atoi(vars["appId"])
 
-	appId := vars["appId"]
+	token := r.Header.Get("token")
 
-	//if err != nil {
-	//	handler.logger.Errorw("request err, GetAppMetaInfo", "err", err, "appId", appId)
-	//	common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-	//	return
-	//}
-	//
-	////rback implementation starts here
-	//token := r.Header.Get("token")
-	//object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
-	//if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
-	//	common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
-	//	return
-	//}
-	//rback implementation ends here
+	appIdReq := vars["appId"]
+	appId, err := strconv.Atoi(appIdReq)
 
-	res, err := handler.appService.GetHelmAppMetaInfo(appId)
+	installedAppIdReq := vars["installedAppId"]
+	installedAppId, err := strconv.Atoi(installedAppIdReq)
+
+	if installedAppId == 0 {
+
+		decodedAppId, err := handler.helmAppService.DecodeAppId(appIdReq)
+
+		if err != nil {
+			handler.logger.Errorw("request error, error in decoding app Id", "err", err)
+			common.WriteJsonResp(w, err, "request error, error in decoding app Id", http.StatusBadRequest)
+		}
+
+		rbacObject := handler.enforcerUtilHelm.GetHelmObject(decodedAppId.ClusterId, decodedAppId.Namespace, decodedAppId.ReleaseName)
+
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, rbacObject); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+
+	} else {
+		object := handler.enforcerUtil.GetAppRBACNameByAppId(appId)
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
+			return
+		}
+	}
+
+	res, err := handler.appService.GetHelmAppMetaInfo(appIdReq)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

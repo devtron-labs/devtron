@@ -83,7 +83,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObject(clusterId int, namespace string, 
 
 		app, err := impl.appRepository.FindAppAndProjectByAppName(appName)
 
-		if err != nil {
+		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching app details", "err", err)
 			return ""
 		}

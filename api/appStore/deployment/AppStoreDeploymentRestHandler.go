@@ -517,6 +517,8 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 		return
 	}
 
+	token := r.Header.Get("token")
+
 	var request appStoreBean.UpdateProjectHelmAppDTO
 
 	decoder := json.NewDecoder(r.Body)
@@ -529,6 +531,57 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 	}
 
 	request.UserId = userId
+
+	if request.InstalledAppId == 0 {
+		appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
+		if err != nil {
+			handler.Logger.Errorw("error in decoding app id", "err", err)
+			common.WriteJsonResp(w, err, "error in decoding app id", http.StatusBadRequest)
+		}
+
+		// this rbac object checks that whether user have permission to change current project.
+
+		rbacObjectForCurrentProject := handler.enforcerUtilHelm.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+
+		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject)
+
+		if !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			return
+		}
+
+		// this rbac object check that whether user have permission for new project which he is updating.
+		rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
+
+		if !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			return
+		}
+	} else {
+
+		installedApp, _ := handler.appStoreDeploymentService.GetInstalledApp(request.InstalledAppId)
+
+		rbacObjectCurrentForCurrentProject := handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+
+		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectCurrentForCurrentProject)
+
+		if !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			return
+		}
+
+		rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+
+		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
+
+		if !ok {
+			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
+			return
+		}
+
+	}
 
 	err = handler.appStoreDeploymentService.UpdateProjectHelmApp(&request)
 

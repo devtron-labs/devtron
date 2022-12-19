@@ -313,10 +313,11 @@ type ChartRepoSearch struct {
 }
 
 type UpdateProjectHelmAppDTO struct {
-	AppId   string `json:"appId"`
-	AppName string `json:"appName"`
-	TeamId  int    `json:"teamId"`
-	UserId  int32  `json:"userId"`
+	AppId          string `json:"appId"`
+	InstalledAppId int    `json:"installedAppId"`
+	AppName        string `json:"appName"`
+	TeamId         int    `json:"teamId"`
+	UserId         int32  `json:"userId"`
 }
 
 type AppstoreDeploymentStatus int
