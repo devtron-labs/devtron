@@ -5,6 +5,7 @@ type GlobalTagDto struct {
 	Key                    string `json:"key,notnull"`
 	Description            string `json:"description,notnull"`
 	MandatoryProjectIdsCsv string `json:"mandatoryProjectIdsCsv"`
+	Propagate              bool   `json:"propagate"`
 	CreatedOnInMs          int64  `json:"createdOnInMs,notnull"`
 	UpdatedOnInMs          int64  `json:"updatedOnInMs"`
 }
@@ -12,6 +13,7 @@ type GlobalTagDto struct {
 type GlobalTagDtoForProject struct {
 	Key         string `json:"key,notnull"`
 	IsMandatory bool   `json:"isMandatory,notnull"`
+	Propagate   bool   `json:"propagate"`
 }
 
 type CreateGlobalTagsRequest struct {
@@ -22,6 +24,7 @@ type CreateGlobalTagDto struct {
 	Key                    string `json:"key,notnull"`
 	Description            string `json:"description,notnull"`
 	MandatoryProjectIdsCsv string `json:"mandatoryProjectIdsCsv"`
+	Propagate              bool   `json:"propagate"`
 }
 
 type DeleteGlobalTagsRequest struct {
@@ -35,4 +38,5 @@ type UpdateGlobalTagsRequest struct {
 type UpdateGlobalTagDto struct {
 	Id                     int    `json:"id,notnull"`
 	MandatoryProjectIdsCsv string `json:"mandatoryProjectIdsCsv"`
+	Propagate              bool   `json:"propagate"`
 }

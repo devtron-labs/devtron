@@ -7,6 +7,7 @@ CREATE TABLE "public"."global_tag"
     "id"                        int4         NOT NULL DEFAULT nextval('id_seq_global_tag'::regclass),
     "key"                       varchar(100) NOT NULL,
     "mandatory_project_ids_csv" varchar(100),
+    "propagate"                 bool,
     "description"               TEXT         NOT NULL,
     "active"                    bool,
     "created_on"                timestamptz  NOT NULL,

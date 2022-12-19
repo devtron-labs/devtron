@@ -91,6 +91,10 @@ components:
           type: string
           description: Comma saparated values of project Ids for mandatory tags
           example: "1,2"
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
+          example: true
         createdOnInMs:
           type: integer
           description: Creation time in milliseconds for that global tag
@@ -115,6 +119,10 @@ components:
           description: if the key is mandatory or not
           example: true
           nullable: false
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
+          example: true
     CreateGlobalTagsRequest:
       type: object
       properties:
@@ -139,6 +147,10 @@ components:
           type: string
           description: Comma saparated values of project Ids for mandatory tag
           example: "1,2"
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
+          example: true
     UpdateGlobalTagsRequest:
       type: object
       properties:
@@ -158,6 +170,10 @@ components:
           type: string
           description: Comma saparated values of project Ids for mandatory tag
           example: "1,2"
+        propagate:
+          type: boolean
+          description: Whether to propagate to kubernetes resources
+          example: true
     DeleteGlobalTagsRequest:
       type: object
       properties:

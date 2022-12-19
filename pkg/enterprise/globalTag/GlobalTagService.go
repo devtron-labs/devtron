@@ -24,6 +24,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/util/validation"
+	"strings"
 	"time"
 )
 
@@ -66,6 +67,7 @@ func (impl GlobalTagServiceImpl) GetAllActiveTags() ([]*GlobalTagDto, error) {
 			Key:                    globalTagFromDb.Key,
 			Description:            globalTagFromDb.Description,
 			MandatoryProjectIdsCsv: globalTagFromDb.MandatoryProjectIdsCsv,
+			Propagate:              globalTagFromDb.Propagate,
 			CreatedOnInMs:          globalTagFromDb.CreatedOn.UnixMilli(),
 		}
 		if !globalTagFromDb.UpdatedOn.IsZero() {
@@ -94,6 +96,7 @@ func (impl GlobalTagServiceImpl) GetAllActiveTagsForProject(projectId int) ([]*G
 		globalTag := &GlobalTagDtoForProject{
 			Key:         globalTagFromDb.Key,
 			IsMandatory: isMandatory,
+			Propagate:   globalTagFromDb.Propagate,
 		}
 		globalTags = append(globalTags, globalTag)
 	}
@@ -108,7 +111,7 @@ func (impl GlobalTagServiceImpl) CreateTags(request *CreateGlobalTagsRequest, cr
 	var globalTagsToSave []*GlobalTag
 	// validations
 	for _, tag := range request.Tags {
-		key := tag.Key
+		key := strings.TrimSpace(tag.Key)
 
 		// check if empty key
 		if len(key) == 0 {
@@ -122,12 +125,14 @@ func (impl GlobalTagServiceImpl) CreateTags(request *CreateGlobalTagsRequest, cr
 			return errors.New(errorMsg)
 		}
 
-		// check kubernetes label key validation logic
-		errs := validation.IsQualifiedName(key)
-		if len(errs) > 0 {
-			errorMsg := fmt.Sprintf("Validation error - tag - %s is not satisfying the label key criteria", key)
-			impl.logger.Errorw("error while checking if tag key valid", "errors", errs, "key", key)
-			return errors.New(errorMsg)
+		// check kubernetes label key validation logic if key needs to propagate
+		if tag.Propagate {
+			errs := validation.IsQualifiedName(key)
+			if len(errs) > 0 {
+				errorMsg := fmt.Sprintf("Validation error - tag - %s is not satisfying the label key criteria", key)
+				impl.logger.Errorw("error while checking if tag key valid", "errors", errs, "key", key)
+				return errors.New(errorMsg)
+			}
 		}
 
 		// Check if key exists with active true - if exists - return error
@@ -147,6 +152,7 @@ func (impl GlobalTagServiceImpl) CreateTags(request *CreateGlobalTagsRequest, cr
 			Key:                    key,
 			MandatoryProjectIdsCsv: tag.MandatoryProjectIdsCsv,
 			Description:            tag.Description,
+			Propagate:              tag.Propagate,
 			Active:                 true,
 			AuditLog:               sql.AuditLog{CreatedOn: time.Now(), CreatedBy: createdBy},
 		})
@@ -198,7 +204,20 @@ func (impl GlobalTagServiceImpl) UpdateTags(request *UpdateGlobalTagsRequest, up
 			impl.logger.Errorw("error while getting active global tag from DB", "error", err, "tagId", tagId)
 			return err
 		}
+
+		// check kubernetes label key validation logic if key needs to propagate
+		if tag.Propagate {
+			key := globalTagFromDb.Key
+			errs := validation.IsQualifiedName(key)
+			if len(errs) > 0 {
+				errorMsg := fmt.Sprintf("Validation error - tag - %s is not satisfying the label key criteria", key)
+				impl.logger.Errorw("error while checking if tag key valid", "errors", errs, "key", key)
+				return errors.New(errorMsg)
+			}
+		}
+
 		globalTagFromDb.MandatoryProjectIdsCsv = tag.MandatoryProjectIdsCsv
+		globalTagFromDb.Propagate = tag.Propagate
 		globalTagFromDb.UpdatedBy = updatedBy
 		globalTagFromDb.UpdatedOn = time.Now()
 		err = impl.globalTagRepository.Update(globalTagFromDb, tx)

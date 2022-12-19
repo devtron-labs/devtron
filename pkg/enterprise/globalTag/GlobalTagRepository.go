@@ -27,6 +27,7 @@ type GlobalTag struct {
 	Id                     int      `sql:"id,pk"`
 	Key                    string   `sql:"key, notnull"`
 	MandatoryProjectIdsCsv string   `sql:"mandatory_project_ids_csv"`
+	Propagate              bool     `sql:"propagate"`
 	Description            string   `sql:"description, notnull"`
 	Active                 bool     `sql:"active"`
 	sql.AuditLog
