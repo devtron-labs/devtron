@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/go-pg/pg"
@@ -46,19 +47,21 @@ type AppCrudOperationService interface {
 	GetAppListByTeamIds(teamIds []int, appType string) ([]*TeamAppBean, error)
 }
 type AppCrudOperationServiceImpl struct {
-	logger             *zap.SugaredLogger
-	appLabelRepository pipelineConfig.AppLabelRepository
-	appRepository      app.AppRepository
-	userRepository     repository.UserRepository
+	logger                 *zap.SugaredLogger
+	appLabelRepository     pipelineConfig.AppLabelRepository
+	appRepository          app.AppRepository
+	userRepository         repository.UserRepository
+	installedAppRepository repository2.InstalledAppRepository
 }
 
 func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRepository,
-	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository) *AppCrudOperationServiceImpl {
+	logger *zap.SugaredLogger, appRepository app.AppRepository, userRepository repository.UserRepository, installedAppRepository repository2.InstalledAppRepository) *AppCrudOperationServiceImpl {
 	return &AppCrudOperationServiceImpl{
-		appLabelRepository: appLabelRepository,
-		logger:             logger,
-		appRepository:      appRepository,
-		userRepository:     userRepository,
+		appLabelRepository:     appLabelRepository,
+		logger:                 logger,
+		appRepository:          appRepository,
+		userRepository:         userRepository,
+		installedAppRepository: installedAppRepository,
 	}
 }
 
@@ -338,7 +341,14 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 			return nil, err
 		}
 
-		app, err = impl.appRepository.FindAppAndProjectByAppId(appIdInt)
+		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(appIdInt)
+
+		app.Id = installedAppVersion.InstalledApp.AppId
+		app.AppName = installedAppVersion.InstalledApp.App.AppName
+		app.TeamId = installedAppVersion.InstalledApp.App.TeamId
+		app.Team.Name = installedAppVersion.InstalledApp.App.Team.Name
+		app.CreatedBy = installedAppVersion.InstalledApp.App.CreatedBy
+		app.Active = installedAppVersion.InstalledApp.App.Active
 
 		if err != nil {
 			impl.logger.Errorw("error in fetching App Meta Info", "error", err)
