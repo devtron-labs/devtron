@@ -2,9 +2,9 @@
 
 Container registries are used for storing images built by the CI Pipeline. You can configure the container registry using any container registry provider of your choice. It allows you to build, deploy and manage your container images with easy-to-use UI. 
 
-When configuring an application, you can choose the specific container registry and repository in the App Configuration > [Build Configuration](user-guide/creating-application/docker-build-configuration.md) section.
+When configuring an application, you can choose the specific container registry and repository in the App Configuration > [Build Configuration](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration) section.
 
-Provide the information in the following fields to configure the container registry from App Configuration > [Build Configuration](user-guide/creating-application/docker-build-configuration.md) section.
+Provide the information in the following fields to configure the container registry from App Configuration > [Build Configuration](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration) section.
 
 | Fields | Description |
 | --- | --- |
@@ -147,8 +147,9 @@ There are two options to manage the access of registry credentials:
 
 You can choose one of the two options for defining credentials:
 
-* [User Registry Credentials](https://docs.devtron.ai/v/v0.6/getting-started/global-configurations/docker-registries#user-registry-credentials)
-* [Specify Image Pull Secret](https://docs.devtron.ai/v/v0.6/getting-started/global-configurations/docker-registries#specify-image-pull-secret) 
+* [User Registry Credentials](#use-registry-credentials)
+* [Specify Image Pull Secret](#specify-image-pull-secrett) 
+
 
 ### Use Registry Credentials
 
@@ -193,7 +194,7 @@ The failure of deployment can be one of the following reasons:
 * Provided credentials may not have permission to pull container image from registry.
 * Provided credentials may be invalid.
 
-You can resolve the `ImagePullBackOff` issue by clicking **How to resolve?** which will take you to the **App Details** page.
+You can resolve the `ImagePullBackOff` issue by clicking **How to resolve?** on the **App Details** page.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/how-to-resolve-latest1.png)
 
