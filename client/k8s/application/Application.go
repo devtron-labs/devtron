@@ -180,7 +180,11 @@ func (impl K8sClientServiceImpl) ListEvents(ctx context.Context, restConfig *res
 	if !namespaced {
 		resourceIdentifier.Namespace = "default"
 	}
-	eventsClient, err := v1.NewForConfig(restConfig)
+	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	if err != nil {
+		return nil, err
+	}
+	eventsClient, err := v1.NewForConfigAndClient(restConfig, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting client for resource", "err", err)
 		return nil, err

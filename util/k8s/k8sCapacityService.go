@@ -160,7 +160,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(ctx context.Context
 	} else {
 		//update data for cluster detail api call
 		//getting metrics clientSet by rest config
-		metricsClientSet, err := metrics.NewForConfig(restConfig)
+		metricsClientSet, err := metrics.NewForConfigAndClient(restConfig, k8sHttpClient)
 		if err != nil {
 			impl.logger.Errorw("error in getting metrics client set", "err", err)
 			return nil, err

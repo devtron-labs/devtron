@@ -18,6 +18,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
 	"io"
@@ -422,7 +423,11 @@ func (impl *TerminalSessionHandlerImpl) getClientConfig(req *TerminalSessionRequ
 	cfg.Host = config.Host
 	cfg.BearerToken = config.BearerToken
 	cfg.Insecure = true
-	clientSet, err := kubernetes.NewForConfig(cfg)
+	k8sHttpClient, err := util.OverrideK8sHttpClient(cfg)
+	if err != nil {
+		return nil, nil, err
+	}
+	clientSet, err := kubernetes.NewForConfigAndClient(cfg, k8sHttpClient)
 	if err != nil {
 		impl.logger.Errorw("error in clientSet", "err", err)
 		return nil, nil, err

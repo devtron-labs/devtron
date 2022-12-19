@@ -2,6 +2,7 @@ package informer
 
 import (
 	"flag"
+	"github.com/devtron-labs/devtron/internal/util"
 	"os/user"
 	"path/filepath"
 	"sync"
@@ -105,7 +106,11 @@ func (impl *K8sInformerFactoryImpl) BuildInformer(clusterInfo []*bean.ClusterInf
 func (impl *K8sInformerFactoryImpl) buildInformerAndNamespaceList(clusterName string, config *rest.Config, mutex *sync.Mutex) map[string]map[string]bool {
 	allNamespaces := make(map[string]bool)
 	impl.globalMapClusterNamespace[clusterName] = allNamespaces
-	clusterClient, err := kubernetes.NewForConfig(config)
+	httpClient, err := util.OverrideK8sHttpClient(config)
+	if err != nil {
+		return impl.globalMapClusterNamespace
+	}
+	clusterClient, err := kubernetes.NewForConfigAndClient(config, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error in create k8s config", "err", err)
 		return impl.globalMapClusterNamespace
