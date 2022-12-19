@@ -15,7 +15,7 @@ Provide the information in the following fields to add your kubernetes cluster:
 | Field | Description |
 | :--- | :--- |
 | `Name` | Enter a name of your cluster. |
-| `Server URL` |  Server URL of a cluster.<br>Note: We recommended to use a self-hosted URL instead of cloud hosted URL.</br>  |
+| `Server URL` |  Server URL of a cluster.<br>Note: We recommended to use a [self-hosted URL](#benefits-of-self-hosted-url) instead of cloud hosted URL.</br>  |
 | `Bearer Token` | Bearer token of a cluster. |
 
 ### Get Cluster Credentials
@@ -52,13 +52,15 @@ devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconf
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/cluster-and-environments/generate-cluster-credentials.png)
 
-#### Benefits of Self-hosted URL
+### Benefits of Self-hosted URL
 
-Self-hosted URL will provide the following benefits:
+* Disaster Recovery: 
+  * It is not possible to edit the server URL of a cloud specific provider. If you're using an EKS URL (e.g.` *****.eu-west-1.elb.amazonaws.com`), it will be a tedious task to add a new cluster and migrate all the services one by one. 
+  * But in case of using a self-hosted URL (e.g. `clear.example.com`), you can just point to the new cluster's server URL in DNS manager and update the new cluster token and sync all the deployments.
 
-**\(a\) Disaster Recovery**: It is not possible to edit the server-url of a cluster. So if you're using an eks url, For eg- ` *****.eu-west-1.elb.amazonaws.com` it will be a tedious task to add a new cluster and migrate all the services one by one. While using a self-hosted url For eg- `clear.example.com` you can just point to the new cluster's server url in DNS manager and update the new cluster token and sync all the deployments.
-
-**\(b\) Easy cluster migrations**: Cluster url in case of managed Kubernetes clusters (like EKS, AKS, GKE etc) is cloud provider specific, so migrating your cluster from one provider to another will result in waste of time and effort. On the other hand, if using a self-hosted url migrations will be easy as the url is of single hosted domain independent of the cloud provider.
+* Easy Cluster Migrations: 
+  * In case of managed Kubernetes clusters (like EKS, AKS, GKE etc) which is a cloud provider specific, migrating your cluster from one provider to another will result in waste of time and effort. 
+  * On the other hand, migration for a  self-hosted URL is easy as the URL is of single hosted domain independent of the cloud provider.
 
 
 ### Configure Prometheus (Enable Applications Metrics)

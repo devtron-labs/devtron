@@ -33,33 +33,20 @@ If you select `GitHuB` as your git provider, please provide the information in t
 
 **Note**: We do NOT recommend using GitHub organization which contains your source code.
 
-* Create a new account on GitHub (if you do not have one).
-* On the upper-right corner of your GitHub page, click your profile photo, then click `Settings`.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/gitops-github.gif)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/github-settings.jpg)
-
-* On the `Access` section, click  `Organizations`.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/github-organizations.jpg)
-
-
-* On the `Organizations` section, click `New organization`.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/github-new-organization.jpg)
-
-* Pick a plan for your organization. You have the option to select `create free organization` also.
-
-* On the `Set up your organization` page, 
+1. Create a new account on GitHub (if you do not have one).
+2. On the upper-right corner of your GitHub page, click your profile photo, then click `Settings`.
+3. On the `Access` section, click  `Organizations`.
+4. On the `Organizations` section, click `New organization`.
+5. Pick a [plan](https://docs.github.com/en/get-started/learning-about-github/githubs-products) for your organization. You have the option to select `create free organization` also.
+6. On the `Set up your organization` page, 
    * Enter the `organization account name`, `contact email`.
    * Select the option your organization belongs to.
    * Verify your account and click `Next`.
    * Your `GitHub organization name` will be created. 
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/github-setup-your-org.jpg)
-
-* Go to your profile and click `Your organizations` to view all the organizations you created.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/your-organizations-github.jpg)
+7. Go to your profile and click `Your organizations` to view all the organizations you created.
 
 For more information about the plans available for your team, see [GitHub's products](https://docs.github.com/en/get-started/learning-about-github/githubs-products). You can also refer [GitHub organization](https://docs.github.com/en/github/setting-up-and-managing-organizations-and-teams/about-organizations) official doc page for more detail.
 
@@ -83,20 +70,14 @@ If you select `GitLab` as your git provider, please provide the information in t
 
 ### How to create organization in GitLab
 
-* Create a new account on GitLab (if you do not have one).
-* You can create a group by going to the 'Groups' tab on the GitLab dashboard and click `New group`.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/gitops-gitlab-latest.gif)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/new-group.jpg)
+1. Create a new account on GitLab (if you do not have one).
+2. You can create a group by going to the 'Groups' tab on the GitLab dashboard and click `New group`.
+3. Select `Create group`.
+4. Enter the group name (required) and select the optional descriptions, if require and click `Create group`.
 
-* Select `Create group`.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/click-create-new-group.jpg)
-
-* Enter the group name (required) and select the optional descriptions, if require and click `Create group`.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/create-group-jpg.png)
-
-* Your group will be created and your group name will be assigned with a new `Group ID` (e.g. 61413736).
+5. Your group will be created and your group name will be assigned with a new `Group ID` (e.g. 61512475).
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/group-id.jpg)
 
@@ -121,6 +102,8 @@ If you select `GitAzureLab` as your git provider, please provide the information
 ### How to create Azure DevOps project name
 
 **Note**: You need an organization before you can create a project. If you have not created an organization yet, create one by following the instructions in [Sign up, sign in to Azure DevOps](https://learn.microsoft.com/en-us/azure/devops/user-guide/sign-up-invite-teammates?view=azure-devops), which also creates a project. Or see [Create an organization or project collection](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/create-organization?view=azure-devops).
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/azure+devops/gitops-azure-latest1.gif)
 
 1. Go to Azure DevOps and navigate to Projects.
 2. Select your organization and click `New project`. 
@@ -151,24 +134,17 @@ If you select `Bitbucket Cloud` as your git provider, please provide the informa
 
 ### How to create Bitbucket workspace ID
 
-* Create a new individual account on Bitbucket (if you do not have one).
-* Select your profile and settings avatar on the upper-right corner of the top navigation bar.
-* Select `All workspaces` from the dropdown menu.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket/gitops-bitbucket.gif)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket/bitbucket-settings-latest.jpg)
-
-* Select the `Create workspace` on the upper-right corner of the `Workspaces` page.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket/bitbucket-workspace-latest.png)
-
-* On the `Create a Workspace` page:
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket/bitbucket-create-workspace-latest.jpg)
-
+1. Create a new individual account on Bitbucket (if you do not have one).
+2. Select your profile and settings avatar on the upper-right corner of the top navigation bar.
+3. Select `All workspaces` from the dropdown menu.
+4. Select the `Create workspace` on the upper-right corner of the `Workspaces` page.
+5. On the `Create a Workspace` page:
   * Enter a `Workspace name`. 
   * Enter a `Workspace ID`. Your ID cannot have any spaces or special characters, but numbers and capital letters are fine. This ID becomes part of the URL for the workspace and anywhere else where there is a label that identifies the team (API's, permission groups, OAuth, etc.).
   * Click `Create`.
-* Your `Workspace name` and `Workspace ID` will be created.
+6. Your `Workspace name` and `Workspace ID` will be created.
 
 You can also refer [Bitbucket Workspace Id](https://support.atlassian.com/bitbucket-cloud/docs/what-is-a-workspace/) official doc page for more detail.
 
