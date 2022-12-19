@@ -153,7 +153,7 @@ func (handler AppRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, r *h
 
 		object := handler.enforcerUtilHelm.GetHelmObject(appIdDecoded.ClusterId, appIdDecoded.Namespace, appIdDecoded.ReleaseName)
 
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceApplications, casbin.ActionGet, object); !ok {
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
