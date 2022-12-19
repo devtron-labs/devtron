@@ -16,109 +16,141 @@ Provide the information in the following fields to configure the container regis
 
 To add container registry, go to the `Container Registry` section of `Global Configurations`. Click **Add Container Registry**.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/add-container-registry.jpg)
+
+Provide the information in the following fields to add container registry.
+
 | Fields | Description |
 | --- | --- |
-| **Name** | Provide a name to your registry, this name will be shown to you in Build Configuration in the drop-down list. |
-| **Registry Type** | Select the registry type from the drop-down list. E.g., Docker. |
+| **Name** | Provide a name to your registry, this name will be shown to you on the [Build Configuration](user-guide/creating-application/docker-build-configuration.md) in the drop-down list. |
+| **Registry Type** | Select the registry type from the drop-down list:<br><ul><li>[ECR](#registry-type-ecr)</li></ul><ul><li>[Docker](#registry-type-docker)</li></ul><ul><li>[Azure](#registry-type-azure)</li></ul><ul><li>[Artifact Registry (GCP)](#registry-type-artifact-registry-gcp)</li></ul><ul><li>[GCR](#registry-type-google-container-registry-gcr)</li></ul><ul><li>[Quay](#registry-type-quay)</li></ul><ul><li>[Other](#registry-type-others)</li></ul>`Note`: For each **Registry Type**, the credential input fields are different. |
 | **Registry URL** | Provide the URL of your registry. |
 | **Set as default registry** | Enable this field to set as default registry hub for your images. |
 
-* For each **Registry Type**, the credential input fields are different. Please see the table below to know the required credential inputs as per the selected registry type.
-
-| Registry Type | Credentials |
-| --- | --- |
-| **ECR** | Select one of the authentication types:<ul><li>**EC2 IAM Role**</li></ul> <ul><li>**User Auth**<ul><li>`Access key ID`: </li></ul><ul><li>`Secret access key`</li></ul></li></ul>|
-| **Docker** | <ul><li>`Username`</li></ul> <ul><li>`Password/Token (Recommended:Token)`</li></ul> |
-| **Azure**  | <ul><li>`Username/Registry Name`</li></ul> <ul><li>`Password`</li></ul>  |
-| **Artifact Registry (GCP)**  | <ul><li>`Username`</li></ul> <ul><li>`Service Account JSON File*`</li></ul>  |
-| **GCR**  | <ul><li>`Username`</li></ul> <ul><li>`Service Account JSON File*`</li></ul>  |
-| **Quay**  | <ul><li>`Username`</li></ul> <ul><li>`Token`</li></ul>  |
-| **Other**  | <ul><li>`Username`</li></ul> <ul><li>`Password/Token`</li></ul>  |
-
   
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/add-container-registry.jpg)
-
-
-Please read each `registry type` in detail for you to help in choosing the right container registry for your application development needs.
-
-* [Registry Type: ECR](#registry-type-ecr)
-* [Registry Type: Docker](#registry-type-docker)
-* [Registry Type: Google Container Registry (GCR)](#registry-type-google-container-registry-gcr)
-* [Registry Type: Artifact Registry (GCP)](#registry-type-artifact-registry-gcp)
-* [Registry Type: Others](#registry-type-others)
-
 
 ### Registry Type: ECR
 
 To add an Amazon Elastic Container Registry (ECR), select the `ECR` Registry type.
 Amazon ECR is an AWS-managed container image registry service.
-The ECR provides resource-based permissions to the private repositories using AWS Identity and Access Management (IAM).
-ECR allows both Key-based and Role-based authentications.
+The ECR provides resource-based permissions to the private repositories using AWS Identity and Access Management (IAM). ECR allows both Key-based and Role-based authentications.
 
 Before you begin, create an [IAM user](https://docs.aws.amazon.com/AmazonECR/latest/userguide/get-set-up-for-amazon-ecr.html), and attach only ECR policy ( AmazonEC2ContainerRegistryFullAccess ) if using Key-based auth. Or attach the ECR policy ( AmazonEC2ContainerRegistryFullAccess) to the cluster worker nodes IAM role of your Kubernetes cluster if using Role-based access.
 
+Provide below information if you select the registry type as `ECR`. 
+
 | Fields | Description |
 | --- | --- |
-| **Name** | User-defined name for the registry in Devtron |
-| **Registry Type** | Select **ECR** |
-| **Registry URL** | This is the URL of your private registry in AWS. <br></br> For example, the URL format is: `https://xxxxxxxxxxxx.dkr.ecr.<region>.amazonaws.com`. <br></br>`xxxxxxxxxxxx` is your 12-digit AWS account Id. |
-| **Authentication Type** | <br></br> * **EC2 IAM role**: Authenticate with workernode IAM role. <br></br> * **User Auth**: Authenticate with an authorization token <br></br>  - **Access key ID**: Your AWS access key. <br></br>  - **Secret access key**: Your AWS secret access key ID. |
+| **Name** | User-defined name for the registry in Devtron. |
+| **Registry Type** | Select **ECR**. |
+| **Registry URL** | This is the URL of your private registry in AWS.<br>For example, the URL format is: `https://xxxxxxxxxxxx.dkr.ecr.<region>.amazonaws.com`. `xxxxxxxxxxxx` is your 12-digit AWS account ID.</br> |
+| **Authentication Type** | Select one of the authentication types:<ul><li>**EC2 IAM Role**: Authenticate with workernode IAM role</li></ul><ul><li>**User Auth**<ul><li>`Access key ID`: Your AWS access key</li></ul><ul><li>`Secret access key`: Your AWS secret access key ID</li></ul> |
+| **Set as default registry** | Enable this field to set `ECR` as default registry hub for your images. |
 
-![ECR Role-based authentication](https://devtron-public-asset.s3.us-east-2.amazonaws.com/Container-registeries/ECR-IAM-auth-role-based.png)
+Click **Save**.
 
-![ECR Key-based authentication](https://devtron-public-asset.s3.us-east-2.amazonaws.com/Container-registeries/ECR_user-auth-key-based.png)
-
-To set the `ECR` as the default registry hub for your images, enable the field **[x] Set as default registry** and then click **Save**.
-
-To use the ECR container image, go to the **Applications** page and select your application, and then select **App Configuration > [Build Configuration](./../creating-application/docker-build-configuration.md)**.
 
 ### Registry Type: Docker 
 
-You have to provide below information if you select the registry type as `Docker`.
+Provide below information if you select the registry type as `Docker`.
 
-* **Username**
+| Fields | Description |
+| --- | --- |
+| **Name** | User-defined name for the registry in Devtron. |
+| **Registry Type** | Select **Docker**. |
+| **Registry URL** | This is the URL of your private registry in Docker. E.g. `docker.io` |
+| **Username** | Provide the username of the docker hub account you used for creating your registry. |
+| **Password/Token** | Provide the password/[Token](https://docs.docker.com/docker-hub/access-tokens/) corresponding to your docker hub account. It is recommended to use `Token` for security purpose. |
+| **Set as default registry** | Enable this field to set `Docker` as default registry hub for your images. |
 
-Provide the username of the docker hub account you used for creating your registry.
+Click **Save**.
 
-* **Password**
+### Registry Type: Azure
 
-Provide the password/[Token](https://docs.docker.com/docker-hub/access-tokens/) corresponding to your docker hub account. 
-It is recommended to use `Token` for security purpose.
+For registry type: Azure, the service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting username and password for this registry.
 
-![](../../user-guide/global-configurations/images/Container_Registry_DockerHub.jpg)
+Provide below information if you select the registry type as `Azure`.
 
-### Registry Type: Google Container Registry (GCR) 
+| Fields | Description |
+| --- | --- |
+| **Name** | User-defined name for the registry in Devtron. |
+| **Registry Type** | Select **Azure**. |
+| **Registry URL/Login Server** | This is the URL of your private registry in Azure. E.g. `xxx.azurecr.io` |
+| **Username/Registry Name** | Provide the username of Azure container registry. |
+| **Password** | Provide the password of Azure container registry. |
+| **Set as default registry** | Enable this field to set `Azure` as default registry hub for your images. |
 
-You have to provide below information if you select the registry type as `GCR`.
-JSON key file authentication method can be used to authenticate with username and service account JSON file. Please follow [link](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) for getting username and service account JSON file for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in the `Service Account JSON File` field.  
- 
-![](../../user-guide/global-configurations/images/Container_Registry_gcr.jpg)
+Click **Save**.
+
 
 ### Registry Type: Artifact Registry (GCP) 
 
-You have to provide below information if you select the registry type as `Artifact Registry (GCP)`.
-JSON key file authentication method can be used to authenticate with username and service account JSON file. Please follow [link](https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key) for getting username and service account JSON file for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in `Service Account JSON File` field.
+JSON key file authentication method can be used to authenticate with username and service account JSON file. Please follow [link](https://cloud.google.com/artifact-registry/docs/docker/authentication#json-key) to get username and service account JSON file for this registry. 
+
+**Note**: Please remove all the white spaces from json key and wrap it in single quote while putting in `Service Account JSON File` field.
 
 
-### Registry Type: Azure
-Service principal authentication method can be used to authenticate with username and password. Please follow [link](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-auth-service-principal) for getting username and password for this registry.
+Provide below information if you select the registry type as `Artifact Registry (GCP)`.
+
+| Fields | Description |
+| --- | --- |
+| **Name** | User-defined name for the registry in Devtron. |
+| **Registry Type** | Select **Artifact Registry (GCP)**. |
+| **Registry URL** | This is the URL of your private registry in Artifact Registry (GCP). E.g. `region-docker.pkg.dev` |
+| **Username** | Provide the username of Artifact Registry (GCP) account. |
+| **Service Account JSON File** | Provide the Service Account JSON File of Artifact Registry (GCP). |
+| **Set as default registry** | Enable this field to set `Artifact Registry (GCP)` as default registry hub for your images. |
+
+Click **Save**.
+
+### Registry Type: Google Container Registry (GCR) 
+
+JSON key file authentication method can be used to authenticate with username and service account JSON file. Please follow [link](https://cloud.google.com/container-registry/docs/advanced-authentication#json-key) for getting username and service account JSON file for this registry. Please remove all the white spaces from json key and wrap it in single quote while putting in the `Service Account JSON File` field.  
+ 
+Provide below information if you select the registry type as `GCR`.
+
+| Fields | Description |
+| --- | --- |
+| **Name** | User-defined name for the registry in Devtron. |
+| **Registry Type** | Select **GCR**. |
+| **Registry URL** | This is the URL of your private registry in GCR. E.g. `gcr.io` |
+| **Username** | Provide the username of your GCR account. |
+| **Service Account JSON File** | Provide the Service Account JSON File of GCR. |
+| **Set as default registry** | Enable this field to set `GCR` as default registry hub for your images. |
+
+Click **Save**.
+
+### Registry Type: Quay
+
+Provide below information if you select the registry type as `Quay`.
+
+| Fields | Description |
+| --- | --- |
+| **Name** | User-defined name for the registry in Devtron. |
+| **Registry Type** | Select **Quay**. |
+| **Registry URL** | This is the URL of your private registry in Quay. E.g. `quay.io` |
+| **Username** | Provide the username of the Quay account. |
+| **Password/Token** | Provide the password of your Quay account. |
+| **Set as default registry** | Enable this field to set `Quay` as default registry hub for your images. |
+
+Click **Save**.
 
 
-### Registry Type: Others
+### Registry Type: Other
 
-You have to provide below information if you select the registry type as `Others`.
 
-* **Username**
+Provide below information if you select the registry type as `Other`.
 
-Provide the username of your account, where you have created your registry in.
+| Fields | Description |
+| --- | --- |
+| **Name** | User-defined name for the registry in Devtron. |
+| **Registry Type** | Select **Other**. |
+| **Registry URL** | This is the URL of your private registry. |
+| **Username** | Provide the username of your account where you have created your registry. |
+| **Password/Token** | Provide the Password/Token corresponding to the username of your registry. |
+| **Set as default registry** | Enable this field to set as default registry hub for your images. |
 
-* **Password/Token**
-
-Provide the Password/Token corresponding to the username of your registry.
-
-### Set as default registry:
-
-If you enable the `Set as default registry` option, then the registry name will be set as default in the `Container Registry` section on the App Configuration >`Build Configuration` page. This field is optional. You can keep it disabled.
+Click **Save**.
 
 ### Advance Registry URL Connection Options:
 
