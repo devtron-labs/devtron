@@ -1,5 +1,5 @@
 installer:
-  release: "v0.6.9"
+  release: "v0.6.10-rc.0"
   image: "quay.io/devtron/inception"
   tag: "1d2b87e5-185-11095"
   
@@ -7,7 +7,7 @@ components:
   dashboard:
     image: "quay.io/devtron/dashboard:7b2a16f9-325-12010"
   devtron:
-    image: "quay.io/devtron/hyperion:ea643ef9-280-12033"
+    image: "quay.io/devtron/hyperion:7715df5b-280-12037"
     cicdImage: "quay.io/devtron/devtron:7715df5b-326-12038"
   argocdDexServer:
     image: "ghcr.io/dexidp/dex:v2.30.2"
