@@ -326,7 +326,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 		}
 
 		if app.Id == 0 {
-			app.AppName = appId
+			app.AppName = appName
 		}
 
 	} else {
