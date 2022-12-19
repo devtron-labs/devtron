@@ -2,7 +2,7 @@
 
 Container registries are used to store images built by the CI Pipeline. Here you can configure the container registry you want to use for storing images.
 
-When configuring an application, you can choose which registry and repository it should use in the App Configuration > [Docker Build Config](../creating-application/deployment-template.md) section.
+When configuring an application, you can choose which registry and repository it should use in the App Configuration > [Docker Build Config](https://docs.devtron.ai/v/v0.5/usage/applications/creating-application/docker-build-configuration) section.
 
 ## Add Container Registry configuration:
 
@@ -134,4 +134,4 @@ secrets:
      value: '{"auths":{"https://index.docker.io/v1/":{"username":"<username>","password":"<password>}}}'
 ```     
 
-The `name` that you provide in values.yaml ie. `regcred` is name of the secret that will be used as `imagePullSecrets` to pull the image from docker hub to deploy. To know how `imagePullSecrets` will be used in the deployment-template, please follow the [documentation](https://docs.devtron.ai/devtron/user-guide/creating-application/deployment-template/rollout-deployment#imagepullsecrets).
+The `name` that you provide in values.yaml ie. `regcred` is name of the secret that will be used as `imagePullSecrets` to pull the image from docker hub to deploy. To know how `imagePullSecrets` will be used in the deployment-template, please follow the [documentation](https://docs.devtron.ai/v/v0.5/usage/applications/creating-application/deployment-template/rollout-deployment#imagepullsecrets).
