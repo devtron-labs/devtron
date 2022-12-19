@@ -14,6 +14,7 @@ import (
 	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
 	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
+	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	appStoreDiscoverRepository "github.com/devtron-labs/devtron/pkg/appStore/discover/repository"
@@ -51,13 +52,15 @@ type AppStoreDeploymentArgoCdServiceImpl struct {
 	chartTemplateService              util.ChartTemplateService
 	gitFactory                        *util.GitFactory
 	argoUserService                   argo.ArgoUserService
+	appStoreDeploymentCommonService   appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	gitOpsConfigRepository            repository3.GitOpsConfigRepository
 }
 
 func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreDeploymentFullModeService appStoreDeploymentFullMode.AppStoreDeploymentFullModeService,
 	acdClient application2.ServiceClient, chartGroupDeploymentRepository repository.ChartGroupDeploymentRepository,
 	installedAppRepository repository.InstalledAppRepository, installedAppRepositoryHistory repository.InstalledAppVersionHistoryRepository, chartTemplateService util.ChartTemplateService,
-	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, gitOpsConfigRepository repository3.GitOpsConfigRepository) *AppStoreDeploymentArgoCdServiceImpl {
+	gitFactory *util.GitFactory, argoUserService argo.ArgoUserService, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
+	gitOpsConfigRepository repository3.GitOpsConfigRepository) *AppStoreDeploymentArgoCdServiceImpl {
 	return &AppStoreDeploymentArgoCdServiceImpl{
 		Logger:                            logger,
 		appStoreDeploymentFullModeService: appStoreDeploymentFullModeService,
@@ -68,6 +71,7 @@ func NewAppStoreDeploymentArgoCdServiceImpl(logger *zap.SugaredLogger, appStoreD
 		chartTemplateService:              chartTemplateService,
 		gitFactory:                        gitFactory,
 		argoUserService:                   argoUserService,
+		appStoreDeploymentCommonService:   appStoreDeploymentCommonService,
 		gitOpsConfigRepository:            gitOpsConfigRepository,
 	}
 }
@@ -397,7 +401,17 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) UpdateInstalledApp(ctx context.C
 	installAppVersionRequest, err := impl.updateValuesYaml(environment, installedAppVersion, installAppVersionRequest)
 	if err != nil {
 		impl.Logger.Errorw("error while commit values to git", "error", err)
-		return nil, err
+		noTargetFound, _ := impl.appStoreDeploymentCommonService.ParseGitRepoErrorResponse(err)
+		if noTargetFound {
+			//if by mistake no content found while updating git repo, do auto fix
+			installAppVersionRequest, err = impl.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
+			if err != nil {
+				impl.Logger.Errorw("error while update repo on helm update", "error", err)
+				return nil, err
+			}
+		} else {
+			return nil, err
+		}
 	}
 	installAppVersionRequest.Environment = environment
 

@@ -48,6 +48,7 @@
     * [Git Repository](user-guide/creating-application/git-material.md)
     * [Build Configuration](user-guide/creating-application/docker-build-configuration.md)
     * [Deployment Template](user-guide/creating-application/deployment-template.md)
+      * [Deployment](user-guide/creating-application/deployment-template/deployment.md)
       * [Rollout Deployment](user-guide/creating-application/deployment-template/rollout-deployment.md)
       * [Job and Cronjob](user-guide/creating-application/deployment-template/job-and-cronjob.md)
     * [Workflow Overview](user-guide/creating-application/workflow/README.md)
@@ -94,6 +95,6 @@
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
 * [Telemetry Overview](user-guide/telemetry.md)
 
-## Depricated
+## Deprecated
 
 * [Hyperion](hyperion/devtron.md)
