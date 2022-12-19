@@ -315,7 +315,7 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 
 	appIdSplitted := strings.Split(appId, "|")
 
-	var app *app.App
+	app := &app.App{}
 	var err error
 
 	if len(appIdSplitted) > 1 {
