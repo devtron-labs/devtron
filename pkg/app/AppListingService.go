@@ -630,7 +630,7 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 
 	var appMetrics bool
 	var infraMetrics bool
-	newCtx, span := otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppId")
+	_, span := otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppId")
 	appLevelMetrics, err := impl.appLevelMetricsRepository.FindByAppId(appId)
 	span.End()
 	if err != nil && err != pg.ErrNoRows {
@@ -645,7 +645,7 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 	for _, env := range appDetailContainer.Environments {
 		var envLevelMetrics *bool
 		var envLevelInfraMetrics *bool
-		newCtx, span = otel.Tracer("orchestrator").Start(newCtx, "appLevelMetricsRepository.FindByAppIdAndEnvId")
+		_, span = otel.Tracer("orchestrator").Start(ctx, "appLevelMetricsRepository.FindByAppIdAndEnvId")
 		envLevelAppMetrics, err := impl.envLevelMetricsRepository.FindByAppIdAndEnvId(appId, env.EnvironmentId)
 		span.End()
 		if err != nil && err != pg.ErrNoRows {
@@ -668,7 +668,7 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 		i++
 	}
 
-	newCtx, span = otel.Tracer("orchestrator").Start(newCtx, "linkoutsRepository.FetchLinkoutsByAppIdAndEnvId")
+	_, span = otel.Tracer("orchestrator").Start(ctx, "linkoutsRepository.FetchLinkoutsByAppIdAndEnvId")
 	linkoutsModel, err := impl.linkoutsRepository.FetchLinkoutsByAppIdAndEnvId(appId, envId)
 	span.End()
 	if err != nil && err != pg.ErrNoRows {
@@ -683,7 +683,7 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 	appDetailContainer.LinkOuts = linkouts
 	appDetailContainer.AppId = appId
 
-	newCtx, span = otel.Tracer("orchestrator").Start(newCtx, "environmentRepository.FindById")
+	_, span = otel.Tracer("orchestrator").Start(ctx, "environmentRepository.FindById")
 	envModel, err := impl.environmentRepository.FindById(envId)
 	span.End()
 	if err != nil {
@@ -699,7 +699,7 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 	appDetailContainer.IsExternalCi = true
 	ciPipelineId := appDetailContainer.CiPipelineId
 	if ciPipelineId > 0 {
-		newCtx, span = otel.Tracer("orchestrator").Start(newCtx, "ciPipelineRepository.FindById")
+		_, span = otel.Tracer("orchestrator").Start(ctx, "ciPipelineRepository.FindById")
 		ciPipeline, err := impl.ciPipelineRepository.FindById(ciPipelineId)
 		span.End()
 		if err != nil && err != pg.ErrNoRows {
@@ -714,7 +714,7 @@ func (impl AppListingServiceImpl) FetchAppDetails(ctx context.Context, appId int
 				appDetailContainer.IsExternalCi = false
 			}
 
-			newCtx, span = otel.Tracer("orchestrator").Start(newCtx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
+			_, span = otel.Tracer("orchestrator").Start(ctx, "dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided")
 			// check ips access provided to this docker registry for that cluster
 			ipsAccessProvided, err := impl.dockerRegistryIpsConfigService.IsImagePullSecretAccessProvided(dockerRegistryId, clusterId)
 			span.End()
