@@ -26,8 +26,10 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/argocdServer/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/terminal"
+	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
@@ -63,15 +65,17 @@ type ArgoApplicationRestHandler interface {
 }
 
 type ArgoApplicationRestHandlerImpl struct {
-	client                 application.ServiceClient
-	logger                 *zap.SugaredLogger
-	pump                   connector.Pump
-	enforcer               casbin.Enforcer
-	teamService            team.TeamService
-	environmentService     cluster.EnvironmentService
-	enforcerUtil           rbac.EnforcerUtil
-	terminalSessionHandler terminal.TerminalSessionHandler
-	argoUserService        argo.ArgoUserService
+	client                    application.ServiceClient
+	logger                    *zap.SugaredLogger
+	pump                      connector.Pump
+	enforcer                  casbin.Enforcer
+	teamService               team.TeamService
+	environmentService        cluster.EnvironmentService
+	enforcerUtil              rbac.EnforcerUtil
+	terminalSessionHandler    terminal.TerminalSessionHandler
+	argoUserService           argo.ArgoUserService
+	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService
+	userService               user.UserService
 }
 
 func NewArgoApplicationRestHandlerImpl(client application.ServiceClient,
@@ -82,17 +86,21 @@ func NewArgoApplicationRestHandlerImpl(client application.ServiceClient,
 	logger *zap.SugaredLogger,
 	enforcerUtil rbac.EnforcerUtil,
 	terminalSessionHandler terminal.TerminalSessionHandler,
-	argoUserService argo.ArgoUserService) *ArgoApplicationRestHandlerImpl {
+	argoUserService argo.ArgoUserService,
+	K8sResourceHistoryService kubernetesResourceAuditLogs.K8sResourceHistoryService,
+	userService user.UserService) *ArgoApplicationRestHandlerImpl {
 	return &ArgoApplicationRestHandlerImpl{
-		client:                 client,
-		logger:                 logger,
-		pump:                   pump,
-		enforcer:               enforcer,
-		teamService:            teamService,
-		environmentService:     environmentService,
-		enforcerUtil:           enforcerUtil,
-		terminalSessionHandler: terminalSessionHandler,
-		argoUserService:        argoUserService,
+		client:                    client,
+		logger:                    logger,
+		pump:                      pump,
+		enforcer:                  enforcer,
+		teamService:               teamService,
+		environmentService:        environmentService,
+		enforcerUtil:              enforcerUtil,
+		terminalSessionHandler:    terminalSessionHandler,
+		argoUserService:           argoUserService,
+		K8sResourceHistoryService: K8sResourceHistoryService,
+		userService:               userService,
 	}
 }
 
@@ -604,6 +612,9 @@ func (impl ArgoApplicationRestHandlerImpl) PatchResource(w http.ResponseWriter, 
 }
 
 func (impl ArgoApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter, r *http.Request) {
+
+	userId, err := impl.userService.GetLoggedInUser(r)
+
 	vars := mux.Vars(r)
 	appNameACD := vars["appNameACD"]
 	name := vars["name"]
@@ -677,6 +688,13 @@ func (impl ArgoApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter,
 	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 	recv, err := impl.client.DeleteResource(ctx, query)
+
+	ResourceHistoryErr := impl.K8sResourceHistoryService.SaveArgoCdAppsResourceDeleteHistory(query, id, eId, userId)
+
+	if ResourceHistoryErr != nil {
+		impl.logger.Errorw("error in saving audit logs of delete resource request for argo cd apps", "err", ResourceHistoryErr)
+	}
+
 	impl.pump.StartMessage(w, recv, err)
 }
 
