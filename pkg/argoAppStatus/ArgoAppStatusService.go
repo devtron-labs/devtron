@@ -17,7 +17,7 @@ type EnvironmentStatusContainer struct {
 }
 
 type ArgoAppStatusService interface {
-	GetAll() []AppStatusRequestResponseDto
+	GetAll(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error)
 }
 
 type ArgoAppStatusServiceImpl struct {
@@ -25,7 +25,15 @@ type ArgoAppStatusServiceImpl struct {
 	logger                  *zap.SugaredLogger
 }
 
-func (impl *ArgoAppStatusServiceImpl) GetAll(requests []AppStatusRequestResponseDto) []AppStatusRequestResponseDto {
+func NewArgoAppStatusServiceImpl(argoAppStatusRepository argoAppStatus.ArgoAppStatusRepository, logger *zap.SugaredLogger) *ArgoAppStatusServiceImpl {
+	return &ArgoAppStatusServiceImpl{
+		argoAppStatusRepository: argoAppStatusRepository,
+		logger:                  logger,
+	}
+
+}
+
+func (impl *ArgoAppStatusServiceImpl) GetAll(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error) {
 	appIds := make([]int, 0)
 	installedAppIds := make([]int, 0)
 	for _, request := range requests {
@@ -39,7 +47,7 @@ func (impl *ArgoAppStatusServiceImpl) GetAll(requests []AppStatusRequestResponse
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching argo-app-statuses from argo-app-status repository for ", "appids", appIds, "installAppIds", installedAppIds)
 		res := make([]AppStatusRequestResponseDto, 0)
-		return res
+		return res, err
 	}
 	environmentStatusMap := make(map[int][]EnvironmentStatusContainer)
 	environmentStatusMapForInstalledApps := make(map[int][]EnvironmentStatusContainer)
@@ -82,5 +90,5 @@ func (impl *ArgoAppStatusServiceImpl) GetAll(requests []AppStatusRequestResponse
 		itr++
 	}
 
-	return response
+	return response, nil
 }

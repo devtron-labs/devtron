@@ -34,6 +34,13 @@ type ArgoAppStatusRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
+func NewArgoAppStatusRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *ArgoAppStatusRepositoryImpl {
+	return &ArgoAppStatusRepositoryImpl{
+		dbConnection: dbConnection,
+		logger:       logger,
+	}
+}
+
 func (repo *ArgoAppStatusRepositoryImpl) Create(container ArgoAppStatusContainer) error {
 	return nil
 }
