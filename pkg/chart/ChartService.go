@@ -22,6 +22,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"go.opentelemetry.io/otel"
 
 	"github.com/devtron-labs/devtron/internal/constants"
 
@@ -126,14 +127,14 @@ type ChartService interface {
 	FindLatestChartForAppByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	GetByAppIdAndChartRefId(appId int, chartRefId int) (chartTemplate *TemplateRequest, err error)
 	GetAppOverrideForDefaultTemplate(chartRefId int) (map[string]interface{}, error)
-	UpdateAppOverride(templateRequest *TemplateRequest) (*TemplateRequest, error)
+	UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateRequest, error)
 	IsReadyToTrigger(appId int, envId int, pipelineId int) (IsReady, error)
 	ChartRefAutocomplete() ([]chartRef, error)
 	ChartRefAutocompleteForAppOrEnv(appId int, envId int) (*chartRefResponse, error)
 	FindPreviousChartByAppId(appId int) (chartTemplate *TemplateRequest, err error)
 	UpgradeForApp(appId int, chartRefId int, newAppOverride map[string]interface{}, userId int32, ctx context.Context) (bool, error)
 	AppMetricsEnableDisable(appMetricRequest AppMetricEnableDisableRequest) (*AppMetricEnableDisableRequest, error)
-	DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error)
+	DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int) (bool, error)
 	JsonSchemaExtractFromFile(chartRefId int) (map[string]interface{}, string, error)
 	GetSchemaAndReadmeForTemplateByChartRefId(chartRefId int) (schema []byte, readme []byte, err error)
 	ExtractChartIfMissing(chartData []byte, refChartDir string, location string) (*ChartDataInfo, error)
@@ -781,9 +782,11 @@ func (impl ChartServiceImpl) GetByAppIdAndChartRefId(appId int, chartRefId int) 
 	return chartTemplate, err
 }
 
-func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest) (*TemplateRequest, error) {
+func (impl ChartServiceImpl) UpdateAppOverride(ctx context.Context, templateRequest *TemplateRequest) (*TemplateRequest, error) {
 
+	_, span := otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindById")
 	template, err := impl.chartRepository.FindById(templateRequest.Id)
+	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart config", "id", templateRequest.Id, "err", err)
 		return nil, err
@@ -796,7 +799,9 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 	}
 
 	//STARTS
+	_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindLatestChartForAppByAppId")
 	currentLatestChart, err := impl.chartRepository.FindLatestChartForAppByAppId(templateRequest.AppId)
+	span.End()
 	if err != nil {
 		return nil, err
 	}
@@ -809,13 +814,17 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 
 		impl.logger.Debug("updating all other charts which are not latest but may be set previous true, setting previous=false")
 		//step 3
+		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.FindNoLatestChartForAppByAppId")
 		noLatestCharts, err := impl.chartRepository.FindNoLatestChartForAppByAppId(templateRequest.AppId)
+		span.End()
 		for _, noLatestChart := range noLatestCharts {
 			if noLatestChart.Id != templateRequest.Id {
 
 				noLatestChart.Latest = false // these are already false by d way
 				noLatestChart.Previous = false
+				_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.Update")
 				err = impl.chartRepository.Update(noLatestChart)
+				span.End()
 				if err != nil {
 					return nil, err
 				}
@@ -826,7 +835,9 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 		// now finally update latest entry in db to false and previous true
 		currentLatestChart.Latest = false // these are already false by d way
 		currentLatestChart.Previous = true
+		_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.Update.LatestChart")
 		err = impl.chartRepository.Update(currentLatestChart)
+		span.End()
 		if err != nil {
 			return nil, err
 		}
@@ -849,28 +860,36 @@ func (impl ChartServiceImpl) UpdateAppOverride(templateRequest *TemplateRequest)
 	template.Previous = false
 	template.IsBasicViewLocked = templateRequest.IsBasicViewLocked
 	template.CurrentViewEditor = templateRequest.CurrentViewEditor
+	_, span = otel.Tracer("orchestrator").Start(ctx, "chartRepository.Update.requestTemplate")
 	err = impl.chartRepository.Update(template)
+	span.End()
 	if err != nil {
 		return nil, err
 	}
 
 	if !(chartMajorVersion >= 3 && chartMinorVersion >= 7) {
 		appMetricRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: false}
+		_, span = otel.Tracer("orchestrator").Start(ctx, "updateAppLevelMetrics")
 		_, err = impl.updateAppLevelMetrics(&appMetricRequest)
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("error in disable app metric flag", "error", err)
 			return nil, err
 		}
 	} else {
 		appMetricsRequest := AppMetricEnableDisableRequest{UserId: templateRequest.UserId, AppId: templateRequest.AppId, IsAppMetricsEnabled: templateRequest.IsAppMetricsEnabled}
+		_, span = otel.Tracer("orchestrator").Start(ctx, "updateAppLevelMetrics")
 		_, err = impl.updateAppLevelMetrics(&appMetricsRequest)
+		span.End()
 		if err != nil {
 			impl.logger.Errorw("err while updating app metrics", "err", err)
 			return nil, err
 		}
 	}
+	_, span = otel.Tracer("orchestrator").Start(ctx, "CreateDeploymentTemplateHistoryFromGlobalTemplate")
 	//creating history entry for deployment template
 	err = impl.deploymentTemplateHistoryService.CreateDeploymentTemplateHistoryFromGlobalTemplate(template, nil, templateRequest.IsAppMetricsEnabled)
+	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in creating entry for deployment template history", "err", err, "chart", template)
 		return nil, err
@@ -1246,8 +1265,10 @@ const cpuPattern = `"50m" or "0.05"`
 const cpu = "cpu"
 const memory = "memory"
 
-func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}, chartRefId int) (bool, error) {
+func (impl ChartServiceImpl) DeploymentTemplateValidate(ctx context.Context, templatejson interface{}, chartRefId int) (bool, error) {
+	_, span := otel.Tracer("orchestrator").Start(ctx, "JsonSchemaExtractFromFile")
 	schemajson, version, err := impl.JsonSchemaExtractFromFile(chartRefId)
+	span.End()
 	if err != nil {
 		impl.logger.Errorw("Json Schema not found err, FindJsonSchema", "err", err)
 		return true, nil
@@ -1266,7 +1287,9 @@ func (impl ChartServiceImpl) DeploymentTemplateValidate(templatejson interface{}
 		impl.logger.Errorw("json template marshal err, DeploymentTemplateValidate", "err", err)
 		return false, err
 	}
+	_, span = otel.Tracer("orchestrator").Start(ctx, "gojsonschema.Validate")
 	result, err := gojsonschema.Validate(schemaLoader, documentLoader)
+	span.End()
 	if err != nil {
 		impl.logger.Errorw("result validate err, DeploymentTemplateValidate", "err", err)
 		return false, err
