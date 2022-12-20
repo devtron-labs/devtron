@@ -1,9 +1,5 @@
 ## v0.6.9
 
-
-
-## v0.6.9
-
 ## Bugs
 - fix: specific error message if token is invalid while saving cluster (#2760)
 - fix: Ignoring propagating invalid labels in app to values.yaml during deployment (#2734)
