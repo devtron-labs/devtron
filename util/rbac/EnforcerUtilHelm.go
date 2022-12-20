@@ -15,6 +15,7 @@ type EnforcerUtilHelm interface {
 	GetHelmObjectByClusterId(clusterId int, namespace string, appName string) string
 	GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string
 	GetHelmObject(clusterId int, namespace string, appName string) string
+	GetAppRBACNameByInstalledAppVersionId(installedAppVersionId int) string
 }
 type EnforcerUtilHelmImpl struct {
 	logger                 *zap.SugaredLogger
@@ -109,5 +110,18 @@ func (impl EnforcerUtilHelmImpl) GetHelmObject(clusterId int, namespace string, 
 		// for apps which are assigned to a project and have env ID
 		return fmt.Sprintf("%s/%s/%s", installedApp.App.Team.Name, installedApp.Environment.EnvironmentIdentifier, strings.ToLower(appName))
 	}
+
+}
+
+func (impl EnforcerUtilHelmImpl) GetAppRBACNameByInstalledAppVersionId(installedAppVersionId int) string {
+
+	installedAppVersion, err := impl.InstalledAppRepository.GetInstalledAppVersion(installedAppVersionId)
+
+	if err != nil {
+		impl.logger.Errorw("error in fetching installed app version data", "err", err)
+		return fmt.Sprintf("%s/%s/%s", "", "", "")
+	}
+
+	return fmt.Sprintf("%s/%s/%s", installedAppVersion.InstalledApp.App.Team.Name, installedAppVersion.InstalledApp.Environment.EnvironmentIdentifier, strings.ToLower(installedAppVersion.InstalledApp.App.AppName))
 
 }

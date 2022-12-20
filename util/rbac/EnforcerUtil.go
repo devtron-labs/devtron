@@ -21,7 +21,6 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
-	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"go.uber.org/zap"
@@ -48,33 +47,30 @@ type EnforcerUtil interface {
 	GetHelmObjectByProjectIdAndEnvId(teamId int, envId int) (string, string)
 	GetEnvRBACNameByCdPipelineIdAndEnvId(cdPipelineId int, envId int) string
 	GetAppRBACNameByTeamIdAndAppId(teamId int, appId int) string
-	GetAppRBACNameByInstalledAppVersionId(installedAppVersionId int) string
 }
 type EnforcerUtilImpl struct {
-	logger                 *zap.SugaredLogger
-	teamRepository         team.TeamRepository
-	appRepo                app.AppRepository
-	environmentRepository  repository.EnvironmentRepository
-	pipelineRepository     pipelineConfig.PipelineRepository
-	ciPipelineRepository   pipelineConfig.CiPipelineRepository
-	clusterRepository      repository.ClusterRepository
-	installedAppRepository repository2.InstalledAppRepository
+	logger                *zap.SugaredLogger
+	teamRepository        team.TeamRepository
+	appRepo               app.AppRepository
+	environmentRepository repository.EnvironmentRepository
+	pipelineRepository    pipelineConfig.PipelineRepository
+	ciPipelineRepository  pipelineConfig.CiPipelineRepository
+	clusterRepository     repository.ClusterRepository
 	*EnforcerUtilHelmImpl
 }
 
 func NewEnforcerUtilImpl(logger *zap.SugaredLogger, teamRepository team.TeamRepository,
 	appRepo app.AppRepository, environmentRepository repository.EnvironmentRepository,
 	pipelineRepository pipelineConfig.PipelineRepository, ciPipelineRepository pipelineConfig.CiPipelineRepository,
-	clusterRepository repository.ClusterRepository, installedAppRepository repository2.InstalledAppRepository) *EnforcerUtilImpl {
+	clusterRepository repository.ClusterRepository) *EnforcerUtilImpl {
 	return &EnforcerUtilImpl{
-		logger:                 logger,
-		teamRepository:         teamRepository,
-		appRepo:                appRepo,
-		environmentRepository:  environmentRepository,
-		pipelineRepository:     pipelineRepository,
-		ciPipelineRepository:   ciPipelineRepository,
-		clusterRepository:      clusterRepository,
-		installedAppRepository: installedAppRepository,
+		logger:                logger,
+		teamRepository:        teamRepository,
+		appRepo:               appRepo,
+		environmentRepository: environmentRepository,
+		pipelineRepository:    pipelineRepository,
+		ciPipelineRepository:  ciPipelineRepository,
+		clusterRepository:     clusterRepository,
 		EnforcerUtilHelmImpl: &EnforcerUtilHelmImpl{
 			logger:            logger,
 			clusterRepository: clusterRepository,
@@ -419,17 +415,4 @@ func (impl EnforcerUtilImpl) GetAppRBACNameByTeamIdAndAppId(teamId int, appId in
 		return fmt.Sprintf("%s/%s", "", "")
 	}
 	return fmt.Sprintf("%s/%s", strings.ToLower(team.Name), strings.ToLower(application.AppName))
-}
-
-func (impl EnforcerUtilImpl) GetAppRBACNameByInstalledAppVersionId(installedAppVersionId int) string {
-
-	installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(installedAppVersionId)
-
-	if err != nil {
-		impl.logger.Errorw("error in fetching installed app version data", "err", err)
-		return fmt.Sprintf("%s/%s", "", "")
-	}
-
-	return fmt.Sprintf("%s/%s", strings.ToLower(installedAppVersion.InstalledApp.App.Team.Name), strings.ToLower(installedAppVersion.InstalledApp.App.AppName))
-
 }
