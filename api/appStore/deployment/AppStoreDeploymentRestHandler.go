@@ -563,7 +563,11 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 		}
 	} else {
 
-		installedApp, _ := handler.appStoreDeploymentService.GetInstalledApp(request.InstalledAppId)
+		installedApp, err := handler.appStoreDeploymentService.GetInstalledAppVersion(request.InstalledAppId, userId)
+
+		if err != nil {
+			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app version details"), nil, http.StatusBadRequest)
+		}
 
 		rbacObjectCurrentForCurrentProject := handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 
