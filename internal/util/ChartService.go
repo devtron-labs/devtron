@@ -28,6 +28,7 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util"
+	"go.opentelemetry.io/otel"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -61,7 +62,7 @@ type ChartTemplateService interface {
 	GetGitOpsRepoNameFromUrl(gitRepoUrl string) string
 	CreateGitRepositoryForApp(gitOpsRepoName, baseTemplateName, version string, userId int32) (chartGitAttribute *ChartGitAttribute, err error)
 	RegisterInArgo(chartGitAttribute *ChartGitAttribute, ctx context.Context) error
-	BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error
+	BuildChartAndPushToGitRepo(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error
 	GetByteArrayRefChart(chartMetaData *chart.Metadata, referenceTemplatePath string) ([]byte, error)
 	CreateReadmeInGitRepo(gitOpsRepoName string, userId int32) error
 }
@@ -181,7 +182,7 @@ func (impl ChartTemplateServiceImpl) FetchValuesFromReferenceChart(chartMetaData
 	return values, chartGitAttr, nil
 }
 
-func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *chart.Metadata, referenceTemplatePath string, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error {
+func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(ctx context.Context, chartMetaData *chart.Metadata, referenceTemplatePath, gitOpsRepoName, referenceTemplate, version, repoUrl string, userId int32) error {
 	impl.logger.Debugw("package chart and push to git", "gitOpsRepoName", gitOpsRepoName, "version", version, "referenceTemplate", referenceTemplate, "repoUrl", repoUrl)
 	chartMetaData.ApiVersion = "v1" // ensure always v1
 	dir := impl.GetDir()
@@ -199,13 +200,17 @@ func (impl ChartTemplateServiceImpl) BuildChartAndPushToGitRepo(chartMetaData *c
 		impl.logger.Errorw("error in copying chart for app", "app", chartMetaData.Name, "error", err)
 		return err
 	}
+	_, span := otel.Tracer("orchestrator").Start(ctx, "impl.packageChart")
 	_, _, err = impl.packageChart(tempReferenceTemplateDir, chartMetaData)
+	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in creating archive", "err", err)
 		return err
 	}
 
+	_, span = otel.Tracer("orchestrator").Start(ctx, "pushChartToGitRepo")
 	err = impl.pushChartToGitRepo(gitOpsRepoName, referenceTemplate, version, tempReferenceTemplateDir, repoUrl, userId)
+	span.End()
 	if err != nil {
 		impl.logger.Errorw("error in pushing chart to git ", "err", err)
 		return err
