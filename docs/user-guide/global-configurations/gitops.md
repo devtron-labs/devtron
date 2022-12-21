@@ -33,7 +33,8 @@ If you select `GitHuB` as your git provider, please provide the information in t
 
 **Note**: We do NOT recommend using GitHub organization which contains your source code.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/gitops-github.gif)
+
+{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/gitops-github.mp4" caption="GitHub" %}
 
 1. Create a new account on GitHub (if you do not have one).
 2. On the upper-right corner of your GitHub page, click your profile photo, then click `Settings`.
@@ -71,6 +72,7 @@ If you select `GitLab` as your git provider, please provide the information in t
 ### How to create organization in GitLab
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/gitops-gitlab-latest.gif)
+
 
 1. Create a new account on GitLab (if you do not have one).
 2. You can create a group by going to the 'Groups' tab on the GitLab dashboard and click `New group`.
