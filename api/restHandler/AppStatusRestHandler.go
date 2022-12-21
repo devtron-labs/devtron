@@ -8,6 +8,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user"
 	"go.uber.org/zap"
 	"net/http"
+	"strings"
 )
 
 type AppStatusRestHandler interface {
@@ -36,7 +37,12 @@ func (handler *AppStatusRestHandlerImpl) GetAllDevtronAppStatuses(w http.Respons
 	if userId == 0 || err != nil {
 		return
 	}
-	token := r.Header.Get("token")
+	userInfo, err := handler.userAuthService.GetById(userId)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	userEmailId := strings.ToLower(userInfo.EmailId)
 	var requests []appStatus.AppStatusRequestResponseDto
 	err = decoder.Decode(&requests)
 	if err != nil {
@@ -56,9 +62,9 @@ func (handler *AppStatusRestHandlerImpl) GetAllDevtronAppStatuses(w http.Respons
 		}
 	}
 	if allDevtronAppRequests == len(requests) {
-		responses, err = handler.argoAppStatusService.GetAllDevtronAppStatuses(requests, token)
+		responses, err = handler.argoAppStatusService.GetAllDevtronAppStatuses(requests, userEmailId)
 	} else if allInstalledAppRequests == len(requests) {
-		responses, err = handler.argoAppStatusService.GetAllInstalledAppStatuses(requests, token)
+		responses, err = handler.argoAppStatusService.GetAllInstalledAppStatuses(requests, userEmailId)
 	} else {
 		handler.logger.Errorw("Invalid request payload", "payload", requests)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)

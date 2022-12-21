@@ -1,23 +1,23 @@
 package appStatus
 
 import (
+	"fmt"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
+	"strings"
 )
 
 type AppStatusRequestResponseDto struct {
 	AppId                       int                          `json:"appId"`
-	AppName                     string                       `json:"-"`
 	InstalledAppId              int                          `json:"installedAppId"`
 	EnvironmentStatusContainers []EnvironmentStatusContainer `json:"environmentStatusContainers"`
 }
 
 type EnvironmentStatusContainer struct {
-	EnvId   int    `json:"envId"`
-	EnvName string `json:"-"`
-	Status  int    `json:"status"`
+	EnvId  int `json:"envId"`
+	Status int `json:"status"`
 }
 
 type AppStatusService interface {
@@ -42,7 +42,16 @@ func NewArgoAppStatusServiceImpl(argoAppStatusRepository appStatus.AppStatusRepo
 
 }
 
-func (impl *AppStatusServiceImpl) GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error) {
+func (impl *AppStatusServiceImpl) getRBACObjectMap(containers []appStatus.AppStatusContainer, userEmailId string) map[string]bool {
+	objectArray := make([]string, len(containers))
+	for i := 0; i < len(containers); i++ {
+		objectArray[i] = fmt.Sprintf("%s/%s", strings.ToLower(containers[i].EnvIdentifier), strings.ToLower(containers[i].AppName))
+	}
+	rbacObjectMap := impl.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
+	return rbacObjectMap
+}
+
+func (impl *AppStatusServiceImpl) GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto, userEmailId string) ([]AppStatusRequestResponseDto, error) {
 	appIds := make([]int, 0)
 	for _, request := range requests {
 		if request.AppId > 0 {
@@ -56,9 +65,17 @@ func (impl *AppStatusServiceImpl) GetAllDevtronAppStatuses(requests []AppStatusR
 		res := make([]AppStatusRequestResponseDto, 0)
 		return res, err
 	}
+
+	//Rbac
+	rbacObjectMap := impl.getRBACObjectMap(containers, userEmailId)
 	environmentStatusMap := make(map[int][]EnvironmentStatusContainer)
 
 	for _, container := range containers {
+		object := fmt.Sprintf("%s/%s", strings.ToLower(container.EnvIdentifier), strings.ToLower(container.AppName))
+		ok := rbacObjectMap[object]
+		if !ok {
+			continue
+		}
 		envContainer := EnvironmentStatusContainer{
 			EnvId:  container.EnvId,
 			Status: container.Status,
@@ -85,12 +102,10 @@ func (impl *AppStatusServiceImpl) GetAllDevtronAppStatuses(requests []AppStatusR
 	return response, nil
 }
 
-func (impl *AppStatusServiceImpl) GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error) {
-	InstalledAppIdAppNameMap := make(map[int]string)
+func (impl *AppStatusServiceImpl) GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto, userEmailId string) ([]AppStatusRequestResponseDto, error) {
 	installedAppIds := make([]int, 0)
 	for _, request := range requests {
 		if request.InstalledAppId > 0 {
-			InstalledAppIdAppNameMap[request.InstalledAppId] = request.AppName
 			installedAppIds = append(installedAppIds, request.InstalledAppId)
 		}
 	}
@@ -101,9 +116,14 @@ func (impl *AppStatusServiceImpl) GetAllInstalledAppStatuses(requests []AppStatu
 		res := make([]AppStatusRequestResponseDto, 0)
 		return res, err
 	}
-
+	rbacObjectMap := impl.getRBACObjectMap(containers, userEmailId)
 	environmentStatusMapForInstalledApps := make(map[int][]EnvironmentStatusContainer)
 	for _, container := range containers {
+		object := fmt.Sprintf("%s/%s", strings.ToLower(container.EnvIdentifier), strings.ToLower(container.AppName))
+		ok := rbacObjectMap[object]
+		if !ok {
+			continue
+		}
 		envContainer := EnvironmentStatusContainer{
 			EnvId:  container.EnvId,
 			Status: container.Status,
