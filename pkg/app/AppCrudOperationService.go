@@ -341,14 +341,14 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 			return nil, err
 		}
 
-		installedAppVersion, err := impl.installedAppRepository.GetInstalledAppVersion(appIdInt)
+		InstalledApp, err := impl.installedAppRepository.GetInstalledApp(appIdInt)
 
-		app.Id = installedAppVersion.InstalledApp.AppId
-		app.AppName = installedAppVersion.InstalledApp.App.AppName
-		app.TeamId = installedAppVersion.InstalledApp.App.TeamId
-		app.Team.Name = installedAppVersion.InstalledApp.App.Team.Name
-		app.CreatedBy = installedAppVersion.InstalledApp.App.CreatedBy
-		app.Active = installedAppVersion.InstalledApp.App.Active
+		app.Id = InstalledApp.AppId
+		app.AppName = InstalledApp.App.AppName
+		app.TeamId = InstalledApp.App.TeamId
+		app.Team.Name = InstalledApp.App.Team.Name
+		app.CreatedBy = InstalledApp.App.CreatedBy
+		app.Active = InstalledApp.App.Active
 
 		if err != nil {
 			impl.logger.Errorw("error in fetching App Meta Info", "error", err)
