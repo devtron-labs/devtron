@@ -4,6 +4,8 @@ import (
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	application2 "github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"go.uber.org/zap"
@@ -16,15 +18,19 @@ type K8sResourceHistoryService interface {
 }
 
 type K8sResourceHistoryServiceImpl struct {
+	appRepository                app.AppRepository
 	K8sResourceHistoryRepository repository.K8sResourceHistoryRepository
 	logger                       *zap.SugaredLogger
+	envRepository                repository2.EnvironmentRepository
 }
 
 func Newk8sResourceHistoryServiceImpl(K8sResourceHistoryRepository repository.K8sResourceHistoryRepository,
-	logger *zap.SugaredLogger) *K8sResourceHistoryServiceImpl {
+	logger *zap.SugaredLogger, appRepository app.AppRepository, envRepository repository2.EnvironmentRepository) *K8sResourceHistoryServiceImpl {
 	return &K8sResourceHistoryServiceImpl{
 		K8sResourceHistoryRepository: K8sResourceHistoryRepository,
 		logger:                       logger,
+		appRepository:                appRepository,
+		envRepository:                envRepository,
 	}
 }
 
@@ -43,7 +49,8 @@ func (impl K8sResourceHistoryServiceImpl) SaveArgoCdAppsResourceDeleteHistory(qu
 			UpdatedBy: userId,
 			UpdatedOn: time.Now(),
 		},
-		ActionType: "delete",
+		ActionType:        "delete",
+		DeploymentAppType: "argo_cd",
 	}
 
 	err := impl.K8sResourceHistoryRepository.SaveK8sResourceHistory(&k8sResourceHistory)
@@ -58,10 +65,14 @@ func (impl K8sResourceHistoryServiceImpl) SaveArgoCdAppsResourceDeleteHistory(qu
 
 func (impl K8sResourceHistoryServiceImpl) SaveHelmAppsResourceHistory(appIdentifier *client.AppIdentifier, k8sRequestBean *application2.K8sRequestBean, userId int32, actionType string) error {
 
+	app, err := impl.appRepository.FindActiveByName(appIdentifier.ReleaseName)
+
+	env, err := impl.envRepository.FindOneByNamespaceAndClusterId(appIdentifier.Namespace, appIdentifier.ClusterId)
+
 	k8sResourceHistory := repository.K8sResourceHistory{
-		AppId:        0,
+		AppId:        app.Id,
 		AppName:      appIdentifier.ReleaseName,
-		EnvId:        0,
+		EnvId:        env.Id,
 		Namespace:    appIdentifier.Namespace,
 		ResourceName: k8sRequestBean.ResourceIdentifier.Name,
 		Kind:         k8sRequestBean.ResourceIdentifier.GroupVersionKind.Kind,
@@ -71,10 +82,11 @@ func (impl K8sResourceHistoryServiceImpl) SaveHelmAppsResourceHistory(appIdentif
 			UpdatedBy: userId,
 			UpdatedOn: time.Now(),
 		},
-		ActionType: actionType,
+		ActionType:        actionType,
+		DeploymentAppType: "helm",
 	}
 
-	err := impl.K8sResourceHistoryRepository.SaveK8sResourceHistory(&k8sResourceHistory)
+	err = impl.K8sResourceHistoryRepository.SaveK8sResourceHistory(&k8sResourceHistory)
 
 	return err
 

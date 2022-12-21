@@ -689,10 +689,11 @@ func (impl ArgoApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter,
 	defer cancel()
 	recv, err := impl.client.DeleteResource(ctx, query)
 
-	ResourceHistoryErr := impl.K8sResourceHistoryService.SaveArgoCdAppsResourceDeleteHistory(query, id, eId, userId)
-
-	if ResourceHistoryErr != nil {
-		impl.logger.Errorw("error in saving audit logs of delete resource request for argo cd apps", "err", ResourceHistoryErr)
+	if err != nil {
+		ResourceHistoryErr := impl.K8sResourceHistoryService.SaveArgoCdAppsResourceDeleteHistory(query, id, eId, userId)
+		if ResourceHistoryErr != nil {
+			impl.logger.Errorw("error in saving audit logs of delete resource request for argo cd apps", "err", ResourceHistoryErr)
+		}
 	}
 
 	impl.pump.StartMessage(w, recv, err)

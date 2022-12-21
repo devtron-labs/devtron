@@ -7,17 +7,18 @@ import (
 )
 
 type K8sResourceHistory struct {
-	tableName    struct{} `sql:"kubernetes_resource_history" pg:",discard_unknown_columns"`
-	Id           int      `sql:"id,pk"`
-	AppId        int      `sql:"app_id"`
-	AppName      string   `sql:"app_name"`
-	EnvId        int      `sql:"env_id"`
-	Namespace    string   `sql:"namespace,omitempty"`
-	ResourceName string   `sql:"resource_name,notnull"`
-	Kind         string   `sql:"kind,notnull"`
-	Group        string   `sql:"group"`
-	ForceDelete  bool     `sql:"force_delete, omitempty"`
-	ActionType   string   `sql:"action_type"`
+	tableName         struct{} `sql:"kubernetes_resource_history" pg:",discard_unknown_columns"`
+	Id                int      `sql:"id,pk"`
+	AppId             int      `sql:"app_id"`
+	AppName           string   `sql:"app_name"`
+	EnvId             int      `sql:"env_id"`
+	Namespace         string   `sql:"namespace,omitempty"`
+	ResourceName      string   `sql:"resource_name,notnull"`
+	Kind              string   `sql:"kind,notnull"`
+	Group             string   `sql:"group"`
+	ForceDelete       bool     `sql:"force_delete, omitempty"`
+	ActionType        string   `sql:"action_type"`
+	DeploymentAppType string   `sql:"deployment_app_type"`
 	sql.AuditLog
 }
 
