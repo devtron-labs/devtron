@@ -15,8 +15,8 @@ Provide the information in the following fields to add container registry.
 
 | Fields | Description |
 | --- | --- |
-| **Name** | Provide a name to your registry, this name will be shown to you on the [Build Configuration](user-guide/creating-application/docker-build-configuration.md) in the drop-down list. |
-| **Registry Type** | Select the registry type from the drop-down list:<br><ul><li>[ECR](#registry-type-ecr)</li></ul><ul><li>[Docker](#registry-type-docker)</li></ul><ul><li>[Azure](#registry-type-azure)</li></ul><ul><li>[Artifact Registry (GCP)](#registry-type-artifact-registry-gcp)</li></ul><ul><li>[GCR](#registry-type-google-container-registry-gcr)</li></ul><ul><li>[Quay](#registry-type-quay)</li></ul><ul><li>[Other](#registry-type-others)</li></ul>`Note`: For each **Registry Type**, the credential input fields are different. |
+| **Name** | Provide a name to your registry, this name will be shown to you on the [Build Configuration](https://docs.devtron.ai/usage/applications/creating-application/docker-build-configuration) in the drop-down list. |
+| **Registry Type** | Select the registry type from the drop-down list:<br><ul><li>[ECR](#registry-type-ecr)</li></ul><ul><li>[Docker](#registry-type-docker)</li></ul><ul><li>[Azure](#registry-type-azure)</li></ul><ul><li>[Artifact Registry (GCP)](#registry-type-artifact-registry-gcp)</li></ul><ul><li>[GCR](#registry-type-google-container-registry-gcr)</li></ul><ul><li>[Quay](#registry-type-quay)</li></ul><ul><li>[Other](#registry-type-other)</li></ul>`Note`: For each **Registry Type**, the credential input fields are different. |
 | **Registry URL** | Provide the URL of your registry. |
 | **Set as default registry** | Enable this field to set as default registry hub for your images. |
 
@@ -170,8 +170,8 @@ There are two options to manage the access of registry credentials:
 
 You can choose one of the two options for defining credentials:
 
-* [User Registry Credentials](https://docs.devtron.ai/v/v0.6/getting-started/global-configurations/docker-registries#user-registry-credentials)
-* [Specify Image Pull Secret](https://docs.devtron.ai/v/v0.6/getting-started/global-configurations/docker-registries#specify-image-pull-secret) 
+* [User Registry Credentials](#use-registry-credentials)
+* [Specify Image Pull Secret](#specify-image-pull-secret) 
 
 ### Use Registry Credentials
 
@@ -247,7 +247,7 @@ secrets:
      value: '{"auths":{"https://index.docker.io/v1/":{"username":"<username>","password":"<password>}}}'
 ```     
 
-The `name` that you provide in values.yaml ie. `regcred` is name of the secret that will be used as `imagePullSecrets` to pull the image from docker hub to deploy. To know how `imagePullSecrets` will be used in the deployment-template, please follow the [documentation](https://docs.devtron.ai/devtron/user-guide/creating-application/deployment-template/rollout-deployment#imagepullsecrets).
+The `name` that you provide in values.yaml ie. `regcred` is name of the secret that will be used as `imagePullSecrets` to pull the image from docker hub to deploy. To know how `imagePullSecrets` will be used in the deployment-template, please follow the [documentation](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#imagepullsecrets).
 
 
 
