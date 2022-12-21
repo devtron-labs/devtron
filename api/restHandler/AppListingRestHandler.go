@@ -766,6 +766,7 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				handler.logger.Errorw("error in syncing pipeline status", "err", err)
 			}
 		}
+		//can update app status here
 	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsHelmApp(appDetail.DeploymentAppType) {
 		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
 		if err != nil {

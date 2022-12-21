@@ -282,6 +282,7 @@ func (impl ArgoApplicationRestHandlerImpl) GetResourceTree(w http.ResponseWriter
 	ctx = context.WithValue(ctx, "token", acdToken)
 	defer cancel()
 	recv, err := impl.client.ResourceTree(ctx, &query)
+	//can use recv.Status  here
 	impl.pump.StartMessage(w, recv, err)
 }
 

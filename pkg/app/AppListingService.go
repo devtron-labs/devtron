@@ -565,6 +565,7 @@ func (impl AppListingServiceImpl) GetLastProgressingDeploymentStatusesOfActiveAp
 }
 
 func (impl AppListingServiceImpl) getAppACDStatus(env bean.AppEnvironmentContainer, w http.ResponseWriter, r *http.Request, token string) (string, error) {
+	//not being used  now
 	if len(env.AppName) > 0 && len(env.EnvironmentName) > 0 {
 		acdAppName := env.AppName + "-" + env.EnvironmentName
 		query := &application.ResourcesQuery{

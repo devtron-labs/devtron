@@ -179,7 +179,7 @@ type PipelineBuilderImpl struct {
 	CiPipelineHistoryService                        history.CiPipelineHistoryService
 	globalStrategyMetadataRepository                chartRepoRepository.GlobalStrategyMetadataRepository
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
-	deploymentConfig             *DeploymentServiceTypeConfig
+	deploymentConfig                                *DeploymentServiceTypeConfig
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -276,7 +276,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		CiPipelineHistoryService:                        CiPipelineHistoryService,
 		globalStrategyMetadataRepository:                globalStrategyMetadataRepository,
 		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
-		deploymentConfig:             deploymentConfig,
+		deploymentConfig:                                deploymentConfig,
 	}
 }
 
@@ -1524,6 +1524,7 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
 			return pipelineRequest, err
 		}
+		// TODO : delete the entry in argo_app_status table with app-id,env-id and type = 0
 		err = impl.DeleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete, cdPipelines.UserId)
 		return pipelineRequest, err
 	default:

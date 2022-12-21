@@ -210,6 +210,7 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		return nil
 	}
 	timelineStatus, appStatus, statusMessage, hash := impl.GetAppStatusByResourceTreeFetchFromArgo(argoAppName)
+	//use this appStatus
 	if appStatus == WorkflowFailed && ignoreFailedWorkflowStatus {
 		return nil
 	}

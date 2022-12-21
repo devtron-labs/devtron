@@ -918,6 +918,7 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			appDetail.ResourceTree = map[string]interface{}{}
 			return *appDetail
 		}
+		//can use resp.Status to update in db
 		appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
 		impl.logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
 	} else if util.IsHelmApp(appDetail.DeploymentAppType) {

@@ -124,6 +124,7 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) GetAppStatus(installedAppAndEnvD
 			return "", err
 
 		}
+		//use this resp.Status
 		return resp.Status, nil
 	}
 	return "", errors.New("invalid app name or env name")
