@@ -13,7 +13,8 @@ import (
 )
 
 type ArgoAppStatusRestHandler interface {
-	GetAllStatuses(w http.ResponseWriter, r *http.Request)
+	GetAllDevtronAppStatuses(w http.ResponseWriter, r *http.Request)
+	GetAllInstalledAppStatuses(w http.ResponseWriter, r *http.Request)
 }
 
 type ArgoAppStatusRestHandlerImpl struct {
@@ -34,7 +35,39 @@ func NewArgoAppStatusRestHandlerImpl(logger *zap.SugaredLogger, argoAppStatusSer
 	}
 }
 
-func (handler *ArgoAppStatusRestHandlerImpl) GetAllStatuses(w http.ResponseWriter, r *http.Request) {
+func (handler *ArgoAppStatusRestHandlerImpl) GetAllDevtronAppStatuses(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	userId, err := handler.userAuthService.GetLoggedInUser(r)
+	handler.logger.Debugw("request by user", "userId", userId)
+	if userId == 0 || err != nil {
+		return
+	}
+	var requests []argoAppStatus.AppStatusRequestResponseDto
+	err = decoder.Decode(&requests)
+	if err != nil {
+		handler.logger.Errorw("decode err", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	//Filter out Apps with atleast view Access and find statuses for them
+	//TODO : Filter out Accessible requests
+	responses, err := handler.argoAppStatusService.GetAllDevtronAppStatuses(requests)
+	if err != nil {
+		handler.logger.Errorw("error in fetching app statuses for argo configured environments", "err", err)
+		apiError := &util.ApiError{
+			InternalMessage: "error occurred while fetching app status for argo-configured" + " err : " + err.Error(),
+			UserMessage:     "error in fetching app statuses",
+		}
+		common.WriteJsonResp(w, apiError, nil, http.StatusInternalServerError)
+	}
+
+	//TODO : Filter out Accessible responses
+	//accessibleDevtronAppStatuses := make([]argoAppStatus.AppStatusRequestResponseDto, 0)
+	common.WriteJsonResp(w, nil, responses, http.StatusOK)
+
+}
+
+func (handler *ArgoAppStatusRestHandlerImpl) GetAllInstalledAppStatuses(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	handler.logger.Debugw("request by user", "userId", userId)
@@ -49,9 +82,9 @@ func (handler *ArgoAppStatusRestHandlerImpl) GetAllStatuses(w http.ResponseWrite
 		return
 	}
 
-	//apply RBAC for every
-	//
-	response, err := handler.argoAppStatusService.GetAll(requests)
+	//Filter out Apps with atleast view Access and find statuses for them
+	//TODO : Filter out Accessible requests
+	responses, err := handler.argoAppStatusService.GetAllInstalledAppStatuses(requests)
 	if err != nil {
 		handler.logger.Errorw("error in fetching app statuses for argo configured environments", "err", err)
 		apiError := &util.ApiError{
@@ -61,6 +94,7 @@ func (handler *ArgoAppStatusRestHandlerImpl) GetAllStatuses(w http.ResponseWrite
 		common.WriteJsonResp(w, apiError, nil, http.StatusInternalServerError)
 	}
 
-	common.WriteJsonResp(w, nil, response, http.StatusOK)
-
+	//TODO : Filter out Accessible responses
+	//accessibleDevtronAppStatuses := make([]argoAppStatus.AppStatusRequestResponseDto, 0)
+	common.WriteJsonResp(w, nil, responses, http.StatusOK)
 }

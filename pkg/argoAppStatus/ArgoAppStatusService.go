@@ -17,7 +17,8 @@ type EnvironmentStatusContainer struct {
 }
 
 type ArgoAppStatusService interface {
-	GetAll(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error)
+	GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error)
+	GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error)
 }
 
 type ArgoAppStatusServiceImpl struct {
@@ -33,44 +34,36 @@ func NewArgoAppStatusServiceImpl(argoAppStatusRepository argoAppStatus.ArgoAppSt
 
 }
 
-func (impl *ArgoAppStatusServiceImpl) GetAll(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error) {
+func (impl *ArgoAppStatusServiceImpl) GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error) {
 	appIds := make([]int, 0)
-	installedAppIds := make([]int, 0)
 	for _, request := range requests {
 		if request.AppId > 0 {
 			appIds = append(appIds, request.AppId)
-		} else if request.InstalledAppId > 0 {
-			installedAppIds = append(installedAppIds, request.InstalledAppId)
 		}
 	}
-	containers, err := impl.argoAppStatusRepository.GetAllWithAppIds(appIds, installedAppIds)
+
+	containers, err := impl.argoAppStatusRepository.GetAllDevtronAppStatuses(appIds)
 	if err != nil {
-		impl.logger.Errorw("error occurred while fetching argo-app-statuses from argo-app-status repository for ", "appids", appIds, "installAppIds", installedAppIds)
+		impl.logger.Errorw("error occurred while fetching argo-app-statuses from argo-app-status repository for ", "appids", appIds)
 		res := make([]AppStatusRequestResponseDto, 0)
 		return res, err
 	}
 	environmentStatusMap := make(map[int][]EnvironmentStatusContainer)
-	environmentStatusMapForInstalledApps := make(map[int][]EnvironmentStatusContainer)
 
 	for _, container := range containers {
 		envContainer := EnvironmentStatusContainer{
 			EnvId:  container.EnvId,
 			Status: container.Status,
 		}
-		if container.AppType == argoAppStatus.DEVTRON_APP {
+		if !container.AppStore {
 			if _, ok := environmentStatusMap[container.AppId]; !ok {
 				environmentStatusMap[container.AppId] = make([]EnvironmentStatusContainer, 0)
 			}
 			environmentStatusMap[container.AppId] = append(environmentStatusMap[container.AppId], envContainer)
-		} else if container.AppType == argoAppStatus.DEVTRON_INSTALLED_APP {
-			if _, ok := environmentStatusMapForInstalledApps[container.AppId]; !ok {
-				environmentStatusMapForInstalledApps[container.AppId] = make([]EnvironmentStatusContainer, 0)
-			}
-			environmentStatusMapForInstalledApps[container.AppId] = append(environmentStatusMap[container.AppId], envContainer)
 		}
 	}
 
-	response := make([]AppStatusRequestResponseDto, len(environmentStatusMap)+len(environmentStatusMapForInstalledApps))
+	response := make([]AppStatusRequestResponseDto, len(environmentStatusMap))
 	var itr = 0
 	for id, envContainersArray := range environmentStatusMap {
 		resultDto := AppStatusRequestResponseDto{
@@ -81,9 +74,44 @@ func (impl *ArgoAppStatusServiceImpl) GetAll(requests []AppStatusRequestResponse
 		itr++
 	}
 
-	for id, envContainersArray := range environmentStatusMapForInstalledApps {
+	return response, nil
+}
+
+func (impl *ArgoAppStatusServiceImpl) GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error) {
+	installedAppIds := make([]int, 0)
+	for _, request := range requests {
+		if request.InstalledAppId > 0 {
+			installedAppIds = append(installedAppIds, request.InstalledAppId)
+		}
+	}
+
+	containers, err := impl.argoAppStatusRepository.GetAllInstalledAppStatuses(installedAppIds)
+	if err != nil {
+		impl.logger.Errorw("error occurred while fetching argo-app-statuses from argo-app-status repository for ", "installAppIds", installedAppIds)
+		res := make([]AppStatusRequestResponseDto, 0)
+		return res, err
+	}
+
+	environmentStatusMapForInstalledApps := make(map[int][]EnvironmentStatusContainer)
+	for _, container := range containers {
+		envContainer := EnvironmentStatusContainer{
+			EnvId:  container.EnvId,
+			Status: container.Status,
+		}
+		if container.AppStore {
+			if _, ok := environmentStatusMapForInstalledApps[container.InstalledAppId]; !ok {
+				environmentStatusMapForInstalledApps[container.InstalledAppId] = make([]EnvironmentStatusContainer, 0)
+			}
+			environmentStatusMapForInstalledApps[container.InstalledAppId] = append(environmentStatusMapForInstalledApps[container.InstalledAppId], envContainer)
+		}
+	}
+
+	response := make([]AppStatusRequestResponseDto, len(environmentStatusMapForInstalledApps))
+	var itr = 0
+
+	for installAppId, envContainersArray := range environmentStatusMapForInstalledApps {
 		resultDto := AppStatusRequestResponseDto{
-			InstalledAppId:              id,
+			InstalledAppId:              installAppId,
 			EnvironmentStatusContainers: envContainersArray,
 		}
 		response[itr] = resultDto
