@@ -1,4 +1,4 @@
-package argoAppStatus
+package appStatus
 
 import (
 	"github.com/go-pg/pg"

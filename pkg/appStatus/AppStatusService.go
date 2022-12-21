@@ -1,40 +1,48 @@
-package argoAppStatus
+package appStatus
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/argoAppStatus"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
+	"github.com/devtron-labs/devtron/util/rbac"
 	"go.uber.org/zap"
 )
 
 type AppStatusRequestResponseDto struct {
 	AppId                       int                          `json:"appId"`
+	AppName                     string                       `json:"-"`
 	InstalledAppId              int                          `json:"installedAppId"`
 	EnvironmentStatusContainers []EnvironmentStatusContainer `json:"environmentStatusContainers"`
 }
 
 type EnvironmentStatusContainer struct {
-	EnvId  int `json:"envId"`
-	Status int `json:"status"`
+	EnvId   int    `json:"envId"`
+	EnvName string `json:"-"`
+	Status  int    `json:"status"`
 }
 
-type ArgoAppStatusService interface {
-	GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error)
-	GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error)
+type AppStatusService interface {
+	GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error)
+	GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error)
 }
 
-type ArgoAppStatusServiceImpl struct {
-	argoAppStatusRepository argoAppStatus.ArgoAppStatusRepository
+type AppStatusServiceImpl struct {
+	argoAppStatusRepository appStatus.AppStatusRepository
 	logger                  *zap.SugaredLogger
+	enforcer                casbin.Enforcer
+	enforcerUtil            rbac.EnforcerUtil
 }
 
-func NewArgoAppStatusServiceImpl(argoAppStatusRepository argoAppStatus.ArgoAppStatusRepository, logger *zap.SugaredLogger) *ArgoAppStatusServiceImpl {
-	return &ArgoAppStatusServiceImpl{
+func NewArgoAppStatusServiceImpl(argoAppStatusRepository appStatus.AppStatusRepository, logger *zap.SugaredLogger, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *AppStatusServiceImpl {
+	return &AppStatusServiceImpl{
 		argoAppStatusRepository: argoAppStatusRepository,
 		logger:                  logger,
+		enforcer:                enforcer,
+		enforcerUtil:            enforcerUtil,
 	}
 
 }
 
-func (impl *ArgoAppStatusServiceImpl) GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error) {
+func (impl *AppStatusServiceImpl) GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error) {
 	appIds := make([]int, 0)
 	for _, request := range requests {
 		if request.AppId > 0 {
@@ -77,10 +85,12 @@ func (impl *ArgoAppStatusServiceImpl) GetAllDevtronAppStatuses(requests []AppSta
 	return response, nil
 }
 
-func (impl *ArgoAppStatusServiceImpl) GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto) ([]AppStatusRequestResponseDto, error) {
+func (impl *AppStatusServiceImpl) GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error) {
+	InstalledAppIdAppNameMap := make(map[int]string)
 	installedAppIds := make([]int, 0)
 	for _, request := range requests {
 		if request.InstalledAppId > 0 {
+			InstalledAppIdAppNameMap[request.InstalledAppId] = request.AppName
 			installedAppIds = append(installedAppIds, request.InstalledAppId)
 		}
 	}
