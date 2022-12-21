@@ -10,7 +10,7 @@ type AppStatusContainer struct {
 	TableName      struct{}  `sql:"argo_app_status" pg:",discard_unknown_columns"`
 	AppId          int       `sql:"app_id"`
 	AppName        string    `sql:"app_name"`
-	EnvName        string    `sql:"env_name"`
+	EnvIdentifier  string    `sql:"env_identifier"`
 	InstalledAppId int       `sql:"installed_app_id"` //unknown
 	EnvId          int       `sql:"env_id"`
 	Status         int       `sql:"status"`
@@ -48,7 +48,7 @@ func (repo *AppStatusRepositoryImpl) Update(container AppStatusContainer) error 
 }
 func (repo *AppStatusRepositoryImpl) GetAllDevtronAppStatuses(appIds []int) ([]AppStatusContainer, error) {
 	appStatusContainers := make([]AppStatusContainer, 0)
-	query := "SELECT aas.*,app.app_name,env.environment_name as env_name ( SELECT * " +
+	query := "SELECT aas.*,app.app_name,env.environment_identifier as env_identifier ( SELECT * " +
 		"FROM argo_app_status WHERE app_id IN ? AND argo_app_status.active = true) aas " +
 		"INNER JOIN app ON app.id = aas.app_id AND app.active=true " +
 		"INNER JOIN environment env ON environment.id = aas.env_id AND env.active=true;"
