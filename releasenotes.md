@@ -1,9 +1,5 @@
 ## v0.6.10-rc.0
 
-
-
-## v0.6.10-rc.0
-
 ## Bugs
 - fix: Authenticator updated - handling api token (#2745)
 - fix: Ci workflow status update when workflow stuck. (#2726)
