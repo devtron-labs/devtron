@@ -36,7 +36,7 @@ Provide below information if you select the registry type as `ECR`.
 | **Name** | User-defined name for the registry in Devtron. |
 | **Registry Type** | Select **ECR**. |
 | **Registry URL** | This is the URL of your private registry in AWS.<br>For example, the URL format is: `https://xxxxxxxxxxxx.dkr.ecr.<region>.amazonaws.com`. `xxxxxxxxxxxx` is your 12-digit AWS account ID.</br> |
-| **Authentication Type** | Select one of the authentication types:<ul><li>**EC2 IAM Role**: Authenticate with workernode IAM role and attach the ECR policy (AmazonEC2ContainerRegistryFullAccess) to the cluster worker nodes IAM role of your Kubernetes cluster.</li></ul><ul><li>**User Auth**It is key-based authentication and attach the ECR policy (AmazonEC2ContainerRegistryFullAccess) to the IAM user.<ul><li>`Access key ID`: Your AWS access key</li></ul><ul><li>`Secret access key`: Your AWS secret access key ID</li></ul> |
+| **Authentication Type** | Select one of the authentication types:<ul><li>**EC2 IAM Role**: Authenticate with workernode IAM role and attach the ECR policy (AmazonEC2ContainerRegistryFullAccess) to the cluster worker nodes IAM role of your Kubernetes cluster.</li></ul><ul><li>**User Auth**: It is key-based authentication and attach the ECR policy (AmazonEC2ContainerRegistryFullAccess) to the [IAM user](https://docs.aws.amazon.com/AmazonECR/latest/userguide/get-set-up-for-amazon-ecr.html).<ul><li>`Access key ID`: Your AWS access key</li></ul><ul><li>`Secret access key`: Your AWS secret access key ID</li></ul> |
 | **Set as default registry** | Enable this field to set `ECR` as default registry hub for your images. |
 
 Click **Save**.
