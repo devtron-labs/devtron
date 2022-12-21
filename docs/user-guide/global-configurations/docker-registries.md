@@ -4,13 +4,6 @@ Container registries are used for storing images built by the CI Pipeline. You c
 
 When configuring an application, you can choose the specific container registry and repository in the App Configuration > [Build Configuration](user-guide/creating-application/docker-build-configuration.md) section.
 
-Provide the information in the following fields to configure the container registry from App Configuration > [Build Configuration](user-guide/creating-application/docker-build-configuration.md) section.
-
-| Fields | Description |
-| --- | --- |
-| **Container Registry** | Select the container registry from the drop-down list. |
-| **Container Repository** | Enter the name of the container repository. |
-
 
 ## Add Container Registry:
 
@@ -31,11 +24,10 @@ Provide the information in the following fields to add container registry.
 
 ### Registry Type: ECR
 
-To add an Amazon Elastic Container Registry (ECR), select the `ECR` Registry type.
 Amazon ECR is an AWS-managed container image registry service.
 The ECR provides resource-based permissions to the private repositories using AWS Identity and Access Management (IAM). ECR allows both Key-based and Role-based authentications.
 
-Before you begin, create an [IAM user](https://docs.aws.amazon.com/AmazonECR/latest/userguide/get-set-up-for-amazon-ecr.html), and attach only ECR policy ( AmazonEC2ContainerRegistryFullAccess ) if using Key-based auth. Or attach the ECR policy ( AmazonEC2ContainerRegistryFullAccess) to the cluster worker nodes IAM role of your Kubernetes cluster if using Role-based access.
+Before you begin, create an [IAM user](https://docs.aws.amazon.com/AmazonECR/latest/userguide/get-set-up-for-amazon-ecr.html) and attach the ECR policy according to the authentication type.
 
 Provide below information if you select the registry type as `ECR`. 
 
@@ -44,7 +36,7 @@ Provide below information if you select the registry type as `ECR`.
 | **Name** | User-defined name for the registry in Devtron. |
 | **Registry Type** | Select **ECR**. |
 | **Registry URL** | This is the URL of your private registry in AWS.<br>For example, the URL format is: `https://xxxxxxxxxxxx.dkr.ecr.<region>.amazonaws.com`. `xxxxxxxxxxxx` is your 12-digit AWS account ID.</br> |
-| **Authentication Type** | Select one of the authentication types:<ul><li>**EC2 IAM Role**: Authenticate with workernode IAM role</li></ul><ul><li>**User Auth**<ul><li>`Access key ID`: Your AWS access key</li></ul><ul><li>`Secret access key`: Your AWS secret access key ID</li></ul> |
+| **Authentication Type** | Select one of the authentication types:<ul><li>**EC2 IAM Role**: Authenticate with workernode IAM role and attach the ECR policy (AmazonEC2ContainerRegistryFullAccess) to the cluster worker nodes IAM role of your Kubernetes cluster.</li></ul><ul><li>**User Auth**It is key-based authentication and attach the ECR policy (AmazonEC2ContainerRegistryFullAccess) to the IAM user.<ul><li>`Access key ID`: Your AWS access key</li></ul><ul><li>`Secret access key`: Your AWS secret access key ID</li></ul> |
 | **Set as default registry** | Enable this field to set `ECR` as default registry hub for your images. |
 
 Click **Save**.
@@ -152,14 +144,13 @@ Provide below information if you select the registry type as `Other`.
 
 Click **Save**.
 
-### Advance Registry URL Connection Options:
+#### Advance Registry URL Connection Options:
 
 * If you enable the `Allow Only Secure Connection` option, then this registry allows only secure connections.
 * If you enable the `Allow Secure Connection With CA Certificate` option, then you have to upload/provide private CA certificate (ca.crt).
 * If the container registry is insecure (for eg : SSL certificate is expired), then you enable the `Allow Insecure Connection` option.
 
-#### Note:
-You can use any registry which can be authenticated using `docker login -u <username> -p <password> <registry-url>`. However these registries might provide a more secured way for authentication, which we will support later.
+**Note**: You can use any registry which can be authenticated using `docker login -u <username> -p <password> <registry-url>`. However these registries might provide a more secured way for authentication, which we will support later.
 
 
 ## Pull an Image from a Private Registry

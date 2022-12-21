@@ -71,7 +71,8 @@ If you select `GitLab` as your git provider, please provide the information in t
 
 ### How to create organization in GitLab
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/gitops-gitlab-latest.gif)
+
+{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/gitops-gitlab.mp4" caption="GitHub" %}
 
 
 1. Create a new account on GitLab (if you do not have one).
@@ -105,7 +106,7 @@ If you select `GitAzureLab` as your git provider, please provide the information
 
 **Note**: You need an organization before you can create a project. If you have not created an organization yet, create one by following the instructions in [Sign up, sign in to Azure DevOps](https://learn.microsoft.com/en-us/azure/devops/user-guide/sign-up-invite-teammates?view=azure-devops), which also creates a project. Or see [Create an organization or project collection](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/create-organization?view=azure-devops).
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/azure+devops/gitops-azure-latest1.gif)
+{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/azure+devops/gitops-azure.mp4" caption="GitHub" %}
 
 1. Go to Azure DevOps and navigate to Projects.
 2. Select your organization and click `New project`. 
@@ -136,7 +137,7 @@ If you select `Bitbucket Cloud` as your git provider, please provide the informa
 
 ### How to create Bitbucket workspace ID
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket/gitops-bitbucket.gif)
+{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket/gitops-bitbucket.mp4" caption="GitHub" %}
 
 1. Create a new individual account on Bitbucket (if you do not have one).
 2. Select your profile and settings avatar on the upper-right corner of the top navigation bar.
