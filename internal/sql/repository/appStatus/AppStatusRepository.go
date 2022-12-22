@@ -34,7 +34,7 @@ type AppStatusRepositoryImpl struct {
 	logger       *zap.SugaredLogger
 }
 
-func NewArgoAppStatusRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *AppStatusRepositoryImpl {
+func NewAppStatusRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *AppStatusRepositoryImpl {
 	return &AppStatusRepositoryImpl{
 		dbConnection: dbConnection,
 		logger:       logger,

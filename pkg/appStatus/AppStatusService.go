@@ -33,7 +33,7 @@ type AppStatusServiceImpl struct {
 	enforcerUtil        rbac.EnforcerUtil
 }
 
-func NewArgoAppStatusServiceImpl(appStatusRepository appStatus.AppStatusRepository, logger *zap.SugaredLogger, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *AppStatusServiceImpl {
+func NewAppStatusServiceImpl(appStatusRepository appStatus.AppStatusRepository, logger *zap.SugaredLogger, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *AppStatusServiceImpl {
 	return &AppStatusServiceImpl{
 		appStatusRepository: appStatusRepository,
 		logger:              logger,
