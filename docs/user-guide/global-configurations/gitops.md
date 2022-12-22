@@ -34,7 +34,7 @@ If you select `GitHuB` as your git provider, please provide the information in t
 **Note**: We do NOT recommend using GitHub organization which contains your source code.
 
 
-{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/gitops-github.mp4" caption="GitHub" %}
+{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/github/github-gitops-latest.mp4" caption="GitHub" %}
 
 1. Create a new account on GitHub (if you do not have one).
 2. On the upper-right corner of your GitHub page, click your profile photo, then click `Settings`.
@@ -72,7 +72,7 @@ If you select `GitLab` as your git provider, please provide the information in t
 ### How to create organization in GitLab
 
 
-{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/gitops-gitlab.mp4" caption="GitHub" %}
+{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/gitops-gitlab-latest.mp4" caption="GitHub" %}
 
 
 1. Create a new account on GitLab (if you do not have one).
@@ -106,7 +106,7 @@ If you select `GitAzureLab` as your git provider, please provide the information
 
 **Note**: You need an organization before you can create a project. If you have not created an organization yet, create one by following the instructions in [Sign up, sign in to Azure DevOps](https://learn.microsoft.com/en-us/azure/devops/user-guide/sign-up-invite-teammates?view=azure-devops), which also creates a project. Or see [Create an organization or project collection](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/create-organization?view=azure-devops).
 
-{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/azure+devops/gitops-azure.mp4" caption="GitHub" %}
+{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/azure+devops/azure-gitops-latest.mp4" caption="GitHub" %}
 
 1. Go to Azure DevOps and navigate to Projects.
 2. Select your organization and click `New project`. 
