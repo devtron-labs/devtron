@@ -123,6 +123,7 @@ type AppDetailContainer struct {
 }
 
 type Environment struct {
+	AppStatus       string `json:"appStatus"` //this is not the status of environment , this make sense with a specific app only
 	EnvironmentId   int    `json:"environmentId"`
 	EnvironmentName string `json:"environmentName"`
 	AppMetrics      *bool  `json:"appMetrics"`
