@@ -29,6 +29,7 @@ import (
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"github.com/devtron-labs/devtron/util"
+	"github.com/go-pg/pg"
 	"io/ioutil"
 	"math/rand"
 	"net/http"
@@ -223,13 +224,23 @@ func (impl ChartTemplateServiceImpl) CreateGitRepositoryForApp(gitOpsRepoName, b
 	space := regexp.MustCompile(`\s+`)
 	gitOpsRepoName = space.ReplaceAllString(gitOpsRepoName, "-")
 
+	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			return nil, err
+		}
+	}
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(userId)
 	gitRepoRequest := &bean.GitOpsConfigDto{
-		GitRepoName: gitOpsRepoName,
-		Description: fmt.Sprintf("helm chart for " + gitOpsRepoName),
-		Username:    userName,
-		UserEmailId: userEmailId,
+		GitRepoName:          gitOpsRepoName,
+		Description:          fmt.Sprintf("helm chart for " + gitOpsRepoName),
+		Username:             userName,
+		UserEmailId:          userEmailId,
+		BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId,
+		BitBucketProjectKey:  gitOpsConfigBitbucket.BitBucketProjectKey,
 	}
 	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoRequest)
 	for _, err := range detailedError.StageErrorMap {
@@ -494,13 +505,23 @@ func (impl ChartTemplateServiceImpl) createAndPushToGitChartProxy(appStoreName, 
 		gitOpsRepoName := impl.GetGitOpsRepoName(installAppVersionRequest.AppName)
 		installAppVersionRequest.GitOpsRepoName = gitOpsRepoName
 	}
+	gitOpsConfigBitbucket, err := impl.gitOpsConfigRepository.GetGitOpsConfigByProvider(BITBUCKET_PROVIDER)
+	if err != nil {
+		if err == pg.ErrNoRows {
+			gitOpsConfigBitbucket.BitBucketWorkspaceId = ""
+		} else {
+			return nil, err
+		}
+	}
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.GetUserEmailIdAndNameForGitOpsCommit(installAppVersionRequest.UserId)
 	gitRepoRequest := &bean.GitOpsConfigDto{
-		GitRepoName: installAppVersionRequest.GitOpsRepoName,
-		Description: "helm chart for " + installAppVersionRequest.GitOpsRepoName,
-		Username:    userName,
-		UserEmailId: userEmailId,
+		GitRepoName:          installAppVersionRequest.GitOpsRepoName,
+		Description:          "helm chart for " + installAppVersionRequest.GitOpsRepoName,
+		Username:             userName,
+		UserEmailId:          userEmailId,
+		BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId,
+		BitBucketProjectKey:  gitOpsConfigBitbucket.BitBucketProjectKey,
 	}
 	repoUrl, _, detailedError := impl.gitFactory.Client.CreateRepository(gitRepoRequest)
 	for _, err := range detailedError.StageErrorMap {
