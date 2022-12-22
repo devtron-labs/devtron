@@ -45,11 +45,13 @@ func (repo *AppStatusRepositoryImpl) GetConnection() *pg.DB {
 	return repo.dbConnection
 }
 func (repo *AppStatusRepositoryImpl) Create(tx *pg.Tx, container AppStatusContainer) error {
+	container.UpdatedOn = time.Now()
 	err := tx.Insert(container)
 	return err
 }
 
 func (repo *AppStatusRepositoryImpl) Update(tx *pg.Tx, container AppStatusContainer) error {
+	container.UpdatedOn = time.Now()
 	err := tx.Update(container)
 	return err
 }
