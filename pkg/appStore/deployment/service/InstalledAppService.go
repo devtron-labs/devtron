@@ -26,6 +26,7 @@ import (
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentFullMode "github.com/devtron-labs/devtron/pkg/appStore/deployment/fullMode"
 	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -109,6 +110,7 @@ type InstalledAppServiceImpl struct {
 	helmAppClient                        client.HelmAppClient
 	helmAppService                       client.HelmAppService
 	attributesRepository                 repository3.AttributesRepository
+	appStatusService                     appStatus.AppStatusService
 }
 
 func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
@@ -129,7 +131,8 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 	appStoreDeploymentService AppStoreDeploymentService,
 	installedAppRepositoryHistory repository2.InstalledAppVersionHistoryRepository,
 	argoUserService argo.ArgoUserService, helmAppClient client.HelmAppClient, helmAppService client.HelmAppService,
-	attributesRepository repository3.AttributesRepository) (*InstalledAppServiceImpl, error) {
+	attributesRepository repository3.AttributesRepository,
+	appStatusService appStatus.AppStatusService) (*InstalledAppServiceImpl, error) {
 	impl := &InstalledAppServiceImpl{
 		logger:                               logger,
 		installedAppRepository:               installedAppRepository,
@@ -158,6 +161,7 @@ func NewInstalledAppServiceImpl(logger *zap.SugaredLogger,
 		helmAppClient:                        helmAppClient,
 		helmAppService:                       helmAppService,
 		attributesRepository:                 attributesRepository,
+		appStatusService:                     appStatusService,
 	}
 	err := util3.AddStream(impl.pubsubClient.JetStrCtxt, util3.ORCHESTRATOR_STREAM)
 	if err != nil {
@@ -918,8 +922,13 @@ func (impl InstalledAppServiceImpl) FetchResourceTree(rctx context.Context, cn h
 			appDetail.ResourceTree = map[string]interface{}{}
 			return *appDetail
 		}
-		//can use resp.Status to update in db
+		// TODO: using this resp.Status to update in app_status table
 		appDetail.ResourceTree = util3.InterfaceToMapAdapter(resp)
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
+		if err != nil {
+			impl.logger.Errorw("error in updating app status", "err", err)
+			impl.logger.Infow("ignoring the error", "err", err)
+		}
 		impl.logger.Debugf("application %s in environment %s had status %+v\n", appDetail.InstalledAppId, appDetail.EnvironmentId, resp)
 	} else if util.IsHelmApp(appDetail.DeploymentAppType) {
 		config, err := impl.helmAppService.GetClusterConf(appDetail.ClusterId)
