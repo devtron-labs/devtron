@@ -7,24 +7,26 @@ import (
 )
 
 type AppStatusContainer struct {
-	TableName      struct{}  `sql:"argo_app_status" pg:",discard_unknown_columns"`
+	TableName      struct{}  `sql:"pipeline_status" pg:",discard_unknown_columns"`
 	AppId          int       `sql:"app_id"`
 	AppName        string    `sql:"app_name"`
-	EnvIdentifier  string    `sql:"env_identifier"`
+	EnvIdentifier  string    `sql:"env_identifier"`   //unknown
 	InstalledAppId int       `sql:"installed_app_id"` //unknown
 	EnvId          int       `sql:"env_id"`
-	Status         int       `sql:"status"`
+	Status         string    `sql:"status"`
 	AppStore       bool      `sql:"app_store"` //unknown
 	UpdatedOn      time.Time `sql:"status"`
 	Active         bool      `sql:"active"`
 }
 
 type AppStatusRepository interface {
-	Create(container AppStatusContainer) error
-	Update(container AppStatusContainer) error
+	Create(tx *pg.Tx, container AppStatusContainer) error
+	Update(tx *pg.Tx, container AppStatusContainer) error
 	GetAllDevtronAppStatuses(appIds []int) ([]AppStatusContainer, error)
 	GetAllInstalledAppStatuses(installedAppIds []int) ([]AppStatusContainer, error)
-	Delete(container AppStatusContainer) error
+	Delete(tx *pg.Tx, container AppStatusContainer) error
+	Get(appId, envId int) (AppStatusContainer, error)
+	GetConnection() *pg.DB
 }
 
 type AppStatusRepositoryImpl struct {
@@ -39,33 +41,50 @@ func NewArgoAppStatusRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogg
 	}
 }
 
-func (repo *AppStatusRepositoryImpl) Create(container AppStatusContainer) error {
-	return nil
+func (repo *AppStatusRepositoryImpl) GetConnection() *pg.DB {
+	return repo.dbConnection
+}
+func (repo *AppStatusRepositoryImpl) Create(tx *pg.Tx, container AppStatusContainer) error {
+	err := tx.Insert(container)
+	return err
 }
 
-func (repo *AppStatusRepositoryImpl) Update(container AppStatusContainer) error {
-	return nil
+func (repo *AppStatusRepositoryImpl) Update(tx *pg.Tx, container AppStatusContainer) error {
+	err := tx.Update(container)
+	return err
 }
 func (repo *AppStatusRepositoryImpl) GetAllDevtronAppStatuses(appIds []int) ([]AppStatusContainer, error) {
 	appStatusContainers := make([]AppStatusContainer, 0)
-	query := "SELECT aas.*,app.app_name,env.environment_identifier as env_identifier ( SELECT * " +
-		"FROM argo_app_status WHERE app_id IN ? AND argo_app_status.active = true) aas " +
-		"INNER JOIN app ON app.id = aas.app_id AND app.active=true " +
-		"INNER JOIN environment env ON environment.id = aas.env_id AND env.active=true;"
+	query := "SELECT ps.*,app.app_name,env.environment_identifier as env_identifier ( SELECT * " +
+		"FROM pipeline_status WHERE app_id IN ? AND argo_app_status.active = true) ps " +
+		"INNER JOIN app ON app.id = ps.app_id AND app.active=true " +
+		"INNER JOIN environment env ON environment.id = ps.env_id AND env.active=true;"
 	_, err := repo.dbConnection.Query(&appStatusContainers, query, pg.In(appIds))
 	return appStatusContainers, err
 }
 
 func (repo *AppStatusRepositoryImpl) GetAllInstalledAppStatuses(installedAppIds []int) ([]AppStatusContainer, error) {
 	appStatusContainers := make([]AppStatusContainer, 0)
-	query := "SELECT aas.*,ia.id AS installed_app_id,app.app_name,env.environment_name " +
-		"FROM argo_app_status aas INNER JOIN ( SELECT id,app_id FROM installed_apps WHERE id IN ? AND active = true ) ia " +
-		"ON aas.app_id = ia.app_id AND aas.active=true " +
-		"INNER JOIN app ON app.id = aas.app_id AND app.active=true " +
+	query := "SELECT ps.*,ia.id AS installed_app_id,app.app_name,env.environment_name " +
+		"FROM pipeline_status ps " +
+		"INNER JOIN ( SELECT id,app_id FROM installed_apps WHERE id IN ? AND active = true ) ia " +
+		"ON ps.app_id = ia.app_id AND ps.active=true " +
+		"INNER JOIN app ON app.id = ps.app_id AND app.active=true " +
 		"INNER JOIN environment env ON environment.id = aas.env_id AND env.active=true;"
 	_, err := repo.dbConnection.Query(&appStatusContainers, query, pg.In(installedAppIds))
 	return appStatusContainers, err
 }
-func (repo *AppStatusRepositoryImpl) Delete(container AppStatusContainer) error {
-	return nil
+func (repo *AppStatusRepositoryImpl) Delete(tx *pg.Tx, container AppStatusContainer) error {
+	container.Active = false
+	err := repo.Update(tx, container)
+	return err
+}
+
+func (repo *AppStatusRepositoryImpl) Get(appId, envId int) (AppStatusContainer, error) {
+	appStatusContainer := AppStatusContainer{}
+	err := repo.dbConnection.Model(&appStatusContainer).
+		Where("app_id = ?", appId).
+		Where("env_id = ?", envId).
+		Select()
+	return appStatusContainer, err
 }

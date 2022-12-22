@@ -16,35 +16,37 @@ type AppStatusRequestResponseDto struct {
 }
 
 type EnvironmentStatusContainer struct {
-	EnvId  int `json:"envId"`
-	Status int `json:"status"`
+	EnvId  int    `json:"envId"`
+	Status string `json:"status"`
 }
 
 type AppStatusService interface {
 	GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error)
 	GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error)
+	UpdateStatusWithAppIdEnvId(appIdEnvId, envId int, status string) error
 }
 
 type AppStatusServiceImpl struct {
-	argoAppStatusRepository appStatus.AppStatusRepository
-	logger                  *zap.SugaredLogger
-	enforcer                casbin.Enforcer
-	enforcerUtil            rbac.EnforcerUtil
+	appStatusRepository appStatus.AppStatusRepository
+	logger              *zap.SugaredLogger
+	enforcer            casbin.Enforcer
+	enforcerUtil        rbac.EnforcerUtil
 }
 
-func NewArgoAppStatusServiceImpl(argoAppStatusRepository appStatus.AppStatusRepository, logger *zap.SugaredLogger, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *AppStatusServiceImpl {
+func NewArgoAppStatusServiceImpl(appStatusRepository appStatus.AppStatusRepository, logger *zap.SugaredLogger, enforcer casbin.Enforcer, enforcerUtil rbac.EnforcerUtil) *AppStatusServiceImpl {
 	return &AppStatusServiceImpl{
-		argoAppStatusRepository: argoAppStatusRepository,
-		logger:                  logger,
-		enforcer:                enforcer,
-		enforcerUtil:            enforcerUtil,
+		appStatusRepository: appStatusRepository,
+		logger:              logger,
+		enforcer:            enforcer,
+		enforcerUtil:        enforcerUtil,
 	}
 
 }
 
 func (impl *AppStatusServiceImpl) getRBACObjectMap(containers []appStatus.AppStatusContainer, userEmailId string) map[string]bool {
-	objectArray := make([]string, len(containers))
-	for i := 0; i < len(containers); i++ {
+	noOfContainers := len(containers)
+	objectArray := make([]string, noOfContainers)
+	for i := 0; i < noOfContainers; i++ {
 		objectArray[i] = fmt.Sprintf("%s/%s", strings.ToLower(containers[i].EnvIdentifier), strings.ToLower(containers[i].AppName))
 	}
 	rbacObjectMap := impl.enforcer.EnforceByEmailInBatch(userEmailId, casbin.ResourceApplications, casbin.ActionGet, objectArray)
@@ -59,7 +61,7 @@ func (impl *AppStatusServiceImpl) GetAllDevtronAppStatuses(requests []AppStatusR
 		}
 	}
 
-	containers, err := impl.argoAppStatusRepository.GetAllDevtronAppStatuses(appIds)
+	containers, err := impl.appStatusRepository.GetAllDevtronAppStatuses(appIds)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching argo-app-statuses from argo-app-status repository for ", "appids", appIds)
 		res := make([]AppStatusRequestResponseDto, 0)
@@ -110,7 +112,7 @@ func (impl *AppStatusServiceImpl) GetAllInstalledAppStatuses(requests []AppStatu
 		}
 	}
 
-	containers, err := impl.argoAppStatusRepository.GetAllInstalledAppStatuses(installedAppIds)
+	containers, err := impl.appStatusRepository.GetAllInstalledAppStatuses(installedAppIds)
 	if err != nil {
 		impl.logger.Errorw("error occurred while fetching argo-app-statuses from argo-app-status repository for ", "installAppIds", installedAppIds)
 		res := make([]AppStatusRequestResponseDto, 0)
@@ -149,4 +151,42 @@ func (impl *AppStatusServiceImpl) GetAllInstalledAppStatuses(requests []AppStatu
 	}
 
 	return response, nil
+}
+
+func (impl *AppStatusServiceImpl) UpdateStatusWithAppIdEnvId(appId, envId int, status string) error {
+	container, err := impl.appStatusRepository.Get(appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in getting app-status for", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+	tx, err := impl.appStatusRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error in creating transaction", "err", err)
+		return err
+	}
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	container.Status = status
+	if container.AppId == 0 {
+		container.AppId = appId
+		container.EnvId = envId
+		err = impl.appStatusRepository.Create(tx, container)
+		if err != nil {
+			impl.logger.Errorw("error in Creating appStatus", "appId", appId, "envId", envId, "err", err)
+			return err
+		}
+	} else {
+		err = impl.appStatusRepository.Update(tx, container)
+		if err != nil {
+			impl.logger.Errorw("error in Updating appStatus", "appId", appId, "envId", envId, "err", err)
+			return err
+		}
+	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error occurred while committing db transaction", "err", err)
+		return err
+	}
+	return nil
 }
