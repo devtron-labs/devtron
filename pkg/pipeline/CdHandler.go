@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	app_status "github.com/devtron-labs/devtron/pkg/appStatus"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -87,6 +88,7 @@ type CdHandlerImpl struct {
 	argoUserService                  argo.ArgoUserService
 	deploymentEventHandler           app.DeploymentEventHandler
 	eventClient                      client2.EventClient
+	appStatusService                 app_status.AppStatusService
 }
 
 func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService user.UserService,
@@ -104,7 +106,8 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 	pipelineStatusTimelineRepository pipelineConfig.PipelineStatusTimelineRepository,
 	application application.ServiceClient, argoUserService argo.ArgoUserService,
 	deploymentEventHandler app.DeploymentEventHandler,
-	eventClient client2.EventClient) *CdHandlerImpl {
+	eventClient client2.EventClient,
+	appStatusService app_status.AppStatusService) *CdHandlerImpl {
 	return &CdHandlerImpl{
 		Logger:                           Logger,
 		cdConfig:                         cdConfig,
@@ -128,6 +131,7 @@ func NewCdHandlerImpl(Logger *zap.SugaredLogger, cdConfig *CdConfig, userService
 		argoUserService:                  argoUserService,
 		deploymentEventHandler:           deploymentEventHandler,
 		eventClient:                      eventClient,
+		appStatusService:                 appStatusService,
 	}
 }
 
@@ -210,7 +214,13 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveResourceTreeFetc
 		return nil
 	}
 	timelineStatus, appStatus, statusMessage, hash := impl.GetAppStatusByResourceTreeFetchFromArgo(argoAppName)
-	//use this appStatus
+
+	// using this appStatus to update app_status table
+	err1 := impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, appStatus)
+	if err1 != nil {
+		impl.Logger.Errorw("error in updating app status", "err", err)
+		impl.Logger.Infow("ignoring the error", "err", err)
+	}
 	if appStatus == WorkflowFailed && ignoreFailedWorkflowStatus {
 		return nil
 	}
@@ -346,6 +356,7 @@ func (impl *CdHandlerImpl) GetAppStatusByResourceTreeFetchFromArgo(appName strin
 }
 
 func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error {
+	// TODO : updates pipelines deployed via helm
 	pipelineOverrides, err := impl.pipelineOverrideRepository.FetchHelmTypePipelineOverridesForStatusUpdate()
 	if err != nil {
 		impl.Logger.Errorw("error on fetching all the recent deployment trigger for helm app type", "err", err)

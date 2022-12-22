@@ -32,6 +32,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/constants"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/app"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	service1 "github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/deploymentGroup"
@@ -80,6 +81,7 @@ type AppListingRestHandlerImpl struct {
 	k8sApplicationService            k8s.K8sApplicationService
 	installedAppService              service1.InstalledAppService
 	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler
+	appStatusService                 appStatus.AppStatusService
 }
 
 type AppStatus struct {
@@ -99,7 +101,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 	deploymentGroupService deploymentGroup.DeploymentGroupService, userService user.UserService,
 	helmAppClient client.HelmAppClient, clusterService cluster.ClusterService, helmAppService client.HelmAppService,
 	argoUserService argo.ArgoUserService, k8sApplicationService k8s.K8sApplicationService, installedAppService service1.InstalledAppService,
-	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler) *AppListingRestHandlerImpl {
+	cdApplicationStatusUpdateHandler cron.CdApplicationStatusUpdateHandler, appStatusService appStatus.AppStatusService) *AppListingRestHandlerImpl {
 	appListingHandler := &AppListingRestHandlerImpl{
 		application:                      application,
 		appListingService:                appListingService,
@@ -117,6 +119,7 @@ func NewAppListingRestHandlerImpl(application application.ServiceClient,
 		k8sApplicationService:            k8sApplicationService,
 		installedAppService:              installedAppService,
 		cdApplicationStatusUpdateHandler: cdApplicationStatusUpdateHandler,
+		appStatusService:                 appStatusService,
 	}
 	return appListingHandler
 }
@@ -766,7 +769,13 @@ func (handler AppListingRestHandlerImpl) fetchResourceTree(w http.ResponseWriter
 				handler.logger.Errorw("error in syncing pipeline status", "err", err)
 			}
 		}
-		//can update app status here
+		//updating app_status table here
+		err = handler.appStatusService.UpdateStatusWithAppIdEnvId(appDetail.AppId, appDetail.EnvironmentId, resp.Status)
+		if err != nil {
+			handler.logger.Errorw("error in updating app status", "err", err)
+			handler.logger.Infow("ignoring the error", "err", err)
+		}
+
 	} else if len(appDetail.AppName) > 0 && len(appDetail.EnvironmentName) > 0 && util.IsHelmApp(appDetail.DeploymentAppType) {
 		config, err := handler.helmAppService.GetClusterConf(appDetail.ClusterId)
 		if err != nil {
