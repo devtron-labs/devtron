@@ -21,7 +21,7 @@ helm repo add devtron https://helm.devtron.ai
 Run the following command to install Helm Dashboard by Devtron:
 
 ```bash
-helm install devtron devtron/devtron-operator\
+helm install devtron devtron/devtron-operator \
 --create-namespace --namespace devtroncd
 ```
 

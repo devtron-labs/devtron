@@ -18,14 +18,10 @@
 package user
 
 import (
-	"github.com/devtron-labs/authenticator/client"
-	"github.com/devtron-labs/authenticator/oidc"
-	"github.com/devtron-labs/devtron/client/argocdServer"
-	"github.com/devtron-labs/devtron/pkg/user"
+	"github.com/devtron-labs/devtron/pkg/auth"
 	"github.com/gorilla/mux"
 	"go.uber.org/zap"
 	"net/http"
-	"strings"
 )
 
 type UserAuthRouter interface {
@@ -33,33 +29,18 @@ type UserAuthRouter interface {
 }
 
 type UserAuthRouterImpl struct {
-	logger          *zap.SugaredLogger
-	userAuthHandler UserAuthHandler
-	dexProxy        func(writer http.ResponseWriter, request *http.Request)
-	clientApp       *oidc.ClientApp
+	logger             *zap.SugaredLogger
+	userAuthHandler    UserAuthHandler
+	userAuthOidcHelper auth.UserAuthOidcHelper
 }
 
-func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, selfRegistrationRolesService user.SelfRegistrationRolesService, dexConfig *client.DexConfig) (*UserAuthRouterImpl, error) {
+func NewUserAuthRouterImpl(logger *zap.SugaredLogger, userAuthHandler UserAuthHandler, userAuthOidcHelper auth.UserAuthOidcHelper) *UserAuthRouterImpl {
 	router := &UserAuthRouterImpl{
-		userAuthHandler: userAuthHandler,
-		logger:          logger,
+		logger:             logger,
+		userAuthHandler:    userAuthHandler,
+		userAuthOidcHelper: userAuthOidcHelper,
 	}
-	logger.Infow("auth starting with dex conf", "conf", dexConfig)
-	oidcClient, dexProxy, err := client.GetOidcClient(dexConfig, selfRegistrationRolesService.CheckAndCreateUserIfConfigured, router.RedirectUrlSanitiser)
-	if err != nil {
-		return nil, err
-	}
-	router.dexProxy = dexProxy
-	router.clientApp = oidcClient
-	return router, nil
-}
-
-// RedirectUrlSanitiser replaces initial "/orchestrator" from url
-func (router UserAuthRouterImpl) RedirectUrlSanitiser(redirectUrl string) string {
-	if strings.Contains(redirectUrl, argocdServer.Dashboard) {
-		redirectUrl = strings.ReplaceAll(redirectUrl, argocdServer.Orchestrator, "")
-	}
-	return redirectUrl
+	return router
 }
 
 func (router UserAuthRouterImpl) InitUserAuthRouter(userAuthRouter *mux.Router) {
@@ -68,10 +49,10 @@ func (router UserAuthRouterImpl) InitUserAuthRouter(userAuthRouter *mux.Router) 
 			router.writeSuccess("Welcome @Devtron", writer)
 		}).Methods("GET")
 
-	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(router.dexProxy)
-	userAuthRouter.Path("/login").HandlerFunc(router.clientApp.HandleLogin)
-	userAuthRouter.Path("/auth/login").HandlerFunc(router.clientApp.HandleLogin)
-	userAuthRouter.Path("/auth/callback").HandlerFunc(router.clientApp.HandleCallback)
+	userAuthRouter.PathPrefix("/api/dex").HandlerFunc(router.userAuthOidcHelper.GetDexProxy())
+	userAuthRouter.Path("/login").HandlerFunc(router.userAuthOidcHelper.GetClientApp().HandleLogin)
+	userAuthRouter.Path("/auth/login").HandlerFunc(router.userAuthOidcHelper.GetClientApp().HandleLogin)
+	userAuthRouter.Path("/auth/callback").HandlerFunc(router.userAuthOidcHelper.GetClientApp().HandleCallback)
 	userAuthRouter.Path("/api/v1/session").HandlerFunc(router.userAuthHandler.LoginHandler)
 	userAuthRouter.Path("/refresh").HandlerFunc(router.userAuthHandler.RefreshTokenHandler)
 	// Policies mapping in orchestrator
