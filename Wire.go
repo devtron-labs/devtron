@@ -756,8 +756,6 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(appStatusRepo.AppStatusRepository), new(*appStatusRepo.AppStatusRepositoryImpl)),
 		appStatus.NewAppStatusServiceImpl,
 		wire.Bind(new(appStatus.AppStatusService), new(*appStatus.AppStatusServiceImpl)),
-		restHandler.NewAppStatusRestHandlerImpl,
-		wire.Bind(new(restHandler.AppStatusRestHandler), new(*restHandler.AppStatusRestHandlerImpl)),
 		//app_status ends
 
 		cron.GetCiWorkflowStatusUpdateConfig,

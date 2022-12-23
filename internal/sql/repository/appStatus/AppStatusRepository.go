@@ -7,7 +7,6 @@ import (
 )
 
 type AppStatusContainer struct {
-	TableName      struct{}  `sql:"app_status" pg:",discard_unknown_columns"`
 	AppId          int       `sql:"app_id"`
 	AppName        string    `sql:"app_name"`         //unknown
 	EnvIdentifier  string    `sql:"env_identifier"`   //unknown
@@ -15,7 +14,15 @@ type AppStatusContainer struct {
 	EnvId          int       `sql:"env_id"`
 	Status         string    `sql:"status"`
 	AppStore       bool      `sql:"app_store"` //unknown
-	UpdatedOn      time.Time `sql:"status"`
+	UpdatedOn      time.Time `sql:"updated_on"`
+}
+
+type AppStatusDto struct {
+	TableName struct{}  `sql:"app_status" pg:",discard_unknown_columns"`
+	AppId     int       `sql:"app_id"`
+	EnvId     int       `sql:"env_id"`
+	Status    string    `sql:"status"`
+	UpdatedOn time.Time `sql:"updated_on"`
 }
 
 type AppStatusRepository interface {
@@ -46,8 +53,13 @@ func (repo *AppStatusRepositoryImpl) GetConnection() *pg.DB {
 	return repo.dbConnection
 }
 func (repo *AppStatusRepositoryImpl) Create(tx *pg.Tx, container AppStatusContainer) error {
-	container.UpdatedOn = time.Now()
-	err := tx.Insert(container)
+	model := AppStatusDto{
+		AppId:     container.AppId,
+		EnvId:     container.EnvId,
+		Status:    container.Status,
+		UpdatedOn: time.Now(),
+	}
+	err := tx.Insert(&model)
 	return err
 }
 
@@ -97,10 +109,16 @@ func (repo *AppStatusRepositoryImpl) DeleteWithEnvId(tx *pg.Tx, envId int) error
 }
 
 func (repo *AppStatusRepositoryImpl) Get(appId, envId int) (AppStatusContainer, error) {
-	appStatusContainer := AppStatusContainer{}
-	err := repo.dbConnection.Model(&appStatusContainer).
+	model := AppStatusDto{}
+	err := repo.dbConnection.Model(&model).
 		Where("app_id = ?", appId).
 		Where("env_id = ?", envId).
 		Select()
-	return appStatusContainer, err
+	container := AppStatusContainer{
+		AppId:     model.AppId,
+		EnvId:     model.EnvId,
+		Status:    model.Status,
+		UpdatedOn: model.UpdatedOn,
+	}
+	return container, err
 }

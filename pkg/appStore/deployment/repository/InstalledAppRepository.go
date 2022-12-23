@@ -116,6 +116,7 @@ type InstalledAppsWithChartDetails struct {
 	TeamId                       int       `json:"teamId"`
 	ClusterId                    int       `json:"clusterId"`
 	AppOfferingMode              string    `json:"app_offering_mode"`
+	AppStatus                    string    `json:"app_status"`
 }
 
 type InstalledAppAndEnvDetails struct {
@@ -247,7 +248,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	query = "select iav.updated_on, iav.id as installed_app_version_id, ch.name as chart_repo_name,"
 	query = query + " env.environment_name, env.id as environment_id, a.app_name, a.app_offering_mode, asav.icon, asav.name as app_store_application_name,"
 	query = query + " env.namespace, cluster.cluster_name, a.team_id, cluster.id as cluster_id, "
-	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated"
+	query = query + " asav.id as app_store_application_version_id, ia.id , asav.deprecated , app_status.status as app_status"
 	query = query + " from installed_app_versions iav"
 	query = query + " inner join installed_apps ia on iav.installed_app_id = ia.id"
 	query = query + " inner join app a on a.id = ia.app_id"
@@ -256,6 +257,7 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	query = query + " inner join app_store_application_version asav on iav.app_store_application_version_id = asav.id"
 	query = query + " inner join app_store aps on aps.id = asav.app_store_id"
 	query = query + " inner join chart_repo ch on ch.id = aps.chart_repo_id"
+	query = query + " left join app_status on app_status.app_id = ia.app_id and ia.environment_id = app_status.env_id"
 	query = query + " where ia.active = true and iav.active = true"
 	if filter.OnlyDeprecated {
 		query = query + " AND asav.deprecated = TRUE"

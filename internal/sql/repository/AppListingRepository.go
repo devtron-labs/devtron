@@ -451,7 +451,7 @@ func (impl AppListingRepositoryImpl) FetchOtherEnvironment(appId int) ([]*bean.E
 		" INNER JOIN environment env on env.id=p.environment_id" +
 		" LEFT JOIN env_level_app_metrics env_app_m on env.id=env_app_m.env_id and p.app_id = env_app_m.app_id" +
 		" where p.app_id=? and p.deleted = FALSE AND env.active = TRUE GROUP BY 1,2,3,4,5,6) oe"
-	query += " LEFT JOIN app_status ON app_status.env_id = oe.environment_id and app_status.app_id = ?;"
+	query += " LEFT JOIN app_status ON app_status.env_id = oe.environment_id and app_status.app_id = ? ;"
 	impl.Logger.Debugw("other env query:", query)
 	_, err := impl.dbConnection.Query(&otherEnvironments, query, appId, appId, appId)
 	if err != nil {

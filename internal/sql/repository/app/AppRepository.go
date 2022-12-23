@@ -19,6 +19,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/go-pg/pg"
@@ -70,14 +71,16 @@ const DevtronChart = "DevtronChart"
 const ExternalApp = "ExternalApp"
 
 type AppRepositoryImpl struct {
-	dbConnection *pg.DB
-	logger       *zap.SugaredLogger
+	dbConnection        *pg.DB
+	logger              *zap.SugaredLogger
+	appStatusRepository appStatus.AppStatusRepository
 }
 
-func NewAppRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger) *AppRepositoryImpl {
+func NewAppRepositoryImpl(dbConnection *pg.DB, logger *zap.SugaredLogger, appStatusRepository appStatus.AppStatusRepository) *AppRepositoryImpl {
 	return &AppRepositoryImpl{
-		dbConnection: dbConnection,
-		logger:       logger,
+		dbConnection:        dbConnection,
+		logger:              logger,
+		appStatusRepository: appStatusRepository,
 	}
 }
 
@@ -102,6 +105,13 @@ func (repo AppRepositoryImpl) Update(app *App) error {
 
 func (repo AppRepositoryImpl) UpdateWithTxn(app *App, tx *pg.Tx) error {
 	err := tx.Update(app)
+	if !app.Active {
+		err1 := repo.appStatusRepository.DeleteWithAppId(tx, app.Id)
+		if err1 != nil {
+			repo.logger.Errorw("error in deleting from app_status table with appId", "appId", app.Id, "err", err)
+		}
+		return err1
+	}
 	return err
 }
 

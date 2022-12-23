@@ -23,6 +23,7 @@ import (
 	"fmt"
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
+	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/internal/sql/repository/security"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
@@ -180,6 +181,7 @@ type PipelineBuilderImpl struct {
 	globalStrategyMetadataRepository                chartRepoRepository.GlobalStrategyMetadataRepository
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
 	deploymentConfig                                *DeploymentServiceTypeConfig
+	appStatusRepository                             appStatus.AppStatusRepository
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -225,7 +227,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	CiPipelineHistoryService history.CiPipelineHistoryService,
 	globalStrategyMetadataRepository chartRepoRepository.GlobalStrategyMetadataRepository,
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository,
-	deploymentConfig *DeploymentServiceTypeConfig) *PipelineBuilderImpl {
+	deploymentConfig *DeploymentServiceTypeConfig, appStatusRepository appStatus.AppStatusRepository) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -277,6 +279,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		globalStrategyMetadataRepository:                globalStrategyMetadataRepository,
 		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
 		deploymentConfig:                                deploymentConfig,
+		appStatusRepository:                             appStatusRepository,
 	}
 }
 
@@ -1524,7 +1527,7 @@ func (impl PipelineBuilderImpl) PatchCdPipelines(cdPipelines *bean.CDPatchReques
 			impl.logger.Errorw("error in getting cd pipeline by id", "err", err, "id", cdPipelines.Pipeline.Id)
 			return pipelineRequest, err
 		}
-		// TODO : delete the entry in argo_app_status table with app-id,env-id and type = 0
+
 		err = impl.DeleteCdPipeline(pipeline, ctx, cdPipelines.ForceDelete, cdPipelines.UserId)
 		return pipelineRequest, err
 	default:
@@ -1566,7 +1569,12 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 		impl.logger.Errorw("err in deleting pipeline from db", "id", pipeline, "err", err)
 		return err
 	}
-
+	// delete entry in app_status table
+	err = impl.appStatusRepository.Delete(tx, appStatus.AppStatusContainer{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId})
+	if err != nil {
+		impl.logger.Errorw("err in deleting app_status from db", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
+		return err
+	}
 	//delete app workflow mapping
 	appWorkflowMapping, err := impl.appWorkflowRepository.FindWFCDMappingByCDPipelineId(pipeline.Id)
 	if err != nil {

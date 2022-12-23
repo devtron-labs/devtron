@@ -5,6 +5,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/appStatus"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/rbac"
+	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"strings"
 )
@@ -155,7 +156,7 @@ func (impl *AppStatusServiceImpl) GetAllInstalledAppStatuses(requests []AppStatu
 
 func (impl *AppStatusServiceImpl) UpdateStatusWithAppIdEnvId(appId, envId int, status string) error {
 	container, err := impl.appStatusRepository.Get(appId, envId)
-	if err != nil {
+	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting app-status for", "appId", appId, "envId", envId, "err", err)
 		return err
 	}
