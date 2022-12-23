@@ -7,9 +7,9 @@ import (
 )
 
 type AppStatusContainer struct {
-	TableName      struct{}  `sql:"pipeline_status" pg:",discard_unknown_columns"`
+	TableName      struct{}  `sql:"app_status" pg:",discard_unknown_columns"`
 	AppId          int       `sql:"app_id"`
-	AppName        string    `sql:"app_name"`
+	AppName        string    `sql:"app_name"`         //unknown
 	EnvIdentifier  string    `sql:"env_identifier"`   //unknown
 	InstalledAppId int       `sql:"installed_app_id"` //unknown
 	EnvId          int       `sql:"env_id"`
@@ -25,6 +25,8 @@ type AppStatusRepository interface {
 	GetAllDevtronAppStatuses(appIds []int) ([]AppStatusContainer, error)
 	GetAllInstalledAppStatuses(installedAppIds []int) ([]AppStatusContainer, error)
 	Delete(tx *pg.Tx, container AppStatusContainer) error
+	DeleteWithAppId(tx *pg.Tx, appId int) error
+	DeleteWithEnvId(tx *pg.Tx, envId int) error
 	Get(appId, envId int) (AppStatusContainer, error)
 	GetConnection() *pg.DB
 }
@@ -58,7 +60,7 @@ func (repo *AppStatusRepositoryImpl) Update(tx *pg.Tx, container AppStatusContai
 func (repo *AppStatusRepositoryImpl) GetAllDevtronAppStatuses(appIds []int) ([]AppStatusContainer, error) {
 	appStatusContainers := make([]AppStatusContainer, 0)
 	query := "SELECT ps.*,app.app_name,env.environment_identifier as env_identifier ( SELECT * " +
-		"FROM pipeline_status WHERE app_id IN ? AND argo_app_status.active = true) ps " +
+		"FROM app_status WHERE app_id IN ? ) ps " +
 		"INNER JOIN app ON app.id = ps.app_id AND app.active=true " +
 		"INNER JOIN environment env ON environment.id = ps.env_id AND env.active=true;"
 	_, err := repo.dbConnection.Query(&appStatusContainers, query, pg.In(appIds))
@@ -68,17 +70,30 @@ func (repo *AppStatusRepositoryImpl) GetAllDevtronAppStatuses(appIds []int) ([]A
 func (repo *AppStatusRepositoryImpl) GetAllInstalledAppStatuses(installedAppIds []int) ([]AppStatusContainer, error) {
 	appStatusContainers := make([]AppStatusContainer, 0)
 	query := "SELECT ps.*,ia.id AS installed_app_id,app.app_name,env.environment_name " +
-		"FROM pipeline_status ps " +
+		"FROM app_status ps " +
 		"INNER JOIN ( SELECT id,app_id FROM installed_apps WHERE id IN ? AND active = true ) ia " +
-		"ON ps.app_id = ia.app_id AND ps.active=true " +
+		"ON ps.app_id = ia.app_id " +
 		"INNER JOIN app ON app.id = ps.app_id AND app.active=true " +
 		"INNER JOIN environment env ON environment.id = aas.env_id AND env.active=true;"
 	_, err := repo.dbConnection.Query(&appStatusContainers, query, pg.In(installedAppIds))
 	return appStatusContainers, err
 }
 func (repo *AppStatusRepositoryImpl) Delete(tx *pg.Tx, container AppStatusContainer) error {
-	container.Active = false
-	err := repo.Update(tx, container)
+	err := tx.Delete(container)
+	return err
+}
+
+func (repo *AppStatusRepositoryImpl) DeleteWithAppId(tx *pg.Tx, appId int) error {
+	container := AppStatusContainer{}
+	query := "DELETE FROM app_status WHERE app_id = ?;"
+	_, err := tx.Query(&container, query, appId)
+	return err
+}
+
+func (repo *AppStatusRepositoryImpl) DeleteWithEnvId(tx *pg.Tx, envId int) error {
+	container := AppStatusContainer{}
+	query := "DELETE FROM app_status WHERE env_id = ?;"
+	_, err := tx.Query(&container, query, envId)
 	return err
 }
 
