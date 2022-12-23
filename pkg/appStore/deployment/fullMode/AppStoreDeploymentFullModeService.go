@@ -142,8 +142,6 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		Name:       appStoreAppVersion.AppStore.Name,
 		Version:    appStoreAppVersion.Version,
 		Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
-		Username:   appStoreAppVersion.AppStore.ChartRepo.UserName,
-		Password:   appStoreAppVersion.AppStore.ChartRepo.Password,
 	}
 
 	var dependencies []appStoreBean.Dependency
