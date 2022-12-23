@@ -12,6 +12,12 @@ import (
 	"time"
 )
 
+const (
+	delete string = "delete"
+	helm   string = "helm"
+	GitOps string = "argo_cd"
+)
+
 type K8sResourceHistoryService interface {
 	SaveArgoCdAppsResourceDeleteHistory(query *application.ApplicationResourceDeleteRequest, appId int, envId int, userId int32) error
 	SaveHelmAppsResourceHistory(appIdentifier *client.AppIdentifier, k8sRequestBean *application2.K8sRequestBean, userId int32, actionType string) error
@@ -49,8 +55,8 @@ func (impl K8sResourceHistoryServiceImpl) SaveArgoCdAppsResourceDeleteHistory(qu
 			UpdatedBy: userId,
 			UpdatedOn: time.Now(),
 		},
-		ActionType:        "delete",
-		DeploymentAppType: "argo_cd",
+		ActionType:        delete,
+		DeploymentAppType: GitOps,
 	}
 
 	err := impl.K8sResourceHistoryRepository.SaveK8sResourceHistory(&k8sResourceHistory)
@@ -83,7 +89,7 @@ func (impl K8sResourceHistoryServiceImpl) SaveHelmAppsResourceHistory(appIdentif
 			UpdatedOn: time.Now(),
 		},
 		ActionType:        actionType,
-		DeploymentAppType: "helm",
+		DeploymentAppType: helm,
 	}
 
 	err = impl.K8sResourceHistoryRepository.SaveK8sResourceHistory(&k8sResourceHistory)
