@@ -171,8 +171,6 @@ type Dependency struct {
 	Name       string `json:"name"`
 	Version    string `json:"version"`
 	Repository string `json:"repository"`
-	Username   string `json:"username"`
-	Password   string `json:"password"`
 }
 
 const BULK_APPSTORE_DEPLOY_TOPIC = "ORCHESTRATOR.APP-STORE.BULK-DEPLOY"
