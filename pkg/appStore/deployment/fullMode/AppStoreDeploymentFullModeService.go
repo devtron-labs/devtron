@@ -137,20 +137,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 
 	//STEP 3 - update requirements and values
-
-	//adding username and password in url for accessing private helm chart repos
-	//username := appStoreAppVersion.AppStore.ChartRepo.UserName
-	//password := appStoreAppVersion.AppStore.ChartRepo.Password
-	//var finalUrl string
-	//if len(username) > 0 && len(password) > 0 {
-	//	chartRepoUrl := appStoreAppVersion.AppStore.ChartRepo.Url
-	//	splitRes := strings.Split(chartRepoUrl, "//")
-	//	finalUrl = splitRes[0] + "//" + username + ":" + password + "@" + splitRes[1]
-	//}
-	//update requirements yaml in chart
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
-	//dependency := appStoreBean.Dependency{}
-	//if len(finalUrl) == 0 {
 	dependency := appStoreBean.Dependency{
 		Name:       appStoreAppVersion.AppStore.Name,
 		Version:    appStoreAppVersion.Version,
@@ -158,15 +145,6 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 		Username:   appStoreAppVersion.AppStore.ChartRepo.UserName,
 		Password:   appStoreAppVersion.AppStore.ChartRepo.Password,
 	}
-	//} else {
-	//	dependency = appStoreBean.Dependency{
-	//		Name:       appStoreAppVersion.AppStore.Name,
-	//		Version:    appStoreAppVersion.Version,
-	//		Repository: finalUrl,
-	//		Username:   appStoreAppVersion.AppStore.ChartRepo.UserName,
-	//		Password:   appStoreAppVersion.AppStore.ChartRepo.Password,
-	//	}
-	//}
 
 	var dependencies []appStoreBean.Dependency
 	dependencies = append(dependencies, dependency)
@@ -318,7 +296,6 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		RepoUrl:         chartGitAttribute.RepoUrl,
 	}
 	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster)
-	fmt.Println("prakash-debugger: ", appreq.ApplicationName, appreq.Namespace, appreq.TargetNamespace, appreq.TargetServer, appreq.ValuesFile, appreq.RepoPath, appreq.RepoUrl)
 
 	//create
 	if err != nil {

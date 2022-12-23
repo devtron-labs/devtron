@@ -65,7 +65,6 @@ func (impl ArgoK8sClientImpl) CreateAcdApp(appRequest *AppTemplate, cluster *rep
 		return "", err
 	}
 	applicationRequestString, err := impl.tprintf(string(chartYamlContent), appRequest)
-	fmt.Println("prakash-debugger:- ", applicationRequestString)
 	if err != nil {
 		impl.logger.Errorw("error in rendering application template", "req", appRequest, "err", err)
 		return "", err
