@@ -16,7 +16,6 @@ type AppStatusContainer struct {
 	Status         string    `sql:"status"`
 	AppStore       bool      `sql:"app_store"` //unknown
 	UpdatedOn      time.Time `sql:"status"`
-	Active         bool      `sql:"active"`
 }
 
 type AppStatusRepository interface {
