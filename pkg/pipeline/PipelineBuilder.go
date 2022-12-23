@@ -179,7 +179,7 @@ type PipelineBuilderImpl struct {
 	CiPipelineHistoryService                        history.CiPipelineHistoryService
 	globalStrategyMetadataRepository                chartRepoRepository.GlobalStrategyMetadataRepository
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
-	deploymentConfig             *DeploymentServiceTypeConfig
+	deploymentConfig                                *DeploymentServiceTypeConfig
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -276,7 +276,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		CiPipelineHistoryService:                        CiPipelineHistoryService,
 		globalStrategyMetadataRepository:                globalStrategyMetadataRepository,
 		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
-		deploymentConfig:             deploymentConfig,
+		deploymentConfig:                                deploymentConfig,
 	}
 }
 
@@ -392,6 +392,12 @@ func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMater
 	if err != nil {
 		impl.logger.Errorw("error in fetching materials", "appId", appId, "err", err)
 	}
+
+	ciTemplateBean, err := impl.ciTemplateService.FindByAppId(appId)
+	if err != nil && err != errors.NotFoundf(err.Error()) {
+		impl.logger.Errorw("err in getting ci-template", "appId", appId, "err", err)
+	}
+
 	var gitMaterials []*bean.GitMaterial
 	for _, material := range materials {
 		gitMaterial := &bean.GitMaterial{
@@ -401,6 +407,12 @@ func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMater
 			GitProviderId:   material.GitProviderId,
 			CheckoutPath:    material.CheckoutPath,
 			FetchSubmodules: material.FetchSubmodules,
+		}
+		if ciTemplateBean != nil {
+			ciTemplate := ciTemplateBean.CiTemplate
+			if ciTemplate != nil && ciTemplate.GitMaterialId == material.Id {
+				gitMaterial.IsUsedInCiConfig = true
+			}
 		}
 		gitMaterials = append(gitMaterials, gitMaterial)
 	}
