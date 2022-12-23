@@ -408,6 +408,7 @@ func (impl PipelineBuilderImpl) GetMaterialsForAppId(appId int) []*bean.GitMater
 			CheckoutPath:    material.CheckoutPath,
 			FetchSubmodules: material.FetchSubmodules,
 		}
+		//check if git material is deletable or not
 		if ciTemplateBean != nil {
 			ciTemplate := ciTemplateBean.CiTemplate
 			if ciTemplate != nil && ciTemplate.GitMaterialId == material.Id {
