@@ -1154,7 +1154,11 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		impl.logger.Error(err)
 		return 0, err
 	}
-
+	env, err := impl.envRepository.FindById(pipelineRequest.EnvironmentId)
+	if err != nil {
+		impl.logger.Errorw("error in getting environment by id", "err", err)
+		return 0, err
+	}
 	pipeline := &pipelineConfig.Pipeline{
 		EnvironmentId:                 pipelineRequest.EnvironmentId,
 		AppId:                         appId,
@@ -1172,7 +1176,7 @@ func (impl CiCdPipelineOrchestratorImpl) CreateCDPipelines(pipelineRequest *bean
 		RunPostStageInEnv:             pipelineRequest.RunPostStageInEnv,
 		DeploymentAppCreated:          false,
 		DeploymentAppType:             pipelineRequest.DeploymentAppType,
-		DeploymentAppName:             fmt.Sprintf("%s-%s", appName, pipelineRequest.EnvironmentName),
+		DeploymentAppName:             fmt.Sprintf("%s-%s", appName, env.Name),
 		AuditLog:                      sql.AuditLog{UpdatedBy: userId, CreatedBy: userId, UpdatedOn: time.Now(), CreatedOn: time.Now()},
 	}
 	err = impl.pipelineRepository.Save([]*pipelineConfig.Pipeline{pipeline}, tx)
