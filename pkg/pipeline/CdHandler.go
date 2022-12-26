@@ -179,7 +179,7 @@ func (impl *CdHandlerImpl) CheckArgoPipelineTimelineStatusPeriodicallyAndUpdateI
 func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipelineId int, userId int32) {
 	lastSyncTime, err := impl.pipelineStatusSyncDetailService.GetLastSyncTimeForLatestCdWfrByCdPipelineId(pipelineId)
 	if err != nil {
-		impl.Logger.Errorw("error in getting last sync time by argoAppName", "err", err)
+		impl.Logger.Errorw("error in getting last sync time by pipelineId", "err", err, "pipelineId", pipelineId)
 		return
 	}
 	//TODO: remove hard coding
