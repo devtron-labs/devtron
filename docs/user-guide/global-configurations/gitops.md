@@ -72,17 +72,14 @@ If you select `GitLab` as your git provider, please provide the information in t
 ### How to create organization in GitLab
 
 
-{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/gitops-gitlab-latest.mp4" caption="GitHub" %}
+{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/gitops-gitlab-latest1.mp4" caption="GitHub" %}
 
 
 1. Create a new account on GitLab (if you do not have one).
 2. You can create a group by going to the 'Groups' tab on the GitLab dashboard and click `New group`.
 3. Select `Create group`.
 4. Enter the group name (required) and select the optional descriptions, if require and click `Create group`.
-
 5. Your group will be created and your group name will be assigned with a new `Group ID` (e.g. 61512475).
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/gitlab/group-id.jpg)
 
 
 **Note**:
@@ -106,7 +103,9 @@ If you select `GitAzureLab` as your git provider, please provide the information
 
 **Note**: You need an organization before you can create a project. If you have not created an organization yet, create one by following the instructions in [Sign up, sign in to Azure DevOps](https://learn.microsoft.com/en-us/azure/devops/user-guide/sign-up-invite-teammates?view=azure-devops), which also creates a project. Or see [Create an organization or project collection](https://learn.microsoft.com/en-us/azure/devops/organizations/accounts/create-organization?view=azure-devops).
 
-{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/azure+devops/azure-gitops-latest.mp4" caption="GitHub" %}
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/azure+devops/azure-new-project.jpg)
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/azure+devops/azure-create-new-project.jpg)
 
 1. Go to Azure DevOps and navigate to Projects.
 2. Select your organization and click `New project`. 
@@ -137,7 +136,7 @@ If you select `Bitbucket Cloud` as your git provider, please provide the informa
 
 ### How to create Bitbucket workspace ID
 
-{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket/gitops-bitbucket.mp4" caption="GitHub" %}
+{% embed url="https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/gitops/bitbucket/bitbucket-latest-gitops.mp4" caption="GitHub" %}
 
 1. Create a new individual account on Bitbucket (if you do not have one).
 2. Select your profile and settings avatar on the upper-right corner of the top navigation bar.

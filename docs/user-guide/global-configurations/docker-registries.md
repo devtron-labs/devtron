@@ -155,7 +155,7 @@ Click **Save**.
 
 ## Pull an Image from a Private Registry
 
-You can create a Pod that uses a `Secret` to pull an image from a private container image registry or repository. There are many private registries in use. This task uses [Docker Hub](https://www.docker.com/products/docker-hub) as an example registry.
+You can create a Pod that uses a `Secret` to pull an image from a private container registry. You can use any private container registry of your choice. As an example: [Docker Hub](https://www.docker.com/products/docker-hub).
 
 Super admin users can decide if they want to auto-inject registry credentials or use a secret to pull an image for deployment to environments on specific clusters.
 
@@ -175,7 +175,7 @@ You can choose one of the two options for defining credentials:
 
 ### Use Registry Credentials
 
-If you select **Use Registry Credentials**, the clusters will be auto-injected with the registry credentials of your registry type. As an example: If you select `Docker` as Registry Type and `docker.io` as Registry URL, the registry credentials of the clusters will be the `username` and `password` which you define.
+If you select **Use Registry Credentials**, the clusters will be auto-injected with the registry credentials of your registry type. As an example, If you select `Docker` as Registry Type, then the clusters will be auto-injected with the `username` and `password/token` which you use on the Docker Hub account.
 Click **Save**.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/use-registry-credentials.jpg)
@@ -207,47 +207,12 @@ You have successfully set your Docker credentials in the cluster as a Secret cal
 Enter the `Secret` name in the field and click **Save**.
 
 
-## How to resolve if Deployment Status shows Failed or Degraded
-
-If the deployment status shows `Failed` or `Degraded`, then the cluster is not able to pull container image from the private registry. In that case, the status of pod shows `ImagePullBackOff`.
-
-The failure of deployment can be one of the following reasons:
-
-* Provided credentials may not have permission to pull container image from registry.
-* Provided credentials may be invalid.
-
-You can resolve the `ImagePullBackOff` issue by clicking **How to resolve?** which will take you to the **App Details** page.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/how-to-resolve-latest1.png)
 
 
-To provide the auto-inject credentials to the specific clusters for pulling the image from the private repository, click **Manage Access** which will take you to the **Container Registries** page. 
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/manage-access-latest.jpg)
-
-1. On the **Container Registries** page, select the docker registry and click **Manage**.
-2. In the **Auto-inject credentials to clusters**, click **Confirm to edit** to select the specific cluster or all clusters for which you want to auto-inject the credentials to and click **Save**.
-3. Redeploy the application after allowing the access.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/auto-inject-to-clusters.jpg)
 
 
-## Integrating With External Container Registry
+  
 
-If you want to use a private registry for container registry other than ecr, this will be used to push image and then create a secret in same environment to pull the image to deploy. To create secret, go to charts section and search for chart ‘dt-secrets’ and configure the chart. Provide an App Name and select the Project and Environment in which you want to deploy this chart and then configure the values.yaml as shown in example. The given example is for DockerHub but you can configure similarly for any container registry that you want to use.
-
-```yaml
-name: regcred
-type: kubernetes.io/dockerconfigjson
-labels:
- test: chart
-secrets:
- data:
-   - key: .dockerconfigjson
-     value: '{"auths":{"https://index.docker.io/v1/":{"username":"<username>","password":"<password>}}}'
-```     
-
-The `name` that you provide in values.yaml ie. `regcred` is name of the secret that will be used as `imagePullSecrets` to pull the image from docker hub to deploy. To know how `imagePullSecrets` will be used in the deployment-template, please follow the [documentation](https://docs.devtron.ai/usage/applications/creating-application/deployment-template/rollout-deployment#imagepullsecrets).
 
 
 
