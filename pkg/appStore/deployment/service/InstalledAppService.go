@@ -860,11 +860,6 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 		impl.logger.Errorw("error while fetching installed version history", "error", err)
 		return isHealthy, err
 	}
-	appId, envId, err := impl.installedAppRepositoryHistory.GetAppIdAndEnvIdWithInstalledAppVersionId(versionHistory.InstalledAppVersionId)
-	err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, string(application.Status.Health.Status))
-	if err != nil {
-		impl.logger.Errorw("error while updating app status in app_status table", "error", err, "appId", appId, "envId", envId)
-	}
 	if versionHistory.Status != (application2.Healthy) {
 		versionHistory.Status = string(application.Status.Health.Status)
 		versionHistory.UpdatedOn = time.Now()
@@ -875,6 +870,12 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 	if err != nil {
 		impl.logger.Errorw("error while committing transaction to db", "error", err)
 		return isHealthy, err
+	}
+
+	appId, envId, err := impl.installedAppRepositoryHistory.GetAppIdAndEnvIdWithInstalledAppVersionId(versionHistory.InstalledAppVersionId)
+	err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, string(application.Status.Health.Status))
+	if err != nil {
+		impl.logger.Errorw("error while updating app status in app_status table", "error", err, "appId", appId, "envId", envId)
 	}
 
 	return true, nil

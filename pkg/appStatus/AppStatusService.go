@@ -168,16 +168,17 @@ func (impl *AppStatusServiceImpl) UpdateStatusWithAppIdEnvId(appId, envId int, s
 	// Rollback tx on error.
 	defer tx.Rollback()
 
-	container.Status = status
 	if container.AppId == 0 {
 		container.AppId = appId
 		container.EnvId = envId
+		container.Status = status
 		err = impl.appStatusRepository.Create(tx, container)
 		if err != nil {
 			impl.logger.Errorw("error in Creating appStatus", "appId", appId, "envId", envId, "err", err)
 			return err
 		}
-	} else {
+	} else if container.Status != status {
+		container.Status = status
 		err = impl.appStatusRepository.Update(tx, container)
 		if err != nil {
 			impl.logger.Errorw("error in Updating appStatus", "appId", appId, "envId", envId, "err", err)
