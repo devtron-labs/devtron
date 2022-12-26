@@ -19,8 +19,8 @@ type AppStatusContainer struct {
 
 type AppStatusDto struct {
 	TableName struct{}  `sql:"app_status" pg:",discard_unknown_columns"`
-	AppId     int       `sql:"app_id"`
-	EnvId     int       `sql:"env_id"`
+	AppId     int       `sql:"app_id,pk"`
+	EnvId     int       `sql:"env_id,pk"`
 	Status    string    `sql:"status"`
 	UpdatedOn time.Time `sql:"updated_on"`
 }
@@ -64,8 +64,13 @@ func (repo *AppStatusRepositoryImpl) Create(tx *pg.Tx, container AppStatusContai
 }
 
 func (repo *AppStatusRepositoryImpl) Update(tx *pg.Tx, container AppStatusContainer) error {
-	container.UpdatedOn = time.Now()
-	err := tx.Update(container)
+	model := AppStatusDto{
+		AppId:     container.AppId,
+		EnvId:     container.EnvId,
+		Status:    container.Status,
+		UpdatedOn: time.Now(),
+	}
+	err := tx.Update(&model)
 	return err
 }
 func (repo *AppStatusRepositoryImpl) GetAllDevtronAppStatuses(appIds []int) ([]AppStatusContainer, error) {
