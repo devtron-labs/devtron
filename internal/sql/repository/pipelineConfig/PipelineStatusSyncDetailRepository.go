@@ -69,7 +69,7 @@ func (impl *PipelineStatusSyncDetailRepositoryImpl) GetByCdWfrId(cdWfrId int) (*
 func (impl *PipelineStatusSyncDetailRepositoryImpl) GetOfLatestCdWfrByCdPipelineId(pipelineId int) (*PipelineStatusSyncDetail, error) {
 	var model PipelineStatusSyncDetail
 	query := `select * from pipeline_status_timeline_sync_detail 
-              	where cd_workflow_runner_id = (select cwr.id from cd_workflow_runner cwr inner join cd_workflow cw on cw.is=cwr.cd_workflow_id 
+              	where cd_workflow_runner_id = (select cwr.id from cd_workflow_runner cwr inner join cd_workflow cw on cw.id=cwr.cd_workflow_id 
                 	inner join pipeline p on p.id=cw.pipeline_id where p.id=? and p.active=? and p.deployment_app_type=? order by cwr.id desc limit ?);`
 	_, err := impl.dbConnection.Query(&model, query, pipelineId, true, util.PIPELINE_DEPLOYMENT_TYPE_ACD, 1)
 	if err != nil {
