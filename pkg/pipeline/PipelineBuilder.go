@@ -179,7 +179,7 @@ type PipelineBuilderImpl struct {
 	CiPipelineHistoryService                        history.CiPipelineHistoryService
 	globalStrategyMetadataRepository                chartRepoRepository.GlobalStrategyMetadataRepository
 	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
-	deploymentConfig             *DeploymentServiceTypeConfig
+	deploymentConfig                                *DeploymentServiceTypeConfig
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -276,7 +276,7 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		CiPipelineHistoryService:                        CiPipelineHistoryService,
 		globalStrategyMetadataRepository:                globalStrategyMetadataRepository,
 		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
-		deploymentConfig:             deploymentConfig,
+		deploymentConfig:                                deploymentConfig,
 	}
 }
 
@@ -2258,14 +2258,8 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 		impl.logger.Errorw("error in getting artifact for deployed items", "cdPipelineId", pipelineId)
 		return ciArtifacts, artifactMap, err
 	}
-	var acceptedStatus string
-	if stageType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
-		acceptedStatus = application.Healthy
-	} else {
-		acceptedStatus = application.SUCCEEDED
-	}
 	for index, wfr := range parentWfrList {
-		if wfr.Status == acceptedStatus {
+		if wfr.Status == application.Healthy || wfr.Status == application.SUCCEEDED {
 			lastSuccessfulTriggerOnParent := parent && index == 0
 			latest := !parent && index == 0
 			runningOnParentCd := parentCdRunningArtifactId == wfr.CdWorkflow.CiArtifact.Id
