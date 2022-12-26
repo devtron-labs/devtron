@@ -89,12 +89,14 @@ func (app *App) Start() {
 
 	// setup tracer
 	serviceName := "orchestrator"
-	tp := otel.Init(serviceName)
-	defer func() {
-		if err := tp.Shutdown(context.Background()); err != nil {
-			log.Printf("Error shutting down tracer provider: %v", err)
-		}
-	}()
+	tracerProvider := otel.Init(serviceName)
+	if tracerProvider != nil {
+		defer func() {
+			if err := tracerProvider.Shutdown(context.Background()); err != nil {
+				log.Printf("Error shutting down tracer provider: %v", err)
+			}
+		}()
+	}
 
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
@@ -102,7 +104,9 @@ func (app *App) Start() {
 	server := &http.Server{Addr: fmt.Sprintf(":%d", port), Handler: authMiddleware.Authorizer(app.sessionManager2, user.WhitelistChecker)(app.MuxRouter.Router)}
 
 	app.MuxRouter.Router.Use(middleware.PrometheusMiddleware)
-	app.MuxRouter.Router.Use(otelmux.Middleware(serviceName))
+	if tracerProvider != nil {
+		app.MuxRouter.Router.Use(otelmux.Middleware(serviceName))
+	}
 	app.server = server
 	var err error
 	if app.serveTls {
