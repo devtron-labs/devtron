@@ -67,7 +67,7 @@ func (impl *PipelineStatusTimelineResourcesRepositoryImpl) SaveTimelineResources
 }
 
 func (impl *PipelineStatusTimelineResourcesRepositoryImpl) UpdateTimelineResources(timelineResources []*PipelineStatusTimelineResources) error {
-	err := impl.dbConnection.Update(&timelineResources)
+	_, err := impl.dbConnection.Model(&timelineResources).Update()
 	if err != nil {
 		impl.logger.Errorw("error in updating timeline resources of cd pipeline status", "err", err, "timelineResources", timelineResources)
 		return err
@@ -76,7 +76,7 @@ func (impl *PipelineStatusTimelineResourcesRepositoryImpl) UpdateTimelineResourc
 }
 
 func (impl *PipelineStatusTimelineResourcesRepositoryImpl) UpdateTimelineResourcesWithTxn(timelineResources []*PipelineStatusTimelineResources, tx *pg.Tx) error {
-	err := tx.Update(&timelineResources)
+	_, err := tx.Model(&timelineResources).Update()
 	if err != nil {
 		impl.logger.Errorw("error in saving timeline resources of cd pipeline status", "err", err, "timelineResources", timelineResources)
 		return err
