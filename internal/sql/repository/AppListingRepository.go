@@ -391,7 +391,7 @@ func (impl AppListingRepositoryImpl) FetchAppStageStatus(appId int) ([]bean.AppS
 		" LEFT JOIN charts ch on ch.app_id=app.id" +
 		" LEFT JOIN pipeline p on p.app_id=app.id" +
 		" LEFT JOIN chart_env_config_override ceco on ceco.chart_id=ch.id" +
-		" WHERE app.id=? and app.app_store is false;"
+		" WHERE app.id=? and app.app_store is false limit 1;"
 
 	impl.Logger.Debugw("last app stages status query:", "query", query)
 
