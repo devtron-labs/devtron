@@ -873,11 +873,12 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 	}
 
 	appId, envId, err := impl.installedAppRepositoryHistory.GetAppIdAndEnvIdWithInstalledAppVersionId(versionHistory.InstalledAppVersionId)
-	err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, string(application.Status.Health.Status))
 	if err != nil {
-		impl.logger.Errorw("error while updating app status in app_status table", "error", err, "appId", appId, "envId", envId)
+		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, string(application.Status.Health.Status))
+		if err != nil {
+			impl.logger.Errorw("error while updating app status in app_status table", "error", err, "appId", appId, "envId", envId)
+		}
 	}
-
 	return true, nil
 }
 
