@@ -62,6 +62,7 @@ type AppEnvironmentContainer struct {
 	DeploymentCounter           int                       `json:"deploymentCounter,omitempty"`
 	InstanceCounter             int                       `json:"instanceCounter,omitempty"`
 	Status                      string                    `json:"status"`
+	AppStatus                   string                    `json:"appStatus"`
 	CdStageStatus               *string                   `json:"cdStageStatus"`
 	PreStageStatus              *string                   `json:"preStageStatus"`
 	PostStageStatus             *string                   `json:"postStageStatus"`
