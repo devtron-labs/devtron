@@ -272,31 +272,32 @@ func (impl *WorkflowDagExecutorImpl) HandleCiSuccessEvent(artifact *repository.C
 }
 
 func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repository.CiArtifact, triggeredBy int32, externalCiId int, auth func(email string, projectObject string, envObject string) bool) (bool, error) {
-	isAnyTriggered := false
-	var authError error
+	hasPermissionToAnyChild := false
+	hasAnyChild := false
 	appWorkflowMappings, err := impl.appWorkflowRepository.FindWFCDMappingByExternalCiId(externalCiId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
-		return isAnyTriggered, err
+		return hasPermissionToAnyChild, err
 	}
 	for _, appWorkflowMapping := range appWorkflowMappings {
 		pipeline, err := impl.pipelineRepository.FindById(appWorkflowMapping.ComponentId)
 		if err != nil {
 			impl.logger.Errorw("error in fetching cd pipeline", "pipelineId", artifact.PipelineId, "err", err)
-			return isAnyTriggered, err
+			return hasPermissionToAnyChild, err
 		}
-		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
-			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
-			continue
-		}
+		hasAnyChild = true
 		user, err := impl.user.GetById(triggeredBy)
 		if err != nil {
-			return isAnyTriggered, err
+			return hasPermissionToAnyChild, err
 		}
 		projectObject := impl.enforcerUtil.GetAppRBACNameByAppId(pipeline.AppId)
 		envObject := impl.enforcerUtil.GetAppRBACByAppIdAndPipelineId(pipeline.AppId, pipeline.Id)
 		if !auth(user.EmailId, projectObject, envObject) {
-			authError = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
+			continue
+		}
+		hasPermissionToAnyChild = true
+		if pipeline.TriggerType == pipelineConfig.TRIGGER_TYPE_MANUAL {
+			impl.logger.Warnw("skipping deployment for manual trigger for webhook", "pipeline", pipeline)
 			continue
 		}
 
@@ -304,14 +305,14 @@ func (impl *WorkflowDagExecutorImpl) HandleWebhookExternalCiEvent(artifact *repo
 		err = impl.triggerStage(nil, pipeline, artifact, false, triggeredBy)
 		if err != nil {
 			impl.logger.Debugw("error on trigger cd pipeline", "err", err)
-			return isAnyTriggered, err
+			return hasPermissionToAnyChild, err
 		}
-		isAnyTriggered = true
 	}
-	if authError != nil {
-		err = authError
+	if hasAnyChild && !hasPermissionToAnyChild {
+		//if no permission for any child,
+		err = &util.ApiError{Code: "401", HttpStatusCode: 401, UserMessage: "Unauthorized"}
 	}
-	return isAnyTriggered, err
+	return hasPermissionToAnyChild, err
 }
 
 func (impl *WorkflowDagExecutorImpl) triggerStage(cdWf *pipelineConfig.CdWorkflow, pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, applyAuth bool, triggeredBy int32) error {

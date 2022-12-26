@@ -267,19 +267,20 @@ func (impl WebhookServiceImpl) HandleExternalCiWebhook(externalCiId int, request
 		return 0, err
 	}
 
-	isAnyTriggered, err := impl.workflowDagExecutor.HandleWebhookExternalCiEvent(artifact, request.UserId, externalCiId, auth)
+	hasPermissionToAnyChild, err := impl.workflowDagExecutor.HandleWebhookExternalCiEvent(artifact, request.UserId, externalCiId, auth)
 	statusError, ok := err.(*util2.ApiError)
 	if err != nil && !ok {
-		impl.logger.Errorw("error on handle ci success event", "err", err)
+		impl.logger.Errorw("error on handle ext ci webhook", "err", err)
 		return 0, err
 	}
-	if !isAnyTriggered {
+	if !hasPermissionToAnyChild {
+		// if no permission of any of the child node
 		if err1 := impl.ciArtifactRepository.Delete(artifact); err1 != nil {
 			impl.logger.Errorw("error in rollback artifact", "err", err1)
 			return 0, err1
 		}
 		if ok && statusError.Code == "401" {
-			impl.logger.Errorw("error on handle ci success event", "err", err)
+			impl.logger.Errorw("error on handle ext ci webhook", "err", err)
 			return 0, err
 		}
 	}
