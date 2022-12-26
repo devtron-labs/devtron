@@ -1,152 +1,78 @@
 # Clusters
 
-Devtron’s tool is also providing you `Security Features` to identify the vulnerabilities inside your code and to protect your code from external attacks.
+As `Devtron` is a tool integration platform for Kubernetes, a [cluster](https://docs.devtron.ai/getting-started#create-a-kubernetes-cluster) is created as a pre-requisite before you install Devtron depending on your [resource usage and requirements](https://docs.devtron.ai/getting-started#recommended-resources).
 
-The system will scan your code and inform you if there are any Vulnerabilities present in your code. Also to make this feature more flexible to use, we have added a capability using which you can whitelist or block any vulnerability, and your code will be scanned considering the defined whitelist or blocked vulnerabilities.
+By integrating into a Kubernetes cluster, Devtron helps you to deploy, observe, manage and debug the existing Helm apps in all your clusters.
 
-Remember, we discussed the [Scan for vulnerabilities](creating-application/workflow/ci-pipeline.md#scan-for-vulnerabilities) option in the CI pipeline. You can enable this feature from the CI Pipeline page. The system will scan your code and will show you all vulnerabilities present in your code.
+On the left navigation of Devtron, select `Clusters`. You will find the list of clusters in this section which you have added under [Global Configurations > Clusters & Environments](https://docs.devtron.ai/global-configurations/cluster-and-environments).
 
-We have created `Security features` to identify the vulnerabilities inside your code and to protect you from external attacks.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/clusters.jpg)
 
-This Security Feature has two processes:
 
-1. Scanning
-2. Policy
+| Fields | Description |
+| --- | --- |
+| **Cluster** | User-defined name for the cluster in Devtron. E.g. `default-cluster` |
+| **Connection Status** | Status of the cluster. The status can be either `Successful` or `Failed`. |
+| **Nodes** | Shows the number of nodes in a cluster. |
+| **Node Errors** | Shows the error in nodes. |
+| **K8s Version** | Shows the version of Kubernetes cluster. |
+| **CPU Capacity** | Shows the CPU capacity in your cluster in milicore. E.g., 8000m where 1000 milicore equals to 1 core. |
+| **Memory Capacity** | Shows the memory capacity in your cluster in mebibytes. |
 
-## Scanning
+To see the details of resource allocation and usage of the cluster, click the particular cluster.
 
-This process starts executing after the successful execution of the CI pipeline and before the deployment\(CD\) process starts.
+## Resources
 
-It scans your code to find any potential threat and shows you the list of vulnerabilities as an output of the CI pipeline if it finds any.
+On the `Resource allocation and usage`, you can see the details of compute resources or resources.
 
-We will discuss later how you will see the list of your found vulnerabilities.
+* CPU resources
+* Memory resources
 
-## Policy
+If you specify a `request` and `limits` in the container resource manifest file, then the respective values will appear on the `Resource allocation and usage` section.
 
-Vulnerabilities have different levels like Critical, Moderate, and Low. Users can define policy according to the level of vulnerability. Users can also block the vulnerability or allow\(whitelist\) the vulnerability for their code.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/resource.jpg)
 
-If any vulnerability is found which is blocked by the user, then it will not deploy the application. And if it finds any vulnerability which is whitelisted by the user, then the build image can be deployed.
+## Nodes
 
-The user gets informed in both cases if it finds any vulnerability or doesn't find any.
+You can see the list of nodes available in your cluster. Typically you have several nodes in a cluster; in a learning or resource-limited environment, you might have only one node.
 
-**How to Check Vulnerability**
+The components on a typical node include the `kubelet`, a `container runtime`, and the `kube-proxy`.
 
-You can find the Vulnerabilities `Build History` Page if you have enabled the `Scan for vulnerabilities` option.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/nodes.jpg)
 
-Your Application-&gt; Build History-&gt; Select pipeline-&gt; Go to Security Tab.
+If you have multiple nodes, you can search a node by name or label in the search bar.
 
-![](../.gitbook/assets/security-feature-build-history-security.png)
+| Fields | Description |
+| --- | --- |
+| **Node** | User-defined name for the node in Devtron. E.g. `demo-new`.<br>Note: Two nodes cannot have the same name at the same time.</br> |
+| **Status** | Status of a node. It can be either `Ready` or `Not Ready`. |
+| **Roles** | Shows the roles of a node. |
+| **Errors** | Shows the error in nodes. |
+| **K8s Version** | Shows the version of Kubernetes cluster. |
+| **No. of Pods** | Shows the number of namespaces or pods in a node. |
+| **CPU Usage** | Shows the CPU consumption in a node. |
+| **Mem Usage** | Shows the memory consumption in a node |
+| **Age** | Shows the time that the pod has been running since the last restart. |
 
-Here you can see all the vulnerabilities found in the build image.
+To display a parameter of a node, use the `Columns` on the right side, select the parameter you want to display from the drop-down list and click `Apply`.
 
-Every vulnerability has `CVE ID`, `Severity Level`, Package, Current Version, and Fixed In Version.
+To see the summary of a node, click the particular node.
 
-**CVE ID**- Common Vulnerability ID
+## Troubleshoot Cluster via Terminal
 
-**Severity Level**- informs you about the severity of the vulnerability, it is defined as Critical, Medium, and Low.
+User with [Super admins](https://docs.devtron.ai/global-configurations/authorization/user-access#assign-super-admin-permissions) access can now troubleshoot cluster issues by accessing the cluster terminal from Devtron. You can select an image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image.
 
-**Package**- column contains some meta-data of vulnerability.
+To troubleshoot a cluster or a specific node in a cluster, click the terminal symbol on the right side.
 
-**Current Version**- is the version of that vulnerability
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/cluster-terminal-access.jpg)
 
-**Fixed In Version**- column contains version name if it has been fixed in any version, else it remains blank
+* You will see the user-defined name for the cluster in Devtron. E.g. `default-cluster`.
+* In the `Nodes` field, select the node from the drop-down list you want to troubleshoot. E.g. `demo-new`.
+* Select the namespace from the drop-down list which you have added in the [Environment](https://docs.devtron.ai/global-configurations/cluster-and-environments#add-environment) section.
+* Select the image from the drop-down list which includes all CLI utilities or you can use a custom image.
+* Select the terminal shell from the drop-down list (e.g. `sh`, `bash`, `powershell`, `cmd`) to troubleshoot a node.
 
-**Find Vulnerabilities on the Trigger Page**
 
-You can find Vulnerabilities on the `Trigger` page also. Image having vulnerabilities will be marked as `Security Issues Found` and you won’t be able to select the image to deploy it.
 
-You can see details of these vulnerabilities by expanding the `Show Source Info`.
 
-See the below image.
-
-![](../images/security-features/security-feature-deployed-image-1.png)
-
-Click on the `Show Source Info` option. A window will be expanded with two options- Changes and Security. Click on the Security tab to view details about the vulnerabilities in the code.
-
-![](../.gitbook/assets/security-feature-deployed-image-security.png)
-
-**Find Vulnerabilities on the App Details Page**
-
-You can find Vulnerabilities on the `App Details` page too. Here we are displaying the total number of vulnerabilities found in the code and their Severity Level wise segregation.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/security-features/security-feature-app-details-vulnerability.jpg)
-
-## Security
-
-You can check Vulnerabilities for all your applications in one place. On the Home page, there is an option named `Security`. Here, you can see a list of applications under the `Security Scan` tab. Here all the applications are listed which have the `Scan for Vulnerabilities` feature enabled. You can see the vulnerability count along with the Severity Level for all your applications.
-
-**Note:-**
-
-It displays the “Vulnerability count and Severity Level” on a priority basis. And critical level has the highest priority, so it displays the critical level vulnerabilities and there counts if any application is having critical vulnerability in it.
-
-You can directly `Search` your application using the Search bar or you can `filter out` your requirement according to Severity, Clusters, and Environment.
-
-![](../.gitbook/assets/security-feature-securitytab-security-scan%20%282%29.png)
-
-Now if you click on the severity level of vulnerability it will show you the list of all vulnerabilities along with other details.
-
-![](../.gitbook/assets/security-feature-securitytab-list-vulnerability%20%282%29.png)
-
-## Security Policies:
-
-Users can define Security policies for their vulnerabilities under `Security Policies` Tab.
-
-Home Page-&gt; Security - &gt; Security Policies
-
-Policies can be defined to different levels-
-
-* Global
-* Cluster
-* Environment
-* Application
-
-**Note:-**
-
-Policies work in hierarchical order.
-
-Order to be followed- First Global and second Cluster and so on as you can see the order of the options
-
-![](../.gitbook/assets/security-feature-global-security-policies.png)
-
-**Some examples of how policies can be defined**
-
-Users can block all the critical vulnerabilities and allow the moderate and low vulnerabilities or Users can block all vulnerabilities or users can block all vulnerabilities for one application and can block only Critical vulnerabilities for other applications.
-
-## Configure Global Policy
-
-To configure these policies, click on the drop-down option of the severity levels and select Block or Allow.
-
-![](../.gitbook/assets/security-feature8%20%282%29.png)
-
-## Configure Cluster Security Policy
-
-In the Global Security Policies, there are only two options available- Block and Allow. But in other options, we have an extra option named `Inherit`.
-
-As the name itself gives you an idea about this option, it fetches the policy of its upper-level options, if we choose to inherit in the drop-down.
-
-Example-if you block critical severity levels in Global, then critical levels will be blocked in Cluster Security Policy. In case we change critical policy globally and allow it there, then it will be allowed in Cluster Security Policies too. But you can change these policies explicitly.
-
-If you want to block Critical Vulnerabilities in Global Security Policies but want to allow them in some clusters, then select your cluster and change the critical drop-down to allow. It will not affect the policy of other clusters and global also.
-
-## Configure Environment Security Policy
-
-Again we have three options to define a policy- Block, Allow, and Inherit.
-
-Environment Security Policy inherits the policy from Cluster Security Policy. Each level inherits the policy of its upper level.
-
-Select any environment here, you will find it is inheriting the policy of Cluster.
-
-Example- If you have blocked critical level vulnerabilities in Global Security Policy but allowed them in Cluster Security Policy, then Environment Security Policy will inherit the policy of cluster not global, Hence critical level vulnerabilities will be allowed in the Environment Security Policy.
-
-Though, You can change the policy explicitly.
-
-## Configure Application Security Policy
-
-The same thing goes with the `Application Security Policy`. But in Application, the policy is set with the combination of `Environment` option and `Application` option. If you change the policy in a dev environment that it will apply to all the applications which are in the `dev` environment.
-
-## Check CVE Policy
-
-Here is the last option `Check CVE Policy`, If you want to configure a security policy specific to any Vulnerability, you can use this option.
-
-Click on this option, it will show you a search bar, copy any CVE ID or vulnerability ID, and click on `Search`. It will display the details regarding that CVE ID and you can configure the policy to that particular CVE ID.
 
