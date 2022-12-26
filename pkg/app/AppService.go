@@ -23,6 +23,7 @@ import (
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
+	"github.com/devtron-labs/devtron/pkg/appStatus"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
@@ -117,6 +118,7 @@ type AppServiceImpl struct {
 	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
 	dockerRegistryIpsConfigService      dockerRegistry.DockerRegistryIpsConfigService
+	appStatusService                    appStatus.AppStatusService
 }
 
 type AppService interface {
@@ -166,7 +168,8 @@ func NewAppService(
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
-	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppServiceImpl {
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService,
+	appStatusService appStatus.AppStatusService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
 		environmentConfigRepository:         environmentConfigRepository,
 		mergeUtil:                           mergeUtil,
@@ -213,6 +216,7 @@ func NewAppService(
 		strategyHistoryRepository:           strategyHistoryRepository,
 		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
 		dockerRegistryIpsConfigService:      dockerRegistryIpsConfigService,
+		appStatusService:                    appStatusService,
 	}
 	return appServiceImpl
 }
@@ -307,6 +311,11 @@ func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldA
 	if err != nil && !IsErrNoRows(err) {
 		impl.logger.Errorw("error in fetching deployment status", "dbApp", dbApp, "err", err)
 		return isHealthy, err
+	}
+	//updating app status in app_status table
+	err = impl.appStatusService.UpdateStatusWithAppIdEnvId(deploymentStatus.AppId, deploymentStatus.EnvId, string(newApp.Status.Health.Status))
+	if err != nil {
+		impl.logger.Errorw("error occurred while updating app status in app_status table", "error", err, "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId)
 	}
 	//getting latest pipelineOverride for newApp (by appId and envId)
 	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(deploymentStatus.AppId, deploymentStatus.EnvId)

@@ -13,6 +13,7 @@ type InstalledAppVersionHistoryRepository interface {
 	GetInstalledAppVersionHistoryByVersionId(installAppVersionId int) ([]*InstalledAppVersionHistory, error)
 	GetLatestInstalledAppVersionHistory(installAppVersionId int) (*InstalledAppVersionHistory, error)
 	GetLatestInstalledAppVersionHistoryByGitHash(gitHash string) (*InstalledAppVersionHistory, error)
+	GetAppIdAndEnvIdWithInstalledAppVersionId(id int) (int, int, error)
 }
 
 type InstalledAppVersionHistoryRepositoryImpl struct {
@@ -85,4 +86,19 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetLatestInstalledAppVersio
 		Order("installed_app_version_history.id desc").Limit(1).
 		Select()
 	return model, err
+}
+
+func (impl InstalledAppVersionHistoryRepositoryImpl) GetAppIdAndEnvIdWithInstalledAppVersionId(id int) (int, int, error) {
+	type appEnvId struct {
+		appId int `sql:"app_id"`
+		envId int `sql:"environment_id"`
+	}
+	model := &appEnvId{}
+	query := "select ia.app_id,ia.environment_id " +
+		"from installed_apps ia  " +
+		"where ia.id = (select iav.installed_app_id " +
+		"from installed_app_versions iav " +
+		"where iav.id = ?);"
+	_, err := impl.dbConnection.Query(model, query, id)
+	return model.appId, model.envId, err
 }

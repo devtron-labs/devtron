@@ -80,7 +80,6 @@ func (handler *AppStatusRestHandlerImpl) GetAllDevtronAppStatuses(w http.Respons
 		common.WriteJsonResp(w, apiError, nil, http.StatusInternalServerError)
 	}
 
-	//TODO : Filter out Accessible responses
 	common.WriteJsonResp(w, nil, responses, http.StatusOK)
 
 }
