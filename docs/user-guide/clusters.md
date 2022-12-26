@@ -73,6 +73,6 @@ To troubleshoot a cluster or a specific node in a cluster, click the terminal sy
 * Select the terminal shell from the drop-down list (e.g. `sh`, `bash`, `powershell`, `cmd`) to troubleshoot a node.
 
 
-
+ **Note**: A pod can have one or more containers running, and a container can have no or multiple shells running in it. If you are not able to create a successfull connection, try changing the shell, as the container may not have that shell running.
 
 
