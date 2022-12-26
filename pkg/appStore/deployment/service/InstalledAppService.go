@@ -873,7 +873,7 @@ func (impl InstalledAppServiceImpl) UpdateInstalledAppVersionStatus(application 
 	}
 
 	appId, envId, err := impl.installedAppRepositoryHistory.GetAppIdAndEnvIdWithInstalledAppVersionId(versionHistory.InstalledAppVersionId)
-	if err != nil {
+	if err == nil {
 		err = impl.appStatusService.UpdateStatusWithAppIdEnvId(appId, envId, string(application.Status.Health.Status))
 		if err != nil {
 			impl.logger.Errorw("error while updating app status in app_status table", "error", err, "appId", appId, "envId", envId)

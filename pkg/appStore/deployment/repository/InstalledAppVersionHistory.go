@@ -90,15 +90,15 @@ func (impl InstalledAppVersionHistoryRepositoryImpl) GetLatestInstalledAppVersio
 
 func (impl InstalledAppVersionHistoryRepositoryImpl) GetAppIdAndEnvIdWithInstalledAppVersionId(id int) (int, int, error) {
 	type appEnvId struct {
-		appId int `sql:"app_id"`
-		envId int `sql:"environment_id"`
+		AppId int `json:"app_id"`
+		EnvId int `json:"env_id"`
 	}
-	model := &appEnvId{}
-	query := "select ia.app_id,ia.environment_id " +
-		"from installed_apps ia  " +
-		"where ia.id = (select iav.installed_app_id " +
-		"from installed_app_versions iav " +
-		"where iav.id = ?);"
-	_, err := impl.dbConnection.Query(model, query, id)
-	return model.appId, model.envId, err
+	model := appEnvId{}
+	query := "select ia.app_id,ia.environment_id as env_id" +
+		" from installed_apps ia  " +
+		" where ia.id = (select iav.installed_app_id " +
+		" from installed_app_versions iav " +
+		" where iav.id = ?);"
+	_, err := impl.dbConnection.Query(&model, query, id)
+	return model.AppId, model.EnvId, err
 }
