@@ -175,7 +175,7 @@ func (impl InstalledAppRepositoryImpl) UpdateInstalledAppVersion(model *Installe
 func (impl InstalledAppRepositoryImpl) GetInstalledApp(id int) (*InstalledApps, error) {
 	model := &InstalledApps{}
 	err := impl.dbConnection.Model(model).
-		Column("installed_apps.*", "App", "Environment", "App.Team").
+		Column("installed_apps.*", "App", "Environment", "App.Team", "Environment.Cluster").
 		Where("installed_apps.id = ?", id).Where("installed_apps.active = true").Select()
 	return model, err
 }
