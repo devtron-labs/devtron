@@ -215,7 +215,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w 
 		var rbacObject string
 		var rbacObject2 string
 		if util2.IsHelmApp(app.AppOfferingMode) {
-			rbacObject = handler.enforcerUtilHelm.GetHelmObject(app.ClusterId, app.Namespace, app.AppName)
+			rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObject(app.ClusterId, app.Namespace, app.AppName)
 		} else {
 			rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(app.AppName, app.EnvironmentId)
 		}
@@ -276,7 +276,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	var rbacObject string
 	var rbacObject2 string
 	if util2.IsHelmApp(installedApp.AppOfferingMode) {
-		rbacObject = handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
 	}
@@ -409,7 +409,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	var rbacObject string
 	var rbacObject2 string
 	if util2.IsHelmApp(installedApp.AppOfferingMode) {
-		rbacObject = handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
 	}
@@ -491,7 +491,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.R
 	var rbacObject string
 	var rbacObject2 string
 	if util2.IsHelmApp(dto.AppOfferingMode) {
-		rbacObject = handler.enforcerUtilHelm.GetHelmObject(dto.ClusterId, dto.Namespace, dto.AppName)
+		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObject(dto.ClusterId, dto.Namespace, dto.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(dto.AppName, dto.EnvironmentId)
 	}
@@ -543,9 +543,9 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 
 		// this rbac object checks that whether user have permission to change current project.
 
-		rbacObjectForCurrentProject := handler.enforcerUtilHelm.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject)
+		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
 
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
@@ -569,9 +569,9 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app version details"), nil, http.StatusBadRequest)
 		}
 
-		rbacObjectCurrentForCurrentProject := handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+		rbacObjectCurrentForCurrentProject, rbacObjectCurrentForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectCurrentForCurrentProject)
+		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectCurrentForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectCurrentForCurrentProject2)
 
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)

@@ -151,9 +151,10 @@ func (handler AppRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, r *h
 			return
 		}
 
-		object := handler.enforcerUtilHelm.GetHelmObject(appIdDecoded.ClusterId, appIdDecoded.Namespace, appIdDecoded.ReleaseName)
+		object, object2 := handler.enforcerUtilHelm.GetHelmObject(appIdDecoded.ClusterId, appIdDecoded.Namespace, appIdDecoded.ReleaseName)
 
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
+		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
+		if !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
@@ -162,8 +163,17 @@ func (handler AppRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, r *h
 
 		appId, err := strconv.Atoi(appIdReq)
 
-		object := handler.enforcerUtilHelm.GetAppRBACNameByInstalledAppId(appId)
-		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object); !ok {
+		var ok bool
+
+		object, object2 := handler.enforcerUtilHelm.GetAppRBACNameByInstalledAppId(appId)
+
+		if object2 == "" {
+			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object)
+		} else {
+			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
+		}
+
+		if !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
