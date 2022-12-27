@@ -406,3 +406,29 @@ This can occur if you are using or recently upgraded to Kubernetes version 1.22 
 
 1. Check which chart repo and version of rollout controller are you using on that cluster from Helm Apps section
 2. Update the rollout chart version to latest and re-deploy. If your rollout controller is deployed from `devtron-charts` helm repo then change the repo to `devtron/rollout` and then update the version to latest. Also, if devtron helm repo is not showing on your devtron then go to Global Configurations > Chart Repositories and add a new repo with the name `devtron` and url `https://helm.devtron.ai`. Wait for few minutes and then charts from devtron repo will be there on your devtron. This should resolve your issue
+
+
+
+#### 23. How to resolve if Deployment Status shows Failed or Degraded when you pull images from private container registry
+
+If the deployment status shows `Failed` or `Degraded`, then the cluster is not able to pull container image from the private registry. In that case, the status of pod shows `ImagePullBackOff`.
+
+The failure of deployment can be one of the following reasons:
+
+* Provided credentials may not have permission to pull container image from registry.
+* Provided credentials may be invalid.
+
+You can resolve the `ImagePullBackOff` issue by clicking **How to resolve?** on the **App Details** page.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/how-to-resolve-latest1.png)
+
+
+To provide the auto-inject credentials to the specific clusters for pulling the image from the private repository, click **Manage Access** which will take you to the **Container Registries** page. 
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/manage-access-latest.jpg)
+
+1. On the **Container Registries** page, select the docker registry and click **Manage**.
+2. In the **Auto-inject credentials to clusters**, click **Confirm to edit** to select the specific cluster or all clusters for which you want to auto-inject the credentials to and click **Save**.
+3. Redeploy the application after allowing the access.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/auto-inject-to-clusters.jpg)
