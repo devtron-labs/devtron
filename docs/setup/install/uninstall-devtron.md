@@ -11,7 +11,7 @@ kubectl delete -n devtroncd -f https://raw.githubusercontent.com/devtron-labs/ch
 
 kubectl delete -n argo -f https://raw.githubusercontent.com/devtron-labs/devtron/main/manifests/yamls/workflow.yaml
 
-kubectl delete ns devtroncd devtron-cd devtron-ci devtron-demo
+kubectl delete ns devtroncd devtron-cd devtron-ci devtron-demo argo
 
 ```
 
