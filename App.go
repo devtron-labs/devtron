@@ -31,7 +31,6 @@ import (
 	authMiddleware "github.com/devtron-labs/authenticator/middleware"
 	"github.com/devtron-labs/devtron/api/router"
 	"github.com/devtron-labs/devtron/api/sse"
-	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/pubsub"
 	"github.com/devtron-labs/devtron/internal/middleware"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -57,7 +56,6 @@ type App struct {
 func NewApp(router *router.MuxRouter,
 	Logger *zap.SugaredLogger,
 	sse *sse.SSE,
-	versionService argocdServer.VersionService,
 	enforcer *casbin.SyncedEnforcer,
 	db *pg.DB,
 	pubsubClient *pubsub.PubSubClient,
