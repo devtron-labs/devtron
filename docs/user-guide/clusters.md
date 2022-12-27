@@ -58,9 +58,24 @@ To display a parameter of a node, use the `Columns` on the right side, select th
 
 To see the summary of a node, click the particular node.
 
-## Troubleshoot Cluster via Terminal
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/node-overview-clusters.jpg)
 
-User with [Super admins](https://docs.devtron.ai/global-configurations/authorization/user-access#assign-super-admin-permissions) access can now troubleshoot cluster issues by accessing the cluster terminal from Devtron. You can select an image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image.
+### YAML
+
+The config.yaml file contains all the configuration settings that are needed to deploy your cluster.
+
+* You can edit or modify the parameters or values of a node by clicking `YAML`.
+* Click `Review Changes` to compare the changes in the YAML file.
+* Click `Update Node`.
+
+### Debug a Node
+
+You can debug a node via Terminal by selecting your namespace and image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
+
+
+## Access Cluster via Terminal for Troubleshooting
+
+User with [Super admins](https://docs.devtron.ai/global-configurations/authorization/user-access#assign-super-admin-permissions) access can now troubleshoot cluster issues by accessing the cluster terminal from Devtron. You can select an image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
 
 To troubleshoot a cluster or a specific node in a cluster, click the terminal symbol on the right side.
 
@@ -69,9 +84,27 @@ To troubleshoot a cluster or a specific node in a cluster, click the terminal sy
 * You will see the user-defined name for the cluster in Devtron. E.g. `default-cluster`.
 * In the `Nodes` field, select the node from the drop-down list you want to troubleshoot. E.g. `demo-new`.
 * Select the namespace from the drop-down list which you have added in the [Environment](https://docs.devtron.ai/global-configurations/cluster-and-environments#add-environment) section.
-* Select the image from the drop-down list which includes all CLI utilities or you can use a custom image.
-* Select the terminal shell from the drop-down list (e.g. `sh`, `bash`, `powershell`, `cmd`) to troubleshoot a node.
+* Select the image from the drop-down list which includes all CLI utilities or you can use a custom image, which is publicly available.
+* Select the terminal shell from the drop-down list (e.g. `sh`, `bash`) to troubleshoot a node.
 
+
+### Debug Pod
+
+You can also create pod for debugging which will connect to pod terminal. To find out why the particular pod is not running, you can check `Pod Events` and `Pod Manifest` for details.
+
+Or you can also use the following commands to show events at the end of the output for the pod:
+
+```bash
+kubectl describe pod <podname>
+```
+
+or
+
+```bash
+kubectl get events
+```
+
+According to the `Pod Events` messages and `Pod Manifest`, you can debug a pod.
 
  **Note**: A pod can have one or more containers running, and a container can have no or multiple shells running in it. If you are not able to create a successfull connection, try changing the shell, as the container may not have that shell running.
 
