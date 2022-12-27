@@ -9,6 +9,7 @@ metadata:
   name: notifier-secret
   labels:
     release: devtron
+    app: notifier
 type: Opaque
 {{- if .secrets }}
 data:
@@ -24,6 +25,7 @@ metadata:
   name: notifier-cm
   labels:
     release: devtron
+    app: notifier
 data:
 {{- if .configs}}
 {{ toYaml .configs | indent 2 }}

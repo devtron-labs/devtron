@@ -72,6 +72,16 @@ func GetEcrConfig() (*EcrConfig, error) {
 	return cfg, err
 }
 
+type DeploymentServiceTypeConfig struct {
+	IsInternalUse bool `env:"IS_INTERNAL_USE" envDefault:"false"`
+}
+
+func GetDeploymentServiceTypeConfig() (*DeploymentServiceTypeConfig, error) {
+	cfg := &DeploymentServiceTypeConfig{}
+	err := env.Parse(cfg)
+	return cfg, err
+}
+
 type PipelineBuilder interface {
 	CreateCiPipeline(createRequest *bean.CiConfigRequest) (*bean.PipelineCreateResponse, error)
 	CreateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error)
@@ -115,6 +125,8 @@ type PipelineBuilder interface {
 	GetBulkActionImpactedPipelines(dto *bean.CdBulkActionRequestDto) ([]*pipelineConfig.Pipeline, error)
 	PerformBulkActionOnCdPipelines(dto *bean.CdBulkActionRequestDto, impactedPipelines []*pipelineConfig.Pipeline, ctx context.Context, dryRun bool, userId int32) ([]*bean.CdBulkActionResponseDto, error)
 	DeleteCiPipeline(request *bean.CiPatchRequest) (*bean.CiPipeline, error)
+	IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool
+	SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool)
 }
 
 type PipelineBuilderImpl struct {
@@ -159,12 +171,15 @@ type PipelineBuilderImpl struct {
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
 	//ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
 	//ciBuildConfigService CiBuildConfigService
-	ciTemplateService            CiTemplateService
-	userService                  user.UserService
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
-	gitMaterialHistoryService    history.GitMaterialHistoryService
-	CiTemplateHistoryService     history.CiTemplateHistoryService
-	CiPipelineHistoryService     history.CiPipelineHistoryService
+	ciTemplateService                               CiTemplateService
+	userService                                     user.UserService
+	ciTemplateOverrideRepository                    pipelineConfig.CiTemplateOverrideRepository
+	gitMaterialHistoryService                       history.GitMaterialHistoryService
+	CiTemplateHistoryService                        history.CiTemplateHistoryService
+	CiPipelineHistoryService                        history.CiPipelineHistoryService
+	globalStrategyMetadataRepository                chartRepoRepository.GlobalStrategyMetadataRepository
+	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
+	deploymentConfig             *DeploymentServiceTypeConfig
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -207,7 +222,10 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository,
 	gitMaterialHistoryService history.GitMaterialHistoryService,
 	CiTemplateHistoryService history.CiTemplateHistoryService,
-	CiPipelineHistoryService history.CiPipelineHistoryService) *PipelineBuilderImpl {
+	CiPipelineHistoryService history.CiPipelineHistoryService,
+	globalStrategyMetadataRepository chartRepoRepository.GlobalStrategyMetadataRepository,
+	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository,
+	deploymentConfig *DeploymentServiceTypeConfig) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
 		ciCdPipelineOrchestrator:      ciCdPipelineOrchestrator,
@@ -251,15 +269,18 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciTemplateService:                ciTemplateService,
 		//ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
 		//ciBuildConfigService: ciBuildConfigService,
-		userService:                  userService,
-		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
-		gitMaterialHistoryService:    gitMaterialHistoryService,
-		CiTemplateHistoryService:     CiTemplateHistoryService,
-		CiPipelineHistoryService:     CiPipelineHistoryService,
+		userService:                                     userService,
+		ciTemplateOverrideRepository:                    ciTemplateOverrideRepository,
+		gitMaterialHistoryService:                       gitMaterialHistoryService,
+		CiTemplateHistoryService:                        CiTemplateHistoryService,
+		CiPipelineHistoryService:                        CiPipelineHistoryService,
+		globalStrategyMetadataRepository:                globalStrategyMetadataRepository,
+		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
+		deploymentConfig:             deploymentConfig,
 	}
 }
 
-//internal use only
+// internal use only
 const (
 	teamIdKey                string = "teamId"
 	teamNameKey              string = "teamName"
@@ -1288,114 +1309,192 @@ func (impl PipelineBuilderImpl) patchCiPipelineUpdateSource(baseCiConfig *bean.C
 
 }
 
-func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
+func (impl PipelineBuilderImpl) IsGitopsConfigured() (bool, error) {
+
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
+
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("GetGitOpsConfigActive, error while getting", "err", err)
-		return nil, err
+		return false, err
 	}
 	if gitOpsConfig != nil && gitOpsConfig.Id > 0 {
 		isGitOpsConfigured = true
 	}
 
-	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
-	if err != nil {
-		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
-		return nil, err
+	return isGitOpsConfigured, nil
+
+}
+
+func (impl PipelineBuilderImpl) ValidateCDPipelineRequest(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured, haveAtleastOneGitOps bool) (bool, error) {
+
+	if isGitOpsConfigured == false && haveAtleastOneGitOps {
+		impl.logger.Errorw("Gitops not configured but selected in creating cd pipeline")
+		err := &util.ApiError{
+			HttpStatusCode:  http.StatusBadRequest,
+			InternalMessage: "Gitops integration is not installed/configured. Please install/configure gitops or use helm option.",
+			UserMessage:     "Gitops integration is not installed/configured. Please install/configure gitops or use helm option.",
+		}
+		return false, err
 	}
+
 	envPipelineMap := make(map[int]string)
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
 		if envPipelineMap[pipeline.EnvironmentId] != "" {
-			err = &util.ApiError{
+			err := &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
 				InternalMessage: "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
 				UserMessage:     "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
 			}
-			return nil, err
+			return false, err
 		}
 		envPipelineMap[pipeline.EnvironmentId] = pipeline.Name
 
 		existingCdPipelinesForEnv, pErr := impl.pipelineRepository.FindActiveByAppIdAndEnvironmentId(pipelineCreateRequest.AppId, pipeline.EnvironmentId)
 		if pErr != nil && !util.IsErrNoRows(pErr) {
 			impl.logger.Errorw("error in fetching cd pipelines ", "err", pErr, "appId", pipelineCreateRequest.AppId)
-			return nil, pErr
+			return false, pErr
 		}
 		if len(existingCdPipelinesForEnv) > 0 {
-			err = &util.ApiError{
+			err := &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
 				InternalMessage: "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
 				UserMessage:     "cd-pipelines already exist for this app and env, cannot create multiple cd-pipelines",
 			}
-			return nil, err
+			return false, err
 		}
 
 		if len(pipeline.PreStage.Config) > 0 && !strings.Contains(pipeline.PreStage.Config, "beforeStages") {
-			err = &util.ApiError{
+			err := &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
 				InternalMessage: "invalid yaml config, must include - beforeStages",
 				UserMessage:     "invalid yaml config, must include - beforeStages",
 			}
-			return nil, err
+			return false, err
 		}
 		if len(pipeline.PostStage.Config) > 0 && !strings.Contains(pipeline.PostStage.Config, "afterStages") {
-			err = &util.ApiError{
+			err := &util.ApiError{
 				HttpStatusCode:  http.StatusBadRequest,
 				InternalMessage: "invalid yaml config, must include - afterStages",
 				UserMessage:     "invalid yaml config, must include - afterStages",
 			}
-			return nil, err
+			return false, err
 		}
 	}
 
-	if isGitOpsConfigured {
-		//if gitops configured create GIT repository and register into ACD
-		chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
-		if err != nil && pg.ErrNoRows != err {
-			return nil, err
+	return true, nil
+
+}
+
+func (impl PipelineBuilderImpl) RegisterInACD(app *app2.App, pipelineCreateRequest *bean.CdPipelines, ctx context.Context) error {
+
+	//if gitops configured create GIT repository and register into ACD
+	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(app.Id)
+	if err != nil && pg.ErrNoRows != err {
+		return err
+	}
+	gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
+	chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, pipelineCreateRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
+		return err
+	}
+	err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+	if err != nil {
+		impl.logger.Errorw("error while register git repo in argo", "err", err)
+		emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
+		if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
+			// - found empty repository, create some file in repository
+			err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, pipelineCreateRequest.UserId)
+			if err != nil {
+				impl.logger.Errorw("error in creating file in git repo", "err", err)
+				return err
+			}
+			// - retry register in argo
+			err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
+			if err != nil {
+				impl.logger.Errorw("error in re-try register in argo", "err", err)
+				return err
+			}
+		} else {
+			return err
 		}
-		gitOpsRepoName := impl.chartTemplateService.GetGitOpsRepoName(app.AppName)
-		chartGitAttr, err := impl.chartTemplateService.CreateGitRepositoryForApp(gitOpsRepoName, chart.ReferenceTemplate, chart.ChartVersion, pipelineCreateRequest.UserId)
-		if err != nil {
-			impl.logger.Errorw("error in pushing chart to git ", "path", chartGitAttr.ChartLocation, "err", err)
-			return nil, err
+	}
+
+	// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
+	err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
+	if err != nil {
+		impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
+		return err
+
+	}
+	return nil
+}
+
+func (impl PipelineBuilderImpl) IsGitOpsRequiredForCD(pipelineCreateRequest *bean.CdPipelines) bool {
+
+	// if deploymentAppType is not coming in request than hasAtLeastOneGitOps will be false
+
+	haveAtLeastOneGitOps := false
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if pipeline.DeploymentAppType == util.PIPELINE_DEPLOYMENT_TYPE_ACD {
+			haveAtLeastOneGitOps = true
 		}
-		err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
-		if err != nil {
-			impl.logger.Errorw("error while register git repo in argo", "err", err)
-			emptyRepoErrorMessage := []string{"failed to get index: 404 Not Found", "remote repository is empty"}
-			if strings.Contains(err.Error(), emptyRepoErrorMessage[0]) || strings.Contains(err.Error(), emptyRepoErrorMessage[1]) {
-				// - found empty repository, create some file in repository
-				err := impl.chartTemplateService.CreateReadmeInGitRepo(gitOpsRepoName, pipelineCreateRequest.UserId)
-				if err != nil {
-					impl.logger.Errorw("error in creating file in git repo", "err", err)
-					return nil, err
+	}
+	return haveAtLeastOneGitOps
+}
+
+func (impl PipelineBuilderImpl) SetPipelineDeploymentAppType(pipelineCreateRequest *bean.CdPipelines, isGitOpsConfigured bool) {
+	isInternalUse := impl.deploymentConfig.IsInternalUse
+	var globalDeploymentAppType string
+	if !isInternalUse {
+		if isGitOpsConfigured {
+			globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+		} else {
+			globalDeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
+		}
+	} else {
+		// if gitops or helm is option available, and deployment app type is not present in pipeline request/
+		for _, pipeline := range pipelineCreateRequest.Pipelines {
+			if pipeline.DeploymentAppType == "" {
+				if isGitOpsConfigured {
+					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
+				} else {
+					pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
 				}
-				// - retry register in argo
-				err = impl.chartTemplateService.RegisterInArgo(chartGitAttr, ctx)
-				if err != nil {
-					impl.logger.Errorw("error in re-try register in argo", "err", err)
-					return nil, err
-				}
-			} else {
-				return nil, err
 			}
 		}
+	}
+	for _, pipeline := range pipelineCreateRequest.Pipelines {
+		if !isInternalUse {
+			pipeline.DeploymentAppType = globalDeploymentAppType
+		}
+	}
+}
 
-		// here updating all the chart version git repo url, as per current implementation all are same git repo url but we have to update each row
-		err = impl.updateGitRepoUrlInCharts(app.Id, chartGitAttr, pipelineCreateRequest.UserId)
+func (impl PipelineBuilderImpl) CreateCdPipelines(pipelineCreateRequest *bean.CdPipelines, ctx context.Context) (*bean.CdPipelines, error) {
+
+	isGitOpsConfigured, err := impl.IsGitopsConfigured()
+	impl.SetPipelineDeploymentAppType(pipelineCreateRequest, isGitOpsConfigured)
+	isGitOpsRequiredForCD := impl.IsGitOpsRequiredForCD(pipelineCreateRequest)
+	app, err := impl.appRepo.FindById(pipelineCreateRequest.AppId)
+	if err != nil {
+		impl.logger.Errorw("app not found", "err", err, "appId", pipelineCreateRequest.AppId)
+		return nil, err
+	}
+	_, err = impl.ValidateCDPipelineRequest(pipelineCreateRequest, isGitOpsConfigured, isGitOpsRequiredForCD)
+	if err != nil {
+		return nil, err
+	}
+	if isGitOpsConfigured && isGitOpsRequiredForCD {
+		err = impl.RegisterInACD(app, pipelineCreateRequest, ctx)
 		if err != nil {
-			impl.logger.Errorw("error in updating git repo urls in charts", "appId", app.Id, "chartGitAttr", chartGitAttr, "err", err)
 			return nil, err
 		}
 	}
 
 	for _, pipeline := range pipelineCreateRequest.Pipelines {
-		if isGitOpsConfigured {
-			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_ACD
-		} else {
-			pipeline.DeploymentAppType = util.PIPELINE_DEPLOYMENT_TYPE_HELM
-		}
+
 		id, err := impl.createCdPipeline(ctx, app, pipeline, pipelineCreateRequest.UserId)
 		if err != nil {
 			impl.logger.Errorw("error in creating pipeline", "name", pipeline.Name, "err", err)
@@ -1895,14 +1994,14 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 	return nil
 }
 
-func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate pipelineConfig.DeploymentTemplate, pipelineOverride string) (string, error) {
+func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate chartRepoRepository.DeploymentStrategy, pipelineOverride string) (string, error) {
 	var deploymentType DeploymentType
 	err := json.Unmarshal([]byte(pipelineOverride), &deploymentType)
 	if err != nil {
 		impl.logger.Errorw("err", err)
 		return "", err
 	}
-	if pipelineConfig.DEPLOYMENT_TEMPLATE_BLUE_GREEN == deploymentTemplate {
+	if chartRepoRepository.DEPLOYMENT_STRATEGY_BLUE_GREEN == deploymentTemplate {
 		newDeploymentType := DeploymentType{
 			Deployment: Deployment{
 				Strategy: Strategy{
@@ -1916,7 +2015,7 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate pipe
 			return "", err
 		}
 		pipelineOverride = string(pipelineOverrideBytes)
-	} else if pipelineConfig.DEPLOYMENT_TEMPLATE_ROLLING == deploymentTemplate {
+	} else if chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING == deploymentTemplate {
 		newDeploymentType := DeploymentType{
 			Deployment: Deployment{
 				Strategy: Strategy{
@@ -1930,7 +2029,7 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate pipe
 			return "", err
 		}
 		pipelineOverride = string(pipelineOverrideBytes)
-	} else if pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY == deploymentTemplate {
+	} else if chartRepoRepository.DEPLOYMENT_STRATEGY_CANARY == deploymentTemplate {
 		newDeploymentType := DeploymentType{
 			Deployment: Deployment{
 				Strategy: Strategy{
@@ -1944,7 +2043,7 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate pipe
 			return "", err
 		}
 		pipelineOverride = string(pipelineOverrideBytes)
-	} else if pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE == deploymentTemplate {
+	} else if chartRepoRepository.DEPLOYMENT_STRATEGY_RECREATE == deploymentTemplate {
 		newDeploymentType := DeploymentType{
 			Deployment: Deployment{
 				Strategy: Strategy{
@@ -1977,7 +2076,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			return cdPipelines, err
 		}
 		var strategiesBean []bean.Strategy
-		var deploymentTemplate pipelineConfig.DeploymentTemplate
+		var deploymentTemplate chartRepoRepository.DeploymentStrategy
 		for _, item := range strategies {
 			strategiesBean = append(strategiesBean, bean.Strategy{
 				Config:             []byte(item.Config),
@@ -2438,72 +2537,36 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		impl.logger.Errorf("invalid state", "err", err, "appId", appId)
 		return pipelineStrategiesResponse, err
 	}
-	chartInfo, err := impl.chartRefRepository.FindById(chart.ChartRefId)
-	if err != nil {
-		impl.logger.Errorf("invalid chart", "err", err, "appId", appId)
-		return pipelineStrategiesResponse, err
-	}
-
 	if chart.Id == 0 {
 		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
 	}
 
-	if chartInfo.UserUploaded {
-		impl.logger.Errorw("invalid for custom charts", "err", err)
+	//get global strategy for this chart
+	globalStrategies, err := impl.globalStrategyMetadataRepository.GetByChartRefId(chart.ChartRefId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting global strategies", "err", err)
 		return pipelineStrategiesResponse, err
-	}
-
-	pipelineOverride := chart.PipelineOverride
-	rollingConfig, err := impl.filterDeploymentTemplate("ROLLING", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
-	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "ROLLING",
-		Config:             []byte(rollingConfig),
-		Default:            true,
-	})
-
-	bgConfig, err := impl.filterDeploymentTemplate("BLUE-GREEN", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
-	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "BLUE-GREEN",
-		Config:             []byte(bgConfig),
-		Default:            false,
-	})
-
-	chartVersion := chart.ChartVersion
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
-	if err != nil {
-		impl.logger.Errorw("chart version parsing", "err", err)
-		return pipelineStrategiesResponse, err
-	}
-	if chartMajorVersion <= 3 && chartMinorVersion < 2 {
+	} else if err == pg.ErrNoRows {
+		impl.logger.Infow("no strategies configured for chart", "chartRefId", chart.ChartRefId)
 		return pipelineStrategiesResponse, nil
 	}
-
-	canaryConfig, err := impl.filterDeploymentTemplate("CANARY", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
+	pipelineOverride := chart.PipelineOverride
+	for _, globalStrategy := range globalStrategies {
+		config, err := impl.filterDeploymentTemplate(globalStrategy.Name, pipelineOverride)
+		if err != nil {
+			return pipelineStrategiesResponse, err
+		}
+		pipelineStrategy := PipelineStrategy{
+			DeploymentTemplate: globalStrategy.Name,
+			Config:             []byte(config),
+		}
+		if globalStrategy.Name == chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING {
+			pipelineStrategy.Default = true
+		} else {
+			pipelineStrategy.Default = false
+		}
+		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, pipelineStrategy)
 	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "CANARY",
-		Config:             []byte(canaryConfig),
-		Default:            false,
-	})
-
-	recreateConfig, err := impl.filterDeploymentTemplate("RECREATE", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
-	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "RECREATE",
-		Config:             []byte(recreateConfig),
-		Default:            false,
-	})
-
 	return pipelineStrategiesResponse, nil
 }
 
@@ -2511,9 +2574,9 @@ type PipelineStrategiesResponse struct {
 	PipelineStrategy []PipelineStrategy `json:"pipelineStrategy"`
 }
 type PipelineStrategy struct {
-	DeploymentTemplate pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING"` //
-	Config             json.RawMessage                   `json:"config"`
-	Default            bool                              `json:"default"`
+	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
+	Config             json.RawMessage                        `json:"config"`
+	Default            bool                                   `json:"default"`
 }
 
 func (impl PipelineBuilderImpl) GetEnvironmentByCdPipelineId(pipelineId int) (int, error) {
@@ -2542,7 +2605,7 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		return cdPipeline, err
 	}
 	var strategiesBean []bean.Strategy
-	var deploymentTemplate pipelineConfig.DeploymentTemplate
+	var deploymentTemplate chartRepoRepository.DeploymentStrategy
 	for _, item := range strategies {
 		strategiesBean = append(strategiesBean, bean.Strategy{
 			Config:             []byte(item.Config),
@@ -2607,6 +2670,7 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		CdArgoSetup:                   environment.Cluster.CdArgoSetup,
 		ParentPipelineId:              appWorkflowMapping.ParentId,
 		ParentPipelineType:            appWorkflowMapping.ParentType,
+		DeploymentAppType:             dbPipeline.DeploymentAppType,
 	}
 
 	return cdPipeline, err

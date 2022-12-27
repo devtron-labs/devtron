@@ -1,16 +1,18 @@
 # Table of contents
 
-* [Overview](README.md)
-
-## Getting Started
-
+* [Introduction](README.md)
+* [Getting Started](setup/getting-started/getting-started.md)
 * [Install Devtron](setup/install/README.md)
-  * [Install Devtron with CI/CD integration](setup/install/install-devtron-with-cicd.md)
+  * [Install Devtron with CI/CD Integration](setup/install/install-devtron-with-cicd.md)
+  * [Install Devtron with CI/CD along with GitOps (Argo CD)](setup/install/install-devtron-with-cicd-with-gitops.md)
   * [Install Devtron](setup/install/install-devtron.md)
   * [Install Devtron on Minikube, Microk8s, K3s, Kind](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
+  * [FAQ on Installation](setup/install/faq-on-installation.md)
+  * [Uninstall Devtron](setup/install/uninstall-devtron.md)
+* [Configurations](setup/configurations/configurations-overview.md)
   * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
-  * [Ingress setup for Devtron Installation](setup/install/ingress-setup.md)
+  * [Ingress Setup](setup/install/ingress-setup.md)
 * [Global Configurations](user-guide/global-configurations/README.md)
   * [Host URL](user-guide/global-configurations/host-url.md)
   * [GitOps](user-guide/global-configurations/gitops.md)
@@ -46,6 +48,7 @@
     * [Git Repository](user-guide/creating-application/git-material.md)
     * [Build Configuration](user-guide/creating-application/docker-build-configuration.md)
     * [Deployment Template](user-guide/creating-application/deployment-template.md)
+      * [Deployment](user-guide/creating-application/deployment-template/deployment.md)
       * [Rollout Deployment](user-guide/creating-application/deployment-template/rollout-deployment.md)
       * [Job and Cronjob](user-guide/creating-application/deployment-template/job-and-cronjob.md)
     * [Workflow Overview](user-guide/creating-application/workflow/README.md)
@@ -64,7 +67,8 @@
     * [Rollback Deployment](user-guide/deploying-application/rollback-deployment.md)
   * [App Details](user-guide/creating-application/app-details.md)
     * [Debugging Deployment And Monitoring](user-guide/debugging-deployment-and-monitoring.md)
-    * [Application Metrics](user-guide/creating-application/app-metrics.md)
+    * [Application Metrics](user-guide/creating-application/app-metrics.md) 
+  * [Overview](user-guide/creating-application/overview.md)  
 * [Charts](user-guide/deploy-chart/README.md)
   * [Charts Overview](user-guide/deploy-chart/overview-of-charts.md)
   * [Deploy & Observe](user-guide/deploy-chart/deployment-of-charts.md)
@@ -91,6 +95,6 @@
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
 * [Telemetry Overview](user-guide/telemetry.md)
 
-## Depricated
+## Deprecated
 
 * [Hyperion](hyperion/devtron.md)
