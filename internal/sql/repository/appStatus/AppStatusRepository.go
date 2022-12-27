@@ -99,7 +99,8 @@ func (repo *AppStatusRepositoryImpl) Delete(tx *pg.Tx, appId, envId int) error {
 		AppId: appId,
 		EnvId: envId,
 	}
-	err := tx.Delete(&model)
+	query := "DELETE FROM app_status WHERE app_id = ? and env_id = ?;"
+	_, err := tx.Query(&model, query, appId, envId)
 	return err
 }
 
