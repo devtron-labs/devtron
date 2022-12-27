@@ -95,7 +95,13 @@ func (repo *AppStatusRepositoryImpl) GetAllInstalledAppStatuses(installedAppIds 
 	return appStatusContainers, err
 }
 func (repo *AppStatusRepositoryImpl) Delete(tx *pg.Tx, container AppStatusContainer) error {
-	err := tx.Delete(container)
+	model := AppStatusDto{
+		AppId:     container.AppId,
+		EnvId:     container.EnvId,
+		Status:    container.Status,
+		UpdatedOn: time.Now(),
+	}
+	err := tx.Delete(&model)
 	return err
 }
 
