@@ -437,9 +437,9 @@ func (handler CoreAppRestHandlerImpl) buildAppMetadata(appId int) (*appBean.AppM
 	if len(appMetaInfo.Labels) > 0 {
 		for _, label := range appMetaInfo.Labels {
 			appLabelsRes = append(appLabelsRes, &appBean.AppLabel{
-				Key:   label.Key,
-				Value: label.Value,
-				//TODO: manish check
+				Key:       label.Key,
+				Value:     label.Value,
+				Propagate: label.Propagate,
 			})
 		}
 	}
@@ -1104,7 +1104,7 @@ func (handler CoreAppRestHandlerImpl) createBlankApp(appMetadata *appBean.AppMet
 		appLabel := &bean.Label{
 			Key:       requestLabel.Key,
 			Value:     requestLabel.Value,
-			Propagate: true, // TODO: manish ask
+			Propagate: requestLabel.Propagate,
 		}
 		appLabels = append(appLabels, appLabel)
 	}
