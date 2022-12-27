@@ -27,7 +27,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"strings"
 	"time"
 )
@@ -333,16 +332,9 @@ func (impl AppCrudOperationServiceImpl) GetLabelsByAppIdForDeployment(appId int)
 
 		// if labelKey is not satisfying the label key criteria don't add in labels
 		// label key must be a 'qualified name' (https://github.com/kubernetes/website/issues/17969)
-		errs := validation.IsQualifiedName(labelKey)
-		if len(errs) > 0 {
-			impl.logger.Warnw("Ignoring label to propagate to app level", "message", fmt.Sprintf("Validation error - label key - %s is not satisfying the label key criteria", labelKey), "appId", appId)
-			continue
-		}
-
-		// if labelValue is not satisfying the label value criteria don't add in labels
-		errs = validation.IsValidLabelValue(labelValue)
-		if len(errs) > 0 {
-			impl.logger.Warnw("Ignoring label to propagate to app level", "message", fmt.Sprintf("Validation error - label value - %s is not satisfying the label value criteria", labelValue), "appId", appId)
+		err = util2.CheckIfValidLabel(labelKey, labelValue)
+		if err != nil {
+			impl.logger.Warnw("Ignoring label to propagate to app level", "err", err, "appId", appId)
 			continue
 		}
 
