@@ -25,6 +25,7 @@ type AppStatusService interface {
 	GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error)
 	GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error)
 	UpdateStatusWithAppIdEnvId(appIdEnvId, envId int, status string) error
+	DeleteWithAppIdEnvId(appId, envId int) error
 }
 
 type AppStatusServiceImpl struct {
@@ -185,6 +186,30 @@ func (impl *AppStatusServiceImpl) UpdateStatusWithAppIdEnvId(appId, envId int, s
 			return err
 		}
 	}
+	err = tx.Commit()
+	if err != nil {
+		impl.logger.Errorw("error occurred while committing db transaction", "err", err)
+		return err
+	}
+	return nil
+}
+
+func (impl *AppStatusServiceImpl) DeleteWithAppIdEnvId(appId, envId int) error {
+	tx, err := impl.appStatusRepository.GetConnection().Begin()
+	if err != nil {
+		impl.logger.Errorw("error in creating transaction", "err", err)
+		return err
+	}
+
+	// Rollback tx on error.
+	defer tx.Rollback()
+
+	err = impl.appStatusRepository.Delete(tx, appId, envId)
+	if err != nil {
+		impl.logger.Errorw("error in deleting appStatus", "appId", appId, "envId", envId, "err", err)
+		return err
+	}
+
 	err = tx.Commit()
 	if err != nil {
 		impl.logger.Errorw("error occurred while committing db transaction", "err", err)

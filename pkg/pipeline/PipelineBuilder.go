@@ -1570,7 +1570,7 @@ func (impl PipelineBuilderImpl) DeleteCdPipeline(pipeline *pipelineConfig.Pipeli
 		return err
 	}
 	// delete entry in app_status table
-	err = impl.appStatusRepository.Delete(tx, appStatus.AppStatusContainer{AppId: pipeline.AppId, EnvId: pipeline.EnvironmentId})
+	err = impl.appStatusRepository.Delete(tx, pipeline.AppId, pipeline.EnvironmentId)
 	if err != nil {
 		impl.logger.Errorw("err in deleting app_status from db", "appId", pipeline.AppId, "envId", pipeline.EnvironmentId, "err", err)
 		return err

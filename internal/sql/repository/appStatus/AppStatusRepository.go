@@ -7,14 +7,14 @@ import (
 )
 
 type AppStatusContainer struct {
-	AppId          int       `sql:"app_id"`
-	AppName        string    `sql:"app_name"`         //unknown
-	EnvIdentifier  string    `sql:"env_identifier"`   //unknown
-	InstalledAppId int       `sql:"installed_app_id"` //unknown
-	EnvId          int       `sql:"env_id"`
-	Status         string    `sql:"status"`
-	AppStore       bool      `sql:"app_store"` //unknown
-	UpdatedOn      time.Time `sql:"updated_on"`
+	AppId          int       `json:"app_id"`
+	AppName        string    `json:"app_name"`
+	EnvIdentifier  string    `json:"env_identifier"`
+	InstalledAppId int       `json:"installed_app_id"`
+	EnvId          int       `json:"env_id"`
+	Status         string    `json:"status"`
+	AppStore       bool      `json:"app_store"`
+	UpdatedOn      time.Time `json:"updated_on"`
 }
 
 type AppStatusDto struct {
@@ -30,7 +30,7 @@ type AppStatusRepository interface {
 	Update(tx *pg.Tx, container AppStatusContainer) error
 	GetAllDevtronAppStatuses(appIds []int) ([]AppStatusContainer, error)
 	GetAllInstalledAppStatuses(installedAppIds []int) ([]AppStatusContainer, error)
-	Delete(tx *pg.Tx, container AppStatusContainer) error
+	Delete(tx *pg.Tx, appId, envId int) error
 	DeleteWithAppId(tx *pg.Tx, appId int) error
 	DeleteWithEnvId(tx *pg.Tx, envId int) error
 	Get(appId, envId int) (AppStatusContainer, error)
@@ -94,28 +94,30 @@ func (repo *AppStatusRepositoryImpl) GetAllInstalledAppStatuses(installedAppIds 
 	_, err := repo.dbConnection.Query(&appStatusContainers, query, pg.In(installedAppIds))
 	return appStatusContainers, err
 }
-func (repo *AppStatusRepositoryImpl) Delete(tx *pg.Tx, container AppStatusContainer) error {
+func (repo *AppStatusRepositoryImpl) Delete(tx *pg.Tx, appId, envId int) error {
 	model := AppStatusDto{
-		AppId:     container.AppId,
-		EnvId:     container.EnvId,
-		Status:    container.Status,
-		UpdatedOn: time.Now(),
+		AppId: appId,
+		EnvId: envId,
 	}
 	err := tx.Delete(&model)
 	return err
 }
 
 func (repo *AppStatusRepositoryImpl) DeleteWithAppId(tx *pg.Tx, appId int) error {
-	container := AppStatusContainer{}
+	model := AppStatusDto{
+		AppId: appId,
+	}
 	query := "DELETE FROM app_status WHERE app_id = ?;"
-	_, err := tx.Query(&container, query, appId)
+	_, err := tx.Query(&model, query, appId)
 	return err
 }
 
 func (repo *AppStatusRepositoryImpl) DeleteWithEnvId(tx *pg.Tx, envId int) error {
-	container := AppStatusContainer{}
+	model := AppStatusDto{
+		EnvId: envId,
+	}
 	query := "DELETE FROM app_status WHERE env_id = ?;"
-	_, err := tx.Query(&container, query, envId)
+	_, err := tx.Query(&model, query, envId)
 	return err
 }
 

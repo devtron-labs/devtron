@@ -180,7 +180,11 @@ func (impl AppStoreDeploymentArgoCdServiceImpl) DeleteInstalledApp(ctx context.C
 			return err
 		}
 	}
-
+	err = impl.appStatusService.DeleteWithAppIdEnvId(installedApps.AppId, installedApps.EnvironmentId)
+	if err != nil {
+		impl.Logger.Errorw("error in deleting app_status", "appId", installedApps.AppId, "envId", installedApps.EnvironmentId, "err", err)
+		return err
+	}
 	return nil
 }
 
