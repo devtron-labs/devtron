@@ -35,6 +35,7 @@ import (
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/user"
 	repository3 "github.com/devtron-labs/devtron/pkg/user/repository"
+	util2 "github.com/devtron-labs/devtron/util"
 	"path"
 	"regexp"
 	"strconv"
@@ -791,6 +792,19 @@ func (impl CiCdPipelineOrchestratorImpl) CheckStringMatchRegex(regex string, val
 }
 
 func (impl CiCdPipelineOrchestratorImpl) CreateApp(createRequest *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+	// validate the labels key-value if propagate is true
+	for _, label := range createRequest.AppLabels {
+		if !label.Propagate {
+			continue
+		}
+		labelKey := label.Key
+		labelValue := label.Value
+		err := util2.CheckIfValidLabel(labelKey, labelValue)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {

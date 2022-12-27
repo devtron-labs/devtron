@@ -24,6 +24,7 @@ import (
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/pkg/bean"
 	"github.com/devtron-labs/devtron/pkg/user/repository"
+	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/go-pg/pg"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/util/validation"
@@ -60,6 +61,19 @@ func NewAppCrudOperationServiceImpl(appLabelRepository pipelineConfig.AppLabelRe
 }
 
 func (impl AppCrudOperationServiceImpl) UpdateApp(request *bean.CreateAppDTO) (*bean.CreateAppDTO, error) {
+	// validate the labels key-value if propagate is true
+	for _, label := range request.AppLabels {
+		if !label.Propagate {
+			continue
+		}
+		labelKey := label.Key
+		labelValue := label.Value
+		err := util2.CheckIfValidLabel(labelKey, labelValue)
+		if err != nil {
+			return nil, err
+		}
+	}
+
 	dbConnection := impl.appRepository.GetConnection()
 	tx, err := dbConnection.Begin()
 	if err != nil {
