@@ -20,7 +20,7 @@ Before you start creating an application, we recommend to provide basic informat
 
 [SSO Login Services](sso-login.md)
 
-[Authorization](user-guide/global-configurations/authorization/README.md)
+[Authorization](https://docs.devtron.ai/global-configurations/authorization)
 
 [Manage Notification](manage-notification.md)
 
