@@ -242,7 +242,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(cluster 
 	}
 	var nodeDetails []*NodeCapacityDetail
 	for _, node := range nodeList.Items {
-		nodeDetail, err := impl.getNodeDetail(&node, nodeResourceUsage, podList, true, restConfig)
+		nodeDetail, err := impl.getNodeDetail(&node, nodeResourceUsage, podList, true, restConfig, cluster)
 		if err != nil {
 			impl.logger.Errorw("error in getting node detail for list", "err", err)
 			return nil, err
@@ -290,7 +290,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(cluste
 	if nodeMetrics != nil {
 		nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
 	}
-	nodeDetail, err := impl.getNodeDetail(node, nodeResourceUsage, podList, false, restConfig)
+	nodeDetail, err := impl.getNodeDetail(node, nodeResourceUsage, podList, false, restConfig, cluster)
 	if err != nil {
 		impl.logger.Errorw("error in getting node detail", "err", err)
 		return nil, err
@@ -299,7 +299,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(cluste
 	nodeDetail.ClusterName = cluster.ClusterName
 	return nodeDetail, nil
 }
-func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourceUsage map[string]metav1.ResourceList, podList *metav1.PodList, callForList bool, restConfig *rest.Config) (*NodeCapacityDetail, error) {
+func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourceUsage map[string]metav1.ResourceList, podList *metav1.PodList, callForList bool, restConfig *rest.Config, cluster *cluster.ClusterBean) (*NodeCapacityDetail, error) {
 	cpuAllocatable := node.Status.Allocatable[metav1.ResourceCPU]
 	memoryAllocatable := node.Status.Allocatable[metav1.ResourceMemory]
 	podCount := 0
@@ -339,7 +339,7 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 		Status:        findNodeStatus(node),
 		TaintCount:    len(node.Spec.Taints),
 		CreatedAt:     node.CreationTimestamp.String(),
-		ClusterName:   node.ClusterName,
+		ClusterName:   cluster.ClusterName,
 	}
 	nodeUsageResourceList := nodeResourceUsage[node.Name]
 	if callForList {
