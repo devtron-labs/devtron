@@ -18,6 +18,8 @@
 package pipelineConfig
 
 import (
+	"github.com/argoproj/gitops-engine/pkg/health"
+	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/appWorkflow"
 	"github.com/devtron-labs/devtron/internal/util"
@@ -54,6 +56,7 @@ type Pipeline struct {
 	RunPostStageInEnv             bool        `sql:"run_post_stage_in_env"`              // secret names
 	DeploymentAppCreated          bool        `sql:"deployment_app_created,notnull"`
 	DeploymentAppType             string      `sql:"deployment_app_type,notnull"` //helm, acd
+	DeploymentAppName             string      `sql:"deployment_app_name"`
 	Environment                   repository.Environment
 	sql.AuditLog
 }
@@ -89,9 +92,12 @@ type PipelineRepository interface {
 	UpdateCdPipeline(pipeline *Pipeline) error
 	FindNumberOfAppsWithCdPipeline(appIds []int) (count int, err error)
 	GetAppAndEnvDetailsForDeploymentAppTypePipeline(deploymentAppType string, clusterIds []int) ([]*Pipeline, error)
-	GetPipelineIdsHavingStatusTimelinesPendingAfterKubectlApplyStatus(pendingSinceSeconds int) ([]int, error)
+	GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error)
+	GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes int) ([]*Pipeline, error)
 	FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) (ids []int, err error)
 	FindIdsByProjectIdsAndEnvironmentIds(projectIds, environmentIds []int) ([]int, error)
+
+	GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error)
 }
 
 type CiArtifactDTO struct {
@@ -435,23 +441,44 @@ func (impl PipelineRepositoryImpl) GetAppAndEnvDetailsForDeploymentAppTypePipeli
 	return pipelines, err
 }
 
-func (impl PipelineRepositoryImpl) GetPipelineIdsHavingStatusTimelinesPendingAfterKubectlApplyStatus(pendingSinceSeconds int) ([]int, error) {
-	var pipelineIds []int
-	queryString := `select p.id from pipeline p inner join app a on p.app_id = a.id  
-    inner join environment e on p.environment_id = e.id inner join cd_workflow cw on cw.pipeline_id = p.id  
+func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	queryString := `select p.* from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
     inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
     where cwr.id in (select cd_workflow_runner_id from pipeline_status_timeline  
 					where id in  
 						(select DISTINCT ON (cd_workflow_runner_id) max(id) as id from pipeline_status_timeline 
 							group by cd_workflow_runner_id, id order by cd_workflow_runner_id,id desc)  
-					and status='KUBECTL_APPLY_SYNCED' and status_time < NOW() - INTERVAL '? seconds')  
-    and p.deleted=false group by p.id, a.app_name, e.environment_name;`
-	_, err := impl.dbConnection.Query(&pipelineIds, queryString, pendingSinceSeconds)
+					and status in (?) and status_time < NOW() - INTERVAL '? seconds')  
+    and cwr.started_on > NOW() - INTERVAL '? minutes' and p.deployment_app_type=? and p.deleted=?;`
+	_, err := impl.dbConnection.Query(&pipelines, queryString,
+		pg.In([]TimelineStatus{TIMELINE_STATUS_KUBECTL_APPLY_SYNCED,
+			TIMELINE_STATUS_FETCH_TIMED_OUT, TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS}),
+		pendingSinceSeconds, timeForDegradation, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
-		impl.logger.Errorw("error in GetPipelinesHavingStatusTimelinesPendingAfterKubectlApplyStatus", "err", err)
+		impl.logger.Errorw("error in GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines", "err", err)
 		return nil, err
 	}
-	return pipelineIds, nil
+	return pipelines, nil
+}
+
+func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes int) ([]*Pipeline, error) {
+	var pipelines []*Pipeline
+	queryString := `select p.* from pipeline p inner join cd_workflow cw on cw.pipeline_id = p.id  
+    inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
+    where cwr.id in (select id from cd_workflow_runner 
+                     	where started_on < NOW() - INTERVAL '? minutes' and status not in (?) 
+                     	and workflow_type=? and id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow
+                     	  group by pipeline_id, id order by pipeline_id, id desc))
+    and p.deployment_app_type=? and p.deleted=?;`
+	_, err := impl.dbConnection.Query(&pipelines, queryString, deployedBeforeMinutes,
+		pg.In([]string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, string(health.HealthStatusHealthy)}),
+		bean.CD_WORKFLOW_TYPE_DEPLOY, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
+	if err != nil {
+		impl.logger.Errorw("error in GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses", "err", err)
+		return nil, err
+	}
+	return pipelines, nil
 }
 
 func (impl PipelineRepositoryImpl) FindIdsByAppIdsAndEnvironmentIds(appIds, environmentIds []int) ([]int, error) {
@@ -474,4 +501,18 @@ func (impl PipelineRepositoryImpl) FindIdsByProjectIdsAndEnvironmentIds(projectI
 		return pipelineIds, err
 	}
 	return pipelineIds, err
+}
+
+func (impl PipelineRepositoryImpl) GetArgoPipelineByArgoAppName(argoAppName string) (Pipeline, error) {
+	var pipeline Pipeline
+	err := impl.dbConnection.Model(&pipeline).
+		Where("deployment_app_name = ?", argoAppName).
+		Where("deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
+		Where("deleted = ?", false).
+		Select()
+	if err != nil {
+		impl.logger.Errorw("error in getting pipeline by argoAppName", "err", err, "argoAppName", argoAppName)
+		return pipeline, err
+	}
+	return pipeline, nil
 }
