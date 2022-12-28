@@ -339,6 +339,7 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 		Status:        findNodeStatus(node),
 		TaintCount:    len(node.Spec.Taints),
 		CreatedAt:     node.CreationTimestamp.String(),
+		ClusterName:   node.ClusterName,
 	}
 	nodeUsageResourceList := nodeResourceUsage[node.Name]
 	if callForList {
