@@ -6,11 +6,17 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/api/core/v1"
+	policyv1 "k8s.io/api/policy/v1"
+	policyv1beta1 "k8s.io/api/policy/v1beta1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/resource"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/duration"
+	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
@@ -31,12 +37,43 @@ const (
 	Gigabyte            = 1000 * 1000 * 1000
 )
 
+// below const set is used for pod filters
+const (
+	daemonSetFatal      = "DaemonSet-managed Pods (use --ignore-daemonsets to ignore)"
+	daemonSetWarning    = "ignoring DaemonSet-managed Pods"
+	localStorageFatal   = "Pods with local storage (use --delete-emptydir-data to override)"
+	localStorageWarning = "deleting Pods with local storage"
+	unmanagedFatal      = "Pods declare no controller (use --force to override)"
+	unmanagedWarning    = "deleting Pods that declare no controller"
+)
+
+// below const set is used for pod delete status
+const (
+	// PodDeleteStatusTypeOkay is "Okay"
+	PodDeleteStatusTypeOkay = "Okay"
+	// PodDeleteStatusTypeSkip is "Skip"
+	PodDeleteStatusTypeSkip = "Skip"
+	// PodDeleteStatusTypeWarning is "Warning"
+	PodDeleteStatusTypeWarning = "Warning"
+	// PodDeleteStatusTypeError is "Error"
+	PodDeleteStatusTypeError = "Error"
+)
+const (
+	// EvictionKind represents the kind of evictions object
+	EvictionKind = "Eviction"
+	// EvictionSubresource represents the kind of evictions object as pod's subresource
+	EvictionSubresource = "pods/eviction"
+)
+
 type K8sCapacityService interface {
 	GetClusterCapacityDetailList(clusters []*cluster.ClusterBean) ([]*ClusterCapacityDetail, error)
 	GetClusterCapacityDetail(cluster *cluster.ClusterBean, callForList bool) (*ClusterCapacityDetail, error)
 	GetNodeCapacityDetailsListByCluster(cluster *cluster.ClusterBean) ([]*NodeCapacityDetail, error)
 	GetNodeCapacityDetailByNameAndCluster(cluster *cluster.ClusterBean, name string) (*NodeCapacityDetail, error)
-	UpdateNodeManifest(request *NodeManifestUpdateDto) (*application.ManifestResponse, error)
+	UpdateNodeManifest(request *NodeUpdateRequestDto) (*application.ManifestResponse, error)
+	DeleteNode(request *NodeUpdateRequestDto) (*application.ManifestResponse, error)
+	CordonOrUnCordonNode(request *NodeUpdateRequestDto) (string, error)
+	DrainNode(request *NodeUpdateRequestDto) (string, error)
 }
 type K8sCapacityServiceImpl struct {
 	logger                *zap.SugaredLogger
@@ -161,7 +198,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 			return nil, err
 		}
 		//empty namespace: get pods for all namespaces
-		podList, err := k8sClientSet.CoreV1().Pods("").List(context.Background(), v1.ListOptions{})
+		podList, err := k8sClientSet.CoreV1().Pods(metav1.NamespaceAll).List(context.Background(), v1.ListOptions{})
 		if err != nil {
 			impl.logger.Errorw("error in getting pod list", "err", err)
 			return nil, err
@@ -468,7 +505,7 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 	return nil
 }
 
-func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(request *NodeManifestUpdateDto) (*application.ManifestResponse, error) {
+func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(request *NodeUpdateRequestDto) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
 	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(request.ClusterId)
 	if err != nil {
@@ -493,6 +530,484 @@ func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(request *NodeManifestUpda
 	}
 	return manifestResponse, nil
 }
+
+func (impl *K8sCapacityServiceImpl) DeleteNode(request *NodeUpdateRequestDto) (*application.ManifestResponse, error) {
+	//getting rest config by clusterId
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(request.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
+		return nil, err
+	}
+	deleteReq := &application.K8sRequestBean{
+		ResourceIdentifier: application.ResourceIdentifier{
+			Name: request.Name,
+			GroupVersionKind: schema.GroupVersionKind{
+				Group:   "",
+				Version: request.Version,
+				Kind:    request.Kind,
+			},
+		},
+	}
+	manifestResponse, err := impl.k8sClientService.DeleteResource(restConfig, deleteReq)
+	if err != nil {
+		impl.logger.Errorw("error in deleting node", "err", err)
+		return nil, err
+	}
+	return manifestResponse, nil
+}
+
+func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(request *NodeUpdateRequestDto) (string, error) {
+	respMessage := ""
+	//getting rest config by clusterId
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(request.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
+		return respMessage, err
+	}
+	//getting kubernetes clientSet by rest config
+	k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+		return respMessage, err
+	}
+	//get node
+	node, err := k8sClientSet.CoreV1().Nodes().Get(context.Background(), request.Name, v1.GetOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in getting node", "err", err)
+		return respMessage, err
+	}
+	if node.Spec.Unschedulable == request.UnschedulableDesired {
+		return respMessage, getErrorForCordonUpdateReq(request.UnschedulableDesired)
+	}
+	//updating node with desired cordon value
+	node, err = updateNodeUnschedulableProperty(request.UnschedulableDesired, node, k8sClientSet)
+	if err != nil {
+		impl.logger.Errorw("error in updating node", "err", err)
+		return respMessage, err
+	}
+
+	if request.UnschedulableDesired {
+		respMessage = fmt.Sprintf("Node successfully Cordoned.")
+	} else {
+		respMessage = fmt.Sprintf("Node successfully UnCordoned.")
+	}
+	return respMessage, nil
+}
+
+func (impl *K8sCapacityServiceImpl) DrainNode(request *NodeUpdateRequestDto) (string, error) {
+	respMessage := ""
+	//getting rest config by clusterId
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(request.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
+		return respMessage, err
+	}
+	//getting kubernetes clientSet by rest config
+	k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+		return respMessage, err
+	}
+	//get node
+	node, err := k8sClientSet.CoreV1().Nodes().Get(context.Background(), request.Name, v1.GetOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in getting node", "err", err)
+		return respMessage, err
+	}
+	//checking if node is unschedulable or not, if not then need to unschedule before draining
+	if !node.Spec.Unschedulable {
+		node, err = updateNodeUnschedulableProperty(true, node, k8sClientSet)
+		if err != nil {
+			impl.logger.Errorw("error in making node unschedulable", "err", err)
+			return respMessage, err
+		}
+	}
+	err = deleteOrEvictPods(request.Name, request.NodeDrainHelper)
+	if err != nil {
+		impl.logger.Errorw("error in deleting/evicting pods", "err", err, "nodeName", request.Name)
+		return respMessage, err
+	}
+	respMessage = "Node Drained Successfully."
+	return respMessage, nil
+}
+
+func deleteOrEvictPods(nodeName string, nodeDrainHelper *NodeDrainHelper) error {
+	list, errs := getPodsByNodeNameForDeletion(nodeName, nodeDrainHelper)
+	if errs != nil {
+		return utilerrors.NewAggregate(errs)
+	}
+	pods := list.Pods()
+	if len(pods) == 0 {
+		return nil
+	}
+	deleteOptions := v1.DeleteOptions{}
+	if nodeDrainHelper.GracePeriodSeconds >= 0 {
+		gracePeriodSecConverted := int64(nodeDrainHelper.GracePeriodSeconds)
+		deleteOptions.GracePeriodSeconds = &gracePeriodSecConverted
+	}
+	if nodeDrainHelper.DisableEviction {
+		//delete instead of eviction
+		return deletePods(pods, nodeDrainHelper.k8sClientSet, deleteOptions)
+	} else {
+		evictionGroupVersion, err := CheckEvictionSupport(nodeDrainHelper.k8sClientSet)
+		if err != nil {
+			return err
+		}
+		if !evictionGroupVersion.Empty() {
+			return evictPods(pods, nodeDrainHelper.k8sClientSet, evictionGroupVersion, deleteOptions)
+		}
+	}
+	return nil
+}
+
+func evictPods(pods []corev1.Pod, k8sClientSet *kubernetes.Clientset, evictionGroupVersion schema.GroupVersion, deleteOptions v1.DeleteOptions) error {
+	returnCh := make(chan error, 1)
+	for _, pod := range pods {
+		go func(pod corev1.Pod, returnCh chan error) {
+			for {
+				// Create a temporary pod, so we don't mutate the pod in the loop.
+				activePod := pod
+				err := EvictPod(activePod, k8sClientSet, evictionGroupVersion, deleteOptions)
+				if err == nil {
+					break
+				} else if apierrors.IsNotFound(err) {
+					returnCh <- nil
+					return
+				} else if apierrors.IsTooManyRequests(err) {
+					time.Sleep(5 * time.Second)
+				} else {
+					returnCh <- fmt.Errorf("error when evicting pods/%q -n %q: %v", activePod.Name, activePod.Namespace, err)
+					return
+				}
+			}
+		}(pod, returnCh)
+	}
+	doneCount := 0
+	var errors []error
+	numPods := len(pods)
+	for doneCount < numPods {
+		select {
+		case err := <-returnCh:
+			doneCount++
+			if err != nil {
+				errors = append(errors, err)
+			}
+		}
+	}
+	return utilerrors.NewAggregate(errors)
+}
+
+// EvictPod will evict the given pod, or return an error if it couldn't
+func EvictPod(pod corev1.Pod, k8sClientSet *kubernetes.Clientset, evictionGroupVersion schema.GroupVersion, deleteOptions v1.DeleteOptions) error {
+	switch evictionGroupVersion {
+	case policyv1.SchemeGroupVersion:
+		// send policy/v1 if the server supports it
+		eviction := &policyv1.Eviction{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			},
+			DeleteOptions: &deleteOptions,
+		}
+		return k8sClientSet.PolicyV1().Evictions(eviction.Namespace).Evict(context.TODO(), eviction)
+
+	default:
+		// otherwise, fall back to policy/v1beta1, supported by all servers that support the eviction subresource
+		eviction := &policyv1beta1.Eviction{
+			ObjectMeta: v1.ObjectMeta{
+				Name:      pod.Name,
+				Namespace: pod.Namespace,
+			},
+			DeleteOptions: &deleteOptions,
+		}
+		return k8sClientSet.PolicyV1beta1().Evictions(eviction.Namespace).Evict(context.TODO(), eviction)
+	}
+}
+
+// CheckEvictionSupport uses Discovery API to find out if the server support
+// eviction subresource If support, it will return its groupVersion; Otherwise,
+// it will return an empty GroupVersion
+func CheckEvictionSupport(clientset kubernetes.Interface) (schema.GroupVersion, error) {
+	discoveryClient := clientset.Discovery()
+
+	// version info available in subresources since v1.8.0 in https://github.com/kubernetes/kubernetes/pull/49971
+	resourceList, err := discoveryClient.ServerResourcesForGroupVersion("v1")
+	if err != nil {
+		return schema.GroupVersion{}, err
+	}
+	for _, resource := range resourceList.APIResources {
+		if resource.Name == EvictionSubresource && resource.Kind == EvictionKind && len(resource.Group) > 0 && len(resource.Version) > 0 {
+			return schema.GroupVersion{Group: resource.Group, Version: resource.Version}, nil
+		}
+	}
+	return schema.GroupVersion{}, nil
+}
+
+func deletePods(pods []corev1.Pod, k8sClientSet *kubernetes.Clientset, deleteOptions v1.DeleteOptions) error {
+	var podDeletionErrors []error
+	for _, pod := range pods {
+		err := DeletePod(pod, k8sClientSet, deleteOptions)
+		if err != nil && !apierrors.IsNotFound(err) {
+			podDeletionErrors = append(podDeletionErrors, err)
+		}
+	}
+	if len(podDeletionErrors) > 0 {
+		return utilerrors.NewAggregate(podDeletionErrors)
+	}
+	return nil
+}
+
+// DeletePod will delete the given pod, or return an error if it couldn't
+func DeletePod(pod corev1.Pod, k8sClientSet *kubernetes.Clientset, deleteOptions v1.DeleteOptions) error {
+	return k8sClientSet.CoreV1().Pods(pod.Namespace).Delete(context.Background(), pod.Name, deleteOptions)
+}
+
+func updateNodeUnschedulableProperty(desiredUnschedulable bool, node *corev1.Node, k8sClientSet *kubernetes.Clientset) (*corev1.Node, error) {
+	node.Spec.Unschedulable = desiredUnschedulable
+	node, err := k8sClientSet.CoreV1().Nodes().Update(context.Background(), node, v1.UpdateOptions{})
+	return node, err
+}
+
+func getErrorForCordonUpdateReq(desired bool) error {
+	if desired {
+		return fmt.Errorf("node already cordoned")
+	}
+	return fmt.Errorf("node already uncordoned")
+}
+
+func getPodsByNodeNameForDeletion(nodeName string, nodeDrainHelper *NodeDrainHelper) (*PodDeleteList, []error) {
+	initialOpts := v1.ListOptions{
+		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String(),
+	}
+	podList, err := nodeDrainHelper.k8sClientSet.CoreV1().Pods(metav1.NamespaceAll).List(context.Background(), initialOpts)
+	if err != nil {
+		return nil, []error{err}
+	}
+
+	list := filterPods(podList, nodeDrainHelper.makeFilters())
+	if errs := list.errors(); len(errs) > 0 {
+		return list, errs
+	}
+
+	return list, nil
+}
+
+// Pods returns a list of all pods marked for deletion after filtering.
+func (l *PodDeleteList) Pods() []corev1.Pod {
+	pods := []corev1.Pod{}
+	for _, i := range l.items {
+		if i.Status.Delete {
+			pods = append(pods, i.Pod)
+		}
+	}
+	return pods
+}
+
+func (l *PodDeleteList) errors() []error {
+	failedPods := make(map[string][]string)
+	for _, i := range l.items {
+		if i.Status.Reason == PodDeleteStatusTypeError {
+			msg := i.Status.Message
+			if msg == "" {
+				msg = "unexpected error"
+			}
+			failedPods[msg] = append(failedPods[msg], fmt.Sprintf("%s/%s", i.Pod.Namespace, i.Pod.Name))
+		}
+	}
+	errs := make([]error, 0, len(failedPods))
+	for msg, pods := range failedPods {
+		errs = append(errs, fmt.Errorf("cannot delete %s: %s", msg, strings.Join(pods, ", ")))
+	}
+	return errs
+}
+
+func filterPods(podList *corev1.PodList, filters []PodFilter) *PodDeleteList {
+	pods := []PodDelete{}
+	for _, pod := range podList.Items {
+		var status PodDeleteStatus
+		for _, filter := range filters {
+			status = filter(pod)
+			if !status.Delete {
+				// short-circuit as soon as pod is filtered out
+				// at that point, there is no reason to run pod
+				// through any additional filters
+				break
+			}
+		}
+		// Add the pod to PodDeleteList no matter what PodDeleteStatus is,
+		// those pods whose PodDeleteStatus is false like DaemonSet will
+		// be catched by list.errors()
+		pod.Kind = "Pod"
+		pod.APIVersion = "v1"
+		pods = append(pods, PodDelete{
+			Pod:    pod,
+			Status: status,
+		})
+	}
+	list := &PodDeleteList{items: pods}
+	return list
+}
+
+func (f *NodeDrainHelper) makeFilters() []PodFilter {
+	baseFilters := []PodFilter{
+		f.skipDeletedFilter,
+		f.daemonSetFilter,
+		f.mirrorPodFilter,
+		f.localStorageFilter,
+		f.unreplicatedFilter,
+	}
+	return baseFilters
+}
+
+// PodDelete informs filtering logic whether a pod should be deleted or not
+type PodDelete struct {
+	Pod    corev1.Pod
+	Status PodDeleteStatus
+}
+
+// PodDeleteList is a wrapper around []PodDelete
+type PodDeleteList struct {
+	items []PodDelete
+}
+
+// PodDeleteStatus informs filters if a pod should be deleted
+type PodDeleteStatus struct {
+	Delete  bool
+	Reason  string
+	Message string
+}
+
+// PodFilter takes a pod and returns a PodDeleteStatus
+type PodFilter func(corev1.Pod) PodDeleteStatus
+
+func (f *NodeDrainHelper) mirrorPodFilter(pod corev1.Pod) PodDeleteStatus {
+	if _, found := pod.ObjectMeta.Annotations[corev1.MirrorPodAnnotationKey]; found {
+		return MakePodDeleteStatusSkip()
+	}
+	return MakePodDeleteStatusOkay()
+}
+
+func (f *NodeDrainHelper) localStorageFilter(pod corev1.Pod) PodDeleteStatus {
+	if !hasLocalStorage(pod) {
+		return MakePodDeleteStatusOkay()
+	}
+	// Any finished pod can be removed.
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		return MakePodDeleteStatusOkay()
+	}
+	if !f.DeleteEmptyDirData {
+		return MakePodDeleteStatusWithError(localStorageFatal)
+	}
+
+	// TODO: this warning gets dropped by subsequent filters;
+	// consider accounting for multiple warning conditions or at least
+	// preserving the last warning message.
+	return MakePodDeleteStatusWithWarning(true, localStorageWarning)
+}
+func hasLocalStorage(pod corev1.Pod) bool {
+	for _, volume := range pod.Spec.Volumes {
+		if volume.EmptyDir != nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (f *NodeDrainHelper) unreplicatedFilter(pod corev1.Pod) PodDeleteStatus {
+	// any finished pod can be removed
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		return MakePodDeleteStatusOkay()
+	}
+
+	controllerRef := v1.GetControllerOf(&pod)
+	if controllerRef != nil {
+		return MakePodDeleteStatusOkay()
+	}
+	if f.Force {
+		return MakePodDeleteStatusWithWarning(true, unmanagedWarning)
+	}
+	return MakePodDeleteStatusWithError(unmanagedFatal)
+}
+
+func (f *NodeDrainHelper) daemonSetFilter(pod corev1.Pod) PodDeleteStatus {
+	// Note that we return false in cases where the pod is DaemonSet managed,
+	// regardless of flags.
+	//
+	// The exception is for pods that are orphaned (the referencing
+	// management resource - including DaemonSet - is not found).
+	// Such pods will be deleted if --force is used.
+	controllerRef := v1.GetControllerOf(&pod)
+	if controllerRef == nil || controllerRef.Kind != v1.SchemeGroupVersion.WithKind("DaemonSet").Kind {
+		return MakePodDeleteStatusOkay()
+	}
+	// Any finished pod can be removed.
+	if pod.Status.Phase == corev1.PodSucceeded || pod.Status.Phase == corev1.PodFailed {
+		return MakePodDeleteStatusOkay()
+	}
+
+	if _, err := f.k8sClientSet.AppsV1().DaemonSets(pod.Namespace).Get(context.TODO(), controllerRef.Name, v1.GetOptions{}); err != nil {
+		// remove orphaned pods with a warning if --force is used
+		if apierrors.IsNotFound(err) && f.Force {
+			return MakePodDeleteStatusWithWarning(true, err.Error())
+		}
+
+		return MakePodDeleteStatusWithError(err.Error())
+	}
+
+	if !f.IgnoreAllDaemonSets {
+		return MakePodDeleteStatusWithError(daemonSetFatal)
+	}
+	return MakePodDeleteStatusWithWarning(false, daemonSetWarning)
+}
+func (f *NodeDrainHelper) skipDeletedFilter(pod corev1.Pod) PodDeleteStatus {
+	//hardcoded value=0 because this flag is not supported on UI yet
+	//but is a base filter on kubectl side so including this in our filter set
+	if shouldSkipPod(pod, 0) {
+		return MakePodDeleteStatusSkip()
+	}
+	return MakePodDeleteStatusOkay()
+}
+func shouldSkipPod(pod corev1.Pod, skipDeletedTimeoutSeconds int) bool {
+	return skipDeletedTimeoutSeconds > 0 &&
+		!pod.ObjectMeta.DeletionTimestamp.IsZero() &&
+		int(time.Now().Sub(pod.ObjectMeta.GetDeletionTimestamp().Time).Seconds()) > skipDeletedTimeoutSeconds
+}
+
+// MakePodDeleteStatusOkay is a helper method to return the corresponding PodDeleteStatus
+func MakePodDeleteStatusOkay() PodDeleteStatus {
+	return PodDeleteStatus{
+		Delete: true,
+		Reason: PodDeleteStatusTypeOkay,
+	}
+}
+
+// MakePodDeleteStatusSkip is a helper method to return the corresponding PodDeleteStatus
+func MakePodDeleteStatusSkip() PodDeleteStatus {
+	return PodDeleteStatus{
+		Delete: false,
+		Reason: PodDeleteStatusTypeSkip,
+	}
+}
+
+// MakePodDeleteStatusWithWarning is a helper method to return the corresponding PodDeleteStatus
+func MakePodDeleteStatusWithWarning(delete bool, message string) PodDeleteStatus {
+	return PodDeleteStatus{
+		Delete:  delete,
+		Reason:  PodDeleteStatusTypeWarning,
+		Message: message,
+	}
+}
+
+// MakePodDeleteStatusWithError is a helper method to return the corresponding PodDeleteStatus
+func MakePodDeleteStatusWithError(message string) PodDeleteStatus {
+	return PodDeleteStatus{
+		Delete:  false,
+		Reason:  PodDeleteStatusTypeError,
+		Message: message,
+	}
+}
+
 func getPodDetail(pod metav1.Pod, cpuAllocatable resource.Quantity, memoryAllocatable resource.Quantity, limits metav1.ResourceList, requests metav1.ResourceList) *PodCapacityDetail {
 	cpuLimits, cpuLimitsOk := limits[metav1.ResourceCPU]
 	cpuRequests, cpuRequestsOk := requests[metav1.ResourceCPU]

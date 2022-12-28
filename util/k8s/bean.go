@@ -3,6 +3,7 @@ package k8s
 import (
 	metav1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes"
 )
 
 type ClusterCapacityDetail struct {
@@ -85,10 +86,25 @@ type NodeConditionObject struct {
 	Message   string `json:"message"`
 }
 
-type NodeManifestUpdateDto struct {
-	ClusterId     int    `json:"clusterId"`
-	Name          string `json:"name"`
-	ManifestPatch string `json:"manifestPatch"`
-	Version       string `json:"version"`
-	Kind          string `json:"kind"`
+type NodeUpdateRequestDto struct {
+	ClusterId            int              `json:"clusterId"`
+	Name                 string           `json:"name"`
+	ManifestPatch        string           `json:"manifestPatch"`
+	Version              string           `json:"version"`
+	Kind                 string           `json:"kind"`
+	UnschedulableDesired bool             `json:"unschedulableDesired"`
+	NodeDrainHelper      *NodeDrainHelper `json:"nodeDrainOptions"`
+}
+
+type NodeDrainHelper struct {
+	Force              bool `json:"force"`
+	DeleteEmptyDirData bool `json:"deleteEmptyDirData"`
+	// GracePeriodSeconds is how long to wait for a pod to terminate.
+	// IMPORTANT: 0 means "delete immediately"; set to a negative value
+	// to use the pod's terminationGracePeriodSeconds.
+	GracePeriodSeconds  int  `json:"gracePeriodSeconds"`
+	IgnoreAllDaemonSets bool `json:"ignoreAllDaemonSets"`
+	// DisableEviction forces drain to use delete rather than evict
+	DisableEviction bool `json:"disableEviction"`
+	k8sClientSet    *kubernetes.Clientset
 }

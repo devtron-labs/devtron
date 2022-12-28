@@ -33,4 +33,13 @@ func (impl *K8sCapacityRouterImpl) InitK8sCapacityRouter(k8sCapacityRouter *mux.
 
 	k8sCapacityRouter.Path("/node").
 		HandlerFunc(impl.k8sCapacityRestHandler.UpdateNodeManifest).Methods("PUT")
+
+	k8sCapacityRouter.Path("/node").
+		HandlerFunc(impl.k8sCapacityRestHandler.DeleteNode).Methods("DELETE")
+
+	k8sCapacityRouter.Path("/node/cordon").
+		HandlerFunc(impl.k8sCapacityRestHandler.CordonOrUnCordonNode).Methods("PUT")
+
+	k8sCapacityRouter.Path("/node/drain").
+		HandlerFunc(impl.k8sCapacityRestHandler.DrainNode).Methods("PUT")
 }
