@@ -576,17 +576,17 @@ func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(request *NodeUpdateRequ
 		impl.logger.Errorw("error in getting node", "err", err)
 		return respMessage, err
 	}
-	if node.Spec.Unschedulable == request.UnschedulableDesired {
-		return respMessage, getErrorForCordonUpdateReq(request.UnschedulableDesired)
+	if node.Spec.Unschedulable == request.NodeCordonHelper.UnschedulableDesired {
+		return respMessage, getErrorForCordonUpdateReq(request.NodeCordonHelper.UnschedulableDesired)
 	}
 	//updating node with desired cordon value
-	node, err = updateNodeUnschedulableProperty(request.UnschedulableDesired, node, k8sClientSet)
+	node, err = updateNodeUnschedulableProperty(request.NodeCordonHelper.UnschedulableDesired, node, k8sClientSet)
 	if err != nil {
 		impl.logger.Errorw("error in updating node", "err", err)
 		return respMessage, err
 	}
 
-	if request.UnschedulableDesired {
+	if request.NodeCordonHelper.UnschedulableDesired {
 		respMessage = fmt.Sprintf("Node successfully Cordoned.")
 	} else {
 		respMessage = fmt.Sprintf("Node successfully UnCordoned.")

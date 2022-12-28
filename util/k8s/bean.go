@@ -87,13 +87,17 @@ type NodeConditionObject struct {
 }
 
 type NodeUpdateRequestDto struct {
-	ClusterId            int              `json:"clusterId"`
-	Name                 string           `json:"name"`
-	ManifestPatch        string           `json:"manifestPatch"`
-	Version              string           `json:"version"`
-	Kind                 string           `json:"kind"`
-	UnschedulableDesired bool             `json:"unschedulableDesired"`
-	NodeDrainHelper      *NodeDrainHelper `json:"nodeDrainOptions"`
+	ClusterId        int               `json:"clusterId"`
+	Name             string            `json:"name"`
+	ManifestPatch    string            `json:"manifestPatch"`
+	Version          string            `json:"version"`
+	Kind             string            `json:"kind"`
+	NodeCordonHelper *NodeCordonHelper `json:"nodeCordonHelper"`
+	NodeDrainHelper  *NodeDrainHelper  `json:"nodeDrainOptions"`
+}
+
+type NodeCordonHelper struct {
+	UnschedulableDesired bool `json:"unschedulableDesired"`
 }
 
 type NodeDrainHelper struct {
