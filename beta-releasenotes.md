@@ -1,4 +1,5 @@
 ## Bugs
+- fix: cluster name passed in node metadata list (#2804)
 - fix: Chart with nested directory  (#2797)
 ## Enhancements
 ## Documentation
