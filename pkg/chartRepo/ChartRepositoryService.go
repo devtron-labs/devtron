@@ -99,6 +99,7 @@ func (impl *ChartRepositoryServiceImpl) CreateChartRepo(request *ChartRepoDto) (
 	chartRepo.Active = true
 	chartRepo.Default = false
 	chartRepo.External = true
+	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
 	err = impl.repoRepository.Save(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -172,6 +173,7 @@ func (impl *ChartRepositoryServiceImpl) UpdateChartRepo(request *ChartRepoDto) (
 	chartRepo.Active = request.Active
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
+	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
 	err = impl.repoRepository.Update(chartRepo, tx)
 	if err != nil && !util.IsErrNoRows(err) {
 		return nil, err
@@ -253,6 +255,7 @@ func (impl *ChartRepositoryServiceImpl) convertFromDbResponse(model *chartRepoRe
 	chartRepo.AccessToken = model.AccessToken
 	chartRepo.Default = model.Default
 	chartRepo.Active = model.Active
+	chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
 	return chartRepo
 }
 
@@ -274,6 +277,7 @@ func (impl *ChartRepositoryServiceImpl) GetChartRepoList() ([]*ChartRepoDto, err
 		chartRepo.AccessToken = model.AccessToken
 		chartRepo.Default = model.Default
 		chartRepo.Active = model.Active
+		chartRepo.AllowInsecureConnection = model.AllowInsecureConnection
 		chartRepos = append(chartRepos, chartRepo)
 	}
 	return chartRepos, nil
@@ -567,6 +571,7 @@ func (impl *ChartRepositoryServiceImpl) DeleteChartRepo(request *ChartRepoDto) e
 	chartRepo.Active = request.Active
 	chartRepo.UpdatedBy = request.UserId
 	chartRepo.UpdatedOn = time.Now()
+	chartRepo.AllowInsecureConnection = request.AllowInsecureConnection
 	err = impl.repoRepository.MarkChartRepoDeleted(chartRepo, tx)
 	if err != nil {
 		impl.logger.Errorw("error in deleting chart repo", "err", err)

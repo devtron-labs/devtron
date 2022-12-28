@@ -19,6 +19,8 @@ package appStoreDeploymentFullMode
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	repository4 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -27,9 +29,6 @@ import (
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
-
-	"encoding/json"
-	"fmt"
 	"path"
 	"regexp"
 	"time"
@@ -138,14 +137,13 @@ func (impl AppStoreDeploymentFullModeServiceImpl) AppStoreDeployOperationGIT(ins
 	}
 
 	//STEP 3 - update requirements and values
-
-	//update requirements yaml in chart
 	argocdAppName := installAppVersionRequest.AppName + "-" + environment.Name
 	dependency := appStoreBean.Dependency{
 		Name:       appStoreAppVersion.AppStore.Name,
 		Version:    appStoreAppVersion.Version,
 		Repository: appStoreAppVersion.AppStore.ChartRepo.Url,
 	}
+
 	var dependencies []appStoreBean.Dependency
 	dependencies = append(dependencies, dependency)
 	requirementDependencies := &appStoreBean.Dependencies{
@@ -296,6 +294,7 @@ func (impl AppStoreDeploymentFullModeServiceImpl) createInArgo(chartGitAttribute
 		RepoUrl:         chartGitAttribute.RepoUrl,
 	}
 	_, err := impl.ArgoK8sClient.CreateAcdApp(appreq, envModel.Cluster)
+
 	//create
 	if err != nil {
 		impl.logger.Errorw("error in creating argo cd app ", "err", err)
