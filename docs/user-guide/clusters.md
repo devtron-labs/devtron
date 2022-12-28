@@ -1,8 +1,11 @@
 # Clusters
 
-As `Devtron` is a tool integration platform for Kubernetes, a [cluster](https://docs.devtron.ai/getting-started#create-a-kubernetes-cluster) is created as a pre-requisite before you install Devtron depending on your [resource usage and requirements](https://docs.devtron.ai/getting-started#recommended-resources).
-
-By integrating into a Kubernetes cluster, Devtron helps you to deploy, observe, manage and debug the existing Helm apps in all your clusters.
+Devtron allows you to manage your local or team space cluster by managing:
+  * Activities across cluster nodes to optimize performance.
+  * The added resources to meet user requirements for high speed and storage capacity.
+  * Cluster resources with Kubernetes requests and limits.
+  * Individual containers.
+  * Debug a pod or node by connecting to a terminal.
 
 On the left navigation of Devtron, select `Clusters`. You will find the list of clusters in this section which you have added under [Global Configurations > Clusters & Environments](https://docs.devtron.ai/global-configurations/cluster-and-environments).
 
@@ -106,6 +109,6 @@ kubectl get events
 
 According to the `Pod Events` messages and `Pod Manifest`, you can debug a pod.
 
- **Note**: A pod can have one or more containers running, and a container can have no or multiple shells running in it. If you are not able to create a successfull connection, try changing the shell, as the container may not have that shell running.
+ **Note**: A container can have no or multiple shells running in it. If you are not able to create a successfull connection, try changing the shell, as the container may not have that shell running.
 
 
