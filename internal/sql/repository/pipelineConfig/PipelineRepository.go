@@ -472,7 +472,7 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNon
                      	  group by pipeline_id, id order by pipeline_id, id desc))
     and p.deployment_app_type=? and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString, deployedBeforeMinutes,
-		pg.In([]string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, string(health.HealthStatusHealthy)}),
+		pg.In([]string{WorkflowAborted, WorkflowFailed, WorkflowSucceeded, string(health.HealthStatusHealthy), string(health.HealthStatusDegraded)}),
 		bean.CD_WORKFLOW_TYPE_DEPLOY, util.PIPELINE_DEPLOYMENT_TYPE_ACD, false)
 	if err != nil {
 		impl.logger.Errorw("error in GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses", "err", err)
