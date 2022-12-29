@@ -40,7 +40,9 @@ type K8sApplicationService interface {
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
+	GetAllApiResources(clusterId int) ([]*application.K8sApiResource, error)
 }
+
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
 	clusterService              cluster.ClusterService
@@ -473,4 +475,14 @@ func (impl *K8sApplicationServiceImpl) GetResourceInfo() (*ResourceInfo, error) 
 	}
 	response := &ResourceInfo{PodName: pod.Name}
 	return response, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int) ([]*application.K8sApiResource, error) {
+	impl.logger.Infow("getting all api-resources", "clusterId", clusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(clusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster rest config", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	return impl.k8sClientService.GetApiResources(restConfig)
 }

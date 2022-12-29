@@ -25,6 +25,7 @@ type K8sClientService interface {
 	DeleteResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
 	ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error)
 	GetPodLogs(restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error)
+	GetApiResources(restConfig *rest.Config) ([]*K8sApiResource, error)
 }
 
 type K8sClientServiceImpl struct {
@@ -262,4 +263,35 @@ func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterf
 		}
 	}
 	return nil, errors.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
+}
+
+func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config) ([]*K8sApiResource, error) {
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic k8s client", "err", err)
+		return nil, err
+	}
+
+	_, apiResourcesListFromK8s, err := discoveryClient.ServerGroupsAndResources()
+	if err != nil {
+		impl.logger.Errorw("error in getting api-resources from k8s", "err", err)
+		return nil, err
+	}
+
+	var apiResources []*K8sApiResource
+	for _, apiResourceListFromK8s := range apiResourcesListFromK8s {
+		if apiResourceListFromK8s != nil {
+			for _, apiResourceFromK8s := range apiResourceListFromK8s.APIResources {
+				apiResources = append(apiResources, &K8sApiResource{
+					Gvk: schema.GroupVersionKind{
+						Group:   apiResourceFromK8s.Group,
+						Version: apiResourceFromK8s.Version,
+						Kind:    apiResourceFromK8s.Kind,
+					},
+					Namespaced: apiResourceFromK8s.Namespaced,
+				})
+			}
+		}
+	}
+	return apiResources, nil
 }

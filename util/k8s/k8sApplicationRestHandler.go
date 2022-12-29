@@ -35,7 +35,9 @@ type K8sApplicationRestHandler interface {
 	GetTerminalSession(w http.ResponseWriter, r *http.Request)
 	GetResourceInfo(w http.ResponseWriter, r *http.Request)
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
+	GetAllApiResources(w http.ResponseWriter, r *http.Request)
 }
+
 type K8sApplicationRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
 	k8sApplicationService  K8sApplicationService
@@ -449,4 +451,32 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceInfo(w http.ResponseWri
 	}
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 	return
+}
+
+func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.ResponseWriter, r *http.Request) {
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	// TODO : handle RBAC
+
+	// get clusterId from request
+	vars := mux.Vars(r)
+	clusterId, err := strconv.Atoi(vars["clusterId"])
+	if err != nil {
+		handler.logger.Errorw("request err in getting clusterId in GetAllApiResources", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// get data from service
+	response, err := handler.k8sApplicationService.GetAllApiResources(clusterId)
+	if err != nil {
+		handler.logger.Errorw("error in getting api-resources", "clusterId", clusterId, "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }

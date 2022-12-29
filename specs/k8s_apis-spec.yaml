@@ -207,6 +207,26 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TerminalMessage"
+  /orchestrator/k8s/api-resources/{clusterId}:
+    get:
+      description: Get All api resources for given cluster Id
+      parameters:
+        - name: clusterId
+          in: path
+          description: cluster Id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Successfully fetched All api resources for given cluster Id
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/K8sApiResource"
 components:
   schemas:
     TerminalMessage:
@@ -410,3 +430,31 @@ components:
                 type: string
               time:
                 type: string
+    K8sApiResource:
+      type: object
+      properties:
+        gvk:
+          $ref: '#/components/schemas/GroupVersionKind'
+        namespaced:
+          type: boolean
+          description: whether this api resource is in namespaces scope or global
+          example: true
+          nullable: false
+    GroupVersionKind:
+      type: object
+      properties:
+        group:
+          type: string
+          description: group of the api-resource
+          example: "apps"
+          nullable: false
+        version:
+          type: string
+          description: version of the api-resource
+          example: "v1"
+          nullable: false
+        kind:
+          type: string
+          description: kind of the api-resource
+          example: "pod"
+          nullable: false
