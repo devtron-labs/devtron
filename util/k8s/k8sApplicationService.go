@@ -40,6 +40,7 @@ type K8sApplicationService interface {
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
+	GetResourceList(request *ClusterResourceRequest) (resp *application.ResourceListResponse, err error)
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -82,6 +83,11 @@ type ResourceRequestBean struct {
 	AppId         string                      `json:"appId"`
 	AppIdentifier *client.AppIdentifier       `json:"-"`
 	K8sRequest    *application.K8sRequestBean `json:"k8sRequest"`
+}
+
+type ClusterResourceRequest struct {
+	ClusterId  int                         `json:"clusterId"`
+	K8sRequest *application.K8sRequestBean `json:"k8sRequest"`
 }
 
 type ResourceInfo struct {
@@ -400,7 +406,7 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(clusterId int) (
 	bearerToken := configMap["bearer_token"]
 	var restConfig *rest.Config
 	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
-		restConfig, err = rest.InClusterConfig()
+		restConfig, err = impl.K8sUtil.GetK8sClusterRestConfig()
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
 			return nil, err
@@ -473,4 +479,19 @@ func (impl *K8sApplicationServiceImpl) GetResourceInfo() (*ResourceInfo, error) 
 	}
 	response := &ResourceInfo{PodName: pod.Name}
 	return response, nil
+}
+
+func (impl *K8sApplicationServiceImpl) GetResourceList(request *ClusterResourceRequest) (*application.ResourceListResponse, error) {
+	//getting rest config by clusterId
+	restConfig, err := impl.GetRestConfigByClusterId(request.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
+		return nil, err
+	}
+	resp, err := impl.k8sClientService.GetResourceList(restConfig, request.K8sRequest)
+	if err != nil {
+		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
+		return nil, err
+	}
+	return resp, nil
 }
