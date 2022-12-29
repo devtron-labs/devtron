@@ -31,6 +31,8 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	repository2 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -143,6 +145,20 @@ func InitializeApp() (*App, error) {
 		repository.NewUserAttributesRepositoryImpl,
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
 		util3.GetDevtronSecretName,
+
+		repository2.NewChartGroupReposotoryImpl,
+		wire.Bind(new(repository2.ChartGroupReposotory), new(*repository2.ChartGroupReposotoryImpl)),
+		repository2.NewChartGroupEntriesRepositoryImpl,
+		wire.Bind(new(repository2.ChartGroupEntriesRepository), new(*repository2.ChartGroupEntriesRepositoryImpl)),
+		service.NewChartGroupServiceImpl,
+		wire.Bind(new(service.ChartGroupService), new(*service.ChartGroupServiceImpl)),
+		restHandler.NewChartGroupRestHandlerImpl,
+		wire.Bind(new(restHandler.ChartGroupRestHandler), new(*restHandler.ChartGroupRestHandlerImpl)),
+		router.NewChartGroupRouterImpl,
+		wire.Bind(new(router.ChartGroupRouter), new(*router.ChartGroupRouterImpl)),
+		repository2.NewChartGroupDeploymentRepositoryImpl,
+		wire.Bind(new(repository2.ChartGroupDeploymentRepository), new(*repository2.ChartGroupDeploymentRepositoryImpl)),
+
 	)
 	return &App{}, nil
 }
