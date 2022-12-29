@@ -35,6 +35,7 @@ type K8sApplicationRestHandler interface {
 	GetTerminalSession(w http.ResponseWriter, r *http.Request)
 	GetResourceInfo(w http.ResponseWriter, r *http.Request)
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
+	GetResourceList(w http.ResponseWriter, r *http.Request)
 }
 type K8sApplicationRestHandlerImpl struct {
 	logger                 *zap.SugaredLogger
@@ -468,4 +469,27 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceInfo(w http.ResponseWri
 	}
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 	return
+}
+
+func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var request ClusterResourceRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	// TODO
+	//RBAC enforcer Ends
+
+	resource, err := handler.k8sApplicationService.GetResourceList(&request)
+	if err != nil {
+		handler.logger.Errorw("error in getting resource list", "err", err)
+		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resource, http.StatusOK)
 }
