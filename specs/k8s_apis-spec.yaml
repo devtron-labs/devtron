@@ -243,6 +243,9 @@ components:
       properties:
         appId:
           type: string
+        clusterId:
+          type: number
+          description: clusterId is used when request is for direct cluster (when appId is not supplied)
         k8sRequest:
           $ref: '#/components/schemas/K8sRequestObject'
     K8sRequestObject:
