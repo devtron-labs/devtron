@@ -468,7 +468,7 @@ func (impl PipelineRepositoryImpl) GetArgoPipelinesHavingLatestTriggerStuckInNon
     inner join cd_workflow_runner cwr on cwr.cd_workflow_id=cw.id  
     where cwr.id in (select id from cd_workflow_runner 
                      	where started_on < NOW() - INTERVAL '? minutes' and status not in (?) 
-                     	and workflow_type=? and id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow
+                     	and workflow_type=? and cd_workflow_id in (select DISTINCT ON (pipeline_id) max(id) as id from cd_workflow
                      	  group by pipeline_id, id order by pipeline_id, id desc))
     and p.deployment_app_type=? and p.deleted=?;`
 	_, err := impl.dbConnection.Query(&pipelines, queryString, deployedBeforeMinutes,
