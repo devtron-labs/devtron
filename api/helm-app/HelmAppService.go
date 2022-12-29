@@ -714,7 +714,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 		appList.ErrorMsg = &deployedApps.ErrorMsg
 	} else {
 		var HelmApps []openapi.HelmApp
-		projectId := int32(0) //TODO pick from db
+		//projectId := int32(0) //TODO pick from db
 		for _, deployedapp := range deployedApps.DeployedAppDetail {
 
 			// do not add app in the list which are created using cd_pipelines (check combination of clusterId, namespace, releaseName)
@@ -746,6 +746,8 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 			lastDeployed := deployedapp.LastDeployed.AsTime()
 
 			appDetails, appFetchErr := impl.appRepository.FindActiveByName(deployedapp.AppName)
+
+			projectId := int32(0)
 
 			if appFetchErr == nil {
 				projectId = int32(appDetails.TeamId)
