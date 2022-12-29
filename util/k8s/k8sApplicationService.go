@@ -351,9 +351,10 @@ func (impl *K8sApplicationServiceImpl) UpdateResource(request *ResourceRequestBe
 
 func (impl *K8sApplicationServiceImpl) DeleteResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	clusterId := request.ClusterId
+	restConfig, err := impl.GetRestConfigByClusterId(clusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
 	resp, err := impl.k8sClientService.DeleteResource(restConfig, request.K8sRequest)

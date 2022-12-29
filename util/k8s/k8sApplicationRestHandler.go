@@ -274,28 +274,40 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
-	if err != nil {
-		handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+
+	if len(request.AppId) > 0 {
+		// assume it as helm release case in which appId is supplied
+		appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
+		if err != nil {
+			handler.logger.Errorw("error in decoding appId", "err", err, "appId", request.AppId)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		//setting appIdentifier value in request
+		request.AppIdentifier = appIdentifier
+		request.ClusterId = appIdentifier.ClusterId
+		valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
+		if err != nil || !valid {
+			handler.logger.Errorw("error in validating resource request", "err", err)
+			common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+			return
+		}
+		// RBAC enforcer applying
+		rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+		token := r.Header.Get("token")
+		if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject); !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+		//RBAC enforcer Ends
+	} else if request.ClusterId > 0 {
+		// assume direct delete in cluster
+		// TODO : handle RBAC
+	} else {
+		common.WriteJsonResp(w, errors.New("can not delete resource as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
 	}
-	//setting appIdentifier value in request
-	request.AppIdentifier = appIdentifier
-	valid, err := handler.k8sApplicationService.ValidateResourceRequest(request.AppIdentifier, request.K8sRequest)
-	if err != nil || !valid {
-		handler.logger.Errorw("error in validating resource request", "err", err)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
-		return
-	}
-	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
-	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject); !ok {
-		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
-		return
-	}
-	//RBAC enforcer Ends
+
 	resource, err := handler.k8sApplicationService.DeleteResource(&request)
 	if err != nil {
 		handler.logger.Errorw("error in deleting resource", "err", err)
