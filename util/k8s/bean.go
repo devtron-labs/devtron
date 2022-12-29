@@ -30,7 +30,6 @@ type NodeCapacityDetail struct {
 	Age           string                              `json:"age,omitempty"`
 	Status        string                              `json:"status,omitempty"`
 	PodCount      int                                 `json:"podCount,omitempty"`
-	TaintCount    int                                 `json:"taintCount,omitempty"`
 	Errors        map[corev1.NodeConditionType]string `json:"errors"`
 	InternalIp    string                              `json:"internalIp"`
 	ExternalIp    string                              `json:"externalIp"`

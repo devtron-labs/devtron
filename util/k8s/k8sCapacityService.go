@@ -375,9 +375,18 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *corev1.Node, nodeResourc
 		Roles:         findNodeRoles(node),
 		Labels:        labels,
 		Status:        findNodeStatus(node),
-		TaintCount:    len(node.Spec.Taints),
 		CreatedAt:     node.CreationTimestamp.String(),
 	}
+	var taints []*LabelAnnotationTaintObject
+	for _, taint := range node.Spec.Taints {
+		taintObj := &LabelAnnotationTaintObject{
+			Key:    taint.Key,
+			Value:  taint.Value,
+			Effect: string(taint.Effect),
+		}
+		taints = append(taints, taintObj)
+	}
+	nodeDetail.Taints = taints
 	nodeUsageResourceList := nodeResourceUsage[node.Name]
 	if callForList {
 		// assigning additional data for node listing api call
@@ -429,17 +438,6 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 		annotations = append(annotations, annotationObj)
 	}
 	nodeDetail.Annotations = annotations
-
-	var taints []*LabelAnnotationTaintObject
-	for _, taint := range node.Spec.Taints {
-		taintObj := &LabelAnnotationTaintObject{
-			Key:    taint.Key,
-			Value:  taint.Value,
-			Effect: string(taint.Effect),
-		}
-		taints = append(taints, taintObj)
-	}
-	nodeDetail.Taints = taints
 	//map of {conditionType : isErrorCondition }, Valid/Non-error conditions to be updated with update at kubernetes end
 	NodeAllConditionsMap := map[corev1.NodeConditionType]bool{corev1.NodeReady: false, corev1.NodeMemoryPressure: true,
 		corev1.NodeDiskPressure: true, corev1.NodeNetworkUnavailable: true, corev1.NodePIDPressure: true}
