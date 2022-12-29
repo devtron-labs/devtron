@@ -286,10 +286,11 @@ func (impl *K8sApplicationServiceImpl) getManifestsByBatch(requests []ResourceRe
 }
 
 func (impl *K8sApplicationServiceImpl) GetResource(request *ResourceRequestBean) (*application.ManifestResponse, error) {
+	clusterId := request.ClusterId
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(clusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
 	resp, err := impl.k8sClientService.GetResource(restConfig, request.K8sRequest)
@@ -366,10 +367,11 @@ func (impl *K8sApplicationServiceImpl) DeleteResource(request *ResourceRequestBe
 }
 
 func (impl *K8sApplicationServiceImpl) ListEvents(request *ResourceRequestBean) (*application.EventsResponse, error) {
+	clusterId := request.ClusterId
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(clusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
 	resp, err := impl.k8sClientService.ListEvents(restConfig, request.K8sRequest)
@@ -381,10 +383,11 @@ func (impl *K8sApplicationServiceImpl) ListEvents(request *ResourceRequestBean) 
 }
 
 func (impl *K8sApplicationServiceImpl) GetPodLogs(request *ResourceRequestBean) (io.ReadCloser, error) {
+	clusterId := request.ClusterId
 	//getting rest config by clusterId
-	restConfig, err := impl.GetRestConfigByClusterId(request.AppIdentifier.ClusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(clusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.AppIdentifier.ClusterId)
+		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
 	resp, err := impl.k8sClientService.GetPodLogs(restConfig, request.K8sRequest)

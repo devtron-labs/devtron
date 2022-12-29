@@ -134,7 +134,18 @@ paths:
             type: string
         - name: appId
           in: query
-          required: true
+          required: false
+          schema:
+            type: string
+        - name: clusterId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: namespace
+          in: query
+          description: it is required when clusterId is passed
+          required: false
           schema:
             type: string
         - name: follow
@@ -156,17 +167,17 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/LogsResponseObject"
-  /orchestrator/k8s/pod/exec/session/{applicationId}/{namespace}/{pod}/{shell}/{container}:
+  /orchestrator/k8s/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}:
     get:
       description: get session for the terminal
       parameters:
         - in: path
-          name: applicationId
+          name: identifier
           schema:
             type: string
           required: true
-          description: application id
-          example: "2|devtroncd|devtron"
+          description: application id or cluster id
+          example: "2|devtroncd|devtron or 3"
         - in: path
           name: namespace
           schema:
