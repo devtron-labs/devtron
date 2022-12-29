@@ -8,6 +8,7 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	openapi2 "github.com/devtron-labs/devtron/api/openapi/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
@@ -70,6 +71,7 @@ type HelmAppServiceImpl struct {
 	environmentService                   cluster.EnvironmentService
 	pipelineRepository                   pipelineConfig.PipelineRepository
 	installedAppRepository               repository.InstalledAppRepository
+	appRepository                        app.AppRepository
 }
 
 func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
@@ -77,7 +79,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 	helmAppClient HelmAppClient,
 	pump connector.Pump, enforcerUtil rbac.EnforcerUtilHelm, serverDataStore *serverDataStore.ServerDataStore,
 	serverEnvConfig *serverEnvConfig.ServerEnvConfig, appStoreApplicationVersionRepository appStoreDiscoverRepository.AppStoreApplicationVersionRepository,
-	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository.InstalledAppRepository) *HelmAppServiceImpl {
+	environmentService cluster.EnvironmentService, pipelineRepository pipelineConfig.PipelineRepository, installedAppRepository repository.InstalledAppRepository, appRepository app.AppRepository) *HelmAppServiceImpl {
 	return &HelmAppServiceImpl{
 		logger:                               Logger,
 		clusterService:                       clusterService,
@@ -90,6 +92,7 @@ func NewHelmAppServiceImpl(Logger *zap.SugaredLogger,
 		environmentService:                   environmentService,
 		pipelineRepository:                   pipelineRepository,
 		installedAppRepository:               installedAppRepository,
+		appRepository:                        appRepository,
 	}
 }
 
@@ -741,6 +744,13 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 			// end
 
 			lastDeployed := deployedapp.LastDeployed.AsTime()
+
+			appDetails, appFetchErr := impl.appRepository.FindActiveByName(deployedapp.AppName)
+
+			if appFetchErr == nil {
+				projectId = int32(appDetails.TeamId)
+			}
+
 			helmApp := openapi.HelmApp{
 				AppName:        &deployedapp.AppName,
 				AppId:          &deployedapp.AppId,
