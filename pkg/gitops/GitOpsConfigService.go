@@ -686,10 +686,10 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	/*if strings.ToUpper(config.Provider) == GITHUB_PROVIDER {
 		config.Host = GITHUB_HOST
 	}*/
-	if strings.ToUpper(config.Provider) == BITBUCKET_PROVIDER {
+	/*if strings.ToUpper(config.Provider) == BITBUCKET_PROVIDER {
 		config.Host = util.BITBUCKET_CLONE_BASE_URL
 		config.BitBucketProjectKey = strings.ToUpper(config.BitBucketProjectKey)
-	}
+	}*/
 	client, gitService, err := impl.gitFactory.NewClientForValidation(config)
 	if err != nil {
 		impl.logger.Errorw("error in creating new client for validation")
