@@ -7,7 +7,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/api/core/v1"
 	policyv1 "k8s.io/api/policy/v1"
 	policyv1beta1 "k8s.io/api/policy/v1beta1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -18,6 +17,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/duration"
 	utilerrors "k8s.io/apimachinery/pkg/util/errors"
 	"k8s.io/apimachinery/pkg/util/sets"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	resourcehelper "k8s.io/kubectl/pkg/util/resource"
@@ -74,6 +74,7 @@ type K8sCapacityService interface {
 	DeleteNode(request *NodeUpdateRequestDto) (*application.ManifestResponse, error)
 	CordonOrUnCordonNode(request *NodeUpdateRequestDto) (string, error)
 	DrainNode(request *NodeUpdateRequestDto) (string, error)
+	EditNodeTaints(request *NodeUpdateRequestDto) (string, error)
 }
 type K8sCapacityServiceImpl struct {
 	logger                *zap.SugaredLogger
@@ -147,7 +148,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 	var clusterNodeNames []string
 	nodesK8sVersionMap := make(map[string]bool)
 	//map of node condition and name of all nodes that condition is true on
-	nodeErrors := make(map[metav1.NodeConditionType][]string)
+	nodeErrors := make(map[corev1.NodeConditionType][]string)
 	var nodesK8sVersion []string
 	for _, node := range nodeList.Items {
 		clusterNodeNames = append(clusterNodeNames, node.Name)
@@ -165,19 +166,19 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 			nodesK8sVersionMap[node.Status.NodeInfo.KubeletVersion] = true
 			nodesK8sVersion = append(nodesK8sVersion, node.Status.NodeInfo.KubeletVersion)
 		}
-		clusterCpuCapacity.Add(node.Status.Capacity[metav1.ResourceCPU])
-		clusterMemoryCapacity.Add(node.Status.Capacity[metav1.ResourceMemory])
-		clusterCpuAllocatable.Add(node.Status.Allocatable[metav1.ResourceCPU])
-		clusterMemoryAllocatable.Add(node.Status.Allocatable[metav1.ResourceMemory])
+		clusterCpuCapacity.Add(node.Status.Capacity[corev1.ResourceCPU])
+		clusterMemoryCapacity.Add(node.Status.Capacity[corev1.ResourceMemory])
+		clusterCpuAllocatable.Add(node.Status.Allocatable[corev1.ResourceCPU])
+		clusterMemoryAllocatable.Add(node.Status.Allocatable[corev1.ResourceMemory])
 	}
 	clusterDetail.NodeErrors = nodeErrors
 	clusterDetail.NodeK8sVersions = nodesK8sVersion
 	clusterDetail.NodeNames = clusterNodeNames
 	clusterDetail.Cpu = &ResourceDetailObject{
-		Capacity: getResourceString(clusterCpuCapacity, metav1.ResourceCPU),
+		Capacity: getResourceString(clusterCpuCapacity, corev1.ResourceCPU),
 	}
 	clusterDetail.Memory = &ResourceDetailObject{
-		Capacity: getResourceString(clusterMemoryCapacity, metav1.ResourceMemory),
+		Capacity: getResourceString(clusterMemoryCapacity, corev1.ResourceMemory),
 	}
 	if callForList {
 		//assigning additional data for cluster listing api call
@@ -198,7 +199,7 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 			return nil, err
 		}
 		//empty namespace: get pods for all namespaces
-		podList, err := k8sClientSet.CoreV1().Pods(metav1.NamespaceAll).List(context.Background(), v1.ListOptions{})
+		podList, err := k8sClientSet.CoreV1().Pods(corev1.NamespaceAll).List(context.Background(), v1.ListOptions{})
 		if err != nil {
 			impl.logger.Errorw("error in getting pod list", "err", err)
 			return nil, err
@@ -214,19 +215,19 @@ func (impl *K8sCapacityServiceImpl) GetClusterCapacityDetail(cluster *cluster.Cl
 			impl.logger.Errorw("error in getting nodeMetrics list", "err", err)
 		} else if nmList != nil {
 			for _, nm := range nmList.Items {
-				clusterCpuUsage.Add(nm.Usage[metav1.ResourceCPU])
-				clusterMemoryUsage.Add(nm.Usage[metav1.ResourceMemory])
+				clusterCpuUsage.Add(nm.Usage[corev1.ResourceCPU])
+				clusterMemoryUsage.Add(nm.Usage[corev1.ResourceMemory])
 			}
 			clusterDetail.Cpu.UsagePercentage = convertToPercentage(&clusterCpuUsage, &clusterCpuAllocatable)
 			clusterDetail.Memory.UsagePercentage = convertToPercentage(&clusterMemoryUsage, &clusterMemoryAllocatable)
 		}
 		for _, pod := range podList.Items {
-			if pod.Status.Phase != metav1.PodSucceeded && pod.Status.Phase != metav1.PodFailed {
+			if pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
 				requests, limits := resourcehelper.PodRequestsAndLimits(&pod)
-				clusterCpuLimits.Add(limits[metav1.ResourceCPU])
-				clusterCpuRequests.Add(requests[metav1.ResourceCPU])
-				clusterMemoryLimits.Add(limits[metav1.ResourceMemory])
-				clusterMemoryRequests.Add(requests[metav1.ResourceMemory])
+				clusterCpuLimits.Add(limits[corev1.ResourceCPU])
+				clusterCpuRequests.Add(requests[corev1.ResourceCPU])
+				clusterMemoryLimits.Add(limits[corev1.ResourceMemory])
+				clusterMemoryRequests.Add(requests[corev1.ResourceMemory])
 			}
 		}
 		clusterDetail.Cpu.RequestPercentage = convertToPercentage(&clusterCpuRequests, &clusterCpuAllocatable)
@@ -271,7 +272,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailsListByCluster(cluster 
 		impl.logger.Errorw("error in getting pod list", "err", err)
 		return nil, err
 	}
-	nodeResourceUsage := make(map[string]metav1.ResourceList)
+	nodeResourceUsage := make(map[string]corev1.ResourceList)
 	if nodeMetricsList != nil {
 		for _, nodeMetrics := range nodeMetricsList.Items {
 			nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
@@ -323,7 +324,7 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(cluste
 		impl.logger.Errorw("error in getting pod list", "err", err)
 		return nil, err
 	}
-	nodeResourceUsage := make(map[string]metav1.ResourceList)
+	nodeResourceUsage := make(map[string]corev1.ResourceList)
 	if nodeMetrics != nil {
 		nodeResourceUsage[nodeMetrics.Name] = nodeMetrics.Usage
 	}
@@ -336,19 +337,19 @@ func (impl *K8sCapacityServiceImpl) GetNodeCapacityDetailByNameAndCluster(cluste
 	nodeDetail.ClusterName = cluster.ClusterName
 	return nodeDetail, nil
 }
-func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourceUsage map[string]metav1.ResourceList, podList *metav1.PodList, callForList bool, restConfig *rest.Config) (*NodeCapacityDetail, error) {
-	cpuAllocatable := node.Status.Allocatable[metav1.ResourceCPU]
-	memoryAllocatable := node.Status.Allocatable[metav1.ResourceMemory]
+func (impl *K8sCapacityServiceImpl) getNodeDetail(node *corev1.Node, nodeResourceUsage map[string]corev1.ResourceList, podList *corev1.PodList, callForList bool, restConfig *rest.Config) (*NodeCapacityDetail, error) {
+	cpuAllocatable := node.Status.Allocatable[corev1.ResourceCPU]
+	memoryAllocatable := node.Status.Allocatable[corev1.ResourceMemory]
 	podCount := 0
-	nodeRequestsResourceList := make(metav1.ResourceList)
-	nodeLimitsResourceList := make(metav1.ResourceList)
+	nodeRequestsResourceList := make(corev1.ResourceList)
+	nodeLimitsResourceList := make(corev1.ResourceList)
 	var podDetailList []*PodCapacityDetail
 	for _, pod := range podList.Items {
-		if pod.Spec.NodeName == node.Name && pod.Status.Phase != metav1.PodSucceeded && pod.Status.Phase != metav1.PodFailed {
+		if pod.Spec.NodeName == node.Name && pod.Status.Phase != corev1.PodSucceeded && pod.Status.Phase != corev1.PodFailed {
 			if callForList {
 				podCount++
 			} else {
-				var requests, limits metav1.ResourceList
+				var requests, limits corev1.ResourceList
 				requests, limits = resourcehelper.PodRequestsAndLimits(&pod)
 				nodeRequestsResourceList = AddTwoResourceList(nodeRequestsResourceList, requests)
 				nodeLimitsResourceList = AddTwoResourceList(nodeLimitsResourceList, limits)
@@ -382,23 +383,23 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 		// assigning additional data for node listing api call
 		nodeDetail.Age = translateTimestampSince(node.CreationTimestamp)
 		nodeDetail.PodCount = podCount
-		cpuUsage, cpuUsageOk := nodeUsageResourceList[metav1.ResourceCPU]
-		memoryUsage, memoryUsageOk := nodeUsageResourceList[metav1.ResourceMemory]
+		cpuUsage, cpuUsageOk := nodeUsageResourceList[corev1.ResourceCPU]
+		memoryUsage, memoryUsageOk := nodeUsageResourceList[corev1.ResourceMemory]
 		nodeDetail.Cpu = &ResourceDetailObject{
-			Allocatable:        getResourceString(cpuAllocatable, metav1.ResourceCPU),
+			Allocatable:        getResourceString(cpuAllocatable, corev1.ResourceCPU),
 			AllocatableInBytes: cpuAllocatable.Value(),
 		}
 		nodeDetail.Memory = &ResourceDetailObject{
-			Allocatable:        getResourceString(memoryAllocatable, metav1.ResourceMemory),
+			Allocatable:        getResourceString(memoryAllocatable, corev1.ResourceMemory),
 			AllocatableInBytes: memoryAllocatable.Value(),
 		}
 		if cpuUsageOk {
-			nodeDetail.Cpu.Usage = getResourceString(cpuUsage, metav1.ResourceCPU)
+			nodeDetail.Cpu.Usage = getResourceString(cpuUsage, corev1.ResourceCPU)
 			nodeDetail.Cpu.UsageInBytes = cpuUsage.Value()
 			nodeDetail.Cpu.UsagePercentage = convertToPercentage(&cpuUsage, &cpuAllocatable)
 		}
 		if memoryUsageOk {
-			nodeDetail.Memory.Usage = getResourceString(memoryUsage, metav1.ResourceMemory)
+			nodeDetail.Memory.Usage = getResourceString(memoryUsage, corev1.ResourceMemory)
 			nodeDetail.Memory.UsageInBytes = memoryUsage.Value()
 			nodeDetail.Memory.UsagePercentage = convertToPercentage(&memoryUsage, &memoryAllocatable)
 		}
@@ -413,9 +414,9 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *metav1.Node, nodeResourc
 	return nodeDetail, nil
 }
 
-func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *NodeCapacityDetail, node *metav1.Node,
-	nodeLimitsResourceList metav1.ResourceList, nodeRequestsResourceList metav1.ResourceList,
-	nodeUsageResourceList metav1.ResourceList, podDetailList []*PodCapacityDetail, restConfig *rest.Config) error {
+func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *NodeCapacityDetail, node *corev1.Node,
+	nodeLimitsResourceList corev1.ResourceList, nodeRequestsResourceList corev1.ResourceList,
+	nodeUsageResourceList corev1.ResourceList, podDetailList []*PodCapacityDetail, restConfig *rest.Config) error {
 	nodeDetail.Version = "v1"
 	nodeDetail.Kind = "Node"
 	nodeDetail.Pods = podDetailList
@@ -440,8 +441,8 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 	}
 	nodeDetail.Taints = taints
 	//map of {conditionType : isErrorCondition }, Valid/Non-error conditions to be updated with update at kubernetes end
-	NodeAllConditionsMap := map[metav1.NodeConditionType]bool{metav1.NodeReady: false, metav1.NodeMemoryPressure: true,
-		metav1.NodeDiskPressure: true, metav1.NodeNetworkUnavailable: true, metav1.NodePIDPressure: true}
+	NodeAllConditionsMap := map[corev1.NodeConditionType]bool{corev1.NodeReady: false, corev1.NodeMemoryPressure: true,
+		corev1.NodeDiskPressure: true, corev1.NodeNetworkUnavailable: true, corev1.NodePIDPressure: true}
 	var conditions []*NodeConditionObject
 	for _, condition := range node.Status.Conditions {
 		if isErrorCondition, ok := NodeAllConditionsMap[condition.Type]; ok {
@@ -450,7 +451,7 @@ func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *No
 				Reason:  condition.Reason,
 				Message: condition.Message,
 			}
-			if (!isErrorCondition && condition.Status == metav1.ConditionTrue) || (isErrorCondition && condition.Status == metav1.ConditionFalse) {
+			if (!isErrorCondition && condition.Status == corev1.ConditionTrue) || (isErrorCondition && condition.Status == corev1.ConditionFalse) {
 				conditionObj.HaveIssue = false
 			} else {
 				conditionObj.HaveIssue = true
@@ -622,6 +623,7 @@ func (impl *K8sCapacityServiceImpl) DrainNode(request *NodeUpdateRequestDto) (st
 			return respMessage, err
 		}
 	}
+	request.NodeDrainHelper.k8sClientSet = k8sClientSet
 	err = deleteOrEvictPods(request.Name, request.NodeDrainHelper)
 	if err != nil {
 		impl.logger.Errorw("error in deleting/evicting pods", "err", err, "nodeName", request.Name)
@@ -629,6 +631,101 @@ func (impl *K8sCapacityServiceImpl) DrainNode(request *NodeUpdateRequestDto) (st
 	}
 	respMessage = "Node Drained Successfully."
 	return respMessage, nil
+}
+
+func (impl *K8sCapacityServiceImpl) EditNodeTaints(request *NodeUpdateRequestDto) (string, error) {
+	respMessage := ""
+	//getting rest config by clusterId
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(request.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
+		return respMessage, err
+	}
+	//getting kubernetes clientSet by rest config
+	k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
+		return respMessage, err
+	}
+	err = validateTaintEditRequest(request.Taints)
+	if err != nil {
+		impl.logger.Errorw("error in validating taint edit request", "err", err, "requestTaints", request.Taints)
+		return respMessage, err
+	}
+	//get node
+	node, err := k8sClientSet.CoreV1().Nodes().Get(context.Background(), request.Name, v1.GetOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in getting node", "err", err)
+		return respMessage, err
+	}
+	node.Spec.Taints = request.Taints
+	node, err = k8sClientSet.CoreV1().Nodes().Update(context.Background(), node, v1.UpdateOptions{})
+	if err != nil {
+		impl.logger.Errorw("error in updating taints in node", "err", err)
+		return respMessage, err
+	}
+	respMessage = "Taints edited Successfully."
+	return respMessage, nil
+}
+
+func validateTaintEditRequest(reqTaints []corev1.Taint) error {
+	if len(reqTaints) == 0 {
+		return nil
+	}
+	var errs []error
+	uniqueTaints := map[corev1.TaintEffect]sets.String{}
+	for _, taint := range reqTaints {
+		parseErr := parseTaint(taint)
+		if parseErr != nil {
+			errs = append(errs, parseErr)
+		}
+		// validate if taint is unique by <key, effect>
+		if len(uniqueTaints[taint.Effect]) > 0 && uniqueTaints[taint.Effect].Has(taint.Key) {
+			errs = append(errs, fmt.Errorf("duplicated taints with the same key and effect: %v", taint))
+		}
+		// add taint to existingTaints for uniqueness check
+		if len(uniqueTaints[taint.Effect]) == 0 {
+			uniqueTaints[taint.Effect] = sets.String{}
+		}
+		uniqueTaints[taint.Effect].Insert(taint.Key)
+	}
+	return utilerrors.NewAggregate(errs)
+}
+
+// parseTaint parses a taint from a string, whose form must be either
+// '<key>=<value>:<effect>', '<key>:<effect>', or '<key>'.
+func parseTaint(taint corev1.Taint) error {
+	var key string
+	var value string
+	var effect corev1.TaintEffect
+	var errs []error
+	effect = taint.Effect
+	if err := validateTaintEffect(effect); err != nil {
+		errs = append(errs, err)
+	}
+	value = taint.Value
+	if len(value) > 0 {
+		if errStrs := validation.IsValidLabelValue(value); len(errStrs) > 0 {
+			for _, errStr := range errStrs {
+				errs = append(errs, fmt.Errorf(errStr))
+			}
+		}
+	}
+	key = taint.Key
+	if errStrs := validation.IsQualifiedName(key); len(errStrs) > 0 {
+		for _, errStr := range errStrs {
+			errs = append(errs, fmt.Errorf(errStr))
+		}
+	}
+
+	return utilerrors.NewAggregate(errs)
+}
+
+func validateTaintEffect(effect corev1.TaintEffect) error {
+	if effect != corev1.TaintEffectNoSchedule && effect != corev1.TaintEffectPreferNoSchedule && effect != corev1.TaintEffectNoExecute {
+		return fmt.Errorf("invalid taint effect: %v, unsupported taint effect", effect)
+	}
+	return nil
 }
 
 func deleteOrEvictPods(nodeName string, nodeDrainHelper *NodeDrainHelper) error {
@@ -779,7 +876,7 @@ func getPodsByNodeNameForDeletion(nodeName string, nodeDrainHelper *NodeDrainHel
 	initialOpts := v1.ListOptions{
 		FieldSelector: fields.SelectorFromSet(fields.Set{"spec.nodeName": nodeName}).String(),
 	}
-	podList, err := nodeDrainHelper.k8sClientSet.CoreV1().Pods(metav1.NamespaceAll).List(context.Background(), initialOpts)
+	podList, err := nodeDrainHelper.k8sClientSet.CoreV1().Pods(corev1.NamespaceAll).List(context.Background(), initialOpts)
 	if err != nil {
 		return nil, []error{err}
 	}
@@ -1008,23 +1105,23 @@ func MakePodDeleteStatusWithError(message string) PodDeleteStatus {
 	}
 }
 
-func getPodDetail(pod metav1.Pod, cpuAllocatable resource.Quantity, memoryAllocatable resource.Quantity, limits metav1.ResourceList, requests metav1.ResourceList) *PodCapacityDetail {
-	cpuLimits, cpuLimitsOk := limits[metav1.ResourceCPU]
-	cpuRequests, cpuRequestsOk := requests[metav1.ResourceCPU]
-	memoryLimits, memoryLimitsOk := limits[metav1.ResourceMemory]
-	memoryRequests, memoryRequestsOk := requests[metav1.ResourceMemory]
+func getPodDetail(pod corev1.Pod, cpuAllocatable resource.Quantity, memoryAllocatable resource.Quantity, limits corev1.ResourceList, requests corev1.ResourceList) *PodCapacityDetail {
+	cpuLimits, cpuLimitsOk := limits[corev1.ResourceCPU]
+	cpuRequests, cpuRequestsOk := requests[corev1.ResourceCPU]
+	memoryLimits, memoryLimitsOk := limits[corev1.ResourceMemory]
+	memoryRequests, memoryRequestsOk := requests[corev1.ResourceMemory]
 	podDetail := &PodCapacityDetail{
 		Name:      pod.Name,
 		Namespace: pod.Namespace,
 		Age:       translateTimestampSince(pod.CreationTimestamp),
 		CreatedAt: pod.CreationTimestamp.String(),
 		Cpu: &ResourceDetailObject{
-			Limit:   getResourceString(cpuLimits, metav1.ResourceCPU),
-			Request: getResourceString(cpuRequests, metav1.ResourceCPU),
+			Limit:   getResourceString(cpuLimits, corev1.ResourceCPU),
+			Request: getResourceString(cpuRequests, corev1.ResourceCPU),
 		},
 		Memory: &ResourceDetailObject{
-			Limit:   getResourceString(memoryLimits, metav1.ResourceMemory),
-			Request: getResourceString(memoryRequests, metav1.ResourceMemory),
+			Limit:   getResourceString(memoryLimits, corev1.ResourceMemory),
+			Request: getResourceString(memoryRequests, corev1.ResourceMemory),
 		},
 	}
 	if cpuLimitsOk {
@@ -1052,8 +1149,8 @@ func convertToPercentage(actual, allocatable *resource.Quantity) string {
 	return fmt.Sprintf("%d%%", int64(utilPercent))
 }
 
-func getResourceString(quantity resource.Quantity, resourceName metav1.ResourceName) string {
-	standardResources := map[metav1.ResourceName]bool{metav1.ResourceCPU: true, metav1.ResourceMemory: true, metav1.ResourceStorage: true, metav1.ResourceEphemeralStorage: true}
+func getResourceString(quantity resource.Quantity, resourceName corev1.ResourceName) string {
+	standardResources := map[corev1.ResourceName]bool{corev1.ResourceCPU: true, corev1.ResourceMemory: true, corev1.ResourceStorage: true, corev1.ResourceEphemeralStorage: true}
 
 	if _, ok := standardResources[resourceName]; !ok {
 		//not a standard resource, we do not know if conversion would be valid or not
@@ -1094,7 +1191,7 @@ func translateTimestampSince(timestamp v1.Time) string {
 	return duration.HumanDuration(time.Since(timestamp.Time))
 }
 
-func findNodeRoles(node *metav1.Node) []string {
+func findNodeRoles(node *corev1.Node) []string {
 	roles := sets.NewString()
 	for k, v := range node.Labels {
 		switch {
@@ -1113,17 +1210,17 @@ func findNodeRoles(node *metav1.Node) []string {
 	}
 }
 
-func findNodeStatus(node *metav1.Node) string {
-	conditionMap := make(map[metav1.NodeConditionType]*metav1.NodeCondition)
+func findNodeStatus(node *corev1.Node) string {
+	conditionMap := make(map[corev1.NodeConditionType]*corev1.NodeCondition)
 	//Valid conditions to be updated with update at kubernetes end
-	NodeAllValidConditions := []metav1.NodeConditionType{metav1.NodeReady}
+	NodeAllValidConditions := []corev1.NodeConditionType{corev1.NodeReady}
 	for _, condition := range node.Status.Conditions {
 		conditionMap[condition.Type] = &condition
 	}
 	var status string
 	for _, validCondition := range NodeAllValidConditions {
 		if condition, ok := conditionMap[validCondition]; ok {
-			if condition.Status == metav1.ConditionTrue {
+			if condition.Status == corev1.ConditionTrue {
 				status = string(condition.Type)
 			} else {
 				status = fmt.Sprintf("Not %s", string(condition.Type))
@@ -1136,16 +1233,16 @@ func findNodeStatus(node *metav1.Node) string {
 	return status
 }
 
-func findNodeErrors(node *metav1.Node) map[metav1.NodeConditionType]string {
-	conditionMap := make(map[metav1.NodeConditionType]metav1.NodeCondition)
-	NodeAllErrorConditions := []metav1.NodeConditionType{metav1.NodeMemoryPressure, metav1.NodeDiskPressure, metav1.NodeNetworkUnavailable, metav1.NodePIDPressure}
+func findNodeErrors(node *corev1.Node) map[corev1.NodeConditionType]string {
+	conditionMap := make(map[corev1.NodeConditionType]corev1.NodeCondition)
+	NodeAllErrorConditions := []corev1.NodeConditionType{corev1.NodeMemoryPressure, corev1.NodeDiskPressure, corev1.NodeNetworkUnavailable, corev1.NodePIDPressure}
 	for _, condition := range node.Status.Conditions {
 		conditionMap[condition.Type] = condition
 	}
-	conditionErrorMap := make(map[metav1.NodeConditionType]string)
+	conditionErrorMap := make(map[corev1.NodeConditionType]string)
 	for _, errorCondition := range NodeAllErrorConditions {
 		if condition, ok := conditionMap[errorCondition]; ok {
-			if condition.Status == metav1.ConditionTrue {
+			if condition.Status == corev1.ConditionTrue {
 				conditionErrorMap[condition.Type] = condition.Message
 			}
 		}
@@ -1153,25 +1250,25 @@ func findNodeErrors(node *metav1.Node) map[metav1.NodeConditionType]string {
 	return conditionErrorMap
 }
 
-func getNodeExternalIP(node *metav1.Node) string {
+func getNodeExternalIP(node *corev1.Node) string {
 	for _, address := range node.Status.Addresses {
-		if address.Type == metav1.NodeExternalIP {
+		if address.Type == corev1.NodeExternalIP {
 			return address.Address
 		}
 	}
 	return "none"
 }
 
-func getNodeInternalIP(node *metav1.Node) string {
+func getNodeInternalIP(node *corev1.Node) string {
 	for _, address := range node.Status.Addresses {
-		if address.Type == metav1.NodeInternalIP {
+		if address.Type == corev1.NodeInternalIP {
 			return address.Address
 		}
 	}
 	return "none"
 }
 
-func AddTwoResourceList(oldResourceList metav1.ResourceList, newResourceList metav1.ResourceList) metav1.ResourceList {
+func AddTwoResourceList(oldResourceList corev1.ResourceList, newResourceList corev1.ResourceList) corev1.ResourceList {
 	for res, quantity := range newResourceList {
 		if oldQuantity, ok1 := oldResourceList[res]; ok1 {
 			quantity.Add(oldQuantity)

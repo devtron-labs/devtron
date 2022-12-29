@@ -23,6 +23,7 @@ type K8sCapacityRestHandler interface {
 	DeleteNode(w http.ResponseWriter, r *http.Request)
 	CordonOrUnCordonNode(w http.ResponseWriter, r *http.Request)
 	DrainNode(w http.ResponseWriter, r *http.Request)
+	EditNodeTaints(w http.ResponseWriter, r *http.Request)
 }
 type K8sCapacityRestHandlerImpl struct {
 	logger             *zap.SugaredLogger
@@ -323,6 +324,35 @@ func (handler *K8sCapacityRestHandlerImpl) DrainNode(w http.ResponseWriter, r *h
 	resp, err := handler.k8sCapacityService.DrainNode(&nodeDrainReq)
 	if err != nil {
 		handler.logger.Errorw("error in draining node", "err", err, "req", nodeDrainReq)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resp, http.StatusOK)
+}
+
+func (handler *K8sCapacityRestHandlerImpl) EditNodeTaints(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var nodeTaintReq NodeUpdateRequestDto
+	err := decoder.Decode(&nodeTaintReq)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	userId, err := handler.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+	// RBAC enforcer applying
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionUpdate, "*"); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	resp, err := handler.k8sCapacityService.EditNodeTaints(&nodeTaintReq)
+	if err != nil {
+		handler.logger.Errorw("error in editing node taints", "err", err, "req", nodeTaintReq)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}

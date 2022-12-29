@@ -453,7 +453,7 @@ components:
           type: string
         kind:
           type: string
-        nodeCordonHelper:
+        nodeCordonOptions:
           $ref: '#/components/schemas/NodeCordonHelper'
     NodeCordonHelper:
       type: object
@@ -472,7 +472,7 @@ components:
           type: string
         kind:
           type: string
-        nodeDrainHelper:
+        nodeDrainOptions:
           $ref: '#/components/schemas/NodeDrainHelper'
     NodeDrainHelper:
       type: object
@@ -487,6 +487,35 @@ components:
           type: boolean
         disableEviction:
           type: boolean
+    NodeTaintEditReqDto:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+        name:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+        taints:
+          type: array
+          items:
+           $ref: '#/components/schemas/Taint'
+    Taint:
+      type: object
+      properties:
+        key:
+          type: string
+        effect:
+          type: string
+          oneOf:
+            - "NoSchedule"
+            - "NoExecute"
+            - "PreferNoSchedule"
+        value:
+          type: string
+          required: false
     NodeManifestUpdateResponse:
       type: object
       properties:

@@ -42,4 +42,7 @@ func (impl *K8sCapacityRouterImpl) InitK8sCapacityRouter(k8sCapacityRouter *mux.
 
 	k8sCapacityRouter.Path("/node/drain").
 		HandlerFunc(impl.k8sCapacityRestHandler.DrainNode).Methods("PUT")
+
+	k8sCapacityRouter.Path("/node/taints/edit").
+		HandlerFunc(impl.k8sCapacityRestHandler.EditNodeTaints).Methods("PUT")
 }

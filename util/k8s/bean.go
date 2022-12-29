@@ -1,7 +1,7 @@
 package k8s
 
 import (
-	metav1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/client-go/kubernetes"
 )
@@ -12,7 +12,7 @@ type ClusterCapacityDetail struct {
 	ErrorInConnection string                                `json:"errorInNodeListing,omitempty"`
 	NodeCount         int                                   `json:"nodeCount,omitempty"`
 	NodeNames         []string                              `json:"nodeNames"`
-	NodeErrors        map[metav1.NodeConditionType][]string `json:"nodeErrors"`
+	NodeErrors        map[corev1.NodeConditionType][]string `json:"nodeErrors"`
 	NodeK8sVersions   []string                              `json:"nodeK8sVersions"`
 	ServerVersion     string                                `json:"serverVersion,omitempty"`
 	Cpu               *ResourceDetailObject                 `json:"cpu"`
@@ -31,7 +31,7 @@ type NodeCapacityDetail struct {
 	Status        string                              `json:"status,omitempty"`
 	PodCount      int                                 `json:"podCount,omitempty"`
 	TaintCount    int                                 `json:"taintCount,omitempty"`
-	Errors        map[metav1.NodeConditionType]string `json:"errors"`
+	Errors        map[corev1.NodeConditionType]string `json:"errors"`
 	InternalIp    string                              `json:"internalIp"`
 	ExternalIp    string                              `json:"externalIp"`
 	Unschedulable bool                                `json:"unschedulable"`
@@ -92,7 +92,8 @@ type NodeUpdateRequestDto struct {
 	ManifestPatch    string            `json:"manifestPatch"`
 	Version          string            `json:"version"`
 	Kind             string            `json:"kind"`
-	NodeCordonHelper *NodeCordonHelper `json:"nodeCordonHelper"`
+	Taints           []corev1.Taint    `json:"taints"`
+	NodeCordonHelper *NodeCordonHelper `json:"nodeCordonOptions"`
 	NodeDrainHelper  *NodeDrainHelper  `json:"nodeDrainOptions"`
 }
 
