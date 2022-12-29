@@ -285,6 +285,41 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+  /orchestrator/k8s/capacity/node/taints/edit:
+    put:
+      description: edit node taints
+      operationId: EditNodeTaints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeTaintEditReqDto'
+      responses:
+        '200':
+          description: Return successful operation string.
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
 
 components:
   schemas:
