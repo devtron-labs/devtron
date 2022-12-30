@@ -188,20 +188,14 @@ func (impl *CdApplicationStatusUpdateHandlerImpl) ManualSyncPipelineStatus(appId
 		return fmt.Errorf("invalid number of cd pipelines found")
 	}
 	cdPipeline := cdPipelines[0]
-	cdWfr, err := impl.cdWorkflowRepository.FindLastStatusByPipelineIdAndRunnerType(cdPipeline.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	err, isTimelineUpdated := impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveApplicationFetch(cdPipeline, userId)
 	if err != nil {
-		impl.logger.Errorw("error in getting latest cdWfr by cdPipelineId", "err", err, "pipelineId", cdPipeline.Id)
+		impl.logger.Errorw("error on argo pipeline status update", "err", err)
 		return nil
 	}
-	if !util.IsTerminalStatus(cdWfr.Status) {
-		err, isTimelineUpdated := impl.CdHandler.UpdatePipelineTimelineAndStatusByLiveApplicationFetch(cdPipeline, userId)
-		if err != nil {
-			impl.logger.Errorw("error on argo pipeline status update", "err", err)
-			return nil
-		}
-		if !isTimelineUpdated {
-			return fmt.Errorf("timeline unchanged")
-		}
+	if !isTimelineUpdated {
+		return fmt.Errorf("timeline unchanged")
 	}
+
 	return nil
 }

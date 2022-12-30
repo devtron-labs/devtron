@@ -54,7 +54,7 @@ func NewPipelineStatusTimelineRepositoryImpl(dbConnection *pg.DB,
 type PipelineStatusTimeline struct {
 	tableName                    struct{}       `sql:"pipeline_status_timeline" pg:",discard_unknown_columns"`
 	Id                           int            `sql:"id,pk"`
-	InstalledAppVersionHistoryId int            `sql:"installed_app_version_history_id"`
+	InstalledAppVersionHistoryId int            `sql:"installed_app_version_history_id,type:integer"`
 	CdWorkflowRunnerId           int            `sql:"cd_workflow_runner_id"`
 	Status                       TimelineStatus `sql:"status"`
 	StatusDetail                 string         `sql:"status_detail"`
