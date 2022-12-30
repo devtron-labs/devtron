@@ -42,7 +42,7 @@ type K8sApplicationService interface {
 	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
 	GetAllApiResources(clusterId int) ([]*application.K8sApiResource, error)
-	GetResourceList(request *ClusterResourceRequest) ([]*ClusterResourceListResponse, error)
+	GetResourceList(request *ResourceRequestBean) ([]*ClusterResourceListResponse, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -96,11 +96,6 @@ type ResourceInfo struct {
 type BatchResourceResponse struct {
 	ManifestResponse *application.ManifestResponse
 	Err              error
-}
-
-type ClusterResourceRequest struct {
-	ClusterId  int                         `json:"clusterId"`
-	K8sRequest *application.K8sRequestBean `json:"k8sRequest"`
 }
 
 type ClusterResourceListResponse struct {
@@ -425,7 +420,7 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(clusterId int) (
 	bearerToken := configMap["bearer_token"]
 	var restConfig *rest.Config
 	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
-		restConfig, err = rest.InClusterConfig()
+		restConfig, err = impl.K8sUtil.GetK8sClusterRestConfig()
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
 			return nil, err
@@ -510,18 +505,19 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int) ([]*app
 	return impl.k8sClientService.GetApiResources(restConfig)
 }
 
-func (impl *K8sApplicationServiceImpl) GetResourceList(request *ClusterResourceRequest) ([]*ClusterResourceListResponse, error) {
+func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestBean) ([]*ClusterResourceListResponse, error) {
 	//getting rest config by clusterId
-	response := make([]*ClusterResourceListResponse, 0)
+
+	resourceList := make([]*ClusterResourceListResponse, 0)
 	restConfig, err := impl.GetRestConfigByClusterId(request.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
-		return nil, err
+		return resourceList, err
 	}
 	resp, err := impl.k8sClientService.GetResourceList(restConfig, request.K8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
-		return nil, err
+		return resourceList, err
 	}
 
 	for _, res := range resp.Resources.Items {
@@ -531,7 +527,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ClusterResourceR
 			impl.logger.Warnw("error on parsing for k8s resource", "object", object, "err", err)
 			continue
 		}
-		response = append(response, &ClusterResourceListResponse{
+		resourceList = append(resourceList, &ClusterResourceListResponse{
 			Name:      r["name"],
 			Namespace: r["namespace"],
 			Status:    r["status"],
@@ -541,5 +537,5 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ClusterResourceR
 			Url:       r["url"],
 		})
 	}
-	return response, nil
+	return resourceList, nil
 }

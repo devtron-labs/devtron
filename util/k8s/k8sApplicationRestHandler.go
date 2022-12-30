@@ -590,7 +590,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.Response
 
 func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var request ClusterResourceRequest
+	var request ResourceRequestBean
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)

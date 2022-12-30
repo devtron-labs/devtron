@@ -528,6 +528,7 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	}
 }
 
+// ParseResource TODO - optimize and refactor, WIP
 func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (map[string]string, error) {
 	clusterResourceListResponse := make(map[string]string)
 	switch manifest.GroupVersionKind() {
@@ -617,13 +618,12 @@ func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (map[stri
 		clusterResourceListResponse["namespace"] = rolloutSpec["namespace"].(string)
 		clusterResourceListResponse["status"] = ""
 	default:
-		var otherResource map[string]interface{}
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &otherResource)
-		if err != nil {
-			return nil, err
+		res := manifest.Object
+		if res != nil && res["metadata"] != nil {
+			metadata := res["metadata"].(map[string]interface{})
+			clusterResourceListResponse["name"] = metadata["name"].(string)
+			clusterResourceListResponse["namespace"] = metadata["namespace"].(string)
 		}
-		clusterResourceListResponse["name"] = otherResource["name"].(string)
-		clusterResourceListResponse["namespace"] = otherResource["namespace"].(string)
 	}
 
 	return clusterResourceListResponse, nil
