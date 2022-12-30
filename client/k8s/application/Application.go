@@ -23,7 +23,7 @@ type K8sClientService interface {
 	CreateResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (resp *ManifestResponse, err error)
 	UpdateResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
 	DeleteResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
-	ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error)
+	ListEvents(restConfig *rest.Config, request *K8sRequestBean, gvkEvents bool) (*EventsResponse, error)
 	GetPodLogs(restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error)
 	GetApiResources(restConfig *rest.Config) ([]*K8sApiResource, error)
 	GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, error)
@@ -173,7 +173,7 @@ func (impl K8sClientServiceImpl) DeleteResource(restConfig *rest.Config, request
 	return &ManifestResponse{*obj}, nil
 }
 
-func (impl K8sClientServiceImpl) ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error) {
+func (impl K8sClientServiceImpl) ListEvents(restConfig *rest.Config, request *K8sRequestBean, gvkEvents bool) (*EventsResponse, error) {
 	_, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
@@ -191,14 +191,17 @@ func (impl K8sClientServiceImpl) ListEvents(restConfig *rest.Config, request *K8
 		return nil, err
 	}
 	eventsIf := eventsClient.Events(resourceIdentifier.Namespace)
-	eventsExp := eventsIf.(v1.EventExpansion)
-	fieldSelector := eventsExp.GetFieldSelector(pointer.StringPtr(resourceIdentifier.Name), pointer.StringPtr(resourceIdentifier.Namespace), nil, nil)
 	listOptions := metav1.ListOptions{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       resourceIdentifier.GroupVersionKind.Kind,
 			APIVersion: resourceIdentifier.GroupVersionKind.GroupVersion().String(),
 		},
-		FieldSelector: fieldSelector.String(),
+	}
+	//if events fetch for specific resource
+	if !gvkEvents {
+		eventsExp := eventsIf.(v1.EventExpansion)
+		fieldSelector := eventsExp.GetFieldSelector(pointer.StringPtr(resourceIdentifier.Name), pointer.StringPtr(resourceIdentifier.Namespace), nil, nil)
+		listOptions.FieldSelector = fieldSelector.String()
 	}
 	list, err := eventsIf.List(context.Background(), listOptions)
 	if err != nil {

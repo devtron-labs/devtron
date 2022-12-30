@@ -386,7 +386,12 @@ func (impl *K8sApplicationServiceImpl) ListEvents(request *ResourceRequestBean) 
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", clusterId)
 		return nil, err
 	}
-	resp, err := impl.k8sClientService.ListEvents(restConfig, request.K8sRequest)
+
+	gvkEvents := false
+	if len(request.AppId) == 0 {
+		gvkEvents = true
+	}
+	resp, err := impl.k8sClientService.ListEvents(restConfig, request.K8sRequest, gvkEvents)
 	if err != nil {
 		impl.logger.Errorw("error in getting events list", "err", err, "request", request)
 		return nil, err
