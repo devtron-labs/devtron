@@ -183,7 +183,7 @@ func (impl *CdHandlerImpl) CheckAndSendArgoPipelineStatusSyncEventIfNeeded(pipel
 		return
 	}
 	//TODO: remove hard coding
-	if !lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second { //create new nats event
+	if lastSyncTime.IsZero() || (!lastSyncTime.IsZero() && time.Since(lastSyncTime) > 5*time.Second) { //create new nats event
 		statusUpdateEvent := ArgoPipelineStatusSyncEvent{
 			PipelineId: pipelineId,
 			UserId:     userId,
