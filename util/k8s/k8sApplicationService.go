@@ -103,9 +103,9 @@ type ClusterResourceListResponse struct {
 	Namespace string `json:"namespace"`
 	Status    string `json:"status"`
 	Age       string `json:"age"`
-	Ready     string `json:"ready"`
-	Restarts  string `json:"restarts"`
-	Url       string `json:"url"`
+	Ready     string `json:"ready,omitempty"`
+	Restarts  string `json:"restarts,omitempty"`
+	Url       string `json:"url,omitempty"`
 }
 
 func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTree map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean {
@@ -534,7 +534,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestB
 			Age:       r["age"],
 			Ready:     r["ready"],
 			Restarts:  r["restarts"],
-			Url:       r["url"],
+			//Url:       r["url"],
 		})
 	}
 	return resourceList, nil
