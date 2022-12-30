@@ -64,21 +64,24 @@ type userNamePassword struct {
 }
 
 type UserRestHandlerImpl struct {
-	userService      user.UserService
-	validator        *validator.Validate
-	logger           *zap.SugaredLogger
-	enforcer         casbin.Enforcer
-	roleGroupService user.RoleGroupService
+	userService       user.UserService
+	validator         *validator.Validate
+	logger            *zap.SugaredLogger
+	enforcer          casbin.Enforcer
+	roleGroupService  user.RoleGroupService
+	userCommonService user.UserCommonService
 }
 
 func NewUserRestHandlerImpl(userService user.UserService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService) *UserRestHandlerImpl {
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService,
+	userCommonService user.UserCommonService) *UserRestHandlerImpl {
 	userAuthHandler := &UserRestHandlerImpl{
-		userService:      userService,
-		validator:        validator,
-		logger:           logger,
-		enforcer:         enforcer,
-		roleGroupService: roleGroupService,
+		userService:       userService,
+		validator:         validator,
+		logger:            logger,
+		enforcer:          enforcer,
+		roleGroupService:  roleGroupService,
+		userCommonService: userCommonService,
 	}
 	return userAuthHandler
 }
@@ -508,25 +511,7 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 				}
 			}
 			if filter.Entity == bean.CLUSTER_ENTITIY && !isActionUserSuperAdmin {
-				namespaceObj := filter.Namespace
-				groupObj := filter.Group
-				kindObj := filter.Kind
-				resourceObj := filter.Resource
-				if filter.Namespace == "" {
-					namespaceObj = "*"
-				}
-				if filter.Group == "" {
-					groupObj = "*"
-				}
-				if filter.Kind == "" {
-					kindObj = "*"
-				}
-				if filter.Resource == "NONE" {
-					resourceObj = "*"
-				}
-				rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(filter.Cluster), strings.ToLower(namespaceObj), casbin.ResourceUser)
-				rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
-				if ok := handler.enforcer.Enforce(token, rbacResource, casbin.ActionCreate, rbacObject); !ok {
+				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
 					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}

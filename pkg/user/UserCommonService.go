@@ -15,6 +15,7 @@ import (
 type UserCommonService interface {
 	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]casbin2.Policy, error)
 	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, eliminatedRoles map[int]*repository2.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]casbin2.Policy, error)
+	CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool
 }
 
 type UserCommonServiceImpl struct {
@@ -69,29 +70,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 				for _, group := range groups {
 					for _, kind := range kinds {
 						for _, resource := range resources {
-							namespaceObj := namespace
-							groupObj := group
-							kindObj := kind
-							resourceObj := resource
-							if namespace == "NONE" {
-								namespace = ""
-								namespaceObj = "*"
-							}
-							if group == "NONE" {
-								group = ""
-								groupObj = "*"
-							}
-							if kind == "NONE" {
-								kind = ""
-								kindObj = "*"
-							}
-							if resource == "NONE" {
-								resource = ""
-								resourceObj = "*"
-							}
-							rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(roleFilter.Cluster), strings.ToLower(namespaceObj), casbin2.ResourceUser)
-							rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
-							isValidAuth := managerAuth(rbacResource, token, rbacObject)
+							isValidAuth := impl.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 							if !isValidAuth {
 								continue
 							}
@@ -170,25 +149,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 			}
 		}
 		if role.Entity == bean.CLUSTER_ENTITIY {
-			namespaceObj := role.Namespace
-			groupObj := role.Group
-			kindObj := role.Kind
-			resourceObj := role.Resource
-			if role.Namespace == "" {
-				namespaceObj = "*"
-			}
-			if role.Group == "" {
-				groupObj = "*"
-			}
-			if role.Kind == "" {
-				kindObj = "*"
-			}
-			if role.Resource == "" {
-				resourceObj = "*"
-			}
-			rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(role.Cluster), strings.ToLower(namespaceObj), casbin2.ResourceUser)
-			rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
-			isValidAuth := managerAuth(rbacResource, token, rbacObject)
+			isValidAuth := impl.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
 			if !isValidAuth {
 				continue
 			}
@@ -230,29 +191,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 				for _, group := range groups {
 					for _, kind := range kinds {
 						for _, resource := range resources {
-							namespaceObj := namespace
-							groupObj := group
-							kindObj := kind
-							resourceObj := resource
-							if namespace == "NONE" {
-								namespace = ""
-								namespaceObj = "*"
-							}
-							if group == "NONE" {
-								group = ""
-								groupObj = "*"
-							}
-							if kind == "NONE" {
-								kind = ""
-								kindObj = "*"
-							}
-							if resource == "NONE" {
-								resource = ""
-								resourceObj = "*"
-							}
-							rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(roleFilter.Cluster), strings.ToLower(namespaceObj), casbin2.ResourceUser)
-							rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
-							isValidAuth := managerAuth(rbacResource, token, rbacObject)
+							isValidAuth := impl.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 							if !isValidAuth {
 								continue
 							}
@@ -331,25 +270,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 				continue
 			}
 		} else if len(role.Cluster) > 0 {
-			namespaceObj := role.Namespace
-			groupObj := role.Group
-			kindObj := role.Kind
-			resourceObj := role.Resource
-			if role.Namespace == "" {
-				namespaceObj = "*"
-			}
-			if role.Group == "" {
-				groupObj = "*"
-			}
-			if role.Kind == "" {
-				kindObj = "*"
-			}
-			if role.Resource == "" {
-				resourceObj = "*"
-			}
-			rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(role.Cluster), strings.ToLower(namespaceObj), casbin2.ResourceUser)
-			rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
-			isValidAuth := managerAuth(rbacResource, token, rbacObject)
+			isValidAuth := impl.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
 			if !isValidAuth {
 				continue
 			}
@@ -374,4 +295,39 @@ func containsArr(s []string, e string) bool {
 		}
 	}
 	return false
+}
+
+func (impl UserCommonServiceImpl) CheckRbacForClusterEntity(cluster, namespace, group, kind, resource, token string, managerAuth func(resource, token, object string) bool) bool {
+	if namespace == "NONE" {
+		namespace = ""
+	}
+	if group == "NONE" {
+		group = ""
+	}
+	if kind == "NONE" {
+		kind = ""
+	}
+	if resource == "NONE" {
+		resource = ""
+	}
+	namespaceObj := namespace
+	groupObj := group
+	kindObj := kind
+	resourceObj := resource
+	if namespace == "" {
+		namespaceObj = "*"
+	}
+	if group == "" {
+		groupObj = "*"
+	}
+	if kind == "" {
+		kindObj = "*"
+	}
+	if resource == "" {
+		resourceObj = "*"
+	}
+
+	rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(cluster), strings.ToLower(namespaceObj), casbin2.ResourceUser)
+	rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
+	return managerAuth(rbacResource, token, rbacObject)
 }

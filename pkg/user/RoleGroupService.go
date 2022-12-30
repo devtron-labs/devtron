@@ -239,30 +239,8 @@ func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFil
 		for _, group := range groups {
 			for _, kind := range kinds {
 				for _, resource := range resources {
-					namespaceObj := namespace
-					groupObj := group
-					kindObj := kind
-					resourceObj := resource
-					if namespace == "NONE" {
-						namespace = ""
-						namespaceObj = "*"
-					}
-					if group == "NONE" {
-						group = ""
-						groupObj = "*"
-					}
-					if kind == "NONE" {
-						kind = ""
-						kindObj = "*"
-					}
-					if resource == "NONE" {
-						resource = ""
-						resourceObj = "*"
-					}
 					if managerAuth != nil {
-						rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(roleFilter.Cluster), strings.ToLower(namespaceObj), casbin2.ResourceUser)
-						rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
-						isValidAuth := managerAuth(rbacResource, token, rbacObject)
+						isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 						if !isValidAuth {
 							continue
 						}

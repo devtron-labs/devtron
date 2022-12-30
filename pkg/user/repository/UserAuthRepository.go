@@ -934,11 +934,11 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForClusterEntity(entity,
 		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_CLUSTER_VIEW_TYPE)
 		return false, err
 	}
-	clusterObj := ""
-	namespaceObj := ""
-	groupObj := ""
-	kindObj := ""
-	resourceObj := ""
+	clusterObj := cluster
+	namespaceObj := namespace
+	groupObj := group
+	kindObj := kind
+	resourceObj := resource
 
 	if cluster == "" {
 		clusterObj = "*"

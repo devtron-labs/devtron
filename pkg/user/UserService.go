@@ -488,30 +488,8 @@ func (impl UserServiceImpl) CreateOrUpdateUserRolesForClusterEntity(roleFilter b
 		for _, group := range groups {
 			for _, kind := range kinds {
 				for _, resource := range resources {
-					namespaceObj := namespace
-					groupObj := group
-					kindObj := kind
-					resourceObj := resource
-					if namespace == "NONE" {
-						namespace = ""
-						namespaceObj = "*"
-					}
-					if group == "NONE" {
-						group = ""
-						groupObj = "*"
-					}
-					if kind == "NONE" {
-						kind = ""
-						kindObj = "*"
-					}
-					if resource == "NONE" {
-						resource = ""
-						resourceObj = "*"
-					}
 					if managerAuth != nil {
-						rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(roleFilter.Cluster), strings.ToLower(namespaceObj), casbin2.ResourceUser)
-						rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
-						isValidAuth := managerAuth(rbacResource, token, rbacObject)
+						isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 						if !isValidAuth {
 							continue
 						}
@@ -1416,25 +1394,7 @@ func (impl UserServiceImpl) checkGroupAuth(groupName string, token string, manag
 			}
 		}
 		if role.Entity == bean.CLUSTER_ENTITIY && !isActionUserSuperAdmin {
-			namespaceObj := role.Namespace
-			groupObj := role.Group
-			kindObj := role.Kind
-			resourceObj := role.Resource
-			if role.Namespace == "" {
-				namespaceObj = "*"
-			}
-			if role.Group == "" {
-				groupObj = "*"
-			}
-			if role.Kind == "" {
-				kindObj = "*"
-			}
-			if role.Resource == "" {
-				resourceObj = "*"
-			}
-			rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(role.Cluster), strings.ToLower(namespaceObj), casbin2.ResourceUser)
-			rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
-			isValidAuth := managerAuth(rbacResource, token, rbacObject)
+			isValidAuth := impl.userCommonService.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
 			if !isValidAuth {
 				hasAccessToGroup = false
 			}
