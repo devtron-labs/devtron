@@ -2,6 +2,7 @@ package k8s
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"github.com/caarlos0/env"
 	"github.com/devtron-labs/devtron/api/bean"
@@ -13,7 +14,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	yamlUtil "github.com/devtron-labs/devtron/util/yaml"
-	"github.com/ghodss/yaml"
 	"go.uber.org/zap"
 	"io"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -565,33 +565,37 @@ func (impl *K8sApplicationServiceImpl) CreateResources(request *application.Crea
 
 	var response []*application.CreateResourcesResponse
 	for _, manifest := range manifests {
-		objName := manifest.GetName()
-		objKind := manifest.GetKind()
 		manifestRes := &application.CreateResourcesResponse{
-			Name: objName,
-			Kind: objKind,
+			Name: manifest.GetName(),
+			Kind: manifest.GetKind(),
 		}
-		yamlStr, err := yaml.Marshal(manifest.UnstructuredContent())
+		err = impl.createResourceFromManifest(manifest, restConfig)
 		if err != nil {
-			impl.logger.Errorw("error in marshalling yaml", "err", err)
 			manifestRes.Error = err.Error()
-			continue
-		}
-		k8sRequestBean := &application.K8sRequestBean{
-			ResourceIdentifier: application.ResourceIdentifier{
-				Name:             objName,
-				Namespace:        manifest.GetNamespace(),
-				GroupVersionKind: manifest.GroupVersionKind(),
-			},
-		}
-		_, err = impl.k8sClientService.CreateResource(restConfig, k8sRequestBean, string(yamlStr))
-		if err != nil {
-			impl.logger.Errorw("error in creating resource", "err", err, "request", request, "clusterId", clusterId)
-			manifestRes.Error = err.Error()
-			continue
 		}
 		response = append(response, manifestRes)
 	}
 
 	return response, nil
+}
+
+func (impl *K8sApplicationServiceImpl) createResourceFromManifest(manifest unstructured.Unstructured, restConfig *rest.Config) error {
+	jsonStr, err := json.Marshal(manifest.UnstructuredContent())
+	if err != nil {
+		impl.logger.Errorw("error in marshalling json", "err", err)
+		return err
+	}
+	k8sRequestBean := &application.K8sRequestBean{
+		ResourceIdentifier: application.ResourceIdentifier{
+			Name:             manifest.GetName(),
+			Namespace:        manifest.GetNamespace(),
+			GroupVersionKind: manifest.GroupVersionKind(),
+		},
+	}
+	_, err = impl.k8sClientService.CreateResource(restConfig, k8sRequestBean, string(jsonStr))
+	if err != nil {
+		impl.logger.Errorw("error in creating resource", "err", err)
+		return err
+	}
+	return nil
 }

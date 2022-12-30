@@ -624,11 +624,11 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResources(w http.ResponseWri
 
 	// TODO: handle rbac
 
-	resource, err := handler.k8sApplicationService.CreateResources(&request)
+	response, err := handler.k8sApplicationService.CreateResources(&request)
 	if err != nil {
 		handler.logger.Errorw("error in creating resource", "err", err)
-		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, resource, http.StatusOK)
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
