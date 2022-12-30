@@ -16,7 +16,7 @@
  */
 
 /*
-	@description: user authentication and authorization
+@description: user authentication and authorization
 */
 package repository
 
@@ -56,6 +56,7 @@ type UserAuthRepository interface {
 	CreateDefaultPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	CreateDefaultHelmPolicies(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	CreateDefaultPoliciesForGlobalEntity(entity string, entityName string, action string, tx *pg.Tx) (bool, error)
+	CreateDefaultPoliciesForClusterEntity(entity, cluster, namespace, group, kind, resource string, tx *pg.Tx) (bool, error)
 	CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error)
 	SyncOrchestratorToCasbin(team string, entityName string, env string, tx *pg.Tx) (bool, error)
 	UpdateTriggerPolicyForTerminalAccess() error
@@ -94,6 +95,11 @@ type RoleModel struct {
 	Environment string   `sql:"environment"`
 	Action      string   `sql:"action"`
 	AccessType  string   `sql:"access_type"`
+	Cluster     string   `sql:"cluster"`
+	Namespace   string   `sql:"namespace"`
+	Group       string   `sql:"group"`
+	Kind        string   `sql:"kind"`
+	Resource    string   `sql:"resource"`
 	sql.AuditLog
 }
 
@@ -106,6 +112,20 @@ type RolePolicyDetails struct {
 	AppObj     string
 	Entity     string
 	EntityName string
+}
+
+type ClusterRolePolicyDetails struct {
+	Entity       string
+	Cluster      string
+	Namespace    string
+	Group        string
+	Kind         string
+	Resource     string
+	ClusterObj   string
+	NamespaceObj string
+	GroupObj     string
+	KindObj      string
+	ResourceObj  string
 }
 
 func (impl UserAuthRepositoryImpl) CreateRole(userModel *RoleModel, tx *pg.Tx) (*RoleModel, error) {
@@ -845,6 +865,207 @@ func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForGlobalEntity(entity s
 	return true, nil
 }
 
+func (impl UserAuthRepositoryImpl) CreateDefaultPoliciesForClusterEntity(entity, cluster, namespace, group, kind, resource string, tx *pg.Tx) (bool, error) {
+	transaction, err := impl.dbConnection.Begin()
+	if err != nil {
+		return false, err
+	}
+	// Rollback tx on error.
+	defer transaction.Rollback()
+
+	//getting policies from db
+	entityClusterAdminPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(ENTITY_CLUSTER_ADMIN_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_CLUSTER_ADMIN_TYPE)
+		return false, err
+	}
+	entityClusterEditPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(ENTITY_CLUSTER_EDIT_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_CLUSTER_EDIT_TYPE)
+		return false, err
+	}
+	entityClusterViewPolicyDb, err := impl.defaultAuthPolicyRepository.GetPolicyByRoleType(ENTITY_CLUSTER_VIEW_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_CLUSTER_VIEW_TYPE)
+		return false, err
+	}
+	clusterObj := ""
+	namespaceObj := ""
+	groupObj := ""
+	kindObj := ""
+	resourceObj := ""
+
+	if cluster == "" {
+		clusterObj = "*"
+	}
+	if namespace == "" {
+		namespaceObj = "*"
+	}
+	if group == "" {
+		groupObj = "*"
+	}
+	if kind == "" {
+		kindObj = "*"
+	}
+	if resource == "" {
+		resourceObj = "*"
+	}
+	policyDetails := ClusterRolePolicyDetails{
+		Entity:       entity,
+		Cluster:      cluster,
+		Namespace:    namespace,
+		Group:        group,
+		Kind:         kind,
+		Resource:     resource,
+		ClusterObj:   clusterObj,
+		NamespaceObj: namespaceObj,
+		GroupObj:     groupObj,
+		KindObj:      kindObj,
+		ResourceObj:  resourceObj,
+	}
+
+	//getting updated clusterAdmin policies
+	entityClusterAdminPolicy, err := util.Tprintf(entityClusterAdminPolicyDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ENTITY_CLUSTER_ADMIN_TYPE)
+		return false, err
+	}
+
+	//getting updated clusterEdit policies
+	entityClusterEditPolicy, err := util.Tprintf(entityClusterEditPolicyDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ENTITY_CLUSTER_EDIT_TYPE)
+		return false, err
+	}
+
+	//getting updated clusterView policies
+	entityClusterViewPolicy, err := util.Tprintf(entityClusterViewPolicyDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ENTITY_CLUSTER_VIEW_TYPE)
+		return false, err
+	}
+
+	//for START in Casbin Object Ends Here
+	var policiesAdmin bean.PolicyRequest
+	err = json.Unmarshal([]byte(entityClusterAdminPolicy), &policiesAdmin)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	impl.Logger.Debugw("add policy request", "policies", policiesAdmin)
+	casbin.AddPolicy(policiesAdmin.Data)
+
+	var policiesEdit bean.PolicyRequest
+	err = json.Unmarshal([]byte(entityClusterEditPolicy), &policiesEdit)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	impl.Logger.Debugw("add policy request", "policies", policiesEdit)
+	casbin.AddPolicy(policiesEdit.Data)
+
+	var policiesView bean.PolicyRequest
+	err = json.Unmarshal([]byte(entityClusterViewPolicy), &policiesView)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	impl.Logger.Debugw("add policy request", "policies", policiesView)
+	casbin.AddPolicy(policiesView.Data)
+	//CASBIN ENDS
+
+	//Creating ROLES
+
+	//getting role from db
+	clusterAdminRoleDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(ENTITY_CLUSTER_ADMIN_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_CLUSTER_ADMIN_TYPE)
+		return false, err
+	}
+
+	//getting updated role
+	roleClusterAdmin, err := util.Tprintf(clusterAdminRoleDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ENTITY_CLUSTER_ADMIN_TYPE)
+		return false, err
+	}
+
+	//getting role from db
+	clusterEditRoleDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(ENTITY_CLUSTER_EDIT_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_CLUSTER_EDIT_TYPE)
+		return false, err
+	}
+
+	//getting updated role
+	roleClusterEdit, err := util.Tprintf(clusterEditRoleDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ENTITY_CLUSTER_EDIT_TYPE)
+		return false, err
+	}
+
+	//getting role from db
+	clusterViewRoleDb, err := impl.defaultAuthRoleRepository.GetRoleByRoleType(ENTITY_CLUSTER_VIEW_TYPE)
+	if err != nil {
+		impl.Logger.Errorw("error in getting default policy by roleType", "err", err, "roleType", ENTITY_CLUSTER_VIEW_TYPE)
+		return false, err
+	}
+
+	//getting updated role
+	roleClusterView, err := util.Tprintf(clusterViewRoleDb, policyDetails)
+	if err != nil {
+		impl.Logger.Errorw("error in getting updated policies", "err", err, "roleType", ENTITY_CLUSTER_VIEW_TYPE)
+		return false, err
+	}
+
+	var roleClusterAdminData bean.RoleData
+	err = json.Unmarshal([]byte(roleClusterAdmin), &roleClusterAdminData)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	_, err = impl.GetRole(roleClusterAdminData.Role)
+	if err != nil || err == pg.ErrNoRows {
+		_, err = impl.createRole(&roleClusterAdminData, transaction)
+		if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+			return false, err
+		}
+	}
+
+	var roleClusterEditData bean.RoleData
+	err = json.Unmarshal([]byte(roleClusterEdit), &roleClusterEditData)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	_, err = impl.GetRole(roleClusterEditData.Role)
+	if err != nil || err == pg.ErrNoRows {
+		_, err = impl.createRole(&roleClusterEditData, transaction)
+		if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+			return false, err
+		}
+	}
+
+	var roleClusterViewData bean.RoleData
+	err = json.Unmarshal([]byte(roleClusterView), &roleClusterViewData)
+	if err != nil {
+		impl.Logger.Errorw("decode err", "err", err)
+		return false, err
+	}
+	_, err = impl.GetRole(roleClusterViewData.Role)
+	if err != nil || err == pg.ErrNoRows {
+		_, err = impl.createRole(&roleClusterViewData, transaction)
+		if err != nil && strings.Contains("duplicate key value violates unique constraint", err.Error()) {
+			return false, err
+		}
+	}
+	err = transaction.Commit()
+	if err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
 func (impl UserAuthRepositoryImpl) CreateRoleForSuperAdminIfNotExists(tx *pg.Tx) (bool, error) {
 	transaction, err := impl.dbConnection.Begin()
 	if err != nil {
@@ -887,6 +1108,11 @@ func (impl UserAuthRepositoryImpl) createRole(roleData *bean.RoleData, tx *pg.Tx
 		Environment: roleData.Environment,
 		Action:      roleData.Action,
 		AccessType:  roleData.AccessType,
+		Cluster:     roleData.Cluster,
+		Namespace:   roleData.Namespace,
+		Group:       roleData.Group,
+		Kind:        roleData.Kind,
+		Resource:    roleData.Resource,
 	}
 	roleModel, err := impl.CreateRole(roleModel, tx)
 	if err != nil || roleModel == nil {
