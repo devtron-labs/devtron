@@ -595,6 +595,7 @@ func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(request *NodeUpdateRequ
 }
 
 func (impl *K8sCapacityServiceImpl) DrainNode(request *NodeUpdateRequestDto) (string, error) {
+	impl.logger.Infow("received node drain request", "request", request)
 	respMessage := ""
 	//getting rest config by clusterId
 	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(request.ClusterId)
@@ -623,7 +624,7 @@ func (impl *K8sCapacityServiceImpl) DrainNode(request *NodeUpdateRequestDto) (st
 		}
 	}
 	request.NodeDrainHelper.k8sClientSet = k8sClientSet
-	err = deleteOrEvictPods(request.Name, request.NodeDrainHelper)
+	err = impl.deleteOrEvictPods(request.Name, request.NodeDrainHelper)
 	if err != nil {
 		impl.logger.Errorw("error in deleting/evicting pods", "err", err, "nodeName", request.Name)
 		return respMessage, err
@@ -727,11 +728,13 @@ func validateTaintEffect(effect corev1.TaintEffect) error {
 	return nil
 }
 
-func deleteOrEvictPods(nodeName string, nodeDrainHelper *NodeDrainHelper) error {
+func (impl *K8sCapacityServiceImpl) deleteOrEvictPods(nodeName string, nodeDrainHelper *NodeDrainHelper) error {
+	impl.logger.Infow("received node drain - deleteOrEvictPods request", "nodeName", nodeName, "nodeDrainHelper", nodeDrainHelper)
 	list, errs := getPodsByNodeNameForDeletion(nodeName, nodeDrainHelper)
 	if errs != nil {
 		return utilerrors.NewAggregate(errs)
 	}
+	impl.logger.Infow("received pod list, deleteOrEvictPods", "podList", list)
 	pods := list.Pods()
 	if len(pods) == 0 {
 		return nil
@@ -743,22 +746,24 @@ func deleteOrEvictPods(nodeName string, nodeDrainHelper *NodeDrainHelper) error 
 	}
 	if nodeDrainHelper.DisableEviction {
 		//delete instead of eviction
-		return deletePods(pods, nodeDrainHelper.k8sClientSet, deleteOptions)
+		return impl.deletePods(pods, nodeDrainHelper.k8sClientSet, deleteOptions)
 	} else {
 		evictionGroupVersion, err := CheckEvictionSupport(nodeDrainHelper.k8sClientSet)
 		if err != nil {
 			return err
 		}
 		if !evictionGroupVersion.Empty() {
-			return evictPods(pods, nodeDrainHelper.k8sClientSet, evictionGroupVersion, deleteOptions)
+			return impl.evictPods(pods, nodeDrainHelper.k8sClientSet, evictionGroupVersion, deleteOptions)
 		}
 	}
 	return nil
 }
 
-func evictPods(pods []corev1.Pod, k8sClientSet *kubernetes.Clientset, evictionGroupVersion schema.GroupVersion, deleteOptions v1.DeleteOptions) error {
+func (impl *K8sCapacityServiceImpl) evictPods(pods []corev1.Pod, k8sClientSet *kubernetes.Clientset, evictionGroupVersion schema.GroupVersion, deleteOptions v1.DeleteOptions) error {
+	impl.logger.Infow("receive pod eviction request", "pods", pods)
 	returnCh := make(chan error, 1)
 	for _, pod := range pods {
+		impl.logger.Infow("evicting pod", "pod", pod)
 		go func(pod corev1.Pod, returnCh chan error) {
 			for {
 				// Create a temporary pod, so we don't mutate the pod in the loop.
@@ -786,6 +791,7 @@ func evictPods(pods []corev1.Pod, k8sClientSet *kubernetes.Clientset, evictionGr
 		case err := <-returnCh:
 			doneCount++
 			if err != nil {
+				impl.logger.Errorw("error in pod eviction", "err", err)
 				errors = append(errors, err)
 			}
 		}
@@ -839,9 +845,11 @@ func CheckEvictionSupport(clientset kubernetes.Interface) (schema.GroupVersion, 
 	return schema.GroupVersion{}, nil
 }
 
-func deletePods(pods []corev1.Pod, k8sClientSet *kubernetes.Clientset, deleteOptions v1.DeleteOptions) error {
+func (impl *K8sCapacityServiceImpl) deletePods(pods []corev1.Pod, k8sClientSet *kubernetes.Clientset, deleteOptions v1.DeleteOptions) error {
+	impl.logger.Infow("received pod deletion request", "pods", pods)
 	var podDeletionErrors []error
 	for _, pod := range pods {
+		impl.logger.Infow("deleting pod", "pod", pod)
 		err := DeletePod(pod, k8sClientSet, deleteOptions)
 		if err != nil && !apierrors.IsNotFound(err) {
 			podDeletionErrors = append(podDeletionErrors, err)
