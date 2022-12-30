@@ -39,6 +39,7 @@ type K8sApplicationRestHandler interface {
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 	GetAllApiResources(w http.ResponseWriter, r *http.Request)
 	GetResourceList(w http.ResponseWriter, r *http.Request)
+	CreateResources(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -609,4 +610,25 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 		return
 	}
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) CreateResources(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var request application.CreateResourcesRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// TODO: handle rbac
+
+	resource, err := handler.k8sApplicationService.CreateResources(&request)
+	if err != nil {
+		handler.logger.Errorw("error in creating resource", "err", err)
+		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, resource, http.StatusOK)
 }

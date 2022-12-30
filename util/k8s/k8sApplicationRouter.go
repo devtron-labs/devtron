@@ -58,7 +58,10 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 
 	k8sAppRouter.Path("/api-resources/{clusterId}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetAllApiResources).Methods("GET")
+
 	k8sAppRouter.Path("/resource/list").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetResourceList).Methods("POST")
 
+	k8sAppRouter.Path("/resources").
+		HandlerFunc(impl.k8sApplicationRestHandler.CreateResources).Methods("POST")
 }

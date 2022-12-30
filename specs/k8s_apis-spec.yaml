@@ -266,6 +266,25 @@ paths:
                     description: app list
                     items:
                       $ref: '#/components/schemas/ClusterResourceListResponse'
+  /orchestrator/k8s/resources:
+    post:
+      description: this api will be used to create the resources in cluster
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateResourcesRequest'
+      responses:
+        '200':
+          description: response in array of each resource
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CreateResourcesResponse"
 components:
   schemas:
     TerminalMessage:
@@ -524,3 +543,39 @@ components:
         url:
           type: string
           description: service url
+    CreateResourcesRequest:
+      type: object
+      properties:
+        clusterId:
+          type: number
+          description: cluster Id
+          example: 1
+          nullable: false
+        manifest:
+          type: string
+          description: manifest of the resources (yamls saparated by ---)
+          example: ""
+          nullable: false
+    CreateResourcesResponse:
+      type: object
+      properties:
+        kind:
+          type: string
+          description: kind of the resource
+          example: "pod"
+          nullable: false
+        name:
+          type: string
+          description: name of the resource
+          example: "someName"
+          nullable: false
+        error:
+          type: string
+          description: error in the operation of this resource
+          example: "someError"
+          nullable: true
+        isUpdate:
+          type: boolean
+          description: whether this resource was updated
+          example: true
+          nullable: false
