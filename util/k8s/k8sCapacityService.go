@@ -765,21 +765,20 @@ func (impl *K8sCapacityServiceImpl) evictPods(pods []corev1.Pod, k8sClientSet *k
 	for _, pod := range pods {
 		impl.logger.Infow("evicting pod", "pod", pod)
 		go func(pod corev1.Pod, returnCh chan error) {
-			for {
-				// Create a temporary pod, so we don't mutate the pod in the loop.
-				activePod := pod
-				err := EvictPod(activePod, k8sClientSet, evictionGroupVersion, deleteOptions)
-				if err == nil {
-					break
-				} else if apierrors.IsNotFound(err) {
-					returnCh <- nil
-					return
-				} else if apierrors.IsTooManyRequests(err) {
-					time.Sleep(5 * time.Second)
-				} else {
-					returnCh <- fmt.Errorf("error when evicting pods/%q -n %q: %v", activePod.Name, activePod.Namespace, err)
-					return
-				}
+			// Create a temporary pod, so we don't mutate the pod in the loop.
+			activePod := pod
+			err := EvictPod(activePod, k8sClientSet, evictionGroupVersion, deleteOptions)
+			if err == nil {
+				returnCh <- nil
+				return
+			} else if apierrors.IsNotFound(err) {
+				returnCh <- nil
+				return
+			} else if apierrors.IsTooManyRequests(err) {
+				time.Sleep(5 * time.Second)
+			} else {
+				returnCh <- fmt.Errorf("error when evicting pods/%q -n %q: %v", activePod.Name, activePod.Namespace, err)
+				return
 			}
 		}(pod, returnCh)
 	}
