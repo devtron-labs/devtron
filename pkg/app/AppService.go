@@ -492,7 +492,9 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		},
 	}
 	timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
-	timeline.StatusDetail = app.Status.OperationState.Message
+	if app != nil && app.Status.OperationState != nil {
+		timeline.StatusDetail = app.Status.OperationState.Message
+	}
 	//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 	_, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
 	if err != nil {
@@ -507,7 +509,9 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 	if app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
 		timeline.Id = 0
 		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
-		timeline.StatusDetail = app.Status.OperationState.Message
+		if app != nil && app.Status.OperationState != nil {
+			timeline.StatusDetail = app.Status.OperationState.Message
+		}
 		var currentTimeline *pipelineConfig.PipelineStatusTimeline
 		//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
 		currentTimeline, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
