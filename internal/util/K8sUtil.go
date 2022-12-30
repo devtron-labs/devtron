@@ -537,31 +537,31 @@ func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (map[stri
 		if err != nil {
 			return nil, err
 		}
-		clusterResourceListResponse["Name"] = pod.Name
-		clusterResourceListResponse["Namespace"] = pod.Namespace
-		clusterResourceListResponse["Age"] = ""
-		clusterResourceListResponse["Ready"] = ""
-		clusterResourceListResponse["Restarts"] = ""
-		clusterResourceListResponse["Status"] = ""
-		clusterResourceListResponse["Url"] = ""
+		clusterResourceListResponse["name"] = pod.Name
+		clusterResourceListResponse["namespace"] = pod.Namespace
+		clusterResourceListResponse["age"] = ""
+		clusterResourceListResponse["ready"] = ""
+		clusterResourceListResponse["restarts"] = ""
+		clusterResourceListResponse["status"] = ""
+		clusterResourceListResponse["url"] = ""
 	case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.DeploymentKind}:
 		var deployment v1beta2.Deployment
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &deployment)
 		if err != nil {
 			return nil, err
 		}
-		clusterResourceListResponse["Name"] = deployment.Name
-		clusterResourceListResponse["Namespace"] = deployment.Namespace
-		clusterResourceListResponse["Status"] = ""
+		clusterResourceListResponse["name"] = deployment.Name
+		clusterResourceListResponse["namespace"] = deployment.Namespace
+		clusterResourceListResponse["status"] = ""
 	case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.ReplicaSetKind}:
 		var replicaSet v1beta2.ReplicaSet
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &replicaSet)
 		if err != nil {
 			return nil, err
 		}
-		clusterResourceListResponse["Name"] = replicaSet.Name
-		clusterResourceListResponse["Namespace"] = replicaSet.Namespace
-		clusterResourceListResponse["Status"] = ""
+		clusterResourceListResponse["name"] = replicaSet.Name
+		clusterResourceListResponse["namespace"] = replicaSet.Namespace
+		clusterResourceListResponse["status"] = ""
 	case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.StatefulSetKind}:
 		var statefulSet v1beta2.StatefulSet
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &statefulSet)
@@ -569,53 +569,61 @@ func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (map[stri
 			return nil, err
 		}
 		clusterResourceListResponse["Name"] = statefulSet.Name
-		clusterResourceListResponse["Namespace"] = statefulSet.Namespace
-		clusterResourceListResponse["Status"] = ""
+		clusterResourceListResponse["namespace"] = statefulSet.Namespace
+		clusterResourceListResponse["status"] = ""
 	case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.DaemonSetKind}:
 		var daemonSet v1beta2.DaemonSet
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &daemonSet)
 		if err != nil {
 			return nil, err
 		}
-		clusterResourceListResponse["Name"] = daemonSet.Name
-		clusterResourceListResponse["Namespace"] = daemonSet.Namespace
-		clusterResourceListResponse["Status"] = ""
+		clusterResourceListResponse["name"] = daemonSet.Name
+		clusterResourceListResponse["namespace"] = daemonSet.Namespace
+		clusterResourceListResponse["status"] = ""
 	case schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: kube.JobKind}:
 		var job batchV1.Job
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &job)
 		if err != nil {
 			return nil, err
 		}
-		clusterResourceListResponse["Name"] = job.Name
-		clusterResourceListResponse["Namespace"] = job.Namespace
-		clusterResourceListResponse["Status"] = ""
+		clusterResourceListResponse["name"] = job.Name
+		clusterResourceListResponse["namespace"] = job.Namespace
+		clusterResourceListResponse["status"] = ""
 	case schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "CronJob"}:
 		var cronJob batchV1.CronJob
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &cronJob)
 		if err != nil {
 			return nil, err
 		}
-		clusterResourceListResponse["Name"] = cronJob.Name
-		clusterResourceListResponse["Namespace"] = cronJob.Namespace
-		clusterResourceListResponse["Status"] = ""
+		clusterResourceListResponse["name"] = cronJob.Name
+		clusterResourceListResponse["namespace"] = cronJob.Namespace
+		clusterResourceListResponse["status"] = ""
 	case schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ReplicationController"}:
 		var replicationController v1.ReplicationController
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &replicationController)
 		if err != nil {
 			return nil, err
 		}
-		clusterResourceListResponse["Name"] = replicationController.Name
-		clusterResourceListResponse["Namespace"] = replicationController.Namespace
-		clusterResourceListResponse["Status"] = ""
+		clusterResourceListResponse["name"] = replicationController.Name
+		clusterResourceListResponse["namespace"] = replicationController.Namespace
+		clusterResourceListResponse["status"] = ""
 	case schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Rollout"}:
 		var rolloutSpec map[string]interface{}
 		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &rolloutSpec)
 		if err != nil {
 			return nil, err
 		}
-		clusterResourceListResponse["Name"] = rolloutSpec["name"].(string)
-		clusterResourceListResponse["Namespace"] = rolloutSpec["namespace"].(string)
-		clusterResourceListResponse["Status"] = ""
+		clusterResourceListResponse["name"] = rolloutSpec["name"].(string)
+		clusterResourceListResponse["namespace"] = rolloutSpec["namespace"].(string)
+		clusterResourceListResponse["status"] = ""
+	default:
+		var otherResource map[string]interface{}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &otherResource)
+		if err != nil {
+			return nil, err
+		}
+		clusterResourceListResponse["name"] = otherResource["name"].(string)
+		clusterResourceListResponse["namespace"] = otherResource["namespace"].(string)
 	}
 
 	return clusterResourceListResponse, nil
