@@ -26,6 +26,7 @@ type K8sClientService interface {
 	ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error)
 	GetPodLogs(restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error)
 	GetApiResources(restConfig *rest.Config) ([]*K8sApiResource, error)
+	GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, error)
 }
 
 type K8sClientServiceImpl struct {
@@ -65,6 +66,10 @@ type ManifestResponse struct {
 
 type EventsResponse struct {
 	Events *apiv1.EventList `json:"events,omitempty"`
+}
+
+type ResourceListResponse struct {
+	Resources unstructured.UnstructuredList `json:"resources,omitempty"`
 }
 
 func (impl K8sClientServiceImpl) GetResource(restConfig *rest.Config, request *K8sRequestBean) (*ManifestResponse, error) {
@@ -294,4 +299,30 @@ func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config) ([]*K8
 		}
 	}
 	return apiResources, nil
+}
+
+func (impl K8sClientServiceImpl) GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, error) {
+	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
+		return nil, err
+	}
+	resourceIdentifier := request.ResourceIdentifier
+	var resp *unstructured.UnstructuredList
+	listOptions := metav1.ListOptions{
+		TypeMeta: metav1.TypeMeta{
+			Kind:       resourceIdentifier.GroupVersionKind.Kind,
+			APIVersion: resourceIdentifier.GroupVersionKind.GroupVersion().String(),
+		},
+	}
+	if len(resourceIdentifier.Namespace) > 0 && namespaced {
+		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).List(context.Background(), listOptions)
+	} else {
+		resp, err = resourceIf.List(context.Background(), listOptions)
+	}
+	if err != nil {
+		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier)
+		return nil, err
+	}
+	return &ResourceListResponse{*resp}, nil
 }

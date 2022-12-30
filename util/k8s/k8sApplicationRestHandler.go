@@ -38,6 +38,7 @@ type K8sApplicationRestHandler interface {
 	GetResourceInfo(w http.ResponseWriter, r *http.Request)
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 	GetAllApiResources(w http.ResponseWriter, r *http.Request)
+	GetResourceList(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -582,6 +583,29 @@ func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.Response
 	if err != nil {
 		handler.logger.Errorw("error in getting api-resources", "clusterId", clusterId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWriter, r *http.Request) {
+	decoder := json.NewDecoder(r.Body)
+	var request ClusterResourceRequest
+	err := decoder.Decode(&request)
+	if err != nil {
+		handler.logger.Errorw("error in decoding request body", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	// RBAC enforcer applying
+	// TODO
+	//RBAC enforcer Ends
+
+	response, err := handler.k8sApplicationService.GetResourceList(&request)
+	if err != nil {
+		handler.logger.Errorw("error in getting resource list", "err", err)
+		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
 		return
 	}
 	common.WriteJsonResp(w, nil, response, http.StatusOK)

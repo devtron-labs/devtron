@@ -22,6 +22,11 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"k8s.io/api/apps/v1beta2"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"os/user"
 	"path/filepath"
 	"time"
@@ -521,4 +526,105 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	} else {
 		return pod, nil
 	}
+}
+
+func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (map[string]string, error) {
+	clusterResourceListResponse := make(map[string]string)
+	switch manifest.GroupVersionKind() {
+	case schema.GroupVersionKind{Group: "", Version: "v1", Kind: kube.PodKind}:
+		var pod v1.Pod
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &pod)
+		if err != nil {
+			return nil, err
+		}
+		clusterResourceListResponse["name"] = pod.Name
+		clusterResourceListResponse["namespace"] = pod.Namespace
+		clusterResourceListResponse["age"] = ""
+		clusterResourceListResponse["ready"] = ""
+		clusterResourceListResponse["restarts"] = ""
+		clusterResourceListResponse["status"] = ""
+		clusterResourceListResponse["url"] = ""
+	case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.DeploymentKind}:
+		var deployment v1beta2.Deployment
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &deployment)
+		if err != nil {
+			return nil, err
+		}
+		clusterResourceListResponse["name"] = deployment.Name
+		clusterResourceListResponse["namespace"] = deployment.Namespace
+		clusterResourceListResponse["status"] = ""
+	case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.ReplicaSetKind}:
+		var replicaSet v1beta2.ReplicaSet
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &replicaSet)
+		if err != nil {
+			return nil, err
+		}
+		clusterResourceListResponse["name"] = replicaSet.Name
+		clusterResourceListResponse["namespace"] = replicaSet.Namespace
+		clusterResourceListResponse["status"] = ""
+	case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.StatefulSetKind}:
+		var statefulSet v1beta2.StatefulSet
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &statefulSet)
+		if err != nil {
+			return nil, err
+		}
+		clusterResourceListResponse["Name"] = statefulSet.Name
+		clusterResourceListResponse["namespace"] = statefulSet.Namespace
+		clusterResourceListResponse["status"] = ""
+	case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.DaemonSetKind}:
+		var daemonSet v1beta2.DaemonSet
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &daemonSet)
+		if err != nil {
+			return nil, err
+		}
+		clusterResourceListResponse["name"] = daemonSet.Name
+		clusterResourceListResponse["namespace"] = daemonSet.Namespace
+		clusterResourceListResponse["status"] = ""
+	case schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: kube.JobKind}:
+		var job batchV1.Job
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &job)
+		if err != nil {
+			return nil, err
+		}
+		clusterResourceListResponse["name"] = job.Name
+		clusterResourceListResponse["namespace"] = job.Namespace
+		clusterResourceListResponse["status"] = ""
+	case schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "CronJob"}:
+		var cronJob batchV1.CronJob
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &cronJob)
+		if err != nil {
+			return nil, err
+		}
+		clusterResourceListResponse["name"] = cronJob.Name
+		clusterResourceListResponse["namespace"] = cronJob.Namespace
+		clusterResourceListResponse["status"] = ""
+	case schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ReplicationController"}:
+		var replicationController v1.ReplicationController
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &replicationController)
+		if err != nil {
+			return nil, err
+		}
+		clusterResourceListResponse["name"] = replicationController.Name
+		clusterResourceListResponse["namespace"] = replicationController.Namespace
+		clusterResourceListResponse["status"] = ""
+	case schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Rollout"}:
+		var rolloutSpec map[string]interface{}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &rolloutSpec)
+		if err != nil {
+			return nil, err
+		}
+		clusterResourceListResponse["name"] = rolloutSpec["name"].(string)
+		clusterResourceListResponse["namespace"] = rolloutSpec["namespace"].(string)
+		clusterResourceListResponse["status"] = ""
+	default:
+		var otherResource map[string]interface{}
+		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &otherResource)
+		if err != nil {
+			return nil, err
+		}
+		clusterResourceListResponse["name"] = otherResource["name"].(string)
+		clusterResourceListResponse["namespace"] = otherResource["namespace"].(string)
+	}
+
+	return clusterResourceListResponse, nil
 }
