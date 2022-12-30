@@ -51,6 +51,7 @@ type ClusterRestHandler interface {
 
 	FindAllForAutoComplete(w http.ResponseWriter, r *http.Request)
 	DeleteCluster(w http.ResponseWriter, r *http.Request)
+	GetClusterNamespaces(w http.ResponseWriter, r *http.Request)
 	GetAllClusterNamespaces(w http.ResponseWriter, r *http.Request)
 }
 
@@ -375,4 +376,42 @@ func (impl ClusterRestHandlerImpl) GetAllClusterNamespaces(w http.ResponseWriter
 	//RBAC enforcer Ends
 
 	common.WriteJsonResp(w, nil, clusterNamespaces, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r *http.Request) {
+	//token := r.Header.Get("token")
+	vars := mux.Vars(r)
+	clusterIdString := vars["clusterId"]
+
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		impl.logger.Errorw("user not authorized", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	clusterId, err := strconv.Atoi(clusterIdString)
+	if err != nil {
+		impl.logger.Errorw("failed to extract clusterId from param", "error", err, "clusterId", clusterIdString)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+
+	clusterBean, err := impl.clusterService.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("failed to find cluster for id", "error", err, "clusterId", clusterId)
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	clusterName := clusterBean.ClusterName
+	allClusterNamespaces := impl.clusterService.GetAllClusterNamespaces()
+	clusterNamespaces := allClusterNamespaces[clusterName]
+
+	var filteredNamespaces []string
+	for _, clusterNamespace := range clusterNamespaces {
+		//check for RBAC
+		filteredNamespaces = append(filteredNamespaces, clusterNamespace)
+	}
+
+	common.WriteJsonResp(w, nil, filteredNamespaces, http.StatusOK)
 }
