@@ -16,6 +16,7 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
+	"strings"
 )
 
 type K8sClientService interface {
@@ -280,7 +281,7 @@ func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config) ([]*K8
 		return nil, err
 	}
 
-	_, apiResourcesListFromK8s, err := discoveryClient.ServerGroupsAndResources()
+	apiResourcesListFromK8s, err := discoveryClient.ServerPreferredResources()
 	if err != nil {
 		impl.logger.Errorw("error in getting api-resources from k8s", "err", err)
 		return nil, err
@@ -290,10 +291,22 @@ func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config) ([]*K8
 	for _, apiResourceListFromK8s := range apiResourcesListFromK8s {
 		if apiResourceListFromK8s != nil {
 			for _, apiResourceFromK8s := range apiResourceListFromK8s.APIResources {
+				var group string
+				var version string
+				gv := apiResourceListFromK8s.GroupVersion
+				if len(gv) > 0 {
+					splitGv := strings.Split(gv, "/")
+					if len(splitGv) == 1 {
+						version = splitGv[0]
+					} else {
+						group = splitGv[0]
+						version = splitGv[1]
+					}
+				}
 				apiResources = append(apiResources, &K8sApiResource{
 					Gvk: schema.GroupVersionKind{
-						Group:   apiResourceFromK8s.Group,
-						Version: apiResourceFromK8s.Version,
+						Group:   group,
+						Version: version,
 						Kind:    apiResourceFromK8s.Kind,
 					},
 					Namespaced: apiResourceFromK8s.Namespaced,
