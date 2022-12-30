@@ -26,7 +26,7 @@ type ChartGroupRouterImpl struct {
 	ChartGroupRestHandler restHandler.ChartGroupRestHandler
 }
 type ChartGroupRouter interface {
-	initChartGroupRouter(helmRouter *mux.Router)
+	InitChartGroupRouter(helmRouter *mux.Router)
 }
 
 func NewChartGroupRouterImpl(ChartGroupRestHandler restHandler.ChartGroupRestHandler) *ChartGroupRouterImpl {
@@ -34,7 +34,7 @@ func NewChartGroupRouterImpl(ChartGroupRestHandler restHandler.ChartGroupRestHan
 
 }
 
-func (impl *ChartGroupRouterImpl) initChartGroupRouter(chartGroupRouter *mux.Router) {
+func (impl *ChartGroupRouterImpl) InitChartGroupRouter(chartGroupRouter *mux.Router) {
 	chartGroupRouter.Path("/").
 		HandlerFunc(impl.ChartGroupRestHandler.CreateChartGroup).Methods("POST")
 	chartGroupRouter.Path("/").

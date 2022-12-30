@@ -316,7 +316,7 @@ func (r MuxRouter) Init() {
 	r.batchOperationRouter.initBatchOperationRouter(rootRouter)
 
 	chartGroupRouter := r.Router.PathPrefix("/orchestrator/chart-group").Subrouter()
-	r.chartGroupRouter.initChartGroupRouter(chartGroupRouter)
+	r.chartGroupRouter.InitChartGroupRouter(chartGroupRouter)
 
 	testSuitRouter := r.Router.PathPrefix("/orchestrator/test-report").Subrouter()
 	r.testSuitRouter.InitTestSuitRouter(testSuitRouter)

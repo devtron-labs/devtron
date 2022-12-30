@@ -57,6 +57,7 @@ type MuxRouter struct {
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter
 	attributesRouter         router.AttributesRouter
 	appRouter                router.AppRouter
+	chartGroupRouter         router.ChartGroupRouter
 }
 
 func NewMuxRouter(
@@ -86,6 +87,7 @@ func NewMuxRouter(
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
 	attributesRouter router.AttributesRouter,
 	appRouter router.AppRouter,
+	chartGroupRouter router.ChartGroupRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -116,6 +118,7 @@ func NewMuxRouter(
 		userTerminalAccessRouter: userTerminalAccessRouter,
 		attributesRouter:         attributesRouter,
 		appRouter:                appRouter,
+		chartGroupRouter:         chartGroupRouter,
 	}
 	return r
 }
@@ -238,4 +241,8 @@ func (r *MuxRouter) Init() {
 
 	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
 	r.attributesRouter.InitAttributesRouter(attributeRouter)
+
+	chartGroupRouter := r.Router.PathPrefix("/orchestrator/chart-group").Subrouter()
+	r.chartGroupRouter.InitChartGroupRouter(chartGroupRouter)
+
 }
