@@ -13,7 +13,7 @@ import (
 )
 
 type UserCommonService interface {
-	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx, token string, managerAuth func(token string, object string) bool) ([]casbin2.Policy, error)
+	RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]casbin2.Policy, error)
 	RemoveRolesAndReturnEliminatedPoliciesForGroups(request *bean.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, eliminatedRoles map[int]*repository2.RoleGroupRoleMapping, tx *pg.Tx, token string, managerAuth func(resource string, token string, object string) bool) ([]casbin2.Policy, error)
 }
 
@@ -41,52 +41,120 @@ func NewUserCommonServiceImpl(userAuthRepository repository2.UserAuthRepository,
 	return serviceImpl
 }
 
-func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo, existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel, tx *pg.Tx, token string, managerAuth func(token string, object string) bool) ([]casbin2.Policy, error) {
+func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInfo *bean.UserInfo,
+	existingRoleIds map[int]repository2.UserRoleModel, eliminatedRoleIds map[int]*repository2.UserRoleModel,
+	tx *pg.Tx, token string, managerAuth func(resource, token, object string) bool) ([]casbin2.Policy, error) {
 	var eliminatedPolicies []casbin2.Policy
 	// DELETE Removed Items
 	for _, roleFilter := range userInfo.RoleFilters {
-		if len(roleFilter.Team) > 0 { // check auth only for apps permission, skip for chart group
-			rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
-			isValidAuth := managerAuth(token, rbacObject)
-			if !isValidAuth {
-				continue
+		if roleFilter.Entity == bean.CLUSTER_ENTITIY {
+			if roleFilter.Namespace == "" {
+				roleFilter.Namespace = "NONE"
 			}
-		}
+			if roleFilter.Group == "" {
+				roleFilter.Group = "NONE"
+			}
+			if roleFilter.Kind == "" {
+				roleFilter.Kind = "NONE"
+			}
+			if roleFilter.Resource == "" {
+				roleFilter.Resource = "NONE"
+			}
+			namespaces := strings.Split(roleFilter.Namespace, ",")
+			groups := strings.Split(roleFilter.Group, ",")
+			kinds := strings.Split(roleFilter.Kind, ",")
+			resources := strings.Split(roleFilter.Resource, ",")
 
-		if roleFilter.EntityName == "" {
-			roleFilter.EntityName = "NONE"
-		}
-		if roleFilter.Environment == "" {
-			roleFilter.Environment = "NONE"
-		}
-		entityNames := strings.Split(roleFilter.EntityName, ",")
-		environments := strings.Split(roleFilter.Environment, ",")
-		for _, environment := range environments {
-			for _, entityName := range entityNames {
-				if entityName == "NONE" {
-					entityName = ""
+			for _, namespace := range namespaces {
+				for _, group := range groups {
+					for _, kind := range kinds {
+						for _, resource := range resources {
+							namespaceObj := namespace
+							groupObj := group
+							kindObj := kind
+							resourceObj := resource
+							if namespace == "NONE" {
+								namespace = ""
+								namespaceObj = "*"
+							}
+							if group == "NONE" {
+								group = ""
+								groupObj = "*"
+							}
+							if kind == "NONE" {
+								kind = ""
+								kindObj = "*"
+							}
+							if resource == "NONE" {
+								resource = ""
+								resourceObj = "*"
+							}
+							rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(roleFilter.Cluster), strings.ToLower(namespaceObj), casbin2.ResourceUser)
+							rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
+							isValidAuth := managerAuth(rbacResource, token, rbacObject)
+							if !isValidAuth {
+								continue
+							}
+							roleModel, err := impl.userAuthRepository.GetRoleByFilterForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, roleFilter.Action)
+							if err != nil {
+								impl.logger.Errorw("Error in fetching roles by filter", "roleFilter", roleFilter)
+								return nil, err
+							}
+							if roleModel.Id == 0 {
+								impl.logger.Warnw("no role found for given filter", "filter", roleFilter)
+								continue
+							}
+							if _, ok := existingRoleIds[roleModel.Id]; ok {
+								delete(existingRoleIds, roleModel.Id)
+							}
+						}
+					}
 				}
-				if environment == "NONE" {
-					environment = ""
-				}
-				roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
-				if err != nil {
-					impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
-					return nil, err
-				}
-				if roleModel.Id == 0 {
-					impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
-					userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
+			}
+		} else {
+			if len(roleFilter.Team) > 0 { // check auth only for apps permission, skip for chart group
+				rbacObject := fmt.Sprintf("%s", strings.ToLower(roleFilter.Team))
+				isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
+				if !isValidAuth {
 					continue
 				}
-				if _, ok := existingRoleIds[roleModel.Id]; ok {
-					delete(eliminatedRoleIds, roleModel.Id)
+			}
+
+			if roleFilter.EntityName == "" {
+				roleFilter.EntityName = "NONE"
+			}
+			if roleFilter.Environment == "" {
+				roleFilter.Environment = "NONE"
+			}
+			entityNames := strings.Split(roleFilter.EntityName, ",")
+			environments := strings.Split(roleFilter.Environment, ",")
+			for _, environment := range environments {
+				for _, entityName := range entityNames {
+					if entityName == "NONE" {
+						entityName = ""
+					}
+					if environment == "NONE" {
+						environment = ""
+					}
+					roleModel, err := impl.userAuthRepository.GetRoleByFilter(roleFilter.Entity, roleFilter.Team, entityName, environment, roleFilter.Action, roleFilter.AccessType)
+					if err != nil {
+						impl.logger.Errorw("Error in fetching roles by filter", "user", userInfo)
+						return nil, err
+					}
+					if roleModel.Id == 0 {
+						impl.logger.Debugw("no role found for given filter", "filter", roleFilter)
+						userInfo.Status = "role not fount for any given filter: " + roleFilter.Team + "," + environment + "," + entityName + "," + roleFilter.Action
+						continue
+					}
+					if _, ok := existingRoleIds[roleModel.Id]; ok {
+						delete(eliminatedRoleIds, roleModel.Id)
+					}
 				}
 			}
 		}
 	}
 
-	//delete remaining Ids from casbin role mapping table in orchestrator and casbin policy db
+	// delete remaining Ids from casbin role mapping table in orchestrator and casbin policy db
 	// which are existing but not provided in this request
 
 	for _, userRoleModel := range eliminatedRoleIds {
@@ -96,7 +164,31 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 		}
 		if len(role.Team) > 0 {
 			rbacObject := fmt.Sprintf("%s", strings.ToLower(role.Team))
-			isValidAuth := managerAuth(token, rbacObject)
+			isValidAuth := managerAuth(casbin2.ResourceUser, token, rbacObject)
+			if !isValidAuth {
+				continue
+			}
+		}
+		if role.Entity == bean.CLUSTER_ENTITIY {
+			namespaceObj := role.Namespace
+			groupObj := role.Group
+			kindObj := role.Kind
+			resourceObj := role.Resource
+			if role.Namespace == "" {
+				namespaceObj = "*"
+			}
+			if role.Group == "" {
+				groupObj = "*"
+			}
+			if role.Kind == "" {
+				kindObj = "*"
+			}
+			if role.Resource == "" {
+				resourceObj = "*"
+			}
+			rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(role.Cluster), strings.ToLower(namespaceObj), casbin2.ResourceUser)
+			rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
+			isValidAuth := managerAuth(rbacResource, token, rbacObject)
 			if !isValidAuth {
 				continue
 			}
@@ -164,7 +256,7 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 							if !isValidAuth {
 								continue
 							}
-							roleModel, err := impl.userAuthRepository.GetRoleByFilter()
+							roleModel, err := impl.userAuthRepository.GetRoleByFilterForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, roleFilter.Action)
 							if err != nil {
 								impl.logger.Errorw("Error in fetching roles by filter", "user", request)
 								return nil, err

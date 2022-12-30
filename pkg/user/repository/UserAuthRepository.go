@@ -65,6 +65,8 @@ type UserAuthRepository interface {
 	GetRolesForApp(appName string) ([]*RoleModel, error)
 	GetRolesForChartGroup(chartGroupName string) ([]*RoleModel, error)
 	DeleteRole(role *RoleModel, tx *pg.Tx) error
+
+	GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -296,6 +298,49 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilter(entity string, team string, a
 
 	if err != nil {
 		impl.Logger.Errorw("exception while fetching roles", "err", err)
+		return model, err
+	}
+	return model, nil
+}
+
+func (impl UserAuthRepositoryImpl) GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error) {
+	var model RoleModel
+	query := "SELECT * FROM roles  WHERE entity = ? "
+	var err error
+
+	if len(cluster) > 0 {
+		query += " and cluster='" + cluster + "' "
+	} else {
+		query += " and cluster IS NULL "
+	}
+	if len(namespace) > 0 {
+		query += " and namespace='" + namespace + "' "
+	} else {
+		query += " and namespace IS NULL "
+	}
+	if len(group) > 0 {
+		query += " and group='" + group + "' "
+	} else {
+		query += " and group IS NULL "
+	}
+	if len(kind) > 0 {
+		query += " and kind='" + kind + "' "
+	} else {
+		query += " and kind IS NULL "
+	}
+	if len(resource) > 0 {
+		query += " and resource='" + resource + "' "
+	} else {
+		query += " and resource IS NULL "
+	}
+	if len(action) > 0 {
+		query += " and action='" + action + "' ;"
+	} else {
+		query += " and action IS NULL ;"
+	}
+	_, err = impl.dbConnection.Query(&model, query, bean.CLUSTER_ENTITIY)
+	if err != nil {
+		impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err)
 		return model, err
 	}
 	return model, nil

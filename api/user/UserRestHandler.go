@@ -507,6 +507,30 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 					return
 				}
 			}
+			if filter.Entity == bean.CLUSTER_ENTITIY && !isActionUserSuperAdmin {
+				namespaceObj := filter.Namespace
+				groupObj := filter.Group
+				kindObj := filter.Kind
+				resourceObj := filter.Resource
+				if filter.Namespace == "" {
+					namespaceObj = "*"
+				}
+				if filter.Group == "" {
+					groupObj = "*"
+				}
+				if filter.Kind == "" {
+					kindObj = "*"
+				}
+				if filter.Resource == "NONE" {
+					resourceObj = "*"
+				}
+				rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(filter.Cluster), strings.ToLower(namespaceObj), casbin.ResourceUser)
+				rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
+				if ok := handler.enforcer.Enforce(token, rbacResource, casbin.ActionCreate, rbacObject); !ok {
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					return
+				}
+			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, "*"); !ok {
@@ -881,8 +905,8 @@ func (handler UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r 
 
 }
 
-func (handler UserRestHandlerImpl) CheckManagerAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
+func (handler UserRestHandlerImpl) CheckManagerAuth(resource, token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, strings.ToLower(object)); !ok {
 		return false
 	}
 	return true

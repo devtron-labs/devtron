@@ -111,7 +111,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 		var policies []casbin2.Policy
 		for _, roleFilter := range request.RoleFilters {
 			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
-				policiesToBeAdded, err := impl.CreateUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, "", nil, tx)
+				policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, model, nil, "", nil, tx)
 				policies = append(policies, policiesToBeAdded...)
 				if err != nil {
 					impl.logger.Errorw("error in creating updating role group for cluster entity", "err", err, "roleFilter", roleFilter)
@@ -214,7 +214,7 @@ func (impl RoleGroupServiceImpl) CreateRoleGroup(request *bean.RoleGroup) (*bean
 	return request, nil
 }
 
-func (impl RoleGroupServiceImpl) CreateUpdateRoleGroupForClusterEntity(roleFilter bean.RoleFilter, userId int32,
+func (impl RoleGroupServiceImpl) CreateOrUpdateRoleGroupForClusterEntity(roleFilter bean.RoleFilter, userId int32,
 	model *repository2.RoleGroup, existingRoles map[int]*repository2.RoleGroupRoleMapping, token string,
 	managerAuth func(resource, token string, object string) bool, tx *pg.Tx) ([]casbin2.Policy, error) {
 	var policiesToBeAdded []casbin2.Policy
@@ -267,7 +267,7 @@ func (impl RoleGroupServiceImpl) CreateUpdateRoleGroupForClusterEntity(roleFilte
 							continue
 						}
 					}
-					roleModel, err := impl.userAuthRepository.GetRoleByFilter()
+					roleModel, err := impl.userAuthRepository.GetRoleByFilterForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, roleFilter.Action)
 					if err != nil {
 						impl.logger.Errorw("Error in fetching role by filter", "err", err)
 						return policiesToBeAdded, err
@@ -277,7 +277,7 @@ func (impl RoleGroupServiceImpl) CreateUpdateRoleGroupForClusterEntity(roleFilte
 						if err != nil || flag == false {
 							return policiesToBeAdded, err
 						}
-						roleModel, err = impl.userAuthRepository.GetRoleByFilter()
+						roleModel, err = impl.userAuthRepository.GetRoleByFilterForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, roleFilter.Action)
 						if err != nil {
 							impl.logger.Errorw("Error in fetching role by filter", "err", err)
 							return policiesToBeAdded, err
@@ -288,7 +288,7 @@ func (impl RoleGroupServiceImpl) CreateUpdateRoleGroupForClusterEntity(roleFilte
 						}
 					}
 					if _, ok := existingRoles[roleModel.Id]; ok {
-						//Adding policies which is removed
+						//Adding policies which are removed
 						policiesToBeAdded = append(policiesToBeAdded, casbin2.Policy{Type: "g", Sub: casbin2.Subject(model.CasbinName), Obj: casbin2.Object(roleModel.Role)})
 					} else {
 						if roleModel.Id > 0 {
@@ -366,7 +366,7 @@ func (impl RoleGroupServiceImpl) UpdateRoleGroup(request *bean.RoleGroup, token 
 	var policies []casbin2.Policy
 	for _, roleFilter := range request.RoleFilters {
 		if roleFilter.Entity == bean.CLUSTER_ENTITIY {
-			policiesToBeAdded, err := impl.CreateUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, token, managerAuth, tx)
+			policiesToBeAdded, err := impl.CreateOrUpdateRoleGroupForClusterEntity(roleFilter, request.UserId, roleGroup, existingRoles, token, managerAuth, tx)
 			policies = append(policies, policiesToBeAdded...)
 			if err != nil {
 				impl.logger.Errorw("error in creating updating role group for cluster entity", "err", err, "roleFilter", roleFilter)
@@ -521,7 +521,12 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository2.Rol
 		if len(role.Team) > 0 {
 			key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
 		} else if len(role.Entity) > 0 {
-			key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
+			if role.Entity == bean.CLUSTER_ENTITIY {
+				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
+					role.Namespace, role.Group, role.Kind, role.Resource)
+			} else {
+				key = fmt.Sprintf("%s_%s", role.Entity, role.Action)
+			}
 		}
 		if _, ok := roleFilterMap[key]; ok {
 			if role.Entity == bean.CLUSTER_ENTITIY {
@@ -550,7 +555,6 @@ func (impl RoleGroupServiceImpl) getRoleGroupMetadata(roleGroup *repository2.Rol
 					roleFilterMap[key].Resource = fmt.Sprintf("%s,%s", roleFilterMap[key].Resource, role.Resource)
 				}
 			} else {
-
 				envArr := strings.Split(roleFilterMap[key].Environment, ",")
 				if containsArr(envArr, AllEnvironment) {
 					roleFilterMap[key].Environment = AllEnvironment
@@ -721,6 +725,11 @@ func (impl RoleGroupServiceImpl) FetchRolesForGroups(groupNames []string) ([]*be
 			Environment: role.Environment,
 			Team:        role.Team,
 			AccessType:  role.AccessType,
+			Cluster:     role.Cluster,
+			Namespace:   role.Namespace,
+			Group:       role.Group,
+			Kind:        role.Kind,
+			Resource:    role.Resource,
 		}
 		list = append(list, bean)
 	}
