@@ -45,7 +45,7 @@ type K8sApplicationService interface {
 	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
 	GetAllApiResources(clusterId int) ([]*application.K8sApiResource, error)
 	GetResourceList(request *ResourceRequestBean) ([]*ClusterResourceListResponse, error)
-	CreateResources(request *application.CreateResourcesRequest) ([]*application.CreateResourcesResponse, error)
+	ApplyResources(request *application.ApplyResourcesRequest) ([]*application.ApplyResourcesResponse, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -548,7 +548,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestB
 	return resourceList, nil
 }
 
-func (impl *K8sApplicationServiceImpl) CreateResources(request *application.CreateResourcesRequest) ([]*application.CreateResourcesResponse, error) {
+func (impl *K8sApplicationServiceImpl) ApplyResources(request *application.ApplyResourcesRequest) ([]*application.ApplyResourcesResponse, error) {
 	manifests, err := yamlUtil.SplitYAMLs([]byte(request.Manifest))
 	if err != nil {
 		impl.logger.Errorw("error in splitting yaml in manifest", "err", err)
@@ -563,13 +563,13 @@ func (impl *K8sApplicationServiceImpl) CreateResources(request *application.Crea
 		return nil, err
 	}
 
-	var response []*application.CreateResourcesResponse
+	var response []*application.ApplyResourcesResponse
 	for _, manifest := range manifests {
-		manifestRes := &application.CreateResourcesResponse{
+		manifestRes := &application.ApplyResourcesResponse{
 			Name: manifest.GetName(),
 			Kind: manifest.GetKind(),
 		}
-		err = impl.createResourceFromManifest(manifest, restConfig)
+		err = impl.applyResourceFromManifest(manifest, restConfig)
 		if err != nil {
 			manifestRes.Error = err.Error()
 		}
@@ -579,7 +579,7 @@ func (impl *K8sApplicationServiceImpl) CreateResources(request *application.Crea
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) createResourceFromManifest(manifest unstructured.Unstructured, restConfig *rest.Config) error {
+func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstructured.Unstructured, restConfig *rest.Config) error {
 	jsonStr, err := json.Marshal(manifest.UnstructuredContent())
 	if err != nil {
 		impl.logger.Errorw("error in marshalling json", "err", err)
@@ -592,9 +592,9 @@ func (impl *K8sApplicationServiceImpl) createResourceFromManifest(manifest unstr
 			GroupVersionKind: manifest.GroupVersionKind(),
 		},
 	}
-	_, err = impl.k8sClientService.CreateResource(restConfig, k8sRequestBean, string(jsonStr))
+	_, err = impl.k8sClientService.ApplyResource(restConfig, k8sRequestBean, string(jsonStr))
 	if err != nil {
-		impl.logger.Errorw("error in creating resource", "err", err)
+		impl.logger.Errorw("error in applying resource", "err", err)
 		return err
 	}
 	return nil

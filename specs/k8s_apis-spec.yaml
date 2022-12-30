@@ -266,16 +266,16 @@ paths:
                     description: app list
                     items:
                       $ref: '#/components/schemas/ClusterResourceListResponse'
-  /orchestrator/k8s/resources:
+  /orchestrator/k8s/resources/apply:
     post:
-      description: this api will be used to create the resources in cluster
+      description: this api will be used to apply the resources in cluster
       requestBody:
         description: json as request body
         required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/CreateResourcesRequest'
+              $ref: '#/components/schemas/ApplyResourcesRequest'
       responses:
         '200':
           description: response in array of each resource
@@ -284,7 +284,7 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: "#/components/schemas/CreateResourcesResponse"
+                  $ref: "#/components/schemas/ApplyResourcesResponse"
 components:
   schemas:
     TerminalMessage:
@@ -543,7 +543,7 @@ components:
         url:
           type: string
           description: service url
-    CreateResourcesRequest:
+    ApplyResourcesRequest:
       type: object
       properties:
         clusterId:
@@ -556,7 +556,7 @@ components:
           description: manifest of the resources (yamls saparated by ---)
           example: ""
           nullable: false
-    CreateResourcesResponse:
+    ApplyResourcesResponse:
       type: object
       properties:
         kind:

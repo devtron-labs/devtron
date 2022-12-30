@@ -9,12 +9,12 @@ type K8sApiResource struct {
 	Namespaced bool                    `json:"namespaced"`
 }
 
-type CreateResourcesRequest struct {
+type ApplyResourcesRequest struct {
 	Manifest  string `json:"manifest"`
 	ClusterId int    `json:"clusterId"`
 }
 
-type CreateResourcesResponse struct {
+type ApplyResourcesResponse struct {
 	Kind     string `json:"kind"`
 	Name     string `json:"name"`
 	Error    string `json:"error"`
