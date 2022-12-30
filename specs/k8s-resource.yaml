@@ -1,0 +1,118 @@
+openapi: "3.0.3"
+info:
+  version: 1.0.0
+  title: Devtron Labs
+paths:
+  /orchestrator/k8s/resource/list:
+    post:
+      description: this api will be used for fetching all kind of manifest.
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: app list
+                    items:
+                      $ref: '#/components/schemas/ClusterResourceListResponse'
+
+
+components:
+  schemas:
+    ResourceRequestObject:
+      type: object
+      properties:
+        clusterId:
+          type: number
+          description: clusterId is used when request is for direct cluster (when appId is not supplied)
+        k8sRequest:
+          $ref: '#/components/schemas/K8sRequestObject'
+    K8sRequestObject:
+      type: object
+      properties:
+        resourceIdentifier:
+          type: object
+          properties:
+            groupVersionKind:
+              type: object
+              properties:
+                Group:
+                  type: string
+                Version:
+                  type: string
+                Kind:
+                  type: string
+            namespace:
+              type: string
+            name:
+              type: string
+          required:
+            - name
+    ClusterResourceListResponse:
+      type: object
+      properties:
+        name:
+          type: string
+          description: resource name
+        namespace:
+          type: string
+          description: resource namespace
+        age:
+          type: string
+          description: resource age
+        status:
+            type: string
+            description: resource status
+        ready:
+          type: string
+          description: ready count
+        restarts:
+            type: string
+            description: restart count
+        url:
+          type: string
+          description: service url
+    K8sApiResource:
+      type: object
+      properties:
+        gvk:
+          $ref: '#/components/schemas/GroupVersionKind'
+        namespaced:
+          type: boolean
+          description: whether this api resource is in namespaces scope or global
+          example: true
+          nullable: false
+    GroupVersionKind:
+      type: object
+      properties:
+        group:
+          type: string
+          description: group of the api-resource
+          example: "apps"
+          nullable: false
+        version:
+          type: string
+          description: version of the api-resource
+          example: "v1"
+          nullable: false
+        kind:
+          type: string
+          description: kind of the api-resource
+          example: "pod"
+          nullable: false

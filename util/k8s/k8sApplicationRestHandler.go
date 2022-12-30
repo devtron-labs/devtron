@@ -92,9 +92,10 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	}
 
 	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
+	if !ok {
 		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -135,8 +136,12 @@ func (handler *K8sApplicationRestHandlerImpl) GetHostUrlsByBatch(w http.Response
 		return
 	}
 	// RBAC enforcer applying
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, ""); !ok {
+
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
+
+	if !ok {
 		common.WriteJsonResp(w, fmt.Errorf("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -195,9 +200,10 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResource(w http.ResponseWrit
 	//setting appIdentifier value in request
 	request.AppIdentifier = appIdentifier
 	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+	if !ok {
 		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -235,9 +241,10 @@ func (handler *K8sApplicationRestHandlerImpl) UpdateResource(w http.ResponseWrit
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+	if !ok {
 		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -275,9 +282,12 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject); !ok {
+
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject2)
+
+	if !ok {
 		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -315,9 +325,12 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
+
+	if !ok {
 		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -379,9 +392,12 @@ func (handler *K8sApplicationRestHandlerImpl) GetPodLogs(w http.ResponseWriter, 
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
+
+	if !ok {
 		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -422,9 +438,12 @@ func (handler *K8sApplicationRestHandlerImpl) GetTerminalSession(w http.Response
 	request.ClusterId = app.ClusterId
 
 	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(app.ClusterId, app.Namespace, app.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(app.ClusterId, app.Namespace, app.ReleaseName)
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
+
+	if !ok {
 		common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -466,11 +485,11 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 	// TODO
 	//RBAC enforcer Ends
 
-	resource, err := handler.k8sApplicationService.GetResourceList(&request)
+	response, err := handler.k8sApplicationService.GetResourceList(&request)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource list", "err", err)
-		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, resource, http.StatusOK)
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }

@@ -14,6 +14,7 @@ import (
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	"go.uber.org/zap"
 	"io"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
 	"strconv"
@@ -40,7 +41,7 @@ type K8sApplicationService interface {
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
-	GetResourceList(request *ClusterResourceRequest) (resp *application.ResourceListResponse, err error)
+	GetResourceList(request *ClusterResourceRequest) ([]*ClusterResourceListResponse, error)
 }
 type K8sApplicationServiceImpl struct {
 	logger                      *zap.SugaredLogger
@@ -85,11 +86,6 @@ type ResourceRequestBean struct {
 	K8sRequest    *application.K8sRequestBean `json:"k8sRequest"`
 }
 
-type ClusterResourceRequest struct {
-	ClusterId  int                         `json:"clusterId"`
-	K8sRequest *application.K8sRequestBean `json:"k8sRequest"`
-}
-
 type ResourceInfo struct {
 	PodName string `json:"podName"`
 }
@@ -97,6 +93,21 @@ type ResourceInfo struct {
 type BatchResourceResponse struct {
 	ManifestResponse *application.ManifestResponse
 	Err              error
+}
+
+type ClusterResourceRequest struct {
+	ClusterId  int                         `json:"clusterId"`
+	K8sRequest *application.K8sRequestBean `json:"k8sRequest"`
+}
+
+type ClusterResourceListResponse struct {
+	Name      string `json:"name"`
+	Namespace string `json:"namespace"`
+	Status    string `json:"status"`
+	Age       string `json:"age"`
+	Ready     string `json:"ready"`
+	Restarts  string `json:"restarts"`
+	Url       string `json:"url"`
 }
 
 func (impl *K8sApplicationServiceImpl) FilterServiceAndIngress(resourceTree map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean {
@@ -481,8 +492,9 @@ func (impl *K8sApplicationServiceImpl) GetResourceInfo() (*ResourceInfo, error) 
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetResourceList(request *ClusterResourceRequest) (*application.ResourceListResponse, error) {
+func (impl *K8sApplicationServiceImpl) GetResourceList(request *ClusterResourceRequest) ([]*ClusterResourceListResponse, error) {
 	//getting rest config by clusterId
+	response := make([]*ClusterResourceListResponse, 0)
 	restConfig, err := impl.GetRestConfigByClusterId(request.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
@@ -493,5 +505,23 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ClusterResourceR
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return nil, err
 	}
-	return resp, nil
+
+	for _, res := range resp.Resources.Items {
+		object := &unstructured.Unstructured{Object: res.Object}
+		r, err := impl.K8sUtil.ParseResource(object)
+		if err != nil {
+			impl.logger.Warnw("error on parsing for k8s resource", "object", object, "err", err)
+			continue
+		}
+		response = append(response, &ClusterResourceListResponse{
+			Name:      r["name"],
+			Namespace: r["namespace"],
+			Status:    r["status"],
+			Age:       r["age"],
+			Ready:     r["ready"],
+			Restarts:  r["restarts"],
+			Url:       r["url"],
+		})
+	}
+	return response, nil
 }
