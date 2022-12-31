@@ -367,6 +367,8 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *corev1.Node, nodeResourc
 	}
 	nodeDetail := &NodeCapacityDetail{
 		Name:          node.Name,
+		Kind:          node.Kind,
+		Version:       node.APIVersion,
 		K8sVersion:    node.Status.NodeInfo.KubeletVersion,
 		Errors:        findNodeErrors(node),
 		InternalIp:    getNodeInternalIP(node),
