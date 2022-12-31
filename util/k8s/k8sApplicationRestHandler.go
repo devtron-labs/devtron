@@ -39,7 +39,7 @@ type K8sApplicationRestHandler interface {
 	GetHostUrlsByBatch(w http.ResponseWriter, r *http.Request)
 	GetAllApiResources(w http.ResponseWriter, r *http.Request)
 	GetResourceList(w http.ResponseWriter, r *http.Request)
-	CreateResources(w http.ResponseWriter, r *http.Request)
+	ApplyResources(w http.ResponseWriter, r *http.Request)
 }
 
 type K8sApplicationRestHandlerImpl struct {
@@ -612,9 +612,9 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) CreateResources(w http.ResponseWriter, r *http.Request) {
+func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWriter, r *http.Request) {
 	decoder := json.NewDecoder(r.Body)
-	var request application.CreateResourcesRequest
+	var request application.ApplyResourcesRequest
 	err := decoder.Decode(&request)
 	if err != nil {
 		handler.logger.Errorw("error in decoding request body", "err", err)
@@ -624,11 +624,11 @@ func (handler *K8sApplicationRestHandlerImpl) CreateResources(w http.ResponseWri
 
 	// TODO: handle rbac
 
-	resource, err := handler.k8sApplicationService.CreateResources(&request)
+	response, err := handler.k8sApplicationService.ApplyResources(&request)
 	if err != nil {
-		handler.logger.Errorw("error in creating resource", "err", err)
-		common.WriteJsonResp(w, err, resource, http.StatusInternalServerError)
+		handler.logger.Errorw("error in applying resource", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	common.WriteJsonResp(w, nil, resource, http.StatusOK)
+	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }

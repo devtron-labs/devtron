@@ -11,6 +11,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
@@ -28,6 +29,7 @@ type K8sClientService interface {
 	GetPodLogs(restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error)
 	GetApiResources(restConfig *rest.Config) ([]*K8sApiResource, error)
 	GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, error)
+	ApplyResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error)
 }
 
 type K8sClientServiceImpl struct {
@@ -348,4 +350,24 @@ func (impl K8sClientServiceImpl) GetResourceList(restConfig *rest.Config, reques
 		return nil, err
 	}
 	return &ResourceListResponse{*resp}, nil
+}
+
+func (impl K8sClientServiceImpl) ApplyResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
+	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
+		return nil, err
+	}
+	resourceIdentifier := request.ResourceIdentifier
+	var resp *unstructured.Unstructured
+	if len(resourceIdentifier.Namespace) > 0 && namespaced {
+		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Patch(context.Background(), resourceIdentifier.Name, types.ApplyPatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
+	} else {
+		resp, err = resourceIf.Patch(context.Background(), resourceIdentifier.Name, types.ApplyPatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
+	}
+	if err != nil {
+		impl.logger.Errorw("error in applying resource", "err", err)
+		return nil, err
+	}
+	return &ManifestResponse{*resp}, nil
 }

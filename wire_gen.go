@@ -516,7 +516,7 @@ func InitializeApp() (*App, error) {
 	workflowStatusUpdateHandlerImpl := pubsub2.NewWorkflowStatusUpdateHandlerImpl(sugaredLogger, pubSubClient, ciHandlerImpl, cdHandlerImpl, eventSimpleFactoryImpl, eventRESTClientImpl, cdWorkflowRepositoryImpl)
 	applicationStatusUpdateHandlerImpl := pubsub2.NewApplicationStatusUpdateHandlerImpl(sugaredLogger, pubSubClient, appServiceImpl, workflowDagExecutorImpl, installedAppServiceImpl)
 	roleGroupServiceImpl := user.NewRoleGroupServiceImpl(userAuthRepositoryImpl, sugaredLogger, userRepositoryImpl, roleGroupRepositoryImpl, userCommonServiceImpl)
-	userRestHandlerImpl := user2.NewUserRestHandlerImpl(userServiceImpl, validate, sugaredLogger, enforcerImpl, roleGroupServiceImpl)
+	userRestHandlerImpl := user2.NewUserRestHandlerImpl(userServiceImpl, validate, sugaredLogger, enforcerImpl, roleGroupServiceImpl, userCommonServiceImpl)
 	userRouterImpl := user2.NewUserRouterImpl(userRestHandlerImpl)
 	chartRefRestHandlerImpl := restHandler.NewChartRefRestHandlerImpl(chartServiceImpl, sugaredLogger)
 	chartRefRouterImpl := router.NewChartRefRouterImpl(chartRefRestHandlerImpl)
