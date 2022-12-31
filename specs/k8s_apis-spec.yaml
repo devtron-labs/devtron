@@ -543,6 +543,10 @@ components:
         url:
           type: string
           description: service url
+        containers:
+          type: array
+          items:
+            type: string
     ApplyResourcesRequest:
       type: object
       properties:

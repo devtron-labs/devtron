@@ -523,14 +523,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestB
 			impl.logger.Warnw("error on parsing for k8s resource", "object", object, "err", err)
 			continue
 		}
-		resourceList = append(resourceList, &application.ClusterResourceListResponse{
-			Name:      r[application.K8sClusterResourceNameKey],
-			Namespace: r[application.K8sClusterResourceNamespaceKey],
-			Status:    r[application.K8sClusterResourceStatusKey],
-			Age:       r[application.K8sClusterResourceAgeKey],
-			Ready:     r[application.K8sClusterResourceReadyKey],
-			Restarts:  r[application.K8sClusterResourceRestartsKey],
-		})
+		resourceList = append(resourceList, r)
 	}
 	return resourceList, nil
 }

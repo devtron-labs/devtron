@@ -22,23 +22,17 @@ type ApplyResourcesResponse struct {
 }
 
 type ClusterResourceListResponse struct {
-	Name      string `json:"name"`
-	Namespace string `json:"namespace"`
-	Status    string `json:"status"`
-	Age       string `json:"age"`
-	Ready     string `json:"ready,omitempty"`
-	Restarts  string `json:"restarts,omitempty"`
-	Url       string `json:"url,omitempty"`
+	Name       string   `json:"name"`
+	Namespace  string   `json:"namespace"`
+	Status     string   `json:"status"`
+	Age        string   `json:"age"`
+	Ready      string   `json:"ready,omitempty"`
+	Restarts   string   `json:"restarts,omitempty"`
+	Url        string   `json:"url,omitempty"`
+	Containers []string `json:"containers,omitempty"`
 }
-
-
 
 const K8sClusterResourceNameKey = "name"
 const K8sClusterResourceNamespaceKey = "namespace"
-const K8sClusterResourceStatusKey = "status"
-const K8sClusterResourceAgeKey = "age"
-const K8sClusterResourceReadyKey = "ready"
-const K8sClusterResourceRestartsKey = "restarts"
-const K8sClusterResourceContainersKey = "containers"
 const K8sClusterResourceMetadataKey = "metadata"
 const K8sClusterResourceCreationTimestampKey = "creationTimestamp"

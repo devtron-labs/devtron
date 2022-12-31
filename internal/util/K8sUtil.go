@@ -532,8 +532,8 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 }
 
 // ParseResource TODO - optimize and refactor, WIP
-func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (map[string]string, error) {
-	clusterResourceListResponse := make(map[string]string)
+func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (*application.ClusterResourceListResponse, error) {
+	clusterResourceListResponse := &application.ClusterResourceListResponse{}
 	switch manifest.GroupVersionKind() {
 	case schema.GroupVersionKind{Group: "", Version: "v1", Kind: kube.PodKind}:
 		clusterResourceListResponse = impl.populatePodResourceData(manifest)
@@ -544,7 +544,7 @@ func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (map[stri
 	return clusterResourceListResponse, nil
 }
 
-func (impl K8sUtil) populatePodResourceData(manifest *unstructured.Unstructured) map[string]string {
+func (impl K8sUtil) populatePodResourceData(manifest *unstructured.Unstructured) *application.ClusterResourceListResponse {
 	clusterResourceListResponse := impl.populateResourceData(manifest)
 	var pod v1.Pod
 	err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &pod)
@@ -555,27 +555,38 @@ func (impl K8sUtil) populatePodResourceData(manifest *unstructured.Unstructured)
 	restarts := 0
 	totalContainers := len(pod.Spec.Containers)
 	readyContainers := 0
+	var containers []string
+	containersMap := make(map[string]string)
 	for i := range pod.Status.ContainerStatuses {
 		container := pod.Status.ContainerStatuses[i]
 		restarts += int(container.RestartCount)
 		if container.Ready {
 			readyContainers += readyContainers
 		}
+		containersMap[container.Name] = container.Name
 	}
-	clusterResourceListResponse[application.K8sClusterResourceStatusKey] = string(pod.Status.Phase)
-	clusterResourceListResponse[application.K8sClusterResourceReadyKey] = fmt.Sprintf("%d/%d", readyContainers, totalContainers)
-	clusterResourceListResponse[application.K8sClusterResourceRestartsKey] = strconv.Itoa(restarts)
+	for i := range pod.Status.InitContainerStatuses {
+		container := pod.Status.InitContainerStatuses[i]
+		containersMap[container.Name] = container.Name
+	}
+	for _, v := range containersMap {
+		containers = append(containers, v)
+	}
+	clusterResourceListResponse.Status = string(pod.Status.Phase)
+	clusterResourceListResponse.Ready = fmt.Sprintf("%d/%d", readyContainers, totalContainers)
+	clusterResourceListResponse.Restarts = strconv.Itoa(restarts)
+	clusterResourceListResponse.Containers = containers
 	return clusterResourceListResponse
 }
 
-func (impl K8sUtil) populateResourceData(manifest *unstructured.Unstructured) map[string]string {
-	clusterResourceListResponse := make(map[string]string)
+func (impl K8sUtil) populateResourceData(manifest *unstructured.Unstructured) *application.ClusterResourceListResponse {
+	clusterResourceListResponse := &application.ClusterResourceListResponse{}
 	res := manifest.Object
 	if res != nil && res[application.K8sClusterResourceMetadataKey] != nil {
 		metadata := res[application.K8sClusterResourceMetadataKey].(map[string]interface{})
-		clusterResourceListResponse[application.K8sClusterResourceNameKey] = metadata[application.K8sClusterResourceNameKey].(string)
-		clusterResourceListResponse[application.K8sClusterResourceNamespaceKey] = metadata[application.K8sClusterResourceNamespaceKey].(string)
-		clusterResourceListResponse[application.K8sClusterResourceAgeKey] = metadata[application.K8sClusterResourceCreationTimestampKey].(string)
+		clusterResourceListResponse.Name = metadata[application.K8sClusterResourceNameKey].(string)
+		clusterResourceListResponse.Namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
+		clusterResourceListResponse.Age = metadata[application.K8sClusterResourceCreationTimestampKey].(string)
 	}
 
 	// status for pod kind is fetch from some other logic
@@ -585,7 +596,7 @@ func (impl K8sUtil) populateResourceData(manifest *unstructured.Unstructured) ma
 			if err != nil {
 				impl.logger.Infow("error on health check for k8s resource", "err", err)
 			} else if health != nil {
-				clusterResourceListResponse[application.K8sClusterResourceStatusKey] = string(health.Status)
+				clusterResourceListResponse.Status = string(health.Status)
 			}
 		}
 	}
