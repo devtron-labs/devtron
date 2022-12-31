@@ -319,9 +319,9 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForClusterEntity(cluster, name
 		query += " and namespace IS NULL "
 	}
 	if len(group) > 0 {
-		query += " and group='" + group + "' "
+		query += " and \"group\"='" + group + "' "
 	} else {
-		query += " and group IS NULL "
+		query += " and \"group\" IS NULL "
 	}
 	if len(kind) > 0 {
 		query += " and kind='" + kind + "' "
