@@ -367,8 +367,6 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *corev1.Node, nodeResourc
 	}
 	nodeDetail := &NodeCapacityDetail{
 		Name:          node.Name,
-		Kind:          node.Kind,
-		Version:       node.APIVersion,
 		K8sVersion:    node.Status.NodeInfo.KubeletVersion,
 		Errors:        findNodeErrors(node),
 		InternalIp:    getNodeInternalIP(node),
@@ -380,6 +378,8 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *corev1.Node, nodeResourc
 		CreatedAt:     node.CreationTimestamp.String(),
 		ClusterName:   cluster.ClusterName,
 	}
+	nodeDetail.Version = "v1"
+	nodeDetail.Kind = "Node"
 	var taints []*LabelAnnotationTaintObject
 	for _, taint := range node.Spec.Taints {
 		taintObj := &LabelAnnotationTaintObject{
@@ -429,8 +429,6 @@ func (impl *K8sCapacityServiceImpl) getNodeDetail(node *corev1.Node, nodeResourc
 func (impl *K8sCapacityServiceImpl) updateAdditionalDetailForNode(nodeDetail *NodeCapacityDetail, node *corev1.Node,
 	nodeLimitsResourceList corev1.ResourceList, nodeRequestsResourceList corev1.ResourceList,
 	nodeUsageResourceList corev1.ResourceList, podDetailList []*PodCapacityDetail, restConfig *rest.Config) error {
-	nodeDetail.Version = "v1"
-	nodeDetail.Kind = "Node"
 	nodeDetail.Pods = podDetailList
 	var annotations []*LabelAnnotationTaintObject
 	for k, v := range node.Annotations {
