@@ -14,8 +14,11 @@ import (
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	yamlUtil "github.com/devtron-labs/devtron/util/yaml"
+	jsonpatch "github.com/evanphx/json-patch"
 	"go.uber.org/zap"
 	"io"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/rest"
@@ -569,7 +572,8 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(request *application.Apply
 			Name: manifest.GetName(),
 			Kind: manifest.GetKind(),
 		}
-		err = impl.applyResourceFromManifest(manifest, restConfig)
+		resourceExists, err := impl.applyResourceFromManifest(manifest, restConfig)
+		manifestRes.IsUpdate = resourceExists
 		if err != nil {
 			manifestRes.Error = err.Error()
 		}
@@ -579,12 +583,8 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(request *application.Apply
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstructured.Unstructured, restConfig *rest.Config) error {
-	jsonStr, err := json.Marshal(manifest.UnstructuredContent())
-	if err != nil {
-		impl.logger.Errorw("error in marshalling json", "err", err)
-		return err
-	}
+func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstructured.Unstructured, restConfig *rest.Config) (bool, error) {
+	var isUpdateResource bool
 	k8sRequestBean := &application.K8sRequestBean{
 		ResourceIdentifier: application.ResourceIdentifier{
 			Name:             manifest.GetName(),
@@ -592,10 +592,44 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstru
 			GroupVersionKind: manifest.GroupVersionKind(),
 		},
 	}
-	_, err = impl.k8sClientService.ApplyResource(restConfig, k8sRequestBean, string(jsonStr))
+	jsonStr, err := json.Marshal(manifest.UnstructuredContent())
 	if err != nil {
-		impl.logger.Errorw("error in applying resource", "err", err)
-		return err
+		impl.logger.Errorw("error in marshalling json", "err", err)
+		return isUpdateResource, err
 	}
-	return nil
+	existingManifest, err := impl.k8sClientService.GetResource(restConfig, k8sRequestBean)
+	if err != nil {
+		statusError, ok := err.(*errors2.StatusError)
+		if !ok || statusError.ErrStatus.Reason != metav1.StatusReasonNotFound {
+			impl.logger.Errorw("error in getting resource", "err", err)
+			return isUpdateResource, err
+		}
+		// case of resource not found
+		_, err = impl.k8sClientService.CreateResource(restConfig, k8sRequestBean, string(jsonStr))
+		if err != nil {
+			impl.logger.Errorw("error in creating resource", "err", err)
+			return isUpdateResource, err
+		}
+	} else {
+		// case of resource update
+		isUpdateResource = true
+		existingManifestJsonStr, err := json.Marshal(existingManifest.Manifest.UnstructuredContent())
+		if err != nil {
+			impl.logger.Errorw("error in marshalling existing manifest", "err", err)
+			return isUpdateResource, err
+		}
+		modifiedJsonStr, err := jsonpatch.MergePatch(existingManifestJsonStr, jsonStr)
+		if err != nil {
+			impl.logger.Errorw("error in merging json", "err", err)
+			return isUpdateResource, err
+		}
+		k8sRequestBean.Patch = string(modifiedJsonStr)
+		_, err = impl.k8sClientService.UpdateResource(restConfig, k8sRequestBean)
+		if err != nil {
+			impl.logger.Errorw("error in updating resource", "err", err)
+			return isUpdateResource, err
+		}
+	}
+
+	return isUpdateResource, nil
 }

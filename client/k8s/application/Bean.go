@@ -18,5 +18,5 @@ type ApplyResourcesResponse struct {
 	Kind     string `json:"kind"`
 	Name     string `json:"name"`
 	Error    string `json:"error"`
-	isUpdate bool   `json:"isUpdate"`
+	IsUpdate bool   `json:"isUpdate"`
 }
