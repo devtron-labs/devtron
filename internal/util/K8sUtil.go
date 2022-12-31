@@ -25,6 +25,7 @@ import (
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
 	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/devtron-labs/devtron/client/k8s/application"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -533,133 +534,59 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 // ParseResource TODO - optimize and refactor, WIP
 func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (map[string]string, error) {
 	clusterResourceListResponse := make(map[string]string)
-
 	switch manifest.GroupVersionKind() {
 	case schema.GroupVersionKind{Group: "", Version: "v1", Kind: kube.PodKind}:
-		var pod v1.Pod
-		err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &pod)
-		if err != nil {
-			return nil, err
-		}
-		clusterResourceListResponse = impl.populatePodData(pod)
-		/*	case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.DeploymentKind}:
-				var deployment v1beta2.Deployment
-				err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &deployment)
-				if err != nil {
-					return nil, err
-				}
-				clusterResourceListResponse["name"] = deployment.Name
-				clusterResourceListResponse["namespace"] = deployment.Namespace
-				clusterResourceListResponse["status"] = ""
-			case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.ReplicaSetKind}:
-				var replicaSet v1beta2.ReplicaSet
-				err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &replicaSet)
-				if err != nil {
-					return nil, err
-				}
-				clusterResourceListResponse["name"] = replicaSet.Name
-				clusterResourceListResponse["namespace"] = replicaSet.Namespace
-				clusterResourceListResponse["status"] = ""
-			case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.StatefulSetKind}:
-				var statefulSet v1beta2.StatefulSet
-				err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &statefulSet)
-				if err != nil {
-					return nil, err
-				}
-				clusterResourceListResponse["Name"] = statefulSet.Name
-				clusterResourceListResponse["namespace"] = statefulSet.Namespace
-				clusterResourceListResponse["status"] = ""
-			case schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: kube.DaemonSetKind}:
-				var daemonSet v1beta2.DaemonSet
-				err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &daemonSet)
-				if err != nil {
-					return nil, err
-				}
-				clusterResourceListResponse["name"] = daemonSet.Name
-				clusterResourceListResponse["namespace"] = daemonSet.Namespace
-				clusterResourceListResponse["status"] = ""
-			case schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: kube.JobKind}:
-				var job batchV1.Job
-				err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &job)
-				if err != nil {
-					return nil, err
-				}
-				clusterResourceListResponse["name"] = job.Name
-				clusterResourceListResponse["namespace"] = job.Namespace
-				clusterResourceListResponse["status"] = ""
-			case schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "CronJob"}:
-				var cronJob batchV1.CronJob
-				err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &cronJob)
-				if err != nil {
-					return nil, err
-				}
-				clusterResourceListResponse["name"] = cronJob.Name
-				clusterResourceListResponse["namespace"] = cronJob.Namespace
-				clusterResourceListResponse["status"] = ""
-			case schema.GroupVersionKind{Group: "", Version: "v1", Kind: "ReplicationController"}:
-				var replicationController v1.ReplicationController
-				err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &replicationController)
-				if err != nil {
-					return nil, err
-				}
-				clusterResourceListResponse["name"] = replicationController.Name
-				clusterResourceListResponse["namespace"] = replicationController.Namespace
-				clusterResourceListResponse["status"] = ""
-			case schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Rollout"}:
-				var rolloutSpec map[string]interface{}
-				err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &rolloutSpec)
-				if err != nil {
-					return nil, err
-				}
-				clusterResourceListResponse["name"] = rolloutSpec["name"].(string)
-				clusterResourceListResponse["namespace"] = rolloutSpec["namespace"].(string)
-				clusterResourceListResponse["status"] = ""*/
+		clusterResourceListResponse = impl.populatePodResourceData(manifest)
 	default:
-		clusterResourceListResponse = impl.populateOtherResourceData(manifest)
+		clusterResourceListResponse = impl.populateResourceData(manifest)
 	}
 
 	return clusterResourceListResponse, nil
 }
 
-func (impl K8sUtil) populatePodData(pod v1.Pod) map[string]string {
-	clusterResourceListResponse := make(map[string]string)
-	clusterResourceListResponse["name"] = pod.Name
-	clusterResourceListResponse["namespace"] = pod.Namespace
-	clusterResourceListResponse["age"] = pod.CreationTimestamp.String()
-	clusterResourceListResponse["status"] = string(pod.Status.Phase)
+func (impl K8sUtil) populatePodResourceData(manifest *unstructured.Unstructured) map[string]string {
+	clusterResourceListResponse := impl.populateResourceData(manifest)
+	var pod v1.Pod
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &pod)
+	if err != nil {
+		return clusterResourceListResponse
+	}
 
 	restarts := 0
 	totalContainers := len(pod.Spec.Containers)
 	readyContainers := 0
-	for i := range pod.Status.InitContainerStatuses {
-		container := pod.Status.InitContainerStatuses[i]
+	for i := range pod.Status.ContainerStatuses {
+		container := pod.Status.ContainerStatuses[i]
 		restarts += int(container.RestartCount)
 		if container.Ready {
 			readyContainers += readyContainers
 		}
 	}
-
-	clusterResourceListResponse["ready"] = fmt.Sprintf("%d/%d", readyContainers, totalContainers)
-	clusterResourceListResponse["restarts"] = strconv.Itoa(restarts)
+	clusterResourceListResponse[application.K8sClusterResourceStatusKey] = string(pod.Status.Phase)
+	clusterResourceListResponse[application.K8sClusterResourceReadyKey] = fmt.Sprintf("%d/%d", readyContainers, totalContainers)
+	clusterResourceListResponse[application.K8sClusterResourceRestartsKey] = strconv.Itoa(restarts)
 	return clusterResourceListResponse
 }
 
-func (impl K8sUtil) populateOtherResourceData(manifest *unstructured.Unstructured) map[string]string {
+func (impl K8sUtil) populateResourceData(manifest *unstructured.Unstructured) map[string]string {
 	clusterResourceListResponse := make(map[string]string)
 	res := manifest.Object
-	if res != nil && res["metadata"] != nil {
-		metadata := res["metadata"].(map[string]interface{})
-		clusterResourceListResponse["name"] = metadata["name"].(string)
-		clusterResourceListResponse["namespace"] = metadata["namespace"].(string)
-		clusterResourceListResponse["age"] = metadata["creationTimestamp"].(string)
+	if res != nil && res[application.K8sClusterResourceMetadataKey] != nil {
+		metadata := res[application.K8sClusterResourceMetadataKey].(map[string]interface{})
+		clusterResourceListResponse[application.K8sClusterResourceNameKey] = metadata[application.K8sClusterResourceNameKey].(string)
+		clusterResourceListResponse[application.K8sClusterResourceNamespaceKey] = metadata[application.K8sClusterResourceNamespaceKey].(string)
+		clusterResourceListResponse[application.K8sClusterResourceAgeKey] = metadata[application.K8sClusterResourceCreationTimestampKey].(string)
 	}
 
-	if healthCheck := health.GetHealthCheckFunc(manifest.GroupVersionKind()); healthCheck != nil {
-		health, err := healthCheck(manifest)
-		if err != nil {
-			impl.logger.Infow("error on health check for k8s resource", "err", err)
-		} else if health != nil {
-			clusterResourceListResponse["status"] = string(health.Status)
+	// status for pod kind is fetch from some other logic
+	if manifest.GetKind() != kube.PodKind {
+		if healthCheck := health.GetHealthCheckFunc(manifest.GroupVersionKind()); healthCheck != nil {
+			health, err := healthCheck(manifest)
+			if err != nil {
+				impl.logger.Infow("error on health check for k8s resource", "err", err)
+			} else if health != nil {
+				clusterResourceListResponse[application.K8sClusterResourceStatusKey] = string(health.Status)
+			}
 		}
 	}
 	return clusterResourceListResponse
