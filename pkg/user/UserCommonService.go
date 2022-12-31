@@ -70,6 +70,18 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPolicies(userInf
 				for _, group := range groups {
 					for _, kind := range kinds {
 						for _, resource := range resources {
+							if namespace == "NONE" {
+								namespace = ""
+							}
+							if group == "NONE" {
+								group = ""
+							}
+							if kind == "NONE" {
+								kind = ""
+							}
+							if resource == "NONE" {
+								resource = ""
+							}
 							isValidAuth := impl.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 							if !isValidAuth {
 								continue
@@ -191,6 +203,18 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 				for _, group := range groups {
 					for _, kind := range kinds {
 						for _, resource := range resources {
+							if namespace == "NONE" {
+								namespace = ""
+							}
+							if group == "NONE" {
+								group = ""
+							}
+							if kind == "NONE" {
+								kind = ""
+							}
+							if resource == "NONE" {
+								resource = ""
+							}
 							isValidAuth := impl.CheckRbacForClusterEntity(roleFilter.Cluster, namespace, group, kind, resource, token, managerAuth)
 							if !isValidAuth {
 								continue
