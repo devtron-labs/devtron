@@ -64,21 +64,24 @@ type userNamePassword struct {
 }
 
 type UserRestHandlerImpl struct {
-	userService      user.UserService
-	validator        *validator.Validate
-	logger           *zap.SugaredLogger
-	enforcer         casbin.Enforcer
-	roleGroupService user.RoleGroupService
+	userService       user.UserService
+	validator         *validator.Validate
+	logger            *zap.SugaredLogger
+	enforcer          casbin.Enforcer
+	roleGroupService  user.RoleGroupService
+	userCommonService user.UserCommonService
 }
 
 func NewUserRestHandlerImpl(userService user.UserService, validator *validator.Validate,
-	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService) *UserRestHandlerImpl {
+	logger *zap.SugaredLogger, enforcer casbin.Enforcer, roleGroupService user.RoleGroupService,
+	userCommonService user.UserCommonService) *UserRestHandlerImpl {
 	userAuthHandler := &UserRestHandlerImpl{
-		userService:      userService,
-		validator:        validator,
-		logger:           logger,
-		enforcer:         enforcer,
-		roleGroupService: roleGroupService,
+		userService:       userService,
+		validator:         validator,
+		logger:            logger,
+		enforcer:          enforcer,
+		roleGroupService:  roleGroupService,
+		userCommonService: userCommonService,
 	}
 	return userAuthHandler
 }
@@ -507,6 +510,12 @@ func (handler UserRestHandlerImpl) CreateRoleGroup(w http.ResponseWriter, r *htt
 					return
 				}
 			}
+			if filter.Entity == bean.CLUSTER_ENTITIY && !isActionUserSuperAdmin {
+				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					return
+				}
+			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, "*"); !ok {
@@ -881,8 +890,8 @@ func (handler UserRestHandlerImpl) InvalidateRoleCache(w http.ResponseWriter, r 
 
 }
 
-func (handler UserRestHandlerImpl) CheckManagerAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
+func (handler UserRestHandlerImpl) CheckManagerAuth(resource, token string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, strings.ToLower(object)); !ok {
 		return false
 	}
 	return true
