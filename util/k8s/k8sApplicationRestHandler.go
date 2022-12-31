@@ -598,12 +598,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
-	// RBAC enforcer applying
-	// TODO
-	//RBAC enforcer Ends
-
-	response, err := handler.k8sApplicationService.GetResourceList(&request)
+	token := r.Header.Get("token")
+	response, err := handler.k8sApplicationService.GetResourceList(&request, token, handler.checkResourceListingAuth)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource list", "err", err)
 		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
@@ -631,4 +627,11 @@ func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWrit
 		return
 	}
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
+}
+
+func (handler *K8sApplicationRestHandlerImpl) checkResourceListingAuth(token string, resource string, object string) bool {
+	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionGet, strings.ToLower(object)); !ok {
+		return false
+	}
+	return true
 }

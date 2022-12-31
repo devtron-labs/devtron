@@ -47,7 +47,7 @@ type K8sApplicationService interface {
 	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
 	GetAllApiResources(clusterId int) ([]*application.K8sApiResource, error)
-	GetResourceList(request *ResourceRequestBean) ([]*application.ClusterResourceListResponse, error)
+	GetResourceList(request *ResourceRequestBean, token string, auth func(token string, resource string, object string) bool) ([]*application.ClusterResourceListResponse, error)
 	ApplyResources(request *application.ApplyResourcesRequest) ([]*application.ApplyResourcesResponse, error)
 }
 
@@ -501,7 +501,7 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int) ([]*app
 	return impl.k8sClientService.GetApiResources(restConfig)
 }
 
-func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestBean) ([]*application.ClusterResourceListResponse, error) {
+func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestBean, token string, auth func(token string, resource string, object string) bool) ([]*application.ClusterResourceListResponse, error) {
 	//getting rest config by clusterId
 
 	resourceList := make([]*application.ClusterResourceListResponse, 0)
@@ -515,7 +515,13 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestB
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
-
+	//todo - remove this call
+	cluster, err := impl.clusterService.FindById(request.ClusterId)
+	if err != nil {
+		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
+		return nil, err
+	}
+	rbacResource := fmt.Sprintf("%s/%s", cluster.ClusterName, request.K8sRequest.ResourceIdentifier.Namespace)
 	for _, res := range resp.Resources.Items {
 		object := &unstructured.Unstructured{Object: res.Object}
 		r, err := impl.K8sUtil.ParseResource(object)
@@ -523,7 +529,11 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestB
 			impl.logger.Warnw("error on parsing for k8s resource", "object", object, "err", err)
 			continue
 		}
-		resourceList = append(resourceList, r)
+		rbacObject := fmt.Sprintf("%s/%s/%s", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group, request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, r.Namespace)
+		isValidAuth := auth(token, rbacResource, rbacObject)
+		if isValidAuth {
+			resourceList = append(resourceList, r)
+		}
 	}
 	return resourceList, nil
 }

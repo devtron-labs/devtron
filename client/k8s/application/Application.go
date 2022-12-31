@@ -177,6 +177,8 @@ func (impl K8sClientServiceImpl) DeleteResource(restConfig *rest.Config, request
 }
 
 func (impl K8sClientServiceImpl) ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error) {
+
+	isGlobalKindEvent:= request.ResourceIdentifier.GroupVersionKind.Kind == "Event"
 	resourceIdentifier := request.ResourceIdentifier
 	resourceIdentifier.GroupVersionKind.Kind = "List"
 	eventsClient, err := v1.NewForConfig(restConfig)
@@ -191,7 +193,7 @@ func (impl K8sClientServiceImpl) ListEvents(restConfig *rest.Config, request *K8
 		},
 	}
 	var list *apiv1.EventList
-	if request.ResourceIdentifier.GroupVersionKind.Kind == "Event" {
+	if isGlobalKindEvent {
 		eventsIf := eventsClient.Events(resourceIdentifier.Namespace)
 		list, err = eventsIf.List(context.Background(), listOptions)
 		if err != nil {
