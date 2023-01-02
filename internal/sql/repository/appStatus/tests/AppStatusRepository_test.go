@@ -88,8 +88,70 @@ func TestAppStatusRepositoryImpl_Update(t *testing.T) {
 	deleteTestdata()
 }
 func TestAppStatusRepositoryImpl_Delete(t *testing.T) {
-	//repo := initAppStatusRepo()
+	repo := initAppStatusRepo()
+	testData := getTestdata()
+	//create dummy data in the db
+	tx, _ := db.Begin()
+	for _, data := range testData {
+		err := repo.Create(tx, data)
+		assert.Nil(t, err)
+	}
+	err := tx.Commit()
+	if err != nil {
+		log.Fatal("error in committing data in db", "err", err)
+	}
 
+	//delete some data
+	deleteData1 := testData[0]
+	deleteData2 := testData[1]
+
+	//deleteData1 using delete API
+	tx1, _ := db.Begin()
+	err = repo.Delete(tx1, deleteData1.AppId, deleteData1.EnvId)
+	assert.Nil(t, err)
+	err = tx1.Commit()
+	if err != nil {
+		log.Fatal("error in committing data in db", "err", err)
+	}
+
+	//verify if data is deleted
+	resp1, err := repo.Get(deleteData1.AppId, deleteData1.EnvId)
+	assert.NotNil(t, err)
+	assert.Equal(t, pg.ErrNoRows, err)
+	assert.NotNil(t, resp1)
+	assert.Equal(t, resp1.AppId, 0)
+	assert.Equal(t, resp1.EnvId, 0)
+	assert.Equal(t, len(resp1.Status), 0)
+
+	//deleteData2 using delete API
+	tx2, _ := db.Begin()
+	err = repo.Delete(tx2, deleteData2.AppId, deleteData2.EnvId)
+	assert.Nil(t, err)
+	err = tx2.Commit()
+	if err != nil {
+		log.Fatal("error in committing data in db", "err", err)
+	}
+
+	//verify if data is deleted
+	resp2, err := repo.Get(deleteData2.AppId, deleteData2.EnvId)
+	assert.NotNil(t, err)
+	assert.Equal(t, pg.ErrNoRows, err)
+	assert.NotNil(t, resp2)
+	assert.Equal(t, resp2.AppId, 0)
+	assert.Equal(t, resp2.EnvId, 0)
+	assert.Equal(t, len(resp2.Status), 0)
+
+	//verify if other data is not deleted
+	otherData := testData[2]
+	resp, err := repo.Get(otherData.AppId, otherData.EnvId)
+	assert.Nil(t, err)
+	assert.NotNil(t, resp)
+	assert.Equal(t, resp.AppId, otherData.AppId)
+	assert.Equal(t, resp.EnvId, otherData.EnvId)
+	assert.Equal(t, len(resp.Status), len(otherData.Status))
+
+	//clean the test data from db
+	deleteTestdata()
 }
 
 func TestAppStatusRepositoryImpl_DeleteWithAppId(t *testing.T) {
