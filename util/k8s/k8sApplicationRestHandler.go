@@ -10,6 +10,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -20,6 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
+	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
@@ -606,6 +608,9 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 	response, err := handler.k8sApplicationService.GetResourceList(&request)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource list", "err", err)
+		if _, ok := err.(*errors3.StatusError); ok {
+			err = &util2.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
+		}
 		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
 		return
 	}

@@ -585,7 +585,9 @@ func (impl K8sUtil) populateResourceData(manifest *unstructured.Unstructured) *a
 	if res != nil && res[application.K8sClusterResourceMetadataKey] != nil {
 		metadata := res[application.K8sClusterResourceMetadataKey].(map[string]interface{})
 		clusterResourceListResponse.Name = metadata[application.K8sClusterResourceNameKey].(string)
-		clusterResourceListResponse.Namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
+		if metadata[application.K8sClusterResourceNamespaceKey] != nil {
+			clusterResourceListResponse.Namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
+		}
 		clusterResourceListResponse.Age = metadata[application.K8sClusterResourceCreationTimestampKey].(string)
 	}
 
