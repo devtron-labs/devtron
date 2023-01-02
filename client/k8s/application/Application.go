@@ -17,6 +17,7 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
+	"net/http"
 	"strings"
 )
 
@@ -271,6 +272,36 @@ func (impl K8sClientServiceImpl) GetResourceIf(restConfig *rest.Config, request 
 	return dynamicIf.Resource(resource), apiResource.Namespaced, nil
 }
 
+func (impl K8sClientServiceImpl) GetResourceIfWithAcceptHeader(restConfig *rest.Config, request *K8sRequestBean) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
+	resourceIdentifier := request.ResourceIdentifier
+	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting k8s client", "err", err)
+		return nil, false, err
+	}
+	apiResource, err := ServerResourceForGroupVersionKind(discoveryClient, resourceIdentifier.GroupVersionKind)
+	if err != nil {
+		impl.logger.Errorw("error in getting server resource", "err", err)
+		return nil, false, err
+	}
+	resource := resourceIdentifier.GroupVersionKind.GroupVersion().WithResource(apiResource.Name)
+	wt := restConfig.WrapTransport // Reference: https://github.com/kubernetes/client-go/issues/407
+	restConfig.WrapTransport = func(rt http.RoundTripper) http.RoundTripper {
+		if wt != nil {
+			rt = wt(rt)
+		}
+		return &HeaderAdder{
+			rt: rt,
+		}
+	}
+	dynamicIf, err := dynamic.NewForConfig(restConfig)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
+		return nil, false, err
+	}
+	return dynamicIf.Resource(resource), apiResource.Namespaced, nil
+}
+
 func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
 	resources, err := discoveryClient.ServerResourcesForGroupVersion(gvk.GroupVersion().String())
 	if err != nil {
@@ -343,7 +374,7 @@ func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config, includ
 }
 
 func (impl K8sClientServiceImpl) GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, error) {
-	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
+	resourceIf, namespaced, err := impl.GetResourceIfWithAcceptHeader(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, err
