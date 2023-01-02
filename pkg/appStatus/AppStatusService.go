@@ -20,10 +20,10 @@ type EnvironmentStatusContainer struct {
 }
 
 type AppStatusService interface {
-	//GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error)
-	//GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error)
 	UpdateStatusWithAppIdEnvId(appIdEnvId, envId int, status string) error
 	DeleteWithAppIdEnvId(appId, envId int) error
+	//GetAllDevtronAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error)
+	//GetAllInstalledAppStatuses(requests []AppStatusRequestResponseDto, token string) ([]AppStatusRequestResponseDto, error)
 }
 
 type AppStatusServiceImpl struct {
