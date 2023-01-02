@@ -23,19 +23,15 @@ type Config struct {
 }
 
 func getDbConn() (*pg.DB, error) {
-	//if db != nil {
-	//	return db, nil
-	//}
 	cfg := Config{}
 	err := env.Parse(&cfg)
 	if err != nil {
 		return nil, err
 	}
 	options := pg.Options{
-		Addr:     cfg.Addr + ":" + cfg.Port,
-		User:     cfg.User,
-		Password: cfg.Password,
-		//Database:        cfg.Database,
+		Addr:            cfg.Addr + ":" + cfg.Port,
+		User:            cfg.User,
+		Password:        cfg.Password,
 		ApplicationName: cfg.ApplicationName,
 	}
 	dbConnection := pg.Connect(&options)
@@ -66,16 +62,93 @@ func TestUpdateStatusWithAppIdEnvId(t *testing.T) {
 		appStatusService := NewAppStatusServiceImpl(appStatusRepositoryMocked, logger, nil, nil)
 		testInputContainer := appStatus.AppStatusContainer{}
 
-		tx, _ := getDbConn()
+		db, _ := getDbConn()
 		appStatusRepositoryMocked.On("Get", 1, 1).Return(testInputContainer, nil)
-		appStatusRepositoryMocked.On("GetConnection").Return(tx)
-		appStatusRepositoryMocked.On("Create", mock.AnythingOfType("struct"), mock.AnythingOfType("struct")).Return(fmt.Errorf("create error"))
+		appStatusRepositoryMocked.On("GetConnection").Return(db)
+		appStatusRepositoryMocked.On("Create", mock.AnythingOfTypeArgument("*pg.Tx"), appStatus.AppStatusContainer{AppId: 1, EnvId: 1, Status: "Progressing"}).Return(fmt.Errorf("create error"))
 
 		err = appStatusService.UpdateStatusWithAppIdEnvId(1, 1, "Progressing")
 		assert.NotNil(tt, err)
 		assert.Equal(tt, "create error", err.Error())
 	})
 
+	t.Run("Test-3 success in creating app-status", func(tt *testing.T) {
+		appStatusRepositoryMocked := mocks.NewAppStatusRepository(t)
+		appStatusService := NewAppStatusServiceImpl(appStatusRepositoryMocked, logger, nil, nil)
+		testInputContainer := appStatus.AppStatusContainer{}
+
+		db, _ := getDbConn()
+		appStatusRepositoryMocked.On("Get", 1, 1).Return(testInputContainer, nil)
+		appStatusRepositoryMocked.On("GetConnection").Return(db)
+		appStatusRepositoryMocked.On("Create", mock.AnythingOfTypeArgument("*pg.Tx"), appStatus.AppStatusContainer{AppId: 1, EnvId: 1, Status: "Progressing"}).Return(nil)
+
+		err = appStatusService.UpdateStatusWithAppIdEnvId(1, 1, "Progressing")
+		assert.Nil(tt, err)
+	})
+
+	t.Run("Test-4 No change in app-status", func(tt *testing.T) {
+		appStatusRepositoryMocked := mocks.NewAppStatusRepository(t)
+		appStatusService := NewAppStatusServiceImpl(appStatusRepositoryMocked, logger, nil, nil)
+		testInputContainer := appStatus.AppStatusContainer{
+			AppId:  1,
+			EnvId:  1,
+			Status: "Progressing",
+		}
+
+		db, _ := getDbConn()
+		appStatusRepositoryMocked.On("Get", 1, 1).Return(testInputContainer, nil)
+		appStatusRepositoryMocked.On("GetConnection").Return(db)
+
+		err = appStatusService.UpdateStatusWithAppIdEnvId(1, 1, "Progressing")
+		assert.Nil(tt, err)
+	})
+
+	t.Run("Test-5 error in updating app-status", func(tt *testing.T) {
+		appStatusRepositoryMocked := mocks.NewAppStatusRepository(t)
+		appStatusService := NewAppStatusServiceImpl(appStatusRepositoryMocked, logger, nil, nil)
+		testOutputContainerFromDb := appStatus.AppStatusContainer{
+			AppId:  1,
+			EnvId:  1,
+			Status: "Healthy",
+		}
+		testInputContainer := appStatus.AppStatusContainer{
+			AppId:  1,
+			EnvId:  1,
+			Status: "Progressing",
+		}
+		db, _ := getDbConn()
+		appStatusRepositoryMocked.On("Get", 1, 1).Return(testOutputContainerFromDb, nil)
+		appStatusRepositoryMocked.On("GetConnection").Return(db)
+		expectedError := fmt.Errorf("error in updating app-status")
+		appStatusRepositoryMocked.On("Update", mock.AnythingOfTypeArgument("*pg.Tx"), testInputContainer).Return(expectedError)
+
+		err = appStatusService.UpdateStatusWithAppIdEnvId(1, 1, "Progressing")
+		assert.NotNil(tt, err)
+		assert.Equal(tt, expectedError.Error(), err.Error())
+	})
+
+	t.Run("Test-6 success in app-status", func(tt *testing.T) {
+		appStatusRepositoryMocked := mocks.NewAppStatusRepository(t)
+		appStatusService := NewAppStatusServiceImpl(appStatusRepositoryMocked, logger, nil, nil)
+		testOutputContainerFromDb := appStatus.AppStatusContainer{
+			AppId:  1,
+			EnvId:  1,
+			Status: "Healthy",
+		}
+		testInputContainer := appStatus.AppStatusContainer{
+			AppId:  1,
+			EnvId:  1,
+			Status: "Progressing",
+		}
+
+		db, _ := getDbConn()
+		appStatusRepositoryMocked.On("Get", 1, 1).Return(testOutputContainerFromDb, nil)
+		appStatusRepositoryMocked.On("GetConnection").Return(db)
+		appStatusRepositoryMocked.On("Update", mock.AnythingOfTypeArgument("*pg.Tx"), testInputContainer).Return(nil)
+
+		err = appStatusService.UpdateStatusWithAppIdEnvId(testInputContainer.AppId, testInputContainer.EnvId, testInputContainer.Status)
+		assert.Nil(tt, err)
+	})
 }
 
 func TestDeleteWithAppIdEnvId(t *testing.T) {
