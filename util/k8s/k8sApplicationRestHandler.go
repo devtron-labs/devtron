@@ -378,7 +378,7 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 			return
 		}
 		rbacResource := fmt.Sprintf("%s/%s", cluster.ClusterName, request.K8sRequest.ResourceIdentifier.Namespace)
-		rbacObject := fmt.Sprintf("%s/%s/%s", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group, request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Namespace)
+		rbacObject := fmt.Sprintf("%s/%s/%s", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group, request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, "")
 		token := r.Header.Get("token")
 		if ok := handler.enforcer.Enforce(token, rbacResource, casbin.ActionGet, rbacObject); !ok {
 			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)

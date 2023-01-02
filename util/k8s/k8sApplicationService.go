@@ -529,7 +529,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestB
 			impl.logger.Warnw("error on parsing for k8s resource", "object", object, "err", err)
 			continue
 		}
-		rbacObject := fmt.Sprintf("%s/%s/%s", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group, request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, r.Namespace)
+		rbacObject := fmt.Sprintf("%s/%s/%s", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group, request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, r.Name)
 		isValidAuth := auth(token, rbacResource, rbacObject)
 		if isValidAuth {
 			resourceList = append(resourceList, r)
