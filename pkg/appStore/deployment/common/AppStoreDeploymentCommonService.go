@@ -18,15 +18,21 @@
 package appStoreDeploymentCommon
 
 import (
+	"github.com/devtron-labs/devtron/internal/util"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	"github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
 	"github.com/go-pg/pg"
+	"github.com/google/go-github/github"
+	"github.com/microsoft/azure-devops-go-api/azuredevops"
+	"github.com/xanzy/go-gitlab"
 	"go.uber.org/zap"
+	"net/http"
 )
 
 type AppStoreDeploymentCommonService interface {
 	GetInstalledAppByClusterNamespaceAndName(clusterId int, namespace string, appName string) (*appStoreBean.InstallAppVersionDTO, error)
 	GetInstalledAppByInstalledAppId(installedAppId int) (*appStoreBean.InstallAppVersionDTO, error)
+	ParseGitRepoErrorResponse(err error) (bool, error)
 }
 
 type AppStoreDeploymentCommonServiceImpl struct {
@@ -100,4 +106,32 @@ func (impl AppStoreDeploymentCommonServiceImpl) convert(chart *repository.Instal
 			},
 		},
 	}
+}
+
+func (impl AppStoreDeploymentCommonServiceImpl) ParseGitRepoErrorResponse(err error) (bool, error) {
+	//update values yaml in chart
+	noTargetFound := false
+	if err != nil {
+		if errorResponse, ok := err.(*github.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
+			impl.logger.Errorw("no content found while updating git repo on github, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if errorResponse, ok := err.(azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
+			impl.logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if errorResponse, ok := err.(*azuredevops.WrappedError); ok && *errorResponse.StatusCode == http.StatusNotFound {
+			impl.logger.Errorw("no content found while updating git repo on azure, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if errorResponse, ok := err.(*gitlab.ErrorResponse); ok && errorResponse.Response.StatusCode == http.StatusNotFound {
+			impl.logger.Errorw("no content found while updating git repo gitlab, do auto fix", "error", err)
+			noTargetFound = true
+		}
+		if err.Error() == util.BITBUCKET_REPO_NOT_FOUND_ERROR {
+			impl.logger.Errorw("no content found while updating git repo bitbucket, do auto fix", "error", err)
+			noTargetFound = true
+		}
+	}
+	return noTargetFound, err
 }
