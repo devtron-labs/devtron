@@ -17,6 +17,12 @@ type Config struct {
 	LogQuery        bool   `env:"TEST_PG_LOG_QUERY" envDefault:"true"`
 }
 
+type EnvironmentDto struct {
+}
+
+type AppDto struct {
+}
+
 //need app table,environment table
 
 //create util func's to create dummy apps and dummy data
@@ -59,4 +65,12 @@ func InitAppStatusRepo() {
 	}
 
 	appStatusReposioty = NewAppStatusRepositoryImpl(conn, logger)
+}
+
+func CreateTestDataForDevtronAppsAndInstalledApps(appData, installedAppData []AppDto) error {
+	return nil
+}
+
+func CreateTestEnvironments([]EnvironmentDto) error {
+	return nil
 }
