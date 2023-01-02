@@ -36,7 +36,7 @@ func TestAppStatusRepositoryImpl_Create(t *testing.T) {
 	tx, _ := db.Begin()
 	for _, data := range testData {
 		err := repo.Create(tx, data)
-		assert.NotNil(t, err)
+		assert.Nil(t, err)
 	}
 	err := tx.Commit()
 	if err != nil {
@@ -54,21 +54,50 @@ func TestAppStatusRepositoryImpl_Create(t *testing.T) {
 	//delete the data from db
 	deleteTestdata()
 }
+
 func TestAppStatusRepositoryImpl_Update(t *testing.T) {
 	repo := initAppStatusRepo()
+	testData := getTestdata()[0]
 
+	//insert dummy data
+	insertTestData(testData)
+
+	//get the data with the API
+	prevData, err := repo.Get(testData.AppId, testData.EnvId)
+	assert.Nil(t, err)
+	updateData := getTestdata()[0]
+	updateData.Status = "Test-Status"
+
+	//Fire update API
+	tx, _ := db.Begin()
+	err = repo.Update(tx, updateData)
+	assert.Nil(t, err)
+	err = tx.Commit()
+	if err != nil {
+		log.Fatal("error in committing data in db", "err", err)
+	}
+	afterData, err := repo.Get(updateData.AppId, updateData.EnvId)
+	assert.Nil(t, err)
+	assert.NotEqual(t, prevData.UpdatedOn, afterData.UpdatedOn)
+	assert.Equal(t, prevData.AppId, afterData.AppId)
+	assert.Equal(t, prevData.EnvId, afterData.EnvId)
+	assert.NotEqual(t, prevData.Status, afterData.Status)
+	assert.Equal(t, updateData.Status, afterData.Status)
+
+	//delete test data
+	deleteTestdata()
 }
 func TestAppStatusRepositoryImpl_Delete(t *testing.T) {
-	repo := initAppStatusRepo()
+	//repo := initAppStatusRepo()
 
 }
 
 func TestAppStatusRepositoryImpl_DeleteWithAppId(t *testing.T) {
-	repo := initAppStatusRepo()
+	//repo := initAppStatusRepo()
 
 }
 func TestAppStatusRepositoryImpl_DeleteWithEnvId(t *testing.T) {
-	repo := initAppStatusRepo()
+	//repo := initAppStatusRepo()
 
 }
 
@@ -155,6 +184,7 @@ func getDbConn() (*pg.DB, error) {
 		ApplicationName: cfg.ApplicationName,
 	}
 	dbConnection := pg.Connect(&options)
+	db = dbConnection
 	return dbConnection, nil
 }
 
@@ -184,8 +214,7 @@ func createAppStatusTable() error {
 	cmd := "CREATE TABLE IF NOT EXISTS public.app_status" +
 		"(\"app_id\" integer,\"env_id\" integer," +
 		"\"status\" varchar(255)," +
-		"\"updated_on\" timestamp with time zone NOT NULL," +
-		"PRIMARY KEY (\"app_id\",\"env_id\"),"
+		"\"updated_on\" timestamp with time zone NOT NULL)"
 
 	_, err := db.Exec(cmd)
 	return err
