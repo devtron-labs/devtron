@@ -59,11 +59,83 @@ If you have multiple nodes, you can search a node by name or label in the search
 
 To display a parameter of a node, use the `Columns` on the right side, select the parameter you want to display from the drop-down list and click `Apply`.
 
+## Manage Nodes
+
+Your applications run on pods, and pods run on Nodes. But sometimes, Kubernetes scheduler cannot deploy a pod on a Node for several reasons. As an example, node is not ready, node is not reachable, network is unavailable etc.
+
+Using the Devtron UI, you will be able to:
+* [Debug a node](#debug-a-node)
+* [Cordon a node](#cordon-a-node)
+* [Drain a node](#drain-a-node)
+* [Taint a node](#taint-node)
+* [Configure YAML](#configure-yaml)
+* [Delete a node](#delete-a-node)
+
 To see the summary of a node, click the particular node.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/node-overview-clusters.jpg)
 
-### YAML
+### Debug a Node
+
+You can debug a node via Terminal by selecting your namespace and image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
+
+* Go to the `Clusters` section from the left navigation pane.
+* Select your cluster.
+* Search a node by name or label in the search bar.
+* On the node, click the ellipsis button and then click `Terminal`.
+* Debug a node by selecting the terminal shell `bash` or `sh`.
+
+### Cordon a Node
+
+Cordoning a node means making the node unschedulable. After cordoning a node, new Pods cannot be scheduled on this node.
+
+* On the node, click the ellipsis button and then click `Cordon`.
+* A dialog box with message `Cordoning this node will mark this node as unschedulable. By cordoning a node, you can be sure that no new pods will be scheduled on this node` is displayed.
+* The status of the node shows `SchedulingDisabled` with `Unschedulable` parameter set as `true`.
+
+Similarly, you can uncordon a node by clicking `Uncordon`. After a node is uncordoned, new Pods can be scheduled on the node.
+
+### Drain a Node
+
+Before performing maintenance on a node, draining a node evicts all of your pods safely from a node. Safe evictions allow the pod’s containers to gracefully terminate and will manage the `PodDisruptionBudgets` you have specified (if relevant).
+
+After the node is drained, all Pods (including those managed by DaemonSets) in the node will be automatically drained to other nodes in the cluster, and the drained node will be set to cordoned status.
+
+* On the node, click the ellipsis button and then click `Drain`.
+* A dialog box with message `Drain will cordon off the node and evict all pods of the node` is displayed.
+* Click `Drain Node`.
+
+You can also select from the following conditions before draining a node:
+
+| Name | Usage |
+| --- | --- |
+| **Grace Period** | Period of time in seconds given to each pod to terminate gracefully. If negative, the default value specified in the pod will be used. |
+| **Delete empty directory data** | Enabling this field will delete the pods using empty directory data when the node is drained. |
+| **Disable eviction (use with caution** | Enabling this field will force drain to use delete, even if eviction is supported. This will bypass checking `PodDisruptionBudgets`.<br>Note: Make sure to use with caution.</br> |
+| **Force drain** | Enabling this field will force drain a node even if there are pods that do not declare a controller. |
+| **Ignore DaemonSets** | Enabling this field will ignore DaemonSet-managed pods. |
+
+### Taint a Node
+
+Taints are `key:value` pairs associated with effect. After you add taints to nodes, you can set tolerations on a pod to allow the pod to be scheduled to nodes with certain taints. When you taint a node, it will repel all the pods except those that have a toleration for that taint. A node can have one or many taints associated with it.
+
+**Note**: Make sure to check taint validations before you add a taint.
+
+* On the node, click the ellipsis button and then click `Edit taints`.
+* Click `Add taint`.
+* On the `Key` and `Value` fields, enter the `key:value` pairs and select the taint effect from the drop-down list.
+* Click `Save`.
+* You can also delete the added taint by clicking delete button.
+
+A taint can produce three possible effects:
+
+| Effect | Description |
+| --- | --- |
+| **NoSchedule** | The Kubernetes scheduler will only allow scheduling pods that have tolerations for the tainted nodes. |
+| **PreferNoSchedule** | The Kubernetes scheduler will try to avoid scheduling pods that do not have tolerations for the tainted nodes. |
+| **NoExecute** | Kubernetes will evict the running pods from the nodes if the pods do not have tolerations for the tainted nodes. |
+
+### Configure YAML
 
 The config.yaml file contains all the configuration settings that are needed to deploy your cluster.
 
@@ -71,9 +143,15 @@ The config.yaml file contains all the configuration settings that are needed to 
 * Click `Review Changes` to compare the changes in the YAML file.
 * Click `Update Node`.
 
-### Debug a Node
 
-You can debug a node via Terminal by selecting your namespace and image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
+### Delete a Node
+
+* Go to the `Clusters` section from the left navigation pane.
+* Select your cluster.
+* Search a node by name or label in the search bar.
+* On the node, click the ellipsis button and then click `Delete`.
+
+The node will be deleted from the cluster.
 
 
 ## Access Cluster via Terminal for Troubleshooting
