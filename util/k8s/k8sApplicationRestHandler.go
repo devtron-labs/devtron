@@ -608,8 +608,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 	response, err := handler.k8sApplicationService.GetResourceList(&request)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource list", "err", err)
-		if _, ok := err.(*errors3.StatusError); ok {
-			err = &util2.ApiError{Code: "400", HttpStatusCode: 400, UserMessage: "data validation error", InternalMessage: err.Error()}
+		if statusErr, ok := err.(*errors3.StatusError); ok && statusErr.Status().Code == 404 {
+			err = &util2.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "no resource found", InternalMessage: err.Error()}
 		}
 		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
 		return
