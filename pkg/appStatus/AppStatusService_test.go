@@ -12,32 +12,6 @@ import (
 	"testing"
 )
 
-type Config struct {
-	Addr            string `env:"TEST_PG_ADDR" envDefault:"127.0.0.1"`
-	Port            string `env:"TEST_PG_PORT" envDefault:"55000"`
-	User            string `env:"TEST_PG_USER" envDefault:"postgres"`
-	Password        string `env:"TEST_PG_PASSWORD" envDefault:"postgrespw" secretData:"-"`
-	Database        string `env:"TEST_PG_DATABASE" envDefault:"orchestrator"`
-	ApplicationName string `env:"TEST_APP" envDefault:"orchestrator"`
-	LogQuery        bool   `env:"TEST_PG_LOG_QUERY" envDefault:"true"`
-}
-
-func getDbConn() (*pg.DB, error) {
-	cfg := Config{}
-	err := env.Parse(&cfg)
-	if err != nil {
-		return nil, err
-	}
-	options := pg.Options{
-		Addr:            cfg.Addr + ":" + cfg.Port,
-		User:            cfg.User,
-		Password:        cfg.Password,
-		ApplicationName: cfg.ApplicationName,
-	}
-	dbConnection := pg.Connect(&options)
-	return dbConnection, nil
-}
-
 func TestUpdateStatusWithAppIdEnvId(t *testing.T) {
 	logger, err := util.NewSugardLogger()
 	assert.Nil(t, err)
@@ -188,4 +162,30 @@ func TestDeleteWithAppIdEnvId(t *testing.T) {
 		err = appStatusService.DeleteWithAppIdEnvId(testInputContainer.AppId, testInputContainer.EnvId)
 		assert.Nil(tt, err)
 	})
+}
+
+type Config struct {
+	Addr            string `env:"TEST_PG_ADDR" envDefault:"127.0.0.1"`
+	Port            string `env:"TEST_PG_PORT" envDefault:"55000"`
+	User            string `env:"TEST_PG_USER" envDefault:"postgres"`
+	Password        string `env:"TEST_PG_PASSWORD" envDefault:"postgrespw" secretData:"-"`
+	Database        string `env:"TEST_PG_DATABASE" envDefault:"orchestrator"`
+	ApplicationName string `env:"TEST_APP" envDefault:"orchestrator"`
+	LogQuery        bool   `env:"TEST_PG_LOG_QUERY" envDefault:"true"`
+}
+
+func getDbConn() (*pg.DB, error) {
+	cfg := Config{}
+	err := env.Parse(&cfg)
+	if err != nil {
+		return nil, err
+	}
+	options := pg.Options{
+		Addr:            cfg.Addr + ":" + cfg.Port,
+		User:            cfg.User,
+		Password:        cfg.Password,
+		ApplicationName: cfg.ApplicationName,
+	}
+	dbConnection := pg.Connect(&options)
+	return dbConnection, nil
 }
