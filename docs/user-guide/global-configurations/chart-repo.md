@@ -21,6 +21,7 @@ If you select `Public repository`, provide below information in the following fi
 | **Name** | Provide a `Name` of your chart repository. This name is added as prefix to the name of the chart in the listing on the helm chart section of application. |
 | **URL** | This is the URL of your chart repository. E.g. https://charts.bitnami.com/bitnami |
 
+
 If you select `Private repository`, provide below information in the following fields:
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/chart-repo/add-chart-repository-private.jpg)
