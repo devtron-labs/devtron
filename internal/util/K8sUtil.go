@@ -588,7 +588,9 @@ func (impl K8sUtil) populateResourceData(manifest *unstructured.Unstructured) *a
 		if metadata[application.K8sClusterResourceNamespaceKey] != nil {
 			clusterResourceListResponse.Namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
 		}
-		clusterResourceListResponse.Age = metadata[application.K8sClusterResourceCreationTimestampKey].(string)
+		if metadata[application.K8sClusterResourceCreationTimestampKey] != nil {
+			clusterResourceListResponse.Age = metadata[application.K8sClusterResourceCreationTimestampKey].(string)
+		}
 	}
 
 	// status for pod kind is fetch from some other logic
