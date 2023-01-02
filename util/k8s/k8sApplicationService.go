@@ -562,10 +562,17 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(request *application.Apply
 
 func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstructured.Unstructured, restConfig *rest.Config) (bool, error) {
 	var isUpdateResource bool
+	var namespace string
+	manifestNamespace := manifest.GetNamespace()
+	if len(manifestNamespace) > 0 {
+		namespace = manifestNamespace
+	} else {
+		namespace = DEFAULT_NAMESPACE
+	}
 	k8sRequestBean := &application.K8sRequestBean{
 		ResourceIdentifier: application.ResourceIdentifier{
 			Name:             manifest.GetName(),
-			Namespace:        manifest.GetNamespace(),
+			Namespace:        namespace,
 			GroupVersionKind: manifest.GroupVersionKind(),
 		},
 	}
