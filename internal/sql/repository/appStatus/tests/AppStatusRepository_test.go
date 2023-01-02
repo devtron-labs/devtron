@@ -155,7 +155,50 @@ func TestAppStatusRepositoryImpl_Delete(t *testing.T) {
 }
 
 func TestAppStatusRepositoryImpl_DeleteWithAppId(t *testing.T) {
-	//repo := initAppStatusRepo()
+	repo := initAppStatusRepo()
+	testData := getTestdata()
+	//create dummy data in the db
+	tx, _ := db.Begin()
+	for _, data := range testData {
+		err := repo.Create(tx, data)
+		assert.Nil(t, err)
+	}
+	err := tx.Commit()
+	if err != nil {
+		log.Fatal("error in committing data in db", "err", err)
+	}
+
+	//delete data having app_id = 1
+	tx1, _ := db.Begin()
+	deleteAppId := 1
+	err = repo.DeleteWithAppId(tx1, deleteAppId)
+	assert.Nil(t, err)
+	err = tx1.Commit()
+	if err != nil {
+		log.Fatal("error in committing data in db", "err", err)
+	}
+
+	//verify if data is deleted for the above deleted app_id and also check if data is present for other app_id's
+	for _, data := range testData {
+		resp, err := repo.Get(data.AppId, data.EnvId)
+		if data.AppId == deleteAppId {
+			assert.NotNil(t, err)
+			assert.Equal(t, pg.ErrNoRows, err)
+			assert.NotNil(t, resp)
+			assert.Equal(t, resp.AppId, 0)
+			assert.Equal(t, resp.EnvId, 0)
+			assert.Equal(t, len(resp.Status), 0)
+		} else {
+			assert.Nil(t, err)
+			assert.NotNil(t, resp)
+			assert.Equal(t, resp.AppId, data.AppId)
+			assert.Equal(t, resp.EnvId, data.EnvId)
+			assert.Equal(t, len(resp.Status), len(data.Status))
+		}
+	}
+
+	//delete the test data from db
+	deleteTestdata()
 
 }
 func TestAppStatusRepositoryImpl_DeleteWithEnvId(t *testing.T) {
