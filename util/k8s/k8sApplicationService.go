@@ -498,7 +498,31 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int) ([]*app
 		impl.logger.Errorw("error in getting cluster rest config", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	return impl.k8sClientService.GetApiResources(restConfig)
+	apiResources, err := impl.k8sClientService.GetApiResources(restConfig, LIST_VERB)
+	if err != nil {
+		return apiResources, err
+	}
+
+	// FILTER STARTS
+	// 1) remove ""/v1 event kind if event kind exist in events.k8s.io/v1 and ""/v1
+	k8sEventIndex := -1
+	v1EventIndex := -1
+	for index, apiResource := range apiResources {
+		gvk := apiResource.Gvk
+		if gvk.Kind == EVENT_K8S_KIND && gvk.Version == "v1" {
+			if gvk.Group == "" {
+				v1EventIndex = index
+			} else if gvk.Group == "events.k8s.io" {
+				k8sEventIndex = index
+			}
+		}
+	}
+	if k8sEventIndex > -1 && v1EventIndex > -1 {
+		apiResources = append(apiResources[:v1EventIndex], apiResources[v1EventIndex+1:]...)
+	}
+	// FILTER ENDS
+
+	return apiResources, nil
 }
 
 func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestBean) ([]*application.ClusterResourceListResponse, error) {

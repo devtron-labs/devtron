@@ -114,3 +114,5 @@ type NodeDrainHelper struct {
 }
 
 const DEFAULT_NAMESPACE = "default"
+const EVENT_K8S_KIND = "Event"
+const LIST_VERB = "list"

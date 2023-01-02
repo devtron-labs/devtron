@@ -27,7 +27,7 @@ type K8sClientService interface {
 	DeleteResource(restConfig *rest.Config, request *K8sRequestBean) (resp *ManifestResponse, err error)
 	ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error)
 	GetPodLogs(restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error)
-	GetApiResources(restConfig *rest.Config) ([]*K8sApiResource, error)
+	GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*K8sApiResource, error)
 	GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, error)
 	ApplyResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error)
 }
@@ -177,7 +177,7 @@ func (impl K8sClientServiceImpl) DeleteResource(restConfig *rest.Config, request
 }
 
 func (impl K8sClientServiceImpl) ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error) {
-	isGlobalKindEvent:= request.ResourceIdentifier.GroupVersionKind.Kind == "Event"
+	isGlobalKindEvent := request.ResourceIdentifier.GroupVersionKind.Kind == "Event"
 	resourceIdentifier := request.ResourceIdentifier
 	resourceIdentifier.GroupVersionKind.Kind = "List"
 	eventsClient, err := v1.NewForConfig(restConfig)
@@ -284,7 +284,8 @@ func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterf
 	return nil, errors.NewNotFound(schema.GroupResource{Group: gvk.Group, Resource: gvk.Kind}, "")
 }
 
-func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config) ([]*K8sApiResource, error) {
+// if verb is supplied empty, that means - return all
+func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*K8sApiResource, error) {
 	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic k8s client", "err", err)
@@ -301,6 +302,20 @@ func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config) ([]*K8
 	for _, apiResourceListFromK8s := range apiResourcesListFromK8s {
 		if apiResourceListFromK8s != nil {
 			for _, apiResourceFromK8s := range apiResourceListFromK8s.APIResources {
+				var includeResource bool
+				if len(includeOnlyVerb) > 0 {
+					for _, verb := range apiResourceFromK8s.Verbs {
+						if verb == includeOnlyVerb {
+							includeResource = true
+							break
+						}
+					}
+				} else {
+					includeResource = true
+				}
+				if !includeResource {
+					continue
+				}
 				var group string
 				var version string
 				gv := apiResourceListFromK8s.GroupVersion
