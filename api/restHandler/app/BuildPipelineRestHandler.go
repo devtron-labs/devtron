@@ -190,7 +190,7 @@ func (handler PipelineConfigRestHandlerImpl) UpdateBranchCiPipelinesWithRegex(w 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(patchRequest.Id, patchRequest.AppId)
+	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(patchRequest.Id)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", patchRequest.Id)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)
@@ -463,7 +463,7 @@ func (handler PipelineConfigRestHandlerImpl) FetchMaterials(w http.ResponseWrite
 		return
 	}
 	//RBAC
-	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(pipelineId, ciPipeline.AppId)
+	resp, err := handler.ciHandler.FetchMaterialsByPipelineId(pipelineId)
 	if err != nil {
 		handler.Logger.Errorw("service err, FetchMaterials", "err", err, "pipelineId", pipelineId)
 		common.WriteJsonResp(w, err, resp, http.StatusInternalServerError)

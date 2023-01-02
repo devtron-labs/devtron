@@ -523,7 +523,6 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 		ciTemplateOverride := templateBeanOverride.CiTemplateOverride
 		ciOverrideTemplateMap[ciTemplateOverride.CiPipelineId] = templateBeanOverride
 	}
-	gitMaterials, err := impl.materialRepo.FindByAppId(appId)
 	var ciPipelineResp []*bean.CiPipeline
 	for _, pipeline := range pipelines {
 
@@ -589,15 +588,11 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 				CiBuildConfig:    ciTemplateBean.CiBuildConfig,
 			}
 		}
-
-		gitMaterialIds := make(map[int]bool)
-
 		for _, material := range pipeline.CiPipelineMaterials {
 			// ignore those materials which have inactive git material
 			if material == nil || material.GitMaterial == nil || !material.GitMaterial.Active {
 				continue
 			}
-			gitMaterialIds[material.GitMaterialId] = true
 			ciMaterial := &bean.CiMaterial{
 				Id:              material.Id,
 				CheckoutPath:    material.CheckoutPath,
@@ -612,26 +607,6 @@ func (impl PipelineBuilderImpl) GetCiPipeline(appId int) (ciConfig *bean.CiConfi
 			}
 			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
 		}
-
-		for _, material := range gitMaterials {
-			if gitMaterialIds[material.Id] == true {
-				continue
-			}
-			ciMaterial := &bean.CiMaterial{
-				Id:              0,
-				CheckoutPath:    material.CheckoutPath,
-				Path:            "",
-				ScmId:           "",
-				GitMaterialId:   material.Id,
-				GitMaterialName: material.Name[strings.Index(material.Name, "-")+1:],
-				ScmName:         "",
-				ScmVersion:      "",
-				IsRegex:         false,
-				Source:          &bean.SourceTypeConfig{Type: "", Value: "Not Configured", Regex: ""},
-			}
-			ciPipeline.CiMaterial = append(ciPipeline.CiMaterial, ciMaterial)
-		}
-
 		linkedCis, err := impl.ciPipelineRepository.FindByParentCiPipelineId(ciPipeline.Id)
 		if err != nil && !util.IsErrNoRows(err) {
 			return nil, err
