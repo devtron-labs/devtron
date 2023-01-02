@@ -370,7 +370,21 @@ func (handler *K8sApplicationRestHandlerImpl) ListEvents(w http.ResponseWriter, 
 		}
 		//RBAC enforcer Ends
 	} else if request.ClusterId > 0 {
-		// TODO : handle RBAC
+		// RBAC enforcer applying
+		cluster, err := handler.clusterService.FindById(request.ClusterId)
+		if err != nil {
+			handler.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
+			common.WriteJsonResp(w, err, "", http.StatusInternalServerError)
+			return
+		}
+		rbacResource := fmt.Sprintf("%s/%s", cluster.ClusterName, request.K8sRequest.ResourceIdentifier.Namespace)
+		rbacObject := fmt.Sprintf("%s/%s/%s", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group, request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, request.K8sRequest.ResourceIdentifier.Namespace)
+		token := r.Header.Get("token")
+		if ok := handler.enforcer.Enforce(token, rbacResource, casbin.ActionGet, rbacObject); !ok {
+			common.WriteJsonResp(w, errors2.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
+		//RBAC enforcer Ends
 	} else {
 		common.WriteJsonResp(w, errors.New("can not get resource as target cluster is not provided"), nil, http.StatusBadRequest)
 		return
