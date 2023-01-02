@@ -68,4 +68,8 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 	clusterRouter.Path("").
 		Methods("DELETE").
 		HandlerFunc(impl.clusterRestHandler.DeleteCluster)
+
+	clusterRouter.Path("/permission/list").
+		Methods("GET").
+		HandlerFunc(impl.clusterRestHandler.FindAllForClusterPermission)
 }
