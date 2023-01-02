@@ -2,6 +2,7 @@
 - fix: cluster name passed in node metadata list (#2804)
 - fix: Chart with nested directory  (#2797)
 ## Enhancements
+- feat: added support for node-[delete, cordon, drain, taint edit] (#2805)
 - feat: Cluster terminal multiple image support (#2815)
 ## Documentation
 - docs: minor updates (#2800)
