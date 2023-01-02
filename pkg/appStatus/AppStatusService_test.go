@@ -119,15 +119,15 @@ func TestUpdateStatusWithAppIdEnvId(t *testing.T) {
 		db, _ := getDbConn()
 		appStatusRepositoryMocked.On("Get", 1, 1).Return(testOutputContainerFromDb, nil)
 		appStatusRepositoryMocked.On("GetConnection").Return(db)
-		expectedError := fmt.Errorf("error in updating app-status")
-		appStatusRepositoryMocked.On("Update", mock.AnythingOfTypeArgument("*pg.Tx"), testInputContainer).Return(expectedError)
+		expectedTestError := fmt.Errorf("error in updating app-status")
+		appStatusRepositoryMocked.On("Update", mock.AnythingOfTypeArgument("*pg.Tx"), testInputContainer).Return(expectedTestError)
 
 		err = appStatusService.UpdateStatusWithAppIdEnvId(1, 1, "Progressing")
 		assert.NotNil(tt, err)
-		assert.Equal(tt, expectedError.Error(), err.Error())
+		assert.Equal(tt, expectedTestError.Error(), err.Error())
 	})
 
-	t.Run("Test-6 success in app-status", func(tt *testing.T) {
+	t.Run("Test-6 success in updating app-status", func(tt *testing.T) {
 		appStatusRepositoryMocked := mocks.NewAppStatusRepository(t)
 		appStatusService := NewAppStatusServiceImpl(appStatusRepositoryMocked, logger, nil, nil)
 		testOutputContainerFromDb := appStatus.AppStatusContainer{
@@ -152,5 +152,40 @@ func TestUpdateStatusWithAppIdEnvId(t *testing.T) {
 }
 
 func TestDeleteWithAppIdEnvId(t *testing.T) {
+	logger, err := util.NewSugardLogger()
+	assert.Nil(t, err)
 
+	t.Run("Test-1 error in deleting app-status", func(tt *testing.T) {
+		appStatusRepositoryMocked := mocks.NewAppStatusRepository(t)
+		appStatusService := NewAppStatusServiceImpl(appStatusRepositoryMocked, logger, nil, nil)
+		testInputContainer := appStatus.AppStatusContainer{
+			AppId: 1,
+			EnvId: 1,
+		}
+		db, _ := getDbConn()
+
+		appStatusRepositoryMocked.On("GetConnection").Return(db)
+		expectedTestError := fmt.Errorf("error in deleting app-status")
+		appStatusRepositoryMocked.On("Delete", mock.AnythingOfTypeArgument("*pg.Tx"), testInputContainer.AppId, testInputContainer.EnvId).Return(expectedTestError)
+
+		err = appStatusService.DeleteWithAppIdEnvId(testInputContainer.AppId, testInputContainer.EnvId)
+		assert.NotNil(tt, err)
+		assert.Equal(tt, expectedTestError.Error(), err.Error())
+	})
+
+	t.Run("Test-2 success in deleting app-status", func(tt *testing.T) {
+		appStatusRepositoryMocked := mocks.NewAppStatusRepository(t)
+		appStatusService := NewAppStatusServiceImpl(appStatusRepositoryMocked, logger, nil, nil)
+		testInputContainer := appStatus.AppStatusContainer{
+			AppId: 1,
+			EnvId: 1,
+		}
+
+		db, _ := getDbConn()
+		appStatusRepositoryMocked.On("GetConnection").Return(db)
+		appStatusRepositoryMocked.On("Delete", mock.AnythingOfTypeArgument("*pg.Tx"), testInputContainer.AppId, testInputContainer.EnvId).Return(nil)
+
+		err = appStatusService.DeleteWithAppIdEnvId(testInputContainer.AppId, testInputContainer.EnvId)
+		assert.Nil(tt, err)
+	})
 }
