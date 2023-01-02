@@ -1,8 +1,9 @@
 package k8s
 
 import (
-	metav1 "k8s.io/api/core/v1"
+	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/client-go/kubernetes"
 )
 
 type ClusterCapacityDetail struct {
@@ -11,7 +12,7 @@ type ClusterCapacityDetail struct {
 	ErrorInConnection string                                `json:"errorInNodeListing,omitempty"`
 	NodeCount         int                                   `json:"nodeCount,omitempty"`
 	NodeNames         []string                              `json:"nodeNames"`
-	NodeErrors        map[metav1.NodeConditionType][]string `json:"nodeErrors"`
+	NodeErrors        map[corev1.NodeConditionType][]string `json:"nodeErrors"`
 	NodeK8sVersions   []string                              `json:"nodeK8sVersions"`
 	ServerVersion     string                                `json:"serverVersion,omitempty"`
 	Cpu               *ResourceDetailObject                 `json:"cpu"`
@@ -29,8 +30,7 @@ type NodeCapacityDetail struct {
 	Age           string                              `json:"age,omitempty"`
 	Status        string                              `json:"status,omitempty"`
 	PodCount      int                                 `json:"podCount,omitempty"`
-	TaintCount    int                                 `json:"taintCount,omitempty"`
-	Errors        map[metav1.NodeConditionType]string `json:"errors"`
+	Errors        map[corev1.NodeConditionType]string `json:"errors"`
 	InternalIp    string                              `json:"internalIp"`
 	ExternalIp    string                              `json:"externalIp"`
 	Unschedulable bool                                `json:"unschedulable"`
@@ -85,10 +85,32 @@ type NodeConditionObject struct {
 	Message   string `json:"message"`
 }
 
-type NodeManifestUpdateDto struct {
-	ClusterId     int    `json:"clusterId"`
-	Name          string `json:"name"`
-	ManifestPatch string `json:"manifestPatch"`
-	Version       string `json:"version"`
-	Kind          string `json:"kind"`
+type NodeUpdateRequestDto struct {
+	ClusterId        int               `json:"clusterId"`
+	Name             string            `json:"name"`
+	ManifestPatch    string            `json:"manifestPatch"`
+	Version          string            `json:"version"`
+	Kind             string            `json:"kind"`
+	Taints           []corev1.Taint    `json:"taints"`
+	NodeCordonHelper *NodeCordonHelper `json:"nodeCordonOptions"`
+	NodeDrainHelper  *NodeDrainHelper  `json:"nodeDrainOptions"`
 }
+
+type NodeCordonHelper struct {
+	UnschedulableDesired bool `json:"unschedulableDesired"`
+}
+
+type NodeDrainHelper struct {
+	Force              bool `json:"force"`
+	DeleteEmptyDirData bool `json:"deleteEmptyDirData"`
+	// GracePeriodSeconds is how long to wait for a pod to terminate.
+	// IMPORTANT: 0 means "delete immediately"; set to a negative value
+	// to use the pod's terminationGracePeriodSeconds.
+	GracePeriodSeconds  int  `json:"gracePeriodSeconds"`
+	IgnoreAllDaemonSets bool `json:"ignoreAllDaemonSets"`
+	// DisableEviction forces drain to use delete rather than evict
+	DisableEviction bool `json:"disableEviction"`
+	k8sClientSet    *kubernetes.Clientset
+}
+
+const DEFAULT_NAMESPACE = "default"
