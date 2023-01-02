@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"github.com/devtron-labs/devtron/api/apiToken"
+	"github.com/devtron-labs/devtron/api/appStore"
 	appStoreDeployment "github.com/devtron-labs/devtron/api/appStore/deployment"
 	appStoreDiscover "github.com/devtron-labs/devtron/api/appStore/discover"
 	appStoreValues "github.com/devtron-labs/devtron/api/appStore/values"
@@ -57,6 +58,7 @@ type MuxRouter struct {
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter
 	attributesRouter         router.AttributesRouter
 	chartGroupRouter         router.ChartGroupRouter
+	appStoreRouter           appStore.AppStoreRouter
 }
 
 func NewMuxRouter(
@@ -86,6 +88,7 @@ func NewMuxRouter(
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
 	attributesRouter router.AttributesRouter,
 	chartGroupRouter router.ChartGroupRouter,
+	appStoreRouter appStore.AppStoreRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -116,6 +119,7 @@ func NewMuxRouter(
 		userTerminalAccessRouter: userTerminalAccessRouter,
 		attributesRouter:         attributesRouter,
 		chartGroupRouter:         chartGroupRouter,
+		appStoreRouter:           appStoreRouter,
 	}
 	return r
 }
@@ -238,5 +242,8 @@ func (r *MuxRouter) Init() {
 
 	chartGroupRouter := r.Router.PathPrefix("/orchestrator/chart-group").Subrouter()
 	r.chartGroupRouter.InitChartGroupRouter(chartGroupRouter)
+
+	appStoreRouter := r.Router.PathPrefix("/orchestrator/app-store").Subrouter()
+	r.appStoreRouter.Init(appStoreRouter)
 
 }
