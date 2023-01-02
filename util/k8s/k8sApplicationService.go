@@ -430,6 +430,7 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(clusterId int) (
 func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(cluster *cluster.ClusterBean) (*rest.Config, error) {
 	configMap := cluster.Config
 	bearerToken := configMap["bearer_token"]
+	//bearerToken := "eyJhbGciOiJSUzI1NiIsImtpZCI6IldlY0hmV2xLZWlnMDM3X3N1emZ5ZnF4ZzZPVmdfanRWaUVuMUt3RWRDdUEifQ.eyJhdWQiOlsiaHR0cHM6Ly9rdWJlcm5ldGVzLmRlZmF1bHQuc3ZjIl0sImV4cCI6MTcwNDE5OTc3OCwiaWF0IjoxNjcyNjYzNzc4LCJpc3MiOiJodHRwczovL2t1YmVybmV0ZXMuZGVmYXVsdC5zdmMiLCJrdWJlcm5ldGVzLmlvIjp7Im5hbWVzcGFjZSI6ImRldnRyb25jZCIsInBvZCI6eyJuYW1lIjoiZGV2dHJvbi02YzZjNjc4NjliLTJ6Nmc3IiwidWlkIjoiZmE0N2I4MDYtYjEyZS00ZWU0LThjNDEtYmVhMDgzNzQ0MDQ4In0sInNlcnZpY2VhY2NvdW50Ijp7Im5hbWUiOiJkZXZ0cm9uIiwidWlkIjoiNDcyMGI5YTQtYmExMS00ZjYwLTgyNmMtMDE3ZjQ3MDFmMzdjIn0sIndhcm5hZnRlciI6MTY3MjY2NzM4NX0sIm5iZiI6MTY3MjY2Mzc3OCwic3ViIjoic3lzdGVtOnNlcnZpY2VhY2NvdW50OmRldnRyb25jZDpkZXZ0cm9uIn0.fRILwar05XHnw3R3QF5vhKQg2mNlm5Coyu6d5Q3PYEmz0sOfZm6PbZQkm5WPhSloVR9dgIWykenhsWhk4_Y4qW93QBjm9mXzidIErPzNDhdWDnZ_cvSurLjqNL3a3CFR-iCqGEiuUPUu_Uo-4NvFQIOU-IZFgRkv5AjG5VI9Qp2sqpAg8q7fvYRbfNMUdhBlkPz-5tD0efM6lHzxqgQwgwrpdXLRm9LM49QDuPxS-EiYnK7mWRML1O7rGE6qp1SnJsJUPOGmQgWL2vBAnCsUrHAYdxc-3ySW146PIEMIAw9mWu8-T2-P_fE4MP6uzbEMtqDK4Mf1emXNyqQoXqxrvw"
 	var restConfig *rest.Config
 	var err error
 	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
@@ -439,6 +440,7 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(cluster *cluster.C
 			return nil, err
 		}
 	} else {
+		//restConfig = &rest.Config{Host: "https://20.241.229.62:16443", BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
 		restConfig = &rest.Config{Host: cluster.ServerUrl, BearerToken: bearerToken, TLSClientConfig: rest.TLSClientConfig{Insecure: true}}
 	}
 	return restConfig, nil

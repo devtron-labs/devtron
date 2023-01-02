@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"go.uber.org/zap"
 	"io"
@@ -10,6 +11,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	metav1beta1 "k8s.io/apimachinery/pkg/apis/meta/v1beta1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/client-go/discovery"
@@ -17,6 +19,7 @@ import (
 	v1 "k8s.io/client-go/kubernetes/typed/core/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/utils/pointer"
+	"net/http"
 	"strings"
 )
 
@@ -252,7 +255,7 @@ func (impl K8sClientServiceImpl) GetPodLogs(restConfig *rest.Config, request *K8
 
 func (impl K8sClientServiceImpl) GetResourceIf(restConfig *rest.Config, request *K8sRequestBean) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
 	resourceIdentifier := request.ResourceIdentifier
-	dynamicIf, err := dynamic.NewForConfig(restConfig)
+	dynamicIf, err := InternalNewForConfig(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, false, err
@@ -269,6 +272,43 @@ func (impl K8sClientServiceImpl) GetResourceIf(restConfig *rest.Config, request 
 	}
 	resource := resourceIdentifier.GroupVersionKind.GroupVersion().WithResource(apiResource.Name)
 	return dynamicIf.Resource(resource), apiResource.Namespaced, nil
+}
+
+// NewForConfig creates a new dynamic client or returns an error.
+// NewForConfig is equivalent to NewForConfigAndClient(c, httpClient),
+// where httpClient was generated with rest.HTTPClientFor(c).
+func InternalNewForConfig(inConfig *rest.Config) (Interface, error) {
+	config := dynamic.ConfigFor(inConfig)
+	config.AcceptContentTypes = strings.Join([]string{
+		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1.SchemeGroupVersion.Version, metav1.GroupName),
+		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1beta1.SchemeGroupVersion.Version, metav1beta1.GroupName),
+		"application/json",
+	}, ",")
+
+	httpClient, err := rest.HTTPClientFor(config)
+	if err != nil {
+		return nil, err
+	}
+	return NewForConfigAndClient(config, httpClient)
+}
+
+func NewForConfigAndClient(inConfig *rest.Config, h *http.Client) (Interface, error) {
+	config := dynamic.ConfigFor(inConfig)
+	config.AcceptContentTypes = strings.Join([]string{
+		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1.SchemeGroupVersion.Version, metav1.GroupName),
+		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1beta1.SchemeGroupVersion.Version, metav1beta1.GroupName),
+		"application/json",
+	}, ",")
+
+	// for serializing the options
+	config.GroupVersion = &schema.GroupVersion{}
+	config.APIPath = "/if-you-see-this-search-for-the-break"
+
+	restClient, err := rest.RESTClientForConfigAndClient(config, h)
+	if err != nil {
+		return nil, err
+	}
+	return &dynamicClient{client: restClient}, nil
 }
 
 func ServerResourceForGroupVersionKind(discoveryClient discovery.DiscoveryInterface, gvk schema.GroupVersionKind) (*metav1.APIResource, error) {
@@ -343,11 +383,17 @@ func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config, includ
 }
 
 func (impl K8sClientServiceImpl) GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, error) {
+	/*restConfig.AcceptContentTypes = strings.Join([]string{
+		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1.SchemeGroupVersion.Version, metav1.GroupName),
+		fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1beta1.SchemeGroupVersion.Version, metav1beta1.GroupName),
+		"application/json",
+	}, ",")*/
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, err
 	}
+	//fmt.Sprintf("application/json;as=Table;v=%s;g=%s", metav1.SchemeGroupVersion.Version, metav1.GroupName)
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.UnstructuredList
 	listOptions := metav1.ListOptions{
@@ -361,6 +407,14 @@ func (impl K8sClientServiceImpl) GetResourceList(restConfig *rest.Config, reques
 	} else {
 		resp, err = resourceIf.List(context.Background(), listOptions)
 	}
+	array := resp.Object["columnDefinitions"]
+	array mein se "priotiy" 0 wale "name" uthane hai
+
+	array1 := resp.Object["rows"]
+	array1 ko iterate kar de. usme se "cells" ko padha hai. and index ko ignore karna hai priorty wale. "cells" ke parallel mein "object" bhi hai. waha se namespace aa jaayega
+
+
+
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier)
 		return nil, err
