@@ -37,7 +37,7 @@ func GetOidcClient(conf *DexConfig, userVerifier oidc.UserVerifier, RedirectUrlS
 }
 
 func GetSettings(conf *DexConfig) (*oidc.Settings, error) {
-	proxyUrl, err := conf.getDexProxyUrl()
+	proxyUrl, err := conf.GetDexProxyUrl()
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ type DexConfig struct {
 	DevtronSecretName          string `env:"DEVTRON_SECRET_NAME" envDefault:"devtron-secret"`
 }
 
-func (c *DexConfig) getDexProxyUrl() (string, error) {
+func (c *DexConfig) GetDexProxyUrl() (string, error) {
 	u, err := url.Parse(c.Url)
 	if err != nil {
 		return "", err

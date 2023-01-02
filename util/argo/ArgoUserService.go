@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/argoproj/argo-cd/v2/pkg/apiclient/account"
-	"github.com/argoproj/argo-cd/v2/util/settings"
 	"github.com/devtron-labs/authenticator/client"
 	"github.com/devtron-labs/devtron/client/argocdServer"
 	"github.com/devtron-labs/devtron/client/argocdServer/session"
@@ -45,26 +44,28 @@ type ArgoUserService interface {
 }
 
 type ArgoUserServiceImpl struct {
-	logger              *zap.SugaredLogger
-	clusterService      cluster.ClusterService
-	acdSettings         *settings.ArgoCDSettings
-	devtronSecretConfig *util2.DevtronSecretConfig
-	runTimeConfig       *client.RuntimeConfig
-	gitOpsRepository    repository.GitOpsConfigRepository
+	logger                  *zap.SugaredLogger
+	clusterService          cluster.ClusterService
+	devtronSecretConfig     *util2.DevtronSecretConfig
+	runTimeConfig           *client.RuntimeConfig
+	gitOpsRepository        repository.GitOpsConfigRepository
+	argoCDConnectionManager argocdServer.ArgoCDConnectionManager
+	versionService          argocdServer.VersionService
 }
 
 func NewArgoUserServiceImpl(Logger *zap.SugaredLogger,
 	clusterService cluster.ClusterService,
-	acdSettings *settings.ArgoCDSettings,
 	devtronSecretConfig *util2.DevtronSecretConfig,
-	runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository) (*ArgoUserServiceImpl, error) {
+	runTimeConfig *client.RuntimeConfig, gitOpsRepository repository.GitOpsConfigRepository,
+	argoCDConnectionManager argocdServer.ArgoCDConnectionManager, versionService argocdServer.VersionService) (*ArgoUserServiceImpl, error) {
 	argoUserServiceImpl := &ArgoUserServiceImpl{
-		logger:              Logger,
-		clusterService:      clusterService,
-		acdSettings:         acdSettings,
-		devtronSecretConfig: devtronSecretConfig,
-		runTimeConfig:       runTimeConfig,
-		gitOpsRepository:    gitOpsRepository,
+		logger:                  Logger,
+		clusterService:          clusterService,
+		devtronSecretConfig:     devtronSecretConfig,
+		runTimeConfig:           runTimeConfig,
+		gitOpsRepository:        gitOpsRepository,
+		argoCDConnectionManager: argoCDConnectionManager,
+		versionService:          versionService,
 	}
 	if !runTimeConfig.LocalDevMode {
 		go argoUserServiceImpl.ValidateGitOpsAndGetOrUpdateArgoCdUserDetail()
@@ -162,7 +163,7 @@ func (impl *ArgoUserServiceImpl) createNewArgoCdTokenForDevtron(username, passwo
 	return token, nil
 }
 
-//note: this function also called for no gitops case, where apps are installed via helm
+// note: this function also called for no gitops case, where apps are installed via helm
 func (impl *ArgoUserServiceImpl) GetLatestDevtronArgoCdUserToken() (string, error) {
 	isGitOpsConfigured := false
 	gitOpsConfig, err := impl.gitOpsRepository.GetGitOpsConfigActive()
@@ -300,29 +301,36 @@ func (impl *ArgoUserServiceImpl) createNewArgoCdUser(username, password string, 
 }
 
 func (impl *ArgoUserServiceImpl) createTokenForArgoCdUser(username, password string) (string, error) {
-	token, err := passwordLogin(impl.acdSettings, username, password)
+	token, err := impl.passwordLogin(username, password)
 	if err != nil {
 		impl.logger.Errorw("error in getting jwt token with username & password", "err", err)
 		return "", err
 	}
 	ctx := context.Background()
 	ctx = context.WithValue(ctx, "token", token)
-	acdConnection := argocdServer.GetConnection(token, impl.acdSettings)
-	accountServiceClient := account.NewAccountServiceClient(acdConnection)
+	clientConn := impl.argoCDConnectionManager.GetConnection(token)
+	accountServiceClient := account.NewAccountServiceClient(clientConn)
 	acdToken, err := accountServiceClient.CreateToken(ctx, &account.CreateTokenRequest{
 		Name: username,
 	})
 	if err != nil {
-		impl.logger.Errorw("error in creating token at argocd side", "err", err)
+		impl.logger.Errorw("error in creating acdToken in ArgoCd", "err", err)
+		return "", err
+	}
+
+	// just checking and logging the ArgoCd version
+	err = impl.versionService.CheckVersion()
+	if err != nil {
+		impl.logger.Errorw("error found while checking ArgoCd Version", "err", err)
 		return "", err
 	}
 	return acdToken.Token, nil
 }
 
-func passwordLogin(acdSettings *settings.ArgoCDSettings, username, password string) (string, error) {
-	serviceClient := session.NewSessionServiceClient(acdSettings)
-	token, err := serviceClient.Create(context.Background(), username, password)
-	return token, err
+func (impl *ArgoUserServiceImpl) passwordLogin(username, password string) (string, error) {
+	serviceClient := session.NewSessionServiceClient(impl.argoCDConnectionManager)
+	jwtToken, err := serviceClient.Create(context.Background(), username, password)
+	return jwtToken, err
 }
 
 func getNewPassword() string {
