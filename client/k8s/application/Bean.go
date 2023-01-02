@@ -32,6 +32,11 @@ type ClusterResourceListResponse struct {
 	Containers []string `json:"containers,omitempty"`
 }
 
+type ClusterResourceListMap struct {
+	Column []string                 `json:"column"`
+	Rows   []map[string]interface{} `json:"rows"`
+}
+
 const K8sClusterResourceNameKey = "name"
 const K8sClusterResourceNamespaceKey = "namespace"
 const K8sClusterResourceMetadataKey = "metadata"

@@ -503,7 +503,8 @@ func (impl K8sUtil) GetK8sClusterRestConfig() (*rest.Config, error) {
 		if err != nil {
 			impl.logger.Errorw("Error while getting user current env details", "error", err)
 		}
-		kubeconfig := flag.String("read-kubeconfig", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
+		name := fmt.Sprintf("read-kubeconfig-%d", time.Now().UnixMilli())
+		kubeconfig := flag.String(name, filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
 		flag.Parse()
 		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
 		if err != nil {
@@ -542,6 +543,41 @@ func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (*applica
 	}
 
 	return clusterResourceListResponse, nil
+}
+
+func (impl K8sUtil) ParseResource2(manifest *unstructured.UnstructuredList) (*application.ClusterResourceListMap, error) {
+	clusterResourceListMap := &application.ClusterResourceListMap{}
+
+	columnDefinations := manifest.Object["columnDefinitions"].([]interface{})
+	var columnArr []string
+	columnIndex := make(map[int]string)
+	for index, cd := range columnDefinations {
+		columnMap := cd.(map[string]interface{})
+
+		columnName := columnMap["name"].(string)
+		priority := columnMap["priority"].(int64)
+		if priority == 0 {
+			columnIndex[index] = columnName
+			columnArr = append(columnArr, columnName)
+		}
+	}
+
+	rowArray := make([]map[string]interface{}, 0)
+	rows := manifest.Object["rows"].([]interface{})
+	for _, row := range rows {
+		rowIndex := make(map[string]interface{})
+		rowMap := row.(map[string]interface{})
+		rowCells := rowMap["cells"].([]interface{})
+		for index, columnName := range columnIndex {
+			cell := rowCells[index].(interface{})
+			rowIndex[columnName] = cell
+		}
+		rowArray = append(rowArray, rowIndex)
+	}
+	clusterResourceListMap.Column = columnArr
+	clusterResourceListMap.Rows = rowArray
+	impl.logger.Infow("clusterResourceListMap", clusterResourceListMap, clusterResourceListMap)
+	return clusterResourceListMap, nil
 }
 
 func (impl K8sUtil) populatePodResourceData(manifest *unstructured.Unstructured) *application.ClusterResourceListResponse {
