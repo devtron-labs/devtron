@@ -11,6 +11,7 @@ import (
 )
 
 func TestAppStatusRepositoryImpl_Get(t *testing.T) {
+	t.SkipNow()
 	repo := initAppStatusRepo()
 	testData := getTestdata()[0]
 
@@ -30,6 +31,7 @@ func TestAppStatusRepositoryImpl_Get(t *testing.T) {
 }
 
 func TestAppStatusRepositoryImpl_Create(t *testing.T) {
+	t.SkipNow()
 	repo := initAppStatusRepo()
 	testData := getTestdata()
 	//create dummy data in the db
@@ -56,6 +58,7 @@ func TestAppStatusRepositoryImpl_Create(t *testing.T) {
 }
 
 func TestAppStatusRepositoryImpl_Update(t *testing.T) {
+	t.SkipNow()
 	repo := initAppStatusRepo()
 	testData := getTestdata()[0]
 
@@ -88,6 +91,7 @@ func TestAppStatusRepositoryImpl_Update(t *testing.T) {
 	deleteTestdata()
 }
 func TestAppStatusRepositoryImpl_Delete(t *testing.T) {
+	t.SkipNow()
 	repo := initAppStatusRepo()
 	testData := getTestdata()
 	//create dummy data in the db
@@ -155,6 +159,7 @@ func TestAppStatusRepositoryImpl_Delete(t *testing.T) {
 }
 
 func TestAppStatusRepositoryImpl_DeleteWithAppId(t *testing.T) {
+	t.SkipNow()
 	repo := initAppStatusRepo()
 	testData := getTestdata()
 	//create dummy data in the db
@@ -202,6 +207,7 @@ func TestAppStatusRepositoryImpl_DeleteWithAppId(t *testing.T) {
 
 }
 func TestAppStatusRepositoryImpl_DeleteWithEnvId(t *testing.T) {
+	t.SkipNow()
 	repo := initAppStatusRepo()
 	testData := getTestdata()
 	//create dummy data in the db

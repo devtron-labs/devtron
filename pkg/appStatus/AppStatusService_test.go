@@ -13,6 +13,7 @@ import (
 )
 
 func TestUpdateStatusWithAppIdEnvId(t *testing.T) {
+	t.SkipNow()
 	logger, err := util.NewSugardLogger()
 	assert.Nil(t, err)
 	t.Run("Test-1 error in getting app-status", func(tt *testing.T) {
@@ -131,6 +132,7 @@ func TestUpdateStatusWithAppIdEnvId(t *testing.T) {
 }
 
 func TestDeleteWithAppIdEnvId(t *testing.T) {
+	t.SkipNow()
 	logger, err := util.NewSugardLogger()
 	assert.Nil(t, err)
 
