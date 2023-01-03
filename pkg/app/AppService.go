@@ -147,7 +147,7 @@ type AppService interface {
 	UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time) (bool, error)
 	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
-	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWorkflowId int, statusTimeoutDuration int, latestTimeline *pipelineConfig.PipelineStatusTimeline) error
+	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
 	GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
 	GetChartRepoName(gitRepoUrl string) string
@@ -345,6 +345,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alp
 func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1alpha1.Application, statusTime time.Time) (bool, bool, error) {
 	isSucceeded := false
 	isTimelineUpdated := false
+	isTimelineTimedOut := false
 	gitHash := ""
 	if app != nil {
 		gitHash = app.Status.Sync.Revision
@@ -369,9 +370,18 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 		return isSucceeded, isTimelineUpdated, err
 	}
 	//updating cd pipeline status timeline
-	isTimelineUpdated, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent)
+	isTimelineUpdated, isTimelineTimedOut, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent)
 	if err != nil {
 		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
+	}
+	if isTimelineTimedOut {
+		//not checking further and directly updating timedOutStatus
+		err := impl.UpdateCdWorkflowRunnerByACDObject(app, cdWfr.Id, true)
+		if err != nil {
+			impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "status", pipelineConfig.WorkflowTimedOut, "err", err)
+			return isSucceeded, isTimelineUpdated, err
+		}
+		return isSucceeded, isTimelineUpdated, nil
 	}
 	kubectlSyncedTimeline, err := impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(cdWfr.Id, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
 	if err != nil && err != pg.ErrNoRows {
@@ -389,7 +399,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 			return isSucceeded, isTimelineUpdated, err
 		}
 		if pipelineOverride.PipelineReleaseCounter == releaseCounter {
-			isSucceeded, err = impl.UpdateDeploymentStatusForPipeline(app, pipelineOverride, cdWfr.Id, timeoutDuration, latestTimelineBeforeThisEvent)
+			isSucceeded, err = impl.UpdateDeploymentStatusForPipeline(app, pipelineOverride, cdWfr.Id)
 			if err != nil {
 				impl.logger.Errorw("error in updating deployment status for pipeline", "err", err)
 				return isSucceeded, isTimelineUpdated, err
@@ -450,10 +460,10 @@ func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHa
 	return isValid, pipeline, cdWfr, pipelineOverride, nil
 }
 
-func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Application, pipelineOverride *chartConfig.PipelineOverride, cdWfrId, timeoutDuration int, latestTimelineBeforeThisEvent *pipelineConfig.PipelineStatusTimeline) (bool, error) {
+func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Application, pipelineOverride *chartConfig.PipelineOverride, cdWfrId int) (bool, error) {
 	impl.logger.Debugw("inserting new app status", "status", app.Status.Health.Status, "argoAppName", app.Name)
 	isSucceeded := false
-	err := impl.UpdateCdWorkflowRunnerByACDObject(app, cdWfrId, timeoutDuration, latestTimelineBeforeThisEvent)
+	err := impl.UpdateCdWorkflowRunnerByACDObject(app, cdWfrId, false)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
 		return isSucceeded, err
@@ -464,17 +474,18 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Appl
 	return isSucceeded, nil
 }
 
-func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, cdWfrId int, statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline) (bool, error) {
+func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, cdWfrId int, statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline) (bool, bool, error) {
 	impl.logger.Infow("updating pipeline status timeline", "app", app, "pipelineOverride", cdWfrId, "APP_TO_UPDATE", app.Name)
 	isTimelineUpdated := false
+	isTimelineTimedOut := false
 	terminalStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByWfrId(cdWfrId)
 	if err != nil {
 		impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", err, "wfrId", cdWfrId)
-		return isTimelineUpdated, err
+		return isTimelineUpdated, isTimelineTimedOut, err
 	}
 	if terminalStatusExists {
 		impl.logger.Infow("terminal status timeline exists for cdWfr, skipping more timeline changes", "wfrId", cdWfrId)
-		return isTimelineUpdated, nil
+		return isTimelineUpdated, isTimelineTimedOut, nil
 	}
 	err = impl.pipelineStatusSyncDetailService.SaveOrUpdateSyncDetail(cdWfrId, 1)
 	if err != nil {
@@ -499,7 +510,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 	_, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
 	if err != nil {
 		impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-		return isTimelineUpdated, err
+		return isTimelineUpdated, isTimelineTimedOut, err
 	}
 	//saving timeline resource details
 	err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfrId, app, nil, 1)
@@ -517,7 +528,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 		currentTimeline, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-			return isTimelineUpdated, err
+			return isTimelineUpdated, isTimelineTimedOut, err
 		}
 		impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "app", app, "status", timeline.Status)
 		if currentTimeline.StatusTime.Before(app.Status.ReconciledAt.Time) {
@@ -534,7 +545,7 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
 				if err != nil {
 					impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
-					return isTimelineUpdated, err
+					return isTimelineUpdated, isTimelineTimedOut, err
 				}
 				isTimelineUpdated = true
 				impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "app", app, "status", timeline.Status)
@@ -557,13 +568,14 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			_, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-				return isTimelineUpdated, err
+				return isTimelineUpdated, isTimelineTimedOut, err
 			}
+			isTimelineTimedOut = true
 		} else {
 			// deployment status will be in progress so leave timeline
 		}
 	}
-	return isTimelineUpdated, nil
+	return isTimelineUpdated, isTimelineTimedOut, nil
 }
 
 func (impl *AppServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error, isTimelineUpdated bool) {
@@ -1720,29 +1732,21 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 	}
 }
 
-func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, statusTimeoutDuration int, latestTimeline *pipelineConfig.PipelineStatusTimeline) error {
+func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error {
 	wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWfrId)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner, fetch failed for runner type", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
 	wfr.FinishedOn = time.Now()
-	if app.Status.Health.Status == health.HealthStatusHealthy {
-		wfr.Status = pipelineConfig.WorkflowSucceeded
+	if updateTimedOutStatus {
+		wfr.Status = pipelineConfig.WorkflowTimedOut
 	} else {
-		var lastTimeToCheckForTimeout time.Time
-		if latestTimeline == nil {
-			lastTimeToCheckForTimeout = wfr.StartedOn
-		} else {
-			lastTimeToCheckForTimeout = latestTimeline.StatusTime
-		}
-		if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
-			//mark as timed out
-			wfr.Status = pipelineConfig.WorkflowTimedOut
+		if app.Status.Health.Status == health.HealthStatusHealthy {
+			wfr.Status = pipelineConfig.WorkflowSucceeded
 		} else {
 			wfr.Status = pipelineConfig.WorkflowInProgress
 		}
-
 	}
 	wfr.UpdatedBy = 1
 	wfr.UpdatedOn = time.Now()

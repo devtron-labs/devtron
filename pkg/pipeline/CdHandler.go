@@ -24,7 +24,6 @@ import (
 	"fmt"
 	application2 "github.com/argoproj/argo-cd/v2/pkg/apiclient/application"
 	"github.com/argoproj/argo-workflows/v3/pkg/apis/workflow/v1alpha1"
-	"github.com/argoproj/gitops-engine/pkg/health"
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	"github.com/devtron-labs/devtron/api/bean"
 	client "github.com/devtron-labs/devtron/api/helm-app"
@@ -269,72 +268,6 @@ func (impl *CdHandlerImpl) UpdatePipelineTimelineAndStatusByLiveApplicationFetch
 		}
 	}
 	return nil, isTimelineUpdated
-}
-
-func (impl *CdHandlerImpl) GetAppStatusByApplicationFetchFromArgo(appName string, appId, envId int, triggeredAt time.Time, statusTimeoutDuration int) (timelineStatus pipelineConfig.TimelineStatus, appStatus, statusMessage, gitHash string) {
-	//this should only be called when we have git-ops configured
-	//try fetching status from argo cd
-	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
-	if err != nil {
-		impl.Logger.Errorw("error in getting acd token", "err", err)
-	}
-	ctx := context.WithValue(context.Background(), "token", acdToken)
-	query := &application2.ApplicationQuery{
-		Name: &appName,
-	}
-	gitHash = ""
-	resp, err := impl.application.Get(ctx, query)
-	if err != nil {
-		impl.Logger.Errorw("error in getting resource tree of acd", "err", err, "appName", appName)
-		appStatus = pipelineConfig.WorkflowUnableToFetchState
-		timelineStatus = pipelineConfig.TIMELINE_STATUS_UNABLE_TO_FETCH_STATUS
-		statusMessage = "Failed to connect to Argo CD to fetch deployment status."
-	} else {
-		//getting latest pipelineOverride for newApp (by appId and envId)
-		pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(appId, envId)
-		if err != nil {
-			impl.Logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", appId, "envId", envId)
-		}
-		gitHash = resp.Status.Sync.Revision
-		if pipelineOverride.GitHash != gitHash {
-			pipelineOverrideByHash, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
-			if err != nil {
-				impl.Logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "err", err)
-			}
-			if pipelineOverrideByHash.CommitTime.Before(pipelineOverride.CommitTime) {
-				//we have received trigger hash which is committed before this apps actual gitHash stored by us
-				// this means that the hash stored by us will be synced later, so we will drop this event
-				return
-			}
-		}
-		if resp.Status.Health.Status == health.HealthStatusHealthy {
-			appStatus = pipelineConfig.WorkflowSucceeded
-			timelineStatus = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
-			statusMessage = "App is healthy."
-		} else {
-			latestTimeline, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelineByAppIdAndEnvId(appId, envId)
-			if err != nil && err != pg.ErrNoRows {
-				impl.Logger.Errorw("error in fetching latest timeline by appId and envId", "err", err, "appId", appId, "envId", envId)
-				appStatus = pipelineConfig.WorkflowInProgress
-			} else {
-				var lastTimeToCheckForTimeout time.Time
-				if err == pg.ErrNoRows {
-					lastTimeToCheckForTimeout = triggeredAt
-				} else {
-					lastTimeToCheckForTimeout = latestTimeline.StatusTime
-				}
-				if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
-					//mark as timed out
-					appStatus = pipelineConfig.WorkflowTimedOut
-					timelineStatus = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
-					statusMessage = "Deployment timed out."
-				} else {
-					appStatus = pipelineConfig.WorkflowInProgress
-				}
-			}
-		}
-	}
-	return timelineStatus, appStatus, statusMessage, gitHash
 }
 
 func (impl *CdHandlerImpl) CheckHelmAppStatusPeriodicallyAndUpdateInDb(timeForDegradation int) error {
