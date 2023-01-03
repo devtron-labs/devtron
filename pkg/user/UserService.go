@@ -239,7 +239,7 @@ func (impl UserServiceImpl) CreateUser(userInfo *bean.UserInfo, token string, ma
 
 		// if not found, create new user
 		if err == pg.ErrNoRows {
-			userInfo, err = impl.createUserIfNotExists(userInfo, emailId)
+			userInfo, err = impl.createUserIfNotExists(userInfo, emailId, token, managerAuth)
 			if err != nil {
 				impl.logger.Errorw("error while create user if not exists in db", "error", err)
 				return nil, err
@@ -279,7 +279,7 @@ func (impl UserServiceImpl) updateUserIfExists(userInfo *bean.UserInfo, dbUser *
 	return userInfo, nil
 }
 
-func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emailId string) (*bean.UserInfo, error) {
+func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, emailId string, token string, managerAuth func(resource string, token string, object string) bool) (*bean.UserInfo, error) {
 	// if not found, create new user
 	dbConnection := impl.userRepository.GetConnection()
 	tx, err := dbConnection.Begin()
@@ -323,7 +323,7 @@ func (impl UserServiceImpl) createUserIfNotExists(userInfo *bean.UserInfo, email
 	if userInfo.SuperAdmin == false {
 		for _, roleFilter := range userInfo.RoleFilters {
 			if roleFilter.Entity == bean.CLUSTER_ENTITIY {
-				policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForClusterEntity(roleFilter, userInfo.UserId, model, nil, "", nil, tx)
+				policiesToBeAdded, _, err := impl.CreateOrUpdateUserRolesForClusterEntity(roleFilter, userInfo.UserId, model, nil, token, managerAuth, tx)
 				if err != nil {
 					impl.logger.Errorw("error in creating user roles for clusterEntity", "err", err)
 					return nil, err
