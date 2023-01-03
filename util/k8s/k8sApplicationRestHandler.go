@@ -678,13 +678,6 @@ func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWrit
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 
-func (handler *K8sApplicationRestHandlerImpl) checkResourceListingAuth(token string, resource string, object string, casbinAction string) bool {
-	if ok := handler.enforcer.Enforce(token, resource, casbinAction, strings.ToLower(object)); !ok {
-		return false
-	}
-	return true
-}
-
 func (handler *K8sApplicationRestHandlerImpl) verifyRbacForCluster(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool {
 	k8sRequest := request.K8sRequest
 	resourceIdentifier := k8sRequest.ResourceIdentifier
