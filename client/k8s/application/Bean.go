@@ -21,17 +21,6 @@ type ApplyResourcesResponse struct {
 	IsUpdate bool   `json:"isUpdate"`
 }
 
-type ClusterResourceListResponse struct {
-	Name       string   `json:"name"`
-	Namespace  string   `json:"namespace"`
-	Status     string   `json:"status"`
-	Age        string   `json:"age"`
-	Ready      string   `json:"ready,omitempty"`
-	Restarts   string   `json:"restarts,omitempty"`
-	Url        string   `json:"url,omitempty"`
-	Containers []string `json:"containers,omitempty"`
-}
-
 type ClusterResourceListMap struct {
 	Headers []string                 `json:"headers"`
 	Data    []map[string]interface{} `json:"data"`
