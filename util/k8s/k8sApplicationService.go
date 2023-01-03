@@ -434,7 +434,7 @@ func (impl *K8sApplicationServiceImpl) GetRestConfigByCluster(cluster *cluster.C
 	var restConfig *rest.Config
 	var err error
 	if cluster.ClusterName == DEFAULT_CLUSTER && len(bearerToken) == 0 {
-		restConfig, err = rest.InClusterConfig()
+		restConfig, err = impl.K8sUtil.GetK8sClusterRestConfig()
 		if err != nil {
 			impl.logger.Errorw("error in getting rest config for default cluster", "err", err)
 			return nil, err
