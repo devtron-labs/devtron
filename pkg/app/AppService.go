@@ -528,21 +528,6 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				haveNewTimeline = true
 				timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
 				timeline.StatusDetail = "App status is Healthy."
-			} else {
-				var lastTimeToCheckForTimeout time.Time
-				if latestTimelineBeforeUpdate == nil {
-					lastTimeToCheckForTimeout = triggeredAt
-				} else {
-					lastTimeToCheckForTimeout = latestTimelineBeforeUpdate.StatusTime
-				}
-				if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
-					//mark as timed out
-					haveNewTimeline = true
-					timeline.Status = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
-					timeline.StatusDetail = "Deployment timed out."
-				} else {
-					// deployment status will be in progress so leave timeline
-				}
 			}
 			if haveNewTimeline {
 				//not checking if this status is already present or not because already checked for terminal status existence earlier
@@ -554,6 +539,28 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 				isTimelineUpdated = true
 				impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "app", app, "status", timeline.Status)
 			}
+		}
+	}
+
+	if !isTimelineUpdated {
+		//no timeline updated since before, in this case we will check for timeout cases
+		var lastTimeToCheckForTimeout time.Time
+		if latestTimelineBeforeUpdate == nil {
+			lastTimeToCheckForTimeout = triggeredAt
+		} else {
+			lastTimeToCheckForTimeout = latestTimelineBeforeUpdate.StatusTime
+		}
+		if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
+			//mark as timed out if not already marked
+			timeline.Status = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
+			timeline.StatusDetail = "Deployment timed out."
+			_, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
+			if err != nil {
+				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
+				return isTimelineUpdated, err
+			}
+		} else {
+			// deployment status will be in progress so leave timeline
 		}
 	}
 	return isTimelineUpdated, nil
