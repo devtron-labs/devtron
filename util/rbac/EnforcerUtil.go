@@ -429,6 +429,9 @@ func (impl EnforcerUtilImpl) GetRBACNameForClusterEntity(clusterName string, res
 	if groupName == "" {
 		groupName = casbin.ClusterEmptyGroupPlaceholder
 	}
+	if namespace == "" { //empty value means all namespace access would occur for non-namespace resources
+		namespace = "*"
+	}
 	resourceName = fmt.Sprintf(casbin.ClusterResourceRegex, clusterName, namespace)
 	objectName = fmt.Sprintf(casbin.ClusterObjectRegex, groupName, kindName, objectName)
 	return resourceName, objectName

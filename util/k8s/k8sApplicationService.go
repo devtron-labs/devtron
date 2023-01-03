@@ -12,6 +12,7 @@ import (
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	yamlUtil "github.com/devtron-labs/devtron/util/yaml"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -47,8 +48,8 @@ type K8sApplicationService interface {
 	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
 	GetAllApiResources(clusterId int) ([]*application.K8sApiResource, error)
-	GetResourceList(request *ResourceRequestBean) (*application.ClusterResourceListMap, error)
-	ApplyResources(request *application.ApplyResourcesRequest) ([]*application.ApplyResourcesResponse, error)
+	GetResourceList(token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*application.ClusterResourceListMap, error)
+	ApplyResources(token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -525,20 +526,33 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int) ([]*app
 	return apiResources, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestBean) (*application.ClusterResourceListMap, error) {
-	//getting rest config by clusterId
+func (impl *K8sApplicationServiceImpl) GetResourceList(token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*application.ClusterResourceListMap, error) {
 	resourceList := &application.ClusterResourceListMap{}
-	restConfig, err := impl.GetRestConfigByClusterId(request.ClusterId)
+	clusterId := request.ClusterId
+	clusterBean, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
+		impl.logger.Errorw("error in getting cluster by cluster Id", "err", err, "clusterId", clusterId)
 		return resourceList, err
 	}
-	resp, err := impl.k8sClientService.GetResourceList(restConfig, request.K8sRequest)
+	restConfig, err := impl.GetRestConfigByCluster(clusterBean)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster", "err", err, "clusterId", clusterId)
+		return resourceList, err
+	}
+	k8sRequest := request.K8sRequest
+	resp, err := impl.k8sClientService.GetResourceList(restConfig, k8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
-	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources)
+	checkForResourceCallback := func(namespace, resourceName string) bool {
+		resourceIdentifier := k8sRequest.ResourceIdentifier
+		resourceIdentifier.Name = resourceName
+		resourceIdentifier.Namespace = namespace
+		k8sRequest.ResourceIdentifier = resourceIdentifier
+		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
+	}
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, checkForResourceCallback)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
@@ -546,7 +560,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestB
 	return resourceList, nil
 }
 
-func (impl *K8sApplicationServiceImpl) ApplyResources(request *application.ApplyResourcesRequest) ([]*application.ApplyResourcesResponse, error) {
+func (impl *K8sApplicationServiceImpl) ApplyResources(token string, request *application.ApplyResourcesRequest, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error) {
 	manifests, err := yamlUtil.SplitYAMLs([]byte(request.Manifest))
 	if err != nil {
 		impl.logger.Errorw("error in splitting yaml in manifest", "err", err)
@@ -555,9 +569,14 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(request *application.Apply
 
 	//getting rest config by clusterId
 	clusterId := request.ClusterId
-	restConfig, err := impl.GetRestConfigByClusterId(clusterId)
+	clusterBean, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
-		impl.logger.Errorw("error in getting rest config by cluster Id", "clusterId", clusterId, "err", err)
+		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
+		return nil, err
+	}
+	restConfig, err := impl.GetRestConfigByCluster(clusterBean)
+	if err != nil {
+		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
 
@@ -567,10 +586,25 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(request *application.Apply
 			Name: manifest.GetName(),
 			Kind: manifest.GetKind(),
 		}
-		resourceExists, err := impl.applyResourceFromManifest(manifest, restConfig)
-		manifestRes.IsUpdate = resourceExists
-		if err != nil {
-			manifestRes.Error = err.Error()
+		resourceRequestBean := ResourceRequestBean{
+			ClusterId: clusterId,
+			K8sRequest: &application.K8sRequestBean{
+				ResourceIdentifier: application.ResourceIdentifier{
+					Name:             manifest.GetName(),
+					Namespace:        manifest.GetNamespace(),
+					GroupVersionKind: manifest.GroupVersionKind(),
+				},
+			},
+		}
+		actionAllowed := validateResourceAccess(token, clusterBean.ClusterName, resourceRequestBean, casbin.ActionUpdate)
+		if actionAllowed {
+			resourceExists, err := impl.applyResourceFromManifest(manifest, restConfig)
+			manifestRes.IsUpdate = resourceExists
+			if err != nil {
+				manifestRes.Error = err.Error()
+			}
+		} else {
+			manifestRes.Error = "permission-denied"
 		}
 		response = append(response, manifestRes)
 	}

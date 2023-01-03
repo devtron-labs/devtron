@@ -23,7 +23,9 @@ import (
 	error2 "errors"
 	"flag"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	"github.com/devtron-labs/devtron/util/k8s"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"os/user"
 	"path/filepath"
 	"strings"
@@ -520,7 +522,7 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	}
 }
 
-func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList) (*application.ClusterResourceListMap, error) {
+func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, validateResourceAccess func(namespace, resourceName string) bool) (*application.ClusterResourceListMap, error) {
 	clusterResourceListMap := &application.ClusterResourceListMap{}
 
 	columnDefinitions := manifest.Object[application.K8sClusterResourceColumnDefinitionKey].([]interface{})
@@ -542,7 +544,13 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 
 	rowsMapping := make([]map[string]interface{}, 0)
 	rows := manifest.Object[application.K8sClusterResourceRowsKey].([]interface{})
+	var resourceName string
+	var namespace string
+	var allowed bool
 	for _, row := range rows {
+		resourceName = ""
+		namespace = ""
+		allowed = true
 		rowIndex := make(map[string]interface{})
 		rowMap := row.(map[string]interface{})
 		rowCells := rowMap[application.K8sClusterResourceCellKey].([]interface{})
@@ -554,10 +562,19 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 		if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
 			metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
 			if metadata[application.K8sClusterResourceNamespaceKey] != nil {
-				rowIndex[application.K8sClusterResourceNamespaceKey] = metadata[application.K8sClusterResourceNamespaceKey].(string)
+				namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
+				rowIndex[application.K8sClusterResourceNamespaceKey] = namespace
+			}
+			if metadata[application.K8sClusterResourceMetadataNameKey] != nil {
+				resourceName = metadata[application.K8sClusterResourceMetadataNameKey].(string)
 			}
 		}
-		rowsMapping = append(rowsMapping, rowIndex)
+		if resourceName != "" {
+			allowed = validateResourceAccess(namespace, resourceName)
+		}
+		if allowed {
+			rowsMapping = append(rowsMapping, rowIndex)
+		}
 	}
 	clusterResourceListMap.Headers = headers
 	clusterResourceListMap.Data = rowsMapping
