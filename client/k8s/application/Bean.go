@@ -33,11 +33,17 @@ type ClusterResourceListResponse struct {
 }
 
 type ClusterResourceListMap struct {
-	Column []string                 `json:"column"`
-	Rows   []map[string]interface{} `json:"rows"`
+	Headers []string                 `json:"headers"`
+	Rows    []map[string]interface{} `json:"rows"`
 }
 
 const K8sClusterResourceNameKey = "name"
+const K8sClusterResourcePriorityKey = "priority"
 const K8sClusterResourceNamespaceKey = "namespace"
 const K8sClusterResourceMetadataKey = "metadata"
 const K8sClusterResourceCreationTimestampKey = "creationTimestamp"
+
+const K8sClusterResourceObjectKey = "object"
+const K8sClusterResourceRowsKey = "rows"
+const K8sClusterResourceCellKey = "cells"
+const K8sClusterResourceColumnDefinitionKey = "columnDefinitions"

@@ -32,6 +32,7 @@ import (
 	"os/user"
 	"path/filepath"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/devtron-labs/authenticator/client"
@@ -548,35 +549,45 @@ func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (*applica
 func (impl K8sUtil) ParseResource2(manifest *unstructured.UnstructuredList) (*application.ClusterResourceListMap, error) {
 	clusterResourceListMap := &application.ClusterResourceListMap{}
 
-	columnDefinations := manifest.Object["columnDefinitions"].([]interface{})
-	var columnArr []string
-	columnIndex := make(map[int]string)
-	for index, cd := range columnDefinations {
+	columnDefinitions := manifest.Object[application.K8sClusterResourceColumnDefinitionKey].([]interface{})
+	var headers []string
+	columnIndexes := make(map[int]string)
+	for index, cd := range columnDefinitions {
 		columnMap := cd.(map[string]interface{})
-
-		columnName := columnMap["name"].(string)
-		priority := columnMap["priority"].(int64)
+		columnName := columnMap[application.K8sClusterResourceNameKey].(string)
+		columnName = strings.ToLower(columnName)
+		priority := columnMap[application.K8sClusterResourcePriorityKey].(int64)
+		if index == 1 {
+			headers = append(headers, application.K8sClusterResourceNamespaceKey)
+		}
 		if priority == 0 {
-			columnIndex[index] = columnName
-			columnArr = append(columnArr, columnName)
+			columnIndexes[index] = columnName
+			headers = append(headers, columnName)
 		}
 	}
 
-	rowArray := make([]map[string]interface{}, 0)
-	rows := manifest.Object["rows"].([]interface{})
+	rowsMapping := make([]map[string]interface{}, 0)
+	rows := manifest.Object[application.K8sClusterResourceRowsKey].([]interface{})
 	for _, row := range rows {
 		rowIndex := make(map[string]interface{})
 		rowMap := row.(map[string]interface{})
-		rowCells := rowMap["cells"].([]interface{})
-		for index, columnName := range columnIndex {
+		rowCells := rowMap[application.K8sClusterResourceCellKey].([]interface{})
+		for index, columnName := range columnIndexes {
 			cell := rowCells[index].(interface{})
 			rowIndex[columnName] = cell
 		}
-		rowArray = append(rowArray, rowIndex)
+		cellObj := rowMap[application.K8sClusterResourceObjectKey].(map[string]interface{})
+		if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
+			metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
+			if metadata[application.K8sClusterResourceNamespaceKey] != nil {
+				rowIndex[application.K8sClusterResourceNamespaceKey] = metadata[application.K8sClusterResourceNamespaceKey].(string)
+			}
+		}
+		rowsMapping = append(rowsMapping, rowIndex)
 	}
-	clusterResourceListMap.Column = columnArr
-	clusterResourceListMap.Rows = rowArray
-	impl.logger.Infow("clusterResourceListMap", clusterResourceListMap, clusterResourceListMap)
+	clusterResourceListMap.Headers = headers
+	clusterResourceListMap.Rows = rowsMapping
+	impl.logger.Debugw("resource listing response", clusterResourceListMap, clusterResourceListMap)
 	return clusterResourceListMap, nil
 }
 
