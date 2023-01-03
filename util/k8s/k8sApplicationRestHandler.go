@@ -645,8 +645,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	token := r.Header.Get("token")
-	response, err := handler.k8sApplicationService.GetResourceList(&request, token, handler.checkResourceListingAuth)
+	response, err := handler.k8sApplicationService.GetResourceList(&request)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource list", "err", err)
 		if statusErr, ok := err.(*errors3.StatusError); ok && statusErr.Status().Code == 404 {
