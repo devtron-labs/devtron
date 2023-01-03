@@ -340,7 +340,8 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForClusterEntity(cluster, name
 	}
 	_, err = impl.dbConnection.Query(&model, query, bean.CLUSTER_ENTITIY)
 	if err != nil {
-		impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err)
+		impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err,
+			"cluster", cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
 		return model, err
 	}
 	return model, nil
