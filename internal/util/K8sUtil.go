@@ -22,7 +22,6 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
-	"fmt"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"os/user"
