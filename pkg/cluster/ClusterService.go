@@ -92,8 +92,8 @@ type ClusterService interface {
 	GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error)
 	GetK8sClient() (*v12.CoreV1Client, error)
 	GetAllClusterNamespaces() map[string][]string
-	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int) ([]string, error)
-	FindAllForClusterByUserId(userId int32) ([]ClusterBean, error)
+	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
+	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
 }
 
 type ClusterServiceImpl struct {
@@ -564,9 +564,9 @@ func (impl *ClusterServiceImpl) GetAllClusterNamespaces() map[string][]string {
 	return result
 }
 
-func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int) ([]string, error) {
+func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error) {
 	result := make([]string, 0)
-	allowedClusters, err := impl.userRepository.GetRolesByUserIdAndEntityType(userId, "cluster")
+	roles, err := impl.userRepository.GetRolesByUserIdAndEntityType(userId, "cluster")
 	if err != nil {
 		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
 		return nil, err
@@ -576,17 +576,21 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 		impl.logger.Errorw("failed to find cluster for id", "error", err, "clusterId", clusterId)
 		return nil, err
 	}
+	allowedAll := false
 	allowedNamespaceMap := make(map[string]bool)
-	for _, c := range allowedClusters {
-		if clusterBean.ClusterName == c.Cluster {
-			allowedNamespaceMap[c.Namespace] = true
+	for _, role := range roles {
+		if clusterBean.ClusterName == role.Cluster {
+			allowedNamespaceMap[role.Namespace] = true
+			if role.Namespace == "" {
+				allowedAll = true
+			}
 		}
 	}
 
 	namespaceListGroupByCLuster := impl.K8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	namespaces := namespaceListGroupByCLuster[clusterBean.ClusterName]
 	for namespace, value := range namespaces {
-		if _, ok := allowedNamespaceMap[namespace]; ok {
+		if _, ok := allowedNamespaceMap[namespace]; ok || allowedAll {
 			if value {
 				result = append(result, namespace)
 			}
@@ -596,7 +600,10 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 	return result, nil
 }
 
-func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32) ([]ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error) {
+	if isActionUserSuperAdmin {
+		return impl.FindAllForAutoComplete()
+	}
 	allowedClusters, err := impl.userRepository.GetRolesByUserIdAndEntityType(userId, "cluster")
 	if err != nil {
 		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
