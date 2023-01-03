@@ -18,10 +18,7 @@ After creating the generic secret, navigate to `Secrets` section of the applicat
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-secret-manager-dropdown.jpg)
 
-3. Configure secret
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-eso.jpg)
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-external-secret.jpg)
+3. Configure secret:
 
 | Key | Description |
 | :--- | :--- |
@@ -33,6 +30,10 @@ After creating the generic secret, navigate to `Secrets` section of the applicat
 | `secretKey` | Variable name to store secret. |
 | `key` | AWS Secrets Manager secret name. |
 | `property` | AWS Secrets Manager secret key. |
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-eso.jpg)
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-external-secret.jpg)
 
 
 4. Save secret.
