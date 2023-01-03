@@ -17,48 +17,49 @@
 
 package pubsub
 
-import (
-	"encoding/json"
-
-	"github.com/devtron-labs/devtron/util"
-	"github.com/nats-io/nats.go"
-	"go.uber.org/zap"
-)
-
-type NatsPublishClient interface {
-	Publish(req *PublishRequest) error
-}
-
-func NewNatsPublishClientImpl(logger *zap.SugaredLogger, pubSubClient *PubSubClient) *NatsPublishClientImpl {
-	return &NatsPublishClientImpl{
-		logger:       logger,
-		pubSubClient: pubSubClient,
-	}
-}
-
-type NatsPublishClientImpl struct {
-	logger       *zap.SugaredLogger
-	pubSubClient *PubSubClient
-}
-
-type PublishRequest struct {
-	Topic   string          `json:"topic"`
-	Payload json.RawMessage `json:"payload"`
-}
-
-//TODO : adhiran : check the req.topic. We dont have dynamic topics listed in stream subjects arrary.So this might fail in
-//subscription if the subject name passed is not listed
-func (impl *NatsPublishClientImpl) Publish(req *PublishRequest) error {
-	err := util.AddStream(impl.pubSubClient.JetStrCtxt, util.ORCHESTRATOR_STREAM)
-	if err != nil {
-		impl.logger.Errorw("Error while adding stream", "err", err)
-	}
-	//Generate random string for passing as Header Id in message
-	randString := "MsgHeaderId-" + util.Generate(10)
-	_, err = impl.pubSubClient.JetStrCtxt.Publish(req.Topic, req.Payload, nats.MsgId(randString))
-	if err != nil {
-		impl.logger.Errorw("Error while publishing Request", "topic", req.Topic, "body", string(req.Payload), "err", err)
-	}
-
-	return err
-}
+//
+//import (
+//	"encoding/json"
+//
+//	"github.com/devtron-labs/devtron/util"
+//	"github.com/nats-io/nats.go"
+//	"go.uber.org/zap"
+//)
+//
+//type NatsPublishClient interface {
+//	Publish(req *PublishRequest) error
+//}
+//
+//func NewNatsPublishClientImpl(logger *zap.SugaredLogger, pubSubClient *PubSubClient) *NatsPublishClientImpl {
+//	return &NatsPublishClientImpl{
+//		logger:       logger,
+//		pubSubClient: pubSubClient,
+//	}
+//}
+//
+//type NatsPublishClientImpl struct {
+//	logger       *zap.SugaredLogger
+//	pubSubClient *PubSubClient
+//}
+//
+//type PublishRequest struct {
+//	Topic   string          `json:"topic"`
+//	Payload json.RawMessage `json:"payload"`
+//}
+//
+// TODO : adhiran : check the req.topic. We dont have dynamic topics listed in stream subjects arrary.So this might fail in
+////subscription if the subject name passed is not listed
+//func (impl *NatsPublishClientImpl) Publish(req *PublishRequest) error {
+//	err := util.AddStream(impl.pubSubClient.JetStrCtxt, util.ORCHESTRATOR_STREAM)
+//	if err != nil {
+//		impl.logger.Errorw("Error while adding stream", "err", err)
+//	}
+//	//Generate random string for passing as Header Id in message
+//	randString := "MsgHeaderId-" + util.Generate(10)
+//	_, err = impl.pubSubClient.JetStrCtxt.Publish(req.Topic, req.Payload, nats.MsgId(randString))
+//	if err != nil {
+//		impl.logger.Errorw("Error while publishing Request", "topic", req.Topic, "body", string(req.Payload), "err", err)
+//	}
+//
+//	return err
+//}
