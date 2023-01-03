@@ -92,7 +92,8 @@ type ClusterService interface {
 	GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error)
 	GetK8sClient() (*v12.CoreV1Client, error)
 	GetAllClusterNamespaces() map[string][]string
-	FindAllForClusterPermission(userId int32) ([]ClusterBean, error)
+	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int) ([]string, error)
+	FindAllForClusterByUserId(userId int32) ([]ClusterBean, error)
 }
 
 type ClusterServiceImpl struct {
@@ -563,7 +564,39 @@ func (impl *ClusterServiceImpl) GetAllClusterNamespaces() map[string][]string {
 	return result
 }
 
-func (impl *ClusterServiceImpl) FindAllForClusterPermission(userId int32) ([]ClusterBean, error) {
+func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int) ([]string, error) {
+	result := make([]string, 0)
+	allowedClusters, err := impl.userRepository.GetRolesByUserIdAndEntityType(userId, "cluster")
+	if err != nil {
+		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+		return nil, err
+	}
+	clusterBean, err := impl.FindById(clusterId)
+	if err != nil {
+		impl.logger.Errorw("failed to find cluster for id", "error", err, "clusterId", clusterId)
+		return nil, err
+	}
+	allowedNamespaceMap := make(map[string]bool)
+	for _, c := range allowedClusters {
+		if clusterBean.ClusterName == c.Cluster {
+			allowedNamespaceMap[c.Namespace] = true
+		}
+	}
+
+	namespaceListGroupByCLuster := impl.K8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
+	namespaces := namespaceListGroupByCLuster[clusterBean.ClusterName]
+	for namespace, value := range namespaces {
+		if _, ok := allowedNamespaceMap[namespace]; ok {
+			if value {
+				result = append(result, namespace)
+			}
+		}
+	}
+
+	return result, nil
+}
+
+func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32) ([]ClusterBean, error) {
 	allowedClusters, err := impl.userRepository.GetRolesByUserIdAndEntityType(userId, "cluster")
 	if err != nil {
 		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
@@ -581,7 +614,7 @@ func (impl *ClusterServiceImpl) FindAllForClusterPermission(userId int32) ([]Clu
 	}
 	var beans []ClusterBean
 	for _, m := range model {
-		if _, ok := allowedClustersMap[m.ClusterName]; !ok {
+		if _, ok := allowedClustersMap[m.ClusterName]; ok {
 			beans = append(beans, ClusterBean{
 				Id:          m.Id,
 				ClusterName: m.ClusterName,
