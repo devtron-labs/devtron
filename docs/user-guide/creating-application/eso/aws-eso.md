@@ -6,7 +6,7 @@ Create a Kubernetes secret in the namespace in which the application is to be de
 
 **Note:** You don't have to create the Kubernetes secret everytime you create External Secret for the respective namespace.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-generic-secret.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-secret-generic-chart.jpg)
 
 After creating the generic secret, navigate to `Secrets` section of the application and follow the steps mentioned below :
 
