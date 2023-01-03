@@ -29,7 +29,7 @@ After creating the generic secret, navigate to `Secrets` section of the applicat
 | `accessKeyIDSecretRef.name` | Name of secret created that would be used for authentication.|
 | `accessKeyIDSecretRef.key` | In generic secret created for AWS authentication, variable name in which base64 encode AWS access-key is stored. |
 | `secretAccessKeySecretRef.name` | Name of secret created that would be used for authentication.|
-| `secretAccessKeySecretRef.key` | In generic secret created for AWS authentication, variable name in which base64 secret-access-key encode is stored.||
+| `secretAccessKeySecretRef.key` | In generic secret created for AWS authentication, variable name in which base64 secret-access-key encode is stored.|
 | `secretKey` | Variable name to store secret. |
 | `key` | AWS Secrets Manager secret name. |
 | `property` | AWS Secrets Manager secret key. |
