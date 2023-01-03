@@ -91,8 +91,9 @@ spec:
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/create-kubernetes-resource.jpg)
 
-* You will see the details of `Kind`, `Name`, `Status` and `Message` of the created resources. 
-`Note`: A message is displayed only when there is an error in the .yaml file.
+* You will see the details of `Kind`, `Name`, `Status` and `Message` of the created resources.
+
+>Note: A message is displayed only when there is an error in the .yaml file.
 
 * If required, click `Edit YAML` to edit the YAML file or click `Close`.
 
