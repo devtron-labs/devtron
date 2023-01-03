@@ -520,37 +520,40 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	}
 }
 
-func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, validateResourceAccess func(namespace, resourceName string) bool) (*application.ClusterResourceListMap, error) {
+func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, kind string, validateResourceAccess func(namespace, resourceName string) bool) (*application.ClusterResourceListMap, error) {
 	clusterResourceListMap := &application.ClusterResourceListMap{}
-
 	// build headers
 	var headers []string
 	columnIndexes := make(map[int]string)
-	columnDefinitionsUncast := manifest.Object[application.K8sClusterResourceColumnDefinitionKey]
-	if columnDefinitionsUncast != nil {
-		columnDefinitions := columnDefinitionsUncast.([]interface{})
-		for index, cd := range columnDefinitions {
-			if cd == nil {
-				continue
-			}
-			columnMap := cd.(map[string]interface{})
-			columnNameUncast := columnMap[application.K8sClusterResourceNameKey]
-			if columnNameUncast == nil {
-				continue
-			}
-			priorityUncast := columnMap[application.K8sClusterResourcePriorityKey]
-			if priorityUncast == nil {
-				continue
-			}
-			columnName := columnNameUncast.(string)
-			columnName = strings.ToLower(columnName)
-			priority := priorityUncast.(int64)
-			if namespaced && index == 1 {
-				headers = append(headers, application.K8sClusterResourceNamespaceKey)
-			}
-			if priority == 0 {
-				columnIndexes[index] = columnName
-				headers = append(headers, columnName)
+	if kind == "Event" {
+		headers, columnIndexes = impl.getEventKindHeader()
+	} else {
+		columnDefinitionsUncast := manifest.Object[application.K8sClusterResourceColumnDefinitionKey]
+		if columnDefinitionsUncast != nil {
+			columnDefinitions := columnDefinitionsUncast.([]interface{})
+			for index, cd := range columnDefinitions {
+				if cd == nil {
+					continue
+				}
+				columnMap := cd.(map[string]interface{})
+				columnNameUncast := columnMap[application.K8sClusterResourceNameKey]
+				if columnNameUncast == nil {
+					continue
+				}
+				priorityUncast := columnMap[application.K8sClusterResourcePriorityKey]
+				if priorityUncast == nil {
+					continue
+				}
+				columnName := columnNameUncast.(string)
+				columnName = strings.ToLower(columnName)
+				priority := priorityUncast.(int64)
+				if namespaced && index == 1 {
+					headers = append(headers, application.K8sClusterResourceNamespaceKey)
+				}
+				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") {
+					columnIndexes[index] = columnName
+					headers = append(headers, columnName)
+				}
 			}
 		}
 	}
@@ -610,4 +613,18 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 	clusterResourceListMap.Data = rowsMapping
 	impl.logger.Debugw("resource listing response", "clusterResourceListMap", clusterResourceListMap)
 	return clusterResourceListMap, nil
+}
+
+func (impl K8sUtil) getEventKindHeader() ([]string, map[int]string) {
+	headers := []string{"type", "message", "namespace", "involved object", "source", "count", "age", "last seen"}
+	columnIndexes := make(map[int]string)
+	columnIndexes[0] = "last seen"
+	columnIndexes[1] = "type"
+	columnIndexes[2] = "namespace"
+	columnIndexes[3] = "involved object"
+	columnIndexes[5] = "source"
+	columnIndexes[6] = "message"
+	columnIndexes[7] = "age"
+	columnIndexes[8] = "count"
+	return headers, columnIndexes
 }

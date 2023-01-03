@@ -566,37 +566,43 @@ func (impl *ClusterServiceImpl) GetAllClusterNamespaces() map[string][]string {
 
 func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error) {
 	result := make([]string, 0)
-	roles, err := impl.userRepository.GetRolesByUserIdAndEntityType(userId, "cluster")
-	if err != nil {
-		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
-		return nil, err
-	}
 	clusterBean, err := impl.FindById(clusterId)
 	if err != nil {
 		impl.logger.Errorw("failed to find cluster for id", "error", err, "clusterId", clusterId)
 		return nil, err
 	}
-	allowedAll := false
-	allowedNamespaceMap := make(map[string]bool)
-	for _, role := range roles {
-		if clusterBean.ClusterName == role.Cluster {
-			allowedNamespaceMap[role.Namespace] = true
-			if role.Namespace == "" {
-				allowedAll = true
-			}
-		}
-	}
-
 	namespaceListGroupByCLuster := impl.K8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	namespaces := namespaceListGroupByCLuster[clusterBean.ClusterName]
-	for namespace, value := range namespaces {
-		if _, ok := allowedNamespaceMap[namespace]; ok || allowedAll {
+	if isActionUserSuperAdmin {
+		for namespace, value := range namespaces {
 			if value {
 				result = append(result, namespace)
 			}
 		}
+	} else {
+		roles, err := impl.userRepository.GetRolesByUserIdAndEntityType(userId, "cluster")
+		if err != nil {
+			impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+			return nil, err
+		}
+		allowedAll := false
+		allowedNamespaceMap := make(map[string]bool)
+		for _, role := range roles {
+			if clusterBean.ClusterName == role.Cluster {
+				allowedNamespaceMap[role.Namespace] = true
+				if role.Namespace == "" {
+					allowedAll = true
+				}
+			}
+		}
+		for namespace, value := range namespaces {
+			if _, ok := allowedNamespaceMap[namespace]; ok || allowedAll {
+				if value {
+					result = append(result, namespace)
+				}
+			}
+		}
 	}
-
 	return result, nil
 }
 
