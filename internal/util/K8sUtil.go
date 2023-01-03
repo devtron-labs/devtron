@@ -531,44 +531,74 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList) (*application.ClusterResourceListMap, error) {
 	clusterResourceListMap := &application.ClusterResourceListMap{}
 
-	columnDefinitions := manifest.Object[application.K8sClusterResourceColumnDefinitionKey].([]interface{})
+	// build headers
 	var headers []string
 	columnIndexes := make(map[int]string)
-	for index, cd := range columnDefinitions {
-		columnMap := cd.(map[string]interface{})
-		columnName := columnMap[application.K8sClusterResourceNameKey].(string)
-		columnName = strings.ToLower(columnName)
-		priority := columnMap[application.K8sClusterResourcePriorityKey].(int64)
-		if index == 1 {
-			headers = append(headers, application.K8sClusterResourceNamespaceKey)
-		}
-		if priority == 0 {
-			columnIndexes[index] = columnName
-			headers = append(headers, columnName)
+	columnDefinitionsUncast := manifest.Object[application.K8sClusterResourceColumnDefinitionKey]
+	if columnDefinitionsUncast != nil {
+		columnDefinitions := columnDefinitionsUncast.([]interface{})
+		for index, cd := range columnDefinitions {
+			if cd == nil {
+				continue
+			}
+			columnMap := cd.(map[string]interface{})
+			columnNameUncast := columnMap[application.K8sClusterResourceNameKey]
+			if columnNameUncast == nil {
+				continue
+			}
+			priorityUncast := columnMap[application.K8sClusterResourcePriorityKey]
+			if priorityUncast == nil {
+				continue
+			}
+			columnName := columnNameUncast.(string)
+			columnName = strings.ToLower(columnName)
+			priority := priorityUncast.(int64)
+			if index == 1 {
+				headers = append(headers, application.K8sClusterResourceNamespaceKey)
+			}
+			if priority == 0 {
+				columnIndexes[index] = columnName
+				headers = append(headers, columnName)
+			}
 		}
 	}
 
+	// build rows
 	rowsMapping := make([]map[string]interface{}, 0)
-	rows := manifest.Object[application.K8sClusterResourceRowsKey].([]interface{})
-	for _, row := range rows {
-		rowIndex := make(map[string]interface{})
-		rowMap := row.(map[string]interface{})
-		rowCells := rowMap[application.K8sClusterResourceCellKey].([]interface{})
-		for index, columnName := range columnIndexes {
-			cell := rowCells[index].(interface{})
-			rowIndex[columnName] = cell
-		}
-		cellObj := rowMap[application.K8sClusterResourceObjectKey].(map[string]interface{})
-		if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
-			metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
-			if metadata[application.K8sClusterResourceNamespaceKey] != nil {
-				rowIndex[application.K8sClusterResourceNamespaceKey] = metadata[application.K8sClusterResourceNamespaceKey].(string)
+	rowsDataUncast := manifest.Object[application.K8sClusterResourceRowsKey]
+	if rowsDataUncast != nil {
+		rows := rowsDataUncast.([]interface{})
+		for _, row := range rows {
+			rowIndex := make(map[string]interface{})
+			rowMap := row.(map[string]interface{})
+			cellsUncast := rowMap[application.K8sClusterResourceCellKey]
+			if cellsUncast == nil {
+				continue
 			}
+			rowCells := cellsUncast.([]interface{})
+			for index, columnName := range columnIndexes {
+				cell := rowCells[index].(interface{})
+				rowIndex[columnName] = cell
+			}
+
+			// set namespace
+			cellObjUncast := rowMap[application.K8sClusterResourceObjectKey]
+			if cellObjUncast != nil {
+				cellObj := cellObjUncast.(map[string]interface{})
+				if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
+					metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
+					if metadata[application.K8sClusterResourceNamespaceKey] != nil {
+						rowIndex[application.K8sClusterResourceNamespaceKey] = metadata[application.K8sClusterResourceNamespaceKey].(string)
+					}
+				}
+			}
+
+			rowsMapping = append(rowsMapping, rowIndex)
 		}
-		rowsMapping = append(rowsMapping, rowIndex)
 	}
+
 	clusterResourceListMap.Headers = headers
 	clusterResourceListMap.Data = rowsMapping
-	impl.logger.Debugw("resource listing response", clusterResourceListMap, clusterResourceListMap)
+	impl.logger.Debugw("resource listing response", "clusterResourceListMap", clusterResourceListMap)
 	return clusterResourceListMap, nil
 }
