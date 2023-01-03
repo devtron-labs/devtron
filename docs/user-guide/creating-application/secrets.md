@@ -77,63 +77,6 @@ There are five Data types that you can use to save your secret.
 
 Use this option to mount an existing Kuberentes Secret in your application pods. A Secret will not be created by system so please ensure that the secret already exist within the namespace else the deployment will fail.
 
-### External Secret Operator (ESO)
-
-> **Prerequisites:** Chart version should be > 4.14.0
-
-External Secrets Operator is a Kubernetes operator that integrates external secret management systems like AWS Secrets Manager, HashiCorp Vault, Google Secrets Manager, Azure Key Vault and many more. The operator reads information from external APIs and automatically injects the values into a Kubernetes Secret.
-
-#### Install External Secret Operator
-
-Before creating any external secrets on Devtron, `External Secret Operator` must be installed on the target cluster.  `External Secret Operator` allows you to use external secret management systems (e.g., AWS Secrets Manager, Hashicorp Vault, Azure Secrets Manager,  Google Secrets Manager etc.) to securely inject secrets in Kubernetes.
-
-You can install `External Secrets Operator` using charts store:
-
-1. Go to charts store.
-2. Search chart with name `external-secrets`.
-
-![External secrets chart](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/external-secret.png)
-
-3. If you don't find any chart with this name i.e `external-secrets`, add chart repository using repository url  ` https://charts.external-secrets.io`. Please follow this [documentation](https://docs.devtron.ai/getting-started/global-configurations/chart-repo#add-chart-repository) for adding chart repository.
-4. Deploy the chart.
-
-#### AWS Secrets Manager
-
-To add secrets from AWS secret manager, navigate to `Secrets` of the application and follow the steps mentioned below :
-
-1. Create generic secret in the namespace using AWS access-key and secret-access-key.
-
-```bash
-echo -n 'aws-access-key' > ./access-key
-```
-
-```bash
-echo -n 'aws-secret-access-key' > ./secret-access-key
-```
-
-Replace NAMESPACE with the namespace name in the command and run:
-
-```bash
-kubectl create secret generic awssm-secret --from-file=./ access-key  \
---from-file=./secret-access-key -n NAMESPACE
-```
-
-2. Click `Add Secret` to add a new secret.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/add-secrets.jpg)
-
-3. Select `AWS Secret Manager` (External Secret Operator) from dropdown of `Data type`.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-secret-manager-dropdown.jpg)
-
-4. Configure secret
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/configure-aws-secret.jpg)
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/creating-application/secrets/aws-external-secret.jpg)
-
-5. Save secret.
-
-
 ### Kubernetes External Secret (Deprecated)
 
 The secret that is already created and stored in the environment and being used by Devtron externally is referred here as `Kubernetes External Secret`. For this option, Devtron will not create any secret by itself but they can be used within the pods. Before adding secret from kubernetes external secret, please make sure that secret with the same name is present in the environment. To add secret from kubernetes external secret, follow the steps mentioned below:
