@@ -499,13 +499,7 @@ func (impl K8sUtil) GetResourceInfoByLabelSelector(namespace string, labelSelect
 func (impl K8sUtil) GetK8sClusterRestConfig() (*rest.Config, error) {
 	impl.logger.Debug("getting k8s rest config")
 	if impl.runTimeConfig.LocalDevMode {
-		usr, err := user.Current()
-		if err != nil {
-			impl.logger.Errorw("Error while getting user current env details", "error", err)
-		}
-		kubeconfig := flag.String("read-kubeconfig", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		restConfig, err := clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
 		if err != nil {
 			impl.logger.Errorw("Error while building kubernetes cluster rest config", "error", err)
 			return nil, err
