@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -91,6 +92,7 @@ type ClusterService interface {
 	GetClusterConfig(cluster *ClusterBean) (*util.ClusterConfig, error)
 	GetK8sClient() (*v12.CoreV1Client, error)
 	GetAllClusterNamespaces() map[string][]string
+	FindAllForClusterPermission(userId int32) ([]ClusterBean, error)
 }
 
 type ClusterServiceImpl struct {
@@ -98,15 +100,17 @@ type ClusterServiceImpl struct {
 	logger             *zap.SugaredLogger
 	K8sUtil            *util.K8sUtil
 	K8sInformerFactory informer.K8sInformerFactory
+	userRepository     repository2.UserAuthRepository
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
-	K8sUtil *util.K8sUtil, K8sInformerFactory informer.K8sInformerFactory) *ClusterServiceImpl {
+	K8sUtil *util.K8sUtil, K8sInformerFactory informer.K8sInformerFactory, userRepository repository2.UserAuthRepository) *ClusterServiceImpl {
 	clusterService := &ClusterServiceImpl{
 		clusterRepository:  repository,
 		logger:             logger,
 		K8sUtil:            K8sUtil,
 		K8sInformerFactory: K8sInformerFactory,
+		userRepository:     userRepository,
 	}
 	go clusterService.buildInformer()
 	return clusterService
@@ -557,4 +561,32 @@ func (impl *ClusterServiceImpl) GetAllClusterNamespaces() map[string][]string {
 		result[clusterName] = copiedNamespaces
 	}
 	return result
+}
+
+func (impl *ClusterServiceImpl) FindAllForClusterPermission(userId int32) ([]ClusterBean, error) {
+	allowedClusters, err := impl.userRepository.GetRolesByUserIdAndEntityType(userId, "cluster")
+	if err != nil {
+		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+		return nil, err
+	}
+	allowedClustersMap := make(map[string]bool)
+	for _, c := range allowedClusters {
+		allowedClustersMap[c.Cluster] = true
+	}
+
+	model, err := impl.clusterRepository.FindAll()
+	if err != nil {
+		impl.logger.Errorw("error on fetching clusters", "err", err)
+		return nil, err
+	}
+	var beans []ClusterBean
+	for _, m := range model {
+		if _, ok := allowedClustersMap[m.ClusterName]; !ok {
+			beans = append(beans, ClusterBean{
+				Id:          m.Id,
+				ClusterName: m.ClusterName,
+			})
+		}
+	}
+	return beans, nil
 }

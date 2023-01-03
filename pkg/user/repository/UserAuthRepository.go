@@ -67,6 +67,7 @@ type UserAuthRepository interface {
 	DeleteRole(role *RoleModel, tx *pg.Tx) error
 
 	GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
+	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]RoleModel, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -340,7 +341,8 @@ func (impl UserAuthRepositoryImpl) GetRoleByFilterForClusterEntity(cluster, name
 	}
 	_, err = impl.dbConnection.Query(&model, query, bean.CLUSTER_ENTITIY)
 	if err != nil {
-		impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err)
+		impl.Logger.Errorw("error in getting roles for clusterEntity", "err", err,
+			"cluster", cluster, "namespace", namespace, "kind", kind, "group", group, "resource", resource)
 		return model, err
 	}
 	return model, nil
@@ -1511,4 +1513,18 @@ func (impl UserAuthRepositoryImpl) DeleteRole(role *RoleModel, tx *pg.Tx) error 
 		return err
 	}
 	return nil
+}
+
+func (impl UserAuthRepositoryImpl) GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]RoleModel, error) {
+	var models []RoleModel
+	err := impl.dbConnection.Model(&models).
+		Column("role_model.*").
+		Join("INNER JOIN user_roles ur on ur.role_id=role_model.id").
+		Where("role_model.entity = ?", entityType).
+		Where("ur.user_id = ?", userId).Select()
+	if err != nil {
+		impl.Logger.Error(err)
+		return models, err
+	}
+	return models, nil
 }
