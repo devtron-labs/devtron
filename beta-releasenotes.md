@@ -5,6 +5,7 @@
 - feat: added support for node-[delete, cordon, drain, taint edit] (#2805)
 - feat: Cluster terminal multiple image support (#2815)
 ## Documentation
+- docs: minor correction in ingress yaml (#2819)
 - docs: updated cluster server url (#2816)
 - docs: minor updates (#2800)
 - docs: updated-global-configs (#2712)
