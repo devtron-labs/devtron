@@ -22,16 +22,11 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
-	"fmt"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"os/user"
 	"path/filepath"
-	"strconv"
+	"strings"
 	"time"
 
 	"github.com/devtron-labs/authenticator/client"
@@ -525,74 +520,47 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	}
 }
 
-// ParseResource TODO - optimize and refactor, WIP
-func (impl K8sUtil) ParseResource(manifest *unstructured.Unstructured) (*application.ClusterResourceListResponse, error) {
-	clusterResourceListResponse := &application.ClusterResourceListResponse{}
-	switch manifest.GroupVersionKind() {
-	case schema.GroupVersionKind{Group: "", Version: "v1", Kind: kube.PodKind}:
-		clusterResourceListResponse = impl.populatePodResourceData(manifest)
-	default:
-		clusterResourceListResponse = impl.populateResourceData(manifest)
-	}
+func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList) (*application.ClusterResourceListMap, error) {
+	clusterResourceListMap := &application.ClusterResourceListMap{}
 
-	return clusterResourceListResponse, nil
-}
-
-func (impl K8sUtil) populatePodResourceData(manifest *unstructured.Unstructured) *application.ClusterResourceListResponse {
-	clusterResourceListResponse := impl.populateResourceData(manifest)
-	var pod v1.Pod
-	err := runtime.DefaultUnstructuredConverter.FromUnstructured(manifest.UnstructuredContent(), &pod)
-	if err != nil {
-		return clusterResourceListResponse
-	}
-
-	restarts := 0
-	totalContainers := len(pod.Spec.Containers)
-	readyContainers := 0
-	var containers []string
-	containersMap := make(map[string]string)
-	for i := range pod.Status.ContainerStatuses {
-		container := pod.Status.ContainerStatuses[i]
-		restarts += int(container.RestartCount)
-		if container.Ready {
-			readyContainers += readyContainers
+	columnDefinitions := manifest.Object[application.K8sClusterResourceColumnDefinitionKey].([]interface{})
+	var headers []string
+	columnIndexes := make(map[int]string)
+	for index, cd := range columnDefinitions {
+		columnMap := cd.(map[string]interface{})
+		columnName := columnMap[application.K8sClusterResourceNameKey].(string)
+		columnName = strings.ToLower(columnName)
+		priority := columnMap[application.K8sClusterResourcePriorityKey].(int64)
+		if index == 1 {
+			headers = append(headers, application.K8sClusterResourceNamespaceKey)
 		}
-		containersMap[container.Name] = container.Name
-	}
-	for i := range pod.Status.InitContainerStatuses {
-		container := pod.Status.InitContainerStatuses[i]
-		containersMap[container.Name] = container.Name
-	}
-	for _, v := range containersMap {
-		containers = append(containers, v)
-	}
-	clusterResourceListResponse.Status = string(pod.Status.Phase)
-	clusterResourceListResponse.Ready = fmt.Sprintf("%d/%d", readyContainers, totalContainers)
-	clusterResourceListResponse.Restarts = strconv.Itoa(restarts)
-	clusterResourceListResponse.Containers = containers
-	return clusterResourceListResponse
-}
-
-func (impl K8sUtil) populateResourceData(manifest *unstructured.Unstructured) *application.ClusterResourceListResponse {
-	clusterResourceListResponse := &application.ClusterResourceListResponse{}
-	res := manifest.Object
-	if res != nil && res[application.K8sClusterResourceMetadataKey] != nil {
-		metadata := res[application.K8sClusterResourceMetadataKey].(map[string]interface{})
-		clusterResourceListResponse.Name = metadata[application.K8sClusterResourceNameKey].(string)
-		clusterResourceListResponse.Namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
-		clusterResourceListResponse.Age = metadata[application.K8sClusterResourceCreationTimestampKey].(string)
+		if priority == 0 {
+			columnIndexes[index] = columnName
+			headers = append(headers, columnName)
+		}
 	}
 
-	// status for pod kind is fetch from some other logic
-	if manifest.GetKind() != kube.PodKind {
-		if healthCheck := health.GetHealthCheckFunc(manifest.GroupVersionKind()); healthCheck != nil {
-			health, err := healthCheck(manifest)
-			if err != nil {
-				impl.logger.Infow("error on health check for k8s resource", "err", err)
-			} else if health != nil {
-				clusterResourceListResponse.Status = string(health.Status)
+	rowsMapping := make([]map[string]interface{}, 0)
+	rows := manifest.Object[application.K8sClusterResourceRowsKey].([]interface{})
+	for _, row := range rows {
+		rowIndex := make(map[string]interface{})
+		rowMap := row.(map[string]interface{})
+		rowCells := rowMap[application.K8sClusterResourceCellKey].([]interface{})
+		for index, columnName := range columnIndexes {
+			cell := rowCells[index].(interface{})
+			rowIndex[columnName] = cell
+		}
+		cellObj := rowMap[application.K8sClusterResourceObjectKey].(map[string]interface{})
+		if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
+			metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
+			if metadata[application.K8sClusterResourceNamespaceKey] != nil {
+				rowIndex[application.K8sClusterResourceNamespaceKey] = metadata[application.K8sClusterResourceNamespaceKey].(string)
 			}
 		}
+		rowsMapping = append(rowsMapping, rowIndex)
 	}
-	return clusterResourceListResponse
+	clusterResourceListMap.Headers = headers
+	clusterResourceListMap.Data = rowsMapping
+	impl.logger.Debugw("resource listing response", clusterResourceListMap, clusterResourceListMap)
+	return clusterResourceListMap, nil
 }

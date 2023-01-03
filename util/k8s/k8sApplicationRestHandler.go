@@ -10,6 +10,7 @@ import (
 	client "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/client/k8s/application"
+	util2 "github.com/devtron-labs/devtron/internal/util"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/terminal"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -20,6 +21,7 @@ import (
 	"github.com/gorilla/mux"
 	errors2 "github.com/juju/errors"
 	"go.uber.org/zap"
+	errors3 "k8s.io/apimachinery/pkg/api/errors"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"net/http"
@@ -647,6 +649,9 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 	response, err := handler.k8sApplicationService.GetResourceList(&request, token, handler.checkResourceListingAuth)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource list", "err", err)
+		if statusErr, ok := err.(*errors3.StatusError); ok && statusErr.Status().Code == 404 {
+			err = &util2.ApiError{Code: "404", HttpStatusCode: 404, UserMessage: "no resource found", InternalMessage: err.Error()}
+		}
 		common.WriteJsonResp(w, err, response, http.StatusInternalServerError)
 		return
 	}

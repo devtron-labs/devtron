@@ -522,31 +522,18 @@ components:
     ClusterResourceListResponse:
       type: object
       properties:
-        name:
-          type: string
-          description: resource name
-        namespace:
-          type: string
-          description: resource namespace
-        age:
-          type: string
-          description: resource age
-        status:
-          type: string
-          description: resource status
-        ready:
-          type: string
-          description: ready count
-        restarts:
-          type: string
-          description: restart count
-        url:
-          type: string
-          description: service url
-        containers:
+        headers:
           type: array
           items:
             type: string
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              header-name:
+                type: string
+                description: each object from data key contains the objects keys length is equal to headers length
     ApplyResourcesRequest:
       type: object
       properties:

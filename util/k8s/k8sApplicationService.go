@@ -47,7 +47,7 @@ type K8sApplicationService interface {
 	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
 	GetAllApiResources(clusterId int) ([]*application.K8sApiResource, error)
-	GetResourceList(request *ResourceRequestBean, token string, auth func(token string, resource string, object string) bool) ([]*application.ClusterResourceListResponse, error)
+	GetResourceList(request *ResourceRequestBean) (*application.ClusterResourceListMap, error)
 	ApplyResources(request *application.ApplyResourcesRequest) ([]*application.ApplyResourcesResponse, error)
 }
 
@@ -498,13 +498,36 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int) ([]*app
 		impl.logger.Errorw("error in getting cluster rest config", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	return impl.k8sClientService.GetApiResources(restConfig)
+	apiResources, err := impl.k8sClientService.GetApiResources(restConfig, LIST_VERB)
+	if err != nil {
+		return apiResources, err
+	}
+
+	// FILTER STARTS
+	// 1) remove ""/v1 event kind if event kind exist in events.k8s.io/v1 and ""/v1
+	k8sEventIndex := -1
+	v1EventIndex := -1
+	for index, apiResource := range apiResources {
+		gvk := apiResource.Gvk
+		if gvk.Kind == EVENT_K8S_KIND && gvk.Version == "v1" {
+			if gvk.Group == "" {
+				v1EventIndex = index
+			} else if gvk.Group == "events.k8s.io" {
+				k8sEventIndex = index
+			}
+		}
+	}
+	if k8sEventIndex > -1 && v1EventIndex > -1 {
+		apiResources = append(apiResources[:v1EventIndex], apiResources[v1EventIndex+1:]...)
+	}
+	// FILTER ENDS
+
+	return apiResources, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestBean, token string, auth func(token string, resource string, object string) bool) ([]*application.ClusterResourceListResponse, error) {
+func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestBean) (*application.ClusterResourceListMap, error) {
 	//getting rest config by clusterId
-
-	resourceList := make([]*application.ClusterResourceListResponse, 0)
+	resourceList := &application.ClusterResourceListMap{}
 	restConfig, err := impl.GetRestConfigByClusterId(request.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
@@ -515,25 +538,10 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestB
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
-	//todo - remove this call
-	cluster, err := impl.clusterService.FindById(request.ClusterId)
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources)
 	if err != nil {
-		impl.logger.Errorw("error in getting cluster by ID", "err", err, "clusterId")
-		return nil, err
-	}
-	rbacResource := fmt.Sprintf("%s/%s", cluster.ClusterName, request.K8sRequest.ResourceIdentifier.Namespace)
-	for _, res := range resp.Resources.Items {
-		object := &unstructured.Unstructured{Object: res.Object}
-		r, err := impl.K8sUtil.ParseResource(object)
-		if err != nil {
-			impl.logger.Warnw("error on parsing for k8s resource", "object", object, "err", err)
-			continue
-		}
-		rbacObject := fmt.Sprintf("%s/%s/%s", request.K8sRequest.ResourceIdentifier.GroupVersionKind.Group, request.K8sRequest.ResourceIdentifier.GroupVersionKind.Kind, r.Name)
-		isValidAuth := auth(token, rbacResource, rbacObject)
-		if isValidAuth {
-			resourceList = append(resourceList, r)
-		}
+		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
+		return resourceList, err
 	}
 	return resourceList, nil
 }

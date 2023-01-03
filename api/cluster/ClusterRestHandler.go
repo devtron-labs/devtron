@@ -53,6 +53,7 @@ type ClusterRestHandler interface {
 	DeleteCluster(w http.ResponseWriter, r *http.Request)
 	GetClusterNamespaces(w http.ResponseWriter, r *http.Request)
 	GetAllClusterNamespaces(w http.ResponseWriter, r *http.Request)
+	FindAllForClusterPermission(w http.ResponseWriter, r *http.Request)
 }
 
 type ClusterRestHandlerImpl struct {
@@ -414,4 +415,28 @@ func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r
 	}
 
 	common.WriteJsonResp(w, nil, filteredNamespaces, http.StatusOK)
+}
+
+func (impl ClusterRestHandlerImpl) FindAllForClusterPermission(w http.ResponseWriter, r *http.Request) {
+	userId, err := impl.userService.GetLoggedInUser(r)
+	if userId == 0 || err != nil {
+		impl.logger.Errorw("user not authorized", "error", err, "userId", userId)
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
+	clusterList, err := impl.clusterService.FindAllForClusterPermission(userId)
+	if err != nil {
+		impl.logger.Errorw("error in deleting cluster", "err", err)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+	// RBAC enforcer applying
+	// Already applied at service layer
+	//RBAC enforcer Ends
+
+	if len(clusterList) == 0 {
+		clusterList = make([]cluster.ClusterBean, 0)
+	}
+	common.WriteJsonResp(w, err, clusterList, http.StatusOK)
 }
