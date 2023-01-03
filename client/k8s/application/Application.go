@@ -178,48 +178,37 @@ func (impl K8sClientServiceImpl) DeleteResource(restConfig *rest.Config, request
 }
 
 func (impl K8sClientServiceImpl) ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error) {
-	isGlobalKindEvent := request.ResourceIdentifier.GroupVersionKind.Kind == "Event"
+	_, namespaced, err := impl.GetResourceIf(restConfig, request)
+	if err != nil {
+		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
+		return nil, err
+	}
+
 	resourceIdentifier := request.ResourceIdentifier
 	resourceIdentifier.GroupVersionKind.Kind = "List"
+	if !namespaced {
+		resourceIdentifier.Namespace = "default"
+	}
 	eventsClient, err := v1.NewForConfig(restConfig)
 	if err != nil {
 		impl.logger.Errorw("error in getting client for resource", "err", err)
 		return nil, err
 	}
+	eventsIf := eventsClient.Events(resourceIdentifier.Namespace)
+	eventsExp := eventsIf.(v1.EventExpansion)
+	fieldSelector := eventsExp.GetFieldSelector(pointer.StringPtr(resourceIdentifier.Name), pointer.StringPtr(resourceIdentifier.Namespace), nil, nil)
 	listOptions := metav1.ListOptions{
 		TypeMeta: metav1.TypeMeta{
 			Kind:       resourceIdentifier.GroupVersionKind.Kind,
 			APIVersion: resourceIdentifier.GroupVersionKind.GroupVersion().String(),
 		},
+		FieldSelector: fieldSelector.String(),
 	}
-	var list *apiv1.EventList
-	if isGlobalKindEvent {
-		eventsIf := eventsClient.Events(resourceIdentifier.Namespace)
-		list, err = eventsIf.List(context.Background(), listOptions)
-		if err != nil {
-			impl.logger.Errorw("error in getting events list", "err", err)
-			return nil, err
-		}
-	} else {
-		_, namespaced, err := impl.GetResourceIf(restConfig, request)
-		if err != nil {
-			impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
-			return nil, err
-		}
-		if !namespaced {
-			resourceIdentifier.Namespace = "default"
-		}
-		eventsIf := eventsClient.Events(resourceIdentifier.Namespace)
-		eventsExp := eventsIf.(v1.EventExpansion)
-		fieldSelector := eventsExp.GetFieldSelector(pointer.StringPtr(resourceIdentifier.Name), pointer.StringPtr(resourceIdentifier.Namespace), nil, nil)
-		listOptions.FieldSelector = fieldSelector.String()
-		list, err = eventsIf.List(context.Background(), listOptions)
-		if err != nil {
-			impl.logger.Errorw("error in getting events list", "err", err)
-			return nil, err
-		}
+	list, err := eventsIf.List(context.Background(), listOptions)
+	if err != nil {
+		impl.logger.Errorw("error in getting events list", "err", err)
+		return nil, err
 	}
-
 	return &EventsResponse{list}, nil
 }
 
