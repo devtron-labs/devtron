@@ -540,7 +540,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(token string, request *Re
 		return resourceList, err
 	}
 	k8sRequest := request.K8sRequest
-	resp,namespaced, err := impl.k8sClientService.GetResourceList(restConfig, k8sRequest)
+	resp, namespaced, err := impl.k8sClientService.GetResourceList(restConfig, k8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err

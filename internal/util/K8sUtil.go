@@ -581,19 +581,20 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 			}
 
 			// set namespace
-			if namespaced {
-				cellObjUncast := rowMap[application.K8sClusterResourceObjectKey]
-				if cellObjUncast != nil {
-					cellObj := cellObjUncast.(map[string]interface{})
-					if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
-						metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
-						if metadata[application.K8sClusterResourceNamespaceKey] != nil {
-							namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
+
+			cellObjUncast := rowMap[application.K8sClusterResourceObjectKey]
+			if cellObjUncast != nil {
+				cellObj := cellObjUncast.(map[string]interface{})
+				if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
+					metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
+					if metadata[application.K8sClusterResourceNamespaceKey] != nil {
+						namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
+						if namespaced {
 							rowIndex[application.K8sClusterResourceNamespaceKey] = namespace
 						}
-						if metadata[application.K8sClusterResourceMetadataNameKey] != nil {
-							resourceName = metadata[application.K8sClusterResourceMetadataNameKey].(string)
-						}
+					}
+					if metadata[application.K8sClusterResourceMetadataNameKey] != nil {
+						resourceName = metadata[application.K8sClusterResourceMetadataNameKey].(string)
 					}
 				}
 			}
