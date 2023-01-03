@@ -533,12 +533,12 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestB
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
 		return resourceList, err
 	}
-	resp, err := impl.k8sClientService.GetResourceList(restConfig, request.K8sRequest)
+	resp, namespaced, err := impl.k8sClientService.GetResourceList(restConfig, request.K8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
-	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources)
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources, namespaced)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err

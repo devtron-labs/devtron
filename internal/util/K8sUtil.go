@@ -528,7 +528,7 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	}
 }
 
-func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList) (*application.ClusterResourceListMap, error) {
+func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool) (*application.ClusterResourceListMap, error) {
 	clusterResourceListMap := &application.ClusterResourceListMap{}
 
 	// build headers
@@ -553,7 +553,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 			columnName := columnNameUncast.(string)
 			columnName = strings.ToLower(columnName)
 			priority := priorityUncast.(int64)
-			if index == 1 {
+			if namespaced && index == 1 {
 				headers = append(headers, application.K8sClusterResourceNamespaceKey)
 			}
 			if priority == 0 {
@@ -582,13 +582,15 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 			}
 
 			// set namespace
-			cellObjUncast := rowMap[application.K8sClusterResourceObjectKey]
-			if cellObjUncast != nil {
-				cellObj := cellObjUncast.(map[string]interface{})
-				if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
-					metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
-					if metadata[application.K8sClusterResourceNamespaceKey] != nil {
-						rowIndex[application.K8sClusterResourceNamespaceKey] = metadata[application.K8sClusterResourceNamespaceKey].(string)
+			if namespaced {
+				cellObjUncast := rowMap[application.K8sClusterResourceObjectKey]
+				if cellObjUncast != nil {
+					cellObj := cellObjUncast.(map[string]interface{})
+					if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
+						metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
+						if metadata[application.K8sClusterResourceNamespaceKey] != nil {
+							rowIndex[application.K8sClusterResourceNamespaceKey] = metadata[application.K8sClusterResourceNamespaceKey].(string)
+						}
 					}
 				}
 			}

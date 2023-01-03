@@ -29,7 +29,7 @@ type K8sClientService interface {
 	ListEvents(restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error)
 	GetPodLogs(restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error)
 	GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*K8sApiResource, error)
-	GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, error)
+	GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, bool, error)
 	ApplyResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error)
 }
 
@@ -362,11 +362,11 @@ func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config, includ
 	return apiResources, nil
 }
 
-func (impl K8sClientServiceImpl) GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, error) {
+func (impl K8sClientServiceImpl) GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, bool, error) {
 	resourceIf, namespaced, err := impl.GetResourceIfWithAcceptHeader(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
-		return nil, err
+		return nil, namespaced, err
 	}
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.UnstructuredList
@@ -383,9 +383,9 @@ func (impl K8sClientServiceImpl) GetResourceList(restConfig *rest.Config, reques
 	}
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier)
-		return nil, err
+		return nil, namespaced, err
 	}
-	return &ResourceListResponse{*resp}, nil
+	return &ResourceListResponse{*resp}, namespaced, nil
 }
 
 func (impl K8sClientServiceImpl) ApplyResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
