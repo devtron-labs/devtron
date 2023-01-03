@@ -293,7 +293,8 @@ func (impl UserCommonServiceImpl) RemoveRolesAndReturnEliminatedPoliciesForGroup
 			if !isValidAuth {
 				continue
 			}
-		} else if len(role.Cluster) > 0 {
+		}
+		if role.Entity == bean.CLUSTER_ENTITIY {
 			isValidAuth := impl.CheckRbacForClusterEntity(role.Cluster, role.Namespace, role.Group, role.Kind, role.Resource, token, managerAuth)
 			if !isValidAuth {
 				continue
