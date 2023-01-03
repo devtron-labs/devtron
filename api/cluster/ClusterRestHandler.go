@@ -398,23 +398,12 @@ func (impl ClusterRestHandlerImpl) GetClusterNamespaces(w http.ResponseWriter, r
 		return
 	}
 
-	clusterBean, err := impl.clusterService.FindById(clusterId)
+	allClusterNamespaces, err := impl.clusterService.FindAllNamespacesByUserIdAndClusterId(userId, clusterId)
 	if err != nil {
-		impl.logger.Errorw("failed to find cluster for id", "error", err, "clusterId", clusterId)
-		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
-	clusterName := clusterBean.ClusterName
-	allClusterNamespaces := impl.clusterService.GetAllClusterNamespaces()
-	clusterNamespaces := allClusterNamespaces[clusterName]
-
-	var filteredNamespaces []string
-	for _, clusterNamespace := range clusterNamespaces {
-		//check for RBAC
-		filteredNamespaces = append(filteredNamespaces, clusterNamespace)
-	}
-
-	common.WriteJsonResp(w, nil, filteredNamespaces, http.StatusOK)
+	common.WriteJsonResp(w, nil, allClusterNamespaces, http.StatusOK)
 }
 
 func (impl ClusterRestHandlerImpl) FindAllForClusterPermission(w http.ResponseWriter, r *http.Request) {
@@ -425,7 +414,7 @@ func (impl ClusterRestHandlerImpl) FindAllForClusterPermission(w http.ResponseWr
 		return
 	}
 
-	clusterList, err := impl.clusterService.FindAllForClusterPermission(userId)
+	clusterList, err := impl.clusterService.FindAllForClusterByUserId(userId)
 	if err != nil {
 		impl.logger.Errorw("error in deleting cluster", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

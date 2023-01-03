@@ -495,14 +495,7 @@ func (impl K8sUtil) GetResourceInfoByLabelSelector(namespace string, labelSelect
 func (impl K8sUtil) GetK8sClusterRestConfig() (*rest.Config, error) {
 	impl.logger.Debug("getting k8s rest config")
 	if impl.runTimeConfig.LocalDevMode {
-		usr, err := user.Current()
-		if err != nil {
-			impl.logger.Errorw("Error while getting user current env details", "error", err)
-		}
-		name := fmt.Sprintf("read-kubeconfig-%d", time.Now().UnixMilli())
-		kubeconfig := flag.String(name, filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		restConfig, err := clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
 		if err != nil {
 			impl.logger.Errorw("Error while building kubernetes cluster rest config", "error", err)
 			return nil, err
@@ -528,7 +521,7 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	}
 }
 
-func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool) (*application.ClusterResourceListMap, error) {
+func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, validateResourceAccess func(namespace, resourceName string) bool) (*application.ClusterResourceListMap, error) {
 	clusterResourceListMap := &application.ClusterResourceListMap{}
 
 	// build headers
@@ -566,9 +559,15 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 	// build rows
 	rowsMapping := make([]map[string]interface{}, 0)
 	rowsDataUncast := manifest.Object[application.K8sClusterResourceRowsKey]
+	var resourceName string
+	var namespace string
+	var allowed bool
 	if rowsDataUncast != nil {
 		rows := rowsDataUncast.([]interface{})
 		for _, row := range rows {
+			resourceName = ""
+			namespace = ""
+			allowed = true
 			rowIndex := make(map[string]interface{})
 			rowMap := row.(map[string]interface{})
 			cellsUncast := rowMap[application.K8sClusterResourceCellKey]
@@ -589,13 +588,21 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 					if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
 						metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
 						if metadata[application.K8sClusterResourceNamespaceKey] != nil {
-							rowIndex[application.K8sClusterResourceNamespaceKey] = metadata[application.K8sClusterResourceNamespaceKey].(string)
+							namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
+							rowIndex[application.K8sClusterResourceNamespaceKey] = namespace
+						}
+						if metadata[application.K8sClusterResourceMetadataNameKey] != nil {
+							resourceName = metadata[application.K8sClusterResourceMetadataNameKey].(string)
 						}
 					}
 				}
 			}
-
-			rowsMapping = append(rowsMapping, rowIndex)
+			if resourceName != "" {
+				allowed = validateResourceAccess(namespace, resourceName)
+			}
+			if allowed {
+				rowsMapping = append(rowsMapping, rowIndex)
+			}
 		}
 	}
 
