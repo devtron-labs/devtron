@@ -52,6 +52,7 @@ type ValuesOverrideRequest struct {
 	CdWorkflowId                          int                         `json:"cdWorkflowId"`
 	UserId                                int32                       `json:"-"`
 	DeploymentType                        models.DeploymentType       `json:"-"`
+	IsRollback                            bool                        `json:"isRollback"`
 }
 
 type ReleaseStatusUpdateRequest struct {

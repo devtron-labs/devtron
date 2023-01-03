@@ -1387,6 +1387,17 @@ func (impl *WorkflowDagExecutorImpl) ManualCdTrigger(overrideRequest *bean.Value
 			err = impl.TriggerPostStage(cdWf, cdPipeline, overrideRequest.UserId)
 		}
 	}
+	if overrideRequest.IsRollback {
+
+		event := impl.eventFactory.Build(1, &cdPipeline.Id, cdPipeline.AppId, &cdPipeline.EnvironmentId, "CD")
+		_, evtErr := impl.eventClient.WriteNotificationEvent(event)
+		if evtErr != nil {
+			impl.logger.Errorw("unable to send notification for image rollback request")
+		}
+
+		event = impl.eventFactory.BuildExtraCDData(event, nil, 0, overrideRequest.CdWorkflowType)
+
+	}
 	return releaseId, err
 }
 
