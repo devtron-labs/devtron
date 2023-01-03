@@ -527,8 +527,6 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int) ([]*app
 
 func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestBean) (*application.ClusterResourceListMap, error) {
 	//getting rest config by clusterId
-
-	//resourceList := make([]*application.ClusterResourceListResponse, 0)
 	resourceList := &application.ClusterResourceListMap{}
 	restConfig, err := impl.GetRestConfigByClusterId(request.ClusterId)
 	if err != nil {
@@ -540,20 +538,11 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(request *ResourceRequestB
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
-	resourceList, err = impl.K8sUtil.ParseResource2(&resp.Resources)
+	resourceList, err = impl.K8sUtil.BuildK8sObjectListTableData(&resp.Resources)
 	if err != nil {
 		impl.logger.Errorw("error on parsing for k8s resource", "err", err)
 		return resourceList, err
 	}
-	/*	for _, res := range resp.Resources.Items {
-		object := &unstructured.Unstructured{Object: res.Object}
-		r, err := impl.K8sUtil.ParseResource(object)
-		if err != nil {
-			impl.logger.Warnw("error on parsing for k8s resource", "object", object, "err", err)
-			continue
-		}
-		resourceList = append(resourceList, r)
-	}*/
 	return resourceList, nil
 }
 

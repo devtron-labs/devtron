@@ -34,7 +34,7 @@ type ClusterResourceListResponse struct {
 
 type ClusterResourceListMap struct {
 	Headers []string                 `json:"headers"`
-	Rows    []map[string]interface{} `json:"rows"`
+	Data    []map[string]interface{} `json:"data"`
 }
 
 const K8sClusterResourceNameKey = "name"
