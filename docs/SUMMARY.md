@@ -59,6 +59,9 @@
     * [CD Pipeline](user-guide/creating-application/workflow/cd-pipeline.md)
     * [Config Maps](user-guide/creating-application/config-maps.md)
     * [Secrets](user-guide/creating-application/secrets.md)
+      * [External Secret Operator (ESO)](user-guide/creating-application/eso/README.md)
+        * [AWS Secrets Manager](user-guide/creating-application/eso/aws-eso.md)
+
     * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
     * [Deleting Application](user-guide/deleting-application.md)   
   * [Build and Deploy](user-guide/deploying-application/README.md)
