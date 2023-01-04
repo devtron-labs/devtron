@@ -52,8 +52,9 @@ type App struct {
 	pubsubClient  *pubsub.PubSubClient
 	posthogClient *telemetry.PosthogClient
 	// used for local dev only
-	serveTls        bool
-	sessionManager2 *authMiddleware.SessionManager
+	serveTls           bool
+	sessionManager2    *authMiddleware.SessionManager
+	OtelTracingService *otel.OtelTracingServiceImpl
 }
 
 func NewApp(router *router.MuxRouter,
@@ -65,19 +66,21 @@ func NewApp(router *router.MuxRouter,
 	pubsubClient *pubsub.PubSubClient,
 	sessionManager2 *authMiddleware.SessionManager,
 	posthogClient *telemetry.PosthogClient,
+	otelTracingService *otel.OtelTracingServiceImpl,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
 	app := &App{
-		MuxRouter:       router,
-		Logger:          Logger,
-		SSE:             sse,
-		Enforcer:        enforcer,
-		db:              db,
-		pubsubClient:    pubsubClient,
-		serveTls:        false,
-		sessionManager2: sessionManager2,
-		posthogClient:   posthogClient,
+		MuxRouter:          router,
+		Logger:             Logger,
+		SSE:                sse,
+		Enforcer:           enforcer,
+		db:                 db,
+		pubsubClient:       pubsubClient,
+		serveTls:           false,
+		sessionManager2:    sessionManager2,
+		posthogClient:      posthogClient,
+		OtelTracingService: otelTracingService,
 	}
 	return app
 }
@@ -89,14 +92,7 @@ func (app *App) Start() {
 
 	// setup tracer
 	serviceName := "orchestrator"
-	tracerProvider := otel.Init(serviceName)
-	if tracerProvider != nil {
-		defer func() {
-			if err := tracerProvider.Shutdown(context.Background()); err != nil {
-				log.Printf("Error shutting down tracer provider: %v", err)
-			}
-		}()
-	}
+	tracerProvider := app.OtelTracingService.Init(serviceName)
 
 	app.MuxRouter.Init()
 	//authEnforcer := casbin2.Create()
@@ -144,6 +140,9 @@ func (app *App) Stop() {
 	if err != nil {
 		app.Logger.Errorw("error in mux router shutdown", "err", err)
 	}
+
+	app.OtelTracingService.Shutdown()
+
 	app.Logger.Infow("closing db connection")
 	err = app.db.Close()
 	if err != nil {

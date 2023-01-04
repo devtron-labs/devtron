@@ -11,27 +11,47 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
 	"go.opentelemetry.io/otel/trace"
+	"go.uber.org/zap"
 	"google.golang.org/grpc/credentials"
-	"log"
+	"os"
 )
+
+const OTEL_CONFIG_KEY = "OTEL_CONFIGURED"
+const OTEL_ALLOWED_VAL = "true"
+
+type OtelTracingService interface {
+	Init(serviceName string) *sdktrace.TracerProvider
+	Shutdown()
+}
+
+type OtelTracingServiceImpl struct {
+	logger        *zap.SugaredLogger
+	traceProvider *sdktrace.TracerProvider
+}
+
+func NewOtelTracingServiceImpl(logger *zap.SugaredLogger) *OtelTracingServiceImpl {
+	return &OtelTracingServiceImpl{logger: logger}
+}
 
 type OtelConfig struct {
 	OtelCollectorUrl string `env:"OTEL_COLLECTOR_URL" envDefault:""`
 }
 
 // Init configures an OpenTelemetry exporter and trace provider
-func Init(serviceName string) *sdktrace.TracerProvider {
+func (impl OtelTracingServiceImpl) Init(serviceName string) *sdktrace.TracerProvider {
 	//var collectorURL = "otel-collector.observability:4317"
 	otelCfg := &OtelConfig{}
 	err := env.Parse(otelCfg)
 	if err != nil {
-		log.Println("error occurred while parsing otel config", err)
+		impl.logger.Errorw("error occurred while parsing otel config", "err", err)
 		return nil
 	}
 
 	if otelCfg.OtelCollectorUrl == "" { // otel is not configured
+		impl.configureOtel(false)
 		return nil
 	}
+	impl.configureOtel(true)
 
 	secureOption := otlptracegrpc.WithTLSCredentials(credentials.NewClientTLSFromCert(nil, "")) // config can be passed to configure TLS
 	secureOption = otlptracegrpc.WithInsecure()
@@ -44,7 +64,7 @@ func Init(serviceName string) *sdktrace.TracerProvider {
 		),
 	)
 	if err != nil {
-		log.Println("error occurred while connecting to exporter", err)
+		impl.logger.Errorw("error occurred while connecting to exporter", "err", err)
 		return nil
 	}
 
@@ -58,8 +78,36 @@ func Init(serviceName string) *sdktrace.TracerProvider {
 
 	otel.SetTracerProvider(traceProvider)
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
+	impl.logger.Infow("otel configured", "url", otelCfg.OtelCollectorUrl)
 
 	return traceProvider
+}
+
+func (impl OtelTracingServiceImpl) Shutdown() {
+	impl.logger.Info("shutting down trace")
+	if impl.traceProvider == nil {
+		impl.logger.Info("trace shutdown ignored as not enabled")
+		return
+	}
+	if err := impl.traceProvider.Shutdown(context.Background()); err != nil {
+		impl.logger.Errorw("Error shutting down tracer provider: ", "err", err)
+	}
+	impl.logger.Info("trace shutdown success")
+}
+
+func (impl OtelTracingServiceImpl) configureOtel(otelConfigured bool) {
+	var boolVal string
+	if otelConfigured {
+		boolVal = OTEL_ALLOWED_VAL
+	}
+	err := os.Setenv(OTEL_CONFIG_KEY, boolVal)
+	if err != nil {
+		impl.logger.Errorw("error occurred while setting otel config", "err", err)
+	}
+}
+
+func otelConfigured() bool {
+	return OTEL_ALLOWED_VAL == os.Getenv(OTEL_CONFIG_KEY)
 }
 
 type OtelSpan struct {
@@ -69,15 +117,20 @@ type OtelSpan struct {
 }
 
 func (impl OtelSpan) End() {
-	impl.span.End()
+	if impl.span != nil {
+		impl.span.End()
+	}
 }
 
 func StartSpan(serviceName, spanName string, ctx context.Context) OtelSpan {
-	newCtx, span := otel.Tracer(serviceName).Start(ctx, spanName)
 	otelSpan := OtelSpan{
-		reqContext:       ctx,
-		OverridenContext: newCtx,
-		span:             span,
+		reqContext: ctx,
 	}
+	if otelConfigured() == false {
+		return otelSpan
+	}
+	newCtx, span := otel.Tracer(serviceName).Start(ctx, spanName)
+	otelSpan.OverridenContext = newCtx
+	otelSpan.span = span
 	return otelSpan
 }
