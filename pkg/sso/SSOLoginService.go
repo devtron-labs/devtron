@@ -22,6 +22,7 @@ import (
 	"fmt"
 	"github.com/devtron-labs/devtron/api/bean"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/pkg/auth"
 	util2 "github.com/devtron-labs/devtron/util"
 	"github.com/devtron-labs/devtron/util/argo"
 	"github.com/ghodss/yaml"
@@ -43,17 +44,19 @@ type SSOLoginServiceImpl struct {
 	ssoLoginRepository  SSOLoginRepository
 	K8sUtil             *util.K8sUtil
 	devtronSecretConfig *util2.DevtronSecretConfig
+	userAuthOidcHelper  auth.UserAuthOidcHelper
 }
 
 func NewSSOLoginServiceImpl(
 	logger *zap.SugaredLogger,
 	ssoLoginRepository SSOLoginRepository,
-	K8sUtil *util.K8sUtil, devtronSecretConfig *util2.DevtronSecretConfig) *SSOLoginServiceImpl {
+	K8sUtil *util.K8sUtil, devtronSecretConfig *util2.DevtronSecretConfig, userAuthOidcHelper auth.UserAuthOidcHelper) *SSOLoginServiceImpl {
 	serviceImpl := &SSOLoginServiceImpl{
 		logger:              logger,
 		ssoLoginRepository:  ssoLoginRepository,
 		K8sUtil:             K8sUtil,
 		devtronSecretConfig: devtronSecretConfig,
+		userAuthOidcHelper:  userAuthOidcHelper,
 	}
 	return serviceImpl
 }
@@ -114,6 +117,10 @@ func (impl SSOLoginServiceImpl) CreateSSOLogin(request *bean.SSOLoginDto) (*bean
 	if err != nil {
 		return nil, err
 	}
+
+	// update in memory data on sso add-update
+	impl.userAuthOidcHelper.UpdateInMemoryDataOnSsoAddUpdate(request.Url)
+
 	return request, nil
 }
 
@@ -175,6 +182,10 @@ func (impl SSOLoginServiceImpl) UpdateSSOLogin(request *bean.SSOLoginDto) (*bean
 	if err != nil {
 		return nil, err
 	}
+
+	// update in memory data on sso add-update
+	impl.userAuthOidcHelper.UpdateInMemoryDataOnSsoAddUpdate(request.Url)
+
 	return request, nil
 }
 

@@ -1,4 +1,4 @@
-# Summary
+# Table of contents
 
 * [Introduction](README.md)
 * [Getting Started](setup/getting-started/getting-started.md)
@@ -8,16 +8,16 @@
   * [Install Devtron](setup/install/install-devtron.md)
   * [Install Devtron on Minikube, Microk8s, K3s, Kind](setup/install/Install-devtron-on-Minikube-Microk8s-K3s-Kind.md)
   * [FAQ on Installation](setup/install/faq-on-installation.md)
-  * [Unsintall Devtron](setup/install/uninstall-devtron.md)
+  * [Uninstall Devtron](setup/install/uninstall-devtron.md)
 * [Configurations](setup/configurations/configurations-overview.md)
   * [Installation Configurations](setup/install/installation-configuration.md)
   * [Override Configurations](setup/install/override-default-devtron-installation-configs.md)
   * [Ingress Setup](setup/install/ingress-setup.md)
 * [Global Configurations](user-guide/global-configurations/README.md)
+  * [Host URL](user-guide/global-configurations/host-url.md)
   * [GitOps](user-guide/global-configurations/gitops.md)
   * [Projects](user-guide/global-configurations/projects.md)
   * [Cluster And Environments](user-guide/global-configurations/cluster-and-environments.md)
-    * [Namespaces And Environments](user-guide/namespaces-and-environments.md)
   * [Git Accounts](user-guide/global-configurations/git-accounts.md)
   * [Container Registries](user-guide/global-configurations/docker-registries.md)
   * [Chart Repositories](user-guide/global-configurations/chart-repo.md)
@@ -38,16 +38,17 @@
   * [0.3.x-0.3.x](setup/upgrade/devtron-upgrade-0.3.x-0.3.x.md)
   * [0.2.x-0.3.x](setup/upgrade/devtron-upgrade-0.2.x-0.3.x.md)
 
-### Usage
+## Usage
 
 * [Applications](user-guide/applications.md)
   * [Create a new application](user-guide/create-application.md)
   * [Clone an existing application](user-guide/cloning-application.md)
-  * [Deploy a sample application](user-guide/Deploy-sample-app/nodejs_app.md)
+  * [Deploy a sample application](user-guide/Deploy-sample-app/nodejs\_app.md)
   * [App Configuration](user-guide/creating-application/README.md)
     * [Git Repository](user-guide/creating-application/git-material.md)
     * [Build Configuration](user-guide/creating-application/docker-build-configuration.md)
     * [Deployment Template](user-guide/creating-application/deployment-template.md)
+      * [Deployment](user-guide/creating-application/deployment-template/deployment.md)
       * [Rollout Deployment](user-guide/creating-application/deployment-template/rollout-deployment.md)
       * [Job and Cronjob](user-guide/creating-application/deployment-template/job-and-cronjob.md)
     * [Workflow Overview](user-guide/creating-application/workflow/README.md)
@@ -59,7 +60,7 @@
     * [Config Maps](user-guide/creating-application/config-maps.md)
     * [Secrets](user-guide/creating-application/secrets.md)
     * [Environment Overrides](user-guide/creating-application/environment-overrides.md)
-    * [Deleting Application](user-guide/deleting-application.md)   
+    * [Deleting Application](user-guide/deleting-application.md)
   * [Build and Deploy](user-guide/deploying-application/README.md)
     * [Triggering CI](user-guide/deploying-application/triggering-ci.md)
     * [Triggering CD](user-guide/deploying-application/triggering-cd.md)
@@ -82,7 +83,7 @@
   * [GitOps (Argo CD)](user-guide/integrations/argocd.md)
   * [Vulnerability Scanning (Clair)](user-guide/integrations/clair.md)
   * [Notifications](user-guide/integrations/notifications.md)
-  * [Monitoring (Grafana)](user-guide/integrations//grafana.md)
+  * [Monitoring (Grafana)](user-guide/integrations/grafana.md)
 
 ## Resources
 
@@ -94,6 +95,6 @@
   * [Connect Django With Mysql Database](user-guide/use-cases/connect-django-with-mysql-database.md)
 * [Telemetry Overview](user-guide/telemetry.md)
 
-## Depricated
+## Deprecated
 
 * [Hyperion](hyperion/devtron.md)

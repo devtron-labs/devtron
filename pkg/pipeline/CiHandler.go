@@ -26,6 +26,8 @@ import (
 	blob_storage "github.com/devtron-labs/common-lib/blob-storage"
 	bean2 "github.com/devtron-labs/devtron/api/bean"
 	"io/ioutil"
+	errors2 "k8s.io/apimachinery/pkg/api/errors"
+	"net/http"
 	"os"
 	"strconv"
 	"strings"
@@ -66,6 +68,7 @@ type CiHandler interface {
 	RefreshMaterialByCiPipelineMaterialId(gitMaterialId int) (refreshRes *gitSensor.RefreshGitMaterialResponse, err error)
 	FetchMaterialInfoByArtifactId(ciArtifactId int) (*GitTriggerInfoResponse, error)
 	WriteToCreateTestSuites(pipelineId int, buildId int, triggeredBy int)
+	UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error
 }
 
 type CiHandlerImpl struct {
@@ -83,12 +86,14 @@ type CiHandlerImpl struct {
 	eventFactory                 client.EventFactory
 	ciPipelineRepository         pipelineConfig.CiPipelineRepository
 	appListingRepository         repository.AppListingRepository
+	K8sUtil                      *util.K8sUtil
 }
 
 func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipelineMaterialRepository pipelineConfig.CiPipelineMaterialRepository,
 	gitSensorClient gitSensor.GitSensorClient, ciWorkflowRepository pipelineConfig.CiWorkflowRepository, workflowService WorkflowService,
 	ciLogService CiLogService, ciConfig *CiConfig, ciArtifactRepository repository.CiArtifactRepository, userService user.UserService, eventClient client.EventClient,
-	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository) *CiHandlerImpl {
+	eventFactory client.EventFactory, ciPipelineRepository pipelineConfig.CiPipelineRepository, appListingRepository repository.AppListingRepository,
+	K8sUtil *util.K8sUtil) *CiHandlerImpl {
 	return &CiHandlerImpl{
 		Logger:                       Logger,
 		ciService:                    ciService,
@@ -104,6 +109,7 @@ func NewCiHandlerImpl(Logger *zap.SugaredLogger, ciService CiService, ciPipeline
 		eventFactory:                 eventFactory,
 		ciPipelineRepository:         ciPipelineRepository,
 		appListingRepository:         appListingRepository,
+		K8sUtil:                      K8sUtil,
 	}
 }
 
@@ -166,6 +172,9 @@ type Trigger struct {
 }
 
 const WorkflowCancel = "CANCELLED"
+const DefaultCiWorkflowNamespace = "devtron-ci"
+const Running = "Running"
+const Starting = "Starting"
 
 func (impl *CiHandlerImpl) HandleCIManual(ciTriggerRequest bean.CiTriggerRequest) (int, error) {
 	impl.Logger.Debugw("HandleCIManual for pipeline ", "PipelineId", ciTriggerRequest.PipelineId)
@@ -1194,4 +1203,63 @@ func (impl *CiHandlerImpl) listFiles(file *zip.File, payload map[string]interfac
 		}
 	}
 	return payload, nil
+}
+
+func (impl *CiHandlerImpl) UpdateCiWorkflowStatusFailure(timeoutForFailureCiBuild int) error {
+	ciWorkflows, err := impl.ciWorkflowRepository.FindByStatusesIn([]string{Starting, Running})
+	if err != nil {
+		impl.Logger.Errorw("error on fetching ci workflows", "err", err)
+		return err
+	}
+	client, err := impl.K8sUtil.GetClientForInCluster()
+	if err != nil {
+		impl.Logger.Errorw("error while fetching k8s client", "error", err)
+		return err
+	}
+	for _, ciWorkflow := range ciWorkflows {
+		isEligibleToMarkFailed := false
+		if time.Since(ciWorkflow.StartedOn) > (time.Minute * time.Duration(timeoutForFailureCiBuild)) {
+			//check weather pod is exists or not, if exits check its status
+			_, err := impl.workflowService.GetWorkflow(ciWorkflow.Name, DefaultCiWorkflowNamespace)
+			if err != nil {
+				impl.Logger.Warnw("unable to fetch ci workflow", "err", err)
+				statusError, ok := err.(*errors2.StatusError)
+				if ok && statusError.Status().Code == http.StatusNotFound {
+					impl.Logger.Warnw("ci workflow not found", "err", err)
+					isEligibleToMarkFailed = true
+				} else {
+					continue
+					// skip this and process for next ci workflow
+				}
+			}
+
+			//if ci workflow is exists, check its pod
+			if !isEligibleToMarkFailed {
+				_, err = impl.K8sUtil.GetPodByName(DefaultCiWorkflowNamespace, ciWorkflow.PodName, client)
+				if err != nil {
+					impl.Logger.Warnw("unable to fetch ci workflow - pod", "err", err)
+					statusError, ok := err.(*errors2.StatusError)
+					if ok && statusError.Status().Code == http.StatusNotFound {
+						impl.Logger.Warnw("pod not found", "err", err)
+						isEligibleToMarkFailed = true
+					} else {
+						continue
+						// skip this and process for next ci workflow
+					}
+				}
+			}
+		}
+		if isEligibleToMarkFailed {
+			ciWorkflow.Status = "Failed"
+			ciWorkflow.PodStatus = "Failed"
+			ciWorkflow.Message = "marked failed by job"
+			err := impl.ciWorkflowRepository.UpdateWorkFlow(ciWorkflow)
+			if err != nil {
+				impl.Logger.Errorw("unable to update ci workflow, its eligible to mark failed", "err", err)
+				continue
+				// skip this and process for next ci workflow
+			}
+		}
+	}
+	return nil
 }
