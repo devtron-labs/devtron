@@ -1,4 +1,4 @@
-DELETE FROM "default_auth_policy"
+DELETE FROM "default_auth_role"
     WHERE role_type in ('clusterAdmin','clusterEdit','clusterView');
 
 ALTER TABLE "roles"
