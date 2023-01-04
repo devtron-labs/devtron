@@ -636,7 +636,7 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstru
 	_, err = impl.k8sClientService.GetResource(restConfig, k8sRequestBean)
 	if err != nil {
 		statusError, ok := err.(*errors2.StatusError)
-		if !ok || statusError.ErrStatus.Reason != metav1.StatusReasonNotFound {
+		if !ok || statusError == nil || statusError.ErrStatus.Reason != metav1.StatusReasonNotFound {
 			impl.logger.Errorw("error in getting resource", "err", err)
 			return isUpdateResource, err
 		}
