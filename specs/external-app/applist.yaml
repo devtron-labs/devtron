@@ -297,6 +297,25 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/UpdateReleaseResponse"
+  /orchestrator/application/update/project:
+    put:
+      description: update project for all types of helm apps.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateReleaseRequest'
+      responses:
+        "200":
+          description: Project Updated
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/UpdateProjectResponse"
+
   /orchestrator/app-store/deployment/application/helm/link-to-chart-store:
     put:
       description: update the helm EA application with chartstore linking
@@ -819,7 +838,33 @@ components:
           type: string
           description: Reference value Kind of selected chart values "oneof=DEFAULT TEMPLATE DEPLOYED EXISTING" (can be null)
           example: 1
+    UpdateProjectRequest:
+      type: object
+      properties:
+        appId:
+          type: string
+          description: helm app id
+          example: "1|test|testapp"
+        installedAppId:
+          type: number
+          description: installed app id
+          example: 1
+        appName:
+          type: string
+          description: name of app
+          example: "sample-app"
+        TeamId:
+          type: number
+          description: if of new project
+          example: 1
     UpdateReleaseResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          description: success or failure
+          example: true
+    UpdateProjectResponse:
       type: object
       properties:
         success:
