@@ -10,21 +10,26 @@ import (
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	semconv "go.opentelemetry.io/otel/semconv/v1.4.0"
+	"go.opentelemetry.io/otel/trace"
 	"google.golang.org/grpc/credentials"
 	"log"
 )
 
 type OtelConfig struct {
-	OtelCollectorUrl string `env:"OTEL_COLLECTOR_URL" envDefault:"otel-collector.observability:4317"`
+	OtelCollectorUrl string `env:"OTEL_COLLECTOR_URL" envDefault:""`
 }
 
 // Init configures an OpenTelemetry exporter and trace provider
 func Init(serviceName string) *sdktrace.TracerProvider {
-	var collectorURL = "otel-collector.observability:4317"
+	//var collectorURL = "otel-collector.observability:4317"
 	otelCfg := &OtelConfig{}
 	err := env.Parse(otelCfg)
 	if err != nil {
 		log.Println("error occurred while parsing otel config", err)
+		return nil
+	}
+
+	if otelCfg.OtelCollectorUrl == "" { // otel is not configured
 		return nil
 	}
 
@@ -35,7 +40,7 @@ func Init(serviceName string) *sdktrace.TracerProvider {
 		context.Background(),
 		otlptracegrpc.NewClient(
 			secureOption,
-			otlptracegrpc.WithEndpoint(collectorURL),
+			otlptracegrpc.WithEndpoint(otelCfg.OtelCollectorUrl),
 		),
 	)
 	if err != nil {
@@ -55,4 +60,24 @@ func Init(serviceName string) *sdktrace.TracerProvider {
 	otel.SetTextMapPropagator(propagation.NewCompositeTextMapPropagator(propagation.TraceContext{}, propagation.Baggage{}))
 
 	return traceProvider
+}
+
+type OtelSpan struct {
+	reqContext       context.Context
+	OverridenContext context.Context
+	span             trace.Span
+}
+
+func (impl OtelSpan) End() {
+	impl.span.End()
+}
+
+func StartSpan(serviceName, spanName string, ctx context.Context) OtelSpan {
+	newCtx, span := otel.Tracer(serviceName).Start(ctx, spanName)
+	otelSpan := OtelSpan{
+		reqContext:       ctx,
+		OverridenContext: newCtx,
+		span:             span,
+	}
+	return otelSpan
 }
