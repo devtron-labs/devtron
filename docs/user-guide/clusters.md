@@ -1,11 +1,10 @@
 # Clusters
 
-Devtron allows you to manage your local or team space cluster by managing:
-  * Activities across cluster nodes to optimize performance.
-  * The added resources to meet user requirements for high speed and storage capacity.
-  * Cluster resources with Kubernetes requests and limits.
-  * Individual containers.
-  * Debug a pod or node by connecting to a terminal.
+Devtron allows you to manage your Kubernetes cluster by:
+  * Browsing information of cluster and its resources.
+  * Managing the added resources to meet the requirements for high speed and storage capacity.
+  * Managing Cluster resources with Kubernetes requests and limits and also individual containers.
+  * Debugging a pod or node by connecting to a terminal.
 
 On the left navigation of Devtron, select `Clusters`. You will find the list of clusters in this section which you have added under [Global Configurations > Clusters & Environments](https://docs.devtron.ai/global-configurations/cluster-and-environments).
 
