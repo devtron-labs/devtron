@@ -409,7 +409,7 @@ func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1al
 				go impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride)
 			}
 		} else {
-			impl.logger.Debug("event received for older triggered revision: " + gitHash)
+			impl.logger.Debugw("event received for older triggered revision", "gitHash", gitHash)
 		}
 	} else {
 		// new revision is not reconciled yet, thus status will not be changes and will remain in progress
