@@ -84,3 +84,5 @@ jobs:
         then
         echo "Not sending notification due to beta"
         fi
+      env:
+        RELEASE_BRANCH: ${{ secrets.RELEASE_BRANCH }}
