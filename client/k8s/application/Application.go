@@ -397,9 +397,9 @@ func (impl K8sClientServiceImpl) ApplyResource(restConfig *rest.Config, request 
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
 	if len(resourceIdentifier.Namespace) > 0 && namespaced {
-		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Patch(context.Background(), resourceIdentifier.Name, types.ApplyPatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
+		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Patch(context.Background(), resourceIdentifier.Name, types.StrategicMergePatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
 	} else {
-		resp, err = resourceIf.Patch(context.Background(), resourceIdentifier.Name, types.ApplyPatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
+		resp, err = resourceIf.Patch(context.Background(), resourceIdentifier.Name, types.StrategicMergePatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
 	}
 	if err != nil {
 		impl.logger.Errorw("error in applying resource", "err", err)

@@ -15,7 +15,6 @@ import (
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	yamlUtil "github.com/devtron-labs/devtron/util/yaml"
-	jsonpatch "github.com/evanphx/json-patch"
 	"go.uber.org/zap"
 	"io"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -628,12 +627,13 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstru
 			GroupVersionKind: manifest.GroupVersionKind(),
 		},
 	}
-	jsonStr, err := json.Marshal(manifest.UnstructuredContent())
+	jsonStrByteErr, err := json.Marshal(manifest.UnstructuredContent())
 	if err != nil {
 		impl.logger.Errorw("error in marshalling json", "err", err)
 		return isUpdateResource, err
 	}
-	existingManifest, err := impl.k8sClientService.GetResource(restConfig, k8sRequestBean)
+	jsonStr := string(jsonStrByteErr)
+	_, err = impl.k8sClientService.GetResource(restConfig, k8sRequestBean)
 	if err != nil {
 		statusError, ok := err.(*errors2.StatusError)
 		if !ok || statusError.ErrStatus.Reason != metav1.StatusReasonNotFound {
@@ -641,7 +641,7 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstru
 			return isUpdateResource, err
 		}
 		// case of resource not found
-		_, err = impl.k8sClientService.CreateResource(restConfig, k8sRequestBean, string(jsonStr))
+		_, err = impl.k8sClientService.CreateResource(restConfig, k8sRequestBean, jsonStr)
 		if err != nil {
 			impl.logger.Errorw("error in creating resource", "err", err)
 			return isUpdateResource, err
@@ -649,18 +649,7 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstru
 	} else {
 		// case of resource update
 		isUpdateResource = true
-		existingManifestJsonStr, err := json.Marshal(existingManifest.Manifest.UnstructuredContent())
-		if err != nil {
-			impl.logger.Errorw("error in marshalling existing manifest", "err", err)
-			return isUpdateResource, err
-		}
-		modifiedJsonStr, err := jsonpatch.MergePatch(existingManifestJsonStr, jsonStr)
-		if err != nil {
-			impl.logger.Errorw("error in merging json", "err", err)
-			return isUpdateResource, err
-		}
-		k8sRequestBean.Patch = string(modifiedJsonStr)
-		_, err = impl.k8sClientService.UpdateResource(restConfig, k8sRequestBean)
+		_, err = impl.k8sClientService.ApplyResource(restConfig, k8sRequestBean, jsonStr)
 		if err != nil {
 			impl.logger.Errorw("error in updating resource", "err", err)
 			return isUpdateResource, err
