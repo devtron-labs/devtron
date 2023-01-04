@@ -67,7 +67,7 @@ type UserAuthRepository interface {
 	DeleteRole(role *RoleModel, tx *pg.Tx) error
 
 	GetRoleByFilterForClusterEntity(cluster, namespace, group, kind, resource, action string) (RoleModel, error)
-	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]RoleModel, error)
+	GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error)
 }
 
 type UserAuthRepositoryImpl struct {
@@ -1515,8 +1515,8 @@ func (impl UserAuthRepositoryImpl) DeleteRole(role *RoleModel, tx *pg.Tx) error 
 	return nil
 }
 
-func (impl UserAuthRepositoryImpl) GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]RoleModel, error) {
-	var models []RoleModel
+func (impl UserAuthRepositoryImpl) GetRolesByUserIdAndEntityType(userId int32, entityType string) ([]*RoleModel, error) {
+	var models []*RoleModel
 	err := impl.dbConnection.Model(&models).
 		Column("role_model.*").
 		Join("INNER JOIN user_roles ur on ur.role_id=role_model.id").

@@ -37,7 +37,8 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 	grafanaClient grafana.GrafanaClient, logger *zap.SugaredLogger, installedAppRepository repository2.InstalledAppRepository,
 	K8sUtil *util.K8sUtil,
 	clusterServiceCD cluster2.ServiceClient, K8sInformerFactory informer.K8sInformerFactory,
-	gitOpsRepository repository3.GitOpsConfigRepository, userRepository repository4.UserAuthRepository) *ClusterServiceImplExtended {
+	gitOpsRepository repository3.GitOpsConfigRepository, userAuthRepository repository4.UserAuthRepository,
+	userRepository repository4.UserRepository, roleGroupRepository repository4.RoleGroupRepository) *ClusterServiceImplExtended {
 	clusterServiceExt := &ClusterServiceImplExtended{
 		environmentRepository:  environmentRepository,
 		grafanaClient:          grafanaClient,
@@ -45,11 +46,13 @@ func NewClusterServiceImplExtended(repository repository.ClusterRepository, envi
 		clusterServiceCD:       clusterServiceCD,
 		gitOpsRepository:       gitOpsRepository,
 		ClusterServiceImpl: &ClusterServiceImpl{
-			clusterRepository:  repository,
-			logger:             logger,
-			K8sUtil:            K8sUtil,
-			K8sInformerFactory: K8sInformerFactory,
-			userRepository:     userRepository,
+			clusterRepository:   repository,
+			logger:              logger,
+			K8sUtil:             K8sUtil,
+			K8sInformerFactory:  K8sInformerFactory,
+			userAuthRepository:  userAuthRepository,
+			userRepository:      userRepository,
+			roleGroupRepository: roleGroupRepository,
 		},
 	}
 	go clusterServiceExt.buildInformer()

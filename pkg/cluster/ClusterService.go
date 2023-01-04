@@ -20,6 +20,7 @@ package cluster
 import (
 	"context"
 	"fmt"
+	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	repository2 "github.com/devtron-labs/devtron/pkg/user/repository"
 	"io/ioutil"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -97,21 +98,27 @@ type ClusterService interface {
 }
 
 type ClusterServiceImpl struct {
-	clusterRepository  repository.ClusterRepository
-	logger             *zap.SugaredLogger
-	K8sUtil            *util.K8sUtil
-	K8sInformerFactory informer.K8sInformerFactory
-	userRepository     repository2.UserAuthRepository
+	clusterRepository   repository.ClusterRepository
+	logger              *zap.SugaredLogger
+	K8sUtil             *util.K8sUtil
+	K8sInformerFactory  informer.K8sInformerFactory
+	userAuthRepository  repository2.UserAuthRepository
+	userRepository      repository2.UserRepository
+	roleGroupRepository repository2.RoleGroupRepository
 }
 
 func NewClusterServiceImpl(repository repository.ClusterRepository, logger *zap.SugaredLogger,
-	K8sUtil *util.K8sUtil, K8sInformerFactory informer.K8sInformerFactory, userRepository repository2.UserAuthRepository) *ClusterServiceImpl {
+	K8sUtil *util.K8sUtil, K8sInformerFactory informer.K8sInformerFactory,
+	userAuthRepository repository2.UserAuthRepository, userRepository repository2.UserRepository,
+	roleGroupRepository repository2.RoleGroupRepository) *ClusterServiceImpl {
 	clusterService := &ClusterServiceImpl{
-		clusterRepository:  repository,
-		logger:             logger,
-		K8sUtil:            K8sUtil,
-		K8sInformerFactory: K8sInformerFactory,
-		userRepository:     userRepository,
+		clusterRepository:   repository,
+		logger:              logger,
+		K8sUtil:             K8sUtil,
+		K8sInformerFactory:  K8sInformerFactory,
+		userAuthRepository:  userAuthRepository,
+		userRepository:      userRepository,
+		roleGroupRepository: roleGroupRepository,
 	}
 	go clusterService.buildInformer()
 	return clusterService
@@ -580,7 +587,7 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 			}
 		}
 	} else {
-		roles, err := impl.userRepository.GetRolesByUserIdAndEntityType(userId, "cluster")
+		roles, err := impl.fetchRolesFromGroup(userId)
 		if err != nil {
 			impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
 			return nil, err
@@ -595,6 +602,8 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 				}
 			}
 		}
+
+		//adding final namespace list
 		for namespace, value := range namespaces {
 			if _, ok := allowedNamespaceMap[namespace]; ok || allowedAll {
 				if value {
@@ -610,29 +619,57 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 	if isActionUserSuperAdmin {
 		return impl.FindAllForAutoComplete()
 	}
-	allowedClusters, err := impl.userRepository.GetRolesByUserIdAndEntityType(userId, "cluster")
+	allowedClustersMap := make(map[string]bool)
+	roles, err := impl.fetchRolesFromGroup(userId)
 	if err != nil {
-		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+		impl.logger.Errorw("error while fetching user roles from db", "error", err)
 		return nil, err
 	}
-	allowedClustersMap := make(map[string]bool)
-	for _, c := range allowedClusters {
-		allowedClustersMap[c.Cluster] = true
+	for _, role := range roles {
+		allowedClustersMap[role.Cluster] = true
 	}
 
-	model, err := impl.clusterRepository.FindAll()
+	models, err := impl.clusterRepository.FindAll()
 	if err != nil {
 		impl.logger.Errorw("error on fetching clusters", "err", err)
 		return nil, err
 	}
 	var beans []ClusterBean
-	for _, m := range model {
-		if _, ok := allowedClustersMap[m.ClusterName]; ok {
+	for _, model := range models {
+		if _, ok := allowedClustersMap[model.ClusterName]; ok {
 			beans = append(beans, ClusterBean{
-				Id:          m.Id,
-				ClusterName: m.ClusterName,
+				Id:          model.Id,
+				ClusterName: model.ClusterName,
 			})
 		}
 	}
 	return beans, nil
+}
+
+func (impl *ClusterServiceImpl) fetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error) {
+	user, err := impl.userRepository.GetByIdIncludeDeleted(userId)
+	if err != nil {
+		impl.logger.Errorw("error while fetching user from db", "error", err)
+		return nil, err
+	}
+	groups, err := casbin2.GetRolesForUser(user.EmailId)
+	if err != nil {
+		impl.logger.Errorw("No Roles Found for user", "id", user.Id)
+		return nil, err
+	}
+	roleEntity := "cluster"
+	roles, err := impl.userAuthRepository.GetRolesByUserIdAndEntityType(userId, roleEntity)
+	if err != nil {
+		impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+		return nil, err
+	}
+	rolesFromGroup, err := impl.roleGroupRepository.GetRolesByGroupNamesAndEntity(groups, roleEntity)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting roles by group names", "err", err)
+		return nil, err
+	}
+	if len(rolesFromGroup) > 0 {
+		roles = append(roles, rolesFromGroup...)
+	}
+	return roles, nil
 }
