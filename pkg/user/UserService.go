@@ -924,8 +924,8 @@ func (impl UserServiceImpl) getUserMetadata(model *repository2.UserModel) (bool,
 			key = fmt.Sprintf("%s_%s_%s", role.Team, role.Action, role.AccessType)
 		} else if len(role.Entity) > 0 {
 			if role.Entity == bean.CLUSTER_ENTITIY {
-				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
-					role.Namespace, role.Group, role.Kind, role.Resource)
+				key = fmt.Sprintf("%s_%s_%s_%s_%s_%s", role.Entity, role.Action, role.Cluster,
+					role.Namespace, role.Group, role.Kind)
 			} else {
 				key = fmt.Sprintf("%s_%s_%s", role.Entity, role.Action)
 			}
