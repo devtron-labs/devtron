@@ -615,8 +615,6 @@ func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.Response
 		return
 	}
 
-	// TODO this is auth free api, need to check for its RBAC
-
 	// get clusterId from request
 	vars := mux.Vars(r)
 	clusterId, err := strconv.Atoi(vars["clusterId"])
@@ -626,13 +624,20 @@ func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.Response
 		return
 	}
 
+	isSuperAdmin := false
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceGlobal, casbin.ActionGet, "*"); ok {
+		isSuperAdmin = true
+	}
+
 	// get data from service
-	response, err := handler.k8sApplicationService.GetAllApiResources(clusterId)
+	response, err := handler.k8sApplicationService.GetAllApiResources(clusterId, isSuperAdmin, userId)
 	if err != nil {
 		handler.logger.Errorw("error in getting api-resources", "clusterId", clusterId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 

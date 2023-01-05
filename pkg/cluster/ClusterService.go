@@ -95,6 +95,7 @@ type ClusterService interface {
 	GetAllClusterNamespaces() map[string][]string
 	FindAllNamespacesByUserIdAndClusterId(userId int32, clusterId int, isActionUserSuperAdmin bool) ([]string, error)
 	FindAllForClusterByUserId(userId int32, isActionUserSuperAdmin bool) ([]ClusterBean, error)
+	FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error)
 }
 
 type ClusterServiceImpl struct {
@@ -588,7 +589,7 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 			}
 		}
 	} else {
-		roles, err := impl.fetchRolesFromGroup(userId)
+		roles, err := impl.FetchRolesFromGroup(userId)
 		if err != nil {
 			impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
 			return nil, err
@@ -621,7 +622,7 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 		return impl.FindAllForAutoComplete()
 	}
 	allowedClustersMap := make(map[string]bool)
-	roles, err := impl.fetchRolesFromGroup(userId)
+	roles, err := impl.FetchRolesFromGroup(userId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user roles from db", "error", err)
 		return nil, err
@@ -647,7 +648,7 @@ func (impl *ClusterServiceImpl) FindAllForClusterByUserId(userId int32, isAction
 	return beans, nil
 }
 
-func (impl *ClusterServiceImpl) fetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error) {
+func (impl *ClusterServiceImpl) FetchRolesFromGroup(userId int32) ([]*repository2.RoleModel, error) {
 	user, err := impl.userRepository.GetByIdIncludeDeleted(userId)
 	if err != nil {
 		impl.logger.Errorw("error while fetching user from db", "error", err)

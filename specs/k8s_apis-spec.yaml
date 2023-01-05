@@ -235,9 +235,7 @@ paths:
           content:
             application/json:
               schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/K8sApiResource"
+                $ref: "#/components/schemas/GetAllApiResourcesResponse"
   /orchestrator/k8s/resource/list:
     post:
       description: this api will be used for fetching all kind of manifest.
@@ -491,6 +489,18 @@ components:
                 type: string
               time:
                 type: string
+    GetAllApiResourcesResponse:
+      type: object
+      properties:
+        apiResources:
+          type: array
+          items:
+            $ref: "#/components/schemas/K8sApiResource"
+        allowedAll:
+          type: boolean
+          description: whether all api-resources allowed for this user
+          example: true
+          nullable: false
     K8sApiResource:
       type: object
       properties:

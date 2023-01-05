@@ -46,7 +46,7 @@ type K8sApplicationService interface {
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterServiceAndIngress(resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(resp []BatchResourceResponse) []interface{}
-	GetAllApiResources(clusterId int) ([]*application.K8sApiResource, error)
+	GetAllApiResources(clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error)
 	GetResourceList(token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*application.ClusterResourceListMap, error)
 	ApplyResources(token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
 }
@@ -491,23 +491,23 @@ func (impl *K8sApplicationServiceImpl) GetResourceInfo() (*ResourceInfo, error) 
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int) ([]*application.K8sApiResource, error) {
+func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error) {
 	impl.logger.Infow("getting all api-resources", "clusterId", clusterId)
 	restConfig, err := impl.GetRestConfigByClusterId(clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster rest config", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	apiResources, err := impl.k8sClientService.GetApiResources(restConfig, LIST_VERB)
+	allApiResources, err := impl.k8sClientService.GetApiResources(restConfig, LIST_VERB)
 	if err != nil {
-		return apiResources, err
+		return nil, err
 	}
 
 	// FILTER STARTS
 	// 1) remove ""/v1 event kind if event kind exist in events.k8s.io/v1 and ""/v1
 	k8sEventIndex := -1
 	v1EventIndex := -1
-	for index, apiResource := range apiResources {
+	for index, apiResource := range allApiResources {
 		gvk := apiResource.Gvk
 		if gvk.Kind == EVENT_K8S_KIND && gvk.Version == "v1" {
 			if gvk.Group == "" {
@@ -518,11 +518,62 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int) ([]*app
 		}
 	}
 	if k8sEventIndex > -1 && v1EventIndex > -1 {
-		apiResources = append(apiResources[:v1EventIndex], apiResources[v1EventIndex+1:]...)
+		allApiResources = append(allApiResources[:v1EventIndex], allApiResources[v1EventIndex+1:]...)
 	}
 	// FILTER ENDS
 
-	return apiResources, nil
+	// RBAC FILER STARTS
+	allowedAll := isSuperAdmin
+	var filteredApiResources []*application.K8sApiResource
+	if !isSuperAdmin {
+		clusterBean, err := impl.clusterService.FindById(clusterId)
+		if err != nil {
+			impl.logger.Errorw("failed to find cluster for id", "err", err, "clusterId", clusterId)
+			return nil, err
+		}
+		roles, err := impl.clusterService.FetchRolesFromGroup(userId)
+		if err != nil {
+			impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
+			return nil, err
+		}
+
+		allowedGroupKinds := make(map[string]bool) // group||kind
+		for _, role := range roles {
+			if clusterBean.ClusterName != role.Cluster {
+				continue
+			}
+			if role.Group == "" && role.Kind == "" {
+				allowedAll = true
+				break
+			}
+			groupName := role.Group
+			if groupName == casbin.ClusterEmptyGroupPlaceholder {
+				groupName = ""
+			}
+			allowedGroupKinds[groupName+"||"+role.Kind] = true
+		}
+
+		if !allowedAll {
+			for _, apiResource := range allApiResources {
+				gvk := apiResource.Gvk
+				_, found := allowedGroupKinds[gvk.Group+"||"+gvk.Kind]
+				if found {
+					filteredApiResources = append(filteredApiResources, apiResource)
+				}
+			}
+		}
+	}
+	response := &application.GetAllApiResourcesResponse{
+		AllowedAll: allowedAll,
+	}
+	if allowedAll {
+		response.ApiResources = allApiResources
+	} else {
+		response.ApiResources = filteredApiResources
+	}
+	// RBAC FILER ENDS
+
+	return response, nil
 }
 
 func (impl *K8sApplicationServiceImpl) GetResourceList(token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*application.ClusterResourceListMap, error) {

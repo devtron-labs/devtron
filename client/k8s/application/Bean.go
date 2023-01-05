@@ -4,6 +4,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+type GetAllApiResourcesResponse struct {
+	ApiResources []*K8sApiResource `json:"apiResources"`
+	AllowedAll   bool              `json:"allowedAll"`
+}
+
 type K8sApiResource struct {
 	Gvk        schema.GroupVersionKind `json:"gvk"`
 	Namespaced bool                    `json:"namespaced"`
