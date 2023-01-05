@@ -47,7 +47,7 @@ Logs contain the logs of the Pods and Containers deployed which you can use for 
 
 **Note**: As a pre-requisite, you must have a basic understanding of Kubernetes Cluster, Resources, Kinds.
 
-You can create a Kubernetes resource by passing definition YAML file. You can create more than one resource by separate the resource YAMLs by ‘---’.
+You can create a Kubernetes resource by passing definition YAML file. You can create more than one resource by separating the resource YAMLs by ‘---’.
 
 An example that shows the required fields and object specifications for a Kubernetes Deployment:
 
@@ -85,9 +85,11 @@ spec:
 
 >Note: A message is displayed only when there is an error in the .yaml file.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-yaml-kubernetes-resource.jpg)
+
+
 * If required, click `Edit YAML` to edit the YAML file or click `Close`.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-yaml-kubernetes-resource.jpg)
 
 
 
