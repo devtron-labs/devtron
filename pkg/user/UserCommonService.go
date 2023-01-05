@@ -353,6 +353,13 @@ func (impl UserCommonServiceImpl) CheckRbacForClusterEntity(cluster, namespace, 
 	}
 
 	rbacResource := fmt.Sprintf("%s/%s/%s", strings.ToLower(cluster), strings.ToLower(namespaceObj), casbin2.ResourceUser)
-	rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceObj))
-	return managerAuth(rbacResource, token, rbacObject)
+	resourcesArray := strings.Split(resourceObj, ",")
+	for _, resourceVal := range resourcesArray {
+		rbacObject := fmt.Sprintf("%s/%s/%s", strings.ToLower(groupObj), strings.ToLower(kindObj), strings.ToLower(resourceVal))
+		allowed := managerAuth(rbacResource, token, rbacObject)
+		if !allowed {
+			return false
+		}
+	}
+	return true
 }
