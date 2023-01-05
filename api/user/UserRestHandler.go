@@ -121,6 +121,12 @@ func (handler UserRestHandlerImpl) CreateUser(w http.ResponseWriter, r *http.Req
 					return
 				}
 			}
+			if filter.Entity == bean.CLUSTER_ENTITIY {
+				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
+					response.WriteResponse(http.StatusForbidden, "FORBIDDEN", w, errors.New("unauthorized"))
+					return
+				}
+			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionCreate, "*"); !ok {
@@ -277,6 +283,11 @@ func (handler UserRestHandlerImpl) GetById(w http.ResponseWriter, r *http.Reques
 					authPass = false
 				}
 			}
+			if filter.Entity == bean.CLUSTER_ENTITIY {
+				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
+					authPass = false
+				}
+			}
 			if authPass {
 				filteredRoleFilter = append(filteredRoleFilter, filter)
 			}
@@ -331,6 +342,12 @@ func (handler UserRestHandlerImpl) GetAll(w http.ResponseWriter, r *http.Request
 			for _, filter := range roleFilters {
 				if len(filter.Team) > 0 {
 					if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); ok {
+						isAuthorised = true
+						break
+					}
+				}
+				if filter.Entity == bean.CLUSTER_ENTITIY {
+					if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); ok {
 						isAuthorised = true
 						break
 					}
@@ -417,6 +434,12 @@ func (handler UserRestHandlerImpl) DeleteUser(w http.ResponseWriter, r *http.Req
 					return
 				}
 			}
+			if filter.Entity == bean.CLUSTER_ENTITIY {
+				if ok := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !ok {
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					return
+				}
+			}
 		}
 	} else {
 		if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, ""); !ok {
@@ -461,6 +484,11 @@ func (handler UserRestHandlerImpl) FetchRoleGroupById(w http.ResponseWriter, r *
 			authPass := true
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionGet, strings.ToLower(filter.Team)); !ok {
+					authPass = false
+				}
+			}
+			if filter.Entity == bean.CLUSTER_ENTITIY {
+				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
 					authPass = false
 				}
 			}
@@ -625,6 +653,13 @@ func (handler UserRestHandlerImpl) FetchRoleGroups(w http.ResponseWriter, r *htt
 						break
 					}
 				}
+				if filter.Entity == bean.CLUSTER_ENTITIY {
+					if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); isValidAuth {
+						isAuthorised = true
+						break
+					}
+				}
+
 			}
 		}
 	}
@@ -719,6 +754,12 @@ func (handler UserRestHandlerImpl) DeleteRoleGroup(w http.ResponseWriter, r *htt
 			}
 			if len(filter.Team) > 0 {
 				if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionDelete, strings.ToLower(filter.Team)); !ok {
+					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+					return
+				}
+			}
+			if filter.Entity == bean.CLUSTER_ENTITIY {
+				if isValidAuth := handler.userCommonService.CheckRbacForClusterEntity(filter.Cluster, filter.Namespace, filter.Group, filter.Kind, filter.Resource, token, handler.CheckManagerAuth); !isValidAuth {
 					common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 					return
 				}
