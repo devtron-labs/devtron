@@ -580,20 +580,20 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 	}
 	namespaceListGroupByCLuster := impl.K8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	namespaces := namespaceListGroupByCLuster[clusterBean.ClusterName]
-	allowedAll := false
+
 	if isActionUserSuperAdmin {
 		for namespace, value := range namespaces {
 			if value {
 				result = append(result, namespace)
 			}
 		}
-		allowedAll = true
 	} else {
 		roles, err := impl.fetchRolesFromGroup(userId)
 		if err != nil {
 			impl.logger.Errorw("error on fetching user roles for cluster list", "err", err)
 			return nil, err
 		}
+		allowedAll := false
 		allowedNamespaceMap := make(map[string]bool)
 		for _, role := range roles {
 			if clusterBean.ClusterName == role.Cluster {
@@ -613,12 +613,6 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 			}
 		}
 	}
-
-	// if has access to all the namespaces, add one more item at first place
-	if allowedAll {
-		result = append([]string{"*"}, result...)
-	}
-
 	return result, nil
 }
 
