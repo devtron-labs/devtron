@@ -595,10 +595,13 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(token string, request *Re
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
-	checkForResourceCallback := func(namespace, resourceName string) bool {
+	checkForResourceCallback := func(namespace, group, kind, resourceName string) bool {
 		resourceIdentifier := k8sRequest.ResourceIdentifier
 		resourceIdentifier.Name = resourceName
 		resourceIdentifier.Namespace = namespace
+		if group != "" && kind != "" {
+			resourceIdentifier.GroupVersionKind = schema.GroupVersionKind{Group: group, Kind: kind}
+		}
 		k8sRequest.ResourceIdentifier = resourceIdentifier
 		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
 	}

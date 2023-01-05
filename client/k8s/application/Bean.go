@@ -34,6 +34,7 @@ type ClusterResourceListMap struct {
 const K8sClusterResourceNameKey = "name"
 const K8sClusterResourcePriorityKey = "priority"
 const K8sClusterResourceNamespaceKey = "namespace"
+const K8sClusterResourceOwnerReferenceKey = "ownerReferences"
 const K8sClusterResourceMetadataKey = "metadata"
 const K8sClusterResourceMetadataNameKey = "name"
 const K8sClusterResourceCreationTimestampKey = "creationTimestamp"

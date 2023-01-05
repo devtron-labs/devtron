@@ -520,7 +520,7 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	}
 }
 
-func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, kind string, validateResourceAccess func(namespace, resourceName string) bool) (*application.ClusterResourceListMap, error) {
+func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, kind string, validateResourceAccess func(namespace, group, kind, resourceName string) bool) (*application.ClusterResourceListMap, error) {
 	clusterResourceListMap := &application.ClusterResourceListMap{}
 	// build headers
 	var headers []string
@@ -564,6 +564,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 	var resourceName string
 	var namespace string
 	var allowed bool
+	var ownerReferences []interface{}
 	if rowsDataUncast != nil {
 		rows := rowsDataUncast.([]interface{})
 		for _, row := range rows {
@@ -598,10 +599,13 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 					if metadata[application.K8sClusterResourceMetadataNameKey] != nil {
 						resourceName = metadata[application.K8sClusterResourceMetadataNameKey].(string)
 					}
+					if metadata[application.K8sClusterResourceOwnerReferenceKey] != nil {
+						ownerReferences = metadata[application.K8sClusterResourceOwnerReferenceKey].([]interface{})
+					}
 				}
 			}
 			if resourceName != "" {
-				allowed = validateResourceAccess(namespace, resourceName)
+				allowed = impl.validateResourceWithRbac(namespace, resourceName, ownerReferences, validateResourceAccess)
 			}
 			if allowed {
 				rowsMapping = append(rowsMapping, rowIndex)
@@ -613,6 +617,70 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 	clusterResourceListMap.Data = rowsMapping
 	impl.logger.Debugw("resource listing response", "clusterResourceListMap", clusterResourceListMap)
 	return clusterResourceListMap, nil
+}
+
+func (impl K8sUtil) validateResourceWithRbac(namespace, resourceName string, ownerReferences []interface{}, validateCallback func(namespace, group, kind, resourceName string) bool) bool {
+	if len(ownerReferences) > 0 {
+		for _, ownerRef := range ownerReferences {
+			ownerReference := ownerRef.(map[string]interface{})
+			ownerKind := ownerReference["kind"].(string)
+			ownerName := ""
+			apiVersion := ownerReference["apiVersion"].(string) // extract group from this apiVersion
+			groupName := apiVersion[:strings.LastIndex(apiVersion, "/")]
+			if ownerReference["name"] != "" {
+				ownerName = ownerReference["name"].(string)
+				switch ownerKind {
+				case "ReplicaSet":
+					if strings.Contains(ownerName, "-") {
+						deploymentName := ownerName[:strings.LastIndex(ownerName, "-")]
+						allowed := validateCallback(namespace, groupName, "Deployment", deploymentName)
+						if allowed {
+							return true
+						}
+						allowed = validateCallback(namespace, "argoproj.io", "Rollout", deploymentName)
+						if allowed {
+							return true
+						}
+					}
+					allowed := validateCallback(namespace, groupName, ownerKind, ownerName)
+					if allowed {
+						return true
+					}
+					break
+				// check deployment first, then RO and then RS and then pod
+				case "Job":
+					if strings.Contains(ownerName, "-") {
+						cronJobName := ownerName[:strings.LastIndex(ownerName, "-")]
+						allowed := validateCallback(namespace, groupName, "CronJob", cronJobName)
+						if allowed {
+							return true
+						}
+					}
+					allowed := validateCallback(namespace, groupName, ownerKind, ownerName)
+					if allowed {
+						return true
+					}
+					break
+				case "Deployment":
+				case "CronJob":
+				case "StatefulSet":
+				case "DaemonSet":
+				case "Rollout":
+					// check deployment first
+					// check CronJob first, then Job
+					// check CronJob
+					allowed := validateCallback(namespace, groupName, ownerKind, ownerName)
+					if allowed {
+						return true
+					}
+					break
+				}
+			}
+		}
+	}
+	// check current RBAC in case not matched with above one
+	return validateCallback(namespace, "", "", resourceName)
+
 }
 
 func (impl K8sUtil) getEventKindHeader() ([]string, map[int]string) {
