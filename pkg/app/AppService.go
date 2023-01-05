@@ -22,13 +22,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/caarlos0/env"
 	client2 "github.com/devtron-labs/devtron/api/helm-app"
 	"github.com/devtron-labs/devtron/pkg/chart"
 	"github.com/devtron-labs/devtron/pkg/dockerRegistry"
 	repository3 "github.com/devtron-labs/devtron/pkg/pipeline/history/repository"
 	"github.com/devtron-labs/devtron/util/argo"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	chart2 "k8s.io/helm/pkg/proto/hapi/chart"
 	"net/url"
 	"path"
@@ -72,86 +70,65 @@ import (
 	"google.golang.org/grpc/status"
 )
 
-type AppStatusConfig struct {
-	CdPipelineStatusCronTime        string `env:"CD_PIPELINE_STATUS_CRON_TIME" envDefault:"*/2 * * * *"`
-	CdPipelineStatusTimeoutDuration string `env:"CD_PIPELINE_STATUS_TIMEOUT_DURATION" envDefault:"20"` //in minutes
-	PipelineDegradedTime            string `env:"PIPELINE_DEGRADED_TIME" envDefault:"10"`              //in minutes
-}
-
-func GetAppStatusConfig() (*AppStatusConfig, error) {
-	cfg := &AppStatusConfig{}
-	err := env.Parse(cfg)
-	if err != nil {
-		fmt.Println("failed to parse server app status config: " + err.Error())
-		return nil, err
-	}
-	return cfg, nil
-}
-
 type AppServiceImpl struct {
-	environmentConfigRepository            chartConfig.EnvConfigOverrideRepository
-	pipelineOverrideRepository             chartConfig.PipelineOverrideRepository
-	mergeUtil                              *MergeUtil
-	logger                                 *zap.SugaredLogger
-	ciArtifactRepository                   repository.CiArtifactRepository
-	pipelineRepository                     pipelineConfig.PipelineRepository
-	gitFactory                             *GitFactory
-	dbMigrationConfigRepository            pipelineConfig.DbMigrationConfigRepository
-	eventClient                            client.EventClient
-	eventFactory                           client.EventFactory
-	acdClient                              application.ServiceClient
-	tokenCache                             *util3.TokenCache
-	acdAuthConfig                          *util3.ACDAuthConfig
-	enforcer                               casbin.Enforcer
-	enforcerUtil                           rbac.EnforcerUtil
-	user                                   user.UserService
-	appListingRepository                   repository.AppListingRepository
-	appRepository                          app.AppRepository
-	envRepository                          repository2.EnvironmentRepository
-	pipelineConfigRepository               chartConfig.PipelineConfigRepository
-	configMapRepository                    chartConfig.ConfigMapRepository
-	chartRepository                        chartRepoRepository.ChartRepository
-	appRepo                                app.AppRepository
-	appLevelMetricsRepository              repository.AppLevelMetricsRepository
-	envLevelMetricsRepository              repository.EnvLevelAppMetricsRepository
-	ciPipelineMaterialRepository           pipelineConfig.CiPipelineMaterialRepository
-	cdWorkflowRepository                   pipelineConfig.CdWorkflowRepository
-	commonService                          commonService.CommonService
-	imageScanDeployInfoRepository          security.ImageScanDeployInfoRepository
-	imageScanHistoryRepository             security.ImageScanHistoryRepository
-	ArgoK8sClient                          argocdServer.ArgoK8sClient
-	pipelineStrategyHistoryService         history2.PipelineStrategyHistoryService
-	configMapHistoryService                history2.ConfigMapHistoryService
-	deploymentTemplateHistoryService       history2.DeploymentTemplateHistoryService
-	chartTemplateService                   ChartTemplateService
-	refChartDir                            chartRepoRepository.RefChartDir
-	helmAppClient                          client2.HelmAppClient
-	chartRefRepository                     chartRepoRepository.ChartRefRepository
-	chartService                           chart.ChartService
-	argoUserService                        argo.ArgoUserService
-	pipelineStatusTimelineRepository       pipelineConfig.PipelineStatusTimelineRepository
-	appCrudOperationService                AppCrudOperationService
-	configMapHistoryRepository             repository3.ConfigMapHistoryRepository
-	strategyHistoryRepository              repository3.PipelineStrategyHistoryRepository
-	deploymentTemplateHistoryRepository    repository3.DeploymentTemplateHistoryRepository
-	dockerRegistryIpsConfigService         dockerRegistry.DockerRegistryIpsConfigService
-	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService
-	pipelineStatusSyncDetailService        PipelineStatusSyncDetailService
-	pipelineStatusTimelineService          PipelineStatusTimelineService
-	appStatusConfig                        *AppStatusConfig
+	environmentConfigRepository         chartConfig.EnvConfigOverrideRepository
+	pipelineOverrideRepository          chartConfig.PipelineOverrideRepository
+	mergeUtil                           *MergeUtil
+	logger                              *zap.SugaredLogger
+	ciArtifactRepository                repository.CiArtifactRepository
+	pipelineRepository                  pipelineConfig.PipelineRepository
+	gitFactory                          *GitFactory
+	dbMigrationConfigRepository         pipelineConfig.DbMigrationConfigRepository
+	eventClient                         client.EventClient
+	eventFactory                        client.EventFactory
+	acdClient                           application.ServiceClient
+	tokenCache                          *util3.TokenCache
+	acdAuthConfig                       *util3.ACDAuthConfig
+	enforcer                            casbin.Enforcer
+	enforcerUtil                        rbac.EnforcerUtil
+	user                                user.UserService
+	appListingRepository                repository.AppListingRepository
+	appRepository                       app.AppRepository
+	envRepository                       repository2.EnvironmentRepository
+	pipelineConfigRepository            chartConfig.PipelineConfigRepository
+	configMapRepository                 chartConfig.ConfigMapRepository
+	chartRepository                     chartRepoRepository.ChartRepository
+	appRepo                             app.AppRepository
+	appLevelMetricsRepository           repository.AppLevelMetricsRepository
+	envLevelMetricsRepository           repository.EnvLevelAppMetricsRepository
+	ciPipelineMaterialRepository        pipelineConfig.CiPipelineMaterialRepository
+	cdWorkflowRepository                pipelineConfig.CdWorkflowRepository
+	commonService                       commonService.CommonService
+	imageScanDeployInfoRepository       security.ImageScanDeployInfoRepository
+	imageScanHistoryRepository          security.ImageScanHistoryRepository
+	ArgoK8sClient                       argocdServer.ArgoK8sClient
+	pipelineStrategyHistoryService      history2.PipelineStrategyHistoryService
+	configMapHistoryService             history2.ConfigMapHistoryService
+	deploymentTemplateHistoryService    history2.DeploymentTemplateHistoryService
+	chartTemplateService                ChartTemplateService
+	refChartDir                         chartRepoRepository.RefChartDir
+	helmAppClient                       client2.HelmAppClient
+	chartRefRepository                  chartRepoRepository.ChartRefRepository
+	chartService                        chart.ChartService
+	argoUserService                     argo.ArgoUserService
+	cdPipelineStatusTimelineRepo        pipelineConfig.PipelineStatusTimelineRepository
+	appCrudOperationService             AppCrudOperationService
+	configMapHistoryRepository          repository3.ConfigMapHistoryRepository
+	strategyHistoryRepository           repository3.PipelineStrategyHistoryRepository
+	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository
+	dockerRegistryIpsConfigService      dockerRegistry.DockerRegistryIpsConfigService
 }
 
 type AppService interface {
 	TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, triggeredBy int32, wfrId int) (id int, err error)
 	UpdateReleaseStatus(request *bean.ReleaseStatusUpdateRequest) (bool, error)
-	UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time) (bool, error)
+	UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp *v1alpha1.Application, statusTime time.Time) (bool, error)
 	TriggerCD(artifact *repository.CiArtifact, cdWorkflowId, wfrId int, pipeline *pipelineConfig.Pipeline, triggeredAt time.Time) error
 	GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error)
-	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error
+	UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWorkflowId int) error
 	GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error)
 	MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error
 	GetChartRepoName(gitRepoUrl string) string
-	UpdateDeploymentStatusForGitOpsCdPipelines(app *v1alpha1.Application, statusTime time.Time) (bool, bool, error)
 }
 
 func NewAppService(
@@ -189,61 +166,53 @@ func NewAppService(
 	configMapHistoryRepository repository3.ConfigMapHistoryRepository,
 	strategyHistoryRepository repository3.PipelineStrategyHistoryRepository,
 	deploymentTemplateHistoryRepository repository3.DeploymentTemplateHistoryRepository,
-	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService,
-	pipelineStatusTimelineResourcesService PipelineStatusTimelineResourcesService,
-	pipelineStatusSyncDetailService PipelineStatusSyncDetailService,
-	pipelineStatusTimelineService PipelineStatusTimelineService,
-	appStatusConfig *AppStatusConfig) *AppServiceImpl {
+	dockerRegistryIpsConfigService dockerRegistry.DockerRegistryIpsConfigService) *AppServiceImpl {
 	appServiceImpl := &AppServiceImpl{
-		environmentConfigRepository:            environmentConfigRepository,
-		mergeUtil:                              mergeUtil,
-		pipelineOverrideRepository:             pipelineOverrideRepository,
-		logger:                                 logger,
-		ciArtifactRepository:                   ciArtifactRepository,
-		pipelineRepository:                     pipelineRepository,
-		dbMigrationConfigRepository:            dbMigrationConfigRepository,
-		eventClient:                            eventClient,
-		eventFactory:                           eventFactory,
-		acdClient:                              acdClient,
-		tokenCache:                             cache,
-		acdAuthConfig:                          authConfig,
-		enforcer:                               enforcer,
-		enforcerUtil:                           enforcerUtil,
-		user:                                   user,
-		appListingRepository:                   appListingRepository,
-		appRepository:                          appRepository,
-		envRepository:                          envRepository,
-		pipelineConfigRepository:               pipelineConfigRepository,
-		configMapRepository:                    configMapRepository,
-		chartRepository:                        chartRepository,
-		appLevelMetricsRepository:              appLevelMetricsRepository,
-		envLevelMetricsRepository:              envLevelMetricsRepository,
-		ciPipelineMaterialRepository:           ciPipelineMaterialRepository,
-		cdWorkflowRepository:                   cdWorkflowRepository,
-		commonService:                          commonService,
-		imageScanDeployInfoRepository:          imageScanDeployInfoRepository,
-		imageScanHistoryRepository:             imageScanHistoryRepository,
-		ArgoK8sClient:                          ArgoK8sClient,
-		gitFactory:                             gitFactory,
-		pipelineStrategyHistoryService:         pipelineStrategyHistoryService,
-		configMapHistoryService:                configMapHistoryService,
-		deploymentTemplateHistoryService:       deploymentTemplateHistoryService,
-		chartTemplateService:                   chartTemplateService,
-		refChartDir:                            refChartDir,
-		chartRefRepository:                     chartRefRepository,
-		chartService:                           chartService,
-		helmAppClient:                          helmAppClient,
-		argoUserService:                        argoUserService,
-		pipelineStatusTimelineRepository:       cdPipelineStatusTimelineRepo,
-		appCrudOperationService:                appCrudOperationService,
-		configMapHistoryRepository:             configMapHistoryRepository,
-		strategyHistoryRepository:              strategyHistoryRepository,
-		deploymentTemplateHistoryRepository:    deploymentTemplateHistoryRepository,
-		dockerRegistryIpsConfigService:         dockerRegistryIpsConfigService,
-		pipelineStatusTimelineResourcesService: pipelineStatusTimelineResourcesService,
-		pipelineStatusSyncDetailService:        pipelineStatusSyncDetailService,
-		pipelineStatusTimelineService:          pipelineStatusTimelineService,
-		appStatusConfig:                        appStatusConfig,
+		environmentConfigRepository:         environmentConfigRepository,
+		mergeUtil:                           mergeUtil,
+		pipelineOverrideRepository:          pipelineOverrideRepository,
+		logger:                              logger,
+		ciArtifactRepository:                ciArtifactRepository,
+		pipelineRepository:                  pipelineRepository,
+		dbMigrationConfigRepository:         dbMigrationConfigRepository,
+		eventClient:                         eventClient,
+		eventFactory:                        eventFactory,
+		acdClient:                           acdClient,
+		tokenCache:                          cache,
+		acdAuthConfig:                       authConfig,
+		enforcer:                            enforcer,
+		enforcerUtil:                        enforcerUtil,
+		user:                                user,
+		appListingRepository:                appListingRepository,
+		appRepository:                       appRepository,
+		envRepository:                       envRepository,
+		pipelineConfigRepository:            pipelineConfigRepository,
+		configMapRepository:                 configMapRepository,
+		chartRepository:                     chartRepository,
+		appLevelMetricsRepository:           appLevelMetricsRepository,
+		envLevelMetricsRepository:           envLevelMetricsRepository,
+		ciPipelineMaterialRepository:        ciPipelineMaterialRepository,
+		cdWorkflowRepository:                cdWorkflowRepository,
+		commonService:                       commonService,
+		imageScanDeployInfoRepository:       imageScanDeployInfoRepository,
+		imageScanHistoryRepository:          imageScanHistoryRepository,
+		ArgoK8sClient:                       ArgoK8sClient,
+		gitFactory:                          gitFactory,
+		pipelineStrategyHistoryService:      pipelineStrategyHistoryService,
+		configMapHistoryService:             configMapHistoryService,
+		deploymentTemplateHistoryService:    deploymentTemplateHistoryService,
+		chartTemplateService:                chartTemplateService,
+		refChartDir:                         refChartDir,
+		chartRefRepository:                  chartRefRepository,
+		chartService:                        chartService,
+		helmAppClient:                       helmAppClient,
+		argoUserService:                     argoUserService,
+		cdPipelineStatusTimelineRepo:        cdPipelineStatusTimelineRepo,
+		appCrudOperationService:             appCrudOperationService,
+		configMapHistoryRepository:          configMapHistoryRepository,
+		strategyHistoryRepository:           strategyHistoryRepository,
+		deploymentTemplateHistoryRepository: deploymentTemplateHistoryRepository,
+		dockerRegistryIpsConfigService:      dockerRegistryIpsConfigService,
 	}
 	return appServiceImpl
 }
@@ -253,10 +222,10 @@ const (
 	Failure = "FAILURE"
 )
 
-func (impl *AppServiceImpl) getValuesFileForEnv(environmentId int) string {
+func (impl AppServiceImpl) getValuesFileForEnv(environmentId int) string {
 	return fmt.Sprintf("_%d-values.yaml", environmentId) //-{envId}-values.yaml
 }
-func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, appName string, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
+func (impl AppServiceImpl) createArgoApplicationIfRequired(appId int, appName string, envConfigOverride *chartConfig.EnvConfigOverride, pipeline *pipelineConfig.Pipeline, userId int32) (string, error) {
 	//repo has been registered while helm create
 	chart, err := impl.chartRepository.FindLatestChartForAppByAppId(appId)
 	if err != nil {
@@ -267,7 +236,7 @@ func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, appName s
 	if err != nil {
 		return "", err
 	}
-	argoAppName := pipeline.DeploymentAppName
+	argoAppName := fmt.Sprintf("%s-%s", appName, envModel.Name)
 	if pipeline.DeploymentAppCreated {
 		return argoAppName, nil
 	} else {
@@ -302,7 +271,7 @@ func (impl *AppServiceImpl) createArgoApplicationIfRequired(appId int, appName s
 	}
 }
 
-func (impl *AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.ReleaseStatusUpdateRequest) (bool, error) {
+func (impl AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.ReleaseStatusUpdateRequest) (bool, error) {
 	count, err := impl.pipelineOverrideRepository.UpdateStatusByRequestIdentifier(updateStatusRequest.RequestId, updateStatusRequest.NewStatus)
 	if err != nil {
 		impl.logger.Errorw("error in updating release status", "request", updateStatusRequest, "error", err)
@@ -311,189 +280,154 @@ func (impl *AppServiceImpl) UpdateReleaseStatus(updateStatusRequest *bean.Releas
 	return count == 1, nil
 }
 
-func (impl *AppServiceImpl) UpdateDeploymentStatusAndCheckIsSucceeded(app *v1alpha1.Application, statusTime time.Time) (bool, error) {
-	isSucceeded := false
-	repoUrl := app.Spec.Source.RepoURL
+func (impl AppServiceImpl) UpdateApplicationStatusAndCheckIsHealthy(newApp, oldApp *v1alpha1.Application, statusTime time.Time) (bool, error) {
+	isHealthy := false
+	repoUrl := newApp.Spec.Source.RepoURL
 	// backward compatibility for updating application status - if unable to find app check it in charts
 	chart, err := impl.chartRepository.FindChartByGitRepoUrl(repoUrl)
 	if err != nil {
 		impl.logger.Errorw("error in fetching chart", "repoUrl", repoUrl, "err", err)
-		return isSucceeded, err
+		return isHealthy, err
 	}
 	if chart == nil {
 		impl.logger.Errorw("no git repo found for url", "repoUrl", repoUrl)
-		return isSucceeded, fmt.Errorf("no git repo found for url %s", repoUrl)
+		return isHealthy, fmt.Errorf("no git repo found for url %s", repoUrl)
 	}
 	dbApp, err := impl.appRepository.FindById(chart.AppId)
 	if err != nil {
 		impl.logger.Errorw("error in fetching app", "err", err, "app", chart.AppId)
-		return isSucceeded, err
+		return isHealthy, err
 	}
 	if dbApp.Id > 0 && dbApp.AppStore == true {
 		impl.logger.Debugw("skipping application status update as this app is chart", "dbApp", dbApp)
-		return isSucceeded, nil
+		return isHealthy, nil
 	}
 
-	isSucceeded, _, err = impl.UpdateDeploymentStatusForGitOpsCdPipelines(app, statusTime)
+	deploymentStatus, err := impl.appListingRepository.FindLastDeployedStatus(newApp.Name)
+	if err != nil && !IsErrNoRows(err) {
+		impl.logger.Errorw("error in fetching deployment status", "dbApp", dbApp, "err", err)
+		return isHealthy, err
+	}
+	//getting latest pipelineOverride for newApp (by appId and envId)
+	pipelineOverride, err := impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(deploymentStatus.AppId, deploymentStatus.EnvId)
 	if err != nil {
-		impl.logger.Errorw("error in updating deployment status", "argoAppName", app.Name)
-		return isSucceeded, err
+		impl.logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", deploymentStatus.AppId, "envId", deploymentStatus.EnvId)
+		return isHealthy, err
 	}
-	return isSucceeded, nil
-}
-
-func (impl *AppServiceImpl) UpdateDeploymentStatusForGitOpsCdPipelines(app *v1alpha1.Application, statusTime time.Time) (bool, bool, error) {
-	isSucceeded := false
-	isTimelineUpdated := false
-	isTimelineTimedOut := false
-	gitHash := ""
-	if app != nil {
-		gitHash = app.Status.Sync.Revision
-	}
-	isValid, cdPipeline, cdWfr, pipelineOverride, err := impl.CheckIfPipelineUpdateEventIsValid(app.Name, gitHash)
-	if err != nil {
-		impl.logger.Errorw("service err, CheckIfPipelineUpdateEventIsValid", "err", err)
-		return isSucceeded, isTimelineUpdated, err
-	}
-	if !isValid {
-		impl.logger.Infow("deployment status event invalid, skipping", "appName", app.Name)
-		return isSucceeded, isTimelineUpdated, nil
-	}
-	timeoutDuration, err := strconv.Atoi(impl.appStatusConfig.CdPipelineStatusTimeoutDuration)
-	if err != nil {
-		impl.logger.Errorw("error in converting string to int", "err", err)
-		return isSucceeded, isTimelineUpdated, err
-	}
-	latestTimelineBeforeThisEvent, err := impl.pipelineStatusTimelineRepository.FetchLatestTimelineByWfrId(cdWfr.Id)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting latest timeline before update", "err", err, "cdWfrId", cdWfr.Id)
-		return isSucceeded, isTimelineUpdated, err
-	}
-	//updating cd pipeline status timeline
-	isTimelineUpdated, isTimelineTimedOut, err = impl.UpdatePipelineStatusTimelineForApplicationChanges(app, cdWfr.Id, statusTime, cdWfr.StartedOn, timeoutDuration, latestTimelineBeforeThisEvent)
-	if err != nil {
-		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
-	}
-	if isTimelineTimedOut {
-		//not checking further and directly updating timedOutStatus
-		err := impl.UpdateCdWorkflowRunnerByACDObject(app, cdWfr.Id, true)
-		if err != nil {
-			impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "status", pipelineConfig.WorkflowTimedOut, "err", err)
-			return isSucceeded, isTimelineUpdated, err
-		}
-		return isSucceeded, isTimelineUpdated, nil
-	}
-	kubectlSyncedTimeline, err := impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(cdWfr.Id, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
-	if err != nil && err != pg.ErrNoRows {
-		impl.logger.Errorw("error in getting latest timeline", "err", err, "cdWfrId", cdWfr.Id)
-		return isSucceeded, isTimelineUpdated, err
-	}
-	reconciledAt := &metav1.Time{}
-	if app != nil {
-		reconciledAt = app.Status.ReconciledAt
-	}
-	if reconciledAt.IsZero() || (kubectlSyncedTimeline != nil && reconciledAt.After(kubectlSyncedTimeline.StatusTime)) {
-		releaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineOverride.PipelineId)
-		if err != nil {
-			impl.logger.Errorw("error on update application status", "releaseCounter", releaseCounter, "gitHash", gitHash, "pipelineOverride", pipelineOverride, "err", err)
-			return isSucceeded, isTimelineUpdated, err
-		}
-		if pipelineOverride.PipelineReleaseCounter == releaseCounter {
-			isSucceeded, err = impl.UpdateDeploymentStatusForPipeline(app, pipelineOverride, cdWfr.Id)
-			if err != nil {
-				impl.logger.Errorw("error in updating deployment status for pipeline", "err", err)
-				return isSucceeded, isTimelineUpdated, err
-			}
-			if isSucceeded {
-				impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride)
-				go impl.WriteCDSuccessEvent(cdPipeline.AppId, cdPipeline.EnvironmentId, pipelineOverride)
-			}
-		} else {
-			impl.logger.Debugw("event received for older triggered revision", "gitHash", gitHash)
-		}
-	} else {
-		// new revision is not reconciled yet, thus status will not be changes and will remain in progress
-	}
-	return isSucceeded, isTimelineUpdated, nil
-}
-
-func (impl *AppServiceImpl) CheckIfPipelineUpdateEventIsValid(argoAppName, gitHash string) (bool, pipelineConfig.Pipeline, pipelineConfig.CdWorkflowRunner, *chartConfig.PipelineOverride, error) {
-	isValid := false
-	var err error
-	//var deploymentStatus repository.DeploymentStatus
-	var pipeline pipelineConfig.Pipeline
-	var pipelineOverride *chartConfig.PipelineOverride
-	var cdWfr pipelineConfig.CdWorkflowRunner
-	pipeline, err = impl.pipelineRepository.GetArgoPipelineByArgoAppName(argoAppName)
-	if err != nil {
-		impl.logger.Errorw("error in getting cd pipeline by argoAppName", "err", err, "argoAppName", argoAppName)
-		return isValid, pipeline, cdWfr, pipelineOverride, err
-	}
-	//getting latest pipelineOverride for app (by appId and envId)
-	pipelineOverride, err = impl.pipelineOverrideRepository.FindLatestByAppIdAndEnvId(pipeline.AppId, pipeline.EnvironmentId)
-	if err != nil {
-		impl.logger.Errorw("error in getting latest pipelineOverride by appId and envId", "err", err, "appId", pipeline.AppId, "envId", pipeline.EnvironmentId)
-		return isValid, pipeline, cdWfr, pipelineOverride, err
-	}
-	if gitHash != "" && pipelineOverride.GitHash != gitHash {
+	gitHash := newApp.Status.Sync.Revision
+	if pipelineOverride.GitHash != gitHash {
 		pipelineOverrideByHash, err := impl.pipelineOverrideRepository.FindByPipelineTriggerGitHash(gitHash)
 		if err != nil {
 			impl.logger.Errorw("error on update application status", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "err", err)
-			return isValid, pipeline, cdWfr, pipelineOverride, err
+			return isHealthy, err
 		}
 		if pipelineOverrideByHash.CommitTime.Before(pipelineOverride.CommitTime) {
 			//we have received trigger hash which is committed before this apps actual gitHash stored by us
 			// this means that the hash stored by us will be synced later, so we will drop this event
-			return isValid, pipeline, cdWfr, pipelineOverride, nil
+			return isHealthy, nil
 		}
 	}
-	cdWfr, err = impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
+	//updating cd pipeline status timeline
+	err = impl.UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp, pipelineOverride, statusTime)
 	if err != nil {
-		impl.logger.Errorw("error in getting latest wfr by pipelineId", "err", err, "pipelineId", pipeline.Id)
-		return isValid, pipeline, cdWfr, pipelineOverride, err
+		impl.logger.Errorw("error in updating pipeline status timeline", "err", err)
 	}
-	if util2.IsTerminalStatus(cdWfr.Status) {
-		//drop event
-		return isValid, pipeline, cdWfr, pipelineOverride, nil
+
+	if !util2.IsTerminalStatus(deploymentStatus.Status) {
+		latestTimeline, err := impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(pipelineOverride.CdWorkflowId, pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED)
+		if err != nil && err != pg.ErrNoRows {
+			impl.logger.Errorw("error in getting latest timeline", "err", err, "pipelineId", pipelineOverride.PipelineId)
+			return isHealthy, err
+		}
+		reconciledAt := newApp.Status.ReconciledAt
+		if latestTimeline != nil && reconciledAt.After(latestTimeline.StatusTime) {
+			impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "latest_timeline", "latestTimeline", latestTimeline, "data", newApp.Name)
+			if deploymentStatus.Status == string(newApp.Status.Health.Status) {
+				impl.logger.Debugw("not updating same statuses from", "last status", deploymentStatus.Status, "new status", string(newApp.Status.Health.Status), "deploymentStatus", deploymentStatus)
+				return isHealthy, nil
+			}
+			if pipelineOverride.Pipeline.AppId != dbApp.Id {
+				impl.logger.Warnw("event received for other deleted app", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "dbApp", dbApp)
+				return isHealthy, nil
+			}
+
+			releaseCounter, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(pipelineOverride.PipelineId)
+			if err != nil {
+				impl.logger.Errorw("error on update application status", "releaseCounter", releaseCounter, "gitHash", gitHash, "pipelineOverride", pipelineOverride, "dbApp", dbApp, "err", err)
+				return isHealthy, err
+			}
+			if pipelineOverride.PipelineReleaseCounter == releaseCounter {
+				impl.logger.Debugw("inserting new app status", "status", string(newApp.Status.Health.Status), "dbApp", dbApp)
+				newDeploymentStatus := &repository.DeploymentStatus{
+					AppName:   newApp.Name,
+					AppId:     deploymentStatus.AppId,
+					EnvId:     deploymentStatus.EnvId,
+					Status:    string(newApp.Status.Health.Status),
+					CreatedOn: time.Now(),
+					UpdatedOn: time.Now(),
+				}
+				dbConnection := impl.pipelineRepository.GetConnection()
+				tx, err := dbConnection.Begin()
+				if err != nil {
+					impl.logger.Errorw("error on update status, db get txn failed", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", newApp, "err", err)
+					return isHealthy, err
+				}
+				// Rollback tx on error.
+				defer tx.Rollback()
+
+				err = impl.appListingRepository.SaveNewDeployment(newDeploymentStatus, tx)
+				if err != nil {
+					impl.logger.Errorw("error on saving new deployment status for wf", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", newApp, "err", err)
+					return isHealthy, err
+				}
+				err = impl.UpdateCdWorkflowRunnerByACDObject(newApp, pipelineOverride.CdWorkflowId)
+				if err != nil {
+					impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", newApp, "err", err)
+					return isHealthy, err
+				}
+				err = tx.Commit()
+				if err != nil {
+					impl.logger.Errorw("error on db transaction commit for", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", newApp, "err", err)
+					return isHealthy, err
+				}
+				if string(application.Healthy) == newDeploymentStatus.Status {
+					isHealthy = true
+					impl.logger.Infow("writing cd success event", "gitHash", gitHash, "pipelineOverride", pipelineOverride, "newDeploymentStatus", newDeploymentStatus)
+					go impl.WriteCDSuccessEvent(newDeploymentStatus.AppId, newDeploymentStatus.EnvId, pipelineOverride)
+				}
+			} else {
+				impl.logger.Debug("event received for older triggered revision: " + gitHash)
+			}
+		} else {
+			// new revision is not reconciled yet, thus status will not be changes and will remain in progress
+		}
 	}
-	isValid = true
-	return isValid, pipeline, cdWfr, pipelineOverride, nil
+	return isHealthy, nil
 }
 
-func (impl *AppServiceImpl) UpdateDeploymentStatusForPipeline(app *v1alpha1.Application, pipelineOverride *chartConfig.PipelineOverride, cdWfrId int) (bool, error) {
-	impl.logger.Debugw("inserting new app status", "status", app.Status.Health.Status, "argoAppName", app.Name)
-	isSucceeded := false
-	err := impl.UpdateCdWorkflowRunnerByACDObject(app, cdWfrId, false)
-	if err != nil {
-		impl.logger.Errorw("error on update cd workflow runner", "CdWorkflowId", pipelineOverride.CdWorkflowId, "app", app, "err", err)
-		return isSucceeded, err
-	}
-	if application.Healthy == app.Status.Health.Status {
-		isSucceeded = true
-	}
-	return isSucceeded, nil
-}
+func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(newApp, oldApp *v1alpha1.Application, pipelineOverride *chartConfig.PipelineOverride, statusTime time.Time) error {
+	b, _ := json.Marshal(newApp)
+	impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "timeline", "data", string(b))
 
-func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(app *v1alpha1.Application, cdWfrId int, statusTime time.Time, triggeredAt time.Time, statusTimeoutDuration int, latestTimelineBeforeUpdate *pipelineConfig.PipelineStatusTimeline) (bool, bool, error) {
-	impl.logger.Infow("updating pipeline status timeline", "app", app, "pipelineOverride", cdWfrId, "APP_TO_UPDATE", app.Name)
-	isTimelineUpdated := false
-	isTimelineTimedOut := false
-	terminalStatusExists, err := impl.pipelineStatusTimelineRepository.CheckIfTerminalStatusTimelinePresentByWfrId(cdWfrId)
+	impl.logger.Infow("updating pipeline status timeline", "newApp", newApp, "oldApp", oldApp, "pipelineOverride", pipelineOverride, "APP_TO_UPDATE", newApp.Name)
+	//get wfr by cdWorkflowId & runnerType
+	cdWfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(pipelineOverride.CdWorkflowId, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
-		impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", err, "wfrId", cdWfrId)
-		return isTimelineUpdated, isTimelineTimedOut, err
+		impl.logger.Errorw("error in finding cd wfr by workflowId and runnerType", "err", err)
+		return err
+	}
+	terminalStatusExists, err := impl.cdPipelineStatusTimelineRepo.CheckIfTerminalStatusTimelinePresentByWfrId(cdWfr.Id)
+	if err != nil {
+		impl.logger.Errorw("error in checking if terminal status timeline exists by wfrId", "err", err, "wfrId", cdWfr.Id)
+		return err
 	}
 	if terminalStatusExists {
-		impl.logger.Infow("terminal status timeline exists for cdWfr, skipping more timeline changes", "wfrId", cdWfrId)
-		return isTimelineUpdated, isTimelineTimedOut, nil
-	}
-	err = impl.pipelineStatusSyncDetailService.SaveOrUpdateSyncDetail(cdWfrId, 1)
-	if err != nil {
-		impl.logger.Errorw("error in save/update pipeline status fetch detail", "err", err, "cdWfrId", cdWfrId)
+		impl.logger.Infow("terminal status timeline exists for cdWfr, skipping more timeline changes", "wfrId", cdWfr.Id)
+		return nil
 	}
 	// creating cd pipeline status timeline
 	timeline := &pipelineConfig.PipelineStatusTimeline{
-		CdWorkflowRunnerId: cdWfrId,
+		CdWorkflowRunnerId: cdWfr.Id,
 		StatusTime:         statusTime,
 		AuditLog: sql.AuditLog{
 			CreatedBy: 1,
@@ -502,98 +436,118 @@ func (impl *AppServiceImpl) UpdatePipelineStatusTimelineForApplicationChanges(ap
 			UpdatedOn: time.Now(),
 		},
 	}
-	timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
-	if app != nil && app.Status.OperationState != nil {
-		timeline.StatusDetail = app.Status.OperationState.Message
-	}
-	//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-	_, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
-	if err != nil {
-		impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-		return isTimelineUpdated, isTimelineTimedOut, err
-	}
-	//saving timeline resource details
-	err = impl.pipelineStatusTimelineResourcesService.SaveOrUpdateCdPipelineTimelineResources(cdWfrId, app, nil, 1)
-	if err != nil {
-		impl.logger.Errorw("error in saving/updating timeline resources", "err", err, "cdWfrId", cdWfrId)
-	}
-	if app.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
-		timeline.Id = 0
-		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
-		if app != nil && app.Status.OperationState != nil {
-			timeline.StatusDetail = app.Status.OperationState.Message
-		}
-		var currentTimeline *pipelineConfig.PipelineStatusTimeline
+	if oldApp == nil {
+		//case of first trigger
+		//committing timeline for kubectl apply as revision will be started when
+		timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
+		timeline.StatusDetail = "Kubectl apply initiated successfully."
 		//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
-		currentTimeline, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
+		_, err = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 		if err != nil {
 			impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-			return isTimelineUpdated, isTimelineTimedOut, err
+			return err
 		}
-		impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "app", app, "status", timeline.Status)
-		if currentTimeline.StatusTime.Before(app.Status.ReconciledAt.Time) {
-			haveNewTimeline := false
+		if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
 			timeline.Id = 0
-			if app.Status.Health.Status == health.HealthStatusHealthy {
-				impl.logger.Infow("updating pipeline status timeline for healthy app", "app", app, "APP_TO_UPDATE", app.Name)
-				haveNewTimeline = true
-				timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
-				timeline.StatusDetail = "App status is Healthy."
-			}
-			if haveNewTimeline {
-				//not checking if this status is already present or not because already checked for terminal status existence earlier
-				err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
-				if err != nil {
-					impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
-					return isTimelineUpdated, isTimelineTimedOut, err
-				}
-				isTimelineUpdated = true
-				impl.logger.Debugw("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "app", app, "status", timeline.Status)
-			}
-		}
-	}
-
-	if !isTimelineUpdated {
-		//no timeline updated since before, in this case we will check for timeout cases
-		var lastTimeToCheckForTimeout time.Time
-		if latestTimelineBeforeUpdate == nil {
-			lastTimeToCheckForTimeout = triggeredAt
-		} else {
-			lastTimeToCheckForTimeout = latestTimelineBeforeUpdate.StatusTime
-		}
-		if time.Since(lastTimeToCheckForTimeout) >= time.Duration(statusTimeoutDuration)*time.Minute {
-			//mark as timed out if not already marked
-			timeline.Status = pipelineConfig.TIMELINE_STATUS_FETCH_TIMED_OUT
-			timeline.StatusDetail = "Deployment timed out."
-			_, err, isTimelineUpdated = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId, timeline.Status, timeline)
+			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
+			timeline.StatusDetail = "Kubectl apply synced successfully."
+			//checking and saving if this timeline is present or not because kubewatch may stream same objects multiple times
+			currrentTimeline, err := impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
 			if err != nil {
 				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
-				return isTimelineUpdated, isTimelineTimedOut, err
+				return err
 			}
-			isTimelineTimedOut = true
-		} else {
-			// deployment status will be in progress so leave timeline
+			impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "data", string(b), "status", timeline.Status)
+
+			if currrentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
+				haveNewTimeline := false
+				timeline.Id = 0
+				if newApp.Status.Health.Status == health.HealthStatusHealthy {
+					impl.logger.Infow("updating pipeline status timeline for healthy app", "newApp", newApp, "APP_TO_UPDATE", newApp.Name)
+					haveNewTimeline = true
+					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
+					timeline.StatusDetail = "App status is Healthy."
+				} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
+					haveNewTimeline = true
+					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
+					timeline.StatusDetail = "App status is Degraded."
+				}
+				if haveNewTimeline {
+					//not checking if this status is already present or not because already checked for terminal status existence earlier
+					err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+					if err != nil {
+						impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+						return err
+					}
+					impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "data", string(b), "status", timeline.Status)
+				}
+			}
+		}
+	} else {
+		if oldApp.Status.Sync.Revision != newApp.Status.Sync.Revision {
+			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_STARTED
+			timeline.StatusDetail = "Kubectl apply initiated successfully."
+			//save after checking if this timeline is present or not because kubewatch may stream same objects multiple times
+			_, err = impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
+			if err != nil {
+				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
+				return err
+			}
+		} else if newApp.Status.Sync.Status == v1alpha1.SyncStatusCodeSynced {
+			timeline.Id = 0
+			timeline.Status = pipelineConfig.TIMELINE_STATUS_KUBECTL_APPLY_SYNCED
+			timeline.StatusDetail = "Kubectl apply synced successfully."
+			//save after checking if this timeline is present or not because sync status can change from synced to some other status
+			//and back to synced, or kubewatch may stream same objects multiple times
+			currrentTimeline, err := impl.SavePipelineStatusTimelineIfNotAlreadyPresent(pipelineOverride.CdWorkflowId, timeline.Status, timeline)
+			if err != nil {
+				impl.logger.Errorw("error in saving pipeline status timeline", "err", err)
+				return err
+			}
+			impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "APPLY_SYNCED", "data", string(b), "status", timeline.Status)
+
+			if currrentTimeline.StatusTime.Before(newApp.Status.ReconciledAt.Time) {
+				haveNewTimeline := false
+				timeline.Id = 0
+				if newApp.Status.Health.Status == health.HealthStatusHealthy {
+					impl.logger.Infow("updating pipeline status timeline for healthy app", "newApp", newApp, "APP_TO_UPDATE", newApp.Name)
+					haveNewTimeline = true
+					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_HEALTHY
+					timeline.StatusDetail = "App status is Healthy."
+				} else if newApp.Status.Health.Status == health.HealthStatusDegraded {
+					haveNewTimeline = true
+					timeline.Status = pipelineConfig.TIMELINE_STATUS_APP_DEGRADED
+					timeline.StatusDetail = "App status is Degraded."
+				}
+				if haveNewTimeline {
+					//not checking if this status is already present or not because already checked for terminal status existence earlier
+					err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
+					if err != nil {
+						impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
+						return err
+					}
+					impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "terminal_status", "data", string(b), "status", timeline.Status)
+				}
+			}
 		}
 	}
-	return isTimelineUpdated, isTimelineTimedOut, nil
+	return nil
 }
 
-func (impl *AppServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(cdWfrId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error, isTimelineUpdated bool) {
-	isTimelineUpdated = false
-	latestTimeline, err = impl.pipelineStatusTimelineRepository.FetchTimelineByWfrIdAndStatus(cdWfrId, timelineStatus)
+func (impl *AppServiceImpl) SavePipelineStatusTimelineIfNotAlreadyPresent(cdWorkflowId int, timelineStatus pipelineConfig.TimelineStatus, timeline *pipelineConfig.PipelineStatusTimeline) (latestTimeline *pipelineConfig.PipelineStatusTimeline, err error) {
+	latestTimeline, err = impl.cdPipelineStatusTimelineRepo.FetchTimelineOfLatestWfByCdWorkflowIdAndStatus(cdWorkflowId, timelineStatus)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting latest timeline", "err", err)
-		return nil, err, isTimelineUpdated
+		return nil, err
 	} else if err == pg.ErrNoRows {
-		err = impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+		err = impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 		if err != nil {
 			impl.logger.Errorw("error in creating timeline status", "err", err, "timeline", timeline)
-			return nil, err, isTimelineUpdated
+			return nil, err
 		}
-		isTimelineUpdated = true
 		latestTimeline = timeline
 	}
-	return latestTimeline, nil, isTimelineUpdated
+	return latestTimeline, nil
 }
 
 func (impl *AppServiceImpl) WriteCDSuccessEvent(appId int, envId int, override *chartConfig.PipelineOverride) {
@@ -643,7 +597,7 @@ func (impl *AppServiceImpl) triggerReleaseAsync(artifact *repository.CiArtifact,
 	return err
 }
 
-func (impl *AppServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
+func (impl AppServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artifact *repository.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
 	object := impl.enforcerUtil.GetAppRBACNameByAppId(p.AppId)
 	envApp := strings.Split(object, "/")
 	if len(envApp) != 2 {
@@ -654,7 +608,7 @@ func (impl *AppServiceImpl) validateAndTrigger(p *pipelineConfig.Pipeline, artif
 	return err
 }
 
-func (impl *AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
+func (impl AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, artifact *repository.CiArtifact, cdWorkflowId, wfrId int, triggeredAt time.Time) error {
 	impl.logger.Debugw("triggering release for ", "cdPipelineId", pipeline.Id, "artifactId", artifact.Id)
 	//Iterate for each even if there is error in one
 	request := &bean.ValuesOverrideRequest{
@@ -682,7 +636,7 @@ func (impl *AppServiceImpl) releasePipeline(pipeline *pipelineConfig.Pipeline, a
 	return err
 }
 
-func (impl *AppServiceImpl) buildACDContext() (acdContext context.Context, err error) {
+func (impl AppServiceImpl) buildACDContext() (acdContext context.Context, err error) {
 	//this method should only call in case of argo-integration and gitops configured
 	acdToken, err := impl.argoUserService.GetLatestDevtronArgoCdUserToken()
 	if err != nil {
@@ -694,7 +648,7 @@ func (impl *AppServiceImpl) buildACDContext() (acdContext context.Context, err e
 	return ctx, nil
 }
 
-func (impl *AppServiceImpl) getDbMigrationOverride(overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, isRollback bool) (overrideJson []byte, err error) {
+func (impl AppServiceImpl) getDbMigrationOverride(overrideRequest *bean.ValuesOverrideRequest, artifact *repository.CiArtifact, isRollback bool) (overrideJson []byte, err error) {
 	if isRollback {
 		return nil, fmt.Errorf("rollback not supported ye")
 	}
@@ -758,7 +712,7 @@ func (impl *AppServiceImpl) getDbMigrationOverride(overrideRequest *bean.ValuesO
 	return confByte, nil
 }
 
-func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32, wfrId int) (id int, err error) {
+func (impl AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideRequest, ctx context.Context, triggeredAt time.Time, deployedBy int32, wfrId int) (id int, err error) {
 	if overrideRequest.DeploymentType == models.DEPLOYMENTTYPE_UNKNOWN {
 		overrideRequest.DeploymentType = models.DEPLOYMENTTYPE_DEPLOY
 	}
@@ -960,7 +914,7 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 					UpdatedOn: time.Now(),
 				},
 			}
-			timelineErr := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+			timelineErr := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 			if timelineErr != nil {
 				impl.logger.Errorw("error in creating timeline status for git commit", "err", timelineErr, "timeline", timeline)
 			}
@@ -981,7 +935,7 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 					UpdatedOn: time.Now(),
 				},
 			}
-			err := impl.pipelineStatusTimelineService.SaveTimeline(timeline, nil)
+			err := impl.cdPipelineStatusTimelineRepo.SaveTimeline(timeline)
 			if err != nil {
 				impl.logger.Errorw("error in creating timeline status for git commit", "err", err, "timeline", timeline)
 			}
@@ -1033,7 +987,7 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 		if IsAcdApp(pipeline.DeploymentAppType) {
 			updateAppInArgocd, err := impl.updateArgoPipeline(overrideRequest.AppId, pipeline.Name, envOverride, ctx)
 			if err != nil {
-				impl.logger.Errorw("error in updating argocd app ", "err", err)
+				impl.logger.Errorw("error in updating argocd  app ", "err", err)
 				return 0, err
 			}
 			if updateAppInArgocd {
@@ -1043,6 +997,32 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 			}
 			//	impl.synchCD(pipeline, ctx, overrideRequest, envOverride)
 		}
+
+		deploymentStatus := &repository.DeploymentStatus{
+			AppName:   pipeline.App.AppName + "-" + envOverride.Environment.Name,
+			AppId:     pipeline.AppId,
+			EnvId:     pipeline.EnvironmentId,
+			Status:    repository.NewDeployment,
+			CreatedOn: triggeredAt,
+			UpdatedOn: triggeredAt,
+		}
+		dbConnection := impl.pipelineRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			return 0, err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		err = impl.appListingRepository.SaveNewDeployment(deploymentStatus, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving new deployment history", "req", overrideRequest, "err", err)
+			return 0, err
+		}
+		err = tx.Commit()
+		if err != nil {
+			return 0, err
+		}
+
 		//for helm type cd pipeline, create install helm application, update deployment status, update workflow runner for app detail status.
 		if IsHelmApp(pipeline.DeploymentAppType) {
 			_, err = impl.createHelmAppForCdPipeline(overrideRequest, envOverride, referenceTemplatePath, chartMetaData, triggeredAt, pipeline, mergeAndSave, ctx)
@@ -1061,7 +1041,7 @@ func (impl *AppServiceImpl) TriggerRelease(overrideRequest *bean.ValuesOverrideR
 	return releaseId, saveErr
 }
 
-func (impl *AppServiceImpl) autoHealChartLocationInChart(envOverride *chartConfig.EnvConfigOverride) error {
+func (impl AppServiceImpl) autoHealChartLocationInChart(envOverride *chartConfig.EnvConfigOverride) error {
 	chartId := envOverride.Chart.Id
 	impl.logger.Infow("auto-healing: Chart location in chart not correct. modifying ", "chartId", chartId,
 		"current chartLocation", envOverride.Chart.ChartLocation, "current chartVersion", envOverride.Chart.ChartVersion)
@@ -1098,7 +1078,7 @@ func (impl *AppServiceImpl) autoHealChartLocationInChart(envOverride *chartConfi
 	return nil
 }
 
-func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error {
+func (impl AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDigest string, clusterId int) error {
 	impl.logger.Debugw("mark image scan deployed for normal app, from cd auto or manual trigger", "imageDigest", imageDigest)
 	executionHistory, err := impl.imageScanHistoryRepository.FindByImageDigest(imageDigest)
 	if err != nil && err != pg.ErrNoRows {
@@ -1142,7 +1122,7 @@ func (impl *AppServiceImpl) MarkImageScanDeployed(appId int, envId int, imageDig
 }
 
 // FIXME tmp workaround
-func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error) {
+func (impl AppServiceImpl) GetCmSecretNew(appId int, envId int) (*bean.ConfigMapJson, *bean.ConfigSecretJson, error) {
 	var configMapJson string
 	var secretDataJson string
 	var configMapJsonApp string
@@ -1208,7 +1188,7 @@ func (impl *AppServiceImpl) GetCmSecretNew(appId int, envId int) (*bean.ConfigMa
 
 // depricated
 // TODO remove this method
-func (impl *AppServiceImpl) GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error) {
+func (impl AppServiceImpl) GetConfigMapAndSecretJson(appId int, envId int, pipelineId int) ([]byte, error) {
 	var configMapJson string
 	var secretDataJson string
 	merged := []byte("{}")
@@ -1261,7 +1241,7 @@ func (impl *AppServiceImpl) GetConfigMapAndSecretJson(appId int, envId int, pipe
 	return merged, nil
 }
 
-func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pipelineId int, chartVersion string, deploymentWithConfig bean.DeploymentConfigurationType, wfrIdForDeploymentWithSpecificTrigger int) ([]byte, error) {
+func (impl AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pipelineId int, chartVersion string, deploymentWithConfig bean.DeploymentConfigurationType, wfrIdForDeploymentWithSpecificTrigger int) ([]byte, error) {
 
 	var configMapJson string
 	var secretDataJson string
@@ -1354,7 +1334,7 @@ func (impl *AppServiceImpl) getConfigMapAndSecretJsonV2(appId int, envId int, pi
 	return merged, nil
 }
 
-func (impl *AppServiceImpl) synchCD(pipeline *pipelineConfig.Pipeline, ctx context.Context,
+func (impl AppServiceImpl) synchCD(pipeline *pipelineConfig.Pipeline, ctx context.Context,
 	overrideRequest *bean.ValuesOverrideRequest, envOverride *chartConfig.EnvConfigOverride) {
 	req := new(application2.ApplicationSyncRequest)
 	pipelineName := pipeline.App.AppName + "-" + envOverride.Environment.Name
@@ -1451,7 +1431,7 @@ type ReleaseAttributes struct {
 	AppMetrics     *bool
 }
 
-func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride,
+func (impl AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfigOverride,
 	overrideRequest *bean.ValuesOverrideRequest,
 	artifact *repository.CiArtifact,
 	pipeline *pipelineConfig.Pipeline,
@@ -1495,13 +1475,13 @@ func (impl *AppServiceImpl) getReleaseOverride(envOverride *chartConfig.EnvConfi
 	return override, nil
 }
 
-func (impl *AppServiceImpl) GetChartRepoName(gitRepoUrl string) string {
+func (impl AppServiceImpl) GetChartRepoName(gitRepoUrl string) string {
 	gitRepoUrl = gitRepoUrl[strings.LastIndex(gitRepoUrl, "/")+1:]
 	chartRepoName := strings.ReplaceAll(gitRepoUrl, ".git", "")
 	return chartRepoName
 }
 
-func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverride,
+func (impl AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverride,
 	overrideRequest *bean.ValuesOverrideRequest,
 	dbMigrationOverride []byte,
 	artifact *repository.CiArtifact,
@@ -1596,9 +1576,6 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 			return 0, 0, "", err
 		}
 	}
-	if commitTime.IsZero() {
-		commitTime = time.Now()
-	}
 	pipelineOverride := &chartConfig.PipelineOverride{
 		Id:                     override.Id,
 		GitHash:                commitHash,
@@ -1618,7 +1595,7 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 	return override.PipelineReleaseCounter, override.Id, mergedValues, nil
 }
 
-func (impl *AppServiceImpl) savePipelineOverride(overrideRequest *bean.ValuesOverrideRequest, envOverrideId int, triggeredAt time.Time) (override *chartConfig.PipelineOverride, err error) {
+func (impl AppServiceImpl) savePipelineOverride(overrideRequest *bean.ValuesOverrideRequest, envOverrideId int, triggeredAt time.Time) (override *chartConfig.PipelineOverride, err error) {
 	currentReleaseNo, err := impl.pipelineOverrideRepository.GetCurrentPipelineReleaseCounter(overrideRequest.PipelineId)
 	if err != nil {
 		return nil, err
@@ -1646,7 +1623,7 @@ func (impl *AppServiceImpl) savePipelineOverride(overrideRequest *bean.ValuesOve
 	return po, nil
 }
 
-func (impl *AppServiceImpl) checkAndFixDuplicateReleaseNo(override *chartConfig.PipelineOverride) error {
+func (impl AppServiceImpl) checkAndFixDuplicateReleaseNo(override *chartConfig.PipelineOverride) error {
 
 	uniqueVerified := false
 	retryCount := 0
@@ -1678,7 +1655,7 @@ func (impl *AppServiceImpl) checkAndFixDuplicateReleaseNo(override *chartConfig.
 	return nil
 }
 
-func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (bool, error) {
+func (impl AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, envOverride *chartConfig.EnvConfigOverride, ctx context.Context) (bool, error) {
 	//repo has been registered while helm create
 	if ctx == nil {
 		impl.logger.Errorw("err in syncing ACD, ctx is NULL", "pipelineName", pipelineName)
@@ -1732,25 +1709,24 @@ func (impl *AppServiceImpl) updateArgoPipeline(appId int, pipelineName string, e
 	}
 }
 
-func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWfrId int, updateTimedOutStatus bool) error {
-	wfr, err := impl.cdWorkflowRepository.FindWorkflowRunnerById(cdWfrId)
+func (impl *AppServiceImpl) UpdateCdWorkflowRunnerByACDObject(app *v1alpha1.Application, cdWorkflowId int) error {
+	cdWorkflow, err := impl.cdWorkflowRepository.FindById(cdWorkflowId)
+	if err != nil {
+		impl.logger.Errorw("error on update cd workflow runner, fetch failed for cdwf", "cdWorkflow", cdWorkflow, "app", app, "err", err)
+		return err
+	}
+	wfr, err := impl.cdWorkflowRepository.FindByWorkflowIdAndRunnerType(cdWorkflow.Id, bean.CD_WORKFLOW_TYPE_DEPLOY)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner, fetch failed for runner type", "wfr", wfr, "app", app, "err", err)
 		return err
 	}
+	wfr.Status = string(app.Status.Health.Status)
 	wfr.FinishedOn = time.Now()
-	if updateTimedOutStatus {
-		wfr.Status = pipelineConfig.WorkflowTimedOut
-	} else {
-		if app.Status.Health.Status == health.HealthStatusHealthy {
-			wfr.Status = pipelineConfig.WorkflowSucceeded
-		} else {
-			wfr.Status = pipelineConfig.WorkflowInProgress
-		}
+	if string(app.Status.Health.Status) == application.Healthy {
+		d, _ := json.Marshal(app)
+		impl.logger.Infow("APP_STATUS_UPDATE_REQ", "stage", "wf_healthy", "data", string(d))
 	}
-	wfr.UpdatedBy = 1
-	wfr.UpdatedOn = time.Now()
-	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(wfr)
+	err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&wfr)
 	if err != nil {
 		impl.logger.Errorw("error on update cd workflow runner", "wfr", wfr, "app", app, "err", err)
 		return err
@@ -1847,7 +1823,7 @@ func (impl *AppServiceImpl) CreateHistoriesForDeploymentTrigger(pipeline *pipeli
 	return nil
 }
 
-func (impl *AppServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, userId int32) (bool, error) {
+func (impl AppServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, userId int32) (bool, error) {
 	pipeline.DeploymentAppCreated = true
 	pipeline.UpdatedOn = time.Now()
 	pipeline.UpdatedBy = userId
@@ -1859,7 +1835,7 @@ func (impl *AppServiceImpl) updatePipeline(pipeline *pipelineConfig.Pipeline, us
 	return true, nil
 }
 
-func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.ValuesOverrideRequest,
+func (impl AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.ValuesOverrideRequest,
 	envOverride *chartConfig.EnvConfigOverride, referenceTemplatePath string, chartMetaData *chart2.Metadata,
 	triggeredAt time.Time, pipeline *pipelineConfig.Pipeline, mergeAndSave string, ctx context.Context) (bool, error) {
 	if IsHelmApp(pipeline.DeploymentAppType) {
@@ -1883,8 +1859,9 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 			referenceChartByte = refChartByte
 		}
 
-		releaseName := pipeline.DeploymentAppName
+		releaseName := fmt.Sprintf("%s-%s", pipeline.App.AppName, envOverride.Environment.Name)
 		bearerToken := envOverride.Environment.Cluster.Config["bearer_token"]
+		isSuccess := false
 		if pipeline.DeploymentAppCreated {
 			req := &client2.UpgradeReleaseRequest{
 				ReleaseIdentifier: &client2.ReleaseIdentifier{
@@ -1904,7 +1881,7 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				impl.logger.Errorw("error in updating helm application for cd pipeline", "err", err)
 				return false, err
 			}
-			impl.logger.Debugw("updated helm application", "response", updateApplicationResponse, "isSuccess", updateApplicationResponse.Success)
+			isSuccess = updateApplicationResponse.Success
 		} else {
 			releaseIdentifier := &client2.ReleaseIdentifier{
 				ReleaseName:      releaseName,
@@ -1925,13 +1902,44 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				impl.logger.Errorw("error in helm install custom chart", "err", err)
 				return false, err
 			}
-			impl.logger.Debugw("received helm release response", "helmResponse", helmResponse, "isSuccess", helmResponse.Success)
+			isSuccess = helmResponse.Success
 			//update cd pipeline to mark deployment app created
 			_, err = impl.updatePipeline(pipeline, overrideRequest.UserId)
 			if err != nil {
 				impl.logger.Errorw("error in update cd pipeline for deployment app created or not", "err", err)
 				return false, err
 			}
+		}
+
+		// update deployment status, used in deployment history
+		deploymentStatus := &repository.DeploymentStatus{
+			AppName:   pipeline.App.AppName + "-" + envOverride.Environment.Name,
+			AppId:     pipeline.AppId,
+			EnvId:     pipeline.EnvironmentId,
+			Status:    repository.NewDeployment,
+			CreatedOn: triggeredAt,
+			UpdatedOn: triggeredAt,
+		}
+		if isSuccess {
+			deploymentStatus.Status = Success
+		} else {
+			deploymentStatus.Status = Failure
+		}
+		dbConnection := impl.pipelineRepository.GetConnection()
+		tx, err := dbConnection.Begin()
+		if err != nil {
+			return false, err
+		}
+		// Rollback tx on error.
+		defer tx.Rollback()
+		err = impl.appListingRepository.SaveNewDeployment(deploymentStatus, tx)
+		if err != nil {
+			impl.logger.Errorw("error in saving new deployment history", "req", overrideRequest, "err", err)
+			return false, err
+		}
+		err = tx.Commit()
+		if err != nil {
+			return false, err
 		}
 
 		//update workflow runner status, used in app workflow view
@@ -1962,7 +1970,6 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 				TriggeredBy:  overrideRequest.UserId,
 				StartedOn:    triggeredAt,
 				CdWorkflowId: cdWorkflowId,
-				AuditLog:     sql.AuditLog{CreatedOn: triggeredAt, CreatedBy: overrideRequest.UserId, UpdatedOn: triggeredAt, UpdatedBy: overrideRequest.UserId},
 			}
 			_, err = impl.cdWorkflowRepository.SaveWorkFlowRunner(runner)
 			if err != nil {
@@ -1972,8 +1979,6 @@ func (impl *AppServiceImpl) createHelmAppForCdPipeline(overrideRequest *bean.Val
 		} else {
 			cdWf.Status = string(health.HealthStatusProgressing)
 			cdWf.FinishedOn = time.Now()
-			cdWf.UpdatedBy = overrideRequest.UserId
-			cdWf.UpdatedOn = time.Now()
 			err = impl.cdWorkflowRepository.UpdateWorkFlowRunner(&cdWf)
 			if err != nil {
 				impl.logger.Errorw("error on update cd workflow runner", "cdWf", cdWf, "err", err)

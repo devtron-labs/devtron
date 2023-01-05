@@ -4,19 +4,16 @@ import (
 	"github.com/argoproj/gitops-engine/pkg/health"
 )
 
-const (
-	WorkflowAborted   = "Aborted"
-	WorkflowFailed    = "Failed"
-	WorkflowSucceeded = "Succeeded"
-)
+const WorkflowAborted = "Aborted"
+const WorkflowFailed = "Failed"
 
 func IsTerminalStatus(status string) bool {
 	switch status {
 	case
 		string(health.HealthStatusHealthy),
+		string(health.HealthStatusDegraded),
 		WorkflowAborted,
-		WorkflowFailed,
-		WorkflowSucceeded:
+		WorkflowFailed:
 		return true
 	}
 	return false

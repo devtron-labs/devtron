@@ -1589,7 +1589,7 @@ func (handler PipelineConfigRestHandlerImpl) CancelStage(w http.ResponseWriter, 
 	}
 	//RBAC
 
-	resp, err := handler.cdHandler.CancelStage(workflowRunnerId, userId)
+	resp, err := handler.cdHandler.CancelStage(workflowRunnerId)
 	if err != nil {
 		handler.Logger.Errorw("service err, CancelStage", "err", err, "pipelineId", pipelineId, "workflowRunnerId", workflowRunnerId)
 		if util.IsErrNoRows(err) {
