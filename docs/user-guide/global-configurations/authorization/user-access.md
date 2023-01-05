@@ -100,7 +100,7 @@ To assign a specific permission, go to the `Authorization > User Permissions` se
    * [Chart Groups](#chart-group-permissions)
 
 
-#### Devtron Apps Permissions
+### Devtron Apps Permissions
 
 In `Devtron Apps` option, you can provide access to a user to manage permission for custom apps created using Devtron.
 
@@ -119,7 +119,7 @@ You can add multiple rows for Devtron app permission.
 
 Once you have finished assigning the appropriate permissions for the users, Click `Save`.
 
-#### Helm Apps Permissions
+### Helm Apps Permissions
 
 In `Helm Apps` option, you can provide access to a user to manage permission for Helm apps deployed from Devtron or outside Devtron.
 
@@ -139,7 +139,7 @@ You can add multiple rows for Devtron app permission.
 Once you have finished assigning the appropriate permissions for the users, Click `Save`.
 
 
-#### Kubernetes Resources Permissions
+### Kubernetes Resources Permissions
 
 In `Kubernetes Resources` option, you can provide permission to view, inspect, manage, and delete resources in your clusters from [Kubernetes Resource Browser](https://docs.devtron.ai/usage/deploy-resource-browser) page in Devtron. You can also create resources from the Kubernetes Resource Browser page.
 
@@ -164,7 +164,7 @@ You can add multiple rows for Kubernetes resource permission.
 
 Once you have finished assigning the appropriate permissions for the users, Click `Save`.
 
-#### Chart Group Permissions
+### Chart Group Permissions
 
 In `Chart group permission` option, you can manage the access of users for Chart Groups in your project.
 
@@ -180,7 +180,7 @@ In `Chart group permission` option, you can manage the access of users for Chart
 
 Click `Save`once you have configured all the required permissions for the users.
 
-#### Edit User Permissions
+### Edit User Permissions
 
 You can edit the user permissions by clicking on the `downward arrow`.
 
