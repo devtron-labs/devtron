@@ -6,7 +6,7 @@ Resource Browser are helpful for troubleshooting issues. It supports multi-clust
 
 ## Kubernetes Resources 
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubernetes-resource-browser.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubernetes-resource-browser-latest.jpg)
 
 The following resources are grouped in the following categories:
 
@@ -27,23 +27,26 @@ The following resources are grouped as uncategoried:
 
 ** **Namespaces** displays the current list of namespaces in a cluster.
 
+### Search and Filter Resources
 
-You can search and filter resources by specific resource Kinds. You can also preview `Manifest`, `Events`, `Logs`, access `Terminal` by selecting ellipsis on the specific resource or delete a resource.
+You can search and filter resources by specific resource Kinds. You can also preview `Manifest`, `Events`, `Logs`, access `Terminal` by selecting ellipsis on the specific resource or `Delete` a specific resource.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/select-resource.jpg)
 
-### Manifest
+#### Manifest
 
 The Manifest shows the critical information such as container-image, restartCount, state, phase, podIP, startTime etc. and status of the pods which are deployed.
 
-### Events
+#### Events
 
 Events display you the events that took place during the deployment of an application. These events are available until 15 minutes of deployment of the application.
 
-### Logs
+#### Logs
 
 Logs contain the logs of the Pods and Containers deployed which you can use for the process of debugging.
 
-## Create Kubernetes Resource
+
+### Create Kubernetes Resource
 
 **Note**: As a pre-requisite, you must have a basic understanding of Kubernetes Cluster, Resources, Kinds.
 
@@ -75,20 +78,24 @@ spec:
          - containerPort: 80
 ```
 
-* Click `Create` button on the upper right corner of the Kubernetes Resource Browser.
+* Click `Create` button on the upper right corner of the `Kubernetes Resource Browser` page.
 
-* Provide YAML file containing K8s resource configuration and click `Apply`.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/create-resource.jpg)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/create-kubernetes-resource.jpg)
+* Provide YAML containing K8s resource configuration and click `Apply`.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/create-kubernetes-resource-latest.jpg)
 
 * You will see the details of `Kind`, `Name`, `Status` and `Message` of the created resources.
 
->Note: A message is displayed only when there is an error in the .yaml file.
+>Note: A message is displayed only when there is an error in the resource YAML.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-yaml-kubernetes-resource.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/edit-yaml.jpg)
 
 
-* If required, click `Edit YAML` to edit the YAML file or click `Close`.
+* If required, click `Edit YAML` to edit the YAML or click `Close`.
+
+* A new resource will be created or updated accordingly.
 
 
 
