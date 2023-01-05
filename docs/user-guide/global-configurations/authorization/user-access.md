@@ -104,6 +104,8 @@ To assign a specific permission, go to the `Authorization > User Permissions` se
 
 In `Devtron Apps` option, you can provide access to a user to manage permission for custom apps created using Devtron.
 
+**Note**: The `Devtron Apps` option will be available only if you install [CI/CD integration](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+
 Provide the information in the following fields:
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/specific-permissions-devtron-apps.jpg)
@@ -167,6 +169,8 @@ Once you have finished assigning the appropriate permissions for the users, Clic
 ### Chart Group Permissions
 
 In `Chart group permission` option, you can manage the access of users for Chart Groups in your project.
+
+**Note**: The `Chart group permission` option will be available only if you install [CI/CD integration](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/specific-permission-chart-group.jpg)
 
