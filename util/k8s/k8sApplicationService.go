@@ -632,6 +632,13 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(token string, request *app
 
 	var response []*application.ApplyResourcesResponse
 	for _, manifest := range manifests {
+		var namespace string
+		manifestNamespace := manifest.GetNamespace()
+		if len(manifestNamespace) > 0 {
+			namespace = manifestNamespace
+		} else {
+			namespace = DEFAULT_NAMESPACE
+		}
 		manifestRes := &application.ApplyResourcesResponse{
 			Name: manifest.GetName(),
 			Kind: manifest.GetKind(),
@@ -641,14 +648,14 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(token string, request *app
 			K8sRequest: &application.K8sRequestBean{
 				ResourceIdentifier: application.ResourceIdentifier{
 					Name:             manifest.GetName(),
-					Namespace:        manifest.GetNamespace(),
+					Namespace:        namespace,
 					GroupVersionKind: manifest.GroupVersionKind(),
 				},
 			},
 		}
 		actionAllowed := validateResourceAccess(token, clusterBean.ClusterName, resourceRequestBean, casbin.ActionUpdate)
 		if actionAllowed {
-			resourceExists, err := impl.applyResourceFromManifest(manifest, restConfig)
+			resourceExists, err := impl.applyResourceFromManifest(manifest, restConfig, namespace)
 			manifestRes.IsUpdate = resourceExists
 			if err != nil {
 				manifestRes.Error = err.Error()
@@ -662,15 +669,8 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(token string, request *app
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstructured.Unstructured, restConfig *rest.Config) (bool, error) {
+func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstructured.Unstructured, restConfig *rest.Config, namespace string) (bool, error) {
 	var isUpdateResource bool
-	var namespace string
-	manifestNamespace := manifest.GetNamespace()
-	if len(manifestNamespace) > 0 {
-		namespace = manifestNamespace
-	} else {
-		namespace = DEFAULT_NAMESPACE
-	}
 	k8sRequestBean := &application.K8sRequestBean{
 		ResourceIdentifier: application.ResourceIdentifier{
 			Name:             manifest.GetName(),
