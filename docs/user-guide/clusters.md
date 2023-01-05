@@ -8,7 +8,9 @@ Devtron allows you to manage your Kubernetes cluster by:
 
 On the left navigation of Devtron, select `Clusters`. You will find the list of clusters in this section which you have added under [Global Configurations > Clusters & Environments](https://docs.devtron.ai/global-configurations/cluster-and-environments).
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/clusters.jpg)
+You can also search the cluster in the `Search Clusters` bar.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/clusters-latest.jpg)
 
 
 | Fields | Description |
@@ -32,7 +34,7 @@ On the `Resource allocation and usage`, you can see the details of compute resou
 
 If you specify a `request` and `limits` in the container resource manifest file, then the respective values will appear on the `Resource allocation and usage` section.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/resource.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/resource-allocation-usage-latest.jpg)
 
 ## Nodes
 
@@ -40,7 +42,7 @@ You can see the list of nodes available in your cluster. Typically you have seve
 
 The components on a typical node include the `kubelet`, a `container runtime`, and the `kube-proxy`.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/nodes.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/select-a-node-latest.jpg)
 
 If you have multiple nodes, you can search a node by name or label in the search bar.
 
@@ -70,13 +72,15 @@ Using the Devtron UI, you will be able to:
 * [Configure YAML](#configure-yaml)
 * [Delete a node](#delete-a-node)
 
-To see the summary of a node, click the particular node.
+To see the summary of a node, click the specific node.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/node-overview-clusters.jpg)
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/summary-of-a-node.jpg)
 
 ### Debug a Node
 
 You can debug a node via Terminal by selecting your namespace and image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/node-terminal.png)
 
 * Go to the `Clusters` section from the left navigation pane.
 * Select your cluster.
@@ -84,9 +88,12 @@ You can debug a node via Terminal by selecting your namespace and image from the
 * On the node, click the ellipsis button and then click `Terminal`.
 * Debug a node by selecting the terminal shell `bash` or `sh`.
 
+
 ### Cordon a Node
 
 Cordoning a node means making the node unschedulable. After cordoning a node, new Pods cannot be scheduled on this node.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/node-cordon.jpg)
 
 * On the node, click the ellipsis button and then click `Cordon`.
 * A dialog box with message `Cordoning this node will mark this node as unschedulable. By cordoning a node, you can be sure that no new pods will be scheduled on this node` is displayed.
@@ -99,6 +106,8 @@ Similarly, you can uncordon a node by clicking `Uncordon`. After a node is uncor
 Before performing maintenance on a node, draining a node evicts all of your pods safely from a node. Safe evictions allow the pod’s containers to gracefully terminate and will manage the `PodDisruptionBudgets` you have specified (if relevant).
 
 After the node is drained, all Pods (including those managed by DaemonSets) in the node will be automatically drained to other nodes in the cluster, and the drained node will be set to cordoned status.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/drain-node.jpg)
 
 * On the node, click the ellipsis button and then click `Drain`.
 * A dialog box with message `Drain will cordon off the node and evict all pods of the node` is displayed.
@@ -120,11 +129,15 @@ Taints are `key:value` pairs associated with effect. After you add taints to nod
 
 **Note**: Make sure to check taint validations before you add a taint.
 
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/edit-taints.jpg)
+
 * On the node, click the ellipsis button and then click `Edit taints`.
 * Click `Add taint`.
-* On the `Key` and `Value` fields, enter the `key:value` pairs and select the taint effect from the drop-down list.
+* On the `Key` and `Value` fields, enter the `key:value` pairs and select the [taint effect](#taint-effects) from the drop-down list.
 * Click `Save`.
 * You can also delete the added taint by clicking delete button.
+
+#### Taint Effects
 
 A taint can produce three possible effects:
 
@@ -137,6 +150,8 @@ A taint can produce three possible effects:
 ### Configure YAML
 
 The config.yaml file contains all the configuration settings that are needed to deploy your cluster.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/edit-yaml-node.jpg)
 
 * You can edit or modify the parameters or values of a node by clicking `YAML`.
 * Click `Review Changes` to compare the changes in the YAML file.
