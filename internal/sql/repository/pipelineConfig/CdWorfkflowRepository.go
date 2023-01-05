@@ -36,14 +36,14 @@ type CdWorkflowRepository interface {
 
 	SaveWorkFlowRunner(wfr *CdWorkflowRunner) (*CdWorkflowRunner, error)
 	UpdateWorkFlowRunner(wfr *CdWorkflowRunner) error
-	UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error
+	UpdateWorkFlowRunnersWithTxn(wfrs []CdWorkflowRunner, tx *pg.Tx) error
 	UpdateWorkFlowRunners(wfr []*CdWorkflowRunner) error
 	FindWorkflowRunnerByCdWorkflowId(wfIds []int) ([]*CdWorkflowRunner, error)
 	FindPreviousCdWfRunnerByStatus(pipelineId int, currentWFRunnerId int, status []string) ([]*CdWorkflowRunner, error)
 	FindConfigByPipelineId(pipelineId int) (*CdWorkflowConfig, error)
 	FindWorkflowRunnerById(wfrId int) (*CdWorkflowRunner, error)
 	FindLatestWfrByAppIdAndEnvironmentId(appId int, environmentId int) (CdWorkflowRunner, error)
-	FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
+	FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error)
 
 	GetConnection() *pg.DB
 
@@ -79,16 +79,6 @@ const (
 	DROPPED_STALE
 	DEQUE_ERROR
 	TRIGGER_ERROR
-)
-
-const (
-	WorkflowStarting           = "Starting"
-	WorkflowInProgress         = "Progressing"
-	WorkflowAborted            = "Aborted"
-	WorkflowFailed             = "Failed"
-	WorkflowSucceeded          = "Succeeded"
-	WorkflowTimedOut           = "TimedOut"
-	WorkflowUnableToFetchState = "UnableToFetch"
 )
 
 func (a WorkflowStatus) String() string {
@@ -151,7 +141,6 @@ type CdWorkflowRunner struct {
 	PodName            string               `sql:"pod_name"`
 	BlobStorageEnabled bool                 `sql:"blob_storage_enabled,notnull"`
 	CdWorkflow         *CdWorkflow
-	sql.AuditLog
 }
 
 type CdWorkflowWithArtifact struct {
@@ -288,15 +277,17 @@ func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowMetaByEnvironmentId(appId in
 	return wfrList, err
 }
 
-func (impl *CdWorkflowRepositoryImpl) FindLatestCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
+func (impl *CdWorkflowRepositoryImpl) FindCdWorkflowRunnerByEnvironmentIdAndRunnerType(appId int, environmentId int, runnerType bean.WorkflowType) (CdWorkflowRunner, error) {
 	var wfr CdWorkflowRunner
 	err := impl.dbConnection.
 		Model(&wfr).
-		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline").
+		Column("cd_workflow_runner.*", "CdWorkflow", "CdWorkflow.Pipeline", "CdWorkflow.CiArtifact").
 		Where("p.environment_id = ?", environmentId).
 		Where("p.app_id = ?", appId).
 		Where("cd_workflow_runner.workflow_type = ?", runnerType).
+		Order("cd_workflow_runner.id DESC").
 		Join("inner join cd_workflow wf on wf.id = cd_workflow_runner.cd_workflow_id").
+		Join("inner join ci_artifact cia on cia.id = wf.ci_artifact_id").
 		Join("inner join pipeline p on p.id = wf.pipeline_id").
 		Order("cd_workflow_runner.id DESC").Limit(1).
 		Select()
@@ -419,7 +410,7 @@ func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunner(wfr *CdWorkflowRunner
 	return err
 }
 
-func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnersWithTxn(wfrs []*CdWorkflowRunner, tx *pg.Tx) error {
+func (impl *CdWorkflowRepositoryImpl) UpdateWorkFlowRunnersWithTxn(wfrs []CdWorkflowRunner, tx *pg.Tx) error {
 	_, err := tx.Model(&wfrs).Update()
 	return err
 }

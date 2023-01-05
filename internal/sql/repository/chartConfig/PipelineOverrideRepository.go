@@ -240,12 +240,9 @@ func (impl PipelineOverrideRepositoryImpl) FetchHelmTypePipelineOverridesForStat
 func (impl PipelineOverrideRepositoryImpl) FindLatestByAppIdAndEnvId(appId, environmentId int) (pipelineOverrides *PipelineOverride, err error) {
 	var override PipelineOverride
 	err = impl.dbConnection.Model(&override).
-		Column("pipeline_override.*", "Pipeline").
-		Join("inner join pipeline p on p.id = pipeline_override.pipeline_id").
+		Column("pipeline_override.*", "Pipeline", "CiArtifact").
 		Where("pipeline.app_id =? ", appId).
 		Where("pipeline.environment_id =?", environmentId).
-		Where("p.deployment_app_type = ?", util.PIPELINE_DEPLOYMENT_TYPE_ACD).
-		Where("p.deleted = ?", false).
 		Order("id DESC").Limit(1).
 		Select()
 	return &override, err
