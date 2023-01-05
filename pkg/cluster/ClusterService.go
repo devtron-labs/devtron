@@ -581,6 +581,8 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 	namespaceListGroupByCLuster := impl.K8sInformerFactory.GetLatestNamespaceListGroupByCLuster()
 	namespaces := namespaceListGroupByCLuster[clusterBean.ClusterName]
 	if isActionUserSuperAdmin {
+		//if has access to all the namespaces, add one more item
+		result = append(result, "*")
 		for namespace, value := range namespaces {
 			if value {
 				result = append(result, namespace)
@@ -601,6 +603,10 @@ func (impl *ClusterServiceImpl) FindAllNamespacesByUserIdAndClusterId(userId int
 					allowedAll = true
 				}
 			}
+		}
+		//if has access to all the namespaces, add one more item
+		if allowedAll {
+			result = append(result, "*")
 		}
 
 		//adding final namespace list
