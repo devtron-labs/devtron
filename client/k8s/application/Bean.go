@@ -1,6 +1,7 @@
 package application
 
 import (
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
@@ -51,5 +52,17 @@ const K8sClusterResourceRolloutKind = "Rollout"
 const K8sClusterResourceRolloutGroup = "argoproj.io"
 const K8sClusterResourceReplicationControllerKind = "ReplicationController"
 const K8sClusterResourceCronJobKind = "CronJob"
+const V1VERSION = "v1"
+const BatchGroup = "batch"
+const AppsGroup = "batch"
 
-const K8sNativeGVKMap = map[string][]string{"":[""]}
+var KindVsChildrenGvk = map[string][]schema.GroupVersionKind{
+	kube.DeploymentKind:                         append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Group: AppsGroup, Version: V1VERSION, Kind: kube.ReplicaSetKind}, schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
+	K8sClusterResourceRolloutKind:               append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Group: AppsGroup, Version: V1VERSION, Kind: kube.ReplicaSetKind}, schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
+	K8sClusterResourceCronJobKind:               append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Group: BatchGroup, Version: V1VERSION, Kind: kube.JobKind}, schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
+	kube.JobKind:                                append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
+	kube.ReplicaSetKind:                         append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
+	kube.DaemonSetKind:                          append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
+	kube.StatefulSetKind:                        append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
+	K8sClusterResourceReplicationControllerKind: append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
+}
