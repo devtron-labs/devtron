@@ -54,7 +54,7 @@ const K8sClusterResourceReplicationControllerKind = "ReplicationController"
 const K8sClusterResourceCronJobKind = "CronJob"
 const V1VERSION = "v1"
 const BatchGroup = "batch"
-const AppsGroup = "batch"
+const AppsGroup = "apps"
 
 var KindVsChildrenGvk = map[string][]schema.GroupVersionKind{
 	kube.DeploymentKind:                         append(make([]schema.GroupVersionKind, 0), schema.GroupVersionKind{Group: AppsGroup, Version: V1VERSION, Kind: kube.ReplicaSetKind}, schema.GroupVersionKind{Version: V1VERSION, Kind: kube.PodKind}),
