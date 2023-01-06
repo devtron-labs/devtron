@@ -542,7 +542,8 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int, isSuper
 			if clusterBean.ClusterName != role.Cluster {
 				continue
 			}
-			if role.Group == "" && role.Kind == "" {
+			kind := role.Kind
+			if role.Group == "" && kind == "" {
 				allowedAll = true
 				break
 			}
@@ -552,7 +553,17 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int, isSuper
 			} else if groupName == casbin.ClusterEmptyGroupPlaceholder {
 				groupName = ""
 			}
-			allowedGroupKinds[groupName+"||"+role.Kind] = true
+			allowedGroupKinds[groupName+"||"+kind] = true
+			// add children for this kind
+			children, found := application.KindVsChildrenGvk[kind]
+			if found {
+				// if rollout kind other than argo, then neglect only
+				if kind != application.K8sClusterResourceRolloutKind || groupName == application.K8sClusterResourceRolloutGroup {
+					for _, child := range children {
+						allowedGroupKinds[child.Group+"||"+child.Kind] = true
+					}
+				}
+			}
 		}
 
 		if !allowedAll {
@@ -602,10 +613,13 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(token string, request *Re
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
 	}
-	checkForResourceCallback := func(namespace, resourceName string) bool {
+	checkForResourceCallback := func(namespace, group, kind, resourceName string) bool {
 		resourceIdentifier := k8sRequest.ResourceIdentifier
 		resourceIdentifier.Name = resourceName
 		resourceIdentifier.Namespace = namespace
+		if group != "" && kind != "" {
+			resourceIdentifier.GroupVersionKind = schema.GroupVersionKind{Group: group, Kind: kind}
+		}
 		k8sRequest.ResourceIdentifier = resourceIdentifier
 		return validateResourceAccess(token, clusterBean.ClusterName, *request, casbin.ActionGet)
 	}
