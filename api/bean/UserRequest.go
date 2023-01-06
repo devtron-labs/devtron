@@ -60,6 +60,12 @@ type RoleFilter struct {
 	Environment string `json:"environment"`
 	Action      string `json:"action"`
 	AccessType  string `json:"accessType"`
+
+	Cluster   string `json:"cluster"`
+	Namespace string `json:"namespace"`
+	Group     string `json:"group"`
+	Kind      string `json:"kind"`
+	Resource  string `json:"resource"`
 }
 
 type Role struct {
@@ -76,6 +82,12 @@ type RoleData struct {
 	Environment string `json:"environment"`
 	Action      string `json:"action"`
 	AccessType  string `json:"accessType"`
+
+	Cluster   string `json:"cluster"`
+	Namespace string `json:"namespace"`
+	Group     string `json:"group"`
+	Kind      string `json:"kind"`
+	Resource  string `json:"resource"`
 }
 
 type SSOLoginDto struct {
@@ -95,11 +107,11 @@ const (
 type PolicyType int
 
 const (
-	POLICY_DIRECT PolicyType = 1
-	POLICY_GROUP  PolicyType = 1
+	POLICY_DIRECT        PolicyType = 1
+	POLICY_GROUP         PolicyType = 1
+	SUPERADMIN                      = "role:super-admin___"
+	APP_ACCESS_TYPE_HELM            = "helm-app"
+	USER_TYPE_API_TOKEN             = "apiToken"
+	CHART_GROUP_ENTITY              = "chart-group"
+	CLUSTER_ENTITIY                 = "cluster"
 )
-
-const SUPERADMIN = "role:super-admin___"
-const APP_ACCESS_TYPE_HELM = "helm-app"
-
-const USER_TYPE_API_TOKEN = "apiToken"
