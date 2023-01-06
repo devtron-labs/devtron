@@ -547,7 +547,9 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int, isSuper
 				break
 			}
 			groupName := role.Group
-			if groupName == casbin.ClusterEmptyGroupPlaceholder {
+			if groupName == "" {
+				groupName = "*"
+			} else if groupName == casbin.ClusterEmptyGroupPlaceholder {
 				groupName = ""
 			}
 			allowedGroupKinds[groupName+"||"+role.Kind] = true
@@ -559,6 +561,11 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int, isSuper
 				_, found := allowedGroupKinds[gvk.Group+"||"+gvk.Kind]
 				if found {
 					filteredApiResources = append(filteredApiResources, apiResource)
+				} else {
+					_, found = allowedGroupKinds["*"+"||"+gvk.Kind]
+					if found {
+						filteredApiResources = append(filteredApiResources, apiResource)
+					}
 				}
 			}
 		}
