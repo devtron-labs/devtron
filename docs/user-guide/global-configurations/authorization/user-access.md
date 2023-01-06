@@ -151,7 +151,8 @@ To provide Kubernetes resource permission, click `Add permission`.
 
 On the `Kubernetes resource permission`, provide the information in the following fields:
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/kubernetes-resource-permission-page.jpg)
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/kubernetes-resource-permission-page-latest.jpg)
 
 | Registry Type | Credentials |
 | --- | --- |
@@ -160,7 +161,7 @@ On the `Kubernetes resource permission`, provide the information in the followin
 | **API Group**  | Select the specific API group or `All API groups` from the drop-down list corresponding to the K8s resource.  |
  **Kind**  | Select the kind or `All kind` from the drop-down list corresponding to the K8s resource.  |
   **Resource name**  | Select the resource name or `All resources` from the drop-down list to which you want to give permission to the user. |
-| **Role**  | Select one of the [roles](#role-based-access-levels) to which you want to give permission to the user and click `Done`:<ul><li>`View`</li></ul> <ul><li>`Admin`</li></ul><ul><li>`Manager`</li></ul>  |
+| **Role**  | Select one of the [roles](#role-based-access-levels) to which you want to give permission to the user and click `Done`:<ul><li>`View`</li></ul> <ul><li>`Admin`</li></ul>  |
 
 You can add multiple rows for Kubernetes resource permission.
 
@@ -195,3 +196,4 @@ Edit the user permissions.
 After you have done editing the user permissions, click `Save`.
 
 If you want to delete the user/users with particular permissions, click `Delete`.
+
