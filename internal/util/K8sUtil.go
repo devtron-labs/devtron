@@ -22,6 +22,7 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
+	"github.com/argoproj/gitops-engine/pkg/utils/kube"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"os/user"
@@ -584,7 +585,6 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 			}
 
 			// set namespace
-
 			cellObjUncast := rowMap[application.K8sClusterResourceObjectKey]
 			if cellObjUncast != nil {
 				cellObj := cellObjUncast.(map[string]interface{})
@@ -623,21 +623,25 @@ func (impl K8sUtil) validateResourceWithRbac(namespace, resourceName string, own
 	if len(ownerReferences) > 0 {
 		for _, ownerRef := range ownerReferences {
 			ownerReference := ownerRef.(map[string]interface{})
-			ownerKind := ownerReference["kind"].(string)
+			ownerKind := ownerReference[application.K8sClusterResourceKindKey].(string)
 			ownerName := ""
-			apiVersion := ownerReference["apiVersion"].(string) // extract group from this apiVersion
-			groupName := apiVersion[:strings.LastIndex(apiVersion, "/")]
+			apiVersion := ownerReference[application.K8sClusterResourceApiVersionKey].(string)
+			groupName := ""
+			if strings.Contains(apiVersion, "/") {
+				groupName = apiVersion[:strings.LastIndex(apiVersion, "/")] // extracting group from this apiVersion
+			}
 			if ownerReference["name"] != "" {
 				ownerName = ownerReference["name"].(string)
 				switch ownerKind {
-				case "ReplicaSet":
+				case kube.ReplicaSetKind:
+					// check deployment first, then RO and then RS
 					if strings.Contains(ownerName, "-") {
 						deploymentName := ownerName[:strings.LastIndex(ownerName, "-")]
-						allowed := validateCallback(namespace, groupName, "Deployment", deploymentName)
+						allowed := validateCallback(namespace, groupName, kube.DeploymentKind, deploymentName)
 						if allowed {
 							return true
 						}
-						allowed = validateCallback(namespace, "argoproj.io", "Rollout", deploymentName)
+						allowed = validateCallback(namespace, application.K8sClusterResourceRolloutGroup, application.K8sClusterResourceRolloutKind, deploymentName)
 						if allowed {
 							return true
 						}
@@ -647,11 +651,11 @@ func (impl K8sUtil) validateResourceWithRbac(namespace, resourceName string, own
 						return true
 					}
 					break
-				// check deployment first, then RO and then RS and then pod
-				case "Job":
+				case kube.JobKind:
+					// check CronJob first, then Job
 					if strings.Contains(ownerName, "-") {
 						cronJobName := ownerName[:strings.LastIndex(ownerName, "-")]
-						allowed := validateCallback(namespace, groupName, "CronJob", cronJobName)
+						allowed := validateCallback(namespace, groupName, application.K8sClusterResourceCronJobKind, cronJobName)
 						if allowed {
 							return true
 						}
@@ -661,14 +665,12 @@ func (impl K8sUtil) validateResourceWithRbac(namespace, resourceName string, own
 						return true
 					}
 					break
-				case "Deployment":
-				case "CronJob":
-				case "StatefulSet":
-				case "DaemonSet":
-				case "Rollout":
-					// check deployment first
-					// check CronJob first, then Job
-					// check CronJob
+				case kube.DeploymentKind:
+				case application.K8sClusterResourceCronJobKind:
+				case kube.StatefulSetKind:
+				case kube.DaemonSetKind:
+				case application.K8sClusterResourceRolloutKind:
+				case application.K8sClusterResourceReplicationControllerKind:
 					allowed := validateCallback(namespace, groupName, ownerKind, ownerName)
 					if allowed {
 						return true
@@ -680,7 +682,6 @@ func (impl K8sUtil) validateResourceWithRbac(namespace, resourceName string, own
 	}
 	// check current RBAC in case not matched with above one
 	return validateCallback(namespace, "", "", resourceName)
-
 }
 
 func (impl K8sUtil) getEventKindHeader() ([]string, map[int]string) {

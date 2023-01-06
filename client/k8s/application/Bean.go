@@ -43,3 +43,13 @@ const K8sClusterResourceObjectKey = "object"
 const K8sClusterResourceRowsKey = "rows"
 const K8sClusterResourceCellKey = "cells"
 const K8sClusterResourceColumnDefinitionKey = "columnDefinitions"
+
+const K8sClusterResourceKindKey = "Kind"
+const K8sClusterResourceApiVersionKey = "apiVersion"
+
+const K8sClusterResourceRolloutKind = "Rollout"
+const K8sClusterResourceRolloutGroup = "argoproj.io"
+const K8sClusterResourceReplicationControllerKind = "ReplicationController"
+const K8sClusterResourceCronJobKind = "CronJob"
+
+const K8sNativeGVKMap = map[string][]string{"":[""]}
