@@ -433,7 +433,13 @@ func (impl ClusterRestHandlerImpl) FindAllForClusterPermission(w http.ResponseWr
 	//RBAC enforcer Ends
 
 	if len(clusterList) == 0 {
-		clusterList = make([]cluster.ClusterBean, 0)
+		// assumption is that if list is empty, then it can happen only in case of Unauthorized (but not sending Unauthorized for super-admin user)
+		if isActionUserSuperAdmin {
+			clusterList = make([]cluster.ClusterBean, 0)
+		} else {
+			common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+			return
+		}
 	}
 	common.WriteJsonResp(w, err, clusterList, http.StatusOK)
 }
