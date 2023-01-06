@@ -638,6 +638,12 @@ func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.Response
 		return
 	}
 
+	// send unauthorised if response is empty
+	if !isSuperAdmin && (response == nil || len(response.ApiResources) == 0) {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+
 	common.WriteJsonResp(w, nil, response, http.StatusOK)
 }
 

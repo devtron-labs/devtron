@@ -524,7 +524,7 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int, isSuper
 
 	// RBAC FILER STARTS
 	allowedAll := isSuperAdmin
-	var filteredApiResources []*application.K8sApiResource
+	filteredApiResources := make([]*application.K8sApiResource, 0)
 	if !isSuperAdmin {
 		clusterBean, err := impl.clusterService.FindById(clusterId)
 		if err != nil {
