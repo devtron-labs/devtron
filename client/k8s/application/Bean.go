@@ -45,7 +45,7 @@ const K8sClusterResourceRowsKey = "rows"
 const K8sClusterResourceCellKey = "cells"
 const K8sClusterResourceColumnDefinitionKey = "columnDefinitions"
 
-const K8sClusterResourceKindKey = "Kind"
+const K8sClusterResourceKindKey = "kind"
 const K8sClusterResourceApiVersionKey = "apiVersion"
 
 const K8sClusterResourceRolloutKind = "Rollout"

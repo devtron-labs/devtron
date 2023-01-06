@@ -650,7 +650,6 @@ func (impl K8sUtil) validateResourceWithRbac(namespace, resourceName string, own
 					if allowed {
 						return true
 					}
-					break
 				case kube.JobKind:
 					// check CronJob first, then Job
 					if strings.Contains(ownerName, "-") {
@@ -664,18 +663,11 @@ func (impl K8sUtil) validateResourceWithRbac(namespace, resourceName string, own
 					if allowed {
 						return true
 					}
-					break
-				case kube.DeploymentKind:
-				case application.K8sClusterResourceCronJobKind:
-				case kube.StatefulSetKind:
-				case kube.DaemonSetKind:
-				case application.K8sClusterResourceRolloutKind:
-				case application.K8sClusterResourceReplicationControllerKind:
+				case kube.DeploymentKind, application.K8sClusterResourceCronJobKind, kube.StatefulSetKind, kube.DaemonSetKind, application.K8sClusterResourceRolloutKind, application.K8sClusterResourceReplicationControllerKind:
 					allowed := validateCallback(namespace, groupName, ownerKind, ownerName)
 					if allowed {
 						return true
 					}
-					break
 				}
 			}
 		}
