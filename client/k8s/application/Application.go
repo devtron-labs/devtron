@@ -318,7 +318,7 @@ func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config, includ
 		return nil, err
 	}
 
-	var apiResources []*K8sApiResource
+	apiResources := make([]*K8sApiResource, 0)
 	for _, apiResourceListFromK8s := range apiResourcesListFromK8s {
 		if apiResourceListFromK8s != nil {
 			for _, apiResourceFromK8s := range apiResourceListFromK8s.APIResources {
