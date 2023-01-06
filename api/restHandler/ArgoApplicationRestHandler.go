@@ -615,6 +615,11 @@ func (impl ArgoApplicationRestHandlerImpl) DeleteResource(w http.ResponseWriter,
 
 	userId, err := impl.userService.GetLoggedInUser(r)
 
+	if err != nil {
+		// not returning err because userId is only needed for audit logs and not impacting delete functionality.
+		impl.logger.Errorw("error in getting logged in user for audit logs of k8s resource")
+	}
+
 	vars := mux.Vars(r)
 	appNameACD := vars["appNameACD"]
 	name := vars["name"]
