@@ -1,1 +1,1 @@
-stable 2 v0.6.10-rc.2
+stable 1 v0.6.10-rc.1
