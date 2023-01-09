@@ -655,6 +655,7 @@ func (impl *UserTerminalAccessServiceImpl) getPodRequestBean(clusterId int, podN
 		return nil, err
 	}
 	request := &k8s.ResourceRequestBean{
+		ClusterId: clusterId,
 		AppIdentifier: &client.AppIdentifier{
 			ClusterId: clusterId,
 		},
