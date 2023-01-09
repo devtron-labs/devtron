@@ -134,7 +134,18 @@ paths:
             type: string
         - name: appId
           in: query
-          required: true
+          required: false
+          schema:
+            type: string
+        - name: clusterId
+          in: query
+          required: false
+          schema:
+            type: integer
+        - name: namespace
+          in: query
+          description: it is required when clusterId is passed
+          required: false
           schema:
             type: string
         - name: follow
@@ -156,17 +167,17 @@ paths:
             text/event-stream:
               schema:
                 $ref: "#/components/schemas/LogsResponseObject"
-  /orchestrator/k8s/pod/exec/session/{applicationId}/{namespace}/{pod}/{shell}/{container}:
+  /orchestrator/k8s/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}:
     get:
       description: get session for the terminal
       parameters:
         - in: path
-          name: applicationId
+          name: identifier
           schema:
             type: string
           required: true
-          description: application id
-          example: "2|devtroncd|devtron"
+          description: application id or cluster id
+          example: "2|devtroncd|devtron or 3"
         - in: path
           name: namespace
           schema:
@@ -207,6 +218,71 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TerminalMessage"
+  /orchestrator/k8s/api-resources/{clusterId}:
+    get:
+      description: Get All api resources for given cluster Id
+      parameters:
+        - name: clusterId
+          in: path
+          description: cluster Id
+          required: true
+          schema:
+            type: integer
+            format: int64
+      responses:
+        "200":
+          description: Successfully fetched All api resources for given cluster Id
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/GetAllApiResourcesResponse"
+  /orchestrator/k8s/resource/list:
+    post:
+      description: this api will be used for fetching all kind of manifest.
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ResourceRequestObject'
+      responses:
+        '200':
+          description: list response
+          content:
+            application/json:
+              schema:
+                properties:
+                  code:
+                    type: integer
+                    description: status code
+                  status:
+                    type: string
+                    description: status
+                  result:
+                    type: array
+                    description: app list
+                    items:
+                      $ref: '#/components/schemas/ClusterResourceListResponse'
+  /orchestrator/k8s/resources/apply:
+    post:
+      description: this api will be used to apply the resources in cluster
+      requestBody:
+        description: json as request body
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApplyResourcesRequest'
+      responses:
+        '200':
+          description: response in array of each resource
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ApplyResourcesResponse"
 components:
   schemas:
     TerminalMessage:
@@ -223,6 +299,9 @@ components:
       properties:
         appId:
           type: string
+        clusterId:
+          type: number
+          description: clusterId is used when request is for direct cluster (when appId is not supplied)
         k8sRequest:
           $ref: '#/components/schemas/K8sRequestObject'
     K8sRequestObject:
@@ -410,3 +489,94 @@ components:
                 type: string
               time:
                 type: string
+    GetAllApiResourcesResponse:
+      type: object
+      properties:
+        apiResources:
+          type: array
+          items:
+            $ref: "#/components/schemas/K8sApiResource"
+        allowedAll:
+          type: boolean
+          description: whether all api-resources allowed for this user
+          example: true
+          nullable: false
+    K8sApiResource:
+      type: object
+      properties:
+        gvk:
+          $ref: '#/components/schemas/GroupVersionKind'
+        namespaced:
+          type: boolean
+          description: whether this api resource is in namespaces scope or global
+          example: true
+          nullable: false
+    GroupVersionKind:
+      type: object
+      properties:
+        group:
+          type: string
+          description: group of the api-resource
+          example: "apps"
+          nullable: false
+        version:
+          type: string
+          description: version of the api-resource
+          example: "v1"
+          nullable: false
+        kind:
+          type: string
+          description: kind of the api-resource
+          example: "pod"
+          nullable: false
+    ClusterResourceListResponse:
+      type: object
+      properties:
+        headers:
+          type: array
+          items:
+            type: string
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              header-name:
+                type: string
+                description: each object from data key contains the objects keys length is equal to headers length
+    ApplyResourcesRequest:
+      type: object
+      properties:
+        clusterId:
+          type: number
+          description: cluster Id
+          example: 1
+          nullable: false
+        manifest:
+          type: string
+          description: manifest of the resources (yamls saparated by ---)
+          example: ""
+          nullable: false
+    ApplyResourcesResponse:
+      type: object
+      properties:
+        kind:
+          type: string
+          description: kind of the resource
+          example: "pod"
+          nullable: false
+        name:
+          type: string
+          description: name of the resource
+          example: "someName"
+          nullable: false
+        error:
+          type: string
+          description: error in the operation of this resource
+          example: "someError"
+          nullable: true
+        isUpdate:
+          type: boolean
+          description: whether this resource was updated
+          example: true
+          nullable: false
