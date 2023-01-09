@@ -578,7 +578,11 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 			}
 			rowCells := cellsUncast.([]interface{})
 			for index, columnName := range columnIndexes {
-				cell := rowCells[index].(interface{})
+				cellValUncast := rowCells[index]
+				if cellValUncast == nil {
+					continue
+				}
+				cell := cellValUncast.(interface{})
 				rowIndex[columnName] = cell
 			}
 
