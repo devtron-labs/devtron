@@ -107,6 +107,11 @@ type DeploymentDetailContainer struct {
 	CiArtifactId                  int             `json:"ciArtifactId"`
 	ClusterId                     int             `json:"clusterId"`
 	DeploymentAppType             string          `json:"deploymentAppType"`
+	CiPipelineId                  int             `json:"-"`
+	IsExternalCi                  bool            `json:"externalCi"`
+	ClusterName                   string          `json:"clusterName,omitempty"`
+	DockerRegistryId              string          `json:"dockerRegistryId,omitempty"`
+	IpsAccessProvided             bool            `json:"ipsAccessProvided"`
 }
 
 type AppDetailContainer struct {
@@ -124,6 +129,7 @@ type Environment struct {
 	InfraMetrics    *bool  `json:"infraMetrics"`
 	Prod            bool   `json:"prod"`
 	ChartRefId      int    `json:"chartRefId"`
+	LastDeployed    string `json:"lastDeployed"`
 }
 
 type InstanceDetail struct {

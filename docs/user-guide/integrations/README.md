@@ -8,7 +8,7 @@ The current release of Devtron supports the Build and Deploy (CI/CD) integration
 
 > Integrations can be installed by super admins; However other user roles can browse and request super admins to install the required integrations.
 
-> Integrations are updated along with [Devtron updates](setup/../../setup/upgrade-devtron.md).
+> Integrations are updated along with [Devtron updates](../../setup/upgrade/README.md).
 
 Select **Devtron Stack Manager** from the left navigation bar.
 Under **INTEGRATIONS**, select **Discover**.

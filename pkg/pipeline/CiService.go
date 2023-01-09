@@ -20,7 +20,7 @@ package pipeline
 import (
 	"errors"
 	"fmt"
-	repository3 "github.com/devtron-labs/devtron/internal/sql/repository"
+	repository3 "github.com/devtron-labs/devtron/internal/sql/repository/dockerRegistry"
 	"github.com/devtron-labs/devtron/pkg/app"
 	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -409,12 +409,12 @@ func (impl *CiServiceImpl) buildWfRequestForCiPipeline(pipeline *pipelineConfig.
 		ciBuildConfigBean = templateOverrideBean.CiBuildConfig
 		templateOverride := templateOverrideBean.CiTemplateOverride
 		checkoutPath = templateOverride.GitMaterial.CheckoutPath
-		dockerfilePath = filepath.Join(checkoutPath, templateOverride.DockerfilePath)
+		dockerfilePath = templateOverride.DockerfilePath
 		dockerRepository = templateOverride.DockerRepository
 		dockerRegistry = templateOverride.DockerRegistry
 	} else {
 		checkoutPath = ciTemplate.GitMaterial.CheckoutPath
-		dockerfilePath = filepath.Join(checkoutPath, ciTemplate.DockerfilePath)
+		dockerfilePath = ciTemplate.DockerfilePath
 		dockerRegistry = ciTemplate.DockerRegistry
 		dockerRepository = ciTemplate.DockerRepository
 		ciBuildConfigEntity := ciTemplate.CiBuildConfig

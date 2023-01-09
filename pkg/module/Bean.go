@@ -20,11 +20,13 @@ package module
 import (
 	"fmt"
 	"github.com/caarlos0/env"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 type ModuleInfoDto struct {
-	Name   string `json:"name,notnull"`
-	Status string `json:"status,notnull" validate:"oneof=notInstalled installed installing installFailed timeout"`
+	Name                  string                     `json:"name,notnull"`
+	Status                string                     `json:"status,notnull" validate:"oneof=notInstalled installed installing installFailed timeout"`
+	ModuleResourcesStatus []*ModuleResourceStatusDto `json:"moduleResourcesStatus"`
 }
 
 type ModuleConfigDto struct {
@@ -45,7 +47,16 @@ type ActionResponse struct {
 }
 
 type ModuleEnvConfig struct {
-	ModuleStatusHandlingCronDurationInMin int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"3"` // default 3 mins
+	ModuleStatusHandlingCronDurationInMin int `env:"MODULE_STATUS_HANDLING_CRON_DURATION_MIN" envDefault:"3"` // default 3 minutes
+}
+
+type ModuleResourceStatusDto struct {
+	Group         string `json:"group"`
+	Version       string `json:"version"`
+	Kind          string `json:"kind"`
+	Name          string `json:"name"`
+	HealthStatus  string `json:"healthStatus"`
+	HealthMessage string `json:"healthMessage"`
 }
 
 func ParseModuleEnvConfig() (*ModuleEnvConfig, error) {
@@ -82,3 +93,17 @@ const (
 )
 
 var SupportedModuleNamesListFirstReleaseExcludingCicd = []string{ModuleNameArgoCd, ModuleNameSecurityClair, ModuleNameNotification, ModuleNameMonitoringGrafana}
+
+type ResourceFilter struct {
+	GlobalFilter    *ResourceIdentifier `json:"globalFilter,omitempty"`
+	GvkLevelFilters []*GvkLevelFilter   `json:"gvkLevelFilters,omitempty"`
+}
+
+type GvkLevelFilter struct {
+	Gvk                *schema.GroupVersionKind `json:"gvk"`
+	ResourceIdentifier *ResourceIdentifier      `json:"filter"`
+}
+
+type ResourceIdentifier struct {
+	Labels map[string]string `json:"labels"`
+}

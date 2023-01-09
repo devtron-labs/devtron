@@ -81,8 +81,8 @@ If you see `Not Found` on this page, then follow all the given steps or if the p
 3. Copy the following and change `grafana-password` with your password of grafana and change the value of `prometheusUrl` with your prometheus endpoint
 ```
 cat << EOF
-grafanaUrl = "http://admin:grafana-password@devtron-grafana.devtroncd/grafana"
-prometheusUrl = "http://prometheus.example.com"
+grafanaUrl="http://admin:grafana-password@devtron-grafana.devtroncd/grafana"
+prometheusUrl="http://prometheus.example.com"
 
 ORG_ID=$( curl -d '{"name":"devtron-metrics-view"}' -H "Content-Type: application/json" -X POST "${grafanaUrl}/api/orgs" )
 
@@ -173,7 +173,7 @@ In `Global Configurations` >> `Cluters & Environments`, if you try to update a c
 
 #### 9. Postgresql is in crashloop with error - Failed to pull image
     
-There may be some other pods also in crashloop as they are not able to connect to database. To resolve this issue, you can either [update devtron to latest version](https://docs.devtron.ai/devtron/setup/upgrade) or run the following commands to fix instantly on the same version you are using: 
+There may be some other pods also in crashloop as they are not able to connect to database. To resolve this issue, you can either [update devtron to latest version](../setup/upgrade/README.md) or run the following commands to fix instantly on the same version you are using: 
 ```bash
 kubectl patch -n devtroncd statefulset postgresql-postgresql -p '{"spec":{"template":{"spec":{"initContainers":[{"name":"init-chmod-data","image":"quay.io/devtron/minideb:latest"}],"containers":[{"name":"postgresql-postgresql","image":"quay.io/devtron/postgres:11.3.0-debian-9-r28"}]}}}}'
 ```
@@ -235,27 +235,29 @@ DETAIL: There is 1 other session using the database.
 
 You have to terminate the connections to the database first, for that you can use the command.
 ```bash
-SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname = 'TARGET_DB';
+SELECT pg_terminate_backend(pg_stat_activity.pid) FROM pg_stat_activity WHERE pg_stat_activity.datname='TARGET_DB';
 ```
 Then run the command to delete database - `drop databases <db-name>`
 
-#### 18. Unable to login with the auth password (argocd server)
+#### 18. Unable to login with admin password or reset devtron admin password
 
 `Debug`
 
 Run the command for admin credentials and use it for login in dashboard:
 
 ```bash
-kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ACD_PASSWORD}' | base64 -d
+kubectl -n devtroncd get secret devtron-secret -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 -d
 ```
 
-If you are getting an error message of  “invalid username or password”, follow the solution to solve it.
+If you are getting an error message of "invalid username or password" or you want to "reset admin password", follow the steps given below:
 
 `Solution:`
 
-Run `kubectl get secret -n devtroncd` and then edit the `argocd-secret`, remove both the admin.password lines.
-
-Run `kubectl delete po your-argocd-server-pod -n devtroncd`, it will create a new pod after deletion and reset your admin password. Re-run the command for admin credentials again to get the new password.
+1. Make sure you are on latest version or atleast you are using devtron version v0.6.9 or above. You can check your devtron version using `kubectl -n devtroncd get installers installer-devtron -o jsonpath='{.status.sync.data}' | grep "^LTAG=" | cut -d"=" -f2-`
+1. Take a backup of devtron secret using `kubectl get secret devtron-secret -n devtroncd -o yaml > devtron-secret-backup.yaml`
+2. Edit devtron secret using `kubectl edit secret devtron-secret -n devtroncd` and remove the key value pairs of ADMIN_PASSWORD, admin.password and admin.passwordMtime
+3. Restart argocd dex server to create new admin password for devtron using `kubectl delete po -n devtroncd -l app.kubernetes.io/name=argocd-dex-server`
+4. Run the command given above to get the new admin password
 
 #### 19. After installing Devtron using Helm, getting the admin password does not work.(if using windows)
 
@@ -274,7 +276,7 @@ The other way is to get the password in the encoded form using the cmd
 
 #### 20. Getting `UPGRADE FAILED: cannot patch "postgresql-postgresql"` while upgrading Devtron to newer versions
 `Debug:`
-1. Make sure to [annotate and label](https://docs.devtron.ai/devtron/setup/upgrade/devtron-upgrade-0.3.x-0.4.x#3.-annotate-and-label-all-the-devtron-resources) all the Devtron resources.
+1. Make sure to [annotate and label](../setup/upgrade/devtron-upgrade-0.3.x-0.4.x.md#3.-annotate-and-label-all-the-devtron-resources) all the Devtron resources.
 2. Description of error
 ```
 Error: UPGRADE FAILED: cannot patch "postgresql-postgresql" with kind StatefulSet: StatefulSet.apps "postgresql-postgresql" is invalid: spec: Forbidden: updates to statefulset spec for fields other than 'replicas', 'template', 'updateStrategy' and 'minReadySeconds' are forbidden
@@ -397,3 +399,36 @@ helm upgrade devtron devtron/devtron-operator --namespace devtroncd \
 
 {% endtab %}
 {% endtabs %}
+
+#### 22. Rollout is showing error - <string>:111: attempt to index a non-table object(nil) with key 'stableRS' stack traceback: <string>:111: in main chunk [G]: ?
+
+This can occur if you are using or recently upgraded to Kubernetes version 1.22 or above and you are using rollout controller version 0.13.0 from chart `devtron-charts/rollout` or `devtron/rollout`. The issue can be because of CRDs which were updated in later versions of rollout chart.
+
+1. Check which chart repo and version of rollout controller are you using on that cluster from Helm Apps section
+2. Update the rollout chart version to latest and re-deploy. If your rollout controller is deployed from `devtron-charts` helm repo then change the repo to `devtron/rollout` and then update the version to latest. Also, if devtron helm repo is not showing on your devtron then go to Global Configurations > Chart Repositories and add a new repo with the name `devtron` and url `https://helm.devtron.ai`. Wait for few minutes and then charts from devtron repo will be there on your devtron. This should resolve your issue
+
+
+
+#### 23. How to resolve if Deployment Status shows Failed or Degraded when you pull images from private container registry
+
+If the deployment status shows `Failed` or `Degraded`, then the cluster is not able to pull container image from the private registry. In that case, the status of pod shows `ImagePullBackOff`.
+
+The failure of deployment can be one of the following reasons:
+
+* Provided credentials may not have permission to pull container image from registry.
+* Provided credentials may be invalid.
+
+You can resolve the `ImagePullBackOff` issue by clicking **How to resolve?** on the **App Details** page.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/how-to-resolve-latest1.png)
+
+
+To provide the auto-inject credentials to the specific clusters for pulling the image from the private repository, click **Manage Access** which will take you to the **Container Registries** page. 
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/manage-access-latest.jpg)
+
+1. On the **Container Registries** page, select the docker registry and click **Manage**.
+2. In the **Auto-inject credentials to clusters**, click **Confirm to edit** to select the specific cluster or all clusters for which you want to auto-inject the credentials to and click **Save**.
+3. Redeploy the application after allowing the access.
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/container-registries/auto-inject-to-clusters.jpg)

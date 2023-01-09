@@ -9,7 +9,9 @@ import (
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	appStoreBean "github.com/devtron-labs/devtron/pkg/appStore/bean"
 	appStoreDeploymentCommon "github.com/devtron-labs/devtron/pkg/appStore/deployment/common"
+	"github.com/devtron-labs/devtron/pkg/attributes"
 	"github.com/devtron-labs/devtron/pkg/cluster"
+	serverEnvConfig "github.com/devtron-labs/devtron/pkg/server/config"
 	"github.com/devtron-labs/devtron/pkg/user"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	"github.com/devtron-labs/devtron/util/k8sObjectsUtil"
@@ -32,7 +34,11 @@ type HelmAppRestHandler interface {
 	DeleteApplication(w http.ResponseWriter, r *http.Request)
 	UpdateApplication(w http.ResponseWriter, r *http.Request)
 	TemplateChart(w http.ResponseWriter, r *http.Request)
+	SaveHelmAppDetailsViewedTelemetryData(w http.ResponseWriter, r *http.Request)
 }
+
+const HELM_APP_ACCESS_COUNTER = "HelmAppAccessCounter"
+const HELM_APP_UPDATE_COUNTER = "HelmAppUpdateCounter"
 
 type HelmAppRestHandlerImpl struct {
 	logger                          *zap.SugaredLogger
@@ -42,12 +48,14 @@ type HelmAppRestHandlerImpl struct {
 	enforcerUtil                    rbac.EnforcerUtilHelm
 	appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService
 	userAuthService                 user.UserService
+	attributesService               attributes.AttributesService
+	serverEnvConfig                 *serverEnvConfig.ServerEnvConfig
 }
 
 func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 	helmAppService HelmAppService, enforcer casbin.Enforcer,
 	clusterService cluster.ClusterService, enforcerUtil rbac.EnforcerUtilHelm, appStoreDeploymentCommonService appStoreDeploymentCommon.AppStoreDeploymentCommonService,
-	userAuthService user.UserService) *HelmAppRestHandlerImpl {
+	userAuthService user.UserService, attributesService attributes.AttributesService, serverEnvConfig *serverEnvConfig.ServerEnvConfig) *HelmAppRestHandlerImpl {
 	return &HelmAppRestHandlerImpl{
 		logger:                          logger,
 		helmAppService:                  helmAppService,
@@ -56,6 +64,8 @@ func NewHelmAppRestHandlerImpl(logger *zap.SugaredLogger,
 		enforcerUtil:                    enforcerUtil,
 		appStoreDeploymentCommonService: appStoreDeploymentCommonService,
 		userAuthService:                 userAuthService,
+		attributesService:               attributesService,
+		serverEnvConfig:                 serverEnvConfig,
 	}
 }
 
@@ -269,6 +279,15 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 		return
 	}
 	//RBAC enforcer Ends
+
+	// validate if the devtron-operator helm release, block that for deletion
+	if appIdentifier.ReleaseName == handler.serverEnvConfig.DevtronHelmReleaseName &&
+		appIdentifier.Namespace == handler.serverEnvConfig.DevtronHelmReleaseNamespace &&
+		appIdentifier.ClusterId == DEFAULT_CLUSTER_ID {
+		common.WriteJsonResp(w, errors.New("cannot delete this default helm app"), nil, http.StatusForbidden)
+		return
+	}
+
 	res, err := handler.helmAppService.DeleteApplication(context.Background(), appIdentifier)
 	if err != nil {
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -305,6 +324,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
 		return
 	}
+	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_UPDATE_COUNTER)
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
@@ -341,6 +361,36 @@ func (handler *HelmAppRestHandlerImpl) checkHelmAuth(token string, object string
 		return false
 	}
 	return true
+}
+
+func (handler *HelmAppRestHandlerImpl) SaveHelmAppDetailsViewedTelemetryData(w http.ResponseWriter, r *http.Request) {
+
+	vars := mux.Vars(r)
+	clusterIdString := vars["appId"]
+
+	appIdentifier, err := handler.helmAppService.DecodeAppId(clusterIdString)
+	if err != nil {
+		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
+		return
+	}
+	// RBAC enforcer applying
+	rbacObject := handler.enforcerUtil.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	token := r.Header.Get("token")
+	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject); !ok {
+		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
+		return
+	}
+	// RBAC enforcer ends
+	err = handler.attributesService.UpdateKeyValueByOne(HELM_APP_ACCESS_COUNTER)
+
+	if err != nil {
+		handler.logger.Errorw("error in saving external helm apps details visited count")
+		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
+		return
+	}
+
+	common.WriteJsonResp(w, err, nil, http.StatusOK)
+
 }
 
 func convertToInstalledAppInfo(installedApp *appStoreBean.InstallAppVersionDTO) *InstalledAppInfo {

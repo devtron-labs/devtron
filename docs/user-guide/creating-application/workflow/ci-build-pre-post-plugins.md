@@ -7,7 +7,7 @@ You can build custom pre/post tasks or use one from the standard preset plugins 
 
 ## Before you begin
 
-Create a [CI build pipeline](./ci-pipeline2.md) if you haven't done that already!
+Create a [CI build pipeline](./ci-pipeline.md) if you haven't done that already!
 
 ## Configuring Pre/Post-build stages
 

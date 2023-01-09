@@ -31,6 +31,7 @@ spec:
               serviceName: {{ $svcName }}
               servicePort: {{ $svcPort }}
   {{- end }}
+  {{- if .Values.ingress.hosts }}
   {{- range .Values.ingress.hosts }}
     - host: {{ .host | quote }}
       http:
@@ -41,6 +42,7 @@ spec:
               serviceName: {{ $svcName }}
               servicePort: {{ $svcPort }}
         {{- end }}
+  {{- end }}
   {{- end }}
   {{- if .Values.ingress.tls }}
   tls:
@@ -75,6 +77,7 @@ spec:
               serviceName: {{ $svcName }}
               servicePort: {{ $svcPort }}
   {{- end }}
+  {{- if .Values.ingressInternal.hosts }}
   {{- range .Values.ingressInternal.hosts }}
     - host: {{ .host | quote }}
       http:
@@ -85,6 +88,7 @@ spec:
               serviceName: {{ $svcName }}
               servicePort: {{ $svcPort }}
         {{- end }}
+  {{- end }}
   {{- end }}
   {{- if .Values.ingressInternal.tls }}
   tls:

@@ -38,6 +38,7 @@ import (
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	repository2 "github.com/devtron-labs/devtron/pkg/cluster/repository"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
+	bean2 "github.com/devtron-labs/devtron/pkg/pipeline/bean"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/devtron-labs/devtron/pkg/team"
 	"github.com/devtron-labs/devtron/pkg/user"
@@ -554,6 +555,8 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 	var deploymentTemplateRaw json.RawMessage
 	var chartRefId int
 	var isOverride bool
+	var isBasicViewLocked bool
+	var currentViewEditor models.ChartsViewEditorType
 	if envId > 0 {
 		//on env level
 		env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, chartRefData.LatestEnvChartRef)
@@ -566,15 +569,21 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 			deploymentTemplateRaw = env.EnvironmentConfig.EnvOverrideValues
 			showAppMetrics = *env.AppMetrics
 			isOverride = true
+			isBasicViewLocked = env.EnvironmentConfig.IsBasicViewLocked
+			currentViewEditor = env.EnvironmentConfig.CurrentViewEditor
 		} else {
 			showAppMetrics = appDeploymentTemplate.IsAppMetricsEnabled
 			deploymentTemplateRaw = appDeploymentTemplate.DefaultAppOverride
+			isBasicViewLocked = appDeploymentTemplate.IsBasicViewLocked
+			currentViewEditor = appDeploymentTemplate.CurrentViewEditor
 		}
 	} else {
 		//on app level
 		showAppMetrics = appDeploymentTemplate.IsAppMetricsEnabled
 		deploymentTemplateRaw = appDeploymentTemplate.DefaultAppOverride
 		chartRefId = chartRefData.LatestAppChartRef
+		isBasicViewLocked = appDeploymentTemplate.IsBasicViewLocked
+		currentViewEditor = appDeploymentTemplate.CurrentViewEditor
 	}
 
 	var deploymentTemplateObj map[string]interface{}
@@ -587,10 +596,12 @@ func (handler CoreAppRestHandlerImpl) buildAppEnvironmentDeploymentTemplate(appI
 	}
 
 	deploymentTemplateResp := &appBean.DeploymentTemplate{
-		ChartRefId:     chartRefId,
-		Template:       deploymentTemplateObj,
-		ShowAppMetrics: showAppMetrics,
-		IsOverride:     isOverride,
+		ChartRefId:        chartRefId,
+		Template:          deploymentTemplateObj,
+		ShowAppMetrics:    showAppMetrics,
+		IsOverride:        isOverride,
+		IsBasicViewLocked: isBasicViewLocked,
+		CurrentViewEditor: currentViewEditor,
 	}
 
 	return deploymentTemplateResp, nil, http.StatusOK
@@ -734,21 +745,21 @@ func (handler CoreAppRestHandlerImpl) buildCdPipelineResp(appId int, cdPipeline 
 	}
 
 	cdPipelineResp := &appBean.CdPipelineDetails{
-		Name:              cdPipeline.Name,
-		EnvironmentName:   cdPipeline.EnvironmentName,
-		TriggerType:       cdPipeline.TriggerType,
-		DeploymentType:    cdPipeline.DeploymentTemplate,
-		RunPreStageInEnv:  cdPipeline.RunPreStageInEnv,
-		RunPostStageInEnv: cdPipeline.RunPostStageInEnv,
-		IsClusterCdActive: cdPipeline.CdArgoSetup,
+		Name:                   cdPipeline.Name,
+		EnvironmentName:        cdPipeline.EnvironmentName,
+		TriggerType:            cdPipeline.TriggerType,
+		DeploymentStrategyType: cdPipeline.DeploymentTemplate,
+		RunPreStageInEnv:       cdPipeline.RunPreStageInEnv,
+		RunPostStageInEnv:      cdPipeline.RunPostStageInEnv,
+		IsClusterCdActive:      cdPipeline.CdArgoSetup,
 	}
 
 	//build DeploymentStrategies resp
 	var deploymentTemplateStrategiesResp []*appBean.DeploymentStrategy
 	for _, strategy := range cdPipeline.Strategies {
 		deploymentTemplateStrategyResp := &appBean.DeploymentStrategy{
-			DeploymentType: strategy.DeploymentTemplate,
-			IsDefault:      strategy.Default,
+			DeploymentStrategyType: strategy.DeploymentTemplate,
+			IsDefault:              strategy.Default,
 		}
 		var configObj map[string]interface{}
 		if strategy.Config != nil {
@@ -1244,7 +1255,19 @@ func (handler CoreAppRestHandlerImpl) createGitMaterials(appId int, gitMaterials
 // create docker config
 func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig *appBean.DockerConfig, userId int32) (error, int) {
 	handler.logger.Infow("Create App - creating docker config", "appId", appId, "DockerConfig", dockerConfig)
-
+	dockerBuildConfig := dockerConfig.DockerBuildConfig
+	if dockerBuildConfig != nil {
+		dockerConfig.CheckoutPath = dockerBuildConfig.GitCheckoutPath
+		dockerConfig.CiBuildConfig = &bean2.CiBuildConfigBean{
+			CiBuildType: bean2.SELF_DOCKERFILE_BUILD_TYPE,
+			DockerBuildConfig: &bean2.DockerBuildConfig{
+				DockerfilePath:     dockerBuildConfig.DockerfileRelativePath,
+				DockerBuildOptions: dockerBuildConfig.DockerBuildOptions,
+				Args:               dockerBuildConfig.Args,
+				TargetPlatform:     dockerBuildConfig.TargetPlatform,
+			},
+		}
+	}
 	createDockerConfigRequest := &bean.CiConfigRequest{
 		AppId:            appId,
 		UserId:           userId,
@@ -1274,13 +1297,15 @@ func (handler CoreAppRestHandlerImpl) createDockerConfig(appId int, dockerConfig
 
 // create global template
 func (handler CoreAppRestHandlerImpl) createDeploymentTemplate(ctx context.Context, appId int, deploymentTemplate *appBean.DeploymentTemplate, userId int32) (error, int) {
-	handler.logger.Infow("Create App - creating deployment template", "appId", appId, "DeploymentTemplate", deploymentTemplate)
+	handler.logger.Infow("Create App - creating deployment template", "appId", appId, "DeploymentStrategy", deploymentTemplate)
 
 	createDeploymentTemplateRequest := chart.TemplateRequest{
 		AppId:               appId,
 		ChartRefId:          deploymentTemplate.ChartRefId,
 		IsAppMetricsEnabled: deploymentTemplate.ShowAppMetrics,
 		UserId:              userId,
+		IsBasicViewLocked:   deploymentTemplate.IsBasicViewLocked,
+		CurrentViewEditor:   deploymentTemplate.CurrentViewEditor,
 	}
 
 	//marshalling template
@@ -1605,7 +1630,7 @@ func (handler CoreAppRestHandlerImpl) createCdPipelines(ctx context.Context, app
 			Namespace:                     envModel.Namespace,
 			AppWorkflowId:                 workflowId,
 			CiPipelineId:                  ciPipelineId,
-			DeploymentTemplate:            cdPipeline.DeploymentType,
+			DeploymentTemplate:            cdPipeline.DeploymentStrategyType,
 			TriggerType:                   cdPipeline.TriggerType,
 			CdArgoSetup:                   cdPipeline.IsClusterCdActive,
 			RunPreStageInEnv:              cdPipeline.RunPreStageInEnv,
@@ -1720,6 +1745,8 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		Namespace:         env.Namespace,
 		Status:            models.CHARTSTATUS_NEW,
 		EnvOverrideValues: template,
+		IsBasicViewLocked: deploymentTemplateOverride.IsBasicViewLocked,
+		CurrentViewEditor: deploymentTemplateOverride.CurrentViewEditor,
 	}
 	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
 	if err != nil {
@@ -1935,7 +1962,7 @@ func convertCdDeploymentStrategies(deploymentStrategies []*appBean.DeploymentStr
 	var convertedStrategies []bean.Strategy
 	for _, deploymentStrategy := range deploymentStrategies {
 		convertedStrategy := bean.Strategy{
-			DeploymentTemplate: deploymentStrategy.DeploymentType,
+			DeploymentTemplate: deploymentStrategy.DeploymentStrategyType,
 			Default:            deploymentStrategy.IsDefault,
 		}
 		strategyConfig, err := json.Marshal(deploymentStrategy.Config)
