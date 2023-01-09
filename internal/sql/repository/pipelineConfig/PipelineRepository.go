@@ -30,15 +30,9 @@ import (
 
 type PipelineType string
 type TriggerType string //HOW pipeline should be triggered
-type DeploymentTemplate string
 
 const TRIGGER_TYPE_AUTOMATIC TriggerType = "AUTOMATIC"
 const TRIGGER_TYPE_MANUAL TriggerType = "MANUAL"
-
-const DEPLOYMENT_TEMPLATE_BLUE_GREEN DeploymentTemplate = "BLUE-GREEN"
-const DEPLOYMENT_TEMPLATE_ROLLING DeploymentTemplate = "ROLLING"
-const DEPLOYMENT_TEMPLATE_CANARY DeploymentTemplate = "CANARY"
-const DEPLOYMENT_TEMPLATE_RECREATE DeploymentTemplate = "RECREATE"
 
 type Pipeline struct {
 	tableName                     struct{} `sql:"pipeline" pg:",discard_unknown_columns"`
@@ -126,9 +120,10 @@ func (impl PipelineRepositoryImpl) GetConnection() *pg.DB {
 func (impl PipelineRepositoryImpl) FindByIdsIn(ids []int) ([]*Pipeline, error) {
 	var pipelines []*Pipeline
 	err := impl.dbConnection.Model(&pipelines).
-		Column("pipeline.*", "App.app_name", "Environment.environment_name").
+		Column("pipeline.*", "App.app_name", "Environment.environment_name", "Environment.Cluster").
 		Join("inner join app a on pipeline.app_id = a.id").
 		Join("inner join environment e on pipeline.environment_id = e.id").
+		Join("inner join cluster c on c.id = e.cluster_id").
 		Where("pipeline.id in (?)", pg.In(ids)).
 		Where("pipeline.deleted = false").
 		Select()

@@ -18,20 +18,20 @@
 package chartConfig
 
 import (
-	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
+	"github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/go-pg/pg"
 	"github.com/juju/errors"
 )
 
 type PipelineStrategy struct {
-	tableName  struct{}                          `sql:"pipeline_strategy" pg:",discard_unknown_columns"`
-	Id         int                               `sql:"id,pk"`
-	PipelineId int                               `sql:"pipeline_id"`
-	Strategy   pipelineConfig.DeploymentTemplate `sql:"strategy,notnull"`
-	Config     string                            `sql:"config"`
-	Default    bool                              `sql:"default,notnull"`
-	Deleted    bool                              `sql:"deleted,notnull"`
+	tableName  struct{}                               `sql:"pipeline_strategy" pg:",discard_unknown_columns"`
+	Id         int                                    `sql:"id,pk"`
+	PipelineId int                                    `sql:"pipeline_id"`
+	Strategy   chartRepoRepository.DeploymentStrategy `sql:"strategy,notnull"`
+	Config     string                                 `sql:"config"`
+	Default    bool                                   `sql:"default,notnull"`
+	Deleted    bool                                   `sql:"deleted,notnull"`
 	sql.AuditLog
 }
 
@@ -39,8 +39,8 @@ type PipelineConfigRepository interface {
 	Save(pipelineStrategy *PipelineStrategy, tx *pg.Tx) error
 	Update(pipelineStrategy *PipelineStrategy, tx *pg.Tx) error
 	FindById(id int) (chart *PipelineStrategy, err error)
-	FindByStrategy(strategy pipelineConfig.DeploymentTemplate) (pipelineStrategy *PipelineStrategy, err error)
-	FindByStrategyAndPipelineId(strategy pipelineConfig.DeploymentTemplate, pipelineId int) (pipelineStrategy *PipelineStrategy, err error)
+	FindByStrategy(strategy chartRepoRepository.DeploymentStrategy) (pipelineStrategy *PipelineStrategy, err error)
+	FindByStrategyAndPipelineId(strategy chartRepoRepository.DeploymentStrategy, pipelineId int) (pipelineStrategy *PipelineStrategy, err error)
 	GetAllStrategyByPipelineId(pipelineId int) ([]*PipelineStrategy, error)
 	GetDefaultStrategyByPipelineId(pipelineId int) (pipelineStrategy *PipelineStrategy, err error)
 	Delete(pipelineStrategy *PipelineStrategy, tx *pg.Tx) error
@@ -70,14 +70,14 @@ func (impl PipelineConfigRepositoryImpl) FindById(id int) (pipelineStrategy *Pip
 	return pipelineStrategy, err
 }
 
-func (impl PipelineConfigRepositoryImpl) FindByStrategy(strategy pipelineConfig.DeploymentTemplate) (pipelineStrategy *PipelineStrategy, err error) {
+func (impl PipelineConfigRepositoryImpl) FindByStrategy(strategy chartRepoRepository.DeploymentStrategy) (pipelineStrategy *PipelineStrategy, err error) {
 	pipelineStrategy = &PipelineStrategy{}
 	err = impl.dbConnection.Model(pipelineStrategy).
 		Where("strategy = ?", strategy).Select()
 	return pipelineStrategy, err
 }
 
-func (impl PipelineConfigRepositoryImpl) FindByStrategyAndPipelineId(strategy pipelineConfig.DeploymentTemplate, pipelineId int) (pipelineStrategy *PipelineStrategy, err error) {
+func (impl PipelineConfigRepositoryImpl) FindByStrategyAndPipelineId(strategy chartRepoRepository.DeploymentStrategy, pipelineId int) (pipelineStrategy *PipelineStrategy, err error) {
 	pipelineStrategy = &PipelineStrategy{}
 	err = impl.dbConnection.Model(pipelineStrategy).
 		Where("strategy = ?", strategy).
@@ -85,7 +85,7 @@ func (impl PipelineConfigRepositoryImpl) FindByStrategyAndPipelineId(strategy pi
 	return pipelineStrategy, err
 }
 
-//it will return for multiple pipeline config for pipeline, per pipeline single pipeline config(blue green, canary)
+// it will return for multiple pipeline config for pipeline, per pipeline single pipeline config(blue green, canary)
 func (impl PipelineConfigRepositoryImpl) GetAllStrategyByPipelineId(pipelineId int) ([]*PipelineStrategy, error) {
 	var pipelineStrategies []*PipelineStrategy
 	err := impl.dbConnection.
@@ -99,7 +99,7 @@ func (impl PipelineConfigRepositoryImpl) GetAllStrategyByPipelineId(pipelineId i
 	return pipelineStrategies, err
 }
 
-//it will return single latest pipeline config for requested pipeline
+// it will return single latest pipeline config for requested pipeline
 func (impl PipelineConfigRepositoryImpl) GetDefaultStrategyByPipelineId(pipelineId int) (pipelineStrategy *PipelineStrategy, err error) {
 	pipelineStrategy = &PipelineStrategy{}
 	err = impl.dbConnection.

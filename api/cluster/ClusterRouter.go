@@ -57,7 +57,19 @@ func (impl ClusterRouterImpl) InitClusterRouter(clusterRouter *mux.Router) {
 		Methods("GET").
 		HandlerFunc(impl.clusterRestHandler.FindAllForAutoComplete)
 
+	clusterRouter.Path("/namespaces/{clusterId}").
+		Methods("GET").
+		HandlerFunc(impl.clusterRestHandler.GetClusterNamespaces)
+
+	clusterRouter.Path("/namespaces").
+		Methods("GET").
+		HandlerFunc(impl.clusterRestHandler.GetAllClusterNamespaces)
+
 	clusterRouter.Path("").
 		Methods("DELETE").
 		HandlerFunc(impl.clusterRestHandler.DeleteCluster)
+
+	clusterRouter.Path("/auth-list").
+		Methods("GET").
+		HandlerFunc(impl.clusterRestHandler.FindAllForClusterPermission)
 }

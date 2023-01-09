@@ -995,7 +995,17 @@ func (impl AppStoreDeploymentServiceImpl) UpdateInstalledApp(ctx context.Context
 				err = impl.appStoreDeploymentArgoCdService.UpdateRequirementDependencies(environment, installedAppVersion, installAppVersionRequest, appStoreAppVersion)
 				if err != nil {
 					impl.logger.Errorw("error while commit required dependencies to git", "error", err)
-					return nil, err
+					noTargetFound, _ := impl.appStoreDeploymentCommonService.ParseGitRepoErrorResponse(err)
+					if noTargetFound {
+						//if by mistake no content found while updating git repo, do auto fix
+						installAppVersionRequest, err = impl.appStoreDeploymentArgoCdService.OnUpdateRepoInInstalledApp(ctx, installAppVersionRequest)
+						if err != nil {
+							impl.logger.Errorw("error while update repo on helm update", "error", err)
+							return nil, err
+						}
+					} else {
+						return nil, err
+					}
 				}
 			}
 			installAppVersionRequest.Id = installedAppVersion.Id
