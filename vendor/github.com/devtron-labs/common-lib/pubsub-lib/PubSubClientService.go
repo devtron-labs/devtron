@@ -6,8 +6,6 @@ import (
 	"github.com/devtron-labs/common-lib/utils"
 	"github.com/nats-io/nats.go"
 	"go.uber.org/zap"
-	"log"
-	"strconv"
 	"sync"
 	"time"
 )
@@ -22,12 +20,13 @@ type PubSubMsg struct {
 }
 
 type LogsConfig struct {
-	DefaultLogTimeLimit string `env:"DEFAULT_LOG_TIME_LIMIT" envDefault:"1"`
+	DefaultLogTimeLimit int64 `env:"DEFAULT_LOG_TIME_LIMIT" envDefault:"1"`
 }
 
 type PubSubClientServiceImpl struct {
 	Logger     *zap.SugaredLogger
 	NatsClient *NatsClient
+	logsConfig *LogsConfig
 }
 
 func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceImpl {
@@ -35,10 +34,16 @@ func NewPubSubClientServiceImpl(logger *zap.SugaredLogger) *PubSubClientServiceI
 	if err != nil {
 		logger.Fatalw("error occurred while creating nats client stopping now!!")
 	}
+	logsConfig := &LogsConfig{}
+	err = env.Parse(logsConfig)
+	if err != nil {
+		logger.Errorw("error occurred while parsing LogsConfig", "err", err)
+	}
 	ParseAndFillStreamWiseAndConsumerWiseConfigMaps()
 	pubSubClient := &PubSubClientServiceImpl{
 		Logger:     logger,
 		NatsClient: natsClient,
+		logsConfig: logsConfig,
 	}
 	return pubSubClient
 }
@@ -49,7 +54,7 @@ func (impl PubSubClientServiceImpl) Publish(topic string, msg string) error {
 	jetStrCtxt := natsClient.JetStrCtxt
 	natsTopic := GetNatsTopic(topic)
 	streamName := natsTopic.streamName
-	streamConfig := getStreamConfig(streamName)
+	streamConfig := impl.getStreamConfig(streamName)
 	//streamConfig := natsClient.streamConfig
 	_ = AddStream(jetStrCtxt, streamConfig, streamName)
 	//Generate random string for passing as Header Id in message
@@ -70,7 +75,7 @@ func (impl PubSubClientServiceImpl) Subscribe(topic string, callback func(msg *P
 	queueName := natsTopic.queueName
 	consumerName := natsTopic.consumerName
 	natsClient := impl.NatsClient
-	streamConfig := getStreamConfig(streamName)
+	streamConfig := impl.getStreamConfig(streamName)
 	//streamConfig := natsClient.streamConfig
 	_ = AddStream(natsClient.JetStrCtxt, streamConfig, streamName)
 	deliveryOption := nats.DeliverLast()
@@ -98,57 +103,46 @@ func (impl PubSubClientServiceImpl) startListeningForEvents(processingBatchSize 
 
 	for index := 0; index < processingBatchSize; index++ {
 		wg.Add(1)
-		go processMessages(wg, channel, callback)
+		go impl.processMessages(wg, channel, callback)
 	}
 	wg.Wait()
 	impl.Logger.Warn("msgs received Done from Nats side, going to end listening!!")
 }
 
-func processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *PubSubMsg)) {
+func (impl PubSubClientServiceImpl) processMessages(wg *sync.WaitGroup, channel chan *nats.Msg, callback func(msg *PubSubMsg)) {
 	defer wg.Done()
 	for msg := range channel {
-		processMsg(msg, callback)
+		impl.processMsg(msg, callback)
 	}
 }
 
 //TODO need to extend msg ack depending upon response from callback like error scenario
-func processMsg(msg *nats.Msg, callback func(msg *PubSubMsg)) {
-	logsConfig := &LogsConfig{}
-	err := env.Parse(logsConfig)
-	if err != nil {
-		log.Println("error occurred while parsing LogsConfig", "err", err)
-	}
-	timeLimit, err := strconv.ParseFloat(logsConfig.DefaultLogTimeLimit, 64)
-	if err != nil {
-		log.Println("error in parsing defaultLogTimeLimit to float64", "defaultLogTimeLimit", logsConfig.DefaultLogTimeLimit)
-		timeLimit = 1
-	}
-
+func (impl PubSubClientServiceImpl) processMsg(msg *nats.Msg, callback func(msg *PubSubMsg)) {
+	timeLimitInMillSecs := impl.logsConfig.DefaultLogTimeLimit * 1000
 	t1 := time.Now()
-	defer printTimeDiff(t1, msg, timeLimit)
+	defer impl.printTimeDiff(t1, msg, timeLimitInMillSecs)
 	defer msg.Ack()
 	subMsg := &PubSubMsg{Data: string(msg.Data)}
 	callback(subMsg)
 }
 
-func printTimeDiff(t0 time.Time, msg *nats.Msg, timeLimit float64) {
-
+func (impl PubSubClientServiceImpl) printTimeDiff(t0 time.Time, msg *nats.Msg, timeLimitInMillSecs int64) {
 	t1 := time.Since(t0)
-	if t1.Seconds() > timeLimit {
-		log.Println("time took to process msg: ", msg, "time :", t1)
+	if t1.Milliseconds() > timeLimitInMillSecs {
+		impl.Logger.Debugw("time took to process msg: ", msg, "time :", t1)
 	}
 }
-func getStreamConfig(streamName string) *nats.StreamConfig {
+func (impl PubSubClientServiceImpl) getStreamConfig(streamName string) *nats.StreamConfig {
 	configJson := NatsStreamWiseConfigMapping[streamName].StreamConfig
 	streamCfg := &nats.StreamConfig{}
 	data, err := json.Marshal(configJson)
 	if err == nil {
 		err = json.Unmarshal(data, streamCfg)
 		if err != nil {
-			log.Println("error occurred while parsing streamConfigJson ", "streamCfg", streamCfg, "reason", err)
+			impl.Logger.Errorw("error occurred while parsing streamConfigJson ", "streamCfg", streamCfg, "reason", err)
 		}
 	} else {
-		log.Println("error occurred while parsing streamConfigJson ", "configJson", configJson, "reason", err)
+		impl.Logger.Errorw("error occurred while parsing streamConfigJson ", "configJson", configJson, "reason", err)
 	}
 
 	return streamCfg

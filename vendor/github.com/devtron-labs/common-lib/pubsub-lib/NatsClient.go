@@ -74,7 +74,7 @@ func NewNatsClient(logger *zap.SugaredLogger) (*NatsClient, error) {
 			logger.Errorw("error occurred while parsing streamConfigJson ", "configJson", configJson, "reason", err)
 		}
 	}
-	logger.Infow("nats config loaded", "NatsMsgProcessingBatchSize", cfg.NatsMsgProcessingBatchSize, "NatsMsgBufferSize", cfg.NatsMsgBufferSize, "config", streamCfg)
+	logger.Debugw("nats config loaded", "NatsMsgProcessingBatchSize", cfg.NatsMsgProcessingBatchSize, "NatsMsgBufferSize", cfg.NatsMsgBufferSize, "config", streamCfg)
 
 	//Connect to NATS
 	nc, err := nats.Connect(cfg.NatsServerHost,

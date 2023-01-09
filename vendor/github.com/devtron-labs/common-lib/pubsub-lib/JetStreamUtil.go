@@ -62,7 +62,7 @@ const (
 	NEW_CI_MATERIAL_TOPIC_GROUP         string = "NEW-CI-MATERIAL_GROUP-1"
 	NEW_CI_MATERIAL_TOPIC_DURABLE       string = "NEW-CI-MATERIAL_DURABLE-1"
 	CD_SUCCESS                          string = "CD.TRIGGER"
-	CD_TRIGGER_GROUP                    string = "CD_TRIGGER_GRP1"
+	CD_TRIGGER_GROUP                    string = "CD.TRIGGER_GRP1"
 	CD_TRIGGER_DURABLE                  string = "CD-TRIGGER-DURABLE1"
 	WEBHOOK_EVENT_TOPIC                 string = "WEBHOOK_EVENT"
 	WEBHOOK_EVENT_GROUP                 string = "WEBHOOK_EVENT_GRP"
@@ -250,8 +250,6 @@ func AddStream(js nats.JetStreamContext, streamConfig *nats.StreamConfig, stream
 				_, err1 := js.UpdateStream(&config)
 				if err1 != nil {
 					log.Println("error occurred while updating stream config", "streamName", streamName, "streamConfig", config, "error", err1)
-				} else {
-					log.Println("stream config updated successfully", "config", config, "new", streamConfig)
 				}
 			}
 		}
