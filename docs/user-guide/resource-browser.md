@@ -1,6 +1,6 @@
 # Resource Browser
 
-`Resource Browser` lists all of the resources running in cluster in your current project. You can use it to view, inspect, manage, and delete resources in your clusters. You can also create resources from the `Resource Browser`.
+`Resource Browser` lists all of the resources running in your cluster. You can use it to view, inspect, manage, and delete resources in your cluster. You can also create resources from the `Resource Browser`.
 
 Resource Browser are helpful for troubleshooting issues. It supports multi-cluster.
 
@@ -10,11 +10,12 @@ Resource Browser are helpful for troubleshooting issues. It supports multi-clust
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubernetes-resource-browser-latest.jpg)
 
-The following resources are grouped in the following categories:
+The following resources are grouped in the categories:
 
 * **Workloads** displays workloads (Cronjob, Deployment, StatefulSet, DaemonSet, Job, and Pod resources) deployed to clusters in your current project. Includes each workload's name, status, type, number of running and total desired Pods, namespace, and cluster.
 
-* **Config & Storage** provide both long-term and temporary [storage](https://kubernetes.io/docs/concepts/storage/) to Pods in your cluster and [configuration](https://kubernetes.io/docs/concepts/configuration/) of pods.
+* **Config & Storage** display ConfigMap, Secret, PersistantVolume, PersistentVolumeClaim, Pod DisruptionBudget, resources which are used by applications for storing data. The configMap and secret data are provided as local ephemeral storage, which means there is no long-term guarantee about durability. A PersistentVolume (PV) is a piece of storage in the cluster that has been provisioned by server/storage/cluster administrator or dynamically provisioned using Storage Classes. It is a resource in the cluster just like node. Whereas, A PersistentVolumeClaim (PVC) is a request for storage by a user which can be attained from PV. It is similar to a Pod. Pods consume node resources and PVCs consume PV resources.
+
 
 * **Networking** displays your project's [Enpoints](https://kubernetes.io/docs/concepts/services-networking/endpoint-slices/), [NetworkPolicy](https://kubernetes.io/docs/concepts/services-networking/network-policies/) and [Service](https://kubernetes.io/docs/concepts/services-networking/service/) resources. Displays each resource's name, namespace, type, Cluster-IP, External-IP, Port(s), Age.
 
@@ -37,11 +38,12 @@ You can search and filter resources by specific resource Kinds. You can also pre
 
 #### Manifest
 
-The Manifest shows the critical information such as container-image, restartCount, state, phase, podIP, startTime etc. and status of the pods which are deployed.
+
+A manifest is a YAML file that describes each component or resource of your deployment and the state you want your cluster to be in once applied. Once you deploy, you can always edit your manifest file. A manifest specifies the desired state of an object that Kubernetes will maintain when you apply the manifest.
 
 #### Events
 
-Events display you the events that took place during the deployment of an application. These events are available until 15 minutes of deployment of the application.
+An event is automatically generated in response to changes with other resources—like nodes, pods, or containers. For example, phases across a pod’s lifecycle transition from pending to running, or statuses like successful or failed may trigger a K8s event. The same goes for re-allocations and scheduling. These events are available until 15 minutes of deployment of the application.
 
 #### Logs
 
