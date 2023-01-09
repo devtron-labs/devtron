@@ -39,13 +39,15 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 		HandlerFunc(impl.k8sApplicationRestHandler.ListEvents).Methods("POST")
 
 	k8sAppRouter.Path("/pods/logs/{podName}").
-		Queries("containerName", "{containerName}", "appId", "{appId}").
+		Queries("containerName", "{containerName}").
+		//Queries("containerName", "{containerName}", "appId", "{appId}").
+		//Queries("clusterId", "{clusterId}", "namespace", "${namespace}").
 		//Queries("sinceSeconds", "{sinceSeconds}").
 		Queries("follow", "{follow}").
 		Queries("tailLines", "{tailLines}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetPodLogs).Methods("GET")
 
-	k8sAppRouter.Path("/pod/exec/session/{applicationId}/{namespace}/{pod}/{shell}/{container}").
+	k8sAppRouter.Path("/pod/exec/session/{identifier}/{namespace}/{pod}/{shell}/{container}").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetTerminalSession).Methods("GET")
 	k8sAppRouter.PathPrefix("/pod/exec/sockjs/ws").Handler(terminal.CreateAttachHandler("/pod/exec/sockjs/ws"))
 
@@ -54,4 +56,13 @@ func (impl *K8sApplicationRouterImpl) InitK8sApplicationRouter(k8sAppRouter *mux
 
 	k8sAppRouter.Path("/resource/inception/info").
 		HandlerFunc(impl.k8sApplicationRestHandler.GetResourceInfo).Methods("GET")
+
+	k8sAppRouter.Path("/api-resources/{clusterId}").
+		HandlerFunc(impl.k8sApplicationRestHandler.GetAllApiResources).Methods("GET")
+
+	k8sAppRouter.Path("/resource/list").
+		HandlerFunc(impl.k8sApplicationRestHandler.GetResourceList).Methods("POST")
+
+	k8sAppRouter.Path("/resources/apply").
+		HandlerFunc(impl.k8sApplicationRestHandler.ApplyResources).Methods("POST")
 }

@@ -22,8 +22,11 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
+	"github.com/devtron-labs/devtron/client/k8s/application"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"os/user"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/devtron-labs/authenticator/client"
@@ -491,13 +494,7 @@ func (impl K8sUtil) GetResourceInfoByLabelSelector(namespace string, labelSelect
 func (impl K8sUtil) GetK8sClusterRestConfig() (*rest.Config, error) {
 	impl.logger.Debug("getting k8s rest config")
 	if impl.runTimeConfig.LocalDevMode {
-		usr, err := user.Current()
-		if err != nil {
-			impl.logger.Errorw("Error while getting user current env details", "error", err)
-		}
-		kubeconfig := flag.String("read-kubeconfig", filepath.Join(usr.HomeDir, ".kube", "config"), "(optional) absolute path to the kubeconfig file")
-		flag.Parse()
-		restConfig, err := clientcmd.BuildConfigFromFlags("", *kubeconfig)
+		restConfig, err := clientcmd.BuildConfigFromFlags("", *impl.kubeconfig)
 		if err != nil {
 			impl.logger.Errorw("Error while building kubernetes cluster rest config", "error", err)
 			return nil, err
@@ -521,4 +518,113 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	} else {
 		return pod, nil
 	}
+}
+
+func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, kind string, validateResourceAccess func(namespace, resourceName string) bool) (*application.ClusterResourceListMap, error) {
+	clusterResourceListMap := &application.ClusterResourceListMap{}
+	// build headers
+	var headers []string
+	columnIndexes := make(map[int]string)
+	if kind == "Event" {
+		headers, columnIndexes = impl.getEventKindHeader()
+	} else {
+		columnDefinitionsUncast := manifest.Object[application.K8sClusterResourceColumnDefinitionKey]
+		if columnDefinitionsUncast != nil {
+			columnDefinitions := columnDefinitionsUncast.([]interface{})
+			for index, cd := range columnDefinitions {
+				if cd == nil {
+					continue
+				}
+				columnMap := cd.(map[string]interface{})
+				columnNameUncast := columnMap[application.K8sClusterResourceNameKey]
+				if columnNameUncast == nil {
+					continue
+				}
+				priorityUncast := columnMap[application.K8sClusterResourcePriorityKey]
+				if priorityUncast == nil {
+					continue
+				}
+				columnName := columnNameUncast.(string)
+				columnName = strings.ToLower(columnName)
+				priority := priorityUncast.(int64)
+				if namespaced && index == 1 {
+					headers = append(headers, application.K8sClusterResourceNamespaceKey)
+				}
+				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") {
+					columnIndexes[index] = columnName
+					headers = append(headers, columnName)
+				}
+			}
+		}
+	}
+
+	// build rows
+	rowsMapping := make([]map[string]interface{}, 0)
+	rowsDataUncast := manifest.Object[application.K8sClusterResourceRowsKey]
+	var resourceName string
+	var namespace string
+	var allowed bool
+	if rowsDataUncast != nil {
+		rows := rowsDataUncast.([]interface{})
+		for _, row := range rows {
+			resourceName = ""
+			namespace = ""
+			allowed = true
+			rowIndex := make(map[string]interface{})
+			rowMap := row.(map[string]interface{})
+			cellsUncast := rowMap[application.K8sClusterResourceCellKey]
+			if cellsUncast == nil {
+				continue
+			}
+			rowCells := cellsUncast.([]interface{})
+			for index, columnName := range columnIndexes {
+				cell := rowCells[index].(interface{})
+				rowIndex[columnName] = cell
+			}
+
+			// set namespace
+
+			cellObjUncast := rowMap[application.K8sClusterResourceObjectKey]
+			if cellObjUncast != nil {
+				cellObj := cellObjUncast.(map[string]interface{})
+				if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
+					metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
+					if metadata[application.K8sClusterResourceNamespaceKey] != nil {
+						namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
+						if namespaced {
+							rowIndex[application.K8sClusterResourceNamespaceKey] = namespace
+						}
+					}
+					if metadata[application.K8sClusterResourceMetadataNameKey] != nil {
+						resourceName = metadata[application.K8sClusterResourceMetadataNameKey].(string)
+					}
+				}
+			}
+			if resourceName != "" {
+				allowed = validateResourceAccess(namespace, resourceName)
+			}
+			if allowed {
+				rowsMapping = append(rowsMapping, rowIndex)
+			}
+		}
+	}
+
+	clusterResourceListMap.Headers = headers
+	clusterResourceListMap.Data = rowsMapping
+	impl.logger.Debugw("resource listing response", "clusterResourceListMap", clusterResourceListMap)
+	return clusterResourceListMap, nil
+}
+
+func (impl K8sUtil) getEventKindHeader() ([]string, map[int]string) {
+	headers := []string{"type", "message", "namespace", "involved object", "source", "count", "age", "last seen"}
+	columnIndexes := make(map[int]string)
+	columnIndexes[0] = "last seen"
+	columnIndexes[1] = "type"
+	columnIndexes[2] = "namespace"
+	columnIndexes[3] = "involved object"
+	columnIndexes[5] = "source"
+	columnIndexes[6] = "message"
+	columnIndexes[7] = "age"
+	columnIndexes[8] = "count"
+	return headers, columnIndexes
 }
