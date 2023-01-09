@@ -47,7 +47,7 @@ components:
     imagePullPolicy: IfNotPresent
 
   devtron:
-    image: "quay.io/devtron/hyperion:34c948d1-280-12182"
+    image: "quay.io/devtron/hyperion:9c2ca8cf-280-12198"
     cicdImage: "quay.io/devtron/devtron:9c2ca8cf-326-12196"
     imagePullPolicy: IfNotPresent
     customOverrides: {}
