@@ -181,23 +181,30 @@ To troubleshoot a cluster or a specific node in a cluster, click the terminal sy
 * Select the terminal shell from the drop-down list (e.g. `sh`, `bash`) to troubleshoot a node.
 
 
-### Debug Pod
+### One of the Use Cases: Debug Pod 
 
 You can also create pod for debugging which will connect to pod terminal. To find out why the particular pod is not running, you can check `Pod Events` and `Pod Manifest` for details.
 
-Or you can also use the following commands to show events at the end of the output for the pod:
+* Check the current state of the Pod and recent events with the following command:
+
+```bash
+kubectl get pods
+```
+
+* To know more information about each of these pods and to debug a pod depending on the state of the pods, run the following command:
 
 ```bash
 kubectl describe pod <podname>
 ```
 
-or
+  * If the pod status shows `Running` and its taking to time to load as `Successful`,  it may be there is an error in your pod description (e.g. mypod.yaml file), and that error is silently ignored when you created the pod.
+  * If the pod status shows `Pending`, it means that it can not be scheduled onto a node. Generally this is because there are insufficient resources of one type or another that prevent scheduling.
+  * If the pod is stuck in the `Waiting` state, then it has been scheduled to a worker node, but it cannot run on that machine. One of the most common reason of Waiting pods is a failure to pull the container image.
+  * If the pod status shows `CrashLoopBackOff`, it may because some of the containers inside a pod are not operating on the default access token when trying to interact with API.
 
-```bash
-kubectl get events
-```
 
-According to the `Pod Events` messages and `Pod Manifest`, you can debug a pod.
+Here, you can see configuration information about the container(s) and Pod (labels, resource requirements, etc.), as well as status information about the container(s) and Pod (state, readiness, restart count, events, etc.).
+
 
  **Note**: A container can have no or multiple shells running in it. If you are not able to create a successfull connection, try changing the shell, as the container may not have that shell running.
 

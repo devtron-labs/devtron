@@ -145,6 +145,8 @@ Once you have finished assigning the appropriate permissions for the users, Clic
 
 In `Kubernetes Resources` option, you can provide permission to view, inspect, manage, and delete resources in your clusters from [Kubernetes Resource Browser](https://docs.devtron.ai/usage/deploy-resource-browser) page in Devtron. You can also create resources from the Kubernetes Resource Browser page.
 
+**Note**: Only super admin users will be able to see `Kubernetes Resources` tab and provide permission to other users to access `Resource Browser`.
+
 To provide Kubernetes resource permission, click `Add permission`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/kubernetes-resource-specific-permission.jpg)
