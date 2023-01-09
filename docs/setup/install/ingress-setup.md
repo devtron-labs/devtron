@@ -102,7 +102,7 @@ spec:
             name: devtron-service
             port:
               number: 80
-       host: devtron.example.com
+        host: devtron.example.com
         path: /dashboard
         pathType: ImplementationSpecific
       - backend:
