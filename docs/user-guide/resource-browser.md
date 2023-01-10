@@ -6,6 +6,8 @@ Resource Browser are helpful for troubleshooting issues. It supports multi-clust
 
 **Note**: To provide permission to a user to view, inspect, manage, and delete resources, go to the [Authorization > User Permissions](https://docs.devtron.ai/global-configurations/authorization/user-access) section of `Global Configurations`. You can also provide permission via [API token](https://docs.devtron.ai/global-configurations/authorization/api-tokens) or [Permission groups](https://docs.devtron.ai/global-configurations/authorization/permission-groups). Only super admin users will be able to see `Kubernetes Resources` tab and provide permission to other users to access `Resource Browser`.
 
+Please also note that `Resource Browser` page is under the early version of development and its a `Beta` release.
+
 ## Kubernetes Resources 
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/kubernetes-resource-browser/kubernetes-resource-browser-latest.jpg)
