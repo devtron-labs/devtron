@@ -78,7 +78,7 @@ To see the summary of a node, click the specific node.
 
 ### Debug a Node
 
-You can debug a node via Terminal by selecting your namespace and image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available. You can also use a private container image hosted on an Amazon ECR repository.
+You can debug a node via Terminal by selecting your namespace and image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/clusters/node-terminal.png)
 
@@ -197,8 +197,7 @@ kubectl get pods
 kubectl describe pod <podname>
 ```
 
-  * If the pod status shows `Running` and its taking time to load as `Successful`, then it may due to the timeout which results in failing the pod attaching to the service.
-  * If the pod status shows `Pending`, it means that it cannot be scheduled onto a node. Generally this is because there are insufficient resources of one type or another that prevent scheduling. Also, it can be because of taints on the node. So, we recommend to create a cluster node without any taints.
+  * If the pod status shows `Pending`, it means that it cannot be scheduled onto a node. Generally this is because there are insufficient resources of one type or another that prevent scheduling.
   * If the pod is stuck in the `Waiting` state, then it has been scheduled to a worker node, but it cannot run on that machine. One of the most common reason of Waiting pods is a failure to pull the container image.
   * If the pod status shows `CrashLoopBackOff`, it may because some of the containers inside a pod are not operating on the default access token when trying to interact with API.
 
