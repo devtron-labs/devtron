@@ -3,4 +3,5 @@
 ## Enhancements
 - feat: deployment status restructuring (#2825)
 ## Documentation
+- docs: added cluster, k8s resource browser, k8s resource permission (#2787)
 ## Others
