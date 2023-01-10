@@ -169,7 +169,7 @@ func InitializeApp() (*App, error) {
 
 		restHandler.NewPipelineRestHandler,
 		wire.Bind(new(restHandler.PipelineTriggerRestHandler), new(*restHandler.PipelineTriggerRestHandlerImpl)),
-
+		app.GetAppStatusConfig,
 		app.NewAppService,
 		wire.Bind(new(app.AppService), new(*app.AppServiceImpl)),
 
@@ -745,7 +745,7 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(argo.ArgoUserService), new(*argo.ArgoUserServiceImpl)),
 		util2.GetDevtronSecretName,
 		//	AuthWireSet,
-		cron.GetAppStatusConfig,
+
 		cron.NewCdApplicationStatusUpdateHandlerImpl,
 		wire.Bind(new(cron.CdApplicationStatusUpdateHandler), new(*cron.CdApplicationStatusUpdateHandlerImpl)),
 
@@ -793,6 +793,16 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataRepository), new(*chartRepoRepository.GlobalStrategyMetadataRepositoryImpl)),
 		chartRepoRepository.NewGlobalStrategyMetadataChartRefMappingRepositoryImpl,
 		wire.Bind(new(chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository), new(*chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepositoryImpl)),
+
+		app.NewPipelineStatusTimelineResourcesServiceImpl,
+		wire.Bind(new(app.PipelineStatusTimelineResourcesService), new(*app.PipelineStatusTimelineResourcesServiceImpl)),
+		pipelineConfig.NewPipelineStatusTimelineResourcesRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusTimelineResourcesRepository), new(*pipelineConfig.PipelineStatusTimelineResourcesRepositoryImpl)),
+
+		app.NewPipelineStatusSyncDetailServiceImpl,
+		wire.Bind(new(app.PipelineStatusSyncDetailService), new(*app.PipelineStatusSyncDetailServiceImpl)),
+		pipelineConfig.NewPipelineStatusSyncDetailRepositoryImpl,
+		wire.Bind(new(pipelineConfig.PipelineStatusSyncDetailRepository), new(*pipelineConfig.PipelineStatusSyncDetailRepositoryImpl)),
 	)
 	return &App{}, nil
 }

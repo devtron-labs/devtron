@@ -24,7 +24,7 @@ If you select `GitHuB` as your git provider, please provide the information in t
 
 | Fields | Description |
 | --- | --- |
-| **Git Host** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://github.com/ for GitHub. |
+| **Git Host** | This field shows the URL of the selected Git provider. <br>As an example: https://github.com/ for GitHub.</br> |
 | **GitHub Organisation Name** | Enter the GitHub organization name.<br>If you do not have one, create using [how to create organization in Github](#how-to-create-organization-in-github).</br> |
 | **GitHub Username** | Provide the username of your GitHub account. |
 | **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your GitHub account.<br>If you do not have one, create a GitHub PAT [here](https://docs.github.com/en/github/authenticating-to-github/creating-a-personal-access-token).</br> |
@@ -129,7 +129,7 @@ If you select `Bitbucket Cloud` as your git provider, please provide the informa
 | --- | --- |
 | **Bitbucket Host** | This field shows the URL of the selected Git provider. <br>As an example:<br>https://bitbucket.org/ for Bitbucket. |
 | **Bitbucket Workspace ID** | Enter the Bitbucker workspace ID.<br>If you do not have one, create using [Bitbucket Workspace Id](#how-to-create-bitbucket-workspace-id).</br> |
-| **Bitbucket Project Key** | Enter the Bitbucket project key.<br>If you do not have one, create using [Bitbucket Project Key](https://support.atlassian.com/bitbucket-cloud/docs/group-repositories-into-projects/)</br>.<br>Note: This field is not mandatory. If the project is not provided, the repository is automatically assigned to the oldest project in the workspace.</br> |
+| **Bitbucket Project Key** | Enter the Bitbucket project key.<br>If you do not have one, create using [Bitbucket Project Key](https://support.atlassian.com/bitbucket-cloud/docs/group-repositories-into-projects/).</br><br>Note: This field is not mandatory. If the project is not provided, the repository is automatically assigned to the oldest project in the workspace.</br> |
 | **Bitbucket Username*** | Provide the username of your Bitbucket account. |
 | **Personal Access Token** | Provide your personal access token (PAT). It is used as an alternate password to authenticate your Bitbucket Cloud account.<br>If you do not have one, create a Bitbucket Cloud PAT [here](https://support.atlassian.com/bitbucket-cloud/docs/app-passwords/).</br> |
 

@@ -30,22 +30,18 @@ You can get the **`Server URL`** & **`Bearer Token`** by running the following c
 {% tab title="k8s Cluster Providers" %}
 If you are using EKS, AKS, GKE, Kops, Digital Ocean managed Kubernetes, run the following command to generate the server URL and bearer token:
 ```bash
-curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig \
--exporter/kubernetes_export_sa.sh \
+curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh \
 && bash kubernetes_export_sa.sh cd-user devtroncd \
-https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig \
--exporter/clusterrole.yaml
+https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/clusterrole.yaml
 ```
 {% endtab %}
 {% tab title="Microk8s Cluster" %}
 If you are using a **`microk8s cluster`**, run the following command to generate the server URL and bearer token:
 
 ```bash
-curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig \
--exporter/kubernetes_export_sa.sh && sed -i 's/kubectl/microk8s kubectl/g' \
+curl -O https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/kubernetes_export_sa.sh && sed -i 's/kubectl/microk8s kubectl/g' \
 kubernetes_export_sa.sh && bash kubernetes_export_sa.sh cd-user \
-devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig \
--exporter/clusterrole.yaml
+devtroncd https://raw.githubusercontent.com/devtron-labs/utilities/main/kubeconfig-exporter/clusterrole.yaml
 ```
 {% endtab %}
 {% endtabs %}
