@@ -197,7 +197,7 @@ kubectl get pods
 kubectl describe pod <podname>
 ```
 
-  * If the pod status shows `Running` and its taking time to load as `Successful`, then it may due to the timeout which results in failing the pod attaching to the service
+  * If the pod status shows `Running` and its taking time to load as `Successful`, then it may due to the timeout which results in failing the pod attaching to the service.
   * If the pod status shows `Pending`, it means that it cannot be scheduled onto a node. Generally this is because there are insufficient resources of one type or another that prevent scheduling. Also, it can be because of taints on the node. So, we recommend to create a cluster node without any taints.
   * If the pod is stuck in the `Waiting` state, then it has been scheduled to a worker node, but it cannot run on that machine. One of the most common reason of Waiting pods is a failure to pull the container image.
   * If the pod status shows `CrashLoopBackOff`, it may because some of the containers inside a pod are not operating on the default access token when trying to interact with API.
