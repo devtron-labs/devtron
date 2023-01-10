@@ -68,7 +68,7 @@ Using the Devtron UI, you will be able to:
 * [Debug a node](#debug-a-node)
 * [Cordon a node](#cordon-a-node)
 * [Drain a node](#drain-a-node)
-* [Taint a node](#taint-node)
+* [Taint a node](#taint-a-node)
 * [Edit a node](#edit-a-node)
 * [Delete a node](#delete-a-node)
 
@@ -168,7 +168,7 @@ The node will be deleted from the cluster.
 
 ## Access Cluster via Terminal for Troubleshooting
 
-User with [Super admins](https://docs.devtron.ai/global-configurations/authorization/user-access#assign-super-admin-permissions) access can now troubleshoot cluster issues by accessing the cluster terminal from Devtron. You can select an image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
+User with [Super admins](https://docs.devtron.ai/global-configurations/authorization/user-access#assign-super-admin-permission) access can now troubleshoot cluster issues by accessing the cluster terminal from Devtron. You can select an image from the list that has all CLI utilities like kubectl, helm, netshoot etc. or can use a custom image, which is publicly available.
 
 To troubleshoot a cluster or a specific node in a cluster, click the terminal symbol on the right side.
 
