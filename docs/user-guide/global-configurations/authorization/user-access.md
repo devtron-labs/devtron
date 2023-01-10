@@ -1,23 +1,23 @@
-# User Access
+# User Permissions
 
 {% embed url="https://www.youtube.com/watch?v=VTqBRIFbuSU" caption="" %}
 
-Like any enterprise product, Devtron supports fine grained access control to the resources based on
+Like any enterprise product, Devtron supports fine grained access control to the resources based on:
 
-1. Type of action allowed on the Devtron resources (Create Vs View)
+1. Type of action allowed on Devtron resources (Create Vs View)
 2. Sensitivity of the data (Editing image Vs Editing memory)
 
-Access can be added to the User either directly or via Groups.
+Access can be added to the User either directly or via [Permission groups](https://docs.devtron.ai/global-configurations/authorization/permission-groups).
 
 ## Role-based Access Levels
 
-Devtron supports 5 levels of access:
+Devtron supports the following levels of access:
 
-1. **View**: User with `view` only access has the least privilege. This user can only view combination of environments, applications and helm charts on which access has been granted to the user. This user cannot view sensitive data like secrets used in applications or charts.
-2. **Build and Deploy**: In addition to `view` privilege mentioned in above, user with `build and deploy` permission can build and deploy the image of permitted applications and helm charts to permitted environments.
-3. **Admin**: User with `admin` access can create, edit, delete and view permitted applications in permitted projects.
-4. **Manager**: User with `manager` access can do everything that an `admin` type user can do, in addition they can also give and revoke access of users for the applications and environments of which they are `manager`.
-5. **Super Admin**: User with `super admin` privilege has unrestricted access to all Devtron resources. Super admin can create, modify, delete and view any Devtron resource without any restriction; its like Superman without the weakness of Kryptonite. Super Admin can also add and delete user access across any Devtron resource, add delete git repository credentials, container registry credentials, cluster and environment.
+1. **View only**: User with `View only` access has the least privilege. This user can only view combination of environments, applications and helm charts on which access has been granted to the user. This user cannot view sensitive data like secrets used in applications or charts.
+2. **Build and Deploy**: In addition to `View only` access, user with `Build and deploy` permission can build and deploy the image of the permitted applications and helm charts to the permitted environments.
+3. **Admin**: User with `Admin` access can create, edit, delete and view permitted applications in the permitted projects.
+4. **Manager**: User with `Manager` access can do everything that an `Admin` type user can do, in addition, they can also give and revoke access of users for the applications and environments of which they are `Manager`.
+5. **Super Admin**: User with `Super admin` privilege has unrestricted access to all Devtron resources. Super admin can create, modify, delete and view any Devtron resource without any restriction; its like Superman without the weakness of Kryptonite. Super Admin can also add and delete user access across any Devtron resource, add delete git repository credentials, container registry credentials, cluster and environment.
 
 ## User Roles And Permissions
 
@@ -41,169 +41,161 @@ Devtron supports 5 levels of access:
 | Manager          | Yes         | Yes            | Yes         | Yes           |
 | Super Admin      | Yes         | Yes            | Yes         | Yes           |
 
-#### 3. User Access
+### 3. User Access
 
 | User Roles   | Add User Access | Edit User Access | Delete User Access |
 | :---         | :---:           | :---:            | :---:              |
 | Manager      | Yes             | Yes              | Yes                |
 | Super Admin  | Yes             | Yes              | Yes                |
 
-#### 4. Global Configurations
+### 4. Global Configurations
 
 | User Role    | Add Global Config | Edit Global Config | Delete Global Config |
 | :---         | :---:             | :---:              | :---:                |
 | Super Admin  | Yes               | Yes                | Yes                  |
 
-To control the access of User and Group-
 
-Go to the left main panel -&gt; `Select Global Configurations` -&gt; Select `User Access`
+## Add User
 
-## Users
+To add a user, go to the `Authorization > User Permissions` section of `Global Configurations`. Click **Add user**.
 
-### 1. Add new user
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/user-permissions-add-user.jpg)
 
-Click on `Add User`, to add one or multiple users.
+There are two types of permissions in Devtron:
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/gc-user-access-add-user.jpg)
+| Permission Type | Description |
+| --- | --- |
+| **Specific permissions** | Selecting [Specific permission](#assign-specific-permissions) option allows you to manage access and provide the [role-based access](#role-based-access-levels) accordingly for:<ul><li>`Devtron Apps`</li></ul><ul><li>`Helm Apps`</li></ul><ul><li>`Kubernetes Resources`</li></ul><ul><li>`Chart Groups`</li></ul> |
+| **Super admin permission** | Selecting [Super admin permission](#assign-super-admin-permission) option will get full access to Devtron resources and the rest of the options will not be available. |
 
-### 2. Create User Permissions
+### Assign Super admin permission
 
-When you click on Add User, you will see 6 options to set permission for users which are as follow:
+To assign a super admin access, go to the `Authorization > User Permissions` section of `Global Configurations`. 
 
-- Email addresses
-- Assign super admin permissions
-- Group Permissions
-- Devtron Apps Permissions
-  - Project
-  - Environment
-  - Applications
-  - Roles
-- Helm Apps Permissions
-  - Project
-  - Environment or cluster/namespace
-  - Applications
-  - Permission
-- Chart group permissions
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/super-admin-user-permission.jpg)
 
-## Email addresses:
+* Click **Add user**.
+* Provide the email address of a user. You can add more than one email address. Please note that email address must be same as that in the `email` field in the JWT token returned by OIDC provider.
+* Select `Super admin permission` and click `Save`.
+* A user now will have a [Super admin](#role-based-access-levels) access.
 
-In the `Email address` box, you have to provide the mail ID of the user to whom you want to give access to your applications.
-
-**`IMP`** Please note that Email address should be same as that in the `email` field in the JWT token returned by OIDC provider.
-
-### Assign super admin permissions
-
-If you check the option `Assign super admin permissions`, the user will get full access to your system and the rest of the options will disappear. Please check [above](#access-levels) to see permission levels. Only users with super admin permissions can assign super admin permissions to a user.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/add-user-2.jpg)
-
-Click on `Save` and your user will be saved with super admin permissions.
-
-We suggest that super admin privileges should be given to only select few.
-
-If you don’t want to assign super admin permissions then you have to provide the rest of the information.
+**Note**: 
+* Only users with `Super admin permission` can assign super admin permissions to a user.
+* We suggest that super admin access must be given to the selected users only.
 
 
-### Devtron Apps permissions
+### Assign Specific permissions
 
-Access to devtron applications can be given to user by attaching permission directly to his/her email id through the `Devtron Apps` section. This section has 4 options to manage the permissions of your users.
+To assign a specific permission, go to the `Authorization > User Permissions` section of `Global Configurations`. 
 
-- **Project**
+* Click **Add user**.
+* Provide the email address of a user. You can add more than one email address. Please note that email address must be same as that in the `email` field in the JWT token returned by OIDC provider.
+* Select `Specific permissions`.
+* Select the group permission from the drop-down list, if required.
+* Selecting `Specific permission` option allows you to manage access and provide the [role-based access](#role-based-access-levels) accordingly for
 
-Select a project from the drop-down to which you want to give permission to the users. You can select only one project at a time if you want to select more than one project then click `Add row`.
+   * [Devtron Apps](#devtron-apps-permissions)
+   * [Helm Apps](#helm-apps-permissions)
+   * [Kubernetes Resources](#kubernetes-resources-permissions)
+   * [Chart Groups](#chart-group-permissions)
 
-- **Environment**
 
-In the `Environment` section, you can select one or more than one or all environments at a time. Click on the environment section, you will see a drop-down of your environments and select any environment on which you want to give permission to the user.
+### Devtron Apps Permissions
 
-**`IMP`** If `all environments` option is selected then user gets access to all current environments and any new environment which gets associated with this application later.
+In `Devtron Apps` option, you can provide access to a user to manage permission for custom apps created using Devtron.
 
-- **Applications**
+**Note**: The `Devtron Apps` option will be available only if you install [CI/CD integration](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
 
-Similarly, you can select `Applications` from the drop-down corresponding to your selected Environments. In this section, you can also give permissions to one or more than one or to all applications at a time.
+Provide the information in the following fields:
 
-**`IMP`** If `all applications` option is selected then user gets access to all current applications and any new application which gets associated with this project later.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/specific-permissions-devtron-apps.jpg)
 
-- **Roles**
+| Registry Type | Credentials |
+| --- | --- |
+| **Project** | Select a project from the drop-down list to which you want to give permission to the user. You can select only one project at a time.<br>Note: If you want to select more than one project, then click `Add row`.</br> |
+| **Environment** | Select the specific environment or all environments from the drop-down list.<br>Note: If you select `All environments` option, then a user gets access to all the current environments including any new environment which gets associated with the application later.</br> |
+| **Application**  | Select the specific applications or all applications from the drop-down list corresponding to your selected Environments.<br>Note: If you select `All applications` option, then a user gets access to all the current applications including any new application which gets associated with the project later</br>.  |
+| **Role**  | Select one of the [roles](#role-based-access-levels) to which you want to give permission to the user:<ul><li>`View only`</li></ul> <ul><li>`Build and Deploy`</li></ul><ul><li>`Admin`</li></ul><ul><li>`Manager`</li></ul>  |
 
-  Inside the `Role`, you actually choose which type of permissions you want to give to the users.
+You can add multiple rows for Devtron app permission.
 
-There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-access-permission_1.JPG)
-
-You can add multiple rows, for Devtron app permission.
-
-Once you have finished assigning the appropriate permissions for the listed users, Click on `Save`.
+Once you have finished assigning the appropriate permissions for the users, Click `Save`.
 
 ### Helm Apps Permissions
 
-Access to devtron applications can be given to user by attaching permission directly to his/her email id through the `Devtron Apps` section. This section has 4 options to manage the permissions of your users.
+In `Helm Apps` option, you can provide access to a user to manage permission for Helm apps deployed from Devtron or outside Devtron.
 
-- **Project**
+Provide the information in the following fields:
 
-Select a project from the drop-down to which you want to give permission to the users. You can select only one project at a time if you want to select more than one project then click `Add row`.
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/specific-permissions-helm-apps.jpg)
 
-- **Environment or cluster/namespace**
+| Registry Type | Credentials |
+| --- | --- |
+| **Project** | Select a project from the drop-down list to which you want to give permission to the user. You can select only one project at a time.<br>Note: If you want to select more than one project, then click `Add row`.</br> |
+| **Environment or cluster/namespace** | Select the specific environment or `all existing environments in default cluster` from the drop-down list.<br>Note: If you select `all existing + future environments in default cluster` option, then a user gets access to all the current environments including any new environment which gets associated with the application later.</br> |
+| **Application**  | Select the specific application or all applications from the drop-down list corresponding to your selected Environments.<br>Note: If `All applications` option is selected, then a user gets access to all the current applications including any new application which gets associated with the project later</br>.  |
+| **Role**  | Select one of the [roles](#role-based-access-levels) to which you want to give permission to the user:<ul><li>`View only`</li></ul> <ul><li>`View & Edit`</li></ul><ul><li>`Admin`</li></ul>  |
 
-In the `Environment` section, you can select one or more than one or all environments at a time. Click on the environment section, you will see a drop-down of your environments and select any environment on which you want to give permission to the user.
+You can add multiple rows for Devtron app permission.
 
-**`IMP`** If `all environments` option is selected then user gets access to all current environments and any new environment which gets associated with this application later.
+Once you have finished assigning the appropriate permissions for the users, Click `Save`.
 
-- **Applications**
 
-Similarly, you can select `Applications` from the drop-down corresponding to your selected Environments. In this section, you can also give permissions to one or more than one or to all applications at a time.
+### Kubernetes Resources Permissions
 
-**`IMP`** If `all applications` option is selected then user gets access to all current applications and any new application which gets associated with this project later.
+In `Kubernetes Resources` option, you can provide permission to view, inspect, manage, and delete resources in your clusters from [Kubernetes Resource Browser](https://docs.devtron.ai/usage/deploy-resource-browser) page in Devtron. You can also create resources from the Kubernetes Resource Browser page.
 
-- **Permission**
+**Note**: Only super admin users will be able to see `Kubernetes Resources` tab and provide permission to other users to access `Resource Browser`.
 
-  Inside the `Role`, you actually choose which type of permissions you want to give to the users.
+To provide Kubernetes resource permission, click `Add permission`.
 
-There are four different view access levels/Role available for both User and Group as described [above](#access-levels):
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/kubernetes-resource-specific-permission.jpg)
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-access-permission_helm+app_2.JPG)
+On the `Kubernetes resource permission`, provide the information in the following fields:
+
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/kubernetes-resource-permission-page-latest.jpg)
+
+| Registry Type | Credentials |
+| --- | --- |
+| **Cluster** | Select a cluster from the drop-down list to which you want to give permission to the user. You can select only one cluster at a time.<br>Note: To add another cluster, then click `Add another`.</br> |
+| **Namespace** | Select the namespace from the drop-down list. |
+| **API Group**  | Select the specific API group or `All API groups` from the drop-down list corresponding to the K8s resource.  |
+ **Kind**  | Select the kind or `All kind` from the drop-down list corresponding to the K8s resource.  |
+  **Resource name**  | Select the resource name or `All resources` from the drop-down list to which you want to give permission to the user. |
+| **Role**  | Select one of the [roles](#role-based-access-levels) to which you want to give permission to the user and click `Done`:<ul><li>`View`</li></ul> <ul><li>`Admin`</li></ul>  |
+
+You can add multiple rows for Kubernetes resource permission.
+
+Once you have finished assigning the appropriate permissions for the users, Click `Save`.
 
 ### Chart Group Permissions
 
-You can also manage the access of users to Chart Groups in your project.
+In `Chart group permission` option, you can manage the access of users for Chart Groups in your project.
+
+**Note**: The `Chart group permission` option will be available only if you install [CI/CD integration](https://docs.devtron.ai/usage/integrations/build-and-deploy-ci-cd).
+
+![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/user-permission/specific-permission-chart-group.jpg)
 
 **NOTE:** You can only give users the ability to `create` or `edit`, not both.
 
-Click on the checkbox of `Create`, if you want the users to create, view, edit, or delete the chart groups.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/chart+group+permission_create_3.JPG)
-
-To permit a user to only `edit` the chart groups, check `Specific chart group` from `Edit` drop-down. In the following field, select the chart group for which you want to grant the user edit permission.
-
-Go to `Edit` drop-down, if you want to `allow` or `deny` users to edit the chart groups.
-
-Select on `Deny` option from the drop-down, if you want to restrict the users to edit the chart groups.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/chart+group+permission_edit_4.JPG)
-
-Select the `Specific Charts` option from the drop-down and then select the chart groups for which you want to allow users to edit, from the other drop-down menu.
-
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/chart+group+permission_edit+specific+chart_5.JPG)
-
-Click on `Save`, once you have configured all the required permissions for the users.
-
 | Action | Permissions |
 | :---   | :---         |
-| View  | Only can view chart groups |
-| Create | Can create, view, edit or delete |
-| Edit | <ul><br/><li>**Deny:** Can't edit chart groups</li><li>**Specific chart groups:** can edit specific chart group</li></ul> |
+| View  | Enable `View` to view chart groups only. |
+| Create | Enable `Create` if you want the users to create, view, edit or delete the chart groups. |
+| Edit | <ul><li>**Deny**: Select `Deny` option from the drop-down list to restrict the users to edit the chart groups.</li><li>**Specific chart groups**: Select the `Specific Charts Groups` option from the drop-down list and then select the chart group for which you want to allow users to edit.</li></ul> |
 
-### 3. Edit User Permissions
+Click `Save`once you have configured all the required permissions for the users.
 
-You can edit the user permissions, by clicking on the `downward arrow`.
+### Edit User Permissions
+
+You can edit the user permissions by clicking on the `downward arrow`.
 
 ![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/edit+user+permission_dropdown_1.JPG)
 
-Then you can edit the user permissions here.
+Edit the user permissions.
 
-![](https://devtron-public-asset.s3.us-east-2.amazonaws.com/images/global-configurations/user-access/edit+user+permission_devtron+app_2.JPG)
+After you have done editing the user permissions, click `Save`.
 
-After you have done editing the user permissions, click on `Save`.
+If you want to delete the user/users with particular permissions, click `Delete`.
 
-If you want to delete the user/users with particular permissions, click on `Delete`.
