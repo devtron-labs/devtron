@@ -435,6 +435,11 @@ func (impl UserAuthServiceImpl) CreateRole(roleData *bean.RoleData) (bool, error
 		EntityName:  roleData.EntityName,
 		Environment: roleData.Environment,
 		Action:      roleData.Action,
+		Cluster:     roleData.Cluster,
+		Namespace:   roleData.Namespace,
+		Group:       roleData.Group,
+		Kind:        roleData.Kind,
+		Resource:    roleData.Resource,
 	}
 	dbConnection := impl.userRepository.GetConnection()
 	tx, err := dbConnection.Begin()
