@@ -122,43 +122,43 @@ service:
     # test3: test4
 
 istio:
-  enable: true
+  enable: false
   gateway:
     enabled: false
     labels: {}
     annotations: {}
-    host: example.com
+    host: 
     tls:
-      enabled: true
+      enabled: false
       secretName: example-tls-secret
   virtualService:
-    enabled: true
+    enabled: false
     labels: {}
     annotations: {}
     gateways: []
     hosts: []
-    http: 
-      - match:
-        - uri:
-            prefix: /v1
-        - uri:
-            prefix: /v2
-        rewriteUri: /
-        timeout: 12
-        headers:
-          request:
-            add:
-              x-some-header: "value"
-        retries:
-          attempts: 2 
-          perTryTimeout: 3s 
-        route:
-        - destination:
-            host: service1
-            port: 80
-      - route:
-        - destination:
-            host: service2
+    http:
+      # - match:
+      #   - uri:
+      #       prefix: /v1
+      #   - uri:
+      #       prefix: /v2
+      #   rewriteUri: /
+      #   timeout: 12
+      #   headers:
+      #     request:
+      #       add:
+      #         x-some-header: "value"
+      #   retries:
+      #     attempts: 2 
+      #     perTryTimeout: 3s 
+      #   route:
+      #   - destination:
+      #       host: service1
+      #       port: 80
+      # - route:
+      #   - destination:
+      #       host: service2
 
 flaggerCanary:
   enabled: true
@@ -203,19 +203,19 @@ flaggerCanary:
   timeout:
   # Add headers (optional)
   headers:
-    request:
-      add:
-        x-some-header: "value"
+    # request:
+    #   add:
+    #     x-some-header: "value"
   # cross-origin resource sharing policy (optional)
   corsPolicy:
-    allowOrigin:
-      - example.com
-    allowMethods:
-      - GET
-    allowCredentials: false
-    allowHeaders:
-      - x-some-header
-    maxAge: 24h
+    # allowOrigin:
+    #   - example.com
+    # allowMethods:
+    #   - GET
+    # allowCredentials: false
+    # allowHeaders:
+    #   - x-some-header
+    # maxAge: 24h
   analysis:
     # schedule interval (default 60s)
     interval: 5s

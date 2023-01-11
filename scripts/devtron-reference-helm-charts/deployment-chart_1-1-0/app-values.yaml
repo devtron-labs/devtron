@@ -136,27 +136,36 @@ istio:
     gateways: []
     hosts: []
     http: 
-      # - match:
-      #   - uri:
-      #       prefix: /v1
-      #   - uri:
-      #       prefix: /v2
-      #   rewriteUri: /
-      #   timeout: 12
-      #   headers:
-      #     request:
-      #       add:
-      #         x-some-header: "value"
-      #   retries:
-      #     attempts: 2 
-      #     perTryTimeout: 3s 
-      #   route:
-      #   - destination:
-      #       host: service1
-      #       port: 80
-      # - route:
-      #   - destination:
-      #       host: service2
+      - match:
+        - uri:
+            prefix: /v1
+        - uri:
+            prefix: /v2
+        rewriteUri: /
+        timeout: 12s
+        headers:
+          request:
+            add:
+              x-some-header: "value"
+        corsPolicy:
+          allowOrigin:
+            - example.com
+          allowMethods:
+            - GET
+          allowCredentials: false
+          allowHeaders:
+            - x-some-header
+          maxAge: 24h
+        retries:
+          attempts: 2 
+          perTryTimeout: 3s 
+        route:
+        - destination:
+            host: service1
+            port: 80
+      - route:
+        - destination:
+            host: service2
 
 flaggerCanary:
   enabled: false
@@ -175,7 +184,7 @@ flaggerCanary:
   # Istio virtual service host names (optional)
   addOtherHosts: []
   # Istio gateway refs (optional)
-  gatewayRefs:
+  gatewayRefs: 
     # - name: istio-gateway
     #   namespace: istio-system
   #service port
@@ -201,19 +210,19 @@ flaggerCanary:
   timeout:
   # Add headers (optional)
   headers:
-    # request:
-    #   add:
-    #     x-some-header: "value"
+    request:
+      add:
+        x-some-header: "value"
   # cross-origin resource sharing policy (optional)
   corsPolicy:
-    # allowOrigin:
-    #   - example.com
-    # allowMethods:
-    #   - GET
-    # allowCredentials: false
-    # allowHeaders:
-    #   - x-some-header
-    # maxAge: 24h
+    allowOrigin:
+      - example.com
+    allowMethods:
+      - GET
+    allowCredentials: false
+    allowHeaders:
+      - x-some-header
+    maxAge: 24h
   analysis:
     # schedule interval (default 60s)
     interval: 5s
@@ -224,7 +233,7 @@ flaggerCanary:
     maxWeight: 50
     # canary increment step
     # percentage (0-100)
-    stepWeight: 5
+    stepWeight: 10
   thresholds:
     # minimum req success rate (non 5xx responses)
     # percentage (0-100)
@@ -235,7 +244,7 @@ flaggerCanary:
   loadtest:
     enabled: true
     # load tester address 
-    url: http://flagger-loadtester.test/
+    url: http://flagger-loadtester.istio-system/
 
 ingressInternal:
   enabled: false
