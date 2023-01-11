@@ -181,6 +181,146 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/Error'
+    delete:
+      description: delete node detail
+      operationId: DeleteNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeDeleteDto'
+      responses:
+        '200':
+          description: Successfully return node detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NodeCapacityDetailDto'
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/k8s/capacity/node/cordon:
+    put:
+      description: cordon/unCordon node
+      operationId: CordonOrUnCordonNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeCordonReqDto'
+      responses:
+        '200':
+          description: Return successful operation string.
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/k8s/capacity/node/drain:
+    put:
+      description: drain a node
+      operationId: DrainNode
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeDrainReqDto'
+      responses:
+        '200':
+          description: Return successful operation string.
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /orchestrator/k8s/capacity/node/taints/edit:
+    put:
+      description: edit node taints
+      operationId: EditNodeTaints
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NodeTaintEditReqDto'
+      responses:
+        '200':
+          description: Return successful operation string.
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad Request. Input Validation error/wrong request body.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Internal Server Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '403':
+          description: Unauthorized User
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
 components:
   schemas:
     ClusterCapacityDto:
@@ -326,6 +466,91 @@ components:
           type: string
         kind:
           type: string
+    NodeDeleteDto:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+        name:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+    NodeCordonReqDto:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+        name:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+        nodeCordonOptions:
+          $ref: '#/components/schemas/NodeCordonHelper'
+    NodeCordonHelper:
+      type: object
+      properties:
+        unschedulableDesired:
+          type: boolean
+          description: set true if want to cordon, set false if want to uncordon
+    NodeDrainReqDto:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+        name:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+        nodeDrainOptions:
+          $ref: '#/components/schemas/NodeDrainHelper'
+    NodeDrainHelper:
+      type: object
+      properties:
+        gracePeriodSeconds:
+          type: integer
+        force:
+          type: boolean
+        deleteEmptyDirData:
+          type: boolean
+        ignoreAllDaemonSets:
+          type: boolean
+        disableEviction:
+          type: boolean
+    NodeTaintEditReqDto:
+      type: object
+      properties:
+        clusterId:
+          type: integer
+        name:
+          type: string
+        version:
+          type: string
+        kind:
+          type: string
+        taints:
+          type: array
+          items:
+           $ref: '#/components/schemas/Taint'
+    Taint:
+      type: object
+      properties:
+        key:
+          type: string
+        effect:
+          type: string
+          oneOf:
+            - "NoSchedule"
+            - "NoExecute"
+            - "PreferNoSchedule"
+        value:
+          type: string
+          required: false
     NodeManifestUpdateResponse:
       type: object
       properties:

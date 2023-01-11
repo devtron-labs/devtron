@@ -19,6 +19,9 @@ const (
 	ENTITY_SPECIFIC_ADMIN_TYPE RoleType = "entitySpecificAdmin"
 	ENTITY_SPECIFIC_VIEW_TYPE  RoleType = "entitySpecificView"
 	ROLE_SPECIFIC_TYPE         RoleType = "roleSpecific"
+	ENTITY_CLUSTER_ADMIN_TYPE  RoleType = "clusterAdmin"
+	ENTITY_CLUSTER_EDIT_TYPE   RoleType = "clusterEdit"
+	ENTITY_CLUSTER_VIEW_TYPE   RoleType = "clusterView"
 )
 
 type DefaultAuthPolicyRepository interface {
