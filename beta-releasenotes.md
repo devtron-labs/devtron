@@ -1,6 +1,7 @@
 ## Bugs
 - fix: Dockerfile git repo delete tooltip view to build config (#2792)
 ## Enhancements
+- feat: Sonarqube polling script update (#2846)
 - feat: deployment status restructuring (#2825)
 ## Documentation
 - docs: updated broken links and minor updates (resource browser) (#2844)
