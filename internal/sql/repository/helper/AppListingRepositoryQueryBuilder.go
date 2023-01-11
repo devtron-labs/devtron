@@ -114,8 +114,21 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 	}
 	//add app-status filter here
 	if len(appListingFilter.AppStatuses) > 0 {
-		appStatuses := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(appListingFilter.AppStatuses)), ","), "[]")
+		appStatuses := processAppStatuses(appListingFilter.AppStatuses)
 		whereCondition = whereCondition + "and aps.status IN (" + appStatuses + ") "
 	}
 	return whereCondition
+}
+
+func processAppStatuses(appStatuses []string) string {
+	query := ""
+	n := len(appStatuses)
+	for i, status := range appStatuses {
+		query += "'" + status + "'"
+		if i < n-1 {
+			query += ","
+		}
+	}
+
+	return query
 }
