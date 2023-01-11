@@ -591,7 +591,7 @@ type AppLabelDto struct {
 type Label struct {
 	Key       string `json:"key" validate:"required"`
 	Value     string `json:"value" validate:"required"`
-	Propagate bool   `json:"propagate" validate:"required"`
+	Propagate bool   `json:"propagate"`
 }
 
 type AppMetaInfoDto struct {
