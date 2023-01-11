@@ -23,6 +23,7 @@ import (
 	"errors"
 	"fmt"
 	appBean "github.com/devtron-labs/devtron/api/appbean"
+	bean3 "github.com/devtron-labs/devtron/api/bean"
 	app2 "github.com/devtron-labs/devtron/api/restHandler/app"
 	"github.com/devtron-labs/devtron/api/restHandler/common"
 	"github.com/devtron-labs/devtron/internal/sql/models"
@@ -1696,7 +1697,7 @@ func (handler CoreAppRestHandlerImpl) createEnvOverrides(ctx context.Context, ap
 		//creating deployment template override
 		envDeploymentTemplate := envOverrideValues.DeploymentTemplate
 		if envDeploymentTemplate != nil && envDeploymentTemplate.IsOverride {
-			err := handler.createEnvDeploymentTemplate(appId, userId, envModel.Id, envOverrideValues.DeploymentTemplate)
+			err = handler.createEnvDeploymentTemplate(appId, userId, envModel.Id, envOverrideValues.DeploymentTemplate)
 			if err != nil {
 				handler.logger.Errorw("err in creating deployment template for env override", "appId", appId, "envName", envName)
 				return err, http.StatusInternalServerError
@@ -1724,51 +1725,51 @@ func (handler CoreAppRestHandlerImpl) createEnvOverrides(ctx context.Context, ap
 // create template overrides
 func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, userId int32, envId int, deploymentTemplateOverride *appBean.DeploymentTemplate) error {
 	handler.logger.Infow("Create App - creating template override", "appId", appId)
-
-	//getting environment properties for db table id(this properties get created when cd pipeline is created)
-	env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, deploymentTemplateOverride.ChartRefId)
-	if err != nil {
-		handler.logger.Errorw("service err, GetEnvConfOverride", "err", err, "appId", appId, "envId", envId, "chartRefId", deploymentTemplateOverride.ChartRefId)
-		return err
-	}
-
 	//updating env template override
 	template, err := json.Marshal(deploymentTemplateOverride.Template)
 	if err != nil {
 		handler.logger.Errorw("json marshaling error env override template in createEnvDeploymentTemplate", "appId", appId, "envId", envId)
 		return err
 	}
-
 	envConfigProperties := &pipeline.EnvironmentProperties{
-		Id:                env.EnvironmentConfig.Id,
+		ChartRefId:        deploymentTemplateOverride.ChartRefId,
 		IsOverride:        true,
 		Active:            true,
 		ManualReviewed:    true,
-		Namespace:         env.Namespace,
-		Status:            models.CHARTSTATUS_NEW,
 		EnvOverrideValues: template,
 		IsBasicViewLocked: deploymentTemplateOverride.IsBasicViewLocked,
 		CurrentViewEditor: deploymentTemplateOverride.CurrentViewEditor,
 	}
-	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
-	if err != nil {
-		handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "appId", appId, "envId", envId)
-		return err
-	}
 
-	//updating app metrics
-	appMetricsRequest := &chart.AppMetricEnableDisableRequest{
-		AppId:               appId,
-		UserId:              userId,
-		EnvironmentId:       envId,
-		IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
-	}
-	_, err = handler.propertiesConfigService.EnvMetricsEnableDisable(appMetricsRequest)
+	_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
 	if err != nil {
-		handler.logger.Errorw("service err, EnvMetricsEnableDisable", "err", err, "appId", appId, "envId", envId)
-		return err
+		if err.Error() == bean3.NOCHARTEXIST {
+			appMetrics := false
+			if envConfigProperties.AppMetrics != nil {
+				appMetrics = *envConfigProperties.AppMetrics
+			}
+			templateRequest := chart.TemplateRequest{
+				AppId:               appId,
+				ChartRefId:          envConfigProperties.ChartRefId,
+				ValuesOverride:      []byte("{}"),
+				UserId:              userId,
+				IsAppMetricsEnabled: appMetrics,
+			}
+			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, nil)
+			if err != nil {
+				handler.logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
+				return err
+			}
+			_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+			if err != nil {
+				handler.logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
+				return err
+			}
+		} else {
+			handler.logger.Errorw("service err, EnvConfigOverrideCreate", "err", err, "payload", envConfigProperties)
+			return err
+		}
 	}
-
 	return nil
 }
 
