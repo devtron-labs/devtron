@@ -38,6 +38,7 @@ type AppListingFilter struct {
 	Environments      []int     `json:"environments"`
 	Statuses          []string  `json:"statutes"`
 	Teams             []int     `json:"teams"`
+	AppStatuses       []string  `json:"appStatuses"`
 	AppNameSearch     string    `json:"appNameSearch"`
 	SortOrder         SortOrder `json:"sortOrder"`
 	SortBy            SortBy    `json:"sortBy"`
@@ -110,6 +111,11 @@ func (impl AppListingRepositoryQueryBuilder) buildAppListingWhereCondition(appLi
 
 	if appListingFilter.DeploymentGroupId > 0 {
 		whereCondition = whereCondition + "and dga.deployment_group_id = " + strconv.Itoa(appListingFilter.DeploymentGroupId) + " "
+	}
+	//add app-status filter here
+	if len(appListingFilter.AppStatuses) > 0 {
+		appStatuses := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(appListingFilter.Environments)), ","), "[]")
+		whereCondition = whereCondition + "and aps.status IN (" + appStatuses + ") "
 	}
 	return whereCondition
 }

@@ -105,7 +105,7 @@ type FetchAppListingRequest struct {
 	Size              int              `json:"size"`
 	DeploymentGroupId int              `json:"deploymentGroupId"`
 	Namespaces        []string         `json:"namespaces"` //{clusterId}_{namespace}
-
+	AppStatuses       []string         `json:"appStatuses"`
 }
 type AppNameTypeIdContainer struct {
 	AppName string `json:"appName"`
@@ -266,6 +266,7 @@ func (impl AppListingServiceImpl) FetchAppsByEnvironment(fetchAppListingRequest 
 		Offset:            fetchAppListingRequest.Offset,
 		Size:              fetchAppListingRequest.Size,
 		DeploymentGroupId: fetchAppListingRequest.DeploymentGroupId,
+		AppStatuses:       fetchAppListingRequest.AppStatuses,
 	}
 	envContainers, err := impl.appListingRepository.FetchAppsByEnvironment(appListingFilter)
 	if err != nil {
