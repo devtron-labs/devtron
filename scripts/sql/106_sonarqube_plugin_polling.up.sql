@@ -35,7 +35,7 @@ elif [[ $UsePropertiesFileFromProject == false ]]
  -v "/$PWD:/usr/src" \\
  sonarsource/sonar-scanner-cli
 
- if [[ $CheckForSonarAnalysisReport == true || ! -z "$CheckForSonarAnalysisReport" ]]
+ if [[ $CheckForSonarAnalysisReport == true && ! -z "$CheckForSonarAnalysisReport" ]]
  then
    status=$(curl -u ${SonarqubeApiKey}:  -sS ${SonarqubeEndpoint}/api/qualitygates/project_status?projectKey=${SonarqubeProjectKey}&branch=master)
    project_status=$(echo $status | jq -r  ".projectStatus.status")
