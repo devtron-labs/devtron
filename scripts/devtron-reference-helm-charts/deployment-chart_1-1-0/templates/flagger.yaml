@@ -48,6 +48,7 @@ spec:
 {{ end }}
 {{ end }}
 ---
+{{- if .Values.flaggerCanary.enabled }}
 {{- with .Values.flaggerCanary }}
 apiVersion: flagger.app/v1beta1
 kind: Canary
@@ -151,6 +152,7 @@ spec:
         url: {{ .loadtest.url }}
         timeout: 5s
         metadata:
-          cmd: "hey -z 1m -q 10 -c 2 http://{{ include ".Chart.Name .fullname" $ }}-canary.{{ $.Release.Namespace }}:{{ $.Values.flaggerCanary.targetPort }}"
+          cmd: "hey -z 1m -q 10 -c 2 http://{{ include ".Chart.Name .fullname" $ }}-canary.{{ $.Release.Namespace }}:{{ $.Values.flaggerCanary.targetPort }}/"
       {{- end }}
+{{- end }}
 {{- end }}

@@ -188,13 +188,13 @@ flaggerCanary:
     # - name: istio-gateway
     #   namespace: istio-system
   #service port
-  port: 80
+  port: 8080
   #containerPort
   targetPort: 8080
   # discover all port open in container
-  portDiscovery: false
+  portDiscovery: true
   # application protocol (optional)
-  appProtocol: 
+  appProtocol: http
   # Istio retry policy (optional)
   retries: 
     # attempts: 3
@@ -205,7 +205,7 @@ flaggerCanary:
     - uri:
         prefix: /
   # HTTP rewrite (optional)
-  rewriteUri: 
+  rewriteUri: /
   # timeout (optional)
   timeout:
   # Add headers (optional)
@@ -225,15 +225,15 @@ flaggerCanary:
     maxAge: 24h
   analysis:
     # schedule interval (default 60s)
-    interval: 5s
+    interval: 15s
     # max number of failed metric checks before rollback
-    threshold: 10
+    threshold: 5
     # max traffic percentage routed to canary
     # percentage (0-100)
     maxWeight: 50
     # canary increment step
     # percentage (0-100)
-    stepWeight: 10
+    stepWeight: 5
   thresholds:
     # minimum req success rate (non 5xx responses)
     # percentage (0-100)
