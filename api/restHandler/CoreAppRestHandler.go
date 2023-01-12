@@ -1725,7 +1725,7 @@ func (handler CoreAppRestHandlerImpl) createEnvOverrides(ctx context.Context, ap
 // create template overrides
 func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, userId int32, envId int, deploymentTemplateOverride *appBean.DeploymentTemplate) error {
 	handler.logger.Infow("Create App - creating template override", "appId", appId)
-	
+
 	template, err := json.Marshal(deploymentTemplateOverride.Template)
 	if err != nil {
 		handler.logger.Errorw("json marshaling error env override template in createEnvDeploymentTemplate", "appId", appId, "envId", envId)
@@ -1742,6 +1742,7 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 		CurrentViewEditor: deploymentTemplateOverride.CurrentViewEditor,
 		EnvironmentId:     envId,
 		AppMetrics:        &deploymentTemplateOverride.ShowAppMetrics,
+		UserId:            userId,
 	}
 
 	_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
