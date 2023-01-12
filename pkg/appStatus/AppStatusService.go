@@ -8,6 +8,11 @@ import (
 	"go.uber.org/zap"
 )
 
+const (
+	HealthStatusSuspended   string = "Suspended"
+	HealthStatusHibernating string = "Hibernating"
+)
+
 type AppStatusRequestResponseDto struct {
 	AppId                       int                          `json:"appId"`
 	InstalledAppId              int                          `json:"installedAppId"`
@@ -166,7 +171,9 @@ func (impl *AppStatusServiceImpl) UpdateStatusWithAppIdEnvId(appId, envId int, s
 	}
 	// Rollback tx on error.
 	defer tx.Rollback()
-
+	if status == HealthStatusSuspended {
+		status = HealthStatusHibernating
+	}
 	if container.AppId == 0 {
 		container.AppId = appId
 		container.EnvId = envId
