@@ -277,6 +277,10 @@ func (impl InstalledAppRepositoryImpl) GetAllInstalledApps(filter *appStoreBean.
 	if len(filter.ClusterIds) > 0 {
 		query = query + " AND cluster.id IN (" + sqlIntSeq(filter.ClusterIds) + ")"
 	}
+	if len(filter.AppStatuses) > 0 {
+		appStatuses := processAppStatuses(filter.AppStatuses)
+		query = query + " and app_status.status IN (" + appStatuses + ") "
+	}
 	query = query + " ORDER BY aps.name ASC"
 	if filter.Size > 0 {
 		query = query + " OFFSET " + strconv.Itoa(filter.Offset) + " LIMIT " + strconv.Itoa(filter.Size) + ""
@@ -485,4 +489,17 @@ func (impl InstalledAppRepositoryImpl) GetDeploymentSuccessfulStatusCountForTele
 		impl.Logger.Errorw("unable to get deployment count of successfully deployed Helm apps")
 	}
 	return count, err
+}
+
+func processAppStatuses(appStatuses []string) string {
+	query := ""
+	n := len(appStatuses)
+	for i, status := range appStatuses {
+		query += "'" + status + "'"
+		if i < n-1 {
+			query += ","
+		}
+	}
+
+	return query
 }
