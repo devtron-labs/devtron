@@ -36,7 +36,7 @@ import (
 
 type ApiTokenService interface {
 	GetAllActiveApiTokens() ([]*openapi.ApiToken, error)
-	CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32, managerAuth func(token string, object string) bool) (*openapi.CreateApiTokenResponse, error)
+	CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32, managerAuth func(resource, token, object string) bool) (*openapi.CreateApiTokenResponse, error)
 	UpdateApiToken(apiTokenId int, request *openapi.UpdateApiTokenRequest, updatedBy int32) (*openapi.UpdateApiTokenResponse, error)
 	DeleteApiToken(apiTokenId int, deletedBy int32) (*openapi.ActionResponse, error)
 	GetAllApiTokensForWebhook(projectName string, environmentName string, appName string, auth func(token string, projectObject string, envObject string) bool) ([]*openapi.ApiToken, error)
@@ -155,7 +155,7 @@ func (impl ApiTokenServiceImpl) GetAllActiveApiTokens() ([]*openapi.ApiToken, er
 	return apiTokens, nil
 }
 
-func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32, managerAuth func(token string, object string) bool) (*openapi.CreateApiTokenResponse, error) {
+func (impl ApiTokenServiceImpl) CreateApiToken(request *openapi.CreateApiTokenRequest, createdBy int32, managerAuth func(resource, token string, object string) bool) (*openapi.CreateApiTokenResponse, error) {
 	impl.logger.Infow("Creating API token", "request", request, "createdBy", createdBy)
 
 	name := request.GetName()

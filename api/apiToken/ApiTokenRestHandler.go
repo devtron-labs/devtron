@@ -212,8 +212,8 @@ func (impl ApiTokenRestHandlerImpl) DeleteApiToken(w http.ResponseWriter, r *htt
 	common.WriteJsonResp(w, err, res, http.StatusOK)
 }
 
-func (handler ApiTokenRestHandlerImpl) checkManagerAuth(token string, object string) bool {
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceUser, casbin.ActionUpdate, strings.ToLower(object)); !ok {
+func (handler ApiTokenRestHandlerImpl) checkManagerAuth(resource, token, object string) bool {
+	if ok := handler.enforcer.Enforce(token, resource, casbin.ActionUpdate, strings.ToLower(object)); !ok {
 		return false
 	}
 	return true

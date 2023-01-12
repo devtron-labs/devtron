@@ -171,13 +171,15 @@ type PipelineBuilderImpl struct {
 	ciPipelineMaterialRepository     pipelineConfig.CiPipelineMaterialRepository
 	//ciTemplateOverrideRepository     pipelineConfig.CiTemplateOverrideRepository
 	//ciBuildConfigService CiBuildConfigService
-	ciTemplateService            CiTemplateService
-	userService                  user.UserService
-	ciTemplateOverrideRepository pipelineConfig.CiTemplateOverrideRepository
-	gitMaterialHistoryService    history.GitMaterialHistoryService
-	CiTemplateHistoryService     history.CiTemplateHistoryService
-	CiPipelineHistoryService     history.CiPipelineHistoryService
-	deploymentConfig             *DeploymentServiceTypeConfig
+	ciTemplateService                               CiTemplateService
+	userService                                     user.UserService
+	ciTemplateOverrideRepository                    pipelineConfig.CiTemplateOverrideRepository
+	gitMaterialHistoryService                       history.GitMaterialHistoryService
+	CiTemplateHistoryService                        history.CiTemplateHistoryService
+	CiPipelineHistoryService                        history.CiPipelineHistoryService
+	globalStrategyMetadataRepository                chartRepoRepository.GlobalStrategyMetadataRepository
+	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository
+	deploymentConfig                                *DeploymentServiceTypeConfig
 }
 
 func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
@@ -221,6 +223,8 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 	gitMaterialHistoryService history.GitMaterialHistoryService,
 	CiTemplateHistoryService history.CiTemplateHistoryService,
 	CiPipelineHistoryService history.CiPipelineHistoryService,
+	globalStrategyMetadataRepository chartRepoRepository.GlobalStrategyMetadataRepository,
+	globalStrategyMetadataChartRefMappingRepository chartRepoRepository.GlobalStrategyMetadataChartRefMappingRepository,
 	deploymentConfig *DeploymentServiceTypeConfig) *PipelineBuilderImpl {
 	return &PipelineBuilderImpl{
 		logger:                        logger,
@@ -265,12 +269,14 @@ func NewPipelineBuilderImpl(logger *zap.SugaredLogger,
 		ciTemplateService:                ciTemplateService,
 		//ciTemplateOverrideRepository:     ciTemplateOverrideRepository,
 		//ciBuildConfigService: ciBuildConfigService,
-		userService:                  userService,
-		ciTemplateOverrideRepository: ciTemplateOverrideRepository,
-		gitMaterialHistoryService:    gitMaterialHistoryService,
-		CiTemplateHistoryService:     CiTemplateHistoryService,
-		CiPipelineHistoryService:     CiPipelineHistoryService,
-		deploymentConfig:             deploymentConfig,
+		userService:                                     userService,
+		ciTemplateOverrideRepository:                    ciTemplateOverrideRepository,
+		gitMaterialHistoryService:                       gitMaterialHistoryService,
+		CiTemplateHistoryService:                        CiTemplateHistoryService,
+		CiPipelineHistoryService:                        CiPipelineHistoryService,
+		globalStrategyMetadataRepository:                globalStrategyMetadataRepository,
+		globalStrategyMetadataChartRefMappingRepository: globalStrategyMetadataChartRefMappingRepository,
+		deploymentConfig:                                deploymentConfig,
 	}
 }
 
@@ -1785,7 +1791,7 @@ func (impl PipelineBuilderImpl) createCdPipeline(ctx context.Context, app *app2.
 
 	// Get pipeline override based on Deployment strategy
 	//TODO: mark as created in our db
-	pipelineId, err := impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx)
+	pipelineId, err := impl.ciCdPipelineOrchestrator.CreateCDPipelines(pipeline, app.Id, userId, tx, app.AppName)
 	if err != nil {
 		impl.logger.Errorw("error in ")
 		return 0, err
@@ -1988,14 +1994,14 @@ func (impl PipelineBuilderImpl) updateCdPipeline(ctx context.Context, pipeline *
 	return nil
 }
 
-func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate pipelineConfig.DeploymentTemplate, pipelineOverride string) (string, error) {
+func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate chartRepoRepository.DeploymentStrategy, pipelineOverride string) (string, error) {
 	var deploymentType DeploymentType
 	err := json.Unmarshal([]byte(pipelineOverride), &deploymentType)
 	if err != nil {
 		impl.logger.Errorw("err", err)
 		return "", err
 	}
-	if pipelineConfig.DEPLOYMENT_TEMPLATE_BLUE_GREEN == deploymentTemplate {
+	if chartRepoRepository.DEPLOYMENT_STRATEGY_BLUE_GREEN == deploymentTemplate {
 		newDeploymentType := DeploymentType{
 			Deployment: Deployment{
 				Strategy: Strategy{
@@ -2009,7 +2015,7 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate pipe
 			return "", err
 		}
 		pipelineOverride = string(pipelineOverrideBytes)
-	} else if pipelineConfig.DEPLOYMENT_TEMPLATE_ROLLING == deploymentTemplate {
+	} else if chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING == deploymentTemplate {
 		newDeploymentType := DeploymentType{
 			Deployment: Deployment{
 				Strategy: Strategy{
@@ -2023,7 +2029,7 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate pipe
 			return "", err
 		}
 		pipelineOverride = string(pipelineOverrideBytes)
-	} else if pipelineConfig.DEPLOYMENT_TEMPLATE_CANARY == deploymentTemplate {
+	} else if chartRepoRepository.DEPLOYMENT_STRATEGY_CANARY == deploymentTemplate {
 		newDeploymentType := DeploymentType{
 			Deployment: Deployment{
 				Strategy: Strategy{
@@ -2037,7 +2043,7 @@ func (impl PipelineBuilderImpl) filterDeploymentTemplate(deploymentTemplate pipe
 			return "", err
 		}
 		pipelineOverride = string(pipelineOverrideBytes)
-	} else if pipelineConfig.DEPLOYMENT_TEMPLATE_RECREATE == deploymentTemplate {
+	} else if chartRepoRepository.DEPLOYMENT_STRATEGY_RECREATE == deploymentTemplate {
 		newDeploymentType := DeploymentType{
 			Deployment: Deployment{
 				Strategy: Strategy{
@@ -2070,7 +2076,7 @@ func (impl PipelineBuilderImpl) GetCdPipelinesForApp(appId int) (cdPipelines *be
 			return cdPipelines, err
 		}
 		var strategiesBean []bean.Strategy
-		var deploymentTemplate pipelineConfig.DeploymentTemplate
+		var deploymentTemplate chartRepoRepository.DeploymentStrategy
 		for _, item := range strategies {
 			strategiesBean = append(strategiesBean, bean.Strategy{
 				Config:             []byte(item.Config),
@@ -2197,7 +2203,7 @@ func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentI
 	var err error
 	artifactMap := make(map[int]int)
 	limit := 10
-	ciArtifacts, artifactMap, err = impl.BuildArtifactsForCdStage(cdPipelineId, stage, ciArtifacts, artifactMap, false, limit, parentCdId)
+	ciArtifacts, artifactMap, latestWfArtifactId, latestWfArtifactStatus, err := impl.BuildArtifactsForCdStage(cdPipelineId, stage, ciArtifacts, artifactMap, false, limit, parentCdId)
 	if err != nil && err != pg.ErrNoRows {
 		impl.logger.Errorw("error in getting artifacts for child cd stage", "err", err, "stage", stage)
 		return ciArtifactsResponse, err
@@ -2214,6 +2220,8 @@ func (impl PipelineBuilderImpl) GetArtifactsForCdStage(cdPipelineId int, parentI
 		})
 	}
 	ciArtifactsResponse.CdPipelineId = cdPipelineId
+	ciArtifactsResponse.LatestWfArtifactId = latestWfArtifactId
+	ciArtifactsResponse.LatestWfArtifactStatus = latestWfArtifactStatus
 	if ciArtifacts == nil {
 		ciArtifacts = []bean.CiArtifactBean{}
 	}
@@ -2230,19 +2238,19 @@ func (impl PipelineBuilderImpl) BuildArtifactsForParentStage(cdPipelineId int, p
 		ciArtifactsFinal, err = impl.BuildArtifactsForCIParent(cdPipelineId, parentId, parentType, ciArtifacts, artifactMap, limit)
 	} else {
 		//parent type is PRE, POST or DEPLOY type
-		ciArtifactsFinal, _, err = impl.BuildArtifactsForCdStage(parentId, parentType, ciArtifacts, artifactMap, true, limit, parentCdId)
+		ciArtifactsFinal, _, _, _, err = impl.BuildArtifactsForCdStage(parentId, parentType, ciArtifacts, artifactMap, true, limit, parentCdId)
 	}
 	return ciArtifactsFinal, err
 }
 
-func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, parent bool, limit int, parentCdId int) ([]bean.CiArtifactBean, map[int]int, error) {
+func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageType bean2.WorkflowType, ciArtifacts []bean.CiArtifactBean, artifactMap map[int]int, parent bool, limit int, parentCdId int) ([]bean.CiArtifactBean, map[int]int, int, string, error) {
 	//getting running artifact id for parent cd
 	parentCdRunningArtifactId := 0
 	if parentCdId > 0 && parent {
 		parentCdWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(parentCdId, bean2.CD_WORKFLOW_TYPE_DEPLOY, 1)
 		if err != nil {
 			impl.logger.Errorw("error in getting artifact for parent cd", "parentCdPipelineId", parentCdId)
-			return ciArtifacts, artifactMap, err
+			return ciArtifacts, artifactMap, 0, "", err
 		}
 		parentCdRunningArtifactId = parentCdWfrList[0].CdWorkflow.CiArtifact.Id
 	}
@@ -2250,16 +2258,16 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 	parentWfrList, err := impl.cdWorkflowRepository.FindArtifactByPipelineIdAndRunnerType(pipelineId, stageType, limit)
 	if err != nil {
 		impl.logger.Errorw("error in getting artifact for deployed items", "cdPipelineId", pipelineId)
-		return ciArtifacts, artifactMap, err
+		return ciArtifacts, artifactMap, 0, "", err
 	}
-	var acceptedStatus string
-	if stageType == bean2.CD_WORKFLOW_TYPE_DEPLOY {
-		acceptedStatus = application.Healthy
-	} else {
-		acceptedStatus = application.SUCCEEDED
-	}
+	deploymentArtifactId := 0
+	deploymentArtifactStatus := ""
 	for index, wfr := range parentWfrList {
-		if wfr.Status == acceptedStatus {
+		if !parent && index == 0 {
+			deploymentArtifactId = wfr.CdWorkflow.CiArtifact.Id
+			deploymentArtifactStatus = wfr.Status
+		}
+		if wfr.Status == application.Healthy || wfr.Status == application.SUCCEEDED {
 			lastSuccessfulTriggerOnParent := parent && index == 0
 			latest := !parent && index == 0
 			runningOnParentCd := parentCdRunningArtifactId == wfr.CdWorkflow.CiArtifact.Id
@@ -2301,7 +2309,7 @@ func (impl PipelineBuilderImpl) BuildArtifactsForCdStage(pipelineId int, stageTy
 			}
 		}
 	}
-	return ciArtifacts, artifactMap, nil
+	return ciArtifacts, artifactMap, deploymentArtifactId, deploymentArtifactStatus, nil
 }
 
 // method for building artifacts for parent CI
@@ -2531,72 +2539,36 @@ func (impl PipelineBuilderImpl) FetchCDPipelineStrategy(appId int) (PipelineStra
 		impl.logger.Errorf("invalid state", "err", err, "appId", appId)
 		return pipelineStrategiesResponse, err
 	}
-	chartInfo, err := impl.chartRefRepository.FindById(chart.ChartRefId)
-	if err != nil {
-		impl.logger.Errorf("invalid chart", "err", err, "appId", appId)
-		return pipelineStrategiesResponse, err
-	}
-
 	if chart.Id == 0 {
 		return pipelineStrategiesResponse, fmt.Errorf("no chart configured")
 	}
 
-	if chartInfo.UserUploaded {
-		impl.logger.Errorw("invalid for custom charts", "err", err)
+	//get global strategy for this chart
+	globalStrategies, err := impl.globalStrategyMetadataRepository.GetByChartRefId(chart.ChartRefId)
+	if err != nil && err != pg.ErrNoRows {
+		impl.logger.Errorw("error in getting global strategies", "err", err)
 		return pipelineStrategiesResponse, err
-	}
-
-	pipelineOverride := chart.PipelineOverride
-	rollingConfig, err := impl.filterDeploymentTemplate("ROLLING", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
-	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "ROLLING",
-		Config:             []byte(rollingConfig),
-		Default:            true,
-	})
-
-	bgConfig, err := impl.filterDeploymentTemplate("BLUE-GREEN", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
-	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "BLUE-GREEN",
-		Config:             []byte(bgConfig),
-		Default:            false,
-	})
-
-	chartVersion := chart.ChartVersion
-	chartMajorVersion, chartMinorVersion, err := util2.ExtractChartVersion(chartVersion)
-	if err != nil {
-		impl.logger.Errorw("chart version parsing", "err", err)
-		return pipelineStrategiesResponse, err
-	}
-	if chartMajorVersion <= 3 && chartMinorVersion < 2 {
+	} else if err == pg.ErrNoRows {
+		impl.logger.Infow("no strategies configured for chart", "chartRefId", chart.ChartRefId)
 		return pipelineStrategiesResponse, nil
 	}
-
-	canaryConfig, err := impl.filterDeploymentTemplate("CANARY", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
+	pipelineOverride := chart.PipelineOverride
+	for _, globalStrategy := range globalStrategies {
+		config, err := impl.filterDeploymentTemplate(globalStrategy.Name, pipelineOverride)
+		if err != nil {
+			return pipelineStrategiesResponse, err
+		}
+		pipelineStrategy := PipelineStrategy{
+			DeploymentTemplate: globalStrategy.Name,
+			Config:             []byte(config),
+		}
+		if globalStrategy.Name == chartRepoRepository.DEPLOYMENT_STRATEGY_ROLLING {
+			pipelineStrategy.Default = true
+		} else {
+			pipelineStrategy.Default = false
+		}
+		pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, pipelineStrategy)
 	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "CANARY",
-		Config:             []byte(canaryConfig),
-		Default:            false,
-	})
-
-	recreateConfig, err := impl.filterDeploymentTemplate("RECREATE", pipelineOverride)
-	if err != nil {
-		return pipelineStrategiesResponse, err
-	}
-	pipelineStrategiesResponse.PipelineStrategy = append(pipelineStrategiesResponse.PipelineStrategy, PipelineStrategy{
-		DeploymentTemplate: "RECREATE",
-		Config:             []byte(recreateConfig),
-		Default:            false,
-	})
-
 	return pipelineStrategiesResponse, nil
 }
 
@@ -2604,9 +2576,9 @@ type PipelineStrategiesResponse struct {
 	PipelineStrategy []PipelineStrategy `json:"pipelineStrategy"`
 }
 type PipelineStrategy struct {
-	DeploymentTemplate pipelineConfig.DeploymentTemplate `json:"deploymentTemplate,omitempty" validate:"oneof=BLUE-GREEN ROLLING"` //
-	Config             json.RawMessage                   `json:"config"`
-	Default            bool                              `json:"default"`
+	DeploymentTemplate chartRepoRepository.DeploymentStrategy `json:"deploymentTemplate,omitempty"` //
+	Config             json.RawMessage                        `json:"config"`
+	Default            bool                                   `json:"default"`
 }
 
 func (impl PipelineBuilderImpl) GetEnvironmentByCdPipelineId(pipelineId int) (int, error) {
@@ -2635,7 +2607,7 @@ func (impl PipelineBuilderImpl) GetCdPipelineById(pipelineId int) (cdPipeline *b
 		return cdPipeline, err
 	}
 	var strategiesBean []bean.Strategy
-	var deploymentTemplate pipelineConfig.DeploymentTemplate
+	var deploymentTemplate chartRepoRepository.DeploymentStrategy
 	for _, item := range strategies {
 		strategiesBean = append(strategiesBean, bean.Strategy{
 			Config:             []byte(item.Config),

@@ -102,7 +102,7 @@ func (impl *GitCliUtil) Init(rootDir string, remoteUrl string, isBare bool) erro
 }
 
 func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string, password string) (response, errMsg string, err error) {
-	impl.logger.Infow("input", rootDir, remoteUrl, username)
+	impl.logger.Infow("git clone request", "rootDir", rootDir, "remoteUrl", remoteUrl, "username", username)
 	err = impl.Init(rootDir, remoteUrl, false)
 	if err != nil {
 		return "", "", err
@@ -111,24 +111,30 @@ func (impl *GitCliUtil) Clone(rootDir string, remoteUrl string, username string,
 	if err == nil && errMsg == "" {
 		impl.logger.Warn("git fetch completed, pulling master branch data from remote origin")
 		response, errMsg, err = impl.ListBranch(rootDir, username, password)
+		if err != nil {
+			impl.logger.Errorw("error on git pull", "response", response, "errMsg", errMsg, "err", err)
+			return response, errMsg, err
+		}
 		branches := strings.Split(response, "\n")
-		impl.logger.Info(branches)
+		impl.logger.Infow("total branch available in git repo", "branches", branches)
 		branch := ""
 		for _, item := range branches {
 			if strings.TrimSpace(item) == "origin/master" {
 				branch = Branch_Master
 			}
 		}
-		if len(branch) == 0 && len(branches) > 0 {
+		//if git repo has some branch take pull of the first branch, but eventually proxy chart will push into master branch
+		if len(branch) == 0 && branches != nil && len(branches[0]) > 0 {
 			branch = strings.ReplaceAll(branches[0], "origin/", "")
-		} else if len(branch) == 0 {
-			// only fetch will work, as we don't have any branch for pull
-			return "", "", nil
+		}
+		if branch == "" {
+			impl.logger.Warnw("no branch found in git repo", "remoteUrl", remoteUrl, "response", response)
+			return response, "", nil
 		}
 		response, errMsg, err = impl.Pull(rootDir, username, password, branch)
 		if err != nil {
 			impl.logger.Errorw("error on git pull", "branch", branch, "err", err)
-			return "", "", err
+			return response, errMsg, err
 		}
 	}
 	return response, errMsg, err
