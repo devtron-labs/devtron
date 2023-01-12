@@ -75,6 +75,12 @@ spec:
     apiVersion: apps/v1
     kind: Deployment
     name: {{ include ".Chart.Name .fullname" $ }}
+{{- if $.Values.autoscaling.enabled }}
+  autoscalerRef:
+    apiVersion: autoscaling/v1
+    kind: HorizontalPodAutoscaler
+    name: {{ template ".Chart.Name .fullname" $ }}-hpa
+{{- end }}    
   service:
     portDiscovery: {{ .portDiscovery }}
     port: {{ .port }}
