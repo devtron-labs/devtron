@@ -86,6 +86,8 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 		return
 	}
 	rbacObject := ""
+	rbacObject2 := ""
+
 	token := r.Header.Get("token")
 	if request.AppId != "" {
 		appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
@@ -104,7 +106,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 			return
 		}
 
-		rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObject(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
+		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObject(request.AppIdentifier.ClusterId, request.AppIdentifier.Namespace, request.AppIdentifier.ReleaseName)
 		token := r.Header.Get("token")
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 		if !ok {
@@ -130,7 +132,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResource(w http.ResponseWriter,
 	canUpdate := true
 	if request.AppId != "" {
 		// Obfuscate secret if user does not have edit access
-		canUpdate = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject)
+		canUpdate = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
 	} else if request.ClusterId > 0 {
 		canUpdate = handler.validateRbac(nil, token, request, casbin.ActionUpdate)
 	}
