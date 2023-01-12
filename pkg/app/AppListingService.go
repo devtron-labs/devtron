@@ -82,9 +82,6 @@ type AppListingService interface {
 
 	FetchOtherEnvironment(ctx context.Context, appId int) ([]*bean.Environment, error)
 	RedirectToLinkouts(Id int, appId int, envId int, podName string, containerName string) (string, error)
-	GetLastDeploymentStatusesByAppNames(appNames []string) ([]repository.DeploymentStatus, error)
-	GetLastDeploymentStatuses() (map[string]repository.DeploymentStatus, error)
-	GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs(timeForDegradation int) ([]repository.DeploymentStatus, error)
 	ISLastReleaseStopType(appId, envId int) (bool, error)
 	ISLastReleaseStopTypeV2(pipelineIds []int) (map[int]bool, error)
 	GetReleaseCount(appId, envId int) (int, error)
@@ -353,18 +350,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		appNames = append(appNames, appName)
 		pipelineIds = append(pipelineIds, env.PipelineId)
 	}
-	deploymentStatuses, err := impl.GetLastDeploymentStatusesByAppNames(appNames)
-	if err != nil {
-		impl.Logger.Error(err)
-		return map[string][]*bean.AppEnvironmentContainer{}, err
-	}
-	existingAppEnvStatusMapping := make(map[string]string)
-	for _, ds := range deploymentStatuses {
-		if _, ok := existingAppEnvStatusMapping[ds.AppName]; ok {
-			continue
-		}
-		existingAppEnvStatusMapping[ds.AppName] = ds.Status
-	}
 
 	appEnvPipelinesMap := make(map[string][]*pipelineConfig.Pipeline)
 	appEnvCdWorkflowMap := make(map[string]*pipelineConfig.CdWorkflow)
@@ -441,12 +426,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 			var appEnvContainers []*bean.AppEnvironmentContainer
 			appEnvMapping[appKey] = appEnvContainers
 		}
-		appEnvKey := env.AppName + "-" + env.EnvironmentName
-		status, ok := existingAppEnvStatusMapping[appEnvKey]
-		if !ok || env.DataSource == "" {
-			status = NotDeployed
-		}
-		env.Status = status
 
 		key := fmt.Sprintf("%d-%d", env.AppId, env.EnvironmentId)
 		pipelines := appEnvPipelinesMap[key]
@@ -539,38 +518,6 @@ func (impl AppListingServiceImpl) fetchACDAppStatus(fetchAppListingRequest Fetch
 		appEnvMapping[appKey] = append(appEnvMapping[appKey], env)
 	}
 	return appEnvMapping, nil
-}
-
-func (impl AppListingServiceImpl) GetLastDeploymentStatusesByAppNames(appNames []string) ([]repository.DeploymentStatus, error) {
-	deploymentStatuses, err := impl.appListingRepository.FindLastDeployedStatuses(appNames)
-	if err != nil {
-		return []repository.DeploymentStatus{}, err
-	}
-	return deploymentStatuses, nil
-}
-
-func (impl AppListingServiceImpl) GetLastDeploymentStatuses() (map[string]repository.DeploymentStatus, error) {
-	deploymentStatuses, err := impl.appListingRepository.FindLastDeployedStatusesForAllApps()
-	if err != nil {
-		return map[string]repository.DeploymentStatus{}, err
-	}
-	existingAppEnvStatusMapping := make(map[string]repository.DeploymentStatus)
-	for _, ds := range deploymentStatuses {
-		if _, ok := existingAppEnvStatusMapping[ds.AppName]; ok {
-			continue
-		}
-		existingAppEnvStatusMapping[ds.AppName] = ds
-	}
-	return existingAppEnvStatusMapping, nil
-}
-
-func (impl AppListingServiceImpl) GetLastProgressingDeploymentStatusesOfActiveAppsWithActiveEnvs(timeForDegradation int) ([]repository.DeploymentStatus, error) {
-	deploymentStatuses, err := impl.appListingRepository.FindLatestDeployedStatusesForAppsByStatusAndLastUpdatedBefore(timeForDegradation)
-	if err != nil {
-		impl.Logger.Errorw("error in getting latest deployed status", "err", err)
-		return nil, err
-	}
-	return deploymentStatuses, nil
 }
 
 func (impl AppListingServiceImpl) getAppACDStatus(env bean.AppEnvironmentContainer, w http.ResponseWriter, r *http.Request, token string) (string, error) {
