@@ -1759,15 +1759,17 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 				handler.logger.Errorw("service err, CreateChartFromEnvOverride", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 				return err
 			}
-			_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
-			if err != nil {
-				handler.logger.Errorw("service err, CreateEnvironmentProperties", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
-				return err
-			}
 		} else {
 			handler.logger.Errorw("service err, FindChartByAppIdAndRefId", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 			return err
 		}
+	}
+
+	// create if required
+	_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+	if err != nil {
+		handler.logger.Errorw("service err, CreateEnvironmentProperties", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
+		return err
 	}
 
 	//getting environment properties for db table id(this properties get created when cd pipeline is created)
