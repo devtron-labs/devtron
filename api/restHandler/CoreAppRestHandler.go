@@ -1723,6 +1723,29 @@ func (handler CoreAppRestHandlerImpl) createEnvOverrides(ctx context.Context, ap
 func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, userId int32, envId int, deploymentTemplateOverride *appBean.DeploymentTemplate) error {
 	handler.logger.Infow("Create App - creating template override", "appId", appId)
 
+	// if chart not found for chart_ref then create
+	chartRefId := deploymentTemplateOverride.ChartRefId
+	_, err := handler.chartRepo.FindChartByAppIdAndRefId(appId, chartRefId)
+	if err != nil {
+		if pg.ErrNoRows == err {
+			templateRequest := chart.TemplateRequest{
+				AppId:               appId,
+				ChartRefId:          chartRefId,
+				ValuesOverride:      []byte("{}"),
+				UserId:              userId,
+				IsAppMetricsEnabled: deploymentTemplateOverride.ShowAppMetrics,
+			}
+			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, context.Background())
+			if err != nil {
+				handler.logger.Errorw("service err, CreateChartFromEnvOverride", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
+				return err
+			}
+		} else {
+			handler.logger.Errorw("service err, FindChartByAppIdAndRefId", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
+			return err
+		}
+	}
+
 	//getting environment properties for db table id(this properties get created when cd pipeline is created)
 	env, err := handler.propertiesConfigService.GetEnvironmentProperties(appId, envId, deploymentTemplateOverride.ChartRefId)
 	if err != nil {
