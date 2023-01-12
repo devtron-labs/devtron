@@ -1,4 +1,5 @@
 ## Bugs
+- fix: External Ci Trigger - Won't show images for manual Cd pipelines (#2802)
 - fix: app create api bug fix if chart ref is different (#2851)
 - fix: Dockerfile git repo delete tooltip view to build config (#2792)
 ## Enhancements
