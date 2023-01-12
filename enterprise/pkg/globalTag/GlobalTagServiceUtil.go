@@ -20,7 +20,6 @@ package globalTag
 import (
 	"errors"
 	"fmt"
-	"k8s.io/apimachinery/pkg/util/validation"
 	"strconv"
 	"strings"
 )
@@ -40,29 +39,20 @@ func CheckIfTagIsMandatoryForProject(mandatoryProjectIdsCsv string, projectId in
 	return false
 }
 
-func CheckIfValidLabels(labels map[string]string, globalTags []*GlobalTagDtoForProject) error {
-	// check mandatory labels with values
+func CheckIfMandatoryLabelsProvided(labels map[string]string, globalTags []*GlobalTagDtoForProject) error {
+	// check if mandatory label provided
 	for _, globalTag := range globalTags {
-		if globalTag.IsMandatory {
-			key := globalTag.Key
-			if _, ok := labels[key]; !ok {
-				return errors.New(fmt.Sprintf("Validation error - Mandatory tag - %s not found in labels", key))
-			}
+		if !globalTag.IsMandatory {
+			continue
+		}
+		key := globalTag.Key
+		labelValue, found := labels[key]
+		if !found {
+			return errors.New(fmt.Sprintf("Validation error - Mandatory tag - %s not found in labels", key))
+		}
+		if len(labelValue) == 0 {
+			return errors.New(fmt.Sprintf("Validation error - value for mandatory tag - %s found empty", key))
 		}
 	}
-
-	// check labels keys and values validation
-	for labelKey, labelValue := range labels {
-		errs := validation.IsQualifiedName(labelKey)
-		if len(errs) > 0 {
-			return errors.New(fmt.Sprintf("Validation error - label key - %s is not satisfying the label key criteria", labelKey))
-		}
-
-		errs = validation.IsValidLabelValue(labelValue)
-		if len(errs) > 0 {
-			return errors.New(fmt.Sprintf("Validation error - label value - %s is not satisfying the label value criteria for label key - %s", labelValue, labelKey))
-		}
-	}
-
 	return nil
 }

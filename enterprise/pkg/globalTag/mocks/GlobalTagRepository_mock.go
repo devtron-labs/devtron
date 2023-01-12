@@ -3,7 +3,7 @@
 package mocks
 
 import (
-	globalTag "github.com/devtron-labs/devtron/pkg/enterprise/globalTag"
+	"github.com/devtron-labs/devtron/enterprise/pkg/globalTag"
 	mock "github.com/stretchr/testify/mock"
 
 	pg "github.com/go-pg/pg"

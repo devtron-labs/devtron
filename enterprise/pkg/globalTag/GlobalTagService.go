@@ -34,7 +34,7 @@ type GlobalTagService interface {
 	CreateTags(request *CreateGlobalTagsRequest, createdBy int32) error
 	UpdateTags(request *UpdateGlobalTagsRequest, updatedBy int32) error
 	DeleteTags(request *DeleteGlobalTagsRequest, deletedBy int32) error
-	ValidateLabels(projectId int, labels map[string]string) error
+	ValidateMandatoryLabelsForProject(projectId int, labels map[string]string) error
 }
 
 type GlobalTagServiceImpl struct {
@@ -278,14 +278,14 @@ func (impl GlobalTagServiceImpl) DeleteTags(request *DeleteGlobalTagsRequest, de
 	return nil
 }
 
-func (impl GlobalTagServiceImpl) ValidateLabels(projectId int, labels map[string]string) error {
+func (impl GlobalTagServiceImpl) ValidateMandatoryLabelsForProject(projectId int, labels map[string]string) error {
 	impl.logger.Infow("Validating labels", "projectId", projectId, "labels", labels)
 
 	tags, err := impl.GetAllActiveTagsForProject(projectId)
 	if err != nil {
 		return err
 	}
-	err = CheckIfValidLabels(labels, tags)
+	err = CheckIfMandatoryLabelsProvided(labels, tags)
 	if err != nil {
 		impl.logger.Errorw("error in validating labels", "error", err)
 		return err

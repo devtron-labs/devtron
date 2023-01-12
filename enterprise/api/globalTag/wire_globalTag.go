@@ -1,7 +1,7 @@
 package globalTag
 
 import (
-	"github.com/devtron-labs/devtron/pkg/enterprise/globalTag"
+	"github.com/devtron-labs/devtron/enterprise/pkg/globalTag"
 	"github.com/google/wire"
 )
 

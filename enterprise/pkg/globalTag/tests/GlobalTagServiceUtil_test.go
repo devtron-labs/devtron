@@ -1,7 +1,7 @@
 package globalTagTests
 
 import (
-	"github.com/devtron-labs/devtron/pkg/enterprise/globalTag"
+	"github.com/devtron-labs/devtron/enterprise/pkg/globalTag"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -42,19 +42,19 @@ func TestIfTagMandatoryForProjectForSameProjectIds(t *testing.T) {
 }
 
 func TestCheckForValidLabelsForNilLabelsAndTags(t *testing.T) {
-	err := globalTag.CheckIfValidLabels(nil, nil)
+	err := globalTag.CheckIfMandatoryLabelsProvided(nil, nil)
 	assert.Equal(t, nil, err)
 }
 
 func TestCheckForValidLabelsForNilLabelsAndNotNilTags(t *testing.T) {
 	var globalTags []*globalTag.GlobalTagDtoForProject
-	err := globalTag.CheckIfValidLabels(nil, globalTags)
+	err := globalTag.CheckIfMandatoryLabelsProvided(nil, globalTags)
 	assert.Equal(t, nil, err)
 }
 
 func TestCheckForValidLabelsForNotNilLabelsAndNilTags(t *testing.T) {
 	labels := make(map[string]string)
-	err := globalTag.CheckIfValidLabels(labels, nil)
+	err := globalTag.CheckIfMandatoryLabelsProvided(labels, nil)
 	assert.Equal(t, nil, err)
 }
 
@@ -68,7 +68,7 @@ func TestCheckForValidLabelsForMandatoryLabelNotPass(t *testing.T) {
 	labels := make(map[string]string)
 	labels["somekey2"] = "somevalue2s"
 
-	err := globalTag.CheckIfValidLabels(labels, globalTags)
+	err := globalTag.CheckIfMandatoryLabelsProvided(labels, globalTags)
 	assert.NotNil(t, err)
 }
 
@@ -82,27 +82,27 @@ func TestCheckForValidLabelsForNoMandatoryLabels(t *testing.T) {
 	labels := make(map[string]string)
 	labels["somekey2"] = "somevalue2s"
 
-	err := globalTag.CheckIfValidLabels(labels, globalTags)
+	err := globalTag.CheckIfMandatoryLabelsProvided(labels, globalTags)
 	assert.Nil(t, err)
 }
 
 func TestCheckForValidLabelsForInvalidLabelKey(t *testing.T) {
 	labels := make(map[string]string)
 	labels["key/mid/value"] = "somevalue2s"
-	err := globalTag.CheckIfValidLabels(labels, nil)
-	assert.NotNil(t, err)
+	err := globalTag.CheckIfMandatoryLabelsProvided(labels, nil)
+	assert.Nil(t, err)
 }
 
 func TestCheckForValidLabelsForInvalidLabelValue(t *testing.T) {
 	labels := make(map[string]string)
 	labels["key"] = "value1/value2"
-	err := globalTag.CheckIfValidLabels(labels, nil)
-	assert.NotNil(t, err)
+	err := globalTag.CheckIfMandatoryLabelsProvided(labels, nil)
+	assert.Nil(t, err)
 }
 
 func TestCheckForValidLabels(t *testing.T) {
 	labels := make(map[string]string)
 	labels["key"] = "value"
-	err := globalTag.CheckIfValidLabels(labels, nil)
+	err := globalTag.CheckIfMandatoryLabelsProvided(labels, nil)
 	assert.Nil(t, err)
 }

@@ -2,9 +2,9 @@ package globalTagTests
 
 import (
 	"errors"
+	"github.com/devtron-labs/devtron/enterprise/pkg/globalTag"
+	"github.com/devtron-labs/devtron/enterprise/pkg/globalTag/mocks"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/pkg/enterprise/globalTag"
-	"github.com/devtron-labs/devtron/pkg/enterprise/globalTag/mocks"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -156,7 +156,7 @@ func TestGlobalTagService(t *testing.T) {
 		globalTagRepositoryMocked := mocks.NewGlobalTagRepository(t)
 		globalTagRepositoryMocked.On("FindAllActive").Return(nil, errors.New("some error occured"))
 		globalTagServiceImpl := globalTag.NewGlobalTagServiceImpl(sugaredLogger, globalTagRepositoryMocked)
-		err = globalTagServiceImpl.ValidateLabels(1, nil)
+		err = globalTagServiceImpl.ValidateMandatoryLabelsForProject(1, nil)
 		assert.NotNil(t, err)
 	})
 
@@ -181,7 +181,7 @@ func TestGlobalTagService(t *testing.T) {
 		})
 		globalTagRepositoryMocked.On("FindAllActive").Return(globalTagsFromDb, nil)
 		globalTagServiceImpl := globalTag.NewGlobalTagServiceImpl(sugaredLogger, globalTagRepositoryMocked)
-		err = globalTagServiceImpl.ValidateLabels(1, nil)
+		err = globalTagServiceImpl.ValidateMandatoryLabelsForProject(1, nil)
 		assert.NotNil(t, err)
 	})
 
@@ -208,7 +208,7 @@ func TestGlobalTagService(t *testing.T) {
 		globalTagServiceImpl := globalTag.NewGlobalTagServiceImpl(sugaredLogger, globalTagRepositoryMocked)
 		labels := make(map[string]string)
 		labels["key1"] = "hello"
-		err = globalTagServiceImpl.ValidateLabels(1, labels)
+		err = globalTagServiceImpl.ValidateMandatoryLabelsForProject(1, labels)
 		assert.NotNil(t, err)
 	})
 
@@ -244,7 +244,7 @@ func TestGlobalTagService(t *testing.T) {
 		labels := make(map[string]string)
 		labels["key1"] = "hello1"
 		labels["key2"] = "hello2"
-		err = globalTagServiceImpl.ValidateLabels(1, labels)
+		err = globalTagServiceImpl.ValidateMandatoryLabelsForProject(1, labels)
 		assert.Nil(t, err)
 	})
 
@@ -300,6 +300,7 @@ func TestGlobalTagService(t *testing.T) {
 			Key:                    "name/abcd/efgh",
 			Description:            "some description",
 			MandatoryProjectIdsCsv: "",
+			Propagate:              true,
 		})
 		createTagRequest := &globalTag.CreateGlobalTagsRequest{
 			Tags: createTagRequestTags,
