@@ -1723,9 +1723,25 @@ func (handler CoreAppRestHandlerImpl) createEnvOverrides(ctx context.Context, ap
 func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, userId int32, envId int, deploymentTemplateOverride *appBean.DeploymentTemplate) error {
 	handler.logger.Infow("Create App - creating template override", "appId", appId)
 
+	// build object
+	template, err := json.Marshal(deploymentTemplateOverride.Template)
+	if err != nil {
+		handler.logger.Errorw("json marshaling error env override template in createEnvDeploymentTemplate", "appId", appId, "envId", envId)
+		return err
+	}
+	envConfigProperties := &pipeline.EnvironmentProperties{
+		IsOverride:        true,
+		Active:            true,
+		ManualReviewed:    true,
+		Status:            models.CHARTSTATUS_NEW,
+		EnvOverrideValues: template,
+		IsBasicViewLocked: deploymentTemplateOverride.IsBasicViewLocked,
+		CurrentViewEditor: deploymentTemplateOverride.CurrentViewEditor,
+	}
+
 	// if chart not found for chart_ref then create
 	chartRefId := deploymentTemplateOverride.ChartRefId
-	_, err := handler.chartRepo.FindChartByAppIdAndRefId(appId, chartRefId)
+	_, err = handler.chartRepo.FindChartByAppIdAndRefId(appId, chartRefId)
 	if err != nil {
 		if pg.ErrNoRows == err {
 			templateRequest := chart.TemplateRequest{
@@ -1738,6 +1754,11 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 			_, err = handler.chartService.CreateChartFromEnvOverride(templateRequest, context.Background())
 			if err != nil {
 				handler.logger.Errorw("service err, CreateChartFromEnvOverride", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
+				return err
+			}
+			_, err = handler.propertiesConfigService.CreateEnvironmentProperties(appId, envConfigProperties)
+			if err != nil {
+				handler.logger.Errorw("service err, CreateEnvironmentProperties", "err", err, "appId", appId, "envId", envId, "chartRefId", chartRefId)
 				return err
 			}
 		} else {
@@ -1754,23 +1775,9 @@ func (handler CoreAppRestHandlerImpl) createEnvDeploymentTemplate(appId int, use
 	}
 
 	//updating env template override
-	template, err := json.Marshal(deploymentTemplateOverride.Template)
-	if err != nil {
-		handler.logger.Errorw("json marshaling error env override template in createEnvDeploymentTemplate", "appId", appId, "envId", envId)
-		return err
-	}
+	envConfigProperties.Id = env.EnvironmentConfig.Id
+	envConfigProperties.Namespace = env.Namespace
 
-	envConfigProperties := &pipeline.EnvironmentProperties{
-		Id:                env.EnvironmentConfig.Id,
-		IsOverride:        true,
-		Active:            true,
-		ManualReviewed:    true,
-		Namespace:         env.Namespace,
-		Status:            models.CHARTSTATUS_NEW,
-		EnvOverrideValues: template,
-		IsBasicViewLocked: deploymentTemplateOverride.IsBasicViewLocked,
-		CurrentViewEditor: deploymentTemplateOverride.CurrentViewEditor,
-	}
 	_, err = handler.propertiesConfigService.UpdateEnvironmentProperties(appId, envConfigProperties, userId)
 	if err != nil {
 		handler.logger.Errorw("service err, EnvConfigOverrideUpdate", "err", err, "appId", appId, "envId", envId)
