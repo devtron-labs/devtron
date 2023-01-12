@@ -10,9 +10,9 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/util"
+	"github.com/devtron-labs/devtron/otel"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
-	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"io"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -392,7 +392,7 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 }
 
 func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error) {
-	_, span := otel.Tracer("orchestrator").Start(ctx, "GetRestConfigByClusterId")
+	span := otel.StartSpan(ctx, "K8sApplicationService.GetRestConfigByClusterId")
 	defer span.End()
 	cluster, err := impl.clusterService.FindById(clusterId)
 	if err != nil {

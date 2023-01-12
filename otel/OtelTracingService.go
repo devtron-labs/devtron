@@ -17,7 +17,8 @@ import (
 )
 
 const OTEL_CONFIG_KEY = "OTEL_CONFIGURED"
-const OTEL_ALLOWED_VAL = "true"
+const OTEL_ENABLED_VAL = "true"
+const OTEL_ORCHESTRASTOR_SERVICE_NAME = "orchestrator"
 
 type OtelTracingService interface {
 	Init(serviceName string) *sdktrace.TracerProvider
@@ -98,7 +99,7 @@ func (impl OtelTracingServiceImpl) Shutdown() {
 func (impl OtelTracingServiceImpl) configureOtel(otelConfigured bool) {
 	var boolVal string
 	if otelConfigured {
-		boolVal = OTEL_ALLOWED_VAL
+		boolVal = OTEL_ENABLED_VAL
 	}
 	err := os.Setenv(OTEL_CONFIG_KEY, boolVal)
 	if err != nil {
@@ -107,13 +108,13 @@ func (impl OtelTracingServiceImpl) configureOtel(otelConfigured bool) {
 }
 
 func otelConfigured() bool {
-	return OTEL_ALLOWED_VAL == os.Getenv(OTEL_CONFIG_KEY)
+	return OTEL_ENABLED_VAL == os.Getenv(OTEL_CONFIG_KEY)
 }
 
 type OtelSpan struct {
-	reqContext       context.Context
-	OverridenContext context.Context
-	span             trace.Span
+	reqContext context.Context
+	//OverridenContext context.Context
+	span trace.Span
 }
 
 func (impl OtelSpan) End() {
@@ -122,15 +123,16 @@ func (impl OtelSpan) End() {
 	}
 }
 
-func StartSpan(serviceName, spanName string, ctx context.Context) OtelSpan {
+func StartSpan(ctx context.Context, spanName string) OtelSpan {
+	serviceName := OTEL_ORCHESTRASTOR_SERVICE_NAME
 	otelSpan := OtelSpan{
 		reqContext: ctx,
 	}
 	if otelConfigured() == false {
 		return otelSpan
 	}
-	newCtx, span := otel.Tracer(serviceName).Start(ctx, spanName)
-	otelSpan.OverridenContext = newCtx
+	_, span := otel.Tracer(serviceName).Start(ctx, spanName)
+	//otelSpan.OverridenContext = newCtx
 	otelSpan.span = span
 	return otelSpan
 }
