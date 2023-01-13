@@ -176,7 +176,7 @@ func (impl GitBitbucketClient) CreateReadme(config *bean2.GitOpsConfigDto) (stri
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg, config.BitBucketWorkspaceId)
+	hash, _, err := impl.CommitValues(cfg, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme bitbucket", "repo", config.GitRepoName, "err", err)
 	}
@@ -197,7 +197,7 @@ func (impl GitBitbucketClient) ensureProjectAvailabilityOnSsh(repoOptions *bitbu
 	return false, nil
 }
 
-func (impl GitBitbucketClient) CommitValues(config *ChartConfig, bitBucketWorkspaceId string) (commitHash string, commitTime time.Time, err error) {
+func (impl GitBitbucketClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
 
 	homeDir, err := os.UserHomeDir()
 	if err != nil {
@@ -223,7 +223,7 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig, bitBucketWorksp
 	//bitbucket needs author as - "Name <email-Id>"
 	authorBitbucket := fmt.Sprintf("%s <%s>", config.UserName, config.UserEmailId)
 	repoWriteOptions := &bitbucket.RepositoryBlobWriteOptions{
-		Owner:    bitBucketWorkspaceId,
+		Owner:    gitOpsConfig.BitBucketWorkspaceId,
 		RepoSlug: config.ChartRepoName,
 		FilePath: bitbucketCommitFilePath,
 		FileName: fileName,
@@ -238,7 +238,7 @@ func (impl GitBitbucketClient) CommitValues(config *ChartConfig, bitBucketWorksp
 	}
 	commitOptions := &bitbucket.CommitsOptions{
 		RepoSlug:    config.ChartRepoName,
-		Owner:       bitBucketWorkspaceId,
+		Owner:       gitOpsConfig.BitBucketWorkspaceId,
 		Branchortag: "master",
 	}
 	commits, err := impl.client.Repositories.Commits.GetCommits(commitOptions)

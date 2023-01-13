@@ -148,14 +148,14 @@ func (impl GitHubClient) CreateReadme(config *bean2.GitOpsConfigDto) (string, er
 		UserName:       config.Username,
 		UserEmailId:    config.UserEmailId,
 	}
-	hash, _, err := impl.CommitValues(cfg, "")
+	hash, _, err := impl.CommitValues(cfg, config)
 	if err != nil {
 		impl.logger.Errorw("error in creating readme github", "repo", config.GitRepoName, "err", err)
 	}
 	return hash, err
 }
 
-func (impl GitHubClient) CommitValues(config *ChartConfig, bitBucketWorkspaceId string) (commitHash string, commitTime time.Time, err error) {
+func (impl GitHubClient) CommitValues(config *ChartConfig, gitOpsConfig *bean2.GitOpsConfigDto) (commitHash string, commitTime time.Time, err error) {
 	branch := "master"
 	path := filepath.Join(config.ChartLocation, config.FileName)
 	ctx := context.Background()

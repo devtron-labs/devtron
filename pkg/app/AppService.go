@@ -1601,8 +1601,8 @@ func (impl *AppServiceImpl) mergeAndSave(envOverride *chartConfig.EnvConfigOverr
 				return 0, 0, "", err
 			}
 		}
-		bitBucketWorkspaceId := gitOpsConfigBitbucket.BitBucketWorkspaceId
-		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, bitBucketWorkspaceId)
+		gitOpsConfig := &bean.GitOpsConfigDto{BitBucketWorkspaceId: gitOpsConfigBitbucket.BitBucketWorkspaceId}
+		commitHash, commitTime, err = impl.gitFactory.Client.CommitValues(chartGitAttr, gitOpsConfig)
 		if err != nil {
 			impl.logger.Errorw("error in git commit", "err", err)
 			return 0, 0, "", err
