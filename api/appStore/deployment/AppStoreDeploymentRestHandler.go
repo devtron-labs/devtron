@@ -355,9 +355,10 @@ func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStor
 	}
 
 	// RBAC enforcer applying
-	rbacObject := handler.enforcerUtilHelm.GetHelmObjectByClusterId(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
-	if ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject); !ok {
+	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
+	if !ok {
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
@@ -569,9 +570,9 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app version details"), nil, http.StatusBadRequest)
 		}
 
-		rbacObjectCurrentForCurrentProject, rbacObjectCurrentForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 
-		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectCurrentForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectCurrentForCurrentProject2)
+		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
 
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)

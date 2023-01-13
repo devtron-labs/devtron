@@ -107,8 +107,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObject(clusterId int, namespace string, 
 	} else {
 		if installedApp.EnvironmentId == 0 {
 			// for apps in EA mode, initally env id is 0.
-			return fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, strings.ToLower(appName)),
-				fmt.Sprintf("%s/%s/%s", installedApp.App.Team.Name, installedApp.Environment.EnvironmentIdentifier, strings.ToLower(appName))
+			return fmt.Sprintf("%s/%s__%s/%s", installedApp.App.Team.Name, cluster.ClusterName, namespace, strings.ToLower(appName)), ""
 		}
 		// for apps which are assigned to a project and have env ID
 		return fmt.Sprintf("%s/%s/%s", installedApp.App.Team.Name, installedApp.Environment.EnvironmentIdentifier, strings.ToLower(appName)),
