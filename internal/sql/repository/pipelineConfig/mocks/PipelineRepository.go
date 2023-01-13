@@ -532,6 +532,73 @@ func (_m *PipelineRepository) GetAppAndEnvDetailsForDeploymentAppTypePipeline(de
 	return r0, r1
 }
 
+// GetArgoPipelineByArgoAppName provides a mock function with given fields: argoAppName
+func (_m *PipelineRepository) GetArgoPipelineByArgoAppName(argoAppName string) (pipelineConfig.Pipeline, error) {
+	ret := _m.Called(argoAppName)
+
+	var r0 pipelineConfig.Pipeline
+	if rf, ok := ret.Get(0).(func(string) pipelineConfig.Pipeline); ok {
+		r0 = rf(argoAppName)
+	} else {
+		r0 = ret.Get(0).(pipelineConfig.Pipeline)
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(string) error); ok {
+		r1 = rf(argoAppName)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses provides a mock function with given fields: deployedBeforeMinutes
+func (_m *PipelineRepository) GetArgoPipelinesHavingLatestTriggerStuckInNonTerminalStatuses(deployedBeforeMinutes int) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(deployedBeforeMinutes)
+
+	var r0 []*pipelineConfig.Pipeline
+	if rf, ok := ret.Get(0).(func(int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(deployedBeforeMinutes)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int) error); ok {
+		r1 = rf(deployedBeforeMinutes)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
+// GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines provides a mock function with given fields: pendingSinceSeconds, timeForDegradation
+func (_m *PipelineRepository) GetArgoPipelinesHavingTriggersStuckInLastPossibleNonTerminalTimelines(pendingSinceSeconds int, timeForDegradation int) ([]*pipelineConfig.Pipeline, error) {
+	ret := _m.Called(pendingSinceSeconds, timeForDegradation)
+
+	var r0 []*pipelineConfig.Pipeline
+	if rf, ok := ret.Get(0).(func(int, int) []*pipelineConfig.Pipeline); ok {
+		r0 = rf(pendingSinceSeconds, timeForDegradation)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]*pipelineConfig.Pipeline)
+		}
+	}
+
+	var r1 error
+	if rf, ok := ret.Get(1).(func(int, int) error); ok {
+		r1 = rf(pendingSinceSeconds, timeForDegradation)
+	} else {
+		r1 = ret.Error(1)
+	}
+
+	return r0, r1
+}
+
 // GetByEnvOverrideId provides a mock function with given fields: envOverrideId
 func (_m *PipelineRepository) GetByEnvOverrideId(envOverrideId int) ([]pipelineConfig.Pipeline, error) {
 	ret := _m.Called(envOverrideId)
@@ -590,29 +657,6 @@ func (_m *PipelineRepository) GetConnection() *pg.DB {
 	}
 
 	return r0
-}
-
-// GetPipelineIdsHavingStatusTimelinesPendingAfterKubectlApplyStatus provides a mock function with given fields: pendingSinceSeconds
-func (_m *PipelineRepository) GetPipelineIdsHavingStatusTimelinesPendingAfterKubectlApplyStatus(pendingSinceSeconds int) ([]int, error) {
-	ret := _m.Called(pendingSinceSeconds)
-
-	var r0 []int
-	if rf, ok := ret.Get(0).(func(int) []int); ok {
-		r0 = rf(pendingSinceSeconds)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]int)
-		}
-	}
-
-	var r1 error
-	if rf, ok := ret.Get(1).(func(int) error); ok {
-		r1 = rf(pendingSinceSeconds)
-	} else {
-		r1 = ret.Error(1)
-	}
-
-	return r0, r1
 }
 
 // PipelineExists provides a mock function with given fields: pipelineName
