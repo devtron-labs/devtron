@@ -309,6 +309,11 @@ func (handler *K8sApplicationRestHandlerImpl) DeleteResource(w http.ResponseWrit
 
 	userId, err := handler.userService.GetLoggedInUser(r)
 
+	if userId == 0 || err != nil {
+		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
+		return
+	}
+
 	decoder := json.NewDecoder(r.Body)
 	token := r.Header.Get("token")
 	var request ResourceRequestBean
