@@ -9,6 +9,7 @@
 - feat: Sonarqube polling script update (#2846)
 - feat: deployment status restructuring (#2825)
 ## Documentation
+- docs: updated aws external secret doc (#2781)
 - docs: updated broken links and minor updates (resource browser) (#2844)
 - docs: added cluster, k8s resource browser, k8s resource permission (#2787)
 ## Others
