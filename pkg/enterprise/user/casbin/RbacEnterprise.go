@@ -13,6 +13,7 @@ import (
 	"github.com/devtron-labs/authenticator/middleware"
 	casbin2 "github.com/devtron-labs/devtron/pkg/user/casbin"
 	"go.uber.org/zap"
+	"strings"
 	"time"
 )
 
@@ -36,6 +37,14 @@ func NewEnterpriseEnforcerImpl(enforcer *casbin.SyncedEnforcer,
 	}
 	logger.Infow("enforcer initialized", "Config", enforcerConfig)
 	return &EnterpriseEnforcerImpl{EnforcerImpl: enforcerImpl, Config: enforcerConfig}, nil
+}
+
+func (e *EnterpriseEnforcerImpl) Enforce(token string, resource string, action string, resourceItem string) bool {
+	email, invalid := e.VerifyTokenAndGetEmail(token)
+	if invalid {
+		return false
+	}
+	return e.EnforceByEmail(strings.ToLower(email), resource, action, resourceItem)
 }
 
 func (e *EnterpriseEnforcerImpl) EnforceByEmail(emailId string, resource string, action string, resourceItem string) bool {
