@@ -857,13 +857,6 @@ components:
           type: number
           description: if of new project
           example: 1
-    UpdateReleaseResponse:
-      type: object
-      properties:
-        success:
-          type: boolean
-          description: success or failure
-          example: true
     UpdateProjectResponse:
       type: object
       properties:
