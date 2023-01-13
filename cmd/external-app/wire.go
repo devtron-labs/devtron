@@ -36,6 +36,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/attributes"
 	chartRepoRepository "github.com/devtron-labs/devtron/pkg/chartRepo/repository"
 	delete2 "github.com/devtron-labs/devtron/pkg/delete"
+	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
+	repository2 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/sql"
 	util2 "github.com/devtron-labs/devtron/pkg/util"
 	util3 "github.com/devtron-labs/devtron/util"
@@ -143,6 +145,12 @@ func InitializeApp() (*App, error) {
 		repository.NewUserAttributesRepositoryImpl,
 		wire.Bind(new(repository.UserAttributesRepository), new(*repository.UserAttributesRepositoryImpl)),
 		util3.GetDevtronSecretName,
+
+		repository2.NewK8sResourceHistoryRepositoryImpl,
+		wire.Bind(new(repository2.K8sResourceHistoryRepository), new(*repository2.K8sResourceHistoryRepositoryImpl)),
+
+		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
+		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
 	)
 	return &App{}, nil
 }

@@ -91,6 +91,8 @@ import (
 	"github.com/devtron-labs/devtron/pkg/git"
 	"github.com/devtron-labs/devtron/pkg/gitops"
 	jira2 "github.com/devtron-labs/devtron/pkg/jira"
+	"github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs"
+	repository7 "github.com/devtron-labs/devtron/pkg/kubernetesResourceAuditLogs/repository"
 	"github.com/devtron-labs/devtron/pkg/notifier"
 	"github.com/devtron-labs/devtron/pkg/pipeline"
 	history3 "github.com/devtron-labs/devtron/pkg/pipeline/history"
@@ -753,7 +755,6 @@ func InitializeApp() (*App, error) {
 		cron.NewCiStatusUpdateCronImpl,
 		wire.Bind(new(cron.CiStatusUpdateCron), new(*cron.CiStatusUpdateCronImpl)),
 
-
 		restHandler.NewPipelineStatusTimelineRestHandlerImpl,
 		wire.Bind(new(restHandler.PipelineStatusTimelineRestHandler), new(*restHandler.PipelineStatusTimelineRestHandlerImpl)),
 
@@ -803,6 +804,12 @@ func InitializeApp() (*App, error) {
 		wire.Bind(new(app.PipelineStatusSyncDetailService), new(*app.PipelineStatusSyncDetailServiceImpl)),
 		pipelineConfig.NewPipelineStatusSyncDetailRepositoryImpl,
 		wire.Bind(new(pipelineConfig.PipelineStatusSyncDetailRepository), new(*pipelineConfig.PipelineStatusSyncDetailRepositoryImpl)),
+
+		repository7.NewK8sResourceHistoryRepositoryImpl,
+		wire.Bind(new(repository7.K8sResourceHistoryRepository), new(*repository7.K8sResourceHistoryRepositoryImpl)),
+
+		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
+		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
 	)
 	return &App{}, nil
 }
