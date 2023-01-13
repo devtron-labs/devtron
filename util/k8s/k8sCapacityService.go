@@ -72,10 +72,10 @@ type K8sCapacityService interface {
 	GetNodeCapacityDetailsListByCluster(ctx context.Context, cluster *cluster.ClusterBean) ([]*NodeCapacityDetail, error)
 	GetNodeCapacityDetailByNameAndCluster(ctx context.Context, cluster *cluster.ClusterBean, name string) (*NodeCapacityDetail, error)
 	UpdateNodeManifest(ctx context.Context, request *NodeUpdateRequestDto) (*application.ManifestResponse, error)
-	DeleteNode(request *NodeUpdateRequestDto) (*application.ManifestResponse, error)
-	CordonOrUnCordonNode(request *NodeUpdateRequestDto) (string, error)
-	DrainNode(request *NodeUpdateRequestDto) (string, error)
-	EditNodeTaints(request *NodeUpdateRequestDto) (string, error)
+	DeleteNode(ctx context.Context, request *NodeUpdateRequestDto) (*application.ManifestResponse, error)
+	CordonOrUnCordonNode(ctx context.Context, request *NodeUpdateRequestDto) (string, error)
+	DrainNode(ctx context.Context, request *NodeUpdateRequestDto) (string, error)
+	EditNodeTaints(ctx context.Context, request *NodeUpdateRequestDto) (string, error)
 }
 type K8sCapacityServiceImpl struct {
 	logger                *zap.SugaredLogger
@@ -544,9 +544,9 @@ func (impl *K8sCapacityServiceImpl) UpdateNodeManifest(ctx context.Context, requ
 	return manifestResponse, nil
 }
 
-func (impl *K8sCapacityServiceImpl) DeleteNode(request *NodeUpdateRequestDto) (*application.ManifestResponse, error) {
+func (impl *K8sCapacityServiceImpl) DeleteNode(ctx context.Context, request *NodeUpdateRequestDto) (*application.ManifestResponse, error) {
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(request.ClusterId)
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
 		return nil, err
@@ -561,7 +561,7 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(request *NodeUpdateRequestDto) (*
 			},
 		},
 	}
-	manifestResponse, err := impl.k8sClientService.DeleteResource(restConfig, deleteReq)
+	manifestResponse, err := impl.k8sClientService.DeleteResource(ctx, restConfig, deleteReq)
 	if err != nil {
 		impl.logger.Errorw("error in deleting node", "err", err)
 		return nil, err
@@ -569,10 +569,10 @@ func (impl *K8sCapacityServiceImpl) DeleteNode(request *NodeUpdateRequestDto) (*
 	return manifestResponse, nil
 }
 
-func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(request *NodeUpdateRequestDto) (string, error) {
+func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(ctx context.Context, request *NodeUpdateRequestDto) (string, error) {
 	respMessage := ""
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(request.ClusterId)
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
 		return respMessage, err
@@ -607,11 +607,11 @@ func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(request *NodeUpdateRequ
 	return respMessage, nil
 }
 
-func (impl *K8sCapacityServiceImpl) DrainNode(request *NodeUpdateRequestDto) (string, error) {
+func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *NodeUpdateRequestDto) (string, error) {
 	impl.logger.Infow("received node drain request", "request", request)
 	respMessage := ""
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(request.ClusterId)
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
 		return respMessage, err
@@ -646,10 +646,10 @@ func (impl *K8sCapacityServiceImpl) DrainNode(request *NodeUpdateRequestDto) (st
 	return respMessage, nil
 }
 
-func (impl *K8sCapacityServiceImpl) EditNodeTaints(request *NodeUpdateRequestDto) (string, error) {
+func (impl *K8sCapacityServiceImpl) EditNodeTaints(ctx context.Context, request *NodeUpdateRequestDto) (string, error) {
 	respMessage := ""
 	//getting rest config by clusterId
-	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(request.ClusterId)
+	restConfig, err := impl.k8sApplicationService.GetRestConfigByClusterId(ctx, request.ClusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster id", "err", err, "clusterId", request.ClusterId)
 		return respMessage, err

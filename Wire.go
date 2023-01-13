@@ -334,6 +334,8 @@ func InitializeApp() (*App, error) {
 		//ArgoUtil.NewClusterServiceImpl,
 		//wire.Bind(new(ArgoUtil.ClusterService), new(ArgoUtil.ClusterServiceImpl)),
 		pipeline.GetEcrConfig,
+		//otel.NewOtelTracingServiceImpl,
+		//wire.Bind(new(otel.OtelTracingService), new(*otel.OtelTracingServiceImpl)),
 		NewApp,
 		//session.NewK8sClient,
 
@@ -752,7 +754,6 @@ func InitializeApp() (*App, error) {
 		cron.GetCiWorkflowStatusUpdateConfig,
 		cron.NewCiStatusUpdateCronImpl,
 		wire.Bind(new(cron.CiStatusUpdateCron), new(*cron.CiStatusUpdateCronImpl)),
-
 
 		restHandler.NewPipelineStatusTimelineRestHandlerImpl,
 		wire.Bind(new(restHandler.PipelineStatusTimelineRestHandler), new(*restHandler.PipelineStatusTimelineRestHandlerImpl)),

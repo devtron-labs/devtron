@@ -21,8 +21,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/devtron-labs/devtron/otel"
 	"github.com/gorilla/mux"
+	"go.opentelemetry.io/otel"
+
 	"net/http"
 	"strconv"
 
@@ -125,7 +126,7 @@ func (handler PipelineTriggerRestHandlerImpl) OverrideConfig(w http.ResponseWrit
 		return
 	}
 	ctx := context.WithValue(r.Context(), "token", acdToken)
-	span := otel.StartSpan(ctx, "workflowDagExecutor.ManualCdTrigger")
+	_, span := otel.Tracer("orchestrator").Start(ctx, "workflowDagExecutor.ManualCdTrigger")
 	mergeResp, err := handler.workflowDagExecutor.ManualCdTrigger(&overrideRequest, ctx)
 	span.End()
 	if err != nil {

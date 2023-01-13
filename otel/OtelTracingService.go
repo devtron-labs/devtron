@@ -49,7 +49,9 @@ func (impl OtelTracingServiceImpl) Init(serviceName string) *sdktrace.TracerProv
 	}
 
 	if otelCfg.OtelCollectorUrl == "" { // otel is not configured
-		impl.configureOtel(false)
+		noopTracerProvider := trace.NewNoopTracerProvider()
+		otel.SetTracerProvider(noopTracerProvider)
+		//impl.configureOtel(false)
 		return nil
 	}
 	impl.configureOtel(true)

@@ -11,11 +11,11 @@ import (
 	openapi "github.com/devtron-labs/devtron/api/helm-app/openapiClient"
 	"github.com/devtron-labs/devtron/client/k8s/application"
 	"github.com/devtron-labs/devtron/internal/util"
-	"github.com/devtron-labs/devtron/otel"
 	"github.com/devtron-labs/devtron/pkg/cluster"
 	"github.com/devtron-labs/devtron/pkg/user/casbin"
 	util3 "github.com/devtron-labs/devtron/pkg/util"
 	yamlUtil "github.com/devtron-labs/devtron/util/yaml"
+	"go.opentelemetry.io/otel"
 	"go.uber.org/zap"
 	"io"
 	errors2 "k8s.io/apimachinery/pkg/api/errors"
@@ -47,9 +47,9 @@ type K8sApplicationService interface {
 	GetManifestsByBatch(ctx context.Context, request []ResourceRequestBean) ([]BatchResourceResponse, error)
 	FilterServiceAndIngress(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
-	GetAllApiResources(clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error)
-	GetResourceList(token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*application.ClusterResourceListMap, error)
-	ApplyResources(token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
+	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error)
+	GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*application.ClusterResourceListMap, error)
+	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
 }
 
 type K8sApplicationServiceImpl struct {
@@ -408,7 +408,7 @@ func (impl *K8sApplicationServiceImpl) GetPodLogs(ctx context.Context, request *
 }
 
 func (impl *K8sApplicationServiceImpl) GetRestConfigByClusterId(ctx context.Context, clusterId int) (*rest.Config, error) {
-	span := otel.StartSpan(ctx, "K8sApplicationService.GetRestConfigByClusterId")
+	_, span := otel.Tracer("orchestrator").Start(ctx, "K8sApplicationService.GetRestConfigByClusterId")
 	defer span.End()
 	cluster, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
@@ -494,9 +494,9 @@ func (impl *K8sApplicationServiceImpl) GetResourceInfo(ctx context.Context) (*Re
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error) {
+func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error) {
 	impl.logger.Infow("getting all api-resources", "clusterId", clusterId)
-	restConfig, err := impl.GetRestConfigByClusterId(clusterId)
+	restConfig, err := impl.GetRestConfigByClusterId(ctx, clusterId)
 	if err != nil {
 		impl.logger.Errorw("error in getting cluster rest config", "clusterId", clusterId, "err", err)
 		return nil, err
@@ -586,7 +586,7 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(clusterId int, isSuper
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetResourceList(token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*application.ClusterResourceListMap, error) {
+func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*application.ClusterResourceListMap, error) {
 	resourceList := &application.ClusterResourceListMap{}
 	clusterId := request.ClusterId
 	clusterBean, err := impl.clusterService.FindById(clusterId)
@@ -594,7 +594,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(token string, request *Re
 		impl.logger.Errorw("error in getting cluster by cluster Id", "err", err, "clusterId", clusterId)
 		return resourceList, err
 	}
-	restConfig, err := impl.GetRestConfigByCluster(clusterBean)
+	restConfig, err := impl.GetRestConfigByCluster(ctx, clusterBean)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster Id", "err", err, "clusterId", request.ClusterId)
 		return resourceList, err
@@ -620,7 +620,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(token string, request *Re
 	return resourceList, nil
 }
 
-func (impl *K8sApplicationServiceImpl) ApplyResources(token string, request *application.ApplyResourcesRequest, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error) {
+func (impl *K8sApplicationServiceImpl) ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error) {
 	manifests, err := yamlUtil.SplitYAMLs([]byte(request.Manifest))
 	if err != nil {
 		impl.logger.Errorw("error in splitting yaml in manifest", "err", err)
@@ -634,7 +634,7 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(token string, request *app
 		impl.logger.Errorw("error in getting clusterBean by cluster Id", "clusterId", clusterId, "err", err)
 		return nil, err
 	}
-	restConfig, err := impl.GetRestConfigByCluster(clusterBean)
+	restConfig, err := impl.GetRestConfigByCluster(ctx, clusterBean)
 	if err != nil {
 		impl.logger.Errorw("error in getting rest config by cluster", "clusterId", clusterId, "err", err)
 		return nil, err
@@ -665,7 +665,7 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(token string, request *app
 		}
 		actionAllowed := validateResourceAccess(token, clusterBean.ClusterName, resourceRequestBean, casbin.ActionUpdate)
 		if actionAllowed {
-			resourceExists, err := impl.applyResourceFromManifest(manifest, restConfig, namespace)
+			resourceExists, err := impl.applyResourceFromManifest(ctx, manifest, restConfig, namespace)
 			manifestRes.IsUpdate = resourceExists
 			if err != nil {
 				manifestRes.Error = err.Error()
@@ -679,7 +679,7 @@ func (impl *K8sApplicationServiceImpl) ApplyResources(token string, request *app
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstructured.Unstructured, restConfig *rest.Config, namespace string) (bool, error) {
+func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(ctx context.Context, manifest unstructured.Unstructured, restConfig *rest.Config, namespace string) (bool, error) {
 	var isUpdateResource bool
 	k8sRequestBean := &application.K8sRequestBean{
 		ResourceIdentifier: application.ResourceIdentifier{
@@ -694,7 +694,7 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstru
 		return isUpdateResource, err
 	}
 	jsonStr := string(jsonStrByteErr)
-	_, err = impl.k8sClientService.GetResource(restConfig, k8sRequestBean)
+	_, err = impl.k8sClientService.GetResource(ctx, restConfig, k8sRequestBean)
 	if err != nil {
 		statusError, ok := err.(*errors2.StatusError)
 		if !ok || statusError == nil || statusError.ErrStatus.Reason != metav1.StatusReasonNotFound {
@@ -702,7 +702,7 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(manifest unstru
 			return isUpdateResource, err
 		}
 		// case of resource not found
-		_, err = impl.k8sClientService.CreateResource(restConfig, k8sRequestBean, jsonStr)
+		_, err = impl.k8sClientService.CreateResource(ctx, restConfig, k8sRequestBean, jsonStr)
 		if err != nil {
 			impl.logger.Errorw("error in creating resource", "err", err)
 			return isUpdateResource, err

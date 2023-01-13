@@ -64,7 +64,6 @@ func NewApp(router *router.MuxRouter,
 	pubsubClient *pubsub.PubSubClient,
 	sessionManager2 *authMiddleware.SessionManager,
 	posthogClient *telemetry.PosthogClient,
-	otelTracingService *otel.OtelTracingServiceImpl,
 ) *App {
 	//check argo connection
 	//todo - check argo-cd version on acd integration installation
@@ -78,7 +77,7 @@ func NewApp(router *router.MuxRouter,
 		serveTls:           false,
 		sessionManager2:    sessionManager2,
 		posthogClient:      posthogClient,
-		OtelTracingService: otelTracingService,
+		OtelTracingService: otel.NewOtelTracingServiceImpl(Logger),
 	}
 	return app
 }

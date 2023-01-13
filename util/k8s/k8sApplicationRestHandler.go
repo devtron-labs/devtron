@@ -630,7 +630,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetAllApiResources(w http.Response
 	}
 
 	// get data from service
-	response, err := handler.k8sApplicationService.GetAllApiResources(clusterId, isSuperAdmin, userId)
+	response, err := handler.k8sApplicationService.GetAllApiResources(r.Context(), clusterId, isSuperAdmin, userId)
 	if err != nil {
 		handler.logger.Errorw("error in getting api-resources", "clusterId", clusterId, "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -656,7 +656,7 @@ func (handler *K8sApplicationRestHandlerImpl) GetResourceList(w http.ResponseWri
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-	response, err := handler.k8sApplicationService.GetResourceList(token, &request, handler.verifyRbacForCluster)
+	response, err := handler.k8sApplicationService.GetResourceList(r.Context(), token, &request, handler.verifyRbacForCluster)
 	if err != nil {
 		handler.logger.Errorw("error in getting resource list", "err", err)
 		if statusErr, ok := err.(*errors3.StatusError); ok && statusErr.Status().Code == 404 {
@@ -679,7 +679,7 @@ func (handler *K8sApplicationRestHandlerImpl) ApplyResources(w http.ResponseWrit
 		return
 	}
 
-	response, err := handler.k8sApplicationService.ApplyResources(token, &request, handler.verifyRbacForCluster)
+	response, err := handler.k8sApplicationService.ApplyResources(r.Context(), token, &request, handler.verifyRbacForCluster)
 	if err != nil {
 		handler.logger.Errorw("error in applying resource", "err", err)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
