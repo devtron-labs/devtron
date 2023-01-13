@@ -763,7 +763,7 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 					ClusterId:   &deployedapp.EnvironmentDetail.ClusterId,
 				},
 			}
-			rbacObject, rbacObject2 := impl.enforcerUtil.GetHelmObject(int(deployedapp.EnvironmentDetail.ClusterId), deployedapp.EnvironmentDetail.Namespace, deployedapp.AppName)
+			rbacObject, rbacObject2 := impl.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(int(deployedapp.EnvironmentDetail.ClusterId), deployedapp.EnvironmentDetail.Namespace, deployedapp.AppName)
 			isValidAuth := helmAuth(token, rbacObject) || helmAuth(token, rbacObject2)
 			if isValidAuth {
 				HelmApps = append(HelmApps, helmApp)

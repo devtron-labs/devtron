@@ -215,7 +215,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppsByAppStoreId(w 
 		var rbacObject string
 		var rbacObject2 string
 		if util2.IsHelmApp(app.AppOfferingMode) {
-			rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObject(app.ClusterId, app.Namespace, app.AppName)
+			rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(app.ClusterId, app.Namespace, app.AppName)
 		} else {
 			rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(app.AppName, app.EnvironmentId)
 		}
@@ -276,7 +276,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) DeleteInstalledApp(w http.Respo
 	var rbacObject string
 	var rbacObject2 string
 	if util2.IsHelmApp(installedApp.AppOfferingMode) {
-		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(installedApp.AppName, installedApp.EnvironmentId)
 	}
@@ -355,7 +355,7 @@ func (handler *AppStoreDeploymentRestHandlerImpl) LinkHelmApplicationToChartStor
 	}
 
 	// RBAC enforcer applying
-	rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
 	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
 	if !ok {
@@ -410,7 +410,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateInstalledApp(w http.Respo
 	var rbacObject string
 	var rbacObject2 string
 	if util2.IsHelmApp(installedApp.AppOfferingMode) {
-		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObject(installedApp.AppId, installedApp.EnvironmentId)
 	}
@@ -492,7 +492,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.R
 	var rbacObject string
 	var rbacObject2 string
 	if util2.IsHelmApp(dto.AppOfferingMode) {
-		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObject(dto.ClusterId, dto.Namespace, dto.AppName)
+		rbacObject, rbacObject2 = handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(dto.ClusterId, dto.Namespace, dto.AppName)
 	} else {
 		rbacObject, rbacObject2 = handler.enforcerUtil.GetHelmObjectByAppNameAndEnvId(dto.AppName, dto.EnvironmentId)
 	}
@@ -536,7 +536,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 			common.WriteJsonResp(w, err, "error in decoding app id", http.StatusBadRequest)
 		}
 		// this rbac object checks that whether user have permission to change current project.
-		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
 		// this rbac object check that whether user have permission for new project which he is updating.
 		rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
@@ -551,7 +551,7 @@ func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.Res
 			handler.Logger.Errorw("service err, InstalledAppId", "err", err, "InstalledAppId", request.InstalledAppId)
 			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app details"), nil, http.StatusBadRequest)
 		}
-		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
+		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
 		rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)

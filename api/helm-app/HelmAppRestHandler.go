@@ -100,7 +100,7 @@ func (handler *HelmAppRestHandlerImpl) GetApplicationDetail(w http.ResponseWrite
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
 
 	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
@@ -145,7 +145,7 @@ func (handler *HelmAppRestHandlerImpl) Hibernate(w http.ResponseWriter, r *http.
 	}
 
 	// RBAC enforcer applying
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
 	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
 	if !ok {
@@ -175,7 +175,7 @@ func (handler *HelmAppRestHandlerImpl) UnHibernate(w http.ResponseWriter, r *htt
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
 
 	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObject2)
@@ -202,7 +202,7 @@ func (handler *HelmAppRestHandlerImpl) GetReleaseInfo(w http.ResponseWriter, r *
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
 
 	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
@@ -245,7 +245,7 @@ func (handler *HelmAppRestHandlerImpl) GetDesiredManifest(w http.ResponseWriter,
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
 
 	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
@@ -285,7 +285,7 @@ func (handler *HelmAppRestHandlerImpl) DeleteApplication(w http.ResponseWriter, 
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
 
 	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionDelete, rbacObject2)
@@ -326,7 +326,7 @@ func (handler *HelmAppRestHandlerImpl) UpdateApplication(w http.ResponseWriter, 
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
 
 	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
@@ -393,7 +393,7 @@ func (handler *HelmAppRestHandlerImpl) SaveHelmAppDetailsViewedTelemetryData(w h
 		return
 	}
 	// RBAC enforcer applying
-	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
+	rbacObject, rbacObject2 := handler.enforcerUtil.GetHelmObjectByClusterIdNamespaceAndAppName(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
 	token := r.Header.Get("token")
 	ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, rbacObject2)
 	if !ok {

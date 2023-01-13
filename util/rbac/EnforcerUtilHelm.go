@@ -14,7 +14,7 @@ import (
 type EnforcerUtilHelm interface {
 	GetHelmObjectByClusterId(clusterId int, namespace string, appName string) string
 	GetHelmObjectByTeamIdAndClusterId(teamId int, clusterId int, namespace string, appName string) string
-	GetHelmObject(clusterId int, namespace string, appName string) (string, string)
+	GetHelmObjectByClusterIdNamespaceAndAppName(clusterId int, namespace string, appName string) (string, string)
 	GetAppRBACNameByInstalledAppId(installedAppId int) (string, string)
 }
 type EnforcerUtilHelmImpl struct {
@@ -63,7 +63,7 @@ func (impl EnforcerUtilHelmImpl) GetHelmObjectByTeamIdAndClusterId(teamId int, c
 	return fmt.Sprintf("%s/%s__%s/%s", teamObj.Name, cluster.ClusterName, namespace, strings.ToLower(appName))
 }
 
-func (impl EnforcerUtilHelmImpl) GetHelmObject(clusterId int, namespace string, appName string) (string, string) {
+func (impl EnforcerUtilHelmImpl) GetHelmObjectByClusterIdNamespaceAndAppName(clusterId int, namespace string, appName string) (string, string) {
 
 	installedApp, installedAppErr := impl.InstalledAppRepository.GetInstalledApplicationByClusterIdAndNamespaceAndAppName(clusterId, namespace, appName)
 

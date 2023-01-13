@@ -148,7 +148,7 @@ func (handler AppRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, r *h
 			common.WriteJsonResp(w, err, "request err, not able to decode app id", http.StatusForbidden)
 			return
 		}
-		object, object2 := handler.enforcerUtilHelm.GetHelmObject(appIdDecoded.ClusterId, appIdDecoded.Namespace, appIdDecoded.ReleaseName)
+		object, object2 := handler.enforcerUtilHelm.GetHelmObjectByClusterIdNamespaceAndAppName(appIdDecoded.ClusterId, appIdDecoded.Namespace, appIdDecoded.ReleaseName)
 
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
 		if !ok {
