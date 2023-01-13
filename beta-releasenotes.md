@@ -5,6 +5,7 @@
 - fix: app create api bug fix if chart ref is different (#2851)
 - fix: Dockerfile git repo delete tooltip view to build config (#2792)
 ## Enhancements
+- feat: Audit logs for resource deletion from devtron UI  (#2791)
 - feat: verify token function scope made public (#2856)
 - feat: Sonarqube polling script update (#2846)
 - feat: deployment status restructuring (#2825)
