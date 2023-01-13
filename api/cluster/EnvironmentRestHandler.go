@@ -290,15 +290,13 @@ func (impl EnvironmentRestHandlerImpl) GetEnvironmentListForAutocomplete(w http.
 		for _, item := range environments {
 
 			var hasAccess bool
-
-			if item.EnvironmentIdentifier != item.ClusterName+"__"+item.Namespace {
+			EnvironmentIdentifier := item.ClusterName + "__" + item.Namespace
+			if item.EnvironmentIdentifier != EnvironmentIdentifier {
 				// fix for futuristic case
-				rbacObject2 := item.ClusterName + "__" + item.Namespace
-				hasAccess = result[strings.ToLower(rbacObject2)] || result[strings.ToLower(item.EnvironmentIdentifier)]
+				hasAccess = result[strings.ToLower(EnvironmentIdentifier)] || result[strings.ToLower(item.EnvironmentIdentifier)]
 			} else {
 				hasAccess = result[strings.ToLower(item.EnvironmentIdentifier)]
 			}
-
 			if hasAccess {
 				grantedEnvironment = append(grantedEnvironment, item)
 			}

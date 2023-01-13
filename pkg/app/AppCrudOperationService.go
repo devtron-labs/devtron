@@ -312,37 +312,31 @@ func (impl AppCrudOperationServiceImpl) GetHelmAppMetaInfo(appId string) (*bean.
 
 	// adding separate function for helm apps because for CLI helm apps, apps can be of form "1|clusterName|releaseName"
 	// In this case app details can be fetched using app name / release Name.
-
 	appIdSplitted := strings.Split(appId, "|")
-
 	app := &app.App{}
 	var err error
-
+	impl.logger.Info("request payload, appId", appId)
 	if len(appIdSplitted) > 1 {
 		appName := appIdSplitted[2]
-
 		app, err = impl.appRepository.FindAppAndProjectByAppName(appName)
-
 		if err != nil && err != pg.ErrNoRows {
 			impl.logger.Errorw("error in fetching app meta data", "err", err)
 			return nil, err
 		}
-
 		if app.Id == 0 {
 			app.AppName = appName
 		}
-
 	} else {
-
-		appIdInt, err := strconv.Atoi(appId)
-
+		installedAppIdInt, err := strconv.Atoi(appId)
 		if err != nil {
 			impl.logger.Errorw("error in converting appId to integer", "err", err)
 			return nil, err
 		}
-
-		InstalledApp, err := impl.installedAppRepository.GetInstalledApp(appIdInt)
-
+		InstalledApp, err := impl.installedAppRepository.GetInstalledApp(installedAppIdInt)
+		if err != nil {
+			impl.logger.Errorw("service err, installedApp", "err", err)
+			return nil, err
+		}
 		app.Id = InstalledApp.AppId
 		app.AppName = InstalledApp.App.AppName
 		app.TeamId = InstalledApp.App.TeamId

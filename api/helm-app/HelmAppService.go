@@ -742,17 +742,14 @@ func (impl *HelmAppServiceImpl) appListRespProtoTransformer(deployedApps *Deploy
 				continue
 			}
 			// end
-
 			lastDeployed := deployedapp.LastDeployed.AsTime()
-
 			appDetails, appFetchErr := impl.appRepository.FindActiveByName(deployedapp.AppName)
-
 			projectId := int32(0)
-
 			if appFetchErr == nil {
 				projectId = int32(appDetails.TeamId)
+			} else {
+				impl.logger.Debugw("error in fetching Project Id from app repo", "err", appFetchErr)
 			}
-
 			helmApp := openapi.HelmApp{
 				AppName:        &deployedapp.AppName,
 				AppId:          &deployedapp.AppId,

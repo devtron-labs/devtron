@@ -137,20 +137,17 @@ func (handler AppRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, r *h
 	//appId, err := strconv.Atoi(vars["appId"])
 
 	token := r.Header.Get("token")
-
 	appIdReq := vars["appId"]
-
 	appIdSplit := strings.Split(appIdReq, "|")
 
+	handler.logger.Infow("request payload, GetHelmAppMetaInfo", appIdReq)
 	if len(appIdSplit) > 1 {
 
 		appIdDecoded, err := handler.helmAppService.DecodeAppId(appIdReq)
-
 		if err != nil {
 			common.WriteJsonResp(w, err, "request err, not able to decode app id", http.StatusForbidden)
 			return
 		}
-
 		object, object2 := handler.enforcerUtilHelm.GetHelmObject(appIdDecoded.ClusterId, appIdDecoded.Namespace, appIdDecoded.ReleaseName)
 
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
@@ -162,23 +159,18 @@ func (handler AppRestHandlerImpl) GetHelmAppMetaInfo(w http.ResponseWriter, r *h
 	} else {
 
 		appId, err := strconv.Atoi(appIdReq)
-
 		var ok bool
-
 		object, object2 := handler.enforcerUtilHelm.GetAppRBACNameByInstalledAppId(appId)
-
 		if object2 == "" {
 			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object)
 		} else {
 			ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionGet, object2)
 		}
-
 		if !ok {
 			common.WriteJsonResp(w, err, "Unauthorized User", http.StatusForbidden)
 			return
 		}
 	}
-
 	res, err := handler.appService.GetHelmAppMetaInfo(appIdReq)
 	if err != nil {
 		handler.logger.Errorw("service err, GetAppMetaInfo", "err", err)

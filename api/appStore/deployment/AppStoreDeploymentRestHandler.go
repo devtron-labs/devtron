@@ -513,89 +513,59 @@ func (handler AppStoreDeploymentRestHandlerImpl) GetInstalledAppVersion(w http.R
 }
 
 func (handler AppStoreDeploymentRestHandlerImpl) UpdateProjectHelmApp(w http.ResponseWriter, r *http.Request) {
-
 	userId, err := handler.userAuthService.GetLoggedInUser(r)
 	if userId == 0 || err != nil {
 		common.WriteJsonResp(w, err, "Unauthorized User", http.StatusUnauthorized)
 		return
 	}
-
 	token := r.Header.Get("token")
-
 	var request appStoreBean.UpdateProjectHelmAppDTO
-
 	decoder := json.NewDecoder(r.Body)
-
 	err = decoder.Decode(&request)
-
 	if err != nil {
+		handler.Logger.Errorw("request err, UpdateProjectHelmApp", "err", err, "payload", request)
 		common.WriteJsonResp(w, err, nil, http.StatusBadRequest)
 		return
 	}
-
 	request.UserId = userId
-
+	handler.Logger.Infow("request payload, UpdateProjectHelmApp", "UpdateProjectHelmAppDTO", request)
 	if request.InstalledAppId == 0 {
 		appIdentifier, err := handler.helmAppService.DecodeAppId(request.AppId)
 		if err != nil {
 			handler.Logger.Errorw("error in decoding app id", "err", err)
 			common.WriteJsonResp(w, err, "error in decoding app id", http.StatusBadRequest)
 		}
-
 		// this rbac object checks that whether user have permission to change current project.
-
 		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObject(appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
-
-		if !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-			return
-		}
-
 		// this rbac object check that whether user have permission for new project which he is updating.
 		rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, appIdentifier.ClusterId, appIdentifier.Namespace, appIdentifier.ReleaseName)
-
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
-
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 			return
 		}
 	} else {
-
 		installedApp, err := handler.appStoreDeploymentService.GetInstalledApp(request.InstalledAppId)
-
 		if err != nil {
-			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app version details"), nil, http.StatusBadRequest)
+			handler.Logger.Errorw("service err, InstalledAppId", "err", err, "InstalledAppId", request.InstalledAppId)
+			common.WriteJsonResp(w, fmt.Errorf("Unable to fetch installed app details"), nil, http.StatusBadRequest)
 		}
-
 		rbacObjectForCurrentProject, rbacObjectForCurrentProject2 := handler.enforcerUtilHelm.GetHelmObject(installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
-
 		ok := handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject) || handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForCurrentProject2)
-
-		if !ok {
-			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
-			return
-		}
-
 		rbacObjectForRequestedProject := handler.enforcerUtilHelm.GetHelmObjectByTeamIdAndClusterId(request.TeamId, installedApp.ClusterId, installedApp.Namespace, installedApp.AppName)
-
 		ok = handler.enforcer.Enforce(token, casbin.ResourceHelmApp, casbin.ActionUpdate, rbacObjectForRequestedProject)
-
 		if !ok {
 			common.WriteJsonResp(w, fmt.Errorf("unauthorized user"), nil, http.StatusForbidden)
 			return
 		}
-
 	}
-
 	err = handler.appStoreDeploymentService.UpdateProjectHelmApp(&request)
-
 	if err != nil {
+		handler.Logger.Errorw("error in updating project for helm apps", "err", err)
 		common.WriteJsonResp(w, err, "error in updating project", http.StatusBadRequest)
 	} else {
+		handler.Logger.Errorw("Helm App project update")
 		common.WriteJsonResp(w, nil, "Project Updated", http.StatusOK)
 	}
-
 }

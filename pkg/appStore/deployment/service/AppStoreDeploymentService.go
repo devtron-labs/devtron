@@ -1208,10 +1208,8 @@ func (impl AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest 
 
 	if len(appIdSplitted) > 1 {
 		// app id is zero for CLI apps
-
 		appIdentifier, _ := impl.helmAppService.DecodeAppId(updateAppRequest.AppId)
 		appName = appIdentifier.ReleaseName
-
 	}
 
 	app, err := impl.appRepository.FindActiveByName(appName)
@@ -1231,21 +1229,19 @@ func (impl AppStoreDeploymentServiceImpl) UpdateProjectHelmApp(updateAppRequest 
 
 	defer tx.Rollback()
 
+	impl.logger.Infow("update helm project request", updateAppRequest)
 	if app.Id == 0 {
 		// for cli Helm app, if app is not yet created
-
 		if util2.IsBaseStack() {
 			appInstallationMode = util2.SERVER_MODE_HYPERION
 		} else {
 			appInstallationMode = util2.SERVER_MODE_FULL
 		}
-
 		createAppRequest := bean.CreateAppDTO{
 			AppName: appName,
 			UserId:  updateAppRequest.UserId,
 			TeamId:  updateAppRequest.TeamId,
 		}
-
 		_, err := impl.createAppForAppStore(&createAppRequest, tx, appInstallationMode, false)
 		if err != nil {
 			impl.logger.Errorw("error while creating app", "error", err)
