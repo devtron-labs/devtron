@@ -1,4 +1,5 @@
 ## Bugs
+- fix: bitbucket gitops config fixes (#2768)
 - fix: updated sonarqube plugin script (#2855)
 - fix: updated the description in sonarqube migration (#2853)
 - fix: External Ci Trigger - Won't show images for manual Cd pipelines (#2802)
