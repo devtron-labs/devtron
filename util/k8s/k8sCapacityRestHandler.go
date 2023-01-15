@@ -263,7 +263,7 @@ func (handler *K8sCapacityRestHandlerImpl) DeleteNode(w http.ResponseWriter, r *
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	updatedManifest, err := handler.k8sCapacityService.DeleteNode(&nodeDelReq)
+	updatedManifest, err := handler.k8sCapacityService.DeleteNode(r.Context(), &nodeDelReq)
 	if err != nil {
 		handler.logger.Errorw("error in deleting node", "err", err, "deleteRequest", nodeDelReq)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -292,7 +292,7 @@ func (handler *K8sCapacityRestHandlerImpl) CordonOrUnCordonNode(w http.ResponseW
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	resp, err := handler.k8sCapacityService.CordonOrUnCordonNode(&nodeCordonReq)
+	resp, err := handler.k8sCapacityService.CordonOrUnCordonNode(r.Context(), &nodeCordonReq)
 	if err != nil {
 		handler.logger.Errorw("error in cordon/unCordon node", "err", err, "req", nodeCordonReq)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -321,7 +321,7 @@ func (handler *K8sCapacityRestHandlerImpl) DrainNode(w http.ResponseWriter, r *h
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	resp, err := handler.k8sCapacityService.DrainNode(&nodeDrainReq)
+	resp, err := handler.k8sCapacityService.DrainNode(r.Context(), &nodeDrainReq)
 	if err != nil {
 		handler.logger.Errorw("error in draining node", "err", err, "req", nodeDrainReq)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)
@@ -350,7 +350,7 @@ func (handler *K8sCapacityRestHandlerImpl) EditNodeTaints(w http.ResponseWriter,
 		common.WriteJsonResp(w, errors.New("unauthorized"), nil, http.StatusForbidden)
 		return
 	}
-	resp, err := handler.k8sCapacityService.EditNodeTaints(&nodeTaintReq)
+	resp, err := handler.k8sCapacityService.EditNodeTaints(r.Context(), &nodeTaintReq)
 	if err != nil {
 		handler.logger.Errorw("error in editing node taints", "err", err, "req", nodeTaintReq)
 		common.WriteJsonResp(w, err, nil, http.StatusInternalServerError)

@@ -22,10 +22,9 @@ import (
 	"encoding/json"
 	error2 "errors"
 	"flag"
-	"github.com/devtron-labs/devtron/client/k8s/application"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"fmt"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"net/http"
 	"os/user"
 	"path/filepath"
@@ -547,15 +546,15 @@ func (impl K8sUtil) GetPodByName(namespace string, name string, client *v12.Core
 	}
 }
 
-func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, kind string, validateResourceAccess func(namespace, resourceName string) bool) (*application.ClusterResourceListMap, error) {
-	clusterResourceListMap := &application.ClusterResourceListMap{}
+func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.UnstructuredList, namespaced bool, kind string, validateResourceAccess func(namespace, resourceName string) bool) (*ClusterResourceListMap, error) {
+	clusterResourceListMap := &ClusterResourceListMap{}
 	// build headers
 	var headers []string
 	columnIndexes := make(map[int]string)
 	if kind == "Event" {
 		headers, columnIndexes = impl.getEventKindHeader()
 	} else {
-		columnDefinitionsUncast := manifest.Object[application.K8sClusterResourceColumnDefinitionKey]
+		columnDefinitionsUncast := manifest.Object[K8sClusterResourceColumnDefinitionKey]
 		if columnDefinitionsUncast != nil {
 			columnDefinitions := columnDefinitionsUncast.([]interface{})
 			for index, cd := range columnDefinitions {
@@ -563,11 +562,11 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 					continue
 				}
 				columnMap := cd.(map[string]interface{})
-				columnNameUncast := columnMap[application.K8sClusterResourceNameKey]
+				columnNameUncast := columnMap[K8sClusterResourceNameKey]
 				if columnNameUncast == nil {
 					continue
 				}
-				priorityUncast := columnMap[application.K8sClusterResourcePriorityKey]
+				priorityUncast := columnMap[K8sClusterResourcePriorityKey]
 				if priorityUncast == nil {
 					continue
 				}
@@ -575,7 +574,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 				columnName = strings.ToLower(columnName)
 				priority := priorityUncast.(int64)
 				if namespaced && index == 1 {
-					headers = append(headers, application.K8sClusterResourceNamespaceKey)
+					headers = append(headers, K8sClusterResourceNamespaceKey)
 				}
 				if priority == 0 || (manifest.GetKind() == "Event" && columnName == "source") {
 					columnIndexes[index] = columnName
@@ -587,7 +586,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 
 	// build rows
 	rowsMapping := make([]map[string]interface{}, 0)
-	rowsDataUncast := manifest.Object[application.K8sClusterResourceRowsKey]
+	rowsDataUncast := manifest.Object[K8sClusterResourceRowsKey]
 	var resourceName string
 	var namespace string
 	var allowed bool
@@ -599,7 +598,7 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 			allowed = true
 			rowIndex := make(map[string]interface{})
 			rowMap := row.(map[string]interface{})
-			cellsUncast := rowMap[application.K8sClusterResourceCellKey]
+			cellsUncast := rowMap[K8sClusterResourceCellKey]
 			if cellsUncast == nil {
 				continue
 			}
@@ -617,19 +616,19 @@ func (impl K8sUtil) BuildK8sObjectListTableData(manifest *unstructured.Unstructu
 
 			// set namespace
 
-			cellObjUncast := rowMap[application.K8sClusterResourceObjectKey]
+			cellObjUncast := rowMap[K8sClusterResourceObjectKey]
 			if cellObjUncast != nil {
 				cellObj := cellObjUncast.(map[string]interface{})
-				if cellObj != nil && cellObj[application.K8sClusterResourceMetadataKey] != nil {
-					metadata := cellObj[application.K8sClusterResourceMetadataKey].(map[string]interface{})
-					if metadata[application.K8sClusterResourceNamespaceKey] != nil {
-						namespace = metadata[application.K8sClusterResourceNamespaceKey].(string)
+				if cellObj != nil && cellObj[K8sClusterResourceMetadataKey] != nil {
+					metadata := cellObj[K8sClusterResourceMetadataKey].(map[string]interface{})
+					if metadata[K8sClusterResourceNamespaceKey] != nil {
+						namespace = metadata[K8sClusterResourceNamespaceKey].(string)
 						if namespaced {
-							rowIndex[application.K8sClusterResourceNamespaceKey] = namespace
+							rowIndex[K8sClusterResourceNamespaceKey] = namespace
 						}
 					}
-					if metadata[application.K8sClusterResourceMetadataNameKey] != nil {
-						resourceName = metadata[application.K8sClusterResourceMetadataNameKey].(string)
+					if metadata[K8sClusterResourceMetadataNameKey] != nil {
+						resourceName = metadata[K8sClusterResourceMetadataNameKey].(string)
 					}
 				}
 			}

@@ -49,7 +49,7 @@ type K8sApplicationService interface {
 	FilterServiceAndIngress(ctx context.Context, resourceTreeInf map[string]interface{}, validRequests []ResourceRequestBean, appDetail bean.AppDetailContainer, appId string) []ResourceRequestBean
 	GetUrlsByBatch(ctx context.Context, resp []BatchResourceResponse) []interface{}
 	GetAllApiResources(ctx context.Context, clusterId int, isSuperAdmin bool, userId int32) (*application.GetAllApiResourcesResponse, error)
-	GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*application.ClusterResourceListMap, error)
+	GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util.ClusterResourceListMap, error)
 	ApplyResources(ctx context.Context, token string, request *application.ApplyResourcesRequest, resourceRbacHandler func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) ([]*application.ApplyResourcesResponse, error)
 }
 
@@ -595,8 +595,8 @@ func (impl *K8sApplicationServiceImpl) GetAllApiResources(ctx context.Context, c
 	return response, nil
 }
 
-func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*application.ClusterResourceListMap, error) {
-	resourceList := &application.ClusterResourceListMap{}
+func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, token string, request *ResourceRequestBean, validateResourceAccess func(token string, clusterName string, request ResourceRequestBean, casbinAction string) bool) (*util.ClusterResourceListMap, error) {
+	resourceList := &util.ClusterResourceListMap{}
 	clusterId := request.ClusterId
 	clusterBean, err := impl.clusterService.FindById(clusterId)
 	if err != nil {
