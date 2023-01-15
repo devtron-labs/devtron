@@ -609,7 +609,7 @@ func (impl *K8sApplicationServiceImpl) GetResourceList(ctx context.Context, toke
 		return resourceList, err
 	}
 	k8sRequest := request.K8sRequest
-	resp, namespaced, err := impl.k8sClientService.GetResourceList(restConfig, k8sRequest)
+	resp, namespaced, err := impl.k8sClientService.GetResourceList(ctx, restConfig, k8sRequest)
 	if err != nil {
 		impl.logger.Errorw("error in getting resource list", "err", err, "request", request)
 		return resourceList, err
@@ -719,7 +719,7 @@ func (impl *K8sApplicationServiceImpl) applyResourceFromManifest(ctx context.Con
 	} else {
 		// case of resource update
 		isUpdateResource = true
-		_, err = impl.k8sClientService.ApplyResource(restConfig, k8sRequestBean, jsonStr)
+		_, err = impl.k8sClientService.ApplyResource(ctx, restConfig, k8sRequestBean, jsonStr)
 		if err != nil {
 			impl.logger.Errorw("error in updating resource", "err", err)
 			return isUpdateResource, err

@@ -30,8 +30,8 @@ type K8sClientService interface {
 	ListEvents(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (*EventsResponse, error)
 	GetPodLogs(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (io.ReadCloser, error)
 	GetApiResources(restConfig *rest.Config, includeOnlyVerb string) ([]*K8sApiResource, error)
-	GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, bool, error)
-	ApplyResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error)
+	GetResourceList(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, bool, error)
+	ApplyResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error)
 }
 
 type K8sClientServiceImpl struct {
@@ -86,9 +86,9 @@ func (impl K8sClientServiceImpl) GetResource(ctx context.Context, restConfig *re
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
 	if len(resourceIdentifier.Namespace) > 0 && namespaced {
-		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Get(context.Background(), resourceIdentifier.Name, metav1.GetOptions{})
+		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Get(ctx, resourceIdentifier.Name, metav1.GetOptions{})
 	} else {
-		resp, err = resourceIf.Get(context.Background(), resourceIdentifier.Name, metav1.GetOptions{})
+		resp, err = resourceIf.Get(ctx, resourceIdentifier.Name, metav1.GetOptions{})
 	}
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
@@ -112,9 +112,9 @@ func (impl K8sClientServiceImpl) CreateResource(ctx context.Context, restConfig 
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
 	if len(resourceIdentifier.Namespace) > 0 && namespaced {
-		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Create(context.Background(), &unstructured.Unstructured{Object: createObj}, metav1.CreateOptions{})
+		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Create(ctx, &unstructured.Unstructured{Object: createObj}, metav1.CreateOptions{})
 	} else {
-		resp, err = resourceIf.Create(context.Background(), &unstructured.Unstructured{Object: createObj}, metav1.CreateOptions{})
+		resp, err = resourceIf.Create(ctx, &unstructured.Unstructured{Object: createObj}, metav1.CreateOptions{})
 	}
 	if err != nil {
 		impl.logger.Errorw("error in creating resource", "err", err)
@@ -138,9 +138,9 @@ func (impl K8sClientServiceImpl) UpdateResource(ctx context.Context, restConfig 
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
 	if len(resourceIdentifier.Namespace) > 0 && namespaced {
-		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Update(context.Background(), &unstructured.Unstructured{Object: updateObj}, metav1.UpdateOptions{})
+		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Update(ctx, &unstructured.Unstructured{Object: updateObj}, metav1.UpdateOptions{})
 	} else {
-		resp, err = resourceIf.Update(context.Background(), &unstructured.Unstructured{Object: updateObj}, metav1.UpdateOptions{})
+		resp, err = resourceIf.Update(ctx, &unstructured.Unstructured{Object: updateObj}, metav1.UpdateOptions{})
 	}
 	if err != nil {
 		impl.logger.Errorw("error in updating resource", "err", err, "resource", resourceIdentifier.Name)
@@ -157,19 +157,19 @@ func (impl K8sClientServiceImpl) DeleteResource(ctx context.Context, restConfig 
 	resourceIdentifier := request.ResourceIdentifier
 	var obj *unstructured.Unstructured
 	if len(resourceIdentifier.Namespace) > 0 && namespaced {
-		obj, err = resourceIf.Namespace(resourceIdentifier.Namespace).Get(context.Background(), request.ResourceIdentifier.Name, metav1.GetOptions{})
+		obj, err = resourceIf.Namespace(resourceIdentifier.Namespace).Get(ctx, request.ResourceIdentifier.Name, metav1.GetOptions{})
 		if err != nil {
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
 			return nil, err
 		}
-		err = resourceIf.Namespace(resourceIdentifier.Namespace).Delete(context.Background(), request.ResourceIdentifier.Name, metav1.DeleteOptions{})
+		err = resourceIf.Namespace(resourceIdentifier.Namespace).Delete(ctx, request.ResourceIdentifier.Name, metav1.DeleteOptions{})
 	} else {
-		obj, err = resourceIf.Get(context.Background(), request.ResourceIdentifier.Name, metav1.GetOptions{})
+		obj, err = resourceIf.Get(ctx, request.ResourceIdentifier.Name, metav1.GetOptions{})
 		if err != nil {
 			impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier.Name)
 			return nil, err
 		}
-		err = resourceIf.Delete(context.Background(), request.ResourceIdentifier.Name, metav1.DeleteOptions{})
+		err = resourceIf.Delete(ctx, request.ResourceIdentifier.Name, metav1.DeleteOptions{})
 	}
 	if err != nil {
 		impl.logger.Errorw("error in deleting resource", "err", err, "resource", resourceIdentifier.Name)
@@ -209,7 +209,7 @@ func (impl K8sClientServiceImpl) ListEvents(ctx context.Context, restConfig *res
 		},
 		FieldSelector: fieldSelector.String(),
 	}
-	list, err := eventsIf.List(context.Background(), listOptions)
+	list, err := eventsIf.List(ctx, listOptions)
 	if err != nil {
 		impl.logger.Errorw("error in getting events list", "err", err)
 		return nil, err
@@ -241,7 +241,7 @@ func (impl K8sClientServiceImpl) GetPodLogs(ctx context.Context, restConfig *res
 	}
 	podIf := podClient.Pods(resourceIdentifier.Namespace)
 	logsRequest := podIf.GetLogs(resourceIdentifier.Name, podLogOptions)
-	stream, err := logsRequest.Stream(context.Background())
+	stream, err := logsRequest.Stream(ctx)
 	if err != nil {
 		impl.logger.Errorw("error in streaming pod logs", "err", err)
 		return nil, err
@@ -276,7 +276,11 @@ func (impl K8sClientServiceImpl) GetResourceIf(restConfig *rest.Config, request 
 
 func (impl K8sClientServiceImpl) GetResourceIfWithAcceptHeader(restConfig *rest.Config, request *K8sRequestBean) (resourceIf dynamic.NamespaceableResourceInterface, namespaced bool, err error) {
 	resourceIdentifier := request.ResourceIdentifier
-	discoveryClient, err := discovery.NewDiscoveryClientForConfig(restConfig)
+	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	if err != nil {
+		return nil, false, err
+	}
+	discoveryClient, err := discovery.NewDiscoveryClientForConfigAndClient(restConfig, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting k8s client", "err", err)
 		return nil, false, err
@@ -296,7 +300,7 @@ func (impl K8sClientServiceImpl) GetResourceIfWithAcceptHeader(restConfig *rest.
 			rt: rt,
 		}
 	}
-	dynamicIf, err := dynamic.NewForConfig(restConfig)
+	dynamicIf, err := dynamic.NewForConfigAndClient(restConfig, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
 		return nil, false, err
@@ -375,7 +379,7 @@ func (impl K8sClientServiceImpl) GetApiResources(restConfig *rest.Config, includ
 	return apiResources, nil
 }
 
-func (impl K8sClientServiceImpl) GetResourceList(restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, bool, error) {
+func (impl K8sClientServiceImpl) GetResourceList(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean) (*ResourceListResponse, bool, error) {
 	resourceIf, namespaced, err := impl.GetResourceIfWithAcceptHeader(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
@@ -390,9 +394,9 @@ func (impl K8sClientServiceImpl) GetResourceList(restConfig *rest.Config, reques
 		},
 	}
 	if len(resourceIdentifier.Namespace) > 0 && namespaced {
-		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).List(context.Background(), listOptions)
+		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).List(ctx, listOptions)
 	} else {
-		resp, err = resourceIf.List(context.Background(), listOptions)
+		resp, err = resourceIf.List(ctx, listOptions)
 	}
 	if err != nil {
 		impl.logger.Errorw("error in getting resource", "err", err, "resource", resourceIdentifier)
@@ -401,7 +405,7 @@ func (impl K8sClientServiceImpl) GetResourceList(restConfig *rest.Config, reques
 	return &ResourceListResponse{*resp}, namespaced, nil
 }
 
-func (impl K8sClientServiceImpl) ApplyResource(restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
+func (impl K8sClientServiceImpl) ApplyResource(ctx context.Context, restConfig *rest.Config, request *K8sRequestBean, manifest string) (*ManifestResponse, error) {
 	resourceIf, namespaced, err := impl.GetResourceIf(restConfig, request)
 	if err != nil {
 		impl.logger.Errorw("error in getting dynamic interface for resource", "err", err)
@@ -410,9 +414,9 @@ func (impl K8sClientServiceImpl) ApplyResource(restConfig *rest.Config, request 
 	resourceIdentifier := request.ResourceIdentifier
 	var resp *unstructured.Unstructured
 	if len(resourceIdentifier.Namespace) > 0 && namespaced {
-		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Patch(context.Background(), resourceIdentifier.Name, types.StrategicMergePatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
+		resp, err = resourceIf.Namespace(resourceIdentifier.Namespace).Patch(ctx, resourceIdentifier.Name, types.StrategicMergePatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
 	} else {
-		resp, err = resourceIf.Patch(context.Background(), resourceIdentifier.Name, types.StrategicMergePatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
+		resp, err = resourceIf.Patch(ctx, resourceIdentifier.Name, types.StrategicMergePatchType, []byte(manifest), metav1.PatchOptions{FieldManager: "patch"})
 	}
 	if err != nil {
 		impl.logger.Errorw("error in applying resource", "err", err)

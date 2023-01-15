@@ -578,13 +578,17 @@ func (impl *K8sCapacityServiceImpl) CordonOrUnCordonNode(ctx context.Context, re
 		return respMessage, err
 	}
 	//getting kubernetes clientSet by rest config
-	k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	if err != nil {
+		return respMessage, err
+	}
+	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return respMessage, err
 	}
 	//get node
-	node, err := k8sClientSet.CoreV1().Nodes().Get(context.Background(), request.Name, v1.GetOptions{})
+	node, err := k8sClientSet.CoreV1().Nodes().Get(ctx, request.Name, v1.GetOptions{})
 	if err != nil {
 		impl.logger.Errorw("error in getting node", "err", err)
 		return respMessage, err
@@ -617,7 +621,11 @@ func (impl *K8sCapacityServiceImpl) DrainNode(ctx context.Context, request *Node
 		return respMessage, err
 	}
 	//getting kubernetes clientSet by rest config
-	k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	if err != nil {
+		return respMessage, err
+	}
+	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return respMessage, err
@@ -655,7 +663,11 @@ func (impl *K8sCapacityServiceImpl) EditNodeTaints(ctx context.Context, request 
 		return respMessage, err
 	}
 	//getting kubernetes clientSet by rest config
-	k8sClientSet, err := kubernetes.NewForConfig(restConfig)
+	httpClient, err := util.OverrideK8sHttpClient(restConfig)
+	if err != nil {
+		return respMessage, err
+	}
+	k8sClientSet, err := kubernetes.NewForConfigAndClient(restConfig, httpClient)
 	if err != nil {
 		impl.logger.Errorw("error in getting client set by rest config", "err", err, "restConfig", restConfig)
 		return respMessage, err
