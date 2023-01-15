@@ -701,7 +701,9 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 	appName := DryrunRepoName + util2.Generate(6)
 	//getting user name & emailId for commit author data
 	userEmailId, userName := impl.chartTemplateService.GetUserEmailIdAndNameForGitOpsCommit(config.UserId)
-	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(appName, "sample dry-run repo", userName, userEmailId)
+	config.UserEmailId = userEmailId
+	config.GitRepoName = appName
+	repoUrl, _, detailedErrorCreateRepo := client.CreateRepository(config)
 
 	detailedErrorGitOpsConfigActions.StageErrorMap = detailedErrorCreateRepo.StageErrorMap
 	detailedErrorGitOpsConfigActions.SuccessfulStages = detailedErrorCreateRepo.SuccessfulStages
@@ -746,7 +748,7 @@ func (impl *GitOpsConfigServiceImpl) GitOpsValidateDryRun(config *bean2.GitOpsCo
 		detailedErrorGitOpsConfigActions.SuccessfulStages = append(detailedErrorGitOpsConfigActions.SuccessfulStages, CommitOnRestStage, PushStage)
 	}
 
-	err = client.DeleteRepository(appName)
+	err = client.DeleteRepository(config)
 	if err != nil {
 		impl.logger.Errorw("error in deleting repo", "err", err)
 		//here below the assignment of delete is removed for making this stage optional, and it's failure not preventing it from saving/updating gitOps config
