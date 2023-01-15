@@ -31,6 +31,8 @@ import (
 	app2 "github.com/devtron-labs/devtron/internal/sql/repository/app"
 	"github.com/devtron-labs/devtron/internal/sql/repository/pipelineConfig"
 	"github.com/devtron-labs/devtron/internal/util"
+	repository3 "github.com/devtron-labs/devtron/pkg/appStore/deployment/repository"
+	"github.com/devtron-labs/devtron/pkg/appStore/deployment/service"
 	appStoreDeploymentTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool"
 	appStoreDeploymentGitopsTool "github.com/devtron-labs/devtron/pkg/appStore/deployment/tool/gitops"
 	"github.com/devtron-labs/devtron/pkg/attributes"
@@ -151,6 +153,19 @@ func InitializeApp() (*App, error) {
 
 		kubernetesResourceAuditLogs.Newk8sResourceHistoryServiceImpl,
 		wire.Bind(new(kubernetesResourceAuditLogs.K8sResourceHistoryService), new(*kubernetesResourceAuditLogs.K8sResourceHistoryServiceImpl)),
+
+		repository3.NewChartGroupReposotoryImpl,
+		wire.Bind(new(repository3.ChartGroupReposotory), new(*repository3.ChartGroupReposotoryImpl)),
+		repository3.NewChartGroupEntriesRepositoryImpl,
+		wire.Bind(new(repository3.ChartGroupEntriesRepository), new(*repository3.ChartGroupEntriesRepositoryImpl)),
+		service.NewChartGroupServiceImpl,
+		wire.Bind(new(service.ChartGroupService), new(*service.ChartGroupServiceImpl)),
+		restHandler.NewChartGroupRestHandlerImpl,
+		wire.Bind(new(restHandler.ChartGroupRestHandler), new(*restHandler.ChartGroupRestHandlerImpl)),
+		router.NewChartGroupRouterImpl,
+		wire.Bind(new(router.ChartGroupRouter), new(*router.ChartGroupRouterImpl)),
+		repository3.NewChartGroupDeploymentRepositoryImpl,
+		wire.Bind(new(repository3.ChartGroupDeploymentRepository), new(*repository3.ChartGroupDeploymentRepositoryImpl)),
 	)
 	return &App{}, nil
 }

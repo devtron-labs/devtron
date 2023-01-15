@@ -56,6 +56,7 @@ type MuxRouter struct {
 	telemetryRouter          router.TelemetryRouter
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter
 	attributesRouter         router.AttributesRouter
+	chartGroupRouter         router.ChartGroupRouter
 }
 
 func NewMuxRouter(
@@ -84,6 +85,7 @@ func NewMuxRouter(
 	telemetryRouter router.TelemetryRouter,
 	userTerminalAccessRouter terminal.UserTerminalAccessRouter,
 	attributesRouter router.AttributesRouter,
+	chartGroupRouter router.ChartGroupRouter,
 ) *MuxRouter {
 	r := &MuxRouter{
 		Router:                   mux.NewRouter(),
@@ -113,6 +115,7 @@ func NewMuxRouter(
 		telemetryRouter:          telemetryRouter,
 		userTerminalAccessRouter: userTerminalAccessRouter,
 		attributesRouter:         attributesRouter,
+		chartGroupRouter:         chartGroupRouter,
 	}
 	return r
 }
@@ -232,4 +235,7 @@ func (r *MuxRouter) Init() {
 
 	attributeRouter := r.Router.PathPrefix("/orchestrator/attributes").Subrouter()
 	r.attributesRouter.InitAttributesRouter(attributeRouter)
+
+	chartGroupRouter := r.Router.PathPrefix("/orchestrator/chart-group").Subrouter()
+	r.chartGroupRouter.InitChartGroupRouter(chartGroupRouter)
 }
